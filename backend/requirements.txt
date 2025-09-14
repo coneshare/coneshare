@@ -2,4 +2,4 @@ asgiref==3.9.1
 Django==5.2.6
 sqlparse==0.5.3
 djangorestframework==3.16.1
-django-ulid-field==1.2.1
+django-ulidfield
