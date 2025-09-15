@@ -95,5 +95,5 @@ class CoreModelTests(TestCase):
         self.assertEqual(self.organization.user_groups.first(), group)
 
         # Test user's membership in group
-        self.assertIn(group, user.groups.all())
+        self.assertEqual(group.id, user.groups.all()[0].id)
         self.assertIn(user, group.user_set.all())

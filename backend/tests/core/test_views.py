@@ -17,7 +17,7 @@ class CoreAPITests(APITestCase):
         """
         Set up common objects and authenticate a user for the tests.
         """
-        self.organization = Organization.objects.create(name="Test Corp")
+        self.organization = Organization.objects.first()
         self.user = User.objects.create_user(
             username="testuser@example.com",
             email="testuser@example.com",
