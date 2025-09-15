@@ -3,17 +3,27 @@ from django.db import models
 
 from core.fields import ULIDField
 
-class Organization(models.Model):
+class BaseModel(models.Model):
+    """
+    An abstract base class model that provides a ULID primary key,
+    and self-updating ``created_at`` and ``updated_at`` fields.
+    """
+    id = ULIDField(primary_key=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+
+class Organization(BaseModel):
     """
     The top-level tenant in the system. It is the ultimate owner of all
     resources.
     """
-    id = ULIDField(primary_key=True, editable=False)
     name = models.CharField(max_length=255)
     plan = models.CharField(max_length=50, default='self-hosted')
     stripe_customer_id = models.CharField(max_length=255, null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
@@ -28,6 +38,7 @@ class User(AbstractUser):
     avatar_url = models.URLField(max_length=512, null=True, blank=True)
     role = models.CharField(max_length=20, default='member')
     name = models.CharField(max_length=255, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     # Use a single `name` field instead of first/last name.
     first_name = None
