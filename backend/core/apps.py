@@ -1,5 +1,5 @@
 from django.apps import AppConfig
-from django.db.utils import ProgrammingError
+from django.db.utils import OperationalError, ProgrammingError
 
 
 class CoreConfig(AppConfig):
@@ -16,7 +16,7 @@ class CoreConfig(AppConfig):
             if not Organization.objects.exists():
                 print("Default organization not found, creating one...")
                 Organization.objects.create(name="Default Organization")
-        except ProgrammingError:
+        except (ProgrammingError, OperationalError):
             # This error is expected if the database table doesn't exist yet,
             # for example, when running `manage.py migrate` for the first time.
             # We can safely ignore it, as the table will be created by the
