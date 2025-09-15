@@ -15,6 +15,8 @@ help:
 	@echo "  logs            - Follow logs for all services"
 	@echo "  back.sh         - Attach a shell to the backend container"
 	@echo "  front.sh        - Attach a shell to the frontend container"
+	@echo "  clean           - Remove migrations, .pyc files, and database"
+	@echo "  test            - Run pytest in the backend container"
 
 
 # ====================================================================================
@@ -44,3 +46,21 @@ back.sh:
 .PHONY: front.sh
 front.sh:
 	COMPOSE_PROJECT_NAME=beatsight docker-compose exec frontend sh
+
+
+# ====================================================================================
+# DEVELOPMENT COMMANDS
+# ====================================================================================
+
+.PHONY: clean
+clean:
+	@echo "Cleaning Python cache, migrations, and database..."
+	find . -type f -name "*.py[co]" -delete
+	find . -type d -name "__pycache__" -exec rm -rf {} +
+	find ./backend -path "*/migrations/*.py" -not -name "__init__.py" -delete
+	rm -f backend/db.sqlite3
+
+.PHONY: test
+test:
+	@echo "Running tests..."
+	COMPOSE_PROJECT_NAME=beatsight docker-compose exec backend pytest
