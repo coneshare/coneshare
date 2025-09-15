@@ -38,27 +38,6 @@ class CoreAPITests(APITestCase):
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['name'], self.organization.name)
 
-    def test_create_organization(self):
-        """
-        Ensure we can create a new organization.
-        """
-        url = reverse('organization-list')
-        data = {'name': 'New Org'}
-        response = self.client.post(url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(Organization.objects.count(), 2)
-        self.assertEqual(Organization.objects.get(id=response.data['id']).name, 'New Org')
-
-    def test_update_organization(self):
-        """
-        Ensure we can update an existing organization's name.
-        """
-        url = reverse('organization-detail', kwargs={'pk': self.organization.pk})
-        data = {'name': 'Updated Corp Name'}
-        response = self.client.patch(url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.organization.refresh_from_db()
-        self.assertEqual(self.organization.name, 'Updated Corp Name')
 
     def test_list_users(self):
         """
@@ -77,9 +56,7 @@ class CoreAPITests(APITestCase):
         url = reverse('user-list')
         data = {
             'email': 'newuser@example.com',
-            'username': 'newuser@example.com',
-            'password': 'password456',
-            'organization': self.organization.pk
+            'password': 'password456'
         }
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)

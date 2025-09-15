@@ -8,7 +8,7 @@ from core.serializers import (OrganizationSerializer, UserGroupSerializer,
 User = get_user_model()
 
 
-class OrganizationViewSet(viewsets.ModelViewSet):
+class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):
     """
     API endpoint that allows organizations to be viewed or edited.
     """

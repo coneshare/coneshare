@@ -32,14 +32,18 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'email', 'name', 'role', 'organization', 'password',
             'avatar_url', 'date_joined', 'updated_at'
         ]
-        read_only_fields = ['id', 'date_joined', 'updated_at']
+        read_only_fields = ['id', 'organization', 'date_joined', 'updated_at']
         extra_kwargs = {'password': {'write_only': True, 'min_length': 8}}
 
     def create(self, validated_data):
         """
         Create and return a new user with an encrypted password.
         """
-        validated_data['username'] = validated_data['email']
+        organization = Organization.objects.first()
+        if not organization:
+            raise serializers.ValidationError("Server is not configured with a default organization.")
+        validated_data['organization'] = organization
+        validated_data['username'] = validated_data.get('email')
         return User.objects.create_user(**validated_data)
 
     def update(self, instance, validated_data):
