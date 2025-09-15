@@ -1,5 +1,14 @@
 from django.apps import AppConfig
-from django.db.utils import OperationalError, ProgrammingError
+
+
+def create_default_organization(sender, **kwargs):
+    """
+    Creates a default Organization after migrations have been run for the 'core' app.
+    """
+    Organization = sender.get_model('Organization')
+    if not Organization.objects.exists():
+        print("Default organization not found, creating one...")
+        Organization.objects.create(name="Default Organization")
 
 
 class CoreConfig(AppConfig):
@@ -8,17 +17,7 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         """
-        Ensures a default organization exists on application startup.
+        Connects the post_migrate signal to create the default organization.
         """
-        try:
-            # Model imports must be inside ready() to avoid AppRegistryNotReady errors.
-            Organization = self.get_model('Organization')
-            if not Organization.objects.exists():
-                print("Default organization not found, creating one...")
-                Organization.objects.create(name="Default Organization")
-        except (ProgrammingError, OperationalError):
-            # This error is expected if the database table doesn't exist yet,
-            # for example, when running `manage.py migrate` for the first time.
-            # We can safely ignore it, as the table will be created by the
-            # migration, and this code will succeed on the next startup.
-            pass
+        from django.db.models.signals import post_migrate
+        post_migrate.connect(create_default_organization, sender=self)
