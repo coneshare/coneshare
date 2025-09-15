@@ -3,3 +3,5 @@ Django==5.2.6
 sqlparse==0.5.3
 djangorestframework==3.16.1
 python-ulid==3.0.0
+pytest==8.2.2
+pytest-django==4.8.0
