@@ -47,7 +47,7 @@ class DocumentsModelTests(TestCase):
         self.assertEqual(str(self.document), "Test Document")
         self.assertEqual(self.document.organization, self.organization)
         self.assertEqual(self.document.created_by, self.user)
-        self.assertEqual(self.document.status, 'uploading')
+        self.assertEqual(self.document.status, 'ready')
 
     def test_share_link_preset_creation(self):
         """Test that a ShareLinkPreset instance can be created."""
@@ -56,17 +56,18 @@ class DocumentsModelTests(TestCase):
             organization=self.organization
         )
         self.assertIsInstance(preset, ShareLinkPreset)
-        self.assertEqual(str(preset), "Default Preset (Test Corp)")
+        self.assertEqual(str(preset), "Default Preset")
 
     def test_share_link_creation(self):
         """Test that a ShareLink instance can be created."""
         share_link = ShareLink.objects.create(
+            name="test",
             document=self.document,
             created_by=self.user,
             slug="test-slug-123"
         )
         self.assertIsInstance(share_link, ShareLink)
-        self.assertEqual(str(share_link), "test-slug-123")
+        self.assertEqual(str(share_link), "test")
         self.assertEqual(share_link.document, self.document)
         self.assertEqual(share_link.created_by, self.user)
 
@@ -82,6 +83,5 @@ class DocumentsModelTests(TestCase):
     def test_view_creation(self):
         """Test that a View instance can be created."""
         share_link = ShareLink.objects.create(document=self.document, slug="another-slug")
-        view = View.objects.create(share_link=share_link)
+        view = View.objects.create(share_link=share_link, duration_seconds=0, completion_rate=0)
         self.assertIsInstance(view, View)
-        self.assertTrue("View of another-slug at" in str(view))

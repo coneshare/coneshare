@@ -15,7 +15,7 @@ class DocumentsAPITests(APITestCase):
 
     def setUp(self):
         """Set up the necessary objects for the tests."""
-        self.organization = Organization.objects.create(name="API Test Corp")
+        self.organization = Organization.objects.first()
         self.user = User.objects.create_user(
             username='apiuser@example.com',
             email='apiuser@example.com',
