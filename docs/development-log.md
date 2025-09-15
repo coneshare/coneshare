@@ -36,3 +36,39 @@ This document tracks the key architectural decisions and implementation steps ma
   - `make test`: Executes the `pytest` test suite within the backend Docker container.
 
 ---
+
+## Session 2: Document Management Implementation (2025-09-15)
+
+### 1. Document App Architecture
+- **Core Models**: Implemented `Document`, `Folder`, `ShareLink`, `Viewer`, and `View` models with ULID primary keys and organization-scoped relationships.
+- **API Endpoints**: Created DRF ModelViewSets for all document-related models with:
+  - Automatic organization assignment from authenticated user
+  - Read-only timestamp fields
+  - Nested URL structure under `/api/v1/`
+- **Security**: All endpoints enforce authentication and organization scope checks
+
+### 2. File Upload System
+- **Storage Abstraction**: Implemented dual storage backend support (Filesystem/MinIO) configurable via environment variables
+- **Upload Endpoint**: Created dedicated `/api/v1/uploads/document/` endpoint with:
+  - Multi-part file upload handling
+  - Automatic folder structure creation from path parameter
+  - ULID-based unique file naming
+  - Storage error handling
+- **Async Processing**: Basic file status tracking implemented with 'ready' state
+
+### 3. Testing Infrastructure
+- **Model Tests**: Added comprehensive tests for document models and relationships
+- **API Tests**: Implemented test cases for:
+  - CRUD operations on documents/folders
+  - File upload validation
+  - Path-based folder creation
+  - Organization-scoped data isolation
+- **Test Data**: Created factory methods for organization, user, and document fixtures
+
+### 4. Security & Configuration
+- **Storage Security**: Configured S3-compatible storage with environment variables
+- **Content Type Handling**: Added MIME type validation and storage
+- **Path Sanitization**: Implemented safe folder path processing with Pathlib
+- **Error Handling**: Added structured error responses for upload failures
+
+---
