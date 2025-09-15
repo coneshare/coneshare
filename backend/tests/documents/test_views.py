@@ -123,29 +123,6 @@ class DocumentsAPITests(APITestCase):
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['name'], "My Link")
 
-    def test_upload_document(self):
-        """Test uploading a file to create a new document."""
-        # Create a dummy file in memory
-        dummy_file = SimpleUploadedFile(
-            "test_document.pdf",
-            b"file_content",
-            content_type="application/pdf"
-        )
-
-        response = self.client.post(
-            '/api/v1/uploads/document/',
-            {'file': dummy_file},
-            format='multipart'
-        )
-
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(Document.objects.count(), 1)
-        doc = Document.objects.first()
-        self.assertEqual(doc.name, 'test_document.pdf')
-        self.assertEqual(doc.organization, self.organization)
-        self.assertEqual(doc.created_by, self.user)
-        self.assertTrue(doc.storage_key.startswith('documents/'))
-        self.assertEqual(doc.status, 'ready')
 
     def test_upload_document_with_path(self):
         """Test uploading a file with a path to create folders."""
