@@ -5,7 +5,7 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from ulid import new as ulid_new
+from ulid import ULID
 
 from .models import Document, Folder, ShareLink, ShareLinkPreset, View, Viewer
 from .serializers import (
@@ -35,7 +35,7 @@ class DocumentUploadView(APIView):
         # Generate a unique path for the file to prevent collisions
         organization_id = request.user.organization.id
         file_extension = os.path.splitext(file_obj.name)[1]
-        file_id = ulid_new()
+        file_id = str(ULID())
         file_path = f"documents/{organization_id}/{file_id}{file_extension}"
 
         # Save the file to the configured storage backend (fs or minio)
