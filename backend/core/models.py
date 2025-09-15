@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser, Group
 from django.db import models
-from django_ulidfield import ULIDField
+
+from core.fields import ULIDField
 
 class Organization(models.Model):
     """
