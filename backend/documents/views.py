@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from django.core.files.storage import default_storage
 from rest_framework import permissions, status, viewsets
@@ -18,6 +19,23 @@ from .serializers import (
 )
 
 
+def _get_or_create_folders_from_path(organization, folder_path: str) -> Folder:
+    """
+    Recursively finds or creates folders based on a path string.
+    Returns the final (deepest) Folder instance.
+    """
+    parent = None
+    path = Path(folder_path)
+    for part in path.parts:
+        folder, _ = Folder.objects.get_or_create(
+            organization=organization,
+            name=part,
+            parent=parent
+        )
+        parent = folder
+    return parent
+
+
 class DocumentUploadView(APIView):
     """
     A dedicated view for handling file uploads and creating Document records.
@@ -31,6 +49,20 @@ class DocumentUploadView(APIView):
                 {"detail": "No file provided."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Handle folder structure from path
+        relative_path = request.POST.get('path')
+        parent_folder = None
+        file_name = file_obj.name
+
+        if relative_path:
+            folder_path, file_name_from_path = os.path.split(relative_path)
+            if folder_path:
+                parent_folder = _get_or_create_folders_from_path(
+                    request.user.organization, folder_path
+                )
+            if file_name_from_path:
+                file_name = file_name_from_path
 
         # Generate a unique path for the file to prevent collisions
         organization_id = request.user.organization.id
@@ -52,7 +84,8 @@ class DocumentUploadView(APIView):
         document = Document.objects.create(
             organization=request.user.organization,
             created_by=request.user,
-            name=file_obj.name,
+            name=file_name,
+            folder=parent_folder,
             storage_key=storage_key,
             original_storage_key=storage_key,  # Same for initial upload
             content_type=file_obj.content_type,

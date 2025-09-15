@@ -99,3 +99,30 @@ class DocumentsAPITests(APITestCase):
         self.assertEqual(doc.created_by, self.user)
         self.assertTrue(doc.storage_key.startswith('documents/'))
         self.assertEqual(doc.status, 'ready')
+
+    def test_upload_document_with_path(self):
+        """Test uploading a file with a path to create folders."""
+        dummy_file = SimpleUploadedFile(
+            "report.docx", b"content", "application/msword"
+        )
+
+        response = self.client.post(
+            '/api/v1/uploads/document/',
+            {
+                'file': dummy_file,
+                'path': 'Client Reports/Q4/Final/report.docx'
+            },
+            format='multipart'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Document.objects.count(), 1)
+        self.assertEqual(Folder.objects.count(), 3)
+
+        doc = Document.objects.first()
+        self.assertEqual(doc.name, 'report.docx')
+        self.assertIsNotNone(doc.folder)
+        self.assertEqual(doc.folder.name, 'Final')
+        self.assertEqual(doc.folder.parent.name, 'Q4')
+        self.assertEqual(doc.folder.parent.parent.name, 'Client Reports')
+        self.assertIsNone(doc.folder.parent.parent.parent)
