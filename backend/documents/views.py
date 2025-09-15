@@ -112,7 +112,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Document.objects.filter(organization=self.request.user.organization)
+        return Document.objects.filter(created_by=self.request.user)
 
 
 class ShareLinkPresetViewSet(viewsets.ModelViewSet):
@@ -130,7 +130,7 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return ShareLink.objects.filter(document__organization=self.request.user.organization)
+        return ShareLink.objects.filter(created_by=self.request.user)
 
 
 class ViewerViewSet(viewsets.ModelViewSet):
