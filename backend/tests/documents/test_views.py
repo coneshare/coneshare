@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -74,3 +75,27 @@ class DocumentsAPITests(APITestCase):
         self.assertEqual(doc.name, 'New API Doc')
         self.assertEqual(doc.organization, self.organization)
         self.assertEqual(doc.created_by, self.user)
+
+    def test_upload_document(self):
+        """Test uploading a file to create a new document."""
+        # Create a dummy file in memory
+        dummy_file = SimpleUploadedFile(
+            "test_document.pdf",
+            b"file_content",
+            content_type="application/pdf"
+        )
+
+        response = self.client.post(
+            '/api/v1/uploads/document/',
+            {'file': dummy_file},
+            format='multipart'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Document.objects.count(), 1)
+        doc = Document.objects.first()
+        self.assertEqual(doc.name, 'test_document.pdf')
+        self.assertEqual(doc.organization, self.organization)
+        self.assertEqual(doc.created_by, self.user)
+        self.assertTrue(doc.storage_key.startswith('documents/'))
+        self.assertEqual(doc.status, 'ready')

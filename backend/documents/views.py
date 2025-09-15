@@ -1,4 +1,11 @@
-from rest_framework import permissions, viewsets
+import os
+
+from django.core.files.storage import default_storage
+from rest_framework import permissions, status, viewsets
+from rest_framework.parsers import MultiPartParser
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from ulid import new as ulid_new
 
 from .models import Document, Folder, ShareLink, ShareLinkPreset, View, Viewer
 from .serializers import (
@@ -9,6 +16,52 @@ from .serializers import (
     ViewerSerializer,
     ViewSerializer,
 )
+
+
+class DocumentUploadView(APIView):
+    """
+    A dedicated view for handling file uploads and creating Document records.
+    """
+    parser_classes = (MultiPartParser,)
+
+    def post(self, request, *args, **kwargs):
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response(
+                {"detail": "No file provided."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Generate a unique path for the file to prevent collisions
+        organization_id = request.user.organization.id
+        file_extension = os.path.splitext(file_obj.name)[1]
+        file_id = ulid_new()
+        file_path = f"documents/{organization_id}/{file_id}{file_extension}"
+
+        # Save the file to the configured storage backend (fs or minio)
+        try:
+            storage_key = default_storage.save(file_path, file_obj)
+        except Exception as e:
+            # Log the exception e in a real-world scenario
+            return Response(
+                {"detail": f"Failed to save file to storage: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # Create the Document database record
+        document = Document.objects.create(
+            organization=request.user.organization,
+            created_by=request.user,
+            name=file_obj.name,
+            storage_key=storage_key,
+            original_storage_key=storage_key,  # Same for initial upload
+            content_type=file_obj.content_type,
+            status='ready',  # Simplified: set to ready after upload
+            type=file_extension.lstrip('.').lower()
+        )
+
+        serializer = DocumentSerializer(document)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class FolderViewSet(viewsets.ModelViewSet):
