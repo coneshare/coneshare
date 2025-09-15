@@ -13,8 +13,8 @@ help:
 	@echo "  down            - Stop and remove all services"
 	@echo "  build           - Build or rebuild services"
 	@echo "  logs            - Follow logs for all services"
-	@echo "  attach-backend  - Attach a shell to the backend container"
-	@echo "  attach-frontend - Attach a shell to the frontend container"
+	@echo "  back.sh         - Attach a shell to the backend container"
+	@echo "  front.sh        - Attach a shell to the frontend container"
 
 
 # ====================================================================================
@@ -23,7 +23,7 @@ help:
 
 .PHONY: up
 up:
-	docker-compose up -d
+	COMPOSE_PROJECT_NAME=beatsight docker-compose up
 
 .PHONY: down
 down:
@@ -37,10 +37,10 @@ build:
 logs:
 	docker-compose logs -f
 
-.PHONY: attach-backend
-attach-backend:
-	docker-compose exec backend bash
+.PHONY: back.sh
+back.sh:
+	COMPOSE_PROJECT_NAME=beatsight docker-compose exec backend bash
 
-.PHONY: attach-frontend
-attach-frontend:
-	docker-compose exec frontend sh
+.PHONY: front.sh
+front.sh:
+	COMPOSE_PROJECT_NAME=beatsight docker-compose exec frontend sh
