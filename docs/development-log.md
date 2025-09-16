@@ -99,18 +99,18 @@ This document tracks the key architectural decisions and implementation steps ma
 - **Status Field Update**: Updated the `Document` model's `status` field to support the full processing lifecycle (`uploading`, `processing`, `ready`, `error`).
 
 ### 2. Asynchronous Task Queue Integration
-- **Celery & Redis Setup**: Integrated Celery with a Redis broker and added `redis` and `celery_worker` services to `docker-compose.yml`. ([`09a2e00`](https://github.com/coneshare/coneshare/commit/09a2e00) | +43, -2)
-- **Configuration**: Configured the Django project to ensure the Celery application is loaded on startup, enabling task discovery. ([`47e4a14`](https://github.com/coneshare/coneshare/commit/47e4a14) | +5, -0)
+- **Celery & Redis Setup**: Integrated Celery with a Redis broker and added `redis` and `celery_worker` services to `docker-compose.yml`. ([`09a2e00`](https://github.com/coneshare/coneshare/commit/09a2e00))
+- **Configuration**: Configured the Django project to ensure the Celery application is loaded on startup, enabling task discovery. ([`47e4a14`](https://github.com/coneshare/coneshare/commit/47e4a14))
 
 ### 3. PDF Processing Pipeline
-- **Service Layer & Celery Task**: Introduced a service layer and an async task to handle PDF-to-image conversion, and added necessary system dependencies. ([`074c976`](https://github.com/coneshare/coneshare/commit/074c976) | +103, -0)
-- **API Refactoring**: The `DocumentUploadView` was refactored to use the new service, returning a `202 ACCEPTED` status to reflect the async operation. ([`3784226`](https://github.com/coneshare/coneshare/commit/3784226) | +16, -16)
-- **Bug Fix**: Reordered serializer classes to fix an `undefined name` error during application startup. ([`70a946b`](https://github.com/coneshare/coneshare/commit/70a946b) | +15, -14)
+- **Service Layer & Celery Task**: Introduced a service layer and an async task to handle PDF-to-image conversion, and added necessary system dependencies. ([`074c976`](https://github.com/coneshare/coneshare/commit/074c976))
+- **API Refactoring**: The `DocumentUploadView` was refactored to use the new service, returning a `202 ACCEPTED` status to reflect the async operation. ([`3784226`](https://github.com/coneshare/coneshare/commit/3784226))
+- **Bug Fix**: Reordered serializer classes to fix an `undefined name` error during application startup. ([`70a946b`](https://github.com/coneshare/coneshare/commit/70a946b))
 
 ### 4. Test Suite Refactoring & Improvement
 - **Shared Pytest Fixtures**: Created a central `backend/tests/conftest.py` to provide shared fixtures for tests.
-- **Test Refactoring**: Refactored all unit and API tests to use the new fixtures, removing repetitive `setUp` methods and converting tests to a functional style. ([`74554cc`](https://github.com/coneshare/coneshare/commit/74554cc) | +6, -4), ([`ee51537`](https://github.com/coneshare/coneshare/commit/ee51537) | +89, -101)
+- **Test Refactoring**: Refactored all unit and API tests to use the new fixtures, removing repetitive `setUp` methods and converting tests to a functional style. ([`74554cc`](https://github.com/coneshare/coneshare/commit/74554cc)), ([`ee51537`](https://github.com/coneshare/coneshare/commit/ee51537))
 - **BDD Test for Async Workflow**:
   - Configured Celery to run tasks synchronously (`CELERY_TASK_ALWAYS_EAGER = True`) during test runs for reliable end-to-end testing.
   - Updated the document upload scenario to verify the document's final status becomes `'ready'`.
-- **Fixture Isolation**: Updated the unit test `organization` fixture to create its own isolated test data instead of relying on a pre-existing one, improving test reliability. ([`2f18479`](https://github.com/coneshare/coneshare/commit/2f18479) | +0, -0)
+- **Fixture Isolation**: Updated the unit test `organization` fixture to create its own isolated test data instead of relying on a pre-existing one, improving test reliability. ([`2f18479`](https://github.com/coneshare/coneshare/commit/2f18479))
