@@ -95,24 +95,22 @@ This document tracks the key architectural decisions and implementation steps ma
 ## Session 4: Asynchronous Document Processing & Test Refactoring (2025-09-16)
 
 ### 1. Data Model Expansion for V1.0
-- **Model Implementation**: Added the `DocumentVersion` and `DocumentPage` models to `documents/models.py` to support versioning and page-by-page rendering, aligning the codebase with the V1.0 data model specification.
-- **Status Field Update**: The `Document` model's `status` field was updated to support the full processing lifecycle (`uploading`, `processing`, `ready`, `error`).
+- **Model Implementation**: Added `DocumentVersion` and `DocumentPage` models to `documents/models.py` to support versioning and page-by-page rendering.
+- **Status Field Update**: Updated the `Document` model's `status` field to support the full processing lifecycle (`uploading`, `processing`, `ready`, `error`).
 
 ### 2. Asynchronous Task Queue Integration
-- **Celery & Redis Setup**: Integrated Celery with a Redis broker to manage background tasks for document processing.
-- **Docker Services**: Added `redis` and `celery_worker` services to `docker-compose.yml` to run the necessary infrastructure.
-- **Configuration**: The Django project was configured to define, discover, and route tasks to the Celery application.
+- **Celery & Redis Setup**: Integrated Celery with a Redis broker and added `redis` and `celery_worker` services to `docker-compose.yml`. ([`09a2e00`](https://github.com/coneshare/coneshare/commit/09a2e00) | +43, -2)
+- **Configuration**: Configured the Django project to ensure the Celery application is loaded on startup, enabling task discovery. ([`47e4a14`](https://github.com/coneshare/coneshare/commit/47e4a14) | +5, -0)
 
 ### 3. PDF Processing Pipeline
-- **Service Layer**: Introduced a service layer (`documents/services.py`) to decouple business logic from the API view. The `create_document_from_upload` service now handles initial file storage and database record creation.
-- **Celery Task**: Created an asynchronous task (`generate_pdf_pages_task` in `documents/tasks.py`) that uses `pdf2image` to convert PDF pages into images, save them to storage, and create `DocumentPage` records.
-- **API Refactoring**: The `DocumentUploadView` was refactored to call the new service and return a `202 ACCEPTED` status, correctly reflecting the asynchronous nature of the operation.
-- **Dependencies**: Added the `poppler-utils` system dependency to the backend Docker image and `pdf2image` to the Python requirements.
+- **Service Layer & Celery Task**: Introduced a service layer and an async task to handle PDF-to-image conversion, and added necessary system dependencies. ([`074c976`](https://github.com/coneshare/coneshare/commit/074c976) | +103, -0)
+- **API Refactoring**: The `DocumentUploadView` was refactored to use the new service, returning a `202 ACCEPTED` status to reflect the async operation. ([`3784226`](https://github.com/coneshare/coneshare/commit/3784226) | +16, -16)
+- **Bug Fix**: Reordered serializer classes to fix an `undefined name` error during application startup. ([`70a946b`](https://github.com/coneshare/coneshare/commit/70a946b) | +15, -14)
 
 ### 4. Test Suite Refactoring & Improvement
-- **Shared Pytest Fixtures**: To eliminate repetitive setup code (e.g., `setUp` methods in `TestCase`), a central `backend/tests/conftest.py` was created to provide shared fixtures (`organization`, `user`, `api_client`).
-- **Test Refactoring**: All existing unit and API tests were refactored from class-based tests to use these fixtures, making the test suite cleaner and more maintainable.
+- **Shared Pytest Fixtures**: Created a central `backend/tests/conftest.py` to provide shared fixtures for tests.
+- **Test Refactoring**: Refactored all unit and API tests to use the new fixtures, removing repetitive `setUp` methods and converting tests to a functional style. ([`74554cc`](https://github.com/coneshare/coneshare/commit/74554cc) | +6, -4), ([`ee51537`](https://github.com/coneshare/coneshare/commit/ee51537) | +89, -101)
 - **BDD Test for Async Workflow**:
-  - Configured Celery to run tasks synchronously (`CELERY_TASK_ALWAYS_EAGER = True`) during test runs. This enables reliable, end-to-end testing of the async flow without the overhead of a live message queue.
-  - The BDD scenario for document upload was updated to verify that the document's final status becomes `'ready'` after the background task completes.
-- **Fixture Isolation**: The unit test `organization` fixture was updated to create its own isolated test data instead of relying on a pre-existing organization, improving test reliability.
+  - Configured Celery to run tasks synchronously (`CELERY_TASK_ALWAYS_EAGER = True`) during test runs for reliable end-to-end testing.
+  - Updated the document upload scenario to verify the document's final status becomes `'ready'`.
+- **Fixture Isolation**: Updated the unit test `organization` fixture to create its own isolated test data instead of relying on a pre-existing one, improving test reliability. ([`2f18479`](https://github.com/coneshare/coneshare/commit/2f18479) | +0, -0)
