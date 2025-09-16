@@ -5,8 +5,7 @@ from rest_framework import status
 
 from documents.models import Document, Folder
 
-# Import shared steps
-from .common_steps import document_list_is_empty, user_context
+pytest_plugins = "bdd.step_definitions.common_steps"
 
 
 @pytest.mark.django_db

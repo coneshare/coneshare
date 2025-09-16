@@ -1,17 +1,15 @@
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
-from pytest_bdd import given, parsers, scenario, then, when
+from pytest_bdd import parsers, scenario, then, when
 from rest_framework import status
+
+pytest_plugins = "bdd.step_definitions.common_steps"
 
 
 @pytest.mark.django_db
 @scenario('../features/document_upload.feature', 'User uploads their first document')
 def test_user_uploads_first_document():
     pass
-
-
-# Import shared steps
-from .common_steps import document_list_is_empty, user_context
 
 
 @when(parsers.parse('I upload a new document named "{filename}"'))
