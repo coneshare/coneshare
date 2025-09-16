@@ -5,6 +5,9 @@ from rest_framework import status
 
 from documents.models import Document, Folder
 
+# Import shared steps
+from .common_steps import document_list_is_empty, user_context
+
 
 @pytest.mark.django_db
 @scenario('../features/folder_upload.feature', 'User uploads files that create a nested folder structure')
