@@ -1,12 +1,10 @@
 import os
 from pathlib import Path
 
-from django.core.files.storage import default_storage
 from rest_framework import permissions, status, viewsets
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from ulid import ULID
 
 from .models import Document, Folder, ShareLink, ShareLinkPreset, View, Viewer
 from .serializers import (
@@ -17,6 +15,7 @@ from .serializers import (
     ViewerSerializer,
     ViewSerializer,
 )
+from .services import create_document_from_upload
 
 
 def _get_or_create_folders_from_path(organization, folder_path: str) -> Folder:
@@ -50,10 +49,9 @@ class DocumentUploadView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Handle folder structure from path
+        # Handle folder creation and filename override from path
         relative_path = request.POST.get('path')
         parent_folder = None
-        file_name = file_obj.name
 
         if relative_path:
             folder_path, file_name_from_path = os.path.split(relative_path)
@@ -62,39 +60,24 @@ class DocumentUploadView(APIView):
                     request.user.organization, folder_path
                 )
             if file_name_from_path:
-                file_name = file_name_from_path
+                # Override the uploaded file's name if a name is provided in path
+                file_obj.name = file_name_from_path
 
-        # Generate a unique path for the file to prevent collisions
-        organization_id = request.user.organization.id
-        file_extension = os.path.splitext(file_obj.name)[1]
-        file_id = str(ULID())
-        file_path = f"documents/{organization_id}/{file_id}{file_extension}"
-
-        # Save the file to the configured storage backend (fs or minio)
         try:
-            storage_key = default_storage.save(file_path, file_obj)
+            document = create_document_from_upload(
+                requesting_user=request.user,
+                uploaded_file=file_obj,
+                folder=parent_folder
+            )
         except Exception as e:
-            # Log the exception e in a real-world scenario
+            # In a real app, log this exception
             return Response(
-                {"detail": f"Failed to save file to storage: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"detail": f"Failed to start document processing: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        # Create the Document database record
-        document = Document.objects.create(
-            organization=request.user.organization,
-            created_by=request.user,
-            name=file_name,
-            folder=parent_folder,
-            storage_key=storage_key,
-            original_storage_key=storage_key,  # Same for initial upload
-            content_type=file_obj.content_type,
-            status='ready',  # Simplified: set to ready after upload
-            type=file_extension.lstrip('.').lower()
-        )
-
-        serializer = DocumentSerializer(document)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        serializer = DocumentSerializer(document, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
 
 
 class FolderViewSet(viewsets.ModelViewSet):

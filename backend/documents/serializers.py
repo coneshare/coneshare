@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from core.models import Organization
-from .models import Document, Folder, ShareLink, ShareLinkPreset, View, Viewer
+from .models import Document, DocumentPage, DocumentVersion, Folder, ShareLink, ShareLinkPreset, View, Viewer
 
 
 class FolderSerializer(serializers.ModelSerializer):
@@ -16,13 +16,15 @@ class FolderSerializer(serializers.ModelSerializer):
 
 
 class DocumentSerializer(serializers.ModelSerializer):
+    versions = DocumentVersionSerializer(many=True, read_only=True)
+
     class Meta:
         model = Document
         fields = [
             'id', 'organization', 'folder', 'name', 'description', 'status',
             'storage_key', 'original_storage_key', 'type', 'content_type',
             'num_pages', 'download_only', 'assistant_enabled', 'created_by',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'versions'
         ]
         read_only_fields = [
             'id', 'organization', 'created_by', 'created_at', 'updated_at'
@@ -34,6 +36,25 @@ class DocumentSerializer(serializers.ModelSerializer):
         validated_data['organization'] = request.user.organization
         validated_data['created_by'] = request.user
         return super().create(validated_data)
+
+
+class DocumentPageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DocumentPage
+        fields = ['id', 'page_number', 'storage_key', 'created_at']
+        read_only_fields = fields
+
+
+class DocumentVersionSerializer(serializers.ModelSerializer):
+    pages = DocumentPageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = DocumentVersion
+        fields = [
+            'id', 'version_number', 'file_size', 'num_pages',
+            'is_primary', 'has_pages', 'pages', 'created_at'
+        ]
+        read_only_fields = fields
 
 
 class ShareLinkPresetSerializer(serializers.ModelSerializer):
