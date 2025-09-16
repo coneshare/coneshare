@@ -47,7 +47,7 @@ class DocumentsModelTests(TestCase):
         self.assertEqual(str(self.document), "Test Document")
         self.assertEqual(self.document.organization, self.organization)
         self.assertEqual(self.document.created_by, self.user)
-        self.assertEqual(self.document.status, 'ready')
+        self.assertEqual(self.document.status, 'processing')
 
     def test_share_link_preset_creation(self):
         """Test that a ShareLinkPreset instance can be created."""

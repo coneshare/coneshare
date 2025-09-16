@@ -139,7 +139,7 @@ class DocumentsAPITests(APITestCase):
             format='multipart'
         )
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
         self.assertEqual(Document.objects.count(), 1)
         self.assertEqual(Folder.objects.count(), 3)
 
