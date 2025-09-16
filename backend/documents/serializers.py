@@ -15,6 +15,25 @@ class FolderSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+class DocumentPageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DocumentPage
+        fields = ['id', 'page_number', 'storage_key', 'created_at']
+        read_only_fields = fields
+
+
+class DocumentVersionSerializer(serializers.ModelSerializer):
+    pages = DocumentPageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = DocumentVersion
+        fields = [
+            'id', 'version_number', 'file_size', 'num_pages',
+            'is_primary', 'has_pages', 'pages', 'created_at'
+        ]
+        read_only_fields = fields
+
+
 class DocumentSerializer(serializers.ModelSerializer):
     versions = DocumentVersionSerializer(many=True, read_only=True)
 
@@ -36,25 +55,6 @@ class DocumentSerializer(serializers.ModelSerializer):
         validated_data['organization'] = request.user.organization
         validated_data['created_by'] = request.user
         return super().create(validated_data)
-
-
-class DocumentPageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DocumentPage
-        fields = ['id', 'page_number', 'storage_key', 'created_at']
-        read_only_fields = fields
-
-
-class DocumentVersionSerializer(serializers.ModelSerializer):
-    pages = DocumentPageSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = DocumentVersion
-        fields = [
-            'id', 'version_number', 'file_size', 'num_pages',
-            'is_primary', 'has_pages', 'pages', 'created_at'
-        ]
-        read_only_fields = fields
 
 
 class ShareLinkPresetSerializer(serializers.ModelSerializer):
