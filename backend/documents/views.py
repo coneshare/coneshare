@@ -16,7 +16,7 @@ from .serializers import (
     ViewerSerializer,
     ViewSerializer,
 )
-from .services import create_document_from_upload
+from .services import create_document_from_upload, delete_document_and_files
 
 
 def _get_or_create_folders_from_path(organization, folder_path: str) -> Folder:
@@ -158,6 +158,11 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Document.objects.filter(created_by=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        document = self.get_object()
+        delete_document_and_files(document)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ShareLinkPresetViewSet(viewsets.ModelViewSet):

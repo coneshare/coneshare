@@ -51,3 +51,25 @@ def create_document_from_upload(
     generate_pdf_pages_task.delay(version.id)
 
     return document
+
+
+def delete_document_and_files(document: Document):
+    """
+    Deletes a document, its versions, pages, and all associated files from storage.
+    """
+    storage_keys_to_delete = []
+
+    for version in document.versions.all():
+        if version.original_storage_key:
+            storage_keys_to_delete.append(version.original_storage_key)
+
+        for page in version.pages.all():
+            if page.storage_key:
+                storage_keys_to_delete.append(page.storage_key)
+
+    # Delete files from storage
+    for key in storage_keys_to_delete:
+        default_storage.delete(key)
+
+    # Delete the document record, which will cascade to versions, pages, share links etc.
+    document.delete()

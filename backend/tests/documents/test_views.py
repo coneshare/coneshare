@@ -189,3 +189,47 @@ def test_get_document_preview_data_wrong_org(api_client):
     
     response = api_client.get(f'/api/v1/documents/{doc.id}/preview-data/')
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+@patch('django.core.files.storage.default_storage.delete')
+def test_delete_document_success(mock_storage_delete, api_client, user):
+    """Test that a user can successfully delete their own document."""
+    # Setup
+    doc = Document.objects.create(organization=user.organization, created_by=user)
+    version = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        original_storage_key="delete_me.pdf"
+    )
+    DocumentPage.objects.create(
+        document_version=version, page_number=1, storage_key="delete_me_page_1.png"
+    )
+
+    # Action
+    response = api_client.delete(f'/api/v1/documents/{doc.id}/')
+
+    # Assertions
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert not Document.objects.filter(id=doc.id).exists()
+    
+    # Check that file cleanup was triggered
+    assert mock_storage_delete.call_count == 2
+    mock_storage_delete.assert_any_call("delete_me.pdf")
+    mock_storage_delete.assert_any_call("delete_me_page_1.png")
+
+
+@pytest.mark.django_db
+def test_delete_document_permission_denied(api_client, user, user2):
+    """Test that a user cannot delete another user's document."""
+    # Setup: user2 creates a document
+    doc_by_user2 = Document.objects.create(
+        organization=user2.organization, created_by=user2
+    )
+
+    # Action: api_client (logged in as user) tries to delete it
+    response = api_client.delete(f'/api/v1/documents/{doc_by_user2.id}/')
+
+    # Assertions
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert Document.objects.filter(id=doc_by_user2.id).exists()

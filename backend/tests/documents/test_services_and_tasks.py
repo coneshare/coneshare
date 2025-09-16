@@ -3,7 +3,7 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from documents.models import Document, DocumentVersion, DocumentPage
-from documents.services import create_document_from_upload
+from documents.services import create_document_from_upload, delete_document_and_files
 from documents.tasks import generate_pdf_pages_task
 
 
@@ -100,3 +100,41 @@ class TestGeneratePdfPagesTask:
         # 7. Verify the DocumentVersion metadata is updated
         assert version.num_pages == 2
         assert version.has_pages
+
+
+@pytest.mark.django_db
+class TestDeleteDocument:
+    @patch('django.core.files.storage.default_storage.delete')
+    def test_service_deletes_db_records_and_storage_files(self, mock_storage_delete, user):
+        # Setup
+        doc = Document.objects.create(organization=user.organization, created_by=user)
+        version = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            original_storage_key="original.pdf"
+        )
+        page1 = DocumentPage.objects.create(
+            document_version=version, page_number=1, storage_key="page_1.png"
+        )
+        page2 = DocumentPage.objects.create(
+            document_version=version, page_number=2, storage_key="page_2.png"
+        )
+        
+        doc_id = doc.id
+        version_id = version.id
+        page1_id = page1.id
+
+        # Action
+        delete_document_and_files(doc)
+
+        # Assertions
+        # 1. DB records are deleted
+        assert not Document.objects.filter(id=doc_id).exists()
+        assert not DocumentVersion.objects.filter(id=version_id).exists()
+        assert not DocumentPage.objects.filter(id=page1_id).exists()
+
+        # 2. Storage deletion was called for all files
+        assert mock_storage_delete.call_count == 3
+        mock_storage_delete.assert_any_call("original.pdf")
+        mock_storage_delete.assert_any_call("page_1.png")
+        mock_storage_delete.assert_any_call("page_2.png")
