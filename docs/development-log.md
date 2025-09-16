@@ -114,3 +114,19 @@ This document tracks the key architectural decisions and implementation steps ma
   - Configured Celery to run tasks synchronously (`CELERY_TASK_ALWAYS_EAGER = True`) during test runs for reliable end-to-end testing.
   - Updated the document upload scenario to verify the document's final status becomes `'ready'`.
 - **Fixture Isolation**: Updated the unit test `organization` fixture to create its own isolated test data instead of relying on a pre-existing one, improving test reliability. ([`2f18479`](https://github.com/coneshare/coneshare/commit/2f18479))
+
+---
+
+## Session 5: Document Preview & Deletion (2025-09-16)
+
+This session focused on adding core document lifecycle features: internal preview and permanent deletion. ([`[commit-hash]`](https://github.com/coneshare/coneshare/commit/[commit-hash]))
+
+### 1. Internal Document Preview
+- **API Endpoint**: Implemented a new `DocumentPreviewDataView` and registered it at `/api/v1/documents/<str:document_id>/preview-data/`.
+- **Functionality**: The view authenticates the user against their organization, checks the document's `status`, and returns metadata including storage URLs for each document page.
+- **Testing**: Added unit tests to `tests/documents/test_views.py` covering success cases, handling of non-ready documents, and security scoping to prevent data access across organizations.
+
+### 2. Document Deletion
+- **Service Layer**: Introduced a `delete_document_and_files` service function to handle the complete removal of a document, its versions, pages, and all associated files from the storage backend.
+- **API Integration**: Overrode the `DocumentViewSet`'s `destroy` method to call the new service, ensuring file cleanup is performed on every `DELETE` request.
+- **Testing**: Implemented tests for both the service function and the API endpoint to verify correct deletion of database records and storage files, and to enforce that users can only delete their own documents.
