@@ -1,87 +1,85 @@
-from django.contrib.auth import get_user_model
-from django.test import TestCase
-
-from core.models import Organization
+import pytest
 from documents.models import Document, Folder, ShareLink, ShareLinkPreset, View, Viewer
 
-User = get_user_model()
+
+@pytest.mark.django_db
+def test_folder_creation(organization):
+    """Test that a Folder instance can be created."""
+    folder = Folder.objects.create(name="Test Folder", organization=organization)
+    assert isinstance(folder, Folder)
+    assert str(folder) == "Test Folder"
+    assert folder.organization == organization
 
 
-class DocumentsModelTests(TestCase):
-    """
-    Tests for the models in the documents app.
-    """
+@pytest.mark.django_db
+def test_document_creation(organization, user):
+    """Test that a Document instance can be created."""
+    document = Document.objects.create(
+        name="Test Document",
+        organization=organization,
+        created_by=user,
+        storage_key="test/key",
+        original_storage_key="test/original_key",
+        type="pdf",
+        content_type="application/pdf"
+    )
+    assert isinstance(document, Document)
+    assert str(document) == "Test Document"
+    assert document.organization == organization
+    assert document.created_by == user
+    assert document.status == 'processing'
 
-    def setUp(self):
-        """Set up the necessary objects for the tests."""
-        self.organization = Organization.objects.create(name="Test Corp")
-        self.user = User.objects.create_user(
-            username='testuser@example.com',
-            email='testuser@example.com',
-            password='password123',
-            organization=self.organization
-        )
-        self.folder = Folder.objects.create(
-            name="Test Folder",
-            organization=self.organization
-        )
-        self.document = Document.objects.create(
-            name="Test Document",
-            organization=self.organization,
-            created_by=self.user,
-            storage_key="test/key",
-            original_storage_key="test/original_key",
-            type="pdf",
-            content_type="application/pdf"
-        )
 
-    def test_folder_creation(self):
-        """Test that a Folder instance can be created."""
-        self.assertIsInstance(self.folder, Folder)
-        self.assertEqual(str(self.folder), "Test Folder")
-        self.assertEqual(self.folder.organization, self.organization)
+@pytest.mark.django_db
+def test_share_link_preset_creation(organization):
+    """Test that a ShareLinkPreset instance can be created."""
+    preset = ShareLinkPreset.objects.create(
+        name="Default Preset",
+        organization=organization
+    )
+    assert isinstance(preset, ShareLinkPreset)
+    assert str(preset) == "Default Preset"
 
-    def test_document_creation(self):
-        """Test that a Document instance can be created."""
-        self.assertIsInstance(self.document, Document)
-        self.assertEqual(str(self.document), "Test Document")
-        self.assertEqual(self.document.organization, self.organization)
-        self.assertEqual(self.document.created_by, self.user)
-        self.assertEqual(self.document.status, 'processing')
 
-    def test_share_link_preset_creation(self):
-        """Test that a ShareLinkPreset instance can be created."""
-        preset = ShareLinkPreset.objects.create(
-            name="Default Preset",
-            organization=self.organization
-        )
-        self.assertIsInstance(preset, ShareLinkPreset)
-        self.assertEqual(str(preset), "Default Preset")
+@pytest.mark.django_db
+def test_share_link_creation(user):
+    """Test that a ShareLink instance can be created."""
+    document = Document.objects.create(
+        name="Doc for Link",
+        organization=user.organization,
+        created_by=user,
+    )
+    share_link = ShareLink.objects.create(
+        name="test",
+        document=document,
+        created_by=user,
+        slug="test-slug-123"
+    )
+    assert isinstance(share_link, ShareLink)
+    assert str(share_link) == "test"
+    assert share_link.document == document
+    assert share_link.created_by == user
 
-    def test_share_link_creation(self):
-        """Test that a ShareLink instance can be created."""
-        share_link = ShareLink.objects.create(
-            name="test",
-            document=self.document,
-            created_by=self.user,
-            slug="test-slug-123"
-        )
-        self.assertIsInstance(share_link, ShareLink)
-        self.assertEqual(str(share_link), "test")
-        self.assertEqual(share_link.document, self.document)
-        self.assertEqual(share_link.created_by, self.user)
 
-    def test_viewer_creation(self):
-        """Test that a Viewer instance can be created."""
-        viewer = Viewer.objects.create(
-            organization=self.organization,
-            email="viewer@example.com"
-        )
-        self.assertIsInstance(viewer, Viewer)
-        self.assertEqual(str(viewer), "viewer@example.com")
+@pytest.mark.django_db
+def test_viewer_creation(organization):
+    """Test that a Viewer instance can be created."""
+    viewer = Viewer.objects.create(
+        organization=organization,
+        email="viewer@example.com"
+    )
+    assert isinstance(viewer, Viewer)
+    assert str(viewer) == "viewer@example.com"
 
-    def test_view_creation(self):
-        """Test that a View instance can be created."""
-        share_link = ShareLink.objects.create(document=self.document, slug="another-slug")
-        view = View.objects.create(share_link=share_link, duration_seconds=0, completion_rate=0)
-        self.assertIsInstance(view, View)
+
+@pytest.mark.django_db
+def test_view_creation(user):
+    """Test that a View instance can be created."""
+    document = Document.objects.create(
+        name="Doc for View",
+        organization=user.organization,
+        created_by=user,
+    )
+    share_link = ShareLink.objects.create(document=document, slug="another-slug")
+    view = View.objects.create(share_link=share_link, duration_seconds=0, completion_rate=0)
+    assert isinstance(view, View)
