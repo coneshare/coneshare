@@ -19,9 +19,18 @@ class Document(BaseModel):
     folder = models.ForeignKey(Folder, on_delete=models.SET_NULL, null=True, blank=True, related_name='documents')
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
-    status = models.CharField(max_length=20, default='ready')
-    storage_key = models.CharField(max_length=1024)
-    original_storage_key = models.CharField(max_length=1024)
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('uploading', 'Uploading'),
+            ('processing', 'Processing'),
+            ('ready', 'Ready'),
+            ('error', 'Error')
+        ],
+        default='processing'
+    )
+    storage_key = models.CharField(max_length=1024, blank=True, null=True)
+    original_storage_key = models.CharField(max_length=1024, blank=True, null=True)
     type = models.CharField(max_length=20)
     content_type = models.CharField(max_length=255)
     num_pages = models.IntegerField(null=True, blank=True)
@@ -31,6 +40,44 @@ class Document(BaseModel):
 
     def __str__(self):
         return self.name
+
+
+class DocumentVersion(BaseModel):
+    """
+    Enables version control for a Document. Each version tracks a specific file state.
+    """
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='versions')
+    version_number = models.IntegerField()
+    storage_key = models.CharField(max_length=1024, blank=True)
+    original_storage_key = models.CharField(max_length=1024)
+    content_type = models.CharField(max_length=255, blank=True)
+    type = models.CharField(max_length=50, blank=True)
+    storage_type = models.CharField(max_length=20, blank=True)
+    file_size = models.BigIntegerField(null=True, blank=True)
+    num_pages = models.IntegerField(null=True, blank=True)
+    length = models.IntegerField(null=True, blank=True)
+    is_primary = models.BooleanField(default=False)
+    is_vertical = models.BooleanField(default=True)
+    has_pages = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f'{self.document.name} v{self.version_number}'
+
+
+class DocumentPage(BaseModel):
+    """
+    Represents a single page of a processed document, typically stored as an image
+    for efficient viewing.
+    """
+    document_version = models.ForeignKey(DocumentVersion, on_delete=models.CASCADE, related_name='pages')
+    page_number = models.IntegerField()
+    storage_key = models.CharField(max_length=1024)
+    storage_type = models.CharField(max_length=20, blank=True)
+    page_links = models.JSONField(default=dict, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    def __str__(self):
+        return f'Page {self.page_number} of {self.document_version}'
 
 
 class ShareLinkPreset(BaseModel):
