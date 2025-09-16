@@ -1,0 +1,53 @@
+import os
+from django.core.files.uploadedfile import UploadedFile
+from django.core.files.storage import default_storage
+
+from core.fields import generate_ulid
+from core.models import User
+from .models import Document, DocumentVersion, Folder
+from .tasks import generate_pdf_pages_task
+
+
+def create_document_from_upload(
+    requesting_user: User,
+    uploaded_file: UploadedFile,
+    folder: Folder = None
+) -> Document:
+    """
+    Handles the initial synchronous part of a file upload.
+    1. Stores the original file in a unique path.
+    2. Creates Document and DocumentVersion records in the DB.
+    3. Triggers an asynchronous task to process the document.
+    """
+    # 1. Store the original file
+    file_id = generate_ulid()
+    file_ext = os.path.splitext(uploaded_file.name)[1]
+    storage_key = f"{requesting_user.organization.id}/{file_id}{file_ext}"
+    
+    original_storage_key = default_storage.save(storage_key, uploaded_file)
+
+    # 2. Create database records
+    document = Document.objects.create(
+        organization=requesting_user.organization,
+        created_by=requesting_user,
+        name=uploaded_file.name,
+        folder=folder,
+        status='processing',
+        type='pdf',  # V1 only supports PDF
+        content_type=uploaded_file.content_type
+    )
+
+    version = DocumentVersion.objects.create(
+        document=document,
+        version_number=1,
+        original_storage_key=original_storage_key,
+        storage_key=original_storage_key,  # For PDFs, processed is same as original in V1
+        content_type=uploaded_file.content_type,
+        file_size=uploaded_file.size,
+        type='pdf'
+    )
+
+    # 3. Trigger the background task
+    generate_pdf_pages_task.delay(version.id)
+
+    return document
