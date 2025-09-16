@@ -1,8 +1,10 @@
+import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from pytest_bdd import given, parsers, scenario, then, when
 from rest_framework import status
 
 
+@pytest.mark.django_db
 @scenario('../features/document_upload.feature', 'User uploads their first document')
 def test_user_uploads_first_document():
     pass
