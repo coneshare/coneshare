@@ -1,9 +1,11 @@
 import pytest
+from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import status
 
-from documents.models import Document, Folder, ShareLink
+from core.models import Organization
+from documents.models import Document, Folder, ShareLink, DocumentVersion, DocumentPage
 
 User = get_user_model()
 
@@ -115,3 +117,75 @@ def test_upload_document_with_path(api_client):
     assert doc.folder.parent.name == 'Q4'
     assert doc.folder.parent.parent.name == 'Client Reports'
     assert doc.folder.parent.parent.parent is None
+
+
+@pytest.mark.django_db
+@patch('django.core.files.storage.default_storage.url')
+def test_get_document_preview_data_success(mock_storage_url, api_client, user):
+    """Test successfully retrieving document preview data."""
+    # Setup
+    mock_storage_url.return_value = "http://test.com/page.png"
+    doc = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="preview.pdf",
+        status='ready'
+    )
+    version = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        is_primary=True,
+        has_pages=True,
+        num_pages=2
+    )
+    DocumentPage.objects.create(
+        document_version=version, page_number=1, storage_key="pages/1.png"
+    )
+    DocumentPage.objects.create(
+        document_version=version, page_number=2, storage_key="pages/2.png"
+    )
+
+    # Action
+    response = api_client.get(f'/api/v1/documents/{doc.id}/preview-data/')
+
+    # Assertions
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data['id'] == str(doc.id)
+    assert data['name'] == "preview.pdf"
+    assert data['numPages'] == 2
+    assert len(data['pages']) == 2
+    assert data['pages'][0]['page_number'] == 1
+    assert data['pages'][0]['url'] == "http://test.com/page.png"
+    assert mock_storage_url.call_count == 2
+
+
+@pytest.mark.django_db
+def test_get_document_preview_data_not_ready(api_client, user):
+    """Test getting preview data for a document that is not ready."""
+    doc = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="processing.pdf",
+        status='processing'
+    )
+    response = api_client.get(f'/api/v1/documents/{doc.id}/preview-data/')
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "still processing" in response.json()['detail']
+
+
+@pytest.mark.django_db
+def test_get_document_preview_data_wrong_org(api_client):
+    """Test that a user cannot access preview data from another organization."""
+    other_org = Organization.objects.create(name="Other Org")
+    other_user = User.objects.create_user(
+        username='other@example.com', organization=other_org
+    )
+    doc = Document.objects.create(
+        organization=other_org,
+        created_by=other_user,
+        status='ready'
+    )
+    
+    response = api_client.get(f'/api/v1/documents/{doc.id}/preview-data/')
+    assert response.status_code == status.HTTP_404_NOT_FOUND

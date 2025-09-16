@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+from django.core.files.storage import default_storage
 from rest_framework import permissions, status, viewsets
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
@@ -78,6 +79,67 @@ class DocumentUploadView(APIView):
 
         serializer = DocumentSerializer(document, context={'request': request})
         return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+
+
+class DocumentPreviewDataView(APIView):
+    """
+    Provides data for rendering an internal document preview.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, document_id, *args, **kwargs):
+        # Authentication & Authorization is handled by DRF + this query
+        try:
+            document = Document.objects.get(
+                id=document_id,
+                organization=request.user.organization
+            )
+        except Document.DoesNotExist:
+            return Response(
+                {"detail": "Access denied or document not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Handle documents that are not ready for preview
+        if document.status == 'processing':
+            return Response(
+                {"detail": "Document is still processing. Please wait and try again."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        elif document.status != 'ready':
+             return Response(
+                {"detail": "Document is not ready for preview."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Data Fetching
+        primary_version = document.versions.filter(is_primary=True).first()
+        if not primary_version:
+            return Response(
+                {"detail": "Document version not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Content Processing and Response Shaping
+        pages_data = []
+        if primary_version.has_pages:
+            pages = primary_version.pages.order_by('page_number')
+            for page in pages:
+                pages_data.append({
+                    "page_number": page.page_number,
+                    "url": default_storage.url(page.storage_key),
+                    "metadata": page.metadata,
+                })
+
+        response_data = {
+            "id": document.id,
+            "name": document.name,
+            "type": document.type,
+            "numPages": primary_version.num_pages,
+            "pages": pages_data,
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class FolderViewSet(viewsets.ModelViewSet):
