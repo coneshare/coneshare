@@ -12,6 +12,7 @@ class TestCreateDocumentFromUpload(APITestCase):
     def setUp(self):
         self.organization = Organization.objects.create(name="Test Org")
         self.user = User.objects.create_user(
+            username="test@example.com",
             email="test@example.com",
             password="password",
             organization=self.organization
@@ -59,6 +60,7 @@ class TestGeneratePdfPagesTask(APITestCase):
     def setUp(self):
         self.organization = Organization.objects.create(name="Test Org")
         self.user = User.objects.create_user(
+            username="test@example.com",
             email="test@example.com",
             password="password",
             organization=self.organization

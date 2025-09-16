@@ -8,13 +8,13 @@ User = get_user_model()
 @pytest.mark.django_db
 def test_organization_creation(organization):
     """Test that an Organization can be created with all fields."""
-    assert organization.name == "Test Org"
+    assert organization.name == "Default Organization"
     assert organization.plan == "self-hosted"
     assert organization.id is not None
     assert isinstance(organization.id, str)
     assert organization.created_at is not None
     assert organization.updated_at is not None
-    assert str(organization) == "Test Org"
+    assert str(organization) == "Default Organization"
 
 
 @pytest.mark.django_db

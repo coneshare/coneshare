@@ -1,9 +1,11 @@
 services:
   backend:
+    image: coneshare:dev
     build:
       context: ./backend
       dockerfile: Dockerfile-dev
-    command: python manage.py runserver 0.0.0.0:8000
+    # command: python manage.py runserver 0.0.0.0:8000
+    command: tail -f /dev/null
     volumes:
       - ./backend:/app
     ports:
@@ -17,9 +19,10 @@ services:
     restart: unless-stopped
 
   celery_worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile-dev
+    image: coneshare:dev
+    # build:
+    #   context: ./backend
+    #   dockerfile: Dockerfile-dev
     command: celery -A backend worker -l INFO
     volumes:
       - ./backend:/app
