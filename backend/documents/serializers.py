@@ -93,3 +93,19 @@ class ViewSerializer(serializers.ModelSerializer):
             'completion_rate', 'viewed_at'
         ]
         read_only_fields = ['id', 'viewed_at']
+
+    def create(self, validated_data):
+        email = validated_data.get('viewer_email')
+        share_link = validated_data.get('share_link')
+
+        if email and share_link:
+            # The organization is derived from the document being shared
+            organization = share_link.document.organization
+            viewer, _ = Viewer.objects.get_or_create(
+                organization=organization,
+                email=email
+            )
+            # Associate the view with the identified viewer
+            validated_data['viewer'] = viewer
+
+        return super().create(validated_data)

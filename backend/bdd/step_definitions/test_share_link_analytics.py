@@ -1,5 +1,5 @@
 import pytest
-from pytest_bdd import parsers, scenario, then, when
+from pytest_bdd import given, parsers, scenario, then, when
 from rest_framework import status
 
 from documents.models import Document, ShareLink, View, Viewer
@@ -13,8 +13,7 @@ def test_share_link_view_tracking():
     pass
 
 
-@pytest.fixture
-@when(parsers.parse('I have a document named "{filename}"'))
+@given(parsers.parse('I have a document named "{filename}"'), target_fixture="document")
 def document(user_context, filename):
     """Creates a document owned by the authenticated user."""
     doc = Document.objects.create(
