@@ -27,7 +27,7 @@ def upload_file_with_path(user_context, filename, path):
         {'file': dummy_file, 'path': path},
         format='multipart'
     )
-    assert response.status_code == status.HTTP_201_CREATED, response.data
+    assert response.status_code == status.HTTP_202_ACCEPTED, response.data
 
 
 @then(parsers.parse('the folder "{folder_name}" should exist at the root'))
