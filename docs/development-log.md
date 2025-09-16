@@ -119,14 +119,14 @@ This document tracks the key architectural decisions and implementation steps ma
 
 ## Session 5: Document Preview & Deletion (2025-09-16)
 
-This session focused on adding core document lifecycle features: internal preview and permanent deletion. ([`[commit-hash]`](https://github.com/coneshare/coneshare/commit/[commit-hash]))
+This session focused on adding core document lifecycle features: internal preview and permanent deletion.
 
 ### 1. Internal Document Preview
 - **API Endpoint**: Implemented a new `DocumentPreviewDataView` and registered it at `/api/v1/documents/<str:document_id>/preview-data/`.
 - **Functionality**: The view authenticates the user against their organization, checks the document's `status`, and returns metadata including storage URLs for each document page.
-- **Testing**: Added unit tests to `tests/documents/test_views.py` covering success cases, handling of non-ready documents, and security scoping to prevent data access across organizations.
+- **Testing**: Added unit tests to `tests/documents/test_views.py` covering success cases, handling of non-ready documents, and security scoping to prevent data access across organizations. ([`581b962`](https://github.com/coneshare/coneshare/commit/581b962))
 
 ### 2. Document Deletion
 - **Service Layer**: Introduced a `delete_document_and_files` service function to handle the complete removal of a document, its versions, pages, and all associated files from the storage backend.
 - **API Integration**: Overrode the `DocumentViewSet`'s `destroy` method to call the new service, ensuring file cleanup is performed on every `DELETE` request.
-- **Testing**: Implemented tests for both the service function and the API endpoint to verify correct deletion of database records and storage files, and to enforce that users can only delete their own documents.
+- **Testing**: Implemented tests for both the service function and the API endpoint to verify correct deletion of database records and storage files, and to enforce that users can only delete their own documents. ([`271082a`](https://github.com/coneshare/coneshare/commit/271082a))
