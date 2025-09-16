@@ -8,3 +8,4 @@ pytest-django==4.8.0
 django-storages==1.14.3
 boto3==1.34.148
 pytest-bdd
+celery[redis]==5.4.0

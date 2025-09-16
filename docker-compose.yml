@@ -9,6 +9,24 @@ services:
     ports:
       - "8000:8000"
     restart: unless-stopped
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile-dev
+    command: celery -A backend worker -l INFO
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - redis
 
   frontend:
     build:
