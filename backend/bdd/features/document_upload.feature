@@ -9,3 +9,4 @@ Feature: Document Upload Workflow
     When I upload a new document named "workflow_doc.pdf"
     Then the document list should contain 1 document
     And the document should be named "workflow_doc.pdf"
+    And the document status should be "ready"
