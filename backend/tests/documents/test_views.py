@@ -1,7 +1,10 @@
 import pytest
 from unittest.mock import patch
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone
 from rest_framework import status
 
 from core.models import Organization
@@ -233,3 +236,80 @@ def test_delete_document_permission_denied(api_client, user, user2):
     # Assertions
     assert response.status_code == status.HTTP_404_NOT_FOUND
     assert Document.objects.filter(id=doc_by_user2.id).exists()
+
+
+@pytest.mark.django_db
+class TestShareLinkViewDataView:
+    """Tests for the public ShareLinkViewDataView endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, user):
+        """Set up the necessary objects for the tests."""
+        self.doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="shared_doc.pdf",
+            status='ready'
+        )
+        version = DocumentVersion.objects.create(
+            document=self.doc,
+            version_number=1,
+            is_primary=True,
+            has_pages=True,
+            num_pages=1
+        )
+        DocumentPage.objects.create(
+            document_version=version, page_number=1, storage_key="pages/shared_1.png"
+        )
+        self.link = ShareLink.objects.create(
+            document=self.doc,
+            created_by=user,
+            name="Public Link"
+        )
+
+    @patch('django.core.files.storage.default_storage.url')
+    def test_get_share_link_data_success(self, mock_storage_url, public_client):
+        """Test successful retrieval of public share link data."""
+        mock_storage_url.return_value = "http://test.com/shared_page.png"
+        response = public_client.get(f'/api/v1/links/{self.link.slug}/view-data/')
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data['id'] == str(self.doc.id)
+        assert data['name'] == "shared_doc.pdf"
+        assert len(data['pages']) == 1
+        assert data['pages'][0]['url'] == "http://test.com/shared_page.png"
+        assert data['linkSettings']['allowDownload'] == self.link.allow_download
+
+    def test_get_share_link_data_not_found(self, public_client):
+        """Test getting a link with a non-existent slug returns 404."""
+        response = public_client.get('/api/v1/links/non-existent-slug/view-data/')
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_get_share_link_data_archived(self, public_client):
+        """Test that an archived link returns 404."""
+        self.link.is_archived = True
+        self.link.save()
+        response = public_client.get(f'/api/v1/links/{self.link.slug}/view-data/')
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_get_share_link_data_expired(self, public_client):
+        """Test that an expired link returns 410 Gone."""
+        self.link.expires_at = timezone.now() - timedelta(days=1)
+        self.link.save()
+        response = public_client.get(f'/api/v1/links/{self.link.slug}/view-data/')
+        assert response.status_code == status.HTTP_410_GONE
+
+    def test_get_share_link_data_password_protected(self, public_client):
+        """Test that a password-protected link returns 401 Unauthorized."""
+        self.link.password_hash = "some_hash"
+        self.link.save()
+        response = public_client.get(f'/api/v1/links/{self.link.slug}/view-data/')
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_get_share_link_data_document_not_ready(self, public_client):
+        """Test link for a document that isn't ready returns 400."""
+        self.doc.status = 'processing'
+        self.doc.save()
+        response = public_client.get(f'/api/v1/links/{self.link.slug}/view-data/')
+        assert response.status_code == status.HTTP_400_BAD_REQUEST

@@ -30,3 +30,9 @@ def api_client(user):
     client = APIClient()
     client.force_authenticate(user=user)
     return client
+
+
+@pytest.fixture
+def public_client():
+    """Fixture to create an unauthenticated API client."""
+    return APIClient()
