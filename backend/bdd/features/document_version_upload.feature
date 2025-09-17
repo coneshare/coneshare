@@ -7,4 +7,4 @@ Feature: Document Versioning
     When I upload a new version of the document named "Annual Report v2.pdf"
     Then the document should have 2 versions
     And the document's latest version should be version number 2
-    And the document status should be "processing"
+    And the document status should be "ready"

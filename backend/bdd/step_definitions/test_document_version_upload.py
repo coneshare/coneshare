@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from django.core.files.uploadedfile import SimpleUploadedFile
 from pytest_bdd import parsers, scenario, given, when, then
 
@@ -43,9 +43,8 @@ def upload_new_version(user_context, document, filename):
     api_client = user_context['api_client']
     dummy_file = SimpleUploadedFile(filename, b"new content", "application/pdf")
 
-    # Mock the task delay to prevent the async task from running synchronously
-    # and changing the document status before the assertion.
-    with patch('documents.services.generate_pdf_pages_task.delay'):
+    # Mock the PDF conversion to avoid dependency on poppler-utils in CI
+    with patch('documents.tasks.convert_from_bytes', return_value=[MagicMock()]):
         response = api_client.post(
             f'/api/v1/documents/{document.id}/versions/',
             {'file': dummy_file},
