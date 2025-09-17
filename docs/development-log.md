@@ -130,3 +130,30 @@ This session focused on adding core document lifecycle features: internal previe
 - **Service Layer**: Introduced a `delete_document_and_files` service function to handle the complete removal of a document, its versions, pages, and all associated files from the storage backend.
 - **API Integration**: Overrode the `DocumentViewSet`'s `destroy` method to call the new service, ensuring file cleanup is performed on every `DELETE` request.
 - **Testing**: Implemented tests for both the service function and the API endpoint to verify correct deletion of database records and storage files, and to enforce that users can only delete their own documents. ([`271082a`](https://github.com/coneshare/coneshare/commit/271082a))
+
+
+## Session 6: Document Versioning & Share Link Viewing (2025-09-17)
+
+This session implemented two major features: document version updates and secure share link viewing.
+
+### 1. Document Version Management
+- **API Endpoint**: Added `DocumentVersionUploadView` at `/api/v1/documents/<str:document_id>/versions/` to handle new version uploads.
+- **Service Function**: Created a `create_new_document_version` service that:
+  - Stores new file versions safely
+  - Maintains version numbering
+  - Automatically marks new versions as primary
+- **Testing**:
+  - Added unit tests for version upload success cases and permission validation
+  - Created BDD scenario for document versioning with feature file and step definitions
+  - Patched Celery task to test async processing flow ([`22c2357`](https://github.com/coneshare/coneshare/commit/22c2357))
+
+### 2. Share Link Viewing System
+- **API Architecture**: Implemented the two-request pattern from the design doc for secure share link viewing
+- **Public Endpoint**: Created `ShareLinkViewDataView` at `/api/v1/links/<slug:slug>/view-data/` with:
+  - Password protection handling
+  - Expiration checks
+  - Archived link filtering
+- **Testing**:
+  - Added comprehensive unit tests for all access control scenarios
+  - Created BDD test for password-protected links
+  - Verified synchronous Celery task execution in tests ([`c915031`](https://github.com/coneshare/coneshare/commit/c915031))
