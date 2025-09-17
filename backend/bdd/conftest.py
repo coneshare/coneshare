@@ -50,3 +50,9 @@ def api_client(user):
     client = APIClient()
     client.force_authenticate(user=user)
     return client
+
+
+@pytest.fixture
+def public_client():
+    """Provides an unauthenticated API client for BDD tests."""
+    return APIClient()
