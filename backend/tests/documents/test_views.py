@@ -313,3 +313,110 @@ class TestShareLinkViewDataView:
         self.doc.save()
         response = public_client.get(f'/api/v1/links/{self.link.slug}/view-data/')
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+class TestDocumentVersionUploadView:
+    """Tests for the DocumentVersionUploadView endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, user):
+        """Set up a document with one version."""
+        self.doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="initial_doc.pdf",
+            status='ready'
+        )
+        self.initial_version = DocumentVersion.objects.create(
+            document=self.doc,
+            version_number=1,
+            is_primary=True
+        )
+
+    @patch('documents.services.generate_pdf_pages_task.delay')
+    def test_upload_new_version_success(self, mock_task_delay, api_client):
+        """Test successfully uploading a new version of a document."""
+        dummy_file = SimpleUploadedFile("v2.pdf", b"new_content", "application/pdf")
+
+        response = api_client.post(
+            f'/api/v1/documents/{self.doc.id}/versions/',
+            {'file': dummy_file},
+            format='multipart'
+        )
+
+        assert response.status_code == status.HTTP_202_ACCEPTED
+
+        self.doc.refresh_from_db()
+        self.initial_version.refresh_from_db()
+
+        assert self.doc.status == 'processing'
+        assert self.doc.versions.count() == 2
+
+        new_version = self.doc.versions.get(version_number=2)
+        assert new_version.is_primary is True
+        assert self.initial_version.is_primary is False
+
+        mock_task_delay.assert_called_once_with(new_version.id)
+
+    @patch('documents.services.generate_pdf_pages_task.delay')
+    def test_upload_version_for_other_user_doc_same_org(self, mock_task_delay, api_client, user2):
+        """Test a user can upload a version to another user's doc in the same org."""
+        doc_by_user2 = Document.objects.create(
+            organization=user2.organization,
+            created_by=user2,
+            name="user2_doc.pdf",
+            status='ready'
+        )
+        DocumentVersion.objects.create(document=doc_by_user2, version_number=1, is_primary=True)
+
+        dummy_file = SimpleUploadedFile("v2.pdf", b"new_content", "application/pdf")
+
+        response = api_client.post(
+            f'/api/v1/documents/{doc_by_user2.id}/versions/',
+            {'file': dummy_file},
+            format='multipart'
+        )
+
+        assert response.status_code == status.HTTP_202_ACCEPTED
+        doc_by_user2.refresh_from_db()
+        assert doc_by_user2.versions.count() == 2
+        mock_task_delay.assert_called_once()
+
+    def test_upload_version_for_other_org_doc(self, api_client):
+        """Test uploading a version for a document in another organization."""
+        other_org = Organization.objects.create(name="Other Corp")
+        other_user = User.objects.create_user(
+            username='other@example.com', organization=other_org
+        )
+        doc_other_org = Document.objects.create(
+            organization=other_org, created_by=other_user
+        )
+        dummy_file = SimpleUploadedFile("v2.pdf", b"new_content", "application/pdf")
+
+        response = api_client.post(
+            f'/api/v1/documents/{doc_other_org.id}/versions/',
+            {'file': dummy_file},
+            format='multipart'
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_upload_version_for_non_existent_doc(self, api_client):
+        """Test uploading a version for a document that does not exist."""
+        dummy_file = SimpleUploadedFile("v2.pdf", b"new_content", "application/pdf")
+        non_existent_id = 'doc_00000000000000000000000000'
+        response = api_client.post(
+            f'/api/v1/documents/{non_existent_id}/versions/',
+            {'file': dummy_file},
+            format='multipart'
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_upload_version_no_file(self, api_client):
+        """Test uploading a new version without providing a file."""
+        response = api_client.post(
+            f'/api/v1/documents/{self.doc.id}/versions/',
+            {},
+            format='multipart'
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
