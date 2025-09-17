@@ -14,6 +14,7 @@ router.register(r'views', views.ViewViewSet)
 urlpatterns = [
     path('', include(router.urls)),
     path('uploads/document/', views.DocumentUploadView.as_view(), name='document-upload'),
+    path('documents/<str:document_id>/versions/', views.DocumentVersionUploadView.as_view(), name='document-version-upload'),
     path('documents/<str:document_id>/preview-data/', views.DocumentPreviewDataView.as_view(), name='document-preview-data'),
     path('links/<slug:slug>/view-data/', views.ShareLinkViewDataView.as_view(), name='share-link-view-data'),
 ]

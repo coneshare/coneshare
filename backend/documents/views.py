@@ -17,7 +17,11 @@ from .serializers import (
     ViewerSerializer,
     ViewSerializer,
 )
-from .services import create_document_from_upload, delete_document_and_files
+from .services import (
+    create_document_from_upload,
+    create_new_document_version,
+    delete_document_and_files,
+)
 
 
 def _get_or_create_folders_from_path(organization, folder_path: str) -> Folder:
@@ -70,6 +74,51 @@ class DocumentUploadView(APIView):
                 requesting_user=request.user,
                 uploaded_file=file_obj,
                 folder=parent_folder
+            )
+        except Exception as e:
+            # In a real app, log this exception
+            return Response(
+                {"detail": f"Failed to start document processing: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        serializer = DocumentSerializer(document, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+
+
+class DocumentVersionUploadView(APIView):
+    """
+    A dedicated view for uploading a new version of an existing document.
+    """
+    parser_classes = (MultiPartParser,)
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, document_id, *args, **kwargs):
+        # 1. Authorize the user
+        try:
+            document = Document.objects.get(
+                id=document_id,
+                organization=request.user.organization
+            )
+        except Document.DoesNotExist:
+            return Response(
+                {"detail": "Access denied or document not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        uploaded_file = request.data.get('file')
+        if not uploaded_file:
+            return Response(
+                {"detail": "No file provided"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 2. Delegate to the service layer
+        try:
+            create_new_document_version(
+                document=document,
+                uploaded_file=uploaded_file,
+                requesting_user=request.user
             )
         except Exception as e:
             # In a real app, log this exception
