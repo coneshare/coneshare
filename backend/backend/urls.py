@@ -15,11 +15,16 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
+from django.views.generic import TemplateView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api-auth/', include('rest_framework.urls')),
     path('api/v1/', include('core.urls')),
     path('api/v1/', include('documents.urls')),
+
+    # This catch-all route serves the React app for any non-API path.
+    # It must be the last URL pattern in the list.
+    re_path(r'^(?:.*)/?$', TemplateView.as_view(template_name="index.html")),
 ]

@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 from django.core.files.storage import default_storage
+from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
@@ -199,3 +200,68 @@ class ViewViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return View.objects.filter(share_link__document__organization=self.request.user.organization)
+
+
+class ShareLinkViewDataView(APIView):
+    """
+    Provides the data needed for a public viewer to render a document from a share link.
+    This view includes all necessary security checks.
+    """
+    # No permission_classes, as this is a public endpoint with internal checks.
+
+    def get(self, request, slug, *args, **kwargs):
+        try:
+            link = ShareLink.objects.get(slug=slug, is_archived=False)
+        except ShareLink.DoesNotExist:
+            return Response({"message": "Link not found or has been archived."}, status=status.HTTP_404_NOT_FOUND)
+
+        # --- SERVER-SIDE ACCESS CONTROL ---
+        # 1. Check for expiration
+        if link.expires_at and link.expires_at < timezone.now():
+            return Response({"message": "This link has expired."}, status=status.HTTP_410_GONE)
+
+        # 2. Check for password protection (placeholder for now)
+        if link.password_hash:
+            # In a real implementation, we would check for a valid session token
+            # that proves the user has already entered the password.
+            # For now, we will deny access if a password is set.
+            # is_viewer_authorized(request, link) # Placeholder for future logic
+            return Response(
+                {"message": "Password required", "protectionType": "password"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # If all checks pass, proceed to fetch and return data.
+        document = link.document
+        primary_version = document.versions.filter(is_primary=True).first()
+
+        if not primary_version or document.status != 'ready':
+            return Response(
+                {"message": "Document is not yet ready for viewing."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        pages_data = []
+        if primary_version.has_pages:
+            # Note: In a production system, a service would generate pre-signed URLs.
+            # Here, we mirror DocumentPreviewDataView but use the key directly for simplicity.
+            pages = primary_version.pages.order_by('page_number')
+            for page in pages:
+                pages_data.append({
+                    "page_number": page.page_number,
+                    "url": default_storage.url(page.storage_key),
+                    "metadata": page.metadata,
+                })
+
+        response_data = {
+            "id": document.id,
+            "name": document.name,
+            "type": document.type,
+            "numPages": primary_version.num_pages,
+            "pages": pages_data,
+            "linkSettings": {
+                "allowDownload": link.allow_download,
+                "enableWatermark": link.enable_watermark,
+            }
+        }
+        return Response(response_data, status=status.HTTP_200_OK)
