@@ -1,7 +1,5 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import React from "react";
-import { render, screen } from "@testing-library/react";
 import { describeFeature, loadFeature } from "@amiceli/vitest-cucumber";
 import { expect } from "vitest";
 import DocumentsPage from "../../pages/DocumentsPage";
