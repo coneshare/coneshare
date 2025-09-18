@@ -157,3 +157,16 @@ This session implemented two major features: document version updates and secure
   - Added comprehensive unit tests for all access control scenarios
   - Created BDD test for password-protected links
   - Verified synchronous Celery task execution in tests ([`c915031`](https://github.com/coneshare/coneshare/commit/c915031))
+
+---
+
+## Session 7: Frontend Build Fixes & Component Integration (2025-09-18)
+
+This session focused on resolving initial frontend setup issues and integrating the first major component. ([`a2d822d`](https://github.com/coneshare/coneshare/commit/a2d822d))
+
+### 1. Component Integration Fix
+- **Named vs. Default Export**: Fixed an import error in `DocumentsPage.jsx` where `DocumentsList` was being imported as a default export instead of a named export. This resolved the "does not provide an export named 'default'" error and allowed the component to render.
+
+### 2. Tailwind CSS Configuration
+- **Theme Extension**: Updated `tailwind.config.js` to correctly extend the theme with the custom CSS variables (e.g., `--background`, `--primary`) defined in `index.css`. This fixed an issue where utility classes like `bg-background` were not being recognized by the build process.
+- **Style Cleanup**: Removed conflicting `@layer base` rules from `index.css` that were overriding the theme variables.
