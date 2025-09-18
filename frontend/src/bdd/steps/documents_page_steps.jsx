@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import { defineFeature, loadFeature } from "vitest-cucumber";
+import { defineFeature, loadFeature } from "@amiceli/vitest-cucumber";
 import { expect } from "vitest";
 import DocumentsPage from "../../pages/DocumentsPage";
 import { MemoryRouter } from "react-router-dom";
