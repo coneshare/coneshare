@@ -32,6 +32,7 @@ services:
       - redis
 
   frontend:
+    image: coneshare:frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile-dev
