@@ -2,8 +2,20 @@ import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import api from "../../services/api";
 import axios from "axios";
 
-// Mock the top-level axios to intercept the refresh token call
-vi.mock("axios");
+// Mock axios. The factory ensures that when api.js calls axios.create(), it gets
+// a real axios instance, while the top-level axios.post used for token
+// refresh remains a separate mock function.
+vi.mock("axios", async (importOriginal) => {
+  const actualAxios = await importOriginal();
+  const mockCreatedInstance = actualAxios.default.create();
+
+  return {
+    default: {
+      create: () => mockCreatedInstance,
+      post: vi.fn(),
+    },
+  };
+});
 
 describe("API Service Interceptors", () => {
   let mockAdapter;
@@ -12,6 +24,9 @@ describe("API Service Interceptors", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     localStorage.clear();
+
+    // Spy on localStorage to track calls
+    vi.spyOn(Storage.prototype, "removeItem");
 
     // Mock the adapter for the 'api' instance to control its responses
     mockAdapter = vi.fn();
