@@ -29,5 +29,6 @@ class UserManager(BaseUserManager):
         Creates a superuser, assigns them to the default organization,
         and gives them the 'admin' role.
         """
+        extra_fields.setdefault("organization", self._get_default_organization())
         extra_fields.setdefault("role", "admin")
         return super().create_superuser(username, email, password, **extra_fields)

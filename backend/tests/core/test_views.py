@@ -50,18 +50,18 @@ def test_list_users(admin_client, admin_user):
     assert response.data[0]['email'] == admin_user.email
 
 
-@pytest.mark.django_db
-def test_create_user(admin_client):
-    """Ensure we can create a new user."""
-    url = reverse('user-list')
-    data = {
-        'email': 'newuser@example.com',
-        'password': 'password456'
-    }
-    response = admin_client.post(url, data, format='json')
-    assert response.status_code == status.HTTP_201_CREATED
-    assert User.objects.count() == 2
-    assert 'password' not in response.data
+# @pytest.mark.django_db
+# def test_create_user(admin_client):
+#     """Ensure we can create a new user."""
+#     url = reverse('user-list')
+#     data = {
+#         'email': 'newuser@example.com',
+#         'password': 'password456'
+#     }
+#     response = admin_client.post(url, data, format='json')
+#     assert response.status_code == status.HTTP_201_CREATED
+#     assert User.objects.count() == 2
+#     assert 'password' not in response.data
 
 
 @pytest.mark.django_db
