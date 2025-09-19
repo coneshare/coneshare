@@ -1,23 +1,20 @@
+import api from './api';
+
+const login = async (email, password) => {
+  const response = await api.post('/token/', { email, password });
+  if (response.data.access && response.data.refresh) {
+    localStorage.setItem('access_token', response.data.access);
+    localStorage.setItem('refresh_token', response.data.refresh);
+  }
+  return response.data;
+};
+
 const logout = async () => {
   const refreshToken = localStorage.getItem('refresh_token');
-  const accessToken = localStorage.getItem('access_token');
-
-  if (!refreshToken || !accessToken) {
-    // If tokens are not present, just clear storage and treat as logged out
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    return;
-  }
-
   try {
-    await fetch('/api/v1/logout/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ refresh: refreshToken }),
-    });
+    if (refreshToken) {
+      await api.post('/logout/', { refresh: refreshToken });
+    }
   } catch (error) {
     // Log the error but proceed with cleanup
     console.error('Logout failed:', error);
@@ -29,5 +26,6 @@ const logout = async () => {
 };
 
 export const authService = {
+  login,
   logout,
 };

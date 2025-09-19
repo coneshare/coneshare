@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { authService } from '../services/authService'
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -14,28 +15,11 @@ function LoginPage() {
     setError(null)
 
     try {
-      const response = await fetch('/api/v1/token/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Invalid credentials. Please try again.')
-      }
-
-      const data = await response.json()
-
-      // Store tokens in localStorage
-      localStorage.setItem('access_token', data.access)
-      localStorage.setItem('refresh_token', data.refresh)
-
+      await authService.login(email, password)
       // Redirect to homepage on successful login
       navigate('/')
     } catch (err) {
-      setError(err.message)
+      setError('Invalid credentials. Please try again.')
     } finally {
       setIsLoading(false)
     }
