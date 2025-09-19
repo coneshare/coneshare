@@ -1,4 +1,6 @@
 import { ChevronsUpDown, CircleUserRound, LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { authService } from "../../services/authService";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import {
@@ -15,6 +17,12 @@ import { cn } from "../../lib/utils";
 function NavUser() {
   const { isCollapsed } = useSidebar();
   const user = { name: "Placeholder User", email: "user@coneshare.com" };
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await authService.logout();
+    navigate("/login");
+  };
 
   return (
     <DropdownMenu>
@@ -51,7 +59,7 @@ function NavUser() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
         </DropdownMenuItem>
