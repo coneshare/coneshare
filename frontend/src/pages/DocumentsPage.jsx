@@ -9,27 +9,39 @@ import { Toaster } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument } from '../services/api';
-
-// Mock data to simulate fetching from an API
-const mockFolders = [
-  { id: 'folder-1', name: 'Project Alpha', _count: { documents: 3 }, path: '/folder-1' },
-  { id: 'folder-2', name: 'Marketing Materials', _count: { documents: 5 }, path: '/folder-2' },
-];
-
-const mockDocuments = [
-  { id: 'doc-1', name: 'Q1 Report.pdf', links: [], _count: { links: 2, views: 15 } },
-  { id: 'doc-2', name: 'Competitor Analysis.docx', links: [], _count: { links: 1, views: 7 } },
-  { id: 'doc-3', name: 'Onboarding Presentation.pptx', links: [], _count: { links: 5, views: 42 } },
-];
+import { uploadDocument, getDocuments, getFolders } from '../services/api';
 
 function DocumentsPage() {
-  const loading = false;
-  const foldersLoading = false;
+  const [documents, setDocuments] = useState([]);
+  const [folders, setFolders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [foldersLoading, setFoldersLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
+
+  const fetchData = async () => {
+    setLoading(true);
+    setFoldersLoading(true);
+    try {
+      const [docsResponse, foldersResponse] = await Promise.all([
+        getDocuments(),
+        getFolders(),
+      ]);
+      setDocuments(docsResponse.data);
+      setFolders(foldersResponse.data);
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+    } finally {
+      setLoading(false);
+      setFoldersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const handleFolderSelect = () => {
     folderInputRef.current.click();
@@ -49,6 +61,7 @@ function DocumentsPage() {
           uploadDocument(file)
         );
         await Promise.all(uploadPromises);
+        fetchData();
       } catch (error) {
         console.error('Upload failed:', error);
       }
@@ -67,6 +80,7 @@ function DocumentsPage() {
           return uploadDocument(file, path);
         });
         await Promise.all(uploadPromises);
+        fetchData();
       } catch (error) {
         console.error('Folder upload failed:', error);
       }
@@ -156,13 +170,13 @@ function DocumentsPage() {
       <Separator className="mb-5 bg-gray-200 dark:bg-gray-800" />
 
       <DocumentsList
-        folders={mockFolders}
-        documents={mockDocuments}
+        folders={folders}
+        documents={documents}
         loading={loading}
         foldersLoading={foldersLoading}
       />
 
-      {mockDocuments.length > 0 && (
+      {documents.length > 0 && (
         <Pagination />
       )}
     </div>

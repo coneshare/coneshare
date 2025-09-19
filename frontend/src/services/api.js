@@ -84,4 +84,8 @@ export const uploadDocument = (file, path) => {
   });
 };
 
+export const getDocuments = () => api.get('/documents/');
+
+export const getFolders = () => api.get('/folders/');
+
 export default api;
