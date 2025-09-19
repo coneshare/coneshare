@@ -29,17 +29,17 @@ def organization(django_db_setup):
 def user(organization):
     """Provides a primary test user."""
     # Using get_or_create to avoid creating duplicate users on re-runs
-    user, _ = User.objects.get_or_create(
+    user, created = User.objects.get_or_create(
         username='bdduser@example.com',
         defaults={
             'email': 'bdduser@example.com',
-            'password': 'password123',
             'organization': organization,
             'role': 'admin'
         }
     )
-    user.set_password('password123')
-    user.save()
+    if created:
+        user.set_password('password123')
+        user.save()
     return user
 
 
