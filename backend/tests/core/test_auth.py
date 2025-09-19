@@ -112,3 +112,35 @@ def test_logout(public_client, user):
 
     assert refresh_response.status_code == status.HTTP_401_UNAUTHORIZED
     assert 'token_not_valid' in refresh_response.data.get('code', '')
+
+
+@pytest.mark.django_db
+def test_create_superuser_via_manager():
+    """
+    Test that the custom UserManager's `create_superuser` method successfully
+    creates a superuser and assigns the default organization.
+    This test directly invokes the manager method to reproduce the `createsuperuser`
+    command failure if the manager is misconfigured.
+    """
+    email = 'superuser@coneshare.com'
+    username = 'superuser'
+    password = 'superpassword123'
+
+    # This call will fail with an IntegrityError if the organization is not set.
+    user = User.objects.create_superuser(
+        email=email,
+        username=username,
+        password=password
+    )
+
+    # Verify standard superuser attributes
+    assert user.email == email
+    assert user.username == username
+    assert user.is_staff is True
+    assert user.is_superuser is True
+    assert user.check_password(password) is True
+
+    # Verify custom attributes set by the manager
+    assert user.organization is not None
+    assert user.organization.name == "Default Organization"
+    assert user.role == 'admin'
