@@ -170,3 +170,27 @@ This session focused on resolving initial frontend setup issues and integrating 
 ### 2. Tailwind CSS Configuration
 - **Theme Extension**: Updated `tailwind.config.js` to correctly extend the theme with the custom CSS variables (e.g., `--background`, `--primary`) defined in `index.css`. This fixed an issue where utility classes like `bg-background` were not being recognized by the build process.
 - **Style Cleanup**: Removed conflicting `@layer base` rules from `index.css` that were overriding the theme variables.
+
+## Session 8: Authentication Implementation & Testing (2025-09-19)
+
+This session focused on implementing secure authentication flows and comprehensive testing.
+
+### 1. JWT Authentication System
+- **Library Integration**: Added `djangorestframework-simplejwt` for token management ([`7b5244e`](https://github.com/coneshare/coneshare/commit/7b5244e))
+- **Secure UserViewSet**: Modified `UserViewSet` to remove create action and require authentication ([`46f291c`](https://github.com/coneshare/coneshare/commit/46f291c))
+- **Token Blacklist**: Implemented logout functionality with token revocation
+
+### 2. Testing Infrastructure
+- **Unit Tests**: Added comprehensive auth tests covering registration, login, token refresh and logout flows ([`1db4c9c`](https://github.com/coneshare/coneshare/commit/1db4c9c))
+- **BDD Scenarios**: Implemented Gherkin tests for authentication workflows ([`c6588eb`](https://github.com/coneshare/coneshare/commit/c6588eb))
+- **Superuser Fix**: Created custom UserManager to handle organization assignment ([`a6ec3e5`](https://github.com/coneshare/coneshare/commit/a6ec3e5))
+
+### 3. Frontend Integration
+- **Login Page**: Updated to use JWT endpoints and proper token storage
+- **Logout Flow**: Implemented API call to invalidate refresh token ([`9bf6996`](https://github.com/coneshare/coneshare/commit/9bf6996))
+- **Error Handling**: Added UI feedback for failed login attempts
+
+### 4. Security Enhancements
+- **Password Hashing**: Verified proper password storage in user fixtures
+- **API Protection**: Added IsAuthenticated permission to sensitive endpoints
+- **CORS Configuration**: Set up proper origin restrictions for frontend/backend communication
