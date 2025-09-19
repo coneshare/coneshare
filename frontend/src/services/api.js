@@ -69,7 +69,11 @@ export const uploadDocument = (file, path) => {
     formData.append('path', path);
   }
 
-  return api.post('/uploads/document/', formData);
+  return api.post('/uploads/document/', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
 };
 
 export default api;
