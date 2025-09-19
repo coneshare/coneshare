@@ -201,3 +201,27 @@ This session focused on implementing secure authentication flows and comprehensi
 - **Error Handling**: Added UI feedback for failed login attempts
 
 ---
+
+## Session 9: File Upload Finalization & Error Handling (2025-09-19)
+
+This session focused on completing the file upload functionality and enhancing error handling.
+
+### 1. Upload Functionality Finalization
+- **Multi-File Support**: Enhanced `DocumentsPage.jsx` to handle batch uploads with Promise.all
+- **Folder Upload**: Implemented webkitdirectory input for directory tree uploads
+- **Path Handling**: Added logic to extract folder paths from uploaded files' relative paths
+
+### 2. Error Handling Improvements
+- **Toast Notifications**: Integrated Sonner toast system for upload success/error feedback
+- **API Error Interceptor**: Enhanced axios interceptor to handle 401s and token refresh
+- **Error Boundary**: Added error boundary component to catch rendering errors
+
+### 3. Testing & Validation
+- **Upload Edge Cases**: Added tests for large files, invalid types, and network failures
+- **Path Injection Protection**: Implemented server-side path sanitization in `DocumentUploadView`
+- **Concurrency Tests**: Verified simultaneous file upload handling
+
+### 4. Documentation Updates
+- **Tech Stack Doc**: Updated `coneshare-techstack.md` with final upload implementation details
+- **Upload Guide**: Revised `coneshare-upload-file.md` to reflect current V1 implementation
+- **API Docs**: Added OpenAPI annotations to upload endpoints in `documents/views.py`
