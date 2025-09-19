@@ -10,3 +10,4 @@ boto3==1.34.148
 pytest-bdd==8.1.0
 celery[redis]==5.4.0
 pdf2image==1.17.0
+djangorestframework-simplejwt==5.3.1
