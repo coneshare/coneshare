@@ -25,7 +25,7 @@ help:
 
 .PHONY: up
 up:
-	COMPOSE_PROJECT_NAME=beatsight docker-compose up frontend
+	COMPOSE_PROJECT_NAME=beatsight docker-compose up
 
 .PHONY: down
 down:
@@ -33,7 +33,7 @@ down:
 
 .PHONY: build
 build:
-	docker-compose build frontend
+	docker-compose build
 
 .PHONY: logs
 logs:

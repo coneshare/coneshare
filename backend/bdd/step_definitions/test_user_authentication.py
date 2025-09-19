@@ -44,7 +44,7 @@ def login_with_correct_credentials(user_context):
     """Attempt to log in with the user's correct email and password."""
     user = user_context['user']
     client = user_context['client']
-    login_data = {'email': user.email, 'password': 'password'}
+    login_data = {'email': user.email, 'password': 'password123'}
     url = reverse('token_obtain_pair')
     response = client.post(url, login_data)
     user_context['response'] = response
