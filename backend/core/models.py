@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser, Group
 from django.db import models
 
 from core.fields import ULIDField
+from .managers import UserManager
 
 class BaseModel(models.Model):
     """
@@ -49,6 +50,8 @@ class User(AbstractUser):
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
+
+    objects = UserManager()
 
     def __str__(self):
         return self.email
