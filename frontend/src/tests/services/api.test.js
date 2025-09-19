@@ -1,0 +1,146 @@
+import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+import api from "../../services/api";
+import axios from "axios";
+
+// Mock the top-level axios to intercept the refresh token call
+vi.mock("axios");
+
+describe("API Service Interceptors", () => {
+  let mockAdapter;
+  let originalWindowLocation;
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    localStorage.clear();
+
+    // Mock the adapter for the 'api' instance to control its responses
+    mockAdapter = vi.fn();
+    api.defaults.adapter = mockAdapter;
+
+    // Mock window.location for redirection tests
+    originalWindowLocation = window.location;
+    delete window.location;
+    window.location = {
+      href: "",
+    };
+  });
+
+  afterEach(() => {
+    window.location = originalWindowLocation;
+  });
+
+  describe("Request Interceptor", () => {
+    it("should add Authorization header if access token exists", async () => {
+      localStorage.setItem("access_token", "test_token");
+      mockAdapter.mockResolvedValue({ data: "success" });
+
+      await api.get("/test");
+
+      const requestConfig = mockAdapter.mock.calls[0][0];
+      expect(requestConfig.headers.Authorization).toBe("Bearer test_token");
+    });
+
+    it("should not add Authorization header if no access token exists", async () => {
+      mockAdapter.mockResolvedValue({ data: "success" });
+
+      await api.get("/test");
+
+      const requestConfig = mockAdapter.mock.calls[0][0];
+      expect(requestConfig.headers.Authorization).toBeUndefined();
+    });
+  });
+
+  describe("Response Interceptor", () => {
+    it("should refresh token and retry original request on 401", async () => {
+      localStorage.setItem("refresh_token", "test_refresh_token");
+
+      // Mock the first API call to fail with 401
+      mockAdapter.mockRejectedValueOnce({
+        response: { status: 401 },
+        config: { url: "/protected", headers: {} },
+      });
+
+      // Mock the successful retry
+      mockAdapter.mockResolvedValueOnce({ data: "success" });
+
+      // Mock the refresh token call to succeed
+      axios.post.mockResolvedValue({
+        data: { access: "new_access_token" },
+      });
+
+      const response = await api.get("/protected");
+
+      // Verify refresh endpoint was called
+      expect(axios.post).toHaveBeenCalledTimes(1);
+      expect(axios.post).toHaveBeenCalledWith("/api/v1/token/refresh/", {
+        refresh: "test_refresh_token",
+      });
+
+      // Verify new token was stored
+      expect(localStorage.getItem("access_token")).toBe("new_access_token");
+
+      // Verify original request was retried with new token
+      expect(mockAdapter).toHaveBeenCalledTimes(2);
+      const retryConfig = mockAdapter.mock.calls[1][0];
+      expect(retryConfig.headers.Authorization).toBe(
+        "Bearer new_access_token"
+      );
+
+      // Verify final response is correct
+      expect(response.data).toBe("success");
+    });
+
+    it("should redirect to login if refresh token call fails", async () => {
+      localStorage.setItem("refresh_token", "test_refresh_token");
+      const refreshError = new Error("Refresh failed");
+      axios.post.mockRejectedValue(refreshError);
+
+      mockAdapter.mockRejectedValue({
+        response: { status: 401 },
+        config: { headers: {} },
+      });
+
+      await expect(api.get("/protected")).rejects.toThrow(refreshError);
+
+      expect(localStorage.removeItem).toHaveBeenCalledWith("access_token");
+      expect(localStorage.removeItem).toHaveBeenCalledWith("refresh_token");
+      expect(window.location.href).toBe("/login");
+    });
+
+    it("should redirect to login on 401 if no refresh token exists", async () => {
+      const originalError = {
+        response: { status: 401 },
+        config: {},
+      };
+      mockAdapter.mockRejectedValue(originalError);
+
+      await expect(api.get("/protected")).rejects.toBe(originalError);
+
+      expect(axios.post).not.toHaveBeenCalled();
+      expect(localStorage.removeItem).toHaveBeenCalledWith("access_token");
+      expect(localStorage.removeItem).toHaveBeenCalledWith("refresh_token");
+      expect(window.location.href).toBe("/login");
+    });
+
+    it("should not enter an infinite loop on repeated 401s", async () => {
+      localStorage.setItem("refresh_token", "test_refresh_token");
+
+      // Refresh succeeds
+      axios.post.mockResolvedValue({
+        data: { access: "new_access_token" },
+      });
+
+      // But both original and retry calls fail with 401
+      const error = {
+        response: { status: 401 },
+        config: { headers: {} },
+      };
+      mockAdapter.mockRejectedValue(error);
+
+      await expect(api.get("/protected")).rejects.toBe(error);
+
+      // Refresh should only be called once
+      expect(axios.post).toHaveBeenCalledTimes(1);
+    });
+  });
+});
