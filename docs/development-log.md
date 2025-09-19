@@ -194,3 +194,10 @@ This session focused on implementing secure authentication flows and comprehensi
 - **Password Hashing**: Verified proper password storage in user fixtures
 - **API Protection**: Added IsAuthenticated permission to sensitive endpoints
 - **CORS Configuration**: Set up proper origin restrictions for frontend/backend communication
+
+### 5. Frontend Integration
+- **Login Page**: Updated to use JWT endpoints and proper token storage
+- **Logout Flow**: Implemented API call to invalidate refresh token ([`9bf6996`](https://github.com/coneshare/coneshare/commit/9bf6996))
+- **Error Handling**: Added UI feedback for failed login attempts
+
+---
