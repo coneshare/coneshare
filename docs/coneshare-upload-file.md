@@ -4,32 +4,34 @@ This document outlines the implementation plan for adding document upload functi
 
 ---
 
-## V1.0: Simple "Add Document" Feature
+## V1.0: Multi-File & Folder Upload Feature
 
-The goal for V1 is to implement a clean, reliable single-file upload feature using a modal interface.
+The goal for V1 is to implement a clean, reliable file and folder upload feature using a dropdown button in the main documents view.
 
 ### 1. Backend (Django)
 
--   **Modify Document Creation Endpoint**:
-    -   **File**: `coneshare/documents/views.py`
-    -   **Endpoint**: `POST /api/documents/`
-    -   **Action**: The existing document creation view will be updated to handle a standard `multipart/form-data` request.
+-   **Dedicated Upload Endpoint**:
+    -   **File**: `backend/documents/views.py`
+    -   **Endpoint**: `POST /api/v1/uploads/document/`
+    -   **Action**: A dedicated `DocumentUploadView` handles `multipart/form-data` requests for both individual files and files within a folder structure.
     -   **Logic**:
-        1.  The view will receive the uploaded file directly from the request.
-        2.  It will call a service function (as defined in `coneshare-document-process.md`) that saves the file to the configured storage backend (MinIO or filesystem).
-        3.  It then creates the `Document` and `DocumentVersion` records in the database.
-        4.  Finally, it triggers the Celery task (`generate_pdf_pages_task`) to process the document in the background.
+        1.  The view requires authentication and receives the uploaded file.
+        2.  It accepts an optional `path` parameter in the request body, which is used to create a nested folder structure if provided.
+        3.  It calls the `create_document_from_upload` service function, which saves the file to the configured storage backend (MinIO or filesystem) and creates the `Document` and `DocumentVersion` records.
+        4.  It returns a `202 ACCEPTED` status and triggers the Celery task (`generate_pdf_pages_task`) for asynchronous processing.
 
 ### 2. Frontend (React)
 
--   **Create `AddDocumentModal` Component**:
-    -   **File**: `src/components/documents/AddDocumentModal.jsx` (new file)
-    -   **UI**: The component will feature a simple `<input type="file">` and an "Upload" button.
+-   **Create "Upload" Dropdown Button**:
+    -   **File**: `src/pages/DocumentsPage.jsx`
+    -   **UI**: The main documents page features an "Upload" button that opens a dropdown with two options: "Files" and "Folder".
     -   **Logic**:
-        1.  On form submission, it will construct a `FormData` object containing the selected file.
-        2.  It will use `fetch` or `axios` to send a `POST` request with the `FormData` to the `POST /api/documents/` endpoint.
-        3.  It will manage a `loading` state to provide UI feedback during the upload.
-        4.  It will display success or error notifications to the user based on the API response.
+        1.  **File Upload**: The "Files" option opens a system file picker allowing multiple file selection (`<input type="file" multiple>`).
+        2.  **Folder Upload**: The "Folder" option uses a directory picker (`<input type="file" webkitdirectory>`).
+        3.  On file selection, an `uploadDocument` service function (in `src/services/api.js`) constructs a `FormData` object for each file.
+        4.  For folder uploads, it extracts the relative path from the file object (`file.webkitRelativePath`) and includes it in the `FormData`.
+        5.  It sends a `POST` request to the `/api/v1/uploads/document/` endpoint with the correct `multipart/form-data` header.
+        6.  After a successful upload, the document list is refreshed to show the new content.
 
 ---
 
