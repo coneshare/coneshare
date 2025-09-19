@@ -53,10 +53,10 @@ from .views import RegisterView, LogoutView
 
 urlpatterns = [
     # ...
-    path('api/register/', RegisterView.as_view(), name='register'),
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/logout/', LogoutView.as_view(), name='logout'),
+    path('api/v1/register/', RegisterView.as_view(), name='register'),
+    path('api/v1/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/v1/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/v1/logout/', LogoutView.as_view(), name='logout'),
 ]
 ```
 
@@ -103,22 +103,79 @@ The React frontend will use a service to communicate with the API and a componen
 
 ```javascript
 // src/services/authService.js
-import axios from 'axios';
+import api from './api';
 
-const API_URL = '/api/';
-
-const login = (email, password) => {
-  return axios.post(API_URL + 'token/', { email, password });
+const login = async (email, password) => {
+  const response = await api.post('/token/', { email, password });
+  if (response.data.access && response.data.refresh) {
+    localStorage.setItem('access_token', response.data.access);
+    localStorage.setItem('refresh_token', response.data.refresh);
+  }
+  return response.data;
 };
 
-const logout = (refreshToken) => {
-  return axios.post(API_URL + 'logout/', { refresh: refreshToken });
+const logout = async () => {
+  try {
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (refreshToken) {
+      await api.post('/logout/', { refresh: refreshToken });
+    }
+  } finally {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+  }
 };
 
-export default { login, logout };
+export const authService = { login, logout };
 ```
 
-**2. Login Component & Logout Logic**
+**2. Axios Interceptor Configuration**
+
+```javascript
+// src/services/api.js
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: '/api/v1',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Automatic token injection and refresh handling
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response.status === 401) {
+      // Handle token refresh logic
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (refreshToken) {
+        try {
+          const { data } = await axios.post('/api/v1/token/refresh/', { refresh: refreshToken });
+          localStorage.setItem('access_token', data.access);
+          error.config.headers['Authorization'] = `Bearer ${data.access}`;
+          return api(error.config);
+        } catch (refreshError) {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          window.location.href = '/login';
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default api;
+```
+
+**3. Login Component & Logout Logic**
 
 ```jsx
 // src/components/Login.jsx
