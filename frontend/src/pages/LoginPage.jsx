@@ -14,7 +14,7 @@ function LoginPage() {
     setError(null)
 
     try {
-      const response = await fetch('/api/auth/token/', {
+      const response = await fetch('/api/v1/token/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -28,8 +28,9 @@ function LoginPage() {
 
       const data = await response.json()
 
-      // Assuming the token is in data.access
-      localStorage.setItem('authToken', data.access)
+      // Store tokens in localStorage
+      localStorage.setItem('access_token', data.access)
+      localStorage.setItem('refresh_token', data.refresh)
 
       // Redirect to homepage on successful login
       navigate('/')
