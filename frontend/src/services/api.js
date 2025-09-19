@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toast } from 'sonner';
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -55,6 +56,13 @@ api.interceptors.response.use(
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }
+    }
+
+    // For other errors, show a toast
+    if (error.response?.data?.detail) {
+      toast.error(error.response.data.detail);
+    } else if (error.message) {
+      toast.error(error.message);
     }
 
     return Promise.reject(error);

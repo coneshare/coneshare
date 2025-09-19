@@ -5,6 +5,7 @@ import { Separator } from '../components/ui/Separator';
 import { SearchBox } from '../components/SearchBox';
 import { SortButton } from '../components/documents/filters/SortButton';
 import { Pagination } from '../components/documents/Pagination';
+import { Toaster } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
@@ -86,6 +87,7 @@ function DocumentsPage() {
 
   return (
     <div className="sticky top-0 mb-4 rounded-lg bg-white p-4 dark:bg-gray-900 sm:mx-4 sm:pt-8">
+      <Toaster richColors />
       <section className="mb-4 flex items-center justify-between space-x-2 sm:space-x-0">
         <div className="space-y-0 sm:space-y-1">
           <h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
