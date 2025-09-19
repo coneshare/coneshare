@@ -8,6 +8,7 @@ import { Pagination } from '../components/documents/Pagination';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
+import { uploadDocument } from '../services/api';
 
 // Mock data to simulate fetching from an API
 const mockFolders = [
@@ -39,19 +40,35 @@ function DocumentsPage() {
     setIsDropdownOpen(false); // Close dropdown after click
   };
 
-  const onFileChange = (e) => {
+  const onFileChange = async (e) => {
     const files = e.target.files;
     if (files.length > 0) {
-      console.log('Selected files:', files);
-      // Here you would typically handle the file upload
+      try {
+        const uploadPromises = Array.from(files).map((file) =>
+          uploadDocument(file)
+        );
+        await Promise.all(uploadPromises);
+      } catch (error) {
+        console.error('Upload failed:', error);
+      }
     }
   };
 
-  const onFolderChange = (e) => {
+  const onFolderChange = async (e) => {
     const files = e.target.files;
     if (files.length > 0) {
-      console.log('Selected folder:', files);
-      // Here you would typically handle the folder upload
+      try {
+        const uploadPromises = Array.from(files).map((file) => {
+          const path = file.webkitRelativePath.substring(
+            0,
+            file.webkitRelativePath.lastIndexOf('/')
+          );
+          return uploadDocument(file, path);
+        });
+        await Promise.all(uploadPromises);
+      } catch (error) {
+        console.error('Folder upload failed:', error);
+      }
     }
   };
 

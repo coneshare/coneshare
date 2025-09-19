@@ -61,4 +61,15 @@ api.interceptors.response.use(
   }
 );
 
+export const uploadDocument = (file, path) => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  if (path) {
+    formData.append('path', path);
+  }
+
+  return api.post('/uploads/document/', formData);
+};
+
 export default api;
