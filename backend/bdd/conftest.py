@@ -38,9 +38,8 @@ def user(organization):
             'role': 'admin'
         }
     )
-    if not user.has_usable_password():
-        user.set_password('password123')
-        user.save()
+    user.set_password('password123')
+    user.save()
     return user
 
 
