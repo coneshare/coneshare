@@ -56,14 +56,18 @@ function DocumentsPage() {
   const onFileChange = async (e) => {
     const files = e.target.files;
     if (files.length > 0) {
-      try {
-        const uploadPromises = Array.from(files).map((file) =>
-          uploadDocument(file)
-        );
-        await Promise.all(uploadPromises);
+      const uploadPromises = Array.from(files).map((file) =>
+        uploadDocument(file)
+      );
+      const results = await Promise.allSettled(uploadPromises);
+
+      const failedCount = results.filter(r => r.status === 'rejected').length;
+      if (failedCount > 0) {
+        console.error(`${failedCount} file(s) failed to upload.`);
+      }
+
+      if (results.some(r => r.status === 'fulfilled')) {
         fetchData();
-      } catch (error) {
-        console.error('Upload failed:', error);
       }
     }
   };
@@ -71,18 +75,22 @@ function DocumentsPage() {
   const onFolderChange = async (e) => {
     const files = e.target.files;
     if (files.length > 0) {
-      try {
-        const uploadPromises = Array.from(files).map((file) => {
-          const path = file.webkitRelativePath.substring(
-            0,
-            file.webkitRelativePath.lastIndexOf('/')
-          );
-          return uploadDocument(file, path);
-        });
-        await Promise.all(uploadPromises);
+      const uploadPromises = Array.from(files).map((file) => {
+        const path = file.webkitRelativePath.substring(
+          0,
+          file.webkitRelativePath.lastIndexOf('/')
+        );
+        return uploadDocument(file, path);
+      });
+      const results = await Promise.allSettled(uploadPromises);
+
+      const failedCount = results.filter(r => r.status === 'rejected').length;
+      if (failedCount > 0) {
+        console.error(`${failedCount} file(s) failed to upload.`);
+      }
+
+      if (results.some(r => r.status === 'fulfilled')) {
         fetchData();
-      } catch (error) {
-        console.error('Folder upload failed:', error);
       }
     }
   };
