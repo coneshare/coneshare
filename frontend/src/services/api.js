@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toast } from 'sonner';
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -57,8 +58,34 @@ api.interceptors.response.use(
       }
     }
 
+    // For other errors, show a toast
+    if (error.response?.data?.detail) {
+      toast.error(error.response.data.detail);
+    } else if (error.message) {
+      toast.error(error.message);
+    }
+
     return Promise.reject(error);
   }
 );
+
+export const uploadDocument = (file, path) => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  if (path) {
+    formData.append('path', path);
+  }
+
+  return api.post('/uploads/document/', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+};
+
+export const getDocuments = () => api.get('/documents/');
+
+export const getFolders = () => api.get('/folders/');
 
 export default api;

@@ -46,6 +46,7 @@ class DocumentUploadView(APIView):
     A dedicated view for handling file uploads and creating Document records.
     """
     parser_classes = (MultiPartParser,)
+    permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         file_obj = request.FILES.get('file')

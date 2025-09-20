@@ -14,7 +14,8 @@ function DocumentCard({ document }) {
             {document.name}
           </p>
           <p className="truncate text-sm text-gray-500 dark:text-gray-400">
-            {document._count.links} Links · {document._count.views} Views
+            {document._count?.links ?? 0} Links · {document._count?.views ?? 0}{" "}
+            Views
           </p>
         </Link>
       </div>
