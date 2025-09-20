@@ -128,6 +128,21 @@ export function DocumentsList({
     setSelectedFolders([]);
   };
 
+  const handleRename = (item) => {
+    // In a real implementation, this would open a rename modal.
+    console.log(`Rename action for: ${item.name} (${item.id})`);
+  };
+
+  const handleDelete = (item) => {
+    // In a real implementation, this would open a confirmation modal.
+    console.log(`Delete action for: ${item.name} (${item.id})`);
+  };
+
+  const handleShare = (document) => {
+    // In a real implementation, this would open a sharing modal.
+    console.log(`Share action for: ${document.name} (${document.id})`);
+  };
+
   const HeaderContent = memo(() => {
     if (selectedDocumentsLength > 0 || selectedFoldersLength > 0) {
       const totalItems = (documents?.length || 0) + (folders?.length || 0);
@@ -228,7 +243,11 @@ export function DocumentsList({
                       isDraggingSelected={isDragging}
                       type="folder"
                     >
-                      <FolderCard folder={folder} />
+                      <FolderCard
+                        folder={folder}
+                        onRename={handleRename}
+                        onDelete={handleDelete}
+                      />
                     </DraggableItem>
                   </DroppableFolder>
                 </li>
@@ -253,7 +272,12 @@ export function DocumentsList({
                     type="document"
                     onSelect={handleSelect}
                   >
-                    <DocumentCard document={document} />
+                    <DocumentCard
+                      document={document}
+                      onRename={handleRename}
+                      onDelete={handleDelete}
+                      onShare={handleShare}
+                    />
                   </DraggableItem>
                 </li>
               ))
