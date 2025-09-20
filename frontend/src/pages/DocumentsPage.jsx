@@ -73,11 +73,7 @@ function DocumentsPage() {
     const files = e.target.files;
     if (files.length > 0) {
       const uploadPromises = Array.from(files).map((file) => {
-        const path = file.webkitRelativePath.substring(
-          0,
-          file.webkitRelativePath.lastIndexOf('/')
-        );
-        return uploadDocument(file, path);
+        return uploadDocument(file, file.webkitRelativePath);
       });
       const results = await Promise.allSettled(uploadPromises);
 

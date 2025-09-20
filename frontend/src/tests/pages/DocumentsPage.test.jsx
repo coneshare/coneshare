@@ -187,8 +187,8 @@ describe('DocumentsPage', () => {
       await waitFor(() => {
         expect(api.uploadDocument).toHaveBeenCalledTimes(2);
       });
-      expect(api.uploadDocument).toHaveBeenCalledWith(file1, 'folderA');
-      expect(api.uploadDocument).toHaveBeenCalledWith(file2, 'folderA');
+      expect(api.uploadDocument).toHaveBeenCalledWith(file1, 'folderA/file1.txt');
+      expect(api.uploadDocument).toHaveBeenCalledWith(file2, 'folderA/file2.txt');
 
       await waitFor(() => {
         expect(api.getDocuments).toHaveBeenCalledTimes(2);
@@ -215,8 +215,8 @@ describe('DocumentsPage', () => {
       await waitFor(() => {
         expect(api.uploadDocument).toHaveBeenCalledTimes(2);
       });
-      expect(api.uploadDocument).toHaveBeenCalledWith(file1, 'folderB');
-      expect(api.uploadDocument).toHaveBeenCalledWith(file2, 'folderB');
+      expect(api.uploadDocument).toHaveBeenCalledWith(file1, 'folderB/success.txt');
+      expect(api.uploadDocument).toHaveBeenCalledWith(file2, 'folderB/fail.txt');
 
       await waitFor(() => {
         expect(api.getDocuments).toHaveBeenCalledTimes(2);
