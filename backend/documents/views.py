@@ -24,7 +24,7 @@ from .services import (
 )
 
 
-def _get_or_create_folders_from_path(organization, folder_path: str) -> Folder:
+def _get_or_create_folders_from_path(requesting_user, folder_path: str) -> Folder:
     """
     Recursively finds or creates folders based on a path string.
     Returns the final (deepest) Folder instance.
@@ -33,9 +33,10 @@ def _get_or_create_folders_from_path(organization, folder_path: str) -> Folder:
     path = Path(folder_path)
     for part in path.parts:
         folder, _ = Folder.objects.get_or_create(
-            organization=organization,
+            organization=requesting_user.organization,
             name=part,
-            parent=parent
+            parent=parent,
+            defaults={'created_by': requesting_user}
         )
         parent = folder
     return parent
@@ -64,7 +65,7 @@ class DocumentUploadView(APIView):
             folder_path, file_name_from_path = os.path.split(relative_path)
             if folder_path:
                 parent_folder = _get_or_create_folders_from_path(
-                    request.user.organization, folder_path
+                    request.user, folder_path
                 )
             if file_name_from_path:
                 # Override the uploaded file's name if a name is provided in path
@@ -199,7 +200,13 @@ class FolderViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Folder.objects.filter(organization=self.request.user.organization)
+        return Folder.objects.filter(created_by=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(
+            created_by=self.request.user,
+            organization=self.request.user.organization
+        )
 
 
 class DocumentViewSet(viewsets.ModelViewSet):

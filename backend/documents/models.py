@@ -9,6 +9,7 @@ class Folder(BaseModel):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='folders')
     name = models.CharField(max_length=255)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='folders_created')
 
     def __str__(self):
         return self.name

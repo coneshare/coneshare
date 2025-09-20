@@ -3,6 +3,9 @@ import { FileIcon, FolderIcon, } from "lucide-react";
 import { memo, useCallback, useMemo, useState } from "react";
 import * as React from 'react';
 import { createPortal } from "react-dom";
+import { toast } from "sonner";
+import { deleteDocument, deleteFolder } from "../../services/api";
+import { ConfirmationDialog } from "../dialogs/ConfirmationDialog";
 
 import { Button } from "../ui/Button";
 import { Checkbox } from "../ui/Checkbox";
@@ -19,9 +22,11 @@ export function DocumentsList({
   documents,
   loading,
   foldersLoading,
+  onDataRefresh,
 }) {
   const [selectedDocuments, setSelectedDocuments] = useState([]);
   const [selectedFolders, setSelectedFolders] = useState([]);
+  const [itemToDelete, setItemToDelete] = useState(null);
 
   const [draggedDocument, setDraggedDocument] = useState(null);
   const [draggedFolder, setDraggedFolder] = useState(null);
@@ -128,6 +133,40 @@ export function DocumentsList({
     setSelectedFolders([]);
   };
 
+  const handleRename = (item) => {
+    // In a real implementation, this would open a rename modal.
+    console.log(`Rename action for: ${item.name} (${item.id})`);
+  };
+
+  const handleDelete = (item, type) => {
+    setItemToDelete({ ...item, type });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete) return;
+
+    try {
+      if (itemToDelete.type === "document") {
+        await deleteDocument(itemToDelete.id);
+        toast.success(`Document "${itemToDelete.name}" deleted successfully.`);
+      } else {
+        await deleteFolder(itemToDelete.id);
+        toast.success(`Folder "${itemToDelete.name}" deleted successfully.`);
+      }
+      onDataRefresh();
+    } catch (error) {
+      // Interceptor will show a generic error toast
+      console.error(`Failed to delete ${itemToDelete.name}:`, error);
+    } finally {
+      setItemToDelete(null);
+    }
+  };
+
+  const handleShare = (document) => {
+    // In a real implementation, this would open a sharing modal.
+    console.log(`Share action for: ${document.name} (${document.id})`);
+  };
+
   const HeaderContent = memo(() => {
     if (selectedDocumentsLength > 0 || selectedFoldersLength > 0) {
       const totalItems = (documents?.length || 0) + (folders?.length || 0);
@@ -203,6 +242,16 @@ export function DocumentsList({
 
   return (
     <>
+      {itemToDelete && (
+        <ConfirmationDialog
+          isOpen={!!itemToDelete}
+          onOpenChange={(isOpen) => !isOpen && setItemToDelete(null)}
+          title={`Delete "${itemToDelete.name}"?`}
+          description="This action cannot be undone. This will permanently delete the item and all of its contents."
+          onConfirm={handleConfirmDelete}
+          confirmText="Delete"
+        />
+      )}
       <DndContext
         sensors={sensors}
         onDragStart={handleDragStart}
@@ -228,7 +277,11 @@ export function DocumentsList({
                       isDraggingSelected={isDragging}
                       type="folder"
                     >
-                      <FolderCard folder={folder} />
+                      <FolderCard
+                        folder={folder}
+                        onRename={handleRename}
+                        onDelete={(item) => handleDelete(item, "folder")}
+                      />
                     </DraggableItem>
                   </DroppableFolder>
                 </li>
@@ -253,7 +306,12 @@ export function DocumentsList({
                     type="document"
                     onSelect={handleSelect}
                   >
-                    <DocumentCard document={document} />
+                    <DocumentCard
+                      document={document}
+                      onRename={handleRename}
+                      onDelete={(item) => handleDelete(item, "document")}
+                      onShare={handleShare}
+                    />
                   </DraggableItem>
                 </li>
               ))
