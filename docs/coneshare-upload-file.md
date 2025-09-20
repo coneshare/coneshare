@@ -1,6 +1,6 @@
 # Coneshare: Document Upload Implementation Plan
 
-This document outlines the implementation plan for adding document upload functionality to Coneshare. The approach is phased to deliver a simple, robust single-file upload feature in V1, with more advanced features like drag-and-drop and resumable uploads planned for V2.
+This document outlines the implementation plan for adding document upload functionality to Coneshare. The approach is phased to deliver a robust multi-file and folder upload feature in V1, with more advanced features like drag-and-drop and resumable uploads planned for V2.
 
 ---
 
