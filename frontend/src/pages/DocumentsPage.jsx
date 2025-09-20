@@ -168,6 +168,7 @@ function DocumentsPage() {
         documents={documents}
         loading={loading}
         foldersLoading={foldersLoading}
+        onDataRefresh={fetchData}
       />
 
       {documents.length > 0 && (

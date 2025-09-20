@@ -88,4 +88,8 @@ export const getDocuments = () => api.get('/documents/');
 
 export const getFolders = () => api.get('/folders/');
 
+export const deleteDocument = (id) => api.delete(`/documents/${id}/`);
+
+export const deleteFolder = (id) => api.delete(`/folders/${id}/`);
+
 export default api;
