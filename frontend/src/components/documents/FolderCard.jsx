@@ -14,7 +14,7 @@ function FolderCard({ folder }) {
             {folder.name}
           </p>
           <p className="truncate text-sm text-gray-500 dark:text-gray-400">
-            {folder._count.documents} items
+            {folder._count?.documents} items
           </p>
         </Link>
       </div>
