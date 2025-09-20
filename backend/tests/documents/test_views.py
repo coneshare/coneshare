@@ -26,24 +26,47 @@ def user2(db, organization):
 
 
 @pytest.mark.django_db
-def test_list_folders(api_client, organization):
-    """Test retrieving a list of folders."""
-    Folder.objects.create(name="Root Folder", organization=organization)
+def test_list_folders(api_client, user, user2, organization):
+    """Test retrieving a list of folders is scoped to the current user."""
+    Folder.objects.create(name="My Folder", organization=organization, created_by=user)
+    Folder.objects.create(
+        name="Other's Folder", organization=organization, created_by=user2
+    )
     response = api_client.get('/api/v1/folders/')
     assert response.status_code == status.HTTP_200_OK
     assert len(response.data) == 1
-    assert response.data[0]['name'] == "Root Folder"
+    assert response.data[0]['name'] == "My Folder"
 
 
 @pytest.mark.django_db
-def test_create_folder(api_client, organization):
+def test_create_folder(api_client, user, organization):
     """Test creating a new folder."""
     data = {'name': 'New API Folder'}
     response = api_client.post('/api/v1/folders/', data)
     assert response.status_code == status.HTTP_201_CREATED
     assert response.data['name'] == 'New API Folder'
     assert Folder.objects.count() == 1
-    assert Folder.objects.get().organization == organization
+    folder = Folder.objects.get()
+    assert folder.organization == organization
+    assert folder.created_by == user
+
+
+@pytest.mark.django_db
+def test_delete_folder_permission_denied(api_client, user2):
+    """Test that a user cannot delete another user's folder."""
+    # user2 creates a folder
+    folder_by_user2 = Folder.objects.create(
+        organization=user2.organization,
+        created_by=user2,
+        name="User2's Folder"
+    )
+
+    # api_client (logged in as user) tries to delete it
+    response = api_client.delete(f'/api/v1/folders/{folder_by_user2.id}/')
+
+    # The user should not be able to delete this folder.
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert Folder.objects.filter(id=folder_by_user2.id).exists()
 
 
 @pytest.mark.django_db
@@ -100,7 +123,7 @@ def test_list_share_links_is_scoped_to_user(api_client, user, user2):
 
 
 @pytest.mark.django_db
-def test_upload_document_with_path(api_client):
+def test_upload_document_with_path(api_client, user):
     """Test uploading a file with a path to create folders."""
     dummy_file = SimpleUploadedFile("report.docx", b"content", "application/msword")
     response = api_client.post(
@@ -117,8 +140,11 @@ def test_upload_document_with_path(api_client):
     assert doc.name == 'report.docx'
     assert doc.folder is not None
     assert doc.folder.name == 'Final'
+    assert doc.folder.created_by == user
     assert doc.folder.parent.name == 'Q4'
+    assert doc.folder.parent.created_by == user
     assert doc.folder.parent.parent.name == 'Client Reports'
+    assert doc.folder.parent.parent.created_by == user
     assert doc.folder.parent.parent.parent is None
 
 
