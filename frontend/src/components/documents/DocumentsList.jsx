@@ -85,7 +85,7 @@ export function DocumentsList({
   const onDrop = useCallback(
     async (acceptedFiles, fileRejections, event) => {
       const dataTransferItems = event.dataTransfer.items;
-      if (!dataTransferItems) {
+      if (dataTransferItems.length == 0) {
         // Fallback for browsers that don't support DataTransfer.items (e.g., some Firefox versions)
         onFilesDrop(acceptedFiles);
         return;
