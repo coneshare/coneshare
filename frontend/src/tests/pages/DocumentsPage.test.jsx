@@ -205,12 +205,12 @@ describe('DocumentsPage', () => {
       });
     });
 
-    it('should call createFolderFromPath for multiple unique paths in parallel', async () => {
+    it('should correctly normalize and create unique folder paths from webkitdirectory', async () => {
       renderComponent();
 
-      const file1 = createFolderFile('folderA/sub1/file1.txt', 'file1.txt');
+      const file1 = createFolderFile('/folderA/sub1/file1.txt', 'file1.txt'); // Leading slash
       const file2 = createFolderFile('folderB/file2.txt', 'file2.txt');
-      const file3 = createFolderFile('folderA/sub1/file3.txt', 'file3.txt'); // duplicate path
+      const file3 = createFolderFile('folderA/sub1/file3.txt', 'file3.txt'); // Duplicate path
 
       api.createFolderFromPath.mockResolvedValue({ status: 201 });
       api.uploadDocument.mockResolvedValue({ status: 202 });
@@ -221,17 +221,18 @@ describe('DocumentsPage', () => {
         target: { files: [file1, file2, file3] },
       });
 
-      // Verify folder paths are created
+      // Verify folder paths are created (and normalized)
       await waitFor(() => {
         expect(api.createFolderFromPath).toHaveBeenCalledTimes(2);
       });
       expect(api.createFolderFromPath).toHaveBeenCalledWith('folderA/sub1');
       expect(api.createFolderFromPath).toHaveBeenCalledWith('folderB');
 
-      // Verify documents are uploaded
+      // Verify documents are uploaded with original (non-normalized) paths
       await waitFor(() => {
         expect(api.uploadDocument).toHaveBeenCalledTimes(3);
       });
+      expect(api.uploadDocument).toHaveBeenCalledWith(file1, '/folderA/sub1/file1.txt');
 
       // Verify data is refetched
       await waitFor(() => {
@@ -322,7 +323,7 @@ describe('DocumentsPage', () => {
       });
     });
 
-    it('should handle a dropped folder with nested content', async () => {
+    it('should correctly normalize and create unique folder paths from dropped items', async () => {
       api.getDocuments.mockResolvedValue({ data: [] });
       api.getFolders.mockResolvedValue({ data: [] });
       renderComponent();
@@ -330,28 +331,31 @@ describe('DocumentsPage', () => {
         expect(screen.getByText('No documents')).toBeInTheDocument();
       });
 
-      const file1 = createDroppedFile('/dropped-folder/file1.txt', 'file1.txt');
-      const file2 = createDroppedFile('dropped-folder/sub/file2.txt', 'file2.txt');
+      const file1 = createDroppedFile('/folder1/file1.txt', 'file1.txt'); // Leading slash
+      const file2 = createDroppedFile('folder2/sub/file2.txt', 'file2.txt');
+      const file3 = createDroppedFile('folder1/file3.txt', 'file3.txt'); // Duplicate path
 
       api.createFolderFromPath.mockResolvedValue({ status: 201 });
       api.uploadDocument.mockResolvedValue({ status: 202 });
 
       const dropzone = screen.getByText('No documents').closest('.space-y-4.relative');
-      fireEvent.drop(dropzone, createDropEvent([file1, file2]));
+      fireEvent.drop(dropzone, createDropEvent([file1, file2, file3]));
 
-      // Check folder creation calls
+      // Check folder creation calls (normalized)
       await waitFor(() => {
         expect(api.createFolderFromPath).toHaveBeenCalledTimes(2);
       });
-      expect(api.createFolderFromPath).toHaveBeenCalledWith('dropped-folder');
-      expect(api.createFolderFromPath).toHaveBeenCalledWith('dropped-folder/sub');
+      expect(api.createFolderFromPath).toHaveBeenCalledWith('folder1');
+      expect(api.createFolderFromPath).toHaveBeenCalledWith('folder2/sub');
 
-      // Check file upload calls
+      // Check file upload calls (original paths)
       await waitFor(() => {
-        expect(api.uploadDocument).toHaveBeenCalledTimes(2);
+        expect(api.uploadDocument).toHaveBeenCalledTimes(3);
       });
-      expect(api.uploadDocument).toHaveBeenCalledWith(expect.any(File), 'dropped-folder/file1.txt');
-      expect(api.uploadDocument).toHaveBeenCalledWith(expect.any(File), 'dropped-folder/sub/file2.txt');
+      expect(api.uploadDocument).toHaveBeenCalledWith(file1, '/folder1/file1.txt');
+      expect(api.uploadDocument).toHaveBeenCalledWith(file2, 'folder2/sub/file2.txt');
+      expect(api.uploadDocument).toHaveBeenCalledWith(file3, 'folder1/file3.txt');
+
 
       // Check data refetch
       await waitFor(() => {
