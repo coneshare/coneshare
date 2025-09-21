@@ -56,10 +56,10 @@ export function DocumentsList({
 
   const onDrop = useCallback(
     (acceptedFiles) => {
-      // react-dropzone processes dropped folders and provides the files
-      // with `webkitRelativePath` already set in modern browsers.
-      // We can rely on this directly to simplify the logic and improve
-      // cross-browser compatibility.
+      // When a folder is dropped, react-dropzone provides a list of all files
+      // within it. Each file object is augmented with a `path` property
+      // representing its relative path inside the folder. We use this to
+      // reconstruct the folder structure on the server.
       if (acceptedFiles && acceptedFiles.length > 0) {
         onFilesDrop(acceptedFiles);
       }
