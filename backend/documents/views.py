@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 
@@ -23,6 +24,9 @@ from .services import (
     create_new_document_version,
     delete_document_and_files,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 def _get_folder_from_path(organization, folder_path: str) -> Folder | None:
@@ -135,10 +139,11 @@ class FolderFromPathView(APIView):
             )
             folder_serializer = FolderSerializer(folder, context={'request': request})
             return Response(folder_serializer.data, status=status.HTTP_201_CREATED)
-        except Exception as e:
+        except Exception:
+            logger.exception("Failed to ensure folder path exists for path: %s", folder_path)
             return Response(
-                {"detail": f"Failed to ensure folder path exists: {str(e)}"},
-                status=status.HTTP_409_CONFLICT,
+                {"detail": "An unexpected error occurred while creating the folder structure."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
