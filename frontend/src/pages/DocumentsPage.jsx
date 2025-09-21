@@ -56,10 +56,11 @@ function DocumentsPage() {
     // 1. Determine unique folder paths from files that have them.
     const paths = new Set();
     Array.from(files).forEach((file) => {
-      if (file.webkitRelativePath) {
-        const folderPath = file.webkitRelativePath.substring(
+      const relativePath = file.webkitRelativePath || file.path; // file.path is from react-dropzone
+      if (relativePath) {
+        const folderPath = relativePath.substring(
           0,
-          file.webkitRelativePath.lastIndexOf('/')
+          relativePath.lastIndexOf('/')
         );
         if (folderPath) {
           paths.add(folderPath);
@@ -83,8 +84,9 @@ function DocumentsPage() {
 
     // 3. Proceed with concurrent file uploads.
     const uploadPromises = Array.from(files).map((file) => {
+      const relativePath = file.webkitRelativePath || file.path;
       // Pass the full relative path if it exists, otherwise it's a root upload.
-      return uploadDocument(file, file.webkitRelativePath || null);
+      return uploadDocument(file, relativePath || null);
     });
     const results = await Promise.allSettled(uploadPromises);
 

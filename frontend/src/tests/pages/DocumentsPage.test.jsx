@@ -271,10 +271,11 @@ describe('DocumentsPage', () => {
   });
 
   describe('Drag and Drop Scenarios', () => {
-    // Helper to create a file with a mocked webkitRelativePath
-    const createFolderFile = (path, name) => {
+    // Helper to create a file with a mocked path property, mimicking react-dropzone
+    const createDroppedFile = (path, name) => {
       const file = new File(['content'], name, { type: 'text/plain' });
-      Object.defineProperty(file, 'webkitRelativePath', {
+      // react-dropzone adds a `path` property.
+      Object.defineProperty(file, 'path', {
         value: path,
       });
       return file;
@@ -297,7 +298,7 @@ describe('DocumentsPage', () => {
         expect(screen.getByText('No documents')).toBeInTheDocument();
       });
 
-      const droppedFile = createFolderFile('dropped-file.txt', 'dropped-file.txt');
+      const droppedFile = createDroppedFile('dropped-file.txt', 'dropped-file.txt');
       api.uploadDocument.mockResolvedValue({ status: 202 });
 
       const dropzone = screen.getByText('No documents').closest('.space-y-4.relative');
@@ -313,7 +314,7 @@ describe('DocumentsPage', () => {
       const uploadedFile = api.uploadDocument.mock.calls[0][0];
       const uploadedPath = api.uploadDocument.mock.calls[0][1];
       expect(uploadedFile.name).toBe('dropped-file.txt');
-      // For root files, webkitRelativePath is just the filename. The backend handles this.
+      // For root files, the path is just the filename. The backend handles this.
       expect(uploadedPath).toBe('dropped-file.txt');
 
       await waitFor(() => {
@@ -329,8 +330,8 @@ describe('DocumentsPage', () => {
         expect(screen.getByText('No documents')).toBeInTheDocument();
       });
 
-      const file1 = createFolderFile('dropped-folder/file1.txt', 'file1.txt');
-      const file2 = createFolderFile('dropped-folder/sub/file2.txt', 'file2.txt');
+      const file1 = createDroppedFile('dropped-folder/file1.txt', 'file1.txt');
+      const file2 = createDroppedFile('dropped-folder/sub/file2.txt', 'file2.txt');
 
       api.createFolderFromPath.mockResolvedValue({ status: 201 });
       api.uploadDocument.mockResolvedValue({ status: 202 });
