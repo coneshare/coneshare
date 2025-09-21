@@ -330,7 +330,7 @@ describe('DocumentsPage', () => {
         expect(screen.getByText('No documents')).toBeInTheDocument();
       });
 
-      const file1 = createDroppedFile('dropped-folder/file1.txt', 'file1.txt');
+      const file1 = createDroppedFile('/dropped-folder/file1.txt', 'file1.txt');
       const file2 = createDroppedFile('dropped-folder/sub/file2.txt', 'file2.txt');
 
       api.createFolderFromPath.mockResolvedValue({ status: 201 });

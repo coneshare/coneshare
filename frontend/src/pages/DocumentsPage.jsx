@@ -63,7 +63,11 @@ function DocumentsPage() {
           relativePath.lastIndexOf('/')
         );
         if (folderPath) {
-          paths.add(folderPath);
+          // Normalize path: remove leading/trailing slashes before adding.
+          const normalizedPath = folderPath.replace(/^\/+|\/+$/g, '');
+          if (normalizedPath) {
+            paths.add(normalizedPath);
+          }
         }
       }
     });
