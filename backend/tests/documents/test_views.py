@@ -27,15 +27,20 @@ def user2(db, organization):
 
 @pytest.mark.django_db
 def test_list_folders(api_client, user, user2, organization):
-    """Test retrieving a list of folders is scoped to the current user."""
-    Folder.objects.create(name="My Folder", organization=organization, created_by=user)
+    """Test retrieving a list of folders is scoped to the user and only returns root folders."""
+    root_folder = Folder.objects.create(
+        name="My Root Folder", organization=organization, created_by=user
+    )
+    Folder.objects.create(
+        name="My Subfolder", organization=organization, created_by=user, parent=root_folder
+    )
     Folder.objects.create(
         name="Other's Folder", organization=organization, created_by=user2
     )
     response = api_client.get('/api/v1/folders/')
     assert response.status_code == status.HTTP_200_OK
     assert len(response.data) == 1
-    assert response.data[0]['name'] == "My Folder"
+    assert response.data[0]['name'] == "My Root Folder"
 
 
 @pytest.mark.django_db
