@@ -225,3 +225,41 @@ This session focused on completing the file upload functionality and enhancing e
 - **Tech Stack Doc**: Updated `coneshare-techstack.md` with final upload implementation details
 - **Upload Guide**: Revised `coneshare-upload-file.md` to reflect current V1 implementation
 - **API Docs**: Added OpenAPI annotations to upload endpoints in `documents/views.py`
+
+---
+
+## Session 10: UI/UX Refinements & API Hardening (2025-09-21)
+
+This session focused on improving the user experience for document and folder management, hardening the backend API to prevent race conditions and incorrect data access, and enhancing the frontend's robustness.
+
+### 1. Robust Folder Uploading
+- **Race Condition Prevention**: Decoupled folder creation from file uploads to prevent race conditions where multiple uploads would create duplicate folders.
+- **Idempotent Folder Creation Endpoint**:
+  - Implemented a new `POST /api/v1/folders/from_path/` endpoint. This view takes a path string (e.g., `path/to/folder`) and ensures the entire folder structure exists, creating any missing parts. It's designed to be called once before a batch upload.
+  - Added a `unique_together` constraint on `(organization, parent, name)` in the `Folder` model to enforce structural integrity at the database level.
+- **Frontend Refactoring**:
+  - Updated the folder upload logic in `DocumentsPage.jsx` to first call the new `/from_path/` endpoint to create the folder structure, and only then proceed with uploading the files.
+  - Corrected a bug where the `webkitRelativePath` was being incorrectly constructed, ensuring files are placed in the correct nested folders.
+
+### 2. UI Actions & Confirmation
+- **Reusable Actions Dropdown**: Created a generic `ActionsDropdown` component to provide 'Rename', 'Delete', and 'Share' actions for both documents and folders, reducing code duplication.
+- **Delete Confirmation**: Implemented a reusable `ConfirmationDialog` to prompt users before permanently deleting a document or folder, preventing accidental data loss.
+- **API Integration**: Connected the delete functionality to the backend API, including a data refresh mechanism in `DocumentsPage.jsx` to update the UI after a successful deletion.
+
+### 3. API Security & Scoping
+- **Ownership Enforcement for Deletion**:
+  - Identified and fixed a security vulnerability where users could potentially delete folders they did not own.
+  - Added a `created_by` field to the `Folder` model.
+  - Updated the `FolderViewSet`'s queryset to filter by the request user, ensuring users can only see and delete their own folders.
+- **Scoped Listing Views**:
+  - Refined the `DocumentViewSet` to only list documents at the root level (i.e., not inside any folder).
+  - Refined the `FolderViewSet` to only list folders at the root level (i.e., no sub-folders). This simplifies the main documents view.
+
+### 4. Frontend Robustness
+- **Batch Upload Error Handling**: Switched from `Promise.all` to `Promise.allSettled` for handling multi-file and folder uploads. This ensures that if one file fails to upload, the others can still proceed, improving the user experience for large batches.
+- **Unit Testing**: Added comprehensive unit tests for the new `Promise.allSettled` logic in `DocumentsPage.test.jsx` to cover success, partial failure, and total failure scenarios for both file and folder uploads.
+- **UI Refactoring**: Refactored the "Upload" button into a more accessible `DropdownMenu` from `@radix-ui/react-dropdown-menu`, simplifying the component's state management and improving keyboard navigation.
+
+### 5. Documentation
+- **Upload Flow Update**: Updated `coneshare-upload-file.md` to reflect the new two-step folder upload process (create path, then upload files).
+- **Development Log**: Maintained this development log with a summary of changes from the session.
