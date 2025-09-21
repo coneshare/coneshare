@@ -8,9 +8,6 @@ import * as api from '../../services/api';
 vi.mock('../../services/api');
 
 // Mock child components that are not relevant to the test
-vi.mock('../../components/documents/DocumentsList', () => ({
-  DocumentsList: () => <div>DocumentsList Mock</div>,
-}));
 vi.mock('../../components/documents/Pagination', () => ({
   Pagination: () => <div>Pagination Mock</div>,
 }));
@@ -270,6 +267,109 @@ describe('DocumentsPage', () => {
         'Failed to create folder structure:',
         expect.any(Error)
       );
+    });
+  });
+
+  describe('Drag and Drop Scenarios', () => {
+    // Mock File and Directory Entry APIs for jsdom, which doesn't have them.
+    const createMockFileEntry = (name) => ({
+      isFile: true,
+      isDirectory: false,
+      name,
+      file: vi.fn((callback) => {
+        const file = new File(['content'], name, { type: 'text/plain' });
+        callback(file);
+      }),
+    });
+
+    const createMockDirectoryEntry = (name, children = []) => ({
+      isFile: false,
+      isDirectory: true,
+      name,
+      createReader: () => ({
+        readEntries: vi.fn((callback) => {
+          callback(children);
+        }),
+      }),
+    });
+
+    const createDropEvent = (items) => {
+      return {
+        dataTransfer: {
+          items: items.map(item => ({
+            webkitGetAsEntry: () => item,
+          })),
+          files: [],
+        },
+      };
+    };
+
+    it('should handle a single dropped file', async () => {
+      api.getDocuments.mockResolvedValue({ data: [] });
+      api.getFolders.mockResolvedValue({ data: [] });
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('No documents')).toBeInTheDocument();
+      });
+
+      const fileEntry = createMockFileEntry('dropped-file.txt');
+      api.uploadDocument.mockResolvedValue({ status: 202 });
+
+      const dropzone = screen.getByText('No documents').closest('.space-y-4.relative');
+      fireEvent.drop(dropzone, createDropEvent([fileEntry]));
+
+      await waitFor(() => {
+        expect(api.createFolderFromPath).not.toHaveBeenCalled();
+        expect(api.uploadDocument).toHaveBeenCalledTimes(1);
+      });
+
+      const uploadedFile = api.uploadDocument.mock.calls[0][0];
+      const uploadedPath = api.uploadDocument.mock.calls[0][1];
+      expect(uploadedFile.name).toBe('dropped-file.txt');
+      expect(uploadedPath).toBe('dropped-file.txt');
+
+      await waitFor(() => {
+        expect(api.getDocuments).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('should handle a dropped folder with nested content', async () => {
+      api.getDocuments.mockResolvedValue({ data: [] });
+      api.getFolders.mockResolvedValue({ data: [] });
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('No documents')).toBeInTheDocument();
+      });
+
+      const file1 = createMockFileEntry('file1.txt');
+      const file2 = createMockFileEntry('file2.txt');
+      const subDir = createMockDirectoryEntry('sub', [file2]);
+      const rootDir = createMockDirectoryEntry('dropped-folder', [file1, subDir]);
+
+      api.createFolderFromPath.mockResolvedValue({ status: 201 });
+      api.uploadDocument.mockResolvedValue({ status: 202 });
+
+      const dropzone = screen.getByText('No documents').closest('.space-y-4.relative');
+      fireEvent.drop(dropzone, createDropEvent([rootDir]));
+
+      // Check folder creation calls
+      await waitFor(() => {
+        expect(api.createFolderFromPath).toHaveBeenCalledTimes(2);
+      });
+      expect(api.createFolderFromPath).toHaveBeenCalledWith('dropped-folder');
+      expect(api.createFolderFromPath).toHaveBeenCalledWith('dropped-folder/sub');
+
+      // Check file upload calls
+      await waitFor(() => {
+        expect(api.uploadDocument).toHaveBeenCalledTimes(2);
+      });
+      expect(api.uploadDocument).toHaveBeenCalledWith(expect.any(File), 'dropped-folder/file1.txt');
+      expect(api.uploadDocument).toHaveBeenCalledWith(expect.any(File), 'dropped-folder/sub/file2.txt');
+
+      // Check data refetch
+      await waitFor(() => {
+        expect(api.getDocuments).toHaveBeenCalledTimes(2);
+      });
     });
   });
 });
