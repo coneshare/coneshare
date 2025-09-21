@@ -3,6 +3,13 @@ from core.models import Organization
 from .models import Document, DocumentPage, DocumentVersion, Folder, ShareLink, ShareLinkPreset, View, Viewer
 
 
+class FolderFromPathSerializer(serializers.Serializer):
+    """
+    Serializer for validating the path for the from_path endpoint.
+    """
+    path = serializers.CharField(max_length=1024, allow_blank=False)
+
+
 class FolderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Folder

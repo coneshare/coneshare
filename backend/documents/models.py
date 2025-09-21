@@ -11,6 +11,9 @@ class Folder(BaseModel):
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='folders_created')
 
+    class Meta:
+        unique_together = ('organization', 'parent', 'name')
+
     def __str__(self):
         return self.name
 

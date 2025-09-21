@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from rest_framework.views import APIView
 from .models import Document, Folder, ShareLink, ShareLinkPreset, View, Viewer
 from .serializers import (
     DocumentSerializer,
+    FolderFromPathSerializer,
     FolderSerializer,
     ShareLinkPresetSerializer,
     ShareLinkSerializer,
@@ -22,6 +24,30 @@ from .services import (
     create_new_document_version,
     delete_document_and_files,
 )
+
+
+logger = logging.getLogger(__name__)
+
+
+def _get_folder_from_path(organization, folder_path: str) -> Folder | None:
+    """
+    Finds a folder based on a path string.
+    Returns the final (deepest) Folder instance or None if not found.
+    """
+    parent = None
+    path = Path(folder_path)
+    target_folder = None
+    for part in path.parts:
+        try:
+            target_folder = Folder.objects.get(
+                organization=organization,
+                name=part,
+                parent=parent
+            )
+            parent = target_folder
+        except Folder.DoesNotExist:
+            return None
+    return target_folder
 
 
 def _get_or_create_folders_from_path(requesting_user, folder_path: str) -> Folder:
@@ -64,9 +90,14 @@ class DocumentUploadView(APIView):
         if relative_path:
             folder_path, file_name_from_path = os.path.split(relative_path)
             if folder_path:
-                parent_folder = _get_or_create_folders_from_path(
-                    request.user, folder_path
+                parent_folder = _get_folder_from_path(
+                    request.user.organization, folder_path
                 )
+                if parent_folder is None:
+                    return Response(
+                        {"detail": f"Folder path '{folder_path}' does not exist. Please ensure path is created first."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
             if file_name_from_path:
                 # Override the uploaded file's name if a name is provided in path
                 file_obj.name = file_name_from_path
@@ -86,6 +117,57 @@ class DocumentUploadView(APIView):
 
         serializer = DocumentSerializer(document, context={'request': request})
         return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+
+
+class FolderFromPathView(APIView):
+    """
+    A view to ensure a folder path exists, creating it if necessary.
+    This is designed to be called once before a batch of uploads to a new folder.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = FolderFromPathSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        folder_path = serializer.validated_data['path']
+        requesting_user = request.user
+
+        # --- Permission Check ---
+        parent = None
+        path = Path(folder_path)
+        for part in path.parts:
+            try:
+                folder = Folder.objects.get(
+                    organization=requesting_user.organization,
+                    name=part,
+                    parent=parent
+                )
+                if folder.created_by != requesting_user:
+                    return Response(
+                        {"detail": f"You do not have permission to access or create subfolders in '{part}'."},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+                parent = folder
+            except Folder.DoesNotExist:
+                # This part of the path doesn't exist, so we can stop checking.
+                # The rest of the path will be created.
+                break
+
+        try:
+            folder = _get_or_create_folders_from_path(
+                requesting_user=requesting_user,
+                folder_path=folder_path
+            )
+            folder_serializer = FolderSerializer(folder, context={'request': request})
+            return Response(folder_serializer.data, status=status.HTTP_201_CREATED)
+        except Exception:
+            logger.exception("Failed to ensure folder path exists for path: %s", folder_path)
+            return Response(
+                {"detail": "An unexpected error occurred while creating the folder structure."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class DocumentVersionUploadView(APIView):
@@ -200,7 +282,7 @@ class FolderViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Folder.objects.filter(created_by=self.request.user)
+        return Folder.objects.filter(created_by=self.request.user, parent__isnull=True)
 
     def perform_create(self, serializer):
         serializer.save(
@@ -215,7 +297,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Document.objects.filter(created_by=self.request.user)
+        return Document.objects.filter(created_by=self.request.user, folder__isnull=True)
 
     def destroy(self, request, *args, **kwargs):
         document = self.get_object()

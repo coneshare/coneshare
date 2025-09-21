@@ -27,15 +27,20 @@ def user2(db, organization):
 
 @pytest.mark.django_db
 def test_list_folders(api_client, user, user2, organization):
-    """Test retrieving a list of folders is scoped to the current user."""
-    Folder.objects.create(name="My Folder", organization=organization, created_by=user)
+    """Test retrieving a list of folders is scoped to the user and only returns root folders."""
+    root_folder = Folder.objects.create(
+        name="My Root Folder", organization=organization, created_by=user
+    )
+    Folder.objects.create(
+        name="My Subfolder", organization=organization, created_by=user, parent=root_folder
+    )
     Folder.objects.create(
         name="Other's Folder", organization=organization, created_by=user2
     )
     response = api_client.get('/api/v1/folders/')
     assert response.status_code == status.HTTP_200_OK
     assert len(response.data) == 1
-    assert response.data[0]['name'] == "My Folder"
+    assert response.data[0]['name'] == "My Root Folder"
 
 
 @pytest.mark.django_db
@@ -49,6 +54,64 @@ def test_create_folder(api_client, user, organization):
     folder = Folder.objects.get()
     assert folder.organization == organization
     assert folder.created_by == user
+
+
+@pytest.mark.django_db
+def test_create_folder_from_path(api_client, user):
+    """Test creating a nested folder structure from a path string."""
+    path_data = {'path': 'Top/Middle/Bottom'}
+    response = api_client.post('/api/v1/folders/from_path/', path_data)
+
+    assert response.status_code == status.HTTP_201_CREATED
+    assert response.data['name'] == 'Bottom'
+    assert Folder.objects.count() == 3
+
+    bottom = Folder.objects.get(name='Bottom')
+    middle = bottom.parent
+    top = middle.parent
+
+    assert bottom.created_by == user
+    assert middle.name == 'Middle'
+    assert middle.created_by == user
+    assert top.name == 'Top'
+    assert top.created_by == user
+    assert top.parent is None
+
+
+@pytest.mark.django_db
+def test_create_folder_from_path_idempotent(api_client, user):
+    """Test that calling from_path multiple times has no adverse effect."""
+    Folder.objects.create(name="Top", created_by=user, organization=user.organization)
+
+    path_data = {'path': 'Top/Middle/Bottom'}
+    response1 = api_client.post('/api/v1/folders/from_path/', path_data)
+    assert response1.status_code == status.HTTP_201_CREATED
+    assert Folder.objects.count() == 3
+
+    response2 = api_client.post('/api/v1/folders/from_path/', path_data)
+    assert response2.status_code == status.HTTP_201_CREATED
+    assert Folder.objects.count() == 3  # No new folders created
+
+
+@pytest.mark.django_db
+def test_create_folder_from_path_permission_denied(api_client, user, user2):
+    """Test a user cannot create a subfolder inside another user's folder."""
+    # user2 creates a root folder
+    Folder.objects.create(
+        name="User2's Root",
+        organization=user2.organization,
+        created_by=user2
+    )
+
+    # user (via api_client) tries to create a nested folder inside user2's folder
+    path_data = {'path': "User2's Root/My Subfolder"}
+    response = api_client.post('/api/v1/folders/from_path/', path_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    # Ensure no new folders were created by 'user'
+    assert not Folder.objects.filter(created_by=user).exists()
+    # The original folder should still exist
+    assert Folder.objects.count() == 1
 
 
 @pytest.mark.django_db
@@ -70,12 +133,19 @@ def test_delete_folder_permission_denied(api_client, user2):
 
 
 @pytest.mark.django_db
-def test_list_documents_is_scoped_to_user(api_client, user, user2, organization):
-    """Test retrieving a list of documents is scoped to the current user."""
+def test_list_documents_is_scoped_to_user_and_root_only(api_client, user, user2, organization):
+    """Test retrieving documents is scoped to the user and only returns root-level documents."""
+    folder = Folder.objects.create(organization=organization, created_by=user, name="Test Folder")
     Document.objects.create(
-        name="My API Document",
+        name="My Root Document",
         organization=organization,
         created_by=user,
+    )
+    Document.objects.create(
+        name="My Folder Document",
+        organization=organization,
+        created_by=user,
+        folder=folder
     )
     Document.objects.create(
         name="Other User's Document",
@@ -85,7 +155,7 @@ def test_list_documents_is_scoped_to_user(api_client, user, user2, organization)
     response = api_client.get('/api/v1/documents/')
     assert response.status_code == status.HTTP_200_OK
     assert len(response.data) == 1
-    assert response.data[0]['name'] == "My API Document"
+    assert response.data[0]['name'] == "My Root Document"
 
 
 @pytest.mark.django_db
@@ -124,7 +194,14 @@ def test_list_share_links_is_scoped_to_user(api_client, user, user2):
 
 @pytest.mark.django_db
 def test_upload_document_with_path(api_client, user):
-    """Test uploading a file with a path to create folders."""
+    """Test uploading a file with a path to pre-existing folders."""
+    # First, create the folder structure
+    path_data = {'path': 'Client Reports/Q4/Final'}
+    response = api_client.post('/api/v1/folders/from_path/', path_data)
+    assert response.status_code == status.HTTP_201_CREATED
+    assert Folder.objects.count() == 3
+
+    # Now, upload the document into that path
     dummy_file = SimpleUploadedFile("report.docx", b"content", "application/msword")
     response = api_client.post(
         '/api/v1/uploads/document/',
@@ -134,7 +211,6 @@ def test_upload_document_with_path(api_client, user):
 
     assert response.status_code == status.HTTP_202_ACCEPTED
     assert Document.objects.count() == 1
-    assert Folder.objects.count() == 3
 
     doc = Document.objects.first()
     assert doc.name == 'report.docx'

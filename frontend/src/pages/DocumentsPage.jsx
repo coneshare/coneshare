@@ -10,7 +10,7 @@ import { Toaster } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getDocuments, getFolders } from '../services/api';
+import { uploadDocument, getDocuments, getFolders, createFolderFromPath } from '../services/api';
 
 function DocumentsPage() {
   const [documents, setDocuments] = useState([]);
@@ -72,17 +72,42 @@ function DocumentsPage() {
   const onFolderChange = async (e) => {
     const files = e.target.files;
     if (files.length > 0) {
+      // 1. Determine the unique folder paths that need to be created.
+      const paths = new Set();
+      Array.from(files).forEach((file) => {
+        const folderPath = file.webkitRelativePath.substring(
+          0,
+          file.webkitRelativePath.lastIndexOf('/')
+        );
+        if (folderPath) {
+          paths.add(folderPath);
+        }
+      });
+
+      // 2. Call the new endpoint to ensure all folder paths exist concurrently.
+      try {
+        const folderCreationPromises = Array.from(paths).map((path) =>
+          createFolderFromPath(path)
+        );
+        await Promise.all(folderCreationPromises);
+      } catch (error) {
+        console.error("Failed to create folder structure:", error);
+        // The API interceptor will show a toast, so we just log and stop.
+        return;
+      }
+
+      // 3. Proceed with concurrent file uploads now that folders are guaranteed to exist.
       const uploadPromises = Array.from(files).map((file) => {
         return uploadDocument(file, file.webkitRelativePath);
       });
       const results = await Promise.allSettled(uploadPromises);
 
-      const failedCount = results.filter(r => r.status === 'rejected').length;
+      const failedCount = results.filter((r) => r.status === 'rejected').length;
       if (failedCount > 0) {
         console.error(`${failedCount} file(s) failed to upload.`);
       }
 
-      if (results.some(r => r.status === 'fulfilled')) {
+      if (results.some((r) => r.status === 'fulfilled')) {
         fetchData();
       }
     }

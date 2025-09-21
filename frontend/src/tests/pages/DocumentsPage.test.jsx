@@ -171,58 +171,105 @@ describe('DocumentsPage', () => {
       return file;
     };
 
-    it('should call uploadDocument with relative path and refetch on success', async () => {
+    it('should call createFolderFromPath once then uploadDocument for each file', async () => {
       renderComponent();
 
       const file1 = createFolderFile('folderA/file1.txt', 'file1.txt');
       const file2 = createFolderFile('folderA/file2.txt', 'file2.txt');
 
+      // Mock API calls
+      api.createFolderFromPath.mockResolvedValue({ status: 201 });
       api.uploadDocument.mockResolvedValue({ status: 202 });
+
       const folderInput = findFolderInput();
 
+      // Simulate user selecting a folder
       fireEvent.change(folderInput, {
         target: { files: [file1, file2] },
       });
 
+      // Verify folder path is created first
+      await waitFor(() => {
+        expect(api.createFolderFromPath).toHaveBeenCalledTimes(1);
+      });
+      expect(api.createFolderFromPath).toHaveBeenCalledWith('folderA');
+
+      // Verify documents are uploaded next
       await waitFor(() => {
         expect(api.uploadDocument).toHaveBeenCalledTimes(2);
       });
       expect(api.uploadDocument).toHaveBeenCalledWith(file1, 'folderA/file1.txt');
       expect(api.uploadDocument).toHaveBeenCalledWith(file2, 'folderA/file2.txt');
 
+      // Verify data is refetched on success
       await waitFor(() => {
         expect(api.getDocuments).toHaveBeenCalledTimes(2);
         expect(api.getFolders).toHaveBeenCalledTimes(2);
       });
     });
 
-    it('should refetch data if some folder files succeed', async () => {
+    it('should call createFolderFromPath for multiple unique paths in parallel', async () => {
       renderComponent();
 
-      const file1 = createFolderFile('folderB/success.txt', 'success.txt');
-      const file2 = createFolderFile('folderB/fail.txt', 'fail.txt');
+      const file1 = createFolderFile('folderA/sub1/file1.txt', 'file1.txt');
+      const file2 = createFolderFile('folderB/file2.txt', 'file2.txt');
+      const file3 = createFolderFile('folderA/sub1/file3.txt', 'file3.txt'); // duplicate path
 
-      api.uploadDocument
-        .mockResolvedValueOnce({ status: 202 })
-        .mockRejectedValueOnce(new Error('Upload failed'));
+      api.createFolderFromPath.mockResolvedValue({ status: 201 });
+      api.uploadDocument.mockResolvedValue({ status: 202 });
 
       const folderInput = findFolderInput();
 
       fireEvent.change(folderInput, {
-        target: { files: [file1, file2] },
+        target: { files: [file1, file2, file3] },
       });
 
+      // Verify folder paths are created
       await waitFor(() => {
-        expect(api.uploadDocument).toHaveBeenCalledTimes(2);
+        expect(api.createFolderFromPath).toHaveBeenCalledTimes(2);
       });
-      expect(api.uploadDocument).toHaveBeenCalledWith(file1, 'folderB/success.txt');
-      expect(api.uploadDocument).toHaveBeenCalledWith(file2, 'folderB/fail.txt');
+      expect(api.createFolderFromPath).toHaveBeenCalledWith('folderA/sub1');
+      expect(api.createFolderFromPath).toHaveBeenCalledWith('folderB');
 
+      // Verify documents are uploaded
+      await waitFor(() => {
+        expect(api.uploadDocument).toHaveBeenCalledTimes(3);
+      });
+
+      // Verify data is refetched
       await waitFor(() => {
         expect(api.getDocuments).toHaveBeenCalledTimes(2);
-        expect(api.getFolders).toHaveBeenCalledTimes(2);
       });
-      expect(consoleErrorSpy).toHaveBeenCalledWith('1 file(s) failed to upload.');
+    });
+
+    it('should stop and log error if folder creation fails', async () => {
+      renderComponent();
+
+      const file1 = createFolderFile('folderC/file1.txt', 'file1.txt');
+      api.createFolderFromPath.mockRejectedValue(new Error('Folder creation failed'));
+
+      const folderInput = findFolderInput();
+
+      fireEvent.change(folderInput, {
+        target: { files: [file1] },
+      });
+
+      await waitFor(() => {
+        expect(api.createFolderFromPath).toHaveBeenCalledWith('folderC');
+      });
+
+      // Ensure uploadDocument is NOT called
+      expect(api.uploadDocument).not.toHaveBeenCalled();
+
+      // Ensure data is NOT refetched
+      expect(api.getDocuments).toHaveBeenCalledTimes(1);
+      expect(api.getFolders).toHaveBeenCalledTimes(1);
+
+      // Ensure error is logged
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to create folder structure:',
+        expect.any(Error)
+      );
     });
   });
 });
