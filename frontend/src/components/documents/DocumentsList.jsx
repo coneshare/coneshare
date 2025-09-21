@@ -54,59 +54,15 @@ export function DocumentsList({
     [selectedFolders]
   );
 
-  // Helper function to recursively traverse dropped folders
-  const traverseFileTree = async (item, path = "") => {
-    path = path || item.name;
-    if (item.isFile) {
-      return new Promise((resolve) => {
-        item.file((file) => {
-          // Manually set webkitRelativePath for consistent handling
-          Object.defineProperty(file, "webkitRelativePath", {
-            value: path,
-          });
-          resolve([file]);
-        });
-      });
-    } else if (item.isDirectory) {
-      const dirReader = item.createReader();
-      const entries = await new Promise((resolve) =>
-        dirReader.readEntries(resolve)
-      );
-      let files = [];
-      for (const entry of entries) {
-        const nestedFiles = await traverseFileTree(entry, `${path}/${entry.name}`);
-        files = files.concat(nestedFiles);
-      }
-      return files;
-    }
-    return [];
-  };
-
   const onDrop = useCallback(
-    async (acceptedFiles, fileRejections, event) => {
-      const dataTransferItems = event.dataTransfer.items;
-      if (dataTransferItems.length == 0) {
-        // Fallback for browsers that don't support DataTransfer.items (e.g., some Firefox versions)
+    (acceptedFiles) => {
+      // react-dropzone processes dropped folders and provides the files
+      // with `webkitRelativePath` already set in modern browsers.
+      // We can rely on this directly to simplify the logic and improve
+      // cross-browser compatibility.
+      if (acceptedFiles && acceptedFiles.length > 0) {
         onFilesDrop(acceptedFiles);
-        return;
       }
-
-      const files = [];
-      const promises = [];
-
-      for (let i = 0; i < dataTransferItems.length; i++) {
-        const item = dataTransferItems[i].webkitGetAsEntry();
-        if (item) {
-          promises.push(traverseFileTree(item));
-        }
-      }
-
-      const fileArrays = await Promise.all(promises);
-      for (const fileArray of fileArrays) {
-        files.push(...fileArray);
-      }
-
-      onFilesDrop(files);
     },
     [onFilesDrop]
   );

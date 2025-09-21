@@ -271,35 +271,20 @@ describe('DocumentsPage', () => {
   });
 
   describe('Drag and Drop Scenarios', () => {
-    // Mock File and Directory Entry APIs for jsdom, which doesn't have them.
-    const createMockFileEntry = (name) => ({
-      isFile: true,
-      isDirectory: false,
-      name,
-      file: vi.fn((callback) => {
-        const file = new File(['content'], name, { type: 'text/plain' });
-        callback(file);
-      }),
-    });
+    // Helper to create a file with a mocked webkitRelativePath
+    const createFolderFile = (path, name) => {
+      const file = new File(['content'], name, { type: 'text/plain' });
+      Object.defineProperty(file, 'webkitRelativePath', {
+        value: path,
+      });
+      return file;
+    };
 
-    const createMockDirectoryEntry = (name, children = []) => ({
-      isFile: false,
-      isDirectory: true,
-      name,
-      createReader: () => ({
-        readEntries: vi.fn((callback) => {
-          callback(children);
-        }),
-      }),
-    });
-
-    const createDropEvent = (items) => {
+    // Mock what a drop event's dataTransfer object looks like for react-dropzone
+    const createDropEvent = (files) => {
       return {
         dataTransfer: {
-          items: items.map(item => ({
-            webkitGetAsEntry: () => item,
-          })),
-          files: [],
+          files: files,
         },
       };
     };
@@ -312,11 +297,13 @@ describe('DocumentsPage', () => {
         expect(screen.getByText('No documents')).toBeInTheDocument();
       });
 
-      const fileEntry = createMockFileEntry('dropped-file.txt');
+      const droppedFile = createFolderFile('dropped-file.txt', 'dropped-file.txt');
       api.uploadDocument.mockResolvedValue({ status: 202 });
 
       const dropzone = screen.getByText('No documents').closest('.space-y-4.relative');
-      fireEvent.drop(dropzone, createDropEvent([fileEntry]));
+      // react-dropzone processes the event and provides `acceptedFiles` to onDrop
+      // We simulate this by mocking the event that react-dropzone processes
+      fireEvent.drop(dropzone, createDropEvent([droppedFile]));
 
       await waitFor(() => {
         expect(api.createFolderFromPath).not.toHaveBeenCalled();
@@ -326,6 +313,7 @@ describe('DocumentsPage', () => {
       const uploadedFile = api.uploadDocument.mock.calls[0][0];
       const uploadedPath = api.uploadDocument.mock.calls[0][1];
       expect(uploadedFile.name).toBe('dropped-file.txt');
+      // For root files, webkitRelativePath is just the filename. The backend handles this.
       expect(uploadedPath).toBe('dropped-file.txt');
 
       await waitFor(() => {
@@ -341,16 +329,14 @@ describe('DocumentsPage', () => {
         expect(screen.getByText('No documents')).toBeInTheDocument();
       });
 
-      const file1 = createMockFileEntry('file1.txt');
-      const file2 = createMockFileEntry('file2.txt');
-      const subDir = createMockDirectoryEntry('sub', [file2]);
-      const rootDir = createMockDirectoryEntry('dropped-folder', [file1, subDir]);
+      const file1 = createFolderFile('dropped-folder/file1.txt', 'file1.txt');
+      const file2 = createFolderFile('dropped-folder/sub/file2.txt', 'file2.txt');
 
       api.createFolderFromPath.mockResolvedValue({ status: 201 });
       api.uploadDocument.mockResolvedValue({ status: 202 });
 
       const dropzone = screen.getByText('No documents').closest('.space-y-4.relative');
-      fireEvent.drop(dropzone, createDropEvent([rootDir]));
+      fireEvent.drop(dropzone, createDropEvent([file1, file2]));
 
       // Check folder creation calls
       await waitFor(() => {
