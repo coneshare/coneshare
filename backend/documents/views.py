@@ -269,7 +269,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Document.objects.filter(created_by=self.request.user)
+        return Document.objects.filter(created_by=self.request.user, folder__isnull=True)
 
     def destroy(self, request, *args, **kwargs):
         document = self.get_object()

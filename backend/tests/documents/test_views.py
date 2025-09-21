@@ -112,12 +112,19 @@ def test_delete_folder_permission_denied(api_client, user2):
 
 
 @pytest.mark.django_db
-def test_list_documents_is_scoped_to_user(api_client, user, user2, organization):
-    """Test retrieving a list of documents is scoped to the current user."""
+def test_list_documents_is_scoped_to_user_and_root_only(api_client, user, user2, organization):
+    """Test retrieving documents is scoped to the user and only returns root-level documents."""
+    folder = Folder.objects.create(organization=organization, created_by=user, name="Test Folder")
     Document.objects.create(
-        name="My API Document",
+        name="My Root Document",
         organization=organization,
         created_by=user,
+    )
+    Document.objects.create(
+        name="My Folder Document",
+        organization=organization,
+        created_by=user,
+        folder=folder
     )
     Document.objects.create(
         name="Other User's Document",
@@ -127,7 +134,7 @@ def test_list_documents_is_scoped_to_user(api_client, user, user2, organization)
     response = api_client.get('/api/v1/documents/')
     assert response.status_code == status.HTTP_200_OK
     assert len(response.data) == 1
-    assert response.data[0]['name'] == "My API Document"
+    assert response.data[0]['name'] == "My Root Document"
 
 
 @pytest.mark.django_db
