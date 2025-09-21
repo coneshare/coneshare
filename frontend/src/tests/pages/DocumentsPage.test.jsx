@@ -208,6 +208,40 @@ describe('DocumentsPage', () => {
       });
     });
 
+    it('should call createFolderFromPath for multiple unique paths in parallel', async () => {
+      renderComponent();
+
+      const file1 = createFolderFile('folderA/sub1/file1.txt', 'file1.txt');
+      const file2 = createFolderFile('folderB/file2.txt', 'file2.txt');
+      const file3 = createFolderFile('folderA/sub1/file3.txt', 'file3.txt'); // duplicate path
+
+      api.createFolderFromPath.mockResolvedValue({ status: 201 });
+      api.uploadDocument.mockResolvedValue({ status: 202 });
+
+      const folderInput = findFolderInput();
+
+      fireEvent.change(folderInput, {
+        target: { files: [file1, file2, file3] },
+      });
+
+      // Verify folder paths are created
+      await waitFor(() => {
+        expect(api.createFolderFromPath).toHaveBeenCalledTimes(2);
+      });
+      expect(api.createFolderFromPath).toHaveBeenCalledWith('folderA/sub1');
+      expect(api.createFolderFromPath).toHaveBeenCalledWith('folderB');
+
+      // Verify documents are uploaded
+      await waitFor(() => {
+        expect(api.uploadDocument).toHaveBeenCalledTimes(3);
+      });
+
+      // Verify data is refetched
+      await waitFor(() => {
+        expect(api.getDocuments).toHaveBeenCalledTimes(2);
+      });
+    });
+
     it('should stop and log error if folder creation fails', async () => {
       renderComponent();
 

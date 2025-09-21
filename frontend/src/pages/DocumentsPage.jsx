@@ -84,13 +84,12 @@ function DocumentsPage() {
         }
       });
 
-      // 2. Call the new endpoint to ensure all folder paths exist.
+      // 2. Call the new endpoint to ensure all folder paths exist concurrently.
       try {
-        // This can be a Promise.all for performance if multiple root folders are selected,
-        // but for a single folder selection, a loop is clear and safe.
-        for (const path of paths) {
-          await createFolderFromPath(path);
-        }
+        const folderCreationPromises = Array.from(paths).map((path) =>
+          createFolderFromPath(path)
+        );
+        await Promise.all(folderCreationPromises);
       } catch (error) {
         console.error("Failed to create folder structure:", error);
         // The API interceptor will show a toast, so we just log and stop.
