@@ -52,6 +52,43 @@ def test_create_folder(api_client, user, organization):
 
 
 @pytest.mark.django_db
+def test_create_folder_from_path(api_client, user):
+    """Test creating a nested folder structure from a path string."""
+    path_data = {'path': 'Top/Middle/Bottom'}
+    response = api_client.post('/api/v1/folders/from_path/', path_data)
+
+    assert response.status_code == status.HTTP_201_CREATED
+    assert response.data['name'] == 'Bottom'
+    assert Folder.objects.count() == 3
+
+    bottom = Folder.objects.get(name='Bottom')
+    middle = bottom.parent
+    top = middle.parent
+
+    assert bottom.created_by == user
+    assert middle.name == 'Middle'
+    assert middle.created_by == user
+    assert top.name == 'Top'
+    assert top.created_by == user
+    assert top.parent is None
+
+
+@pytest.mark.django_db
+def test_create_folder_from_path_idempotent(api_client, user):
+    """Test that calling from_path multiple times has no adverse effect."""
+    Folder.objects.create(name="Top", created_by=user, organization=user.organization)
+
+    path_data = {'path': 'Top/Middle/Bottom'}
+    response1 = api_client.post('/api/v1/folders/from_path/', path_data)
+    assert response1.status_code == status.HTTP_201_CREATED
+    assert Folder.objects.count() == 3
+
+    response2 = api_client.post('/api/v1/folders/from_path/', path_data)
+    assert response2.status_code == status.HTTP_201_CREATED
+    assert Folder.objects.count() == 3  # No new folders created
+
+
+@pytest.mark.django_db
 def test_delete_folder_permission_denied(api_client, user2):
     """Test that a user cannot delete another user's folder."""
     # user2 creates a folder
@@ -124,7 +161,14 @@ def test_list_share_links_is_scoped_to_user(api_client, user, user2):
 
 @pytest.mark.django_db
 def test_upload_document_with_path(api_client, user):
-    """Test uploading a file with a path to create folders."""
+    """Test uploading a file with a path to pre-existing folders."""
+    # First, create the folder structure
+    path_data = {'path': 'Client Reports/Q4/Final'}
+    response = api_client.post('/api/v1/folders/from_path/', path_data)
+    assert response.status_code == status.HTTP_201_CREATED
+    assert Folder.objects.count() == 3
+
+    # Now, upload the document into that path
     dummy_file = SimpleUploadedFile("report.docx", b"content", "application/msword")
     response = api_client.post(
         '/api/v1/uploads/document/',
@@ -134,7 +178,6 @@ def test_upload_document_with_path(api_client, user):
 
     assert response.status_code == status.HTTP_202_ACCEPTED
     assert Document.objects.count() == 1
-    assert Folder.objects.count() == 3
 
     doc = Document.objects.first()
     assert doc.name == 'report.docx'

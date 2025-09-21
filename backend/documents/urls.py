@@ -13,6 +13,7 @@ router.register(r'views', views.ViewViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('folders/from_path/', views.FolderFromPathView.as_view(), name='folder-from-path'),
     path('uploads/document/', views.DocumentUploadView.as_view(), name='document-upload'),
     path('documents/<str:document_id>/versions/', views.DocumentVersionUploadView.as_view(), name='document-version-upload'),
     path('documents/<str:document_id>/preview-data/', views.DocumentPreviewDataView.as_view(), name='document-preview-data'),
