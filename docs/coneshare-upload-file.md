@@ -10,28 +10,35 @@ The goal for V1 is to implement a clean, reliable file and folder upload feature
 
 ### 1. Backend (Django)
 
+-   **Decoupled Folder Creation Endpoint**:
+    -   **File**: `backend/documents/views.py`
+    -   **Endpoint**: `POST /api/v1/folders/from_path/`
+    -   **Action**: A new `FolderFromPathView` handles the idempotent creation of nested folder structures from a path string (e.g., `Reports/Q1/Final`).
+    -   **Logic**: This endpoint is called once by the frontend before a batch upload. It parses the path and creates any missing folders, ensuring the structure exists before files are uploaded. This prevents race conditions.
+
 -   **Dedicated Upload Endpoint**:
     -   **File**: `backend/documents/views.py`
     -   **Endpoint**: `POST /api/v1/uploads/document/`
-    -   **Action**: A dedicated `DocumentUploadView` handles `multipart/form-data` requests for both individual files and files within a folder structure.
+    -   **Action**: The `DocumentUploadView` handles `multipart/form-data` requests for individual files.
     -   **Logic**:
-        1.  The view requires authentication and receives the uploaded file.
-        2.  It accepts an optional `path` parameter in the request body, which is used to create a nested folder structure if provided.
-        3.  It calls the `create_document_from_upload` service function, which saves the file to the configured storage backend (MinIO or filesystem) and creates the `Document` and `DocumentVersion` records.
-        4.  It returns a `202 ACCEPTED` status and triggers the Celery task (`generate_pdf_pages_task`) for asynchronous processing.
+        1.  The view receives an uploaded file and an optional `path` parameter.
+        2.  It **no longer creates folders**. Instead, it looks up the folder structure provided in the `path`. If the folder does not exist, the request fails.
+        3.  It calls `create_document_from_upload`, which saves the file and creates the `Document` and `DocumentVersion` records.
+        4.  It returns a `202 ACCEPTED` status and triggers a Celery task for asynchronous processing.
 
 ### 2. Frontend (React)
 
--   **Create "Upload" Dropdown Button**:
+-   **"Upload" Dropdown Button and Logic**:
     -   **File**: `src/pages/DocumentsPage.jsx`
-    -   **UI**: The main documents page features an "Upload" button that opens a dropdown with two options: "Files" and "Folder".
-    -   **Logic**:
-        1.  **File Upload**: The "Files" option opens a system file picker allowing multiple file selection (`<input type="file" multiple>`).
-        2.  **Folder Upload**: The "Folder" option uses a directory picker (`<input type="file" webkitdirectory>`).
-        3.  On file selection, an `uploadDocument` service function (in `src/services/api.js`) constructs a `FormData` object for each file.
-        4.  For folder uploads, it extracts the relative path from the file object (`file.webkitRelativePath`) and includes it in the `FormData`.
-        5.  It sends a `POST` request to the `/api/v1/uploads/document/` endpoint with the correct `multipart/form-data` header.
-        6.  After a successful upload, the document list is refreshed to show the new content.
+    -   **UI**: An "Upload" button opens a dropdown with "Files" and "Folder" options.
+    -   **Logic for File Upload**:
+        1.  The "Files" option uses an `<input type="file" multiple>`.
+        2.  On selection, each file is uploaded concurrently via `Promise.allSettled` by sending a `POST` request to `/api/v1/uploads/document/`.
+    -   **Logic for Folder Upload (Two-Step Process)**:
+        1.  The "Folder" option uses an `<input type="file" webkitdirectory>`.
+        2.  **Step 1: Ensure Folder Structure**: Before uploading, the frontend extracts all unique directory paths from the selected files' `webkitRelativePath`. It then makes a single API call for each unique path to the new `POST /api/v1/folders/from_path/` endpoint.
+        3.  **Step 2: Upload Files**: Only after the folder creation call succeeds, it proceeds to upload all files concurrently using `Promise.allSettled`. Each file is sent with its full `webkitRelativePath` to the `/api/v1/uploads/document/` endpoint.
+        4.  After all successful uploads, the document list is refreshed.
 
 ---
 
