@@ -3,6 +3,7 @@ import { FileIcon, FolderIcon, } from "lucide-react";
 import { memo, useCallback, useMemo, useState } from "react";
 import * as React from 'react';
 import { createPortal } from "react-dom";
+import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { deleteDocument, deleteFolder } from "../../services/api";
 import { ConfirmationDialog } from "../dialogs/ConfirmationDialog";
@@ -23,6 +24,7 @@ export function DocumentsList({
   loading,
   foldersLoading,
   onDataRefresh,
+  onFilesDrop,
 }) {
   const [selectedDocuments, setSelectedDocuments] = useState([]);
   const [selectedFolders, setSelectedFolders] = useState([]);
@@ -51,6 +53,69 @@ export function DocumentsList({
     () => selectedFolders && selectedFolders.length,
     [selectedFolders]
   );
+
+  // Helper function to recursively traverse dropped folders
+  const traverseFileTree = async (item, path = "") => {
+    path = path || item.name;
+    if (item.isFile) {
+      return new Promise((resolve) => {
+        item.file((file) => {
+          // Manually set webkitRelativePath for consistent handling
+          Object.defineProperty(file, "webkitRelativePath", {
+            value: path,
+          });
+          resolve([file]);
+        });
+      });
+    } else if (item.isDirectory) {
+      const dirReader = item.createReader();
+      const entries = await new Promise((resolve) =>
+        dirReader.readEntries(resolve)
+      );
+      let files = [];
+      for (const entry of entries) {
+        const nestedFiles = await traverseFileTree(entry, `${path}/${entry.name}`);
+        files = files.concat(nestedFiles);
+      }
+      return files;
+    }
+    return [];
+  };
+
+  const onDrop = useCallback(
+    async (acceptedFiles, fileRejections, event) => {
+      const dataTransferItems = event.dataTransfer.items;
+      if (!dataTransferItems) {
+        // Fallback for browsers that don't support DataTransfer.items (e.g., some Firefox versions)
+        onFilesDrop(acceptedFiles);
+        return;
+      }
+
+      const files = [];
+      const promises = [];
+
+      for (let i = 0; i < dataTransferItems.length; i++) {
+        const item = dataTransferItems[i].webkitGetAsEntry();
+        if (item) {
+          promises.push(traverseFileTree(item));
+        }
+      }
+
+      const fileArrays = await Promise.all(promises);
+      for (const fileArray of fileArrays) {
+        files.push(...fileArray);
+      }
+
+      onFilesDrop(files);
+    },
+    [onFilesDrop]
+  );
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    noClick: true, // We have dedicated buttons for click-to-upload
+    noKeyboard: true,
+  });
 
   const handleSelect = useCallback((id, type) => {
     if (type === "folder") {
@@ -257,7 +322,15 @@ export function DocumentsList({
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="space-y-4">
+        <div {...getRootProps({ className: "space-y-4 relative" })}>
+          <input {...getInputProps()} />
+          {isDragActive && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary/10">
+              <p className="text-lg font-semibold text-primary">
+                Drop files or folders to upload
+              </p>
+            </div>
+          )}
           {/* Folders list */}
           <ul role="list" className="space-y-4">
             {folders && !foldersLoading
