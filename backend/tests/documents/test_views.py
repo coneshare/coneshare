@@ -94,6 +94,27 @@ def test_create_folder_from_path_idempotent(api_client, user):
 
 
 @pytest.mark.django_db
+def test_create_folder_from_path_permission_denied(api_client, user, user2):
+    """Test a user cannot create a subfolder inside another user's folder."""
+    # user2 creates a root folder
+    Folder.objects.create(
+        name="User2's Root",
+        organization=user2.organization,
+        created_by=user2
+    )
+
+    # user (via api_client) tries to create a nested folder inside user2's folder
+    path_data = {'path': "User2's Root/My Subfolder"}
+    response = api_client.post('/api/v1/folders/from_path/', path_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    # Ensure no new folders were created by 'user'
+    assert not Folder.objects.filter(created_by=user).exists()
+    # The original folder should still exist
+    assert Folder.objects.count() == 1
+
+
+@pytest.mark.django_db
 def test_delete_folder_permission_denied(api_client, user2):
     """Test that a user cannot delete another user's folder."""
     # user2 creates a folder

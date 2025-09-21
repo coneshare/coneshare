@@ -5,6 +5,7 @@ from pathlib import Path
 from django.core.files.storage import default_storage
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -52,18 +53,25 @@ def _get_folder_from_path(organization, folder_path: str) -> Folder | None:
 
 def _get_or_create_folders_from_path(requesting_user, folder_path: str) -> Folder:
     """
-    Recursively finds or creates folders based on a path string.
+    Recursively finds or creates folders based on a path string, checking permissions
+    at each level.
     Returns the final (deepest) Folder instance.
+    Raises PermissionDenied if the user tries to create a folder inside a folder
+    they do not own.
     """
     parent = None
     path = Path(folder_path)
     for part in path.parts:
-        folder, _ = Folder.objects.get_or_create(
+        folder, created = Folder.objects.get_or_create(
             organization=requesting_user.organization,
             name=part,
             parent=parent,
             defaults={'created_by': requesting_user}
         )
+        if not created and folder.created_by != requesting_user:
+            raise PermissionDenied(
+                f"You do not have permission to access or create subfolders in '{part}'."
+            )
         parent = folder
     return parent
 
@@ -139,6 +147,8 @@ class FolderFromPathView(APIView):
             )
             folder_serializer = FolderSerializer(folder, context={'request': request})
             return Response(folder_serializer.data, status=status.HTTP_201_CREATED)
+        except PermissionDenied as e:
+            return Response({"detail": str(e)}, status=status.HTTP_403_FORBIDDEN)
         except Exception:
             logger.exception("Failed to ensure folder path exists for path: %s", folder_path)
             return Response(
