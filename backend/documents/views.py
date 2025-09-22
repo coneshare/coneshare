@@ -31,12 +31,19 @@ logger = logging.getLogger(__name__)
 
 def _get_folder_from_path(organization, folder_path: str) -> Folder | None:
     """
-    Finds a folder based on a path string.
-    Returns the final (deepest) Folder instance or None if not found.
+    Finds a folder based on a path string, starting from the organization's
+    invisible root folder. Returns the final Folder instance or None if not found.
     """
-    parent = None
+    try:
+        parent = Folder.objects.get(
+            organization=organization, name='__root__', parent=None
+        )
+    except Folder.DoesNotExist:
+        logger.error(f"Invisible root folder not found for organization {organization.id}")
+        return None
+
     path = Path(folder_path)
-    target_folder = None
+    target_folder = parent
     for part in path.parts:
         try:
             target_folder = Folder.objects.get(
@@ -52,10 +59,19 @@ def _get_folder_from_path(organization, folder_path: str) -> Folder | None:
 
 def _get_or_create_folders_from_path(requesting_user, folder_path: str) -> Folder:
     """
-    Recursively finds or creates folders based on a path string.
-    Returns the final (deepest) Folder instance.
+    Recursively finds or creates folders from a path string, starting from the
+    organization's invisible root folder. Returns the final Folder instance.
     """
-    parent = None
+    try:
+        parent = Folder.objects.get(
+            organization=requesting_user.organization, name='__root__', parent=None
+        )
+    except Folder.DoesNotExist:
+        logger.error(f"Invisible root folder not found for user {requesting_user.id}'s organization")
+        # This is a critical failure, as the root folder should always exist.
+        # We will let this fail hard, which will result in a 500 error.
+        raise
+
     path = Path(folder_path)
     for part in path.parts:
         folder, _ = Folder.objects.get_or_create(
@@ -135,7 +151,17 @@ class FolderFromPathView(APIView):
         requesting_user = request.user
 
         # --- Permission Check ---
-        parent = None
+        try:
+            parent = Folder.objects.get(
+                organization=requesting_user.organization, name='__root__', parent=None
+            )
+        except Folder.DoesNotExist:
+            logger.error(f"Invisible root folder not found for user {requesting_user.id}'s organization")
+            return Response(
+                {"detail": "An unexpected error occurred: root folder missing."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
         path = Path(folder_path)
         for part in path.parts:
             try:
@@ -281,13 +307,25 @@ class FolderViewSet(viewsets.ModelViewSet):
     serializer_class = FolderSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def _get_root_folder(self):
+        """Helper to get the organization's invisible root folder."""
+        return Folder.objects.get(
+            organization=self.request.user.organization,
+            name='__root__',
+            parent=None
+        )
+
     def get_queryset(self):
-        return Folder.objects.filter(created_by=self.request.user, parent__isnull=True)
+        return Folder.objects.filter(created_by=self.request.user, parent=self._get_root_folder())
 
     def perform_create(self, serializer):
+        parent = serializer.validated_data.get('parent')
+        if not parent:
+            parent = self._get_root_folder()
         serializer.save(
             created_by=self.request.user,
-            organization=self.request.user.organization
+            organization=self.request.user.organization,
+            parent=parent
         )
 
 
