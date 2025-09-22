@@ -36,9 +36,10 @@ def setup_initial_data(sender, **kwargs):
 
         # Ensure all existing organizations have a root folder for idempotency.
         for org in Organization.objects.all():
-            Folder.objects.get_or_create(
+            folder, _ = Folder.objects.get_or_create(
                 organization=org,
                 parent=None,
                 name='__root__',
                 defaults={'created_by': None}
             )
+            print(f"Default root folder is set, id: {folder.id}")

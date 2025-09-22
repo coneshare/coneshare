@@ -5,6 +5,7 @@ from pathlib import Path
 from django.core.files.storage import default_storage
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
+from rest_framework.exceptions import APIException
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -309,11 +310,16 @@ class FolderViewSet(viewsets.ModelViewSet):
 
     def _get_root_folder(self):
         """Helper to get the organization's invisible root folder."""
-        return Folder.objects.get(
-            organization=self.request.user.organization,
-            name='__root__',
-            parent=None
-        )
+        try:
+            return Folder.objects.get(
+                organization=self.request.user.organization,
+                name='__root__',
+                parent=None
+            )
+        except Folder.DoesNotExist:
+            logger.error(f"Invisible root folder not found for organization {self.request.user.organization.id}")
+            raise APIException("An unexpected error occurred: root folder missing.",
+                               code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get_queryset(self):
         return Folder.objects.filter(created_by=self.request.user, parent=self._get_root_folder())
