@@ -259,7 +259,7 @@ def test_upload_document_with_path(api_client, user):
     path_data = {'path': 'Client Reports/Q4/Final'}
     response = api_client.post('/api/v1/folders/from_path/', path_data)
     assert response.status_code == status.HTTP_201_CREATED
-    assert Folder.objects.count() == 3
+    assert Folder.objects.filter(created_by=user).count() == 3
 
     # Now, upload the document into that path
     dummy_file = SimpleUploadedFile("report.docx", b"content", "application/msword")
@@ -281,7 +281,7 @@ def test_upload_document_with_path(api_client, user):
     assert doc.folder.parent.created_by == user
     assert doc.folder.parent.parent.name == 'Client Reports'
     assert doc.folder.parent.parent.created_by == user
-    assert doc.folder.parent.parent.parent is None
+    assert doc.folder.parent.parent.parent.name == '__root__'
 
 
 @pytest.mark.django_db

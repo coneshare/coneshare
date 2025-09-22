@@ -45,7 +45,7 @@ class FolderSerializer(serializers.ModelSerializer):
 
         if queryset.exists():
             raise serializers.ValidationError({
-                serializers.NON_FIELD_ERRORS: [
+                'non_field_errors': [
                     "A folder with this name already exists in this location."
                 ]
             })
