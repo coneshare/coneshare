@@ -8,9 +8,6 @@ import * as api from '../../services/api';
 vi.mock('../../services/api');
 
 // Mock child components that are not relevant to the test
-vi.mock('../../components/documents/DocumentsList', () => ({
-  DocumentsList: () => <div>DocumentsList Mock</div>,
-}));
 vi.mock('../../components/documents/Pagination', () => ({
   Pagination: () => <div>Pagination Mock</div>,
 }));
@@ -208,12 +205,12 @@ describe('DocumentsPage', () => {
       });
     });
 
-    it('should call createFolderFromPath for multiple unique paths in parallel', async () => {
+    it('should correctly normalize and create unique folder paths from webkitdirectory', async () => {
       renderComponent();
 
-      const file1 = createFolderFile('folderA/sub1/file1.txt', 'file1.txt');
+      const file1 = createFolderFile('/folderA/sub1/file1.txt', 'file1.txt'); // Leading slash
       const file2 = createFolderFile('folderB/file2.txt', 'file2.txt');
-      const file3 = createFolderFile('folderA/sub1/file3.txt', 'file3.txt'); // duplicate path
+      const file3 = createFolderFile('folderA/sub1/file3.txt', 'file3.txt'); // Duplicate path
 
       api.createFolderFromPath.mockResolvedValue({ status: 201 });
       api.uploadDocument.mockResolvedValue({ status: 202 });
@@ -224,17 +221,18 @@ describe('DocumentsPage', () => {
         target: { files: [file1, file2, file3] },
       });
 
-      // Verify folder paths are created
+      // Verify folder paths are created (and normalized)
       await waitFor(() => {
         expect(api.createFolderFromPath).toHaveBeenCalledTimes(2);
       });
       expect(api.createFolderFromPath).toHaveBeenCalledWith('folderA/sub1');
       expect(api.createFolderFromPath).toHaveBeenCalledWith('folderB');
 
-      // Verify documents are uploaded
+      // Verify documents are uploaded with original (non-normalized) paths
       await waitFor(() => {
         expect(api.uploadDocument).toHaveBeenCalledTimes(3);
       });
+      expect(api.uploadDocument).toHaveBeenCalledWith(file1, '/folderA/sub1/file1.txt');
 
       // Verify data is refetched
       await waitFor(() => {
@@ -270,6 +268,99 @@ describe('DocumentsPage', () => {
         'Failed to create folder structure:',
         expect.any(Error)
       );
+    });
+  });
+
+  describe('Drag and Drop Scenarios', () => {
+    // Helper to create a file with a mocked path property, mimicking react-dropzone
+    const createDroppedFile = (path, name) => {
+      const file = new File(['content'], name, { type: 'text/plain' });
+      // react-dropzone adds a `path` property.
+      Object.defineProperty(file, 'path', {
+        value: path,
+      });
+      return file;
+    };
+
+    // Mock what a drop event's dataTransfer object looks like for react-dropzone
+    const createDropEvent = (files) => {
+      return {
+        dataTransfer: {
+          files: files,
+        },
+      };
+    };
+
+    it('should handle a single dropped file', async () => {
+      api.getDocuments.mockResolvedValue({ data: [] });
+      api.getFolders.mockResolvedValue({ data: [] });
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('No documents')).toBeInTheDocument();
+      });
+
+      const droppedFile = createDroppedFile('dropped-file.txt', 'dropped-file.txt');
+      api.uploadDocument.mockResolvedValue({ status: 202 });
+
+      const dropzone = screen.getByText('No documents').closest('.space-y-4.relative');
+      // react-dropzone processes the event and provides `acceptedFiles` to onDrop
+      // We simulate this by mocking the event that react-dropzone processes
+      fireEvent.drop(dropzone, createDropEvent([droppedFile]));
+
+      await waitFor(() => {
+        expect(api.createFolderFromPath).not.toHaveBeenCalled();
+        expect(api.uploadDocument).toHaveBeenCalledTimes(1);
+      });
+
+      const uploadedFile = api.uploadDocument.mock.calls[0][0];
+      const uploadedPath = api.uploadDocument.mock.calls[0][1];
+      expect(uploadedFile.name).toBe('dropped-file.txt');
+      // For root files, the path is just the filename. The backend handles this.
+      expect(uploadedPath).toBe('dropped-file.txt');
+
+      await waitFor(() => {
+        expect(api.getDocuments).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('should correctly normalize and create unique folder paths from dropped items', async () => {
+      api.getDocuments.mockResolvedValue({ data: [] });
+      api.getFolders.mockResolvedValue({ data: [] });
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('No documents')).toBeInTheDocument();
+      });
+
+      const file1 = createDroppedFile('/folder1/file1.txt', 'file1.txt'); // Leading slash
+      const file2 = createDroppedFile('folder2/sub/file2.txt', 'file2.txt');
+      const file3 = createDroppedFile('folder1/file3.txt', 'file3.txt'); // Duplicate path
+
+      api.createFolderFromPath.mockResolvedValue({ status: 201 });
+      api.uploadDocument.mockResolvedValue({ status: 202 });
+
+      const dropzone = screen.getByText('No documents').closest('.space-y-4.relative');
+      fireEvent.drop(dropzone, createDropEvent([file1, file2, file3]));
+
+      // Check folder creation calls (normalized)
+      await waitFor(() => {
+        expect(api.createFolderFromPath).toHaveBeenCalledTimes(2);
+      });
+      expect(api.createFolderFromPath).toHaveBeenCalledWith('folder1');
+      expect(api.createFolderFromPath).toHaveBeenCalledWith('folder2/sub');
+
+      // Check file upload calls (original paths)
+      await waitFor(() => {
+        expect(api.uploadDocument).toHaveBeenCalledTimes(3);
+      });
+      expect(api.uploadDocument).toHaveBeenCalledWith(file1, '/folder1/file1.txt');
+      expect(api.uploadDocument).toHaveBeenCalledWith(file2, 'folder2/sub/file2.txt');
+      expect(api.uploadDocument).toHaveBeenCalledWith(file3, 'folder1/file3.txt');
+
+
+      // Check data refetch
+      await waitFor(() => {
+        expect(api.getDocuments).toHaveBeenCalledTimes(2);
+      });
     });
   });
 });

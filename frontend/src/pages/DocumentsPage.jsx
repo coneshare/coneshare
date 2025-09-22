@@ -50,41 +50,30 @@ function DocumentsPage() {
     fileInputRef.current.click();
   };
 
-  const onFileChange = async (e) => {
-    const files = e.target.files;
-    if (files.length > 0) {
-      const uploadPromises = Array.from(files).map((file) =>
-        uploadDocument(file)
-      );
-      const results = await Promise.allSettled(uploadPromises);
+  const handleFileUploads = async (files) => {
+    if (!files || files.length === 0) return;
 
-      const failedCount = results.filter(r => r.status === 'rejected').length;
-      if (failedCount > 0) {
-        console.error(`${failedCount} file(s) failed to upload.`);
-      }
-
-      if (results.some(r => r.status === 'fulfilled')) {
-        fetchData();
-      }
-    }
-  };
-
-  const onFolderChange = async (e) => {
-    const files = e.target.files;
-    if (files.length > 0) {
-      // 1. Determine the unique folder paths that need to be created.
-      const paths = new Set();
-      Array.from(files).forEach((file) => {
-        const folderPath = file.webkitRelativePath.substring(
+    // 1. Determine unique folder paths from files that have them.
+    const paths = new Set();
+    Array.from(files).forEach((file) => {
+      const relativePath = file.webkitRelativePath || file.path; // file.path is from react-dropzone
+      if (relativePath) {
+        const folderPath = relativePath.substring(
           0,
-          file.webkitRelativePath.lastIndexOf('/')
+          relativePath.lastIndexOf('/')
         );
         if (folderPath) {
-          paths.add(folderPath);
+          // Normalize path: remove leading/trailing slashes before adding.
+          const normalizedPath = folderPath.replace(/^\/+|\/+$/g, '');
+          if (normalizedPath) {
+            paths.add(normalizedPath);
+          }
         }
-      });
+      }
+    });
 
-      // 2. Call the new endpoint to ensure all folder paths exist concurrently.
+    // 2. If there are paths, ensure the folder structures exist first.
+    if (paths.size > 0) {
       try {
         const folderCreationPromises = Array.from(paths).map((path) =>
           createFolderFromPath(path)
@@ -95,22 +84,33 @@ function DocumentsPage() {
         // The API interceptor will show a toast, so we just log and stop.
         return;
       }
-
-      // 3. Proceed with concurrent file uploads now that folders are guaranteed to exist.
-      const uploadPromises = Array.from(files).map((file) => {
-        return uploadDocument(file, file.webkitRelativePath);
-      });
-      const results = await Promise.allSettled(uploadPromises);
-
-      const failedCount = results.filter((r) => r.status === 'rejected').length;
-      if (failedCount > 0) {
-        console.error(`${failedCount} file(s) failed to upload.`);
-      }
-
-      if (results.some((r) => r.status === 'fulfilled')) {
-        fetchData();
-      }
     }
+
+    // 3. Proceed with concurrent file uploads.
+    const uploadPromises = Array.from(files).map((file) => {
+      const relativePath = file.webkitRelativePath || file.path;
+      // Pass the full relative path if it exists, otherwise it's a root upload.
+      return uploadDocument(file, relativePath || null);
+    });
+    const results = await Promise.allSettled(uploadPromises);
+
+    const failedCount = results.filter((r) => r.status === 'rejected').length;
+    if (failedCount > 0) {
+      console.error(`${failedCount} file(s) failed to upload.`);
+      // Optionally show a toast for partial failures
+    }
+
+    if (results.some((r) => r.status === 'fulfilled')) {
+      fetchData(); // Refresh data if at least one upload succeeded
+    }
+  };
+
+  const onFileChange = (e) => {
+    handleFileUploads(e.target.files);
+  };
+
+  const onFolderChange = (e) => {
+    handleFileUploads(e.target.files);
   };
 
 
@@ -194,6 +194,7 @@ function DocumentsPage() {
         loading={loading}
         foldersLoading={foldersLoading}
         onDataRefresh={fetchData}
+        onFilesDrop={handleFileUploads}
       />
 
       {documents.length > 0 && (

@@ -3,6 +3,7 @@ import { FileIcon, FolderIcon, } from "lucide-react";
 import { memo, useCallback, useMemo, useState } from "react";
 import * as React from 'react';
 import { createPortal } from "react-dom";
+import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { deleteDocument, deleteFolder } from "../../services/api";
 import { ConfirmationDialog } from "../dialogs/ConfirmationDialog";
@@ -23,6 +24,7 @@ export function DocumentsList({
   loading,
   foldersLoading,
   onDataRefresh,
+  onFilesDrop,
 }) {
   const [selectedDocuments, setSelectedDocuments] = useState([]);
   const [selectedFolders, setSelectedFolders] = useState([]);
@@ -51,6 +53,25 @@ export function DocumentsList({
     () => selectedFolders && selectedFolders.length,
     [selectedFolders]
   );
+
+  const onDrop = useCallback(
+    (acceptedFiles) => {
+      // When a folder is dropped, react-dropzone provides a list of all files
+      // within it. Each file object is augmented with a `path` property
+      // representing its relative path inside the folder. We use this to
+      // reconstruct the folder structure on the server.
+      if (acceptedFiles && acceptedFiles.length > 0) {
+        onFilesDrop(acceptedFiles);
+      }
+    },
+    [onFilesDrop]
+  );
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    noClick: true, // We have dedicated buttons for click-to-upload
+    noKeyboard: true,
+  });
 
   const handleSelect = useCallback((id, type) => {
     if (type === "folder") {
@@ -257,7 +278,15 @@ export function DocumentsList({
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="space-y-4">
+        <div {...getRootProps({ className: "space-y-4 relative" })}>
+          <input {...getInputProps()} />
+          {isDragActive && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary/10">
+              <p className="text-lg font-semibold text-primary">
+                Drop files or folders to upload
+              </p>
+            </div>
+          )}
           {/* Folders list */}
           <ul role="list" className="space-y-4">
             {folders && !foldersLoading
