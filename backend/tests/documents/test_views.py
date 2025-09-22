@@ -28,14 +28,20 @@ def user2(db, organization):
 @pytest.mark.django_db
 def test_list_folders(api_client, user, user2, organization):
     """Test retrieving a list of folders is scoped to the user and only returns root folders."""
-    root_folder = Folder.objects.create(
-        name="My Root Folder", organization=organization, created_by=user
+    # Get the invisible root folder for the organization
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+
+    # Create a folder for the current user (api_client's user) under the root
+    user_root_folder = Folder.objects.create(
+        name="My Root Folder", organization=organization, created_by=user, parent=root_folder
     )
+    # Create a subfolder, which should NOT be listed by the root folder endpoint
     Folder.objects.create(
-        name="My Subfolder", organization=organization, created_by=user, parent=root_folder
+        name="My Subfolder", organization=organization, created_by=user, parent=user_root_folder
     )
+    # Create a folder for another user, which should NOT be listed for the current user
     Folder.objects.create(
-        name="Other's Folder", organization=organization, created_by=user2
+        name="Other's Folder", organization=organization, created_by=user2, parent=root_folder
     )
     response = api_client.get('/api/v1/folders/')
     assert response.status_code == status.HTTP_200_OK
@@ -46,62 +52,116 @@ def test_list_folders(api_client, user, user2, organization):
 @pytest.mark.django_db
 def test_create_folder(api_client, user, organization):
     """Test creating a new folder."""
+    # The __root__ folder is created automatically
+    assert Folder.objects.count() == 1
+
     data = {'name': 'New API Folder'}
     response = api_client.post('/api/v1/folders/', data)
+
     assert response.status_code == status.HTTP_201_CREATED
     assert response.data['name'] == 'New API Folder'
-    assert Folder.objects.count() == 1
-    folder = Folder.objects.get()
+    assert Folder.objects.count() == 2
+
+    folder = Folder.objects.get(name='New API Folder')
+    root_folder = Folder.objects.get(name='__root__', parent=None)
     assert folder.organization == organization
     assert folder.created_by == user
+    assert folder.parent == root_folder
+
+
+@pytest.mark.django_db
+def test_create_duplicate_root_folder_fails(api_client):
+    """Test that creating a folder with a duplicate name at the root level fails."""
+    data = {'name': 'Duplicate Folder'}
+    response1 = api_client.post('/api/v1/folders/', data)
+    assert response1.status_code == status.HTTP_201_CREATED
+
+    response2 = api_client.post('/api/v1/folders/', data)
+    assert response2.status_code == status.HTTP_400_BAD_REQUEST
+    assert 'non_field_errors' in response2.data
+    assert 'already exists' in str(response2.data['non_field_errors'][0])
+
+
+@pytest.mark.django_db
+def test_create_duplicate_subfolder_fails(api_client, user, organization):
+    """Test that creating a subfolder with a duplicate name within the same parent fails."""
+    # Create a parent folder via API
+    parent_data = {'name': 'Parent'}
+    parent_response = api_client.post('/api/v1/folders/', parent_data)
+    assert parent_response.status_code == status.HTTP_201_CREATED
+    parent_id = parent_response.data['id']
+
+    # Create a subfolder
+    subfolder_data = {'name': 'Duplicate Subfolder', 'parent': parent_id}
+    response1 = api_client.post('/api/v1/folders/', subfolder_data)
+    assert response1.status_code == status.HTTP_201_CREATED
+
+    # Attempt to create another subfolder with the same name and parent
+    response2 = api_client.post('/api/v1/folders/', subfolder_data)
+    assert response2.status_code == status.HTTP_400_BAD_REQUEST
+    assert 'non_field_errors' in response2.data
+    assert 'already exists' in str(response2.data['non_field_errors'][0])
 
 
 @pytest.mark.django_db
 def test_create_folder_from_path(api_client, user):
     """Test creating a nested folder structure from a path string."""
+    # __root__ folder exists
+    assert Folder.objects.count() == 1
+
     path_data = {'path': 'Top/Middle/Bottom'}
     response = api_client.post('/api/v1/folders/from_path/', path_data)
 
     assert response.status_code == status.HTTP_201_CREATED
     assert response.data['name'] == 'Bottom'
-    assert Folder.objects.count() == 3
+    assert Folder.objects.count() == 4
 
     bottom = Folder.objects.get(name='Bottom')
     middle = bottom.parent
     top = middle.parent
+    root = top.parent
 
     assert bottom.created_by == user
     assert middle.name == 'Middle'
     assert middle.created_by == user
     assert top.name == 'Top'
     assert top.created_by == user
-    assert top.parent is None
+    assert root.name == '__root__'
+    assert root.parent is None
 
 
 @pytest.mark.django_db
 def test_create_folder_from_path_idempotent(api_client, user):
     """Test that calling from_path multiple times has no adverse effect."""
-    Folder.objects.create(name="Top", created_by=user, organization=user.organization)
+    root_folder = Folder.objects.get(name='__root__', parent=None)
+    Folder.objects.create(name="Top", created_by=user, organization=user.organization, parent=root_folder)
+    # Total folders: __root__, Top
+    assert Folder.objects.count() == 2
 
     path_data = {'path': 'Top/Middle/Bottom'}
     response1 = api_client.post('/api/v1/folders/from_path/', path_data)
     assert response1.status_code == status.HTTP_201_CREATED
-    assert Folder.objects.count() == 3
+    # Total folders: __root__, Top, Middle, Bottom
+    assert Folder.objects.count() == 4
 
     response2 = api_client.post('/api/v1/folders/from_path/', path_data)
     assert response2.status_code == status.HTTP_201_CREATED
-    assert Folder.objects.count() == 3  # No new folders created
+    assert Folder.objects.count() == 4  # No new folders created
 
 
 @pytest.mark.django_db
 def test_create_folder_from_path_permission_denied(api_client, user, user2):
     """Test a user cannot create a subfolder inside another user's folder."""
+    root_folder = Folder.objects.get(name='__root__', parent=None, organization=user2.organization)
     # user2 creates a root folder
     Folder.objects.create(
         name="User2's Root",
         organization=user2.organization,
-        created_by=user2
+        created_by=user2,
+        parent=root_folder
     )
+    # Total folders: __root__, User2's Root
+    assert Folder.objects.count() == 2
 
     # user (via api_client) tries to create a nested folder inside user2's folder
     path_data = {'path': "User2's Root/My Subfolder"}
@@ -110,8 +170,8 @@ def test_create_folder_from_path_permission_denied(api_client, user, user2):
     assert response.status_code == status.HTTP_403_FORBIDDEN
     # Ensure no new folders were created by 'user'
     assert not Folder.objects.filter(created_by=user).exists()
-    # The original folder should still exist
-    assert Folder.objects.count() == 1
+    # The original folder should still exist, and no new ones created
+    assert Folder.objects.count() == 2
 
 
 @pytest.mark.django_db
