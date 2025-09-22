@@ -31,9 +31,16 @@ class FolderSerializer(serializers.ModelSerializer):
 
         if parent is None:
             # If no parent is specified, the logical parent is the invisible root.
-            parent = Folder.objects.get(
-                organization=organization, name='__root__', parent=None
-            )
+            try:
+                parent = Folder.objects.get(
+                    organization=organization, name='__root__', parent=None
+                )
+            except Folder.DoesNotExist:
+                raise serializers.ValidationError({
+                    'non_field_errors': [
+                        "A server configuration error occurred: organization root folder is missing."
+                    ]
+                })
 
         queryset = Folder.objects.filter(
             organization=organization, parent=parent, name=name
