@@ -16,6 +16,48 @@ class FolderSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'parent', 'organization', 'created_at', 'updated_at']
         read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
 
+    def validate(self, data):
+        """
+        Manually enforce uniqueness for a folder's name within its parent,
+        accounting for the invisible __root__ folder.
+        """
+        request = self.context.get('request')
+        if not request or not hasattr(request, 'user'):
+            return data
+
+        organization = request.user.organization
+        parent = data.get('parent')
+        name = data.get('name', self.instance.name if self.instance else None)
+
+        if parent is None:
+            # If no parent is specified, the logical parent is the invisible root.
+            try:
+                parent = Folder.objects.get(
+                    organization=organization, name='__root__', parent=None
+                )
+            except Folder.DoesNotExist:
+                raise serializers.ValidationError({
+                    'non_field_errors': [
+                        "A server configuration error occurred: organization root folder is missing."
+                    ]
+                })
+
+        queryset = Folder.objects.filter(
+            organization=organization, parent=parent, name=name
+        )
+
+        # If we are updating an existing instance, exclude it from the check.
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+
+        if queryset.exists():
+            raise serializers.ValidationError({
+                'non_field_errors': [
+                    "A folder with this name already exists in this location."
+                ]
+            })
+        return data
+
     def create(self, validated_data):
         # Automatically assign the default organization
         validated_data['organization'] = Organization.objects.first()
