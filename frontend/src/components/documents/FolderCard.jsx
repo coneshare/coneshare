@@ -9,13 +9,13 @@ function FolderCard({ folder, onRename, onDelete }) {
         <FolderIcon className="h-6 w-6 text-gray-400" />
       </div>
       <div className="min-w-0 flex-1">
-        <Link to={`/documents${folder.path}`} className="focus:outline-none">
+        <Link to={`/documents/folders/${folder.id}`} className="focus:outline-none">
           <span className="absolute inset-0" aria-hidden="true" />
           <p className="text-sm font-medium text-gray-900 dark:text-white">
             {folder.name}
           </p>
           <p className="truncate text-sm text-gray-500 dark:text-gray-400">
-            {folder._count?.documents} items
+            Folder
           </p>
         </Link>
       </div>
