@@ -54,9 +54,12 @@ function DocumentsPage() {
     if (!files || files.length === 0) return;
 
     // 1. Determine unique folder paths from files that have them.
+    // We only do this for uploads from the "Upload Folder" dialog, as
+    // `webkitRelativePath` is the only reliable indicator of user intent
+    // to preserve folder structure. For drag-and-drop, we'll upload flat.
     const paths = new Set();
     Array.from(files).forEach((file) => {
-      const relativePath = file.webkitRelativePath || (files.length > 1 ? file.path : null); // file.path is from react-dropzone
+      const relativePath = file.webkitRelativePath; // Only consider webkitRelativePath
       if (relativePath) {
         const folderPath = relativePath.substring(
           0,
@@ -88,10 +91,10 @@ function DocumentsPage() {
 
     // 3. Proceed with concurrent file uploads.
     const uploadPromises = Array.from(files).map((file) => {
-      const relativePath =
-        file.webkitRelativePath || (files.length > 1 ? file.path : null);
-      // Pass the full relative path if it exists, otherwise it's a root upload.
-      return uploadDocument(file, relativePath || null);
+      // For uploads from the folder dialog, we preserve the path.
+      // For all other uploads (including drag-and-drop), we upload to the root.
+      const relativePath = file.webkitRelativePath || null;
+      return uploadDocument(file, relativePath);
     });
     const results = await Promise.allSettled(uploadPromises);
 
