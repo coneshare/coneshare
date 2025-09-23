@@ -395,20 +395,16 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
         if folder_id:
             # Ensure the requested folder belongs to the user's org for security
-            folder = get_object_or_404(Folder, id=folder_id, organization=organization)
-            return self.queryset.filter(
-                organization=organization,
-                created_by=self.request.user,
-                folder=folder
-            )
+            target_folder = get_object_or_404(Folder, id=folder_id, organization=organization)
         else:
             # Default to listing documents in the root folder
-            root_folder = get_object_or_404(Folder, organization=organization, name='__root__', parent=None)
-            return self.queryset.filter(
-                organization=organization,
-                created_by=self.request.user,
-                folder=root_folder
-            )
+            target_folder = get_object_or_404(Folder, organization=organization, name='__root__', parent=None)
+
+        return self.queryset.filter(
+            organization=organization,
+            created_by=self.request.user,
+            folder=target_folder
+        )
 
     def destroy(self, request, *args, **kwargs):
         document = self.get_object()
