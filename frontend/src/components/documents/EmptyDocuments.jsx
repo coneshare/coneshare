@@ -2,7 +2,7 @@ import { UploadCloud as UploadIcon } from "lucide-react";
 
 export function EmptyDocuments() {
   return (
-    <div className="mt-12 text-center">
+    <div className="py-24 text-center">
       <UploadIcon className="mx-auto h-16 w-16 text-gray-400" />
       <h3 className="mt-4 text-sm font-medium text-gray-900 dark:text-white">
         No documents yet
