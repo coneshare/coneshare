@@ -23,6 +23,13 @@ class FolderSerializer(serializers.ModelSerializer):
         Returns a list of ancestor folders, from the root down to the
         immediate parent. Excludes the invisible __root__ folder.
         """
+
+        # This while loop to fetch ancestors introduces a potential N+1 query problem. Each access to parent.parent will trigger a separate database query.
+        # For deeply nested folders, this could lead to performance issues.
+        # While the current implementation is simple and works for shallow hierarchies, for future scalability you might consider a more optimized approach, such as:
+        #    Using a recursive Common Table Expression (CTE) with raw SQL (if your database supports it, like PostgreSQL).
+        #    Using a library like django-mptt which is designed to handle hierarchical data efficiently.
+
         ancestors = []
         parent = obj.parent
         while parent and parent.name != '__root__':
