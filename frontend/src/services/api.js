@@ -84,17 +84,9 @@ export const uploadDocument = (file, path) => {
   });
 };
 
-export const getDocuments = (folderId = null) => {
-  const params = folderId ? { folder: folderId } : {};
-  return api.get('/documents/', { params });
-};
+export const getFolderContents = (id) => api.get(`/folders/${id}/`);
 
-export const getFolders = (folderId = null) => {
-  const params = folderId ? { parent: folderId } : {};
-  return api.get('/folders/', { params });
-};
-
-export const getFolderDetails = (id) => api.get(`/folders/${id}/`);
+export const getRootFolderContents = () => api.get('/folders/root/');
 
 export const createFolderFromPath = (path) => api.post('/folders/from_path/', { path });
 
