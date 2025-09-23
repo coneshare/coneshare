@@ -320,13 +320,13 @@ describe('DocumentsPage', () => {
       });
       renderComponent();
       await waitFor(() => {
-        expect(screen.getByText('No documents')).toBeInTheDocument();
+        expect(screen.getByText('No documents yet')).toBeInTheDocument();
       });
 
       const droppedFile = createDroppedFile('dropped-file.txt', 'dropped-file.txt');
       api.uploadDocument.mockResolvedValue({ status: 202 });
 
-      const dropzone = screen.getByText('No documents').closest('.space-y-4.relative');
+      const dropzone = screen.getByText('No documents yet').closest('.space-y-4.relative');
       // react-dropzone processes the event and provides `acceptedFiles` to onDrop
       // We simulate this by mocking the event that react-dropzone processes
       fireEvent.drop(dropzone, createDropEvent([droppedFile]));
@@ -353,7 +353,7 @@ describe('DocumentsPage', () => {
       });
       renderComponent();
       await waitFor(() => {
-        expect(screen.getByText('No documents')).toBeInTheDocument();
+        expect(screen.getByText('No documents yet')).toBeInTheDocument();
       });
 
       const file1 = createDroppedFile('/folder1/file1.txt', 'file1.txt'); // Leading slash
@@ -363,7 +363,7 @@ describe('DocumentsPage', () => {
       api.createFolderFromPath.mockResolvedValue({ status: 201 });
       api.uploadDocument.mockResolvedValue({ status: 202 });
 
-      const dropzone = screen.getByText('No documents').closest('.space-y-4.relative');
+      const dropzone = screen.getByText('No documents yet').closest('.space-y-4.relative');
       fireEvent.drop(dropzone, createDropEvent([file1, file2, file3]));
 
       // Check folder creation calls (normalized)
