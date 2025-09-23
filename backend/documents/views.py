@@ -323,22 +323,29 @@ class FolderViewSet(viewsets.ModelViewSet):
             raise APIException("An unexpected error occurred: root folder missing.",
                                code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    def _get_folder_contents(self, folder, request):
+        """Helper to fetch and serialize sub-folders and documents for a given folder."""
+        sub_folders = folder.children.filter(created_by=request.user)
+        documents = folder.documents.filter(created_by=request.user)
+
+        sub_folders_serializer = self.get_serializer(sub_folders, many=True)
+        documents_serializer = DocumentSerializer(documents, many=True, context={'request': request})
+
+        return {
+            'sub_folders': sub_folders_serializer.data,
+            'documents': documents_serializer.data,
+        }
+
     def list(self, request, *args, **kwargs):
         """
         Returns the contents of the user's root folder, including its
         subfolders and documents.
         """
         root_folder = self._get_root_folder()
-        sub_folders = root_folder.children.filter(created_by=request.user)
-        documents = root_folder.documents.filter(created_by=request.user)
-
-        sub_folders_serializer = self.get_serializer(sub_folders, many=True)
-        documents_serializer = DocumentSerializer(documents, many=True, context={'request': request})
-
+        contents = self._get_folder_contents(root_folder, request)
         return Response({
             'current_folder': None,
-            'sub_folders': sub_folders_serializer.data,
-            'documents': documents_serializer.data,
+            **contents,
         })
 
     def retrieve(self, request, *args, **kwargs):
@@ -346,17 +353,11 @@ class FolderViewSet(viewsets.ModelViewSet):
         Returns the contents of a specific folder, including its subfolders and documents.
         """
         instance = self.get_object()
-        sub_folders = instance.children.filter(created_by=request.user)
-        documents = instance.documents.filter(created_by=request.user)
-
+        contents = self._get_folder_contents(instance, request)
         current_folder_serializer = self.get_serializer(instance)
-        sub_folders_serializer = self.get_serializer(sub_folders, many=True)
-        documents_serializer = DocumentSerializer(documents, many=True, context={'request': request})
-
         return Response({
             'current_folder': current_folder_serializer.data,
-            'sub_folders': sub_folders_serializer.data,
-            'documents': documents_serializer.data,
+            **contents,
         })
 
     def get_queryset(self):
