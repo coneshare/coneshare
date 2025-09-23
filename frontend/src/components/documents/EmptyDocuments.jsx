@@ -1,14 +1,15 @@
-import { File as FileIcon } from "lucide-react";
+import { UploadCloud as UploadIcon } from "lucide-react";
 
 export function EmptyDocuments() {
   return (
-    <div className="mt-12 text-center">
-      <FileIcon className="mx-auto h-12 w-12 text-gray-400" />
-      <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
-        No documents
+    <div className="py-24 text-center">
+      <UploadIcon className="mx-auto h-16 w-16 text-gray-400" />
+      <h3 className="mt-4 text-sm font-medium text-gray-900 dark:text-white">
+        No documents yet
       </h3>
-      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-        Get started by uploading a document.
+      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+        Click the &apos;Upload&apos; button to get started, or drag and drop
+        files and folders here.
       </p>
     </div>
   );
