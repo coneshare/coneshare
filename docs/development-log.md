@@ -232,6 +232,31 @@ This session focused on completing the file upload functionality and enhancing e
 
 This session focused on improving the user experience for document and folder management, hardening the backend API to prevent race conditions and incorrect data access, and enhancing the frontend's robustness.
 
+## Session 11: Document Upload Improvements & Empty State (2025-09-23)
+
+This session focused on refining the document upload experience and empty state UI.
+
+### 1. Upload Logic Refinements
+- Implemented distinct handling between file selection and folder uploads
+- Improved drag-and-drop behavior to treat all drops as flat file uploads
+- Added robust error handling for batch uploads using `Promise.allSettled`
+
+### 2. Empty Documents Component
+- Enhanced `EmptyDocuments` component with:
+  - Upload icon from lucide-react
+  - Clear messaging about upload options
+  - Increased vertical spacing for better visibility
+  - Conditional rendering based on documents/folders presence
+
+### 3. Robust Folder Upload Handling
+- Decoupled folder structure creation from file uploads
+- Added path normalization to handle edge cases
+- Implemented proper error handling for folder creation failures
+
+### 4. Documentation Updates
+- Updated upload documentation to clarify drag-and-drop behavior
+- Added corner case scenarios to `coneshare-upload-file.md`
+
 ### 1. Robust Folder Uploading
 - **Race Condition Prevention**: Decoupled folder creation from file uploads to prevent race conditions where multiple uploads would create duplicate folders.
 - **Idempotent Folder Creation Endpoint**:
