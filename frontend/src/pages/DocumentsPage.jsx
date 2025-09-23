@@ -12,7 +12,7 @@ import { Toaster } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getDocuments, getFolders, getFolderDetails, createFolderFromPath } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, createFolderFromPath } from '../services/api';
 
 function DocumentsPage() {
   const { folderId } = useParams();
@@ -27,25 +27,23 @@ function DocumentsPage() {
   const fetchData = async () => {
     setLoading(true);
     setFoldersLoading(true);
+    // Reset state before fetching
     setCurrentFolder(null);
+    setDocuments([]);
+    setFolders([]);
 
     try {
-      const requests = [
-        getDocuments(folderId),
-        getFolders(folderId),
-      ];
-      if (folderId) {
-        requests.push(getFolderDetails(folderId));
-      }
+      const response = folderId
+        ? await getFolderContents(folderId)
+        : await getRootFolderContents();
 
-      const [docsResponse, foldersResponse, folderDetailsResponse] = await Promise.all(requests);
-      setDocuments(docsResponse.data);
-      setFolders(foldersResponse.data);
-      if (folderDetailsResponse) {
-        setCurrentFolder(folderDetailsResponse.data);
-      }
+      const { current_folder, sub_folders, documents } = response.data;
+      setCurrentFolder(current_folder);
+      setFolders(sub_folders);
+      setDocuments(documents);
     } catch (error) {
       console.error('Failed to fetch data:', error);
+      // The API interceptor will show a toast for errors.
     } finally {
       setLoading(false);
       setFoldersLoading(false);
