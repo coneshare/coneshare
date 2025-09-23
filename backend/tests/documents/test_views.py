@@ -26,48 +26,75 @@ def user2(db, organization):
 
 
 @pytest.mark.django_db
-def test_list_folders(api_client, user, user2, organization):
-    """Test retrieving a list of folders is scoped to the user and only returns root folders."""
+def test_get_root_folder_contents(api_client, user, user2, organization):
+    """Test retrieving root folder contents is scoped to the user."""
     # Get the invisible root folder for the organization
     root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
 
-    # Create a folder for the current user (api_client's user) under the root
+    # user's content
     user_root_folder = Folder.objects.create(
         name="My Root Folder", organization=organization, created_by=user, parent=root_folder
     )
-    # Create a subfolder, which should NOT be listed by the root folder endpoint
+    # This subfolder should not be in the root listing
     Folder.objects.create(
         name="My Subfolder", organization=organization, created_by=user, parent=user_root_folder
     )
-    # Create a folder for another user, which should NOT be listed for the current user
+    Document.objects.create(
+        name="My Root Document", organization=organization, created_by=user, folder=root_folder
+    )
+
+    # user2's content (should not appear)
     Folder.objects.create(
         name="Other's Folder", organization=organization, created_by=user2, parent=root_folder
     )
-    response = api_client.get('/api/v1/folders/')
+    Document.objects.create(
+        name="Other's Document", organization=organization, created_by=user2, folder=root_folder
+    )
+
+    response = api_client.get('/api/v1/folders/root/')
     assert response.status_code == status.HTTP_200_OK
-    assert len(response.data) == 1
-    assert response.data[0]['name'] == "My Root Folder"
+
+    data = response.json()
+    assert data['current_folder'] is None
+    assert len(data['sub_folders']) == 1
+    assert data['sub_folders'][0]['name'] == "My Root Folder"
+    assert len(data['documents']) == 1
+    assert data['documents'][0]['name'] == "My Root Document"
 
 
 @pytest.mark.django_db
-def test_list_subfolders_with_parent_id(api_client, user, organization):
-    """Test retrieving a list of sub-folders and check for correct ancestor data."""
+def test_get_folder_contents_retrieve(api_client, user, organization):
+    """Test retrieving a specific folder's contents and check for correct ancestor data."""
     root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
     parent_folder = Folder.objects.create(
         name="Parent Folder", organization=organization, created_by=user, parent=root_folder
     )
-    Folder.objects.create(
+    sub_folder = Folder.objects.create(
         name="Subfolder 1", organization=organization, created_by=user, parent=parent_folder
     )
+    Document.objects.create(
+        name="Document In Folder", organization=organization, created_by=user, folder=parent_folder
+    )
 
-    response = api_client.get(f'/api/v1/folders/?parent={parent_folder.id}')
+    response = api_client.get(f'/api/v1/folders/{parent_folder.id}/')
     assert response.status_code == status.HTTP_200_OK
-    assert len(response.data) == 1
-    assert response.data[0]['name'] == "Subfolder 1"
-    assert 'ancestors' in response.data[0]
-    assert len(response.data[0]['ancestors']) == 1
-    assert response.data[0]['ancestors'][0]['id'] == str(parent_folder.id)
-    assert response.data[0]['ancestors'][0]['name'] == "Parent Folder"
+
+    data = response.json()
+    assert data['current_folder']['id'] == str(parent_folder.id)
+    assert data['current_folder']['name'] == "Parent Folder"
+
+    assert len(data['sub_folders']) == 1
+    sub_folder_data = data['sub_folders'][0]
+    assert sub_folder_data['name'] == "Subfolder 1"
+
+    assert len(data['documents']) == 1
+    assert data['documents'][0]['name'] == "Document In Folder"
+
+    # Check that ancestor data is present on sub-folders
+    assert 'ancestors' in sub_folder_data
+    assert len(sub_folder_data['ancestors']) == 1
+    assert sub_folder_data['ancestors'][0]['id'] == str(parent_folder.id)
+    assert sub_folder_data['ancestors'][0]['name'] == "Parent Folder"
 
 
 @pytest.mark.django_db
