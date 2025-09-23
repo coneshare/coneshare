@@ -20,8 +20,16 @@ describe('DocumentsPage', () => {
     vi.resetAllMocks();
 
     // Default successful mock for initial data fetch
-    api.getDocuments.mockResolvedValue({ data: [] });
-    api.getFolders.mockResolvedValue({ data: [] });
+    api.getRootFolderContents.mockResolvedValue({
+      data: { current_folder: null, sub_folders: [], documents: [] },
+    });
+    api.getFolderContents.mockResolvedValue({
+      data: {
+        current_folder: { id: 'folder123', name: 'Test Folder', ancestors: [] },
+        sub_folders: [],
+        documents: [],
+      },
+    });
 
     // Spy on console.error
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -68,26 +76,20 @@ describe('DocumentsPage', () => {
     expect(screen.getByRole('link', { name: /documents/i })).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(api.getDocuments).toHaveBeenCalledWith(undefined);
-      expect(api.getFolders).toHaveBeenCalledWith(undefined);
-      expect(api.getFolderDetails).not.toHaveBeenCalled();
+      expect(api.getRootFolderContents).toHaveBeenCalledTimes(1);
+      expect(api.getFolderContents).not.toHaveBeenCalled();
     });
   });
 
   describe('Folder Navigation', () => {
     it('should fetch folder-specific content when a folderId is in the URL', async () => {
       const folderId = 'folder123';
-      const folderData = {
-        data: { id: folderId, name: 'Test Folder', ancestors: [] },
-      };
-      api.getFolderDetails.mockResolvedValue(folderData);
 
       renderComponent(`/documents/folders/${folderId}`);
 
       await waitFor(() => {
-        expect(api.getDocuments).toHaveBeenCalledWith(folderId);
-        expect(api.getFolders).toHaveBeenCalledWith(folderId);
-        expect(api.getFolderDetails).toHaveBeenCalledWith(folderId);
+        expect(api.getRootFolderContents).not.toHaveBeenCalled();
+        expect(api.getFolderContents).toHaveBeenCalledWith(folderId);
       });
 
       // It should also display the folder's name from the breadcrumbs
@@ -117,10 +119,9 @@ describe('DocumentsPage', () => {
       expect(api.uploadDocument).toHaveBeenCalledWith(file1);
       expect(api.uploadDocument).toHaveBeenCalledWith(file2);
 
-      // getDocuments/getFolders called once initially, then again after successful upload
+      // getRootFolderContents called once initially, then again after successful upload
       await waitFor(() => {
-        expect(api.getDocuments).toHaveBeenCalledTimes(2);
-        expect(api.getFolders).toHaveBeenCalledTimes(2);
+        expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
       });
 
       expect(consoleErrorSpy).not.toHaveBeenCalled();
@@ -148,8 +149,7 @@ describe('DocumentsPage', () => {
 
       // Should refetch because one succeeded
       await waitFor(() => {
-        expect(api.getDocuments).toHaveBeenCalledTimes(2);
-        expect(api.getFolders).toHaveBeenCalledTimes(2);
+        expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
       });
 
       // Should log an error for the failed upload
@@ -177,8 +177,7 @@ describe('DocumentsPage', () => {
       // Only called on initial render
       // Use a small timeout to ensure no other calls are made
       await new Promise((res) => setTimeout(res, 50));
-      expect(api.getDocuments).toHaveBeenCalledTimes(1);
-      expect(api.getFolders).toHaveBeenCalledTimes(1);
+      expect(api.getRootFolderContents).toHaveBeenCalledTimes(1);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith('2 file(s) failed to upload.');
     });
@@ -226,8 +225,7 @@ describe('DocumentsPage', () => {
 
       // Verify data is refetched on success
       await waitFor(() => {
-        expect(api.getDocuments).toHaveBeenCalledTimes(2);
-        expect(api.getFolders).toHaveBeenCalledTimes(2);
+        expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
       });
     });
 
@@ -262,7 +260,7 @@ describe('DocumentsPage', () => {
 
       // Verify data is refetched
       await waitFor(() => {
-        expect(api.getDocuments).toHaveBeenCalledTimes(2);
+        expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
       });
     });
 
@@ -286,8 +284,7 @@ describe('DocumentsPage', () => {
       expect(api.uploadDocument).not.toHaveBeenCalled();
 
       // Ensure data is NOT refetched
-      expect(api.getDocuments).toHaveBeenCalledTimes(1);
-      expect(api.getFolders).toHaveBeenCalledTimes(1);
+      expect(api.getRootFolderContents).toHaveBeenCalledTimes(1);
 
       // Ensure error is logged
       expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -318,8 +315,9 @@ describe('DocumentsPage', () => {
     };
 
     it('should handle a single dropped file', async () => {
-      api.getDocuments.mockResolvedValue({ data: [] });
-      api.getFolders.mockResolvedValue({ data: [] });
+      api.getRootFolderContents.mockResolvedValue({
+        data: { current_folder: null, sub_folders: [], documents: [] },
+      });
       renderComponent();
       await waitFor(() => {
         expect(screen.getByText('No documents')).toBeInTheDocument();
@@ -345,13 +343,14 @@ describe('DocumentsPage', () => {
       expect(uploadedPath).toBe('dropped-file.txt');
 
       await waitFor(() => {
-        expect(api.getDocuments).toHaveBeenCalledTimes(2);
+        expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
       });
     });
 
     it('should correctly normalize and create unique folder paths from dropped items', async () => {
-      api.getDocuments.mockResolvedValue({ data: [] });
-      api.getFolders.mockResolvedValue({ data: [] });
+      api.getRootFolderContents.mockResolvedValue({
+        data: { current_folder: null, sub_folders: [], documents: [] },
+      });
       renderComponent();
       await waitFor(() => {
         expect(screen.getByText('No documents')).toBeInTheDocument();
@@ -385,7 +384,7 @@ describe('DocumentsPage', () => {
 
       // Check data refetch
       await waitFor(() => {
-        expect(api.getDocuments).toHaveBeenCalledTimes(2);
+        expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
       });
     });
   });
