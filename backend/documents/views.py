@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 from django.core.files.storage import default_storage
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.exceptions import APIException
@@ -322,7 +323,28 @@ class FolderViewSet(viewsets.ModelViewSet):
                                code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get_queryset(self):
-        return Folder.objects.filter(created_by=self.request.user, parent=self._get_root_folder())
+        """
+        This view should return a list of folders for the currently
+        authenticated user, optionally filtered by a parent folder.
+        """
+        organization = self.request.user.organization
+        parent_id = self.request.query_params.get('parent')
+
+        if parent_id:
+            # Ensure the requested parent folder belongs to the user's org for security
+            parent_folder = get_object_or_404(Folder, id=parent_id, organization=organization)
+            return self.queryset.filter(
+                organization=organization,
+                created_by=self.request.user,
+                parent=parent_folder
+            )
+        else:
+            # Default to listing folders in the root
+            return self.queryset.filter(
+                organization=organization,
+                created_by=self.request.user,
+                parent=self._get_root_folder()
+            ).exclude(name='__root__')
 
     def perform_create(self, serializer):
         parent = serializer.validated_data.get('parent')
@@ -341,7 +363,29 @@ class DocumentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Document.objects.filter(created_by=self.request.user, folder__isnull=True)
+        """
+        This view should return a list of documents for the currently
+        authenticated user, optionally filtered by a parent folder.
+        """
+        organization = self.request.user.organization
+        folder_id = self.request.query_params.get('folder')
+
+        if folder_id:
+            # Ensure the requested folder belongs to the user's org for security
+            folder = get_object_or_404(Folder, id=folder_id, organization=organization)
+            return self.queryset.filter(
+                organization=organization,
+                created_by=self.request.user,
+                folder=folder
+            )
+        else:
+            # Default to listing documents in the root folder
+            root_folder = get_object_or_404(Folder, organization=organization, name='__root__', parent=None)
+            return self.queryset.filter(
+                organization=organization,
+                created_by=self.request.user,
+                folder=root_folder
+            )
 
     def destroy(self, request, *args, **kwargs):
         document = self.get_object()

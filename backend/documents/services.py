@@ -27,6 +27,14 @@ def create_document_from_upload(
     
     original_storage_key = default_storage.save(storage_key, uploaded_file)
 
+    if folder is None:
+        folder, _ = Folder.objects.get_or_create(
+            organization=requesting_user.organization,
+            parent=None,
+            name='__root__',
+            defaults={'created_by': None}
+        )
+
     # 2. Create database records
     document = Document.objects.create(
         organization=requesting_user.organization,

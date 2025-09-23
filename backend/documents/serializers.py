@@ -11,10 +11,24 @@ class FolderFromPathSerializer(serializers.Serializer):
 
 
 class FolderSerializer(serializers.ModelSerializer):
+    ancestors = serializers.SerializerMethodField()
+
     class Meta:
         model = Folder
-        fields = ['id', 'name', 'parent', 'organization', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'parent', 'organization', 'created_at', 'updated_at', 'ancestors']
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at', 'ancestors']
+
+    def get_ancestors(self, obj):
+        """
+        Returns a list of ancestor folders, from the root down to the
+        immediate parent. Excludes the invisible __root__ folder.
+        """
+        ancestors = []
+        parent = obj.parent
+        while parent and parent.name != '__root__':
+            ancestors.append({'id': parent.id, 'name': parent.name})
+            parent = parent.parent
+        return list(reversed(ancestors))
 
     def validate(self, data):
         """
