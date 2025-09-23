@@ -50,6 +50,27 @@ def test_list_folders(api_client, user, user2, organization):
 
 
 @pytest.mark.django_db
+def test_list_subfolders_with_parent_id(api_client, user, organization):
+    """Test retrieving a list of sub-folders and check for correct ancestor data."""
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+    parent_folder = Folder.objects.create(
+        name="Parent Folder", organization=organization, created_by=user, parent=root_folder
+    )
+    Folder.objects.create(
+        name="Subfolder 1", organization=organization, created_by=user, parent=parent_folder
+    )
+
+    response = api_client.get(f'/api/v1/folders/?parent={parent_folder.id}')
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 1
+    assert response.data[0]['name'] == "Subfolder 1"
+    assert 'ancestors' in response.data[0]
+    assert len(response.data[0]['ancestors']) == 1
+    assert response.data[0]['ancestors'][0]['id'] == str(parent_folder.id)
+    assert response.data[0]['ancestors'][0]['name'] == "Parent Folder"
+
+
+@pytest.mark.django_db
 def test_create_folder(api_client, user, organization):
     """Test creating a new folder."""
     # The __root__ folder is created automatically
@@ -216,6 +237,26 @@ def test_list_documents_is_scoped_to_user_and_root_only(api_client, user, user2,
     assert response.status_code == status.HTTP_200_OK
     assert len(response.data) == 1
     assert response.data[0]['name'] == "My Root Document"
+
+
+@pytest.mark.django_db
+def test_list_documents_in_folder(api_client, user, organization):
+    """Test retrieving documents is correctly filtered by folder ID."""
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+    target_folder = Folder.objects.create(
+        name="Target Folder", organization=organization, created_by=user, parent=root_folder
+    )
+    Document.objects.create(
+        name="Document In Folder", organization=organization, created_by=user, folder=target_folder
+    )
+    Document.objects.create(
+        name="Root Document", organization=organization, created_by=user, folder=root_folder
+    )
+
+    response = api_client.get(f'/api/v1/documents/?folder={target_folder.id}')
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 1
+    assert response.data[0]['name'] == "Document In Folder"
 
 
 @pytest.mark.django_db

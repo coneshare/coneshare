@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import DocumentsPage from '../../pages/DocumentsPage';
 import * as api from '../../services/api';
 
@@ -32,10 +32,13 @@ describe('DocumentsPage', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  const renderComponent = () => {
+  const renderComponent = (route = '/documents') => {
     return render(
-      <MemoryRouter>
-        <DocumentsPage />
+      <MemoryRouter initialEntries={[route]}>
+        <Routes>
+          <Route path="/documents" element={<DocumentsPage />} />
+          <Route path="/documents/folders/:folderId" element={<DocumentsPage />} />
+        </Routes>
       </MemoryRouter>
     );
   };
@@ -59,13 +62,36 @@ describe('DocumentsPage', () => {
     );
   };
 
-  it('should render the page and fetch initial data', async () => {
-    renderComponent();
-    expect(screen.getByText('All Documents')).toBeInTheDocument();
+  it('should render the page and fetch initial data for root', async () => {
+    renderComponent('/documents');
+    // The Breadcrumbs component will render a link to the root "Documents" page
+    expect(screen.getByRole('link', { name: /documents/i })).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(api.getDocuments).toHaveBeenCalledTimes(1);
-      expect(api.getFolders).toHaveBeenCalledTimes(1);
+      expect(api.getDocuments).toHaveBeenCalledWith(undefined);
+      expect(api.getFolders).toHaveBeenCalledWith(undefined);
+      expect(api.getFolderDetails).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Folder Navigation', () => {
+    it('should fetch folder-specific content when a folderId is in the URL', async () => {
+      const folderId = 'folder123';
+      const folderData = {
+        data: { id: folderId, name: 'Test Folder', ancestors: [] },
+      };
+      api.getFolderDetails.mockResolvedValue(folderData);
+
+      renderComponent(`/documents/folders/${folderId}`);
+
+      await waitFor(() => {
+        expect(api.getDocuments).toHaveBeenCalledWith(folderId);
+        expect(api.getFolders).toHaveBeenCalledWith(folderId);
+        expect(api.getFolderDetails).toHaveBeenCalledWith(folderId);
+      });
+
+      // It should also display the folder's name from the breadcrumbs
+      expect(await screen.findByText('Test Folder')).toBeInTheDocument();
     });
   });
 
