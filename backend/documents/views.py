@@ -323,8 +323,7 @@ class FolderViewSet(viewsets.ModelViewSet):
             raise APIException("An unexpected error occurred: root folder missing.",
                                code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=False, methods=['get'])
-    def root(self, request):
+    def list(self, request, *args, **kwargs):
         """
         Returns the contents of the user's root folder, including its
         subfolders and documents.

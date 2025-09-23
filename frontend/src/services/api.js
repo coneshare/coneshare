@@ -86,7 +86,7 @@ export const uploadDocument = (file, path) => {
 
 export const getFolderContents = (id) => api.get(`/folders/${id}/`);
 
-export const getRootFolderContents = () => api.get('/folders/root/');
+export const getRootFolderContents = () => api.get('/folders/');
 
 export const createFolderFromPath = (path) => api.post('/folders/from_path/', { path });
 
