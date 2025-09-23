@@ -39,6 +39,13 @@ The goal for V1 is to implement a clean, reliable file and folder upload feature
         2.  **Step 1: Ensure Folder Structure**: Before uploading, the frontend extracts all unique directory paths from the selected files' `webkitRelativePath`. It then makes a single API call for each unique path to the new `POST /api/v1/folders/from_path/` endpoint.
         3.  **Step 2: Upload Files**: Only after the folder creation call succeeds, it proceeds to upload all files concurrently using `Promise.allSettled`. Each file is sent with its full `webkitRelativePath` to the `/api/v1/uploads/document/` endpoint.
         4.  After all successful uploads, the document list is refreshed.
+    -   **Logic for Drag-and-Drop (V1 Implementation)**:
+        -   The main document view area serves as a drop zone.
+        -   To avoid ambiguity and prevent accidental folder creation from dropped files, the V1 implementation treats all drag-and-drop operations as flat file uploads. Folder structures are ignored.
+        -   **Corner Cases**:
+            -   **Dropping one or multiple files**: All files are uploaded directly to the current view (root or inside a folder).
+            -   **Dropping one or multiple folders**: All files *within* the folders (and their subfolders) are extracted and uploaded as a flat list to the current view. The original folder structure is not recreated.
+            -   **Dropping a mixture of files and folders**: Standalone files are uploaded, and all files within the dropped folders are also extracted and uploaded. Everything appears as a flat list in the current view.
 
 ---
 
