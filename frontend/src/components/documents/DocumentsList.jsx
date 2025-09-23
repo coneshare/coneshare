@@ -367,7 +367,7 @@ export function DocumentsList({
 
           {documentsHeaderPortal && createPortal(<HeaderContent />, documentsHeaderPortal)}
 
-          {documents && documents.length === 0 && !loading && (
+          {!loading && !foldersLoading && documents.length === 0 && folders.length === 0 && (
             <div className="flex items-center justify-center">
               <EmptyDocuments />
             </div>

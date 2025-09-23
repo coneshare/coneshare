@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { DocumentsList } from "../components/documents/DocumentsList";
-import { EmptyDocuments } from '../components/documents/EmptyDocuments';
 import { Button } from '../components/ui/Button';
 import { Separator } from '../components/ui/Separator';
 import { SearchBox } from '../components/SearchBox';
@@ -193,18 +192,14 @@ function DocumentsPage() {
 
       <Separator className="mb-5 bg-gray-200 dark:bg-gray-800" />
 
-      {!loading && !foldersLoading && documents.length === 0 && folders.length === 0 ? (
-        <EmptyDocuments />
-      ) : (
-        <DocumentsList
-          folders={folders}
-          documents={documents}
-          loading={loading}
-          foldersLoading={foldersLoading}
-          onDataRefresh={fetchData}
-          onFilesDrop={handleFileUploads}
-        />
-      )}
+      <DocumentsList
+        folders={folders}
+        documents={documents}
+        loading={loading}
+        foldersLoading={foldersLoading}
+        onDataRefresh={fetchData}
+        onFilesDrop={handleFileUploads}
+      />
 
       {documents.length > 0 && (
         <Pagination />
