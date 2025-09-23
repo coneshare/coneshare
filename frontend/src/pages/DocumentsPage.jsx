@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { DocumentsList } from "../components/documents/DocumentsList";
-// import { Breadcrumbs } from '../components/documents/Breadcrumbs'; // TODO: Create this component
+import { Breadcrumbs } from '../components/documents/Breadcrumbs';
 import { Button } from '../components/ui/Button';
 import { Separator } from '../components/ui/Separator';
 import { SearchBox } from '../components/SearchBox';
@@ -136,14 +136,8 @@ function DocumentsPage() {
     <div className="sticky top-0 mb-4 rounded-lg bg-white p-4 dark:bg-gray-900 sm:mx-4 sm:pt-8">
       <Toaster richColors />
       <section className="mb-4 flex items-center justify-between space-x-2 sm:space-x-0">
-        <div className="space-y-0 sm:space-y-1">
-          <h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-            {currentFolder ? currentFolder.name : 'All Documents'}
-          </h2>
-          <p className="text-xs leading-4 text-muted-foreground sm:text-sm sm:leading-none">
-            {/* You can create and add a <Breadcrumbs currentFolder={currentFolder} /> component here */}
-            Manage your documents and folders.
-          </p>
+        <div className="flex items-center">
+          <Breadcrumbs currentFolder={currentFolder} />
         </div>
         <div className="relative flex items-center gap-x-2">
           <input
