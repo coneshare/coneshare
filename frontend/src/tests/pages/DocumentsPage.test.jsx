@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import DocumentsPage from '../../pages/DocumentsPage';
 import * as api from '../../services/api';
 
@@ -20,8 +20,16 @@ describe('DocumentsPage', () => {
     vi.resetAllMocks();
 
     // Default successful mock for initial data fetch
-    api.getDocuments.mockResolvedValue({ data: [] });
-    api.getFolders.mockResolvedValue({ data: [] });
+    api.getRootFolderContents.mockResolvedValue({
+      data: { current_folder: null, sub_folders: [], documents: [] },
+    });
+    api.getFolderContents.mockResolvedValue({
+      data: {
+        current_folder: { id: 'folder123', name: 'Test Folder', ancestors: [] },
+        sub_folders: [],
+        documents: [],
+      },
+    });
 
     // Spy on console.error
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -32,10 +40,13 @@ describe('DocumentsPage', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  const renderComponent = () => {
+  const renderComponent = (route = '/documents') => {
     return render(
-      <MemoryRouter>
-        <DocumentsPage />
+      <MemoryRouter initialEntries={[route]}>
+        <Routes>
+          <Route path="/documents" element={<DocumentsPage />} />
+          <Route path="/documents/folders/:folderId" element={<DocumentsPage />} />
+        </Routes>
       </MemoryRouter>
     );
   };
@@ -59,13 +70,30 @@ describe('DocumentsPage', () => {
     );
   };
 
-  it('should render the page and fetch initial data', async () => {
-    renderComponent();
-    expect(screen.getByText('All Documents')).toBeInTheDocument();
+  it('should render the page and fetch initial data for root', async () => {
+    renderComponent('/documents');
+    // The Breadcrumbs component will render a link to the root "Documents" page
+    expect(screen.getByRole('link', { name: /documents/i })).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(api.getDocuments).toHaveBeenCalledTimes(1);
-      expect(api.getFolders).toHaveBeenCalledTimes(1);
+      expect(api.getRootFolderContents).toHaveBeenCalledTimes(1);
+      expect(api.getFolderContents).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Folder Navigation', () => {
+    it('should fetch folder-specific content when a folderId is in the URL', async () => {
+      const folderId = 'folder123';
+
+      renderComponent(`/documents/folders/${folderId}`);
+
+      await waitFor(() => {
+        expect(api.getRootFolderContents).not.toHaveBeenCalled();
+        expect(api.getFolderContents).toHaveBeenCalledWith(folderId);
+      });
+
+      // It should also display the folder's name from the breadcrumbs
+      expect(await screen.findByText('Test Folder')).toBeInTheDocument();
     });
   });
 
@@ -91,10 +119,9 @@ describe('DocumentsPage', () => {
       expect(api.uploadDocument).toHaveBeenCalledWith(file1);
       expect(api.uploadDocument).toHaveBeenCalledWith(file2);
 
-      // getDocuments/getFolders called once initially, then again after successful upload
+      // getRootFolderContents called once initially, then again after successful upload
       await waitFor(() => {
-        expect(api.getDocuments).toHaveBeenCalledTimes(2);
-        expect(api.getFolders).toHaveBeenCalledTimes(2);
+        expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
       });
 
       expect(consoleErrorSpy).not.toHaveBeenCalled();
@@ -122,8 +149,7 @@ describe('DocumentsPage', () => {
 
       // Should refetch because one succeeded
       await waitFor(() => {
-        expect(api.getDocuments).toHaveBeenCalledTimes(2);
-        expect(api.getFolders).toHaveBeenCalledTimes(2);
+        expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
       });
 
       // Should log an error for the failed upload
@@ -151,8 +177,7 @@ describe('DocumentsPage', () => {
       // Only called on initial render
       // Use a small timeout to ensure no other calls are made
       await new Promise((res) => setTimeout(res, 50));
-      expect(api.getDocuments).toHaveBeenCalledTimes(1);
-      expect(api.getFolders).toHaveBeenCalledTimes(1);
+      expect(api.getRootFolderContents).toHaveBeenCalledTimes(1);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith('2 file(s) failed to upload.');
     });
@@ -200,8 +225,7 @@ describe('DocumentsPage', () => {
 
       // Verify data is refetched on success
       await waitFor(() => {
-        expect(api.getDocuments).toHaveBeenCalledTimes(2);
-        expect(api.getFolders).toHaveBeenCalledTimes(2);
+        expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
       });
     });
 
@@ -236,7 +260,7 @@ describe('DocumentsPage', () => {
 
       // Verify data is refetched
       await waitFor(() => {
-        expect(api.getDocuments).toHaveBeenCalledTimes(2);
+        expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
       });
     });
 
@@ -260,8 +284,7 @@ describe('DocumentsPage', () => {
       expect(api.uploadDocument).not.toHaveBeenCalled();
 
       // Ensure data is NOT refetched
-      expect(api.getDocuments).toHaveBeenCalledTimes(1);
-      expect(api.getFolders).toHaveBeenCalledTimes(1);
+      expect(api.getRootFolderContents).toHaveBeenCalledTimes(1);
 
       // Ensure error is logged
       expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -292,17 +315,18 @@ describe('DocumentsPage', () => {
     };
 
     it('should handle a single dropped file', async () => {
-      api.getDocuments.mockResolvedValue({ data: [] });
-      api.getFolders.mockResolvedValue({ data: [] });
+      api.getRootFolderContents.mockResolvedValue({
+        data: { current_folder: null, sub_folders: [], documents: [] },
+      });
       renderComponent();
       await waitFor(() => {
-        expect(screen.getByText('No documents')).toBeInTheDocument();
+        expect(screen.getByText('No documents yet')).toBeInTheDocument();
       });
 
       const droppedFile = createDroppedFile('dropped-file.txt', 'dropped-file.txt');
       api.uploadDocument.mockResolvedValue({ status: 202 });
 
-      const dropzone = screen.getByText('No documents').closest('.space-y-4.relative');
+      const dropzone = screen.getByText('No documents yet').closest('.space-y-4.relative');
       // react-dropzone processes the event and provides `acceptedFiles` to onDrop
       // We simulate this by mocking the event that react-dropzone processes
       fireEvent.drop(dropzone, createDropEvent([droppedFile]));
@@ -319,16 +343,17 @@ describe('DocumentsPage', () => {
       expect(uploadedPath).toBe('dropped-file.txt');
 
       await waitFor(() => {
-        expect(api.getDocuments).toHaveBeenCalledTimes(2);
+        expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
       });
     });
 
     it('should correctly normalize and create unique folder paths from dropped items', async () => {
-      api.getDocuments.mockResolvedValue({ data: [] });
-      api.getFolders.mockResolvedValue({ data: [] });
+      api.getRootFolderContents.mockResolvedValue({
+        data: { current_folder: null, sub_folders: [], documents: [] },
+      });
       renderComponent();
       await waitFor(() => {
-        expect(screen.getByText('No documents')).toBeInTheDocument();
+        expect(screen.getByText('No documents yet')).toBeInTheDocument();
       });
 
       const file1 = createDroppedFile('/folder1/file1.txt', 'file1.txt'); // Leading slash
@@ -338,7 +363,7 @@ describe('DocumentsPage', () => {
       api.createFolderFromPath.mockResolvedValue({ status: 201 });
       api.uploadDocument.mockResolvedValue({ status: 202 });
 
-      const dropzone = screen.getByText('No documents').closest('.space-y-4.relative');
+      const dropzone = screen.getByText('No documents yet').closest('.space-y-4.relative');
       fireEvent.drop(dropzone, createDropEvent([file1, file2, file3]));
 
       // Check folder creation calls (normalized)
@@ -359,7 +384,7 @@ describe('DocumentsPage', () => {
 
       // Check data refetch
       await waitFor(() => {
-        expect(api.getDocuments).toHaveBeenCalledTimes(2);
+        expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
       });
     });
   });

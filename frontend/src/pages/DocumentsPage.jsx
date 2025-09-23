@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { DocumentsList } from "../components/documents/DocumentsList";
+import { Breadcrumbs } from '../components/documents/Breadcrumbs';
 import { Button } from '../components/ui/Button';
 import { Separator } from '../components/ui/Separator';
 import { SearchBox } from '../components/SearchBox';
@@ -10,11 +12,13 @@ import { Toaster } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getDocuments, getFolders, createFolderFromPath } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, createFolderFromPath } from '../services/api';
 
 function DocumentsPage() {
+  const { folderId } = useParams();
   const [documents, setDocuments] = useState([]);
   const [folders, setFolders] = useState([]);
+  const [currentFolder, setCurrentFolder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [foldersLoading, setFoldersLoading] = useState(true);
   const fileInputRef = useRef(null);
@@ -23,15 +27,23 @@ function DocumentsPage() {
   const fetchData = async () => {
     setLoading(true);
     setFoldersLoading(true);
+    // Reset state before fetching
+    setCurrentFolder(null);
+    setDocuments([]);
+    setFolders([]);
+
     try {
-      const [docsResponse, foldersResponse] = await Promise.all([
-        getDocuments(),
-        getFolders(),
-      ]);
-      setDocuments(docsResponse.data);
-      setFolders(foldersResponse.data);
+      const response = folderId
+        ? await getFolderContents(folderId)
+        : await getRootFolderContents();
+
+      const { current_folder, sub_folders, documents } = response.data;
+      setCurrentFolder(current_folder);
+      setFolders(sub_folders);
+      setDocuments(documents);
     } catch (error) {
       console.error('Failed to fetch data:', error);
+      // The API interceptor will show a toast for errors.
     } finally {
       setLoading(false);
       setFoldersLoading(false);
@@ -40,7 +52,7 @@ function DocumentsPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [folderId]);
 
   const handleFolderSelect = () => {
     folderInputRef.current.click();
@@ -122,13 +134,8 @@ function DocumentsPage() {
     <div className="sticky top-0 mb-4 rounded-lg bg-white p-4 dark:bg-gray-900 sm:mx-4 sm:pt-8">
       <Toaster richColors />
       <section className="mb-4 flex items-center justify-between space-x-2 sm:space-x-0">
-        <div className="space-y-0 sm:space-y-1">
-          <h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-            All Documents
-          </h2>
-          <p className="text-xs leading-4 text-muted-foreground sm:text-sm sm:leading-none">
-            Manage all your documents in one place.
-          </p>
+        <div className="flex items-center">
+          <Breadcrumbs currentFolder={currentFolder} />
         </div>
         <div className="relative flex items-center gap-x-2">
           <input

@@ -45,6 +45,17 @@ class Document(BaseModel):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        if self._state.adding and not self.folder_id:
+            # On creation, if no folder is specified, assign to the organization's root folder.
+            root_folder = Folder.objects.get(
+                organization=self.organization,
+                parent=None,
+                name='__root__'
+            )
+            self.folder = root_folder
+        super().save(*args, **kwargs)
+
 
 class DocumentVersion(BaseModel):
     """

@@ -12,6 +12,7 @@ function App() {
       <Route element={<MainLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/documents" element={<DocumentsPage />} />
+        <Route path="/documents/folders/:folderId" element={<DocumentsPage />} />
       </Route>
     </Routes>
   )

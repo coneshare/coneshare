@@ -3,8 +3,10 @@ import os
 from pathlib import Path
 
 from django.core.files.storage import default_storage
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
@@ -321,8 +323,52 @@ class FolderViewSet(viewsets.ModelViewSet):
             raise APIException("An unexpected error occurred: root folder missing.",
                                code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    def _get_folder_contents(self, folder, request):
+        """Helper to fetch and serialize sub-folders and documents for a given folder."""
+        sub_folders = folder.children.filter(created_by=request.user)
+        documents = folder.documents.filter(created_by=request.user)
+
+        sub_folders_serializer = self.get_serializer(sub_folders, many=True)
+        documents_serializer = DocumentSerializer(documents, many=True, context={'request': request})
+
+        return {
+            'sub_folders': sub_folders_serializer.data,
+            'documents': documents_serializer.data,
+        }
+
+    def list(self, request, *args, **kwargs):
+        """
+        Returns the contents of the user's root folder, including its
+        subfolders and documents.
+        """
+        root_folder = self._get_root_folder()
+        contents = self._get_folder_contents(root_folder, request)
+        return Response({
+            'current_folder': None,
+            **contents,
+        })
+
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Returns the contents of a specific folder, including its subfolders and documents.
+        """
+        instance = self.get_object()
+        contents = self._get_folder_contents(instance, request)
+        current_folder_serializer = self.get_serializer(instance)
+        return Response({
+            'current_folder': current_folder_serializer.data,
+            **contents,
+        })
+
     def get_queryset(self):
-        return Folder.objects.filter(created_by=self.request.user, parent=self._get_root_folder())
+        """
+        This queryset is used by get_object() to ensure users can only
+        access folders they have created within their organization.
+        """
+        return self.queryset.filter(
+            organization=self.request.user.organization,
+            created_by=self.request.user
+        )
 
     def perform_create(self, serializer):
         parent = serializer.validated_data.get('parent')
@@ -341,7 +387,25 @@ class DocumentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Document.objects.filter(created_by=self.request.user, folder__isnull=True)
+        """
+        This view should return a list of documents for the currently
+        authenticated user, optionally filtered by a parent folder.
+        """
+        organization = self.request.user.organization
+        folder_id = self.request.query_params.get('folder')
+
+        if folder_id:
+            # Ensure the requested folder belongs to the user's org for security
+            target_folder = get_object_or_404(Folder, id=folder_id, organization=organization)
+        else:
+            # Default to listing documents in the root folder
+            target_folder = get_object_or_404(Folder, organization=organization, name='__root__', parent=None)
+
+        return self.queryset.filter(
+            organization=organization,
+            created_by=self.request.user,
+            folder=target_folder
+        )
 
     def destroy(self, request, *args, **kwargs):
         document = self.get_object()

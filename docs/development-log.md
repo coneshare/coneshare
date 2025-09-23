@@ -294,3 +294,37 @@ This session focused on improving the user experience for document and folder ma
 - Added corner case scenarios to `coneshare-upload-file.md`
 
 
+---
+
+## Session 12: API Consolidation & Data Integrity (2025-09-23)
+
+This session focused on optimizing the document and folder listing API to reduce frontend complexity and network requests, while also improving backend data integrity.
+
+[https://github.com/coneshare/coneshare/pull/8](https://github.com/coneshare/coneshare/pull/8)
+
+
+### 1. Consolidated Folder & Document Listing
+- **Unified API Endpoint**:
+  - The `FolderViewSet`'s `list` and `retrieve` actions were refactored to return a single, consolidated JSON payload containing `current_folder` metadata, a list of `sub_folders`, and a list of `documents`.
+  - This eliminates the need for the frontend to make separate API calls for folders and documents when rendering a view, improving performance and simplifying state management.
+- **Frontend Refactoring**:
+  - `DocumentsPage.jsx` was updated to use the new consolidated endpoints. It now makes a single API call to fetch all necessary data for the current view (root or a specific folder).
+  - The `api.js` service was simplified, replacing separate `getDocuments` and `getFolders` calls with a single `getFolderContents` function.
+
+### 2. Root Folder Handling
+- **Simplified Root Endpoint**:
+  - The logic for fetching root-level content was moved into the standard `list` action of the `FolderViewSet` (`GET /api/v1/folders/`). This removes the need for a custom `/root/` action or separate logic paths.
+- **Frontend Update**:
+  - The `getRootFolderContents` function in `api.js` now points to `/api/v1/folders/`.
+  - `DocumentsPage.jsx` correctly calls this function when no `folderId` is present in the URL.
+
+### 3. Data Integrity Enhancement
+- **Automatic Root Folder Assignment**:
+  - Overrode the `save()` method on the `Document` model in `documents/models.py`.
+  - This change ensures that any document created without an explicit folder is automatically assigned to the organization's invisible `__root__` folder, preventing orphaned documents and ensuring data consistency.
+
+### 4. Test Suite Updates
+- **API Test Refactoring**:
+  - The tests in `tests/documents/test_views.py` were updated to reflect the new, consolidated API response structure for both root folder and specific folder content retrieval.
+  - Assertions were modified to check for the `current_folder`, `sub_folders`, and `documents` keys in the response data.
+
