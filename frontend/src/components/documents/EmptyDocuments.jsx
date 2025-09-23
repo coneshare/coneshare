@@ -8,7 +8,8 @@ export function EmptyDocuments() {
         No documents yet
       </h3>
       <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-        Drag and drop files and folders here to upload.
+        Click the &apos;Upload&apos; button to get started, or drag and drop
+        files and folders here.
       </p>
     </div>
   );
