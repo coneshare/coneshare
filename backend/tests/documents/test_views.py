@@ -51,7 +51,7 @@ def test_get_root_folder_contents(api_client, user, user2, organization):
         name="Other's Document", organization=organization, created_by=user2, folder=root_folder
     )
 
-    response = api_client.get('/api/v1/folders/root/')
+    response = api_client.get('/api/v1/folders/')
     assert response.status_code == status.HTTP_200_OK
 
     data = response.json()
