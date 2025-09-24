@@ -80,7 +80,7 @@ class SetPasswordView(APIView):
     """View to set a user's password."""
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, *args, **kwargs):
+    def post(self, request):
         serializer = ChangePasswordSerializer(data=request.data)
         if serializer.is_valid():
             user = request.user
