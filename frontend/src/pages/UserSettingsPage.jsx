@@ -133,15 +133,15 @@ function UserSettingsPage() {
                 >
                   Change
                 </Button>
-                {avatarPreview && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={handleRemoveAvatar}
-                  >
-                    Remove
-                  </Button>
-                )}
+                {/* {avatarPreview && ( */}
+                {/*   <Button */}
+                {/*     type="button" */}
+                {/*     variant="ghost" */}
+                {/*     onClick={handleRemoveAvatar} */}
+                {/*   > */}
+                {/*     Remove */}
+                {/*   </Button> */}
+                {/* )} */}
               </div>
               <Input
                 ref={fileInputRef}
