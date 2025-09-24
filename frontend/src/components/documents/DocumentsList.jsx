@@ -317,8 +317,8 @@ export function DocumentsList({
                     >
                       <FolderCard
                         folder={folder}
-                        onRename={(item) => handleRename(item, "folder")}
-                        onDelete={(item) => handleDelete(item, "folder")}
+                        onRename={() => handleRename(folder, "folder")}
+                        onDelete={() => handleDelete(folder, "folder")}
                       />
                     </DraggableItem>
                   </DroppableFolder>
@@ -346,8 +346,8 @@ export function DocumentsList({
                   >
                     <DocumentCard
                       document={document}
-                      onRename={(item) => handleRename(item, "document")}
-                      onDelete={(item) => handleDelete(item, "document")}
+                      onRename={() => handleRename(document, "document")}
+                      onDelete={() => handleDelete(document, "document")}
                       onShare={handleShare}
                     />
                   </DraggableItem>
