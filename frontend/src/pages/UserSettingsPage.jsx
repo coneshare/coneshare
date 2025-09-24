@@ -53,6 +53,15 @@ function UserSettingsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    // This effect is for cleaning up the blob URL to prevent memory leaks.
+    if (avatarPreview && avatarPreview.startsWith('blob:')) {
+      return () => {
+        URL.revokeObjectURL(avatarPreview);
+      };
+    }
+  }, [avatarPreview]);
+
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
     if (file) {
