@@ -42,9 +42,6 @@ function PasswordSettingsPage() {
         confirmPassword: apiErrors.new_password2?.join(' '),
       };
       setErrors(formattedErrors);
-      if (Object.values(formattedErrors).every(v => !v)) {
-        toast.error('Failed to update password. Please try again.');
-      }
     } finally {
       setIsSaving(false);
     }
