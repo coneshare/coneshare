@@ -1,6 +1,9 @@
 import { ChevronsUpDown, CircleUserRound, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { jwtDecode } from "jwt-decode";
 import { authService } from "../../services/authService";
+import { getUser } from "../../services/api";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import {
@@ -16,13 +19,38 @@ import { cn } from "../../lib/utils";
 
 function NavUser() {
   const { isCollapsed } = useSidebar();
-  const user = { name: "Placeholder User", email: "user@coneshare.com" };
+  const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     await authService.logout();
     navigate("/login");
   };
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const token = localStorage.getItem("access_token");
+      if (token) {
+        try {
+          const decoded = jwtDecode(token);
+          const response = await getUser(decoded.user_id);
+          setUser(response.data);
+        } catch (error) {
+          console.error("Failed to fetch user:", error);
+          // If token is invalid, log out
+          if (error.response?.status === 401) {
+            handleLogout();
+          }
+        }
+      }
+    };
+    fetchUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!user) {
+    return null; // Or a skeleton loader
+  }
 
   return (
     <DropdownMenu>
@@ -35,13 +63,13 @@ function NavUser() {
           )}
         >
           <Avatar className="h-8 w-8">
-            <AvatarImage src="" alt={user.name} />
-            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+            <AvatarImage src={user.avatar_url || ""} alt={user.name || ""} />
+            <AvatarFallback>{user.name?.charAt(0) || "?"}</AvatarFallback>
           </Avatar>
           <div
             className={cn("grid flex-1 text-left", isCollapsed && "hidden")}
           >
-            <span className="truncate text-sm font-semibold">{user.name}</span>
+            <span className="truncate text-sm font-semibold">{user.name || user.email}</span>
             <span className="truncate text-xs text-gray-500">
               {user.email}
             </span>

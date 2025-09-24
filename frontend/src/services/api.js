@@ -94,4 +94,6 @@ export const deleteDocument = (id) => api.delete(`/documents/${id}/`);
 
 export const deleteFolder = (id) => api.delete(`/folders/${id}/`);
 
+export const getUser = (id) => api.get(`/users/${id}/`);
+
 export default api;
