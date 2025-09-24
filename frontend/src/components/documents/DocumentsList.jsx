@@ -7,6 +7,7 @@ import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { deleteDocument, deleteFolder } from "../../services/api";
 import { ConfirmationDialog } from "../dialogs/ConfirmationDialog";
+import { RenameItemDialog } from "../dialogs/RenameItemDialog";
 
 import { Button } from "../ui/Button";
 import { Checkbox } from "../ui/Checkbox";
@@ -29,6 +30,7 @@ export function DocumentsList({
   const [selectedDocuments, setSelectedDocuments] = useState([]);
   const [selectedFolders, setSelectedFolders] = useState([]);
   const [itemToDelete, setItemToDelete] = useState(null);
+  const [itemToRename, setItemToRename] = useState(null);
 
   const [draggedDocument, setDraggedDocument] = useState(null);
   const [draggedFolder, setDraggedFolder] = useState(null);
@@ -154,9 +156,8 @@ export function DocumentsList({
     setSelectedFolders([]);
   };
 
-  const handleRename = (item) => {
-    // In a real implementation, this would open a rename modal.
-    console.log(`Rename action for: ${item.name} (${item.id})`);
+  const handleRename = (item, type) => {
+    setItemToRename({ ...item, type });
   };
 
   const handleDelete = (item, type) => {
@@ -273,6 +274,14 @@ export function DocumentsList({
           confirmText="Delete"
         />
       )}
+      {itemToRename && (
+        <RenameItemDialog
+          isOpen={!!itemToRename}
+          onOpenChange={(isOpen) => !isOpen && setItemToRename(null)}
+          item={itemToRename}
+          onSuccess={onDataRefresh}
+        />
+      )}
       <DndContext
         sensors={sensors}
         onDragStart={handleDragStart}
@@ -308,7 +317,7 @@ export function DocumentsList({
                     >
                       <FolderCard
                         folder={folder}
-                        onRename={handleRename}
+                        onRename={(item) => handleRename(item, "folder")}
                         onDelete={(item) => handleDelete(item, "folder")}
                       />
                     </DraggableItem>
@@ -337,7 +346,7 @@ export function DocumentsList({
                   >
                     <DocumentCard
                       document={document}
-                      onRename={handleRename}
+                      onRename={(item) => handleRename(item, "document")}
                       onDelete={(item) => handleDelete(item, "document")}
                       onShare={handleShare}
                     />
