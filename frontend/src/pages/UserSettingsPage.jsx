@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { jwtDecode } from "jwt-decode";
 import { toast, Toaster } from "sonner";
 import { getUser, updateUser } from "../services/api";
@@ -12,8 +12,10 @@ function UserSettingsPage() {
   const [name, setName] = useState("");
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
+  const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -42,9 +44,16 @@ function UserSettingsPage() {
     const file = e.target.files[0];
     if (file) {
       setAvatarFile(file);
+      setIsRemovingAvatar(false);
       const previewUrl = URL.createObjectURL(file);
       setAvatarPreview(previewUrl);
     }
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    setIsRemovingAvatar(true);
   };
 
   const handleSubmit = async (e) => {
@@ -55,6 +64,8 @@ function UserSettingsPage() {
     formData.append("name", name);
     if (avatarFile) {
       formData.append("avatar", avatarFile);
+    } else if (isRemovingAvatar) {
+      formData.append("avatar", ""); // Empty value signals removal
     }
 
     try {
@@ -63,6 +74,7 @@ function UserSettingsPage() {
       setName(response.data.name || "");
       setAvatarPreview(response.data.avatar_url || null);
       setAvatarFile(null); // Reset file input state
+      setIsRemovingAvatar(false); // Reset removal state
       toast.success("Settings updated successfully!");
     } catch (error) {
       console.error("Failed to update user:", error);
@@ -113,12 +125,31 @@ function UserSettingsPage() {
                 <AvatarImage src={avatarPreview} />
                 <AvatarFallback>{name?.charAt(0) || "?"}</AvatarFallback>
               </Avatar>
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current.click()}
+                >
+                  Change
+                </Button>
+                {avatarPreview && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleRemoveAvatar}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
               <Input
+                ref={fileInputRef}
                 id="avatar"
                 type="file"
                 accept="image/*"
                 onChange={handleAvatarChange}
-                className="w-full max-w-xs file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-gray-700 hover:file:bg-gray-200 dark:file:bg-gray-800 dark:file:text-gray-200 dark:hover:file:bg-gray-700"
+                className="hidden"
               />
             </div>
           </div>
