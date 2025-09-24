@@ -70,8 +70,8 @@ describe("DocumentsList", () => {
     const renameButton = screen.getByRole("button", { name: /rename document/i });
     await userEvent.click(renameButton);
 
-    const dialogTitle = await screen.findByText(/rename document/i);
-    expect(dialogTitle).toBeInTheDocument();
+    const dialogTitle = await screen.findByRole('heading', { name: /rename document/i });
+    expect(dialogTitle).toBeInTheDocument();    
 
     const nameInput = screen.getByDisplayValue("Test Document 1");
     expect(nameInput).toBeInTheDocument();
@@ -92,8 +92,8 @@ describe("DocumentsList", () => {
     const renameButton = screen.getByRole("button", { name: /rename folder/i });
     await userEvent.click(renameButton);
 
-    const dialogTitle = await screen.findByText(/rename folder/i);
-    expect(dialogTitle).toBeInTheDocument();
+    const dialogTitle = await screen.findByRole('heading', { name: /rename folder/i });
+    expect(dialogTitle).toBeInTheDocument();    
     
     const nameInput = screen.getByDisplayValue("Test Folder 1");
     expect(nameInput).toBeInTheDocument();
