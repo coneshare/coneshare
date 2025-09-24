@@ -4,6 +4,7 @@ import MainLayout from './components/layout/MainLayout'
 import DocumentsPage from './pages/DocumentsPage'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
+import PasswordSettingsPage from './pages/PasswordSettingsPage'
 import UserSettingsPage from './pages/UserSettingsPage'
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/documents/folders/:folderId" element={<DocumentsPage />} />
         <Route path="/settings" element={<UserSettingsPage />} />
+        <Route path="/settings/password" element={<PasswordSettingsPage />} />
       </Route>
     </Routes>
   )
