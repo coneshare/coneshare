@@ -1,3 +1,6 @@
+from urllib.parse import urljoin
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
@@ -40,9 +43,8 @@ class UserSerializer(serializers.ModelSerializer):
         }
 
     def get_avatar_url(self, obj):
-        request = self.context.get('request')
-        if obj.avatar and hasattr(obj.avatar, 'url') and request:
-            return request.build_absolute_uri(obj.avatar.url)
+        if obj.avatar and hasattr(obj.avatar, 'url'):
+            return urljoin(settings.SITE_DOMAIN, obj.avatar.url)
         return None
 
     def create(self, validated_data):
