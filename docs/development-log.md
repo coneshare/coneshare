@@ -328,3 +328,42 @@ This session focused on optimizing the document and folder listing API to reduce
   - The tests in `tests/documents/test_views.py` were updated to reflect the new, consolidated API response structure for both root folder and specific folder content retrieval.
   - Assertions were modified to check for the `current_folder`, `sub_folders`, and `documents` keys in the response data.
 
+---
+
+## Session 13: User Settings & UI Polish (2025-09-24)
+
+This session focused on implementing key user-facing features, hardening the frontend's interaction with the API, and improving the overall robustness of the application through testing and refactoring.
+
+### 1. User Settings & Password Change Implementation [https://github.com/coneshare/coneshare/pull/9](https://github.com/coneshare/coneshare/pull/9) [https://github.com/coneshare/coneshare/pull/10](https://github.com/coneshare/coneshare/pull/10)
+- **Backend**:
+    - Implemented a secure password change endpoint at `/api/v1/users/set-password/`.
+    - Added `ChangePasswordSerializer` with validation for matching new passwords and password strength.
+    - The `SetPasswordView` now checks the user's old password before allowing an update.
+- **Frontend**:
+    - Created a new "Change Password" page under user settings (`/settings/password`).
+    - Added a link to the new page in the main user navigation dropdown.
+    - Implemented a flow where the user is automatically logged out and redirected to the login page after a successful password change.
+
+### 2. Rename Functionality for Documents & Folders [https://github.com/coneshare/coneshare/pull/11](https://github.com/coneshare/coneshare/pull/11)
+- **Backend Analysis**: Confirmed that the existing `ModelViewSet`s for `Document` and `Folder` already supported the necessary `PATCH` requests for renaming, requiring no backend changes.
+- **Frontend**:
+    - Implemented a reusable `RenameItemDialog` component for a consistent user experience.
+    - Integrated the rename action into the `DocumentsList` component for both documents and folders.
+    - Added test cases to verify that the rename dialog opens correctly, which also helped identify and fix a bug in how the event handler was being passed to child components.
+
+
+### 3. API & Frontend Robustness
+- **API Interceptor Hardening**:
+    - Fixed a bug where the Axios response interceptor was incorrectly treating a 401 "Invalid Credentials" error on the login page as a session timeout, causing an unnecessary page reload. The interceptor now ignores 401s from token-related endpoints.
+- **Error Handling**:
+    - Refactored `PasswordSettingsPage` to remove a redundant generic error toast, relying on the global interceptor to prevent duplicate notifications.
+    - Improved error message handling in `RenameItemDialog` to correctly parse both single string and array-based error responses from the API.
+- **Test Suite Maintenance**:
+    - Updated several failing tests in `api.test.js` and `DocumentsPage.test.jsx` to align with recent changes in API function signatures and mock data structures.
+    - Resolved a test failure caused by a missing `@testing-library/user-event` dependency.
+
+### 4. UI/UX & Build Fixes
+- **Persistent Notifications**: Moved the `Toaster` component from individual pages to the root `App.jsx` component. This ensures that toast notifications (like the one for a successful password change) persist even after a page redirect.
+- **React Router Upgrade Warnings**: Addressed future flag warnings from `react-router-dom` by enabling the recommended flags in `main.jsx`.
+- **Styling Cleanup**: Removed unnecessary CSS classes from an error message element in `RenameItemDialog.jsx` for cleaner code.
+
