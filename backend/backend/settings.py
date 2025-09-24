@@ -181,3 +181,7 @@ CELERY_TIMEZONE = 'UTC'
 # Test-specific Celery settings to run tasks synchronously
 if 'test' in sys.argv or 'pytest' in sys.modules:
     CELERY_TASK_ALWAYS_EAGER = True
+
+
+# Site domain (for constructing absolute URLs)
+SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'http://localhost:5173')

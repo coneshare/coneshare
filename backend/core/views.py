@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
-from rest_framework import mixins, status, viewsets
+from rest_framework import mixins, permissions, status, viewsets
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,6 +11,19 @@ from core.serializers import (OrganizationSerializer, UserGroupSerializer,
                               UserSerializer)
 
 User = get_user_model()
+
+
+class IsSelfOrAdmin(permissions.BasePermission):
+    """
+    Object-level permission to only allow users to view/edit their own profile,
+    or admins to view/edit any profile in their organization.
+    """
+    def has_object_permission(self, request, view, obj):
+        # Admins can access any user in their organization.
+        if request.user.role == 'admin':
+            return obj.organization == request.user.organization
+        # Any user can access their own profile.
+        return obj == request.user
 
 
 class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):
@@ -31,7 +45,18 @@ class UserViewSet(mixins.RetrieveModelMixin,
     """
     queryset = User.objects.all().order_by('-date_joined')
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsSelfOrAdmin]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_queryset(self):
+        """
+        Admins can see all users in their organization.
+        Regular users can only see themselves.
+        """
+        user = self.request.user
+        if user.role == 'admin':
+            return User.objects.filter(organization=user.organization).order_by('-date_joined')
+        return User.objects.filter(pk=user.pk)
 
 
 class UserGroupViewSet(viewsets.ModelViewSet):

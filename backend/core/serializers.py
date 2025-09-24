@@ -1,3 +1,6 @@
+from urllib.parse import urljoin
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
@@ -25,15 +28,24 @@ class UserGroupSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for the User model."""
+    avatar_url = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'name', 'role', 'organization', 'password',
-            'avatar_url', 'date_joined', 'updated_at'
+            'avatar', 'avatar_url', 'date_joined', 'updated_at'
         ]
-        read_only_fields = ['id', 'organization', 'date_joined', 'updated_at']
-        extra_kwargs = {'password': {'write_only': True, 'min_length': 8}}
+        read_only_fields = ['id', 'organization', 'date_joined', 'updated_at', 'avatar_url']
+        extra_kwargs = {
+            'password': {'write_only': True, 'min_length': 8, 'required': False},
+            'avatar': {'write_only': True, 'required': False}
+        }
+
+    def get_avatar_url(self, obj):
+        if obj.avatar and hasattr(obj.avatar, 'url'):
+            return urljoin(settings.SITE_DOMAIN, obj.avatar.url)
+        return None
 
     def create(self, validated_data):
         """
@@ -49,7 +61,9 @@ class UserSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """
         Update user, setting the password correctly if provided.
+        The user's email address cannot be changed.
         """
+        validated_data.pop('email', None)  # Prevent email from being updated
         password = validated_data.pop('password', None)
         user = super().update(instance, validated_data)
 

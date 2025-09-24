@@ -4,6 +4,7 @@ import MainLayout from './components/layout/MainLayout'
 import DocumentsPage from './pages/DocumentsPage'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
+import UserSettingsPage from './pages/UserSettingsPage'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/documents/folders/:folderId" element={<DocumentsPage />} />
+        <Route path="/settings" element={<UserSettingsPage />} />
       </Route>
     </Routes>
   )
