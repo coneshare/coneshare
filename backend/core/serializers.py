@@ -49,7 +49,9 @@ class UserSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """
         Update user, setting the password correctly if provided.
+        The user's email address cannot be changed.
         """
+        validated_data.pop('email', None)  # Prevent email from being updated
         password = validated_data.pop('password', None)
         user = super().update(instance, validated_data)
 

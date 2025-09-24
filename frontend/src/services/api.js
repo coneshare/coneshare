@@ -96,4 +96,6 @@ export const deleteFolder = (id) => api.delete(`/folders/${id}/`);
 
 export const getUser = (id) => api.get(`/users/${id}/`);
 
+export const updateUser = (id, data) => api.patch(`/users/${id}/`, data);
+
 export default api;

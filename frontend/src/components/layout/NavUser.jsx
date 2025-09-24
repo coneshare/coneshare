@@ -81,7 +81,7 @@ function NavUser() {
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuGroup>
-          <DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => navigate("/settings")}>
             <CircleUserRound className="mr-2 h-4 w-4" />
             <span>User Settings</span>
           </DropdownMenuItem>
