@@ -42,7 +42,9 @@ export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess }) {
       onSuccess(); // This will trigger a data refresh
       onOpenChange(false); // Close the dialog
     } catch (err) {
-      const apiError = err.response?.data?.name?.join(" ") || `Failed to rename ${item.type}.`;
+      const nameError = err.response?.data?.name;
+      const apiError =
+        (nameError && [nameError].flat().join(" ")) || `Failed to rename ${item.type}.`;
       setError(apiError);
     } finally {
       setIsSaving(false);
