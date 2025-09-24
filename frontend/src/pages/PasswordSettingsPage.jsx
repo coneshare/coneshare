@@ -1,11 +1,14 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast, Toaster } from 'sonner';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
+import { authService } from '../services/authService';
 import { setPassword } from '../services/api';
 
 function PasswordSettingsPage() {
+  const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -28,10 +31,9 @@ function PasswordSettingsPage() {
         new_password1: newPassword,
         new_password2: confirmPassword,
       });
-      toast.success('Password updated successfully.');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
+      toast.success('Password updated successfully. Please log in again.');
+      await authService.logout();
+      navigate('/login');
     } catch (error) {
       const apiErrors = error.response?.data || {};
       const formattedErrors = {
