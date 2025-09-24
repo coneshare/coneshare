@@ -18,26 +18,39 @@ function UserSettingsPage() {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchUser = async () => {
       const token = localStorage.getItem("access_token");
       if (token) {
         try {
           const decoded = jwtDecode(token);
           const response = await getUser(decoded.user_id);
-          setUser(response.data);
-          setName(response.data.name || "");
-          setAvatarPreview(response.data.avatar_url || null);
+          if (isMounted) {
+            setUser(response.data);
+            setName(response.data.name || "");
+            setAvatarPreview(response.data.avatar_url || null);
+          }
         } catch (error) {
-          console.error("Failed to fetch user:", error);
-          toast.error("Failed to load user data.");
+          if (isMounted) {
+            console.error("Failed to fetch user:", error);
+            toast.error("Failed to load user data.");
+          }
         } finally {
-          setIsLoading(false);
+          if (isMounted) {
+            setIsLoading(false);
+          }
         }
       } else {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
     fetchUser();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleAvatarChange = (e) => {
