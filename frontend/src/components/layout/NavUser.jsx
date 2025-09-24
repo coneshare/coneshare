@@ -1,6 +1,6 @@
 import { ChevronsUpDown, CircleUserRound, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { jwtDecode } from "jwt-decode";
 import { authService } from "../../services/authService";
 import { getUser } from "../../services/api";
@@ -22,10 +22,10 @@ function NavUser() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     await authService.logout();
     navigate("/login");
-  };
+  }, [navigate]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -45,8 +45,7 @@ function NavUser() {
       }
     };
     fetchUser();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [handleLogout]);
 
   if (!user) {
     return null; // Or a skeleton loader
