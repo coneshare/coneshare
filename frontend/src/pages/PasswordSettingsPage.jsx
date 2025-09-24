@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast, Toaster } from 'sonner';
+import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
@@ -52,7 +52,6 @@ function PasswordSettingsPage() {
 
   return (
     <div className="p-4 sm:mx-4 sm:pt-8">
-      <Toaster richColors />
       <div className="mx-auto max-w-2xl">
         <h1 className="text-2xl font-bold mb-6">Change Password</h1>
         <form onSubmit={handleSubmit} className="space-y-6">
