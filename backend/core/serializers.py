@@ -1,7 +1,8 @@
 from urllib.parse import urljoin
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, password_validation
+from django.core.exceptions import ValidationError
 from rest_framework import serializers
 
 from core.models import Organization, UserGroup
@@ -72,3 +73,22 @@ class UserSerializer(serializers.ModelSerializer):
             user.save()
 
         return user
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """Serializer for password change endpoint."""
+    old_password = serializers.CharField(required=True)
+    new_password1 = serializers.CharField(required=True)
+    new_password2 = serializers.CharField(required=True)
+
+    def validate(self, data):
+        if data['new_password1'] != data['new_password2']:
+            raise serializers.ValidationError({"new_password2": "The two password fields didn't match."})
+        return data
+
+    def validate_new_password1(self, value):
+        try:
+            password_validation.validate_password(value)
+        except ValidationError as e:
+            raise serializers.ValidationError(list(e.messages))
+        return value

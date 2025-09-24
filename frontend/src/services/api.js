@@ -96,6 +96,8 @@ export const deleteFolder = (id) => api.delete(`/folders/${id}/`);
 
 export const getUser = (id) => api.get(`/users/${id}/`);
 
+export const setPassword = (data) => api.post('/users/set-password/', data);
+
 export const updateUser = (id, data) => {
   const config = {};
   if (data instanceof FormData) {
