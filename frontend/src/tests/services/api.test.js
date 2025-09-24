@@ -112,7 +112,7 @@ describe("API Service Interceptors", () => {
 
       mockAdapter.mockRejectedValue({
         response: { status: 401 },
-        config: { headers: {} },
+        config: { url: "/protected" },
       });
 
       await expect(api.get("/protected")).rejects.toThrow(refreshError);
@@ -125,7 +125,8 @@ describe("API Service Interceptors", () => {
     it("should redirect to login on 401 if no refresh token exists", async () => {
       const originalError = {
         response: { status: 401 },
-        config: {},
+        config: { url: "/protected" },
+
       };
       mockAdapter.mockRejectedValue(originalError);
 
@@ -148,7 +149,7 @@ describe("API Service Interceptors", () => {
       // But both original and retry calls fail with 401
       const error = {
         response: { status: 401 },
-        config: { headers: {} },
+        config: { headers: {}, url: "/protected" },
       };
       mockAdapter.mockRejectedValue(error);
 
