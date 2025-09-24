@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from rest_framework import mixins, status, viewsets
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -32,6 +33,7 @@ class UserViewSet(mixins.RetrieveModelMixin,
     queryset = User.objects.all().order_by('-date_joined')
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
 
 
 class UserGroupViewSet(viewsets.ModelViewSet):

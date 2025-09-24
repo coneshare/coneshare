@@ -5,11 +5,13 @@ import { getUser, updateUser } from "../services/api";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Label } from "../components/ui/Label";
+import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/Avatar";
 
 function UserSettingsPage() {
   const [user, setUser] = useState(null);
   const [name, setName] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [avatarFile, setAvatarFile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -22,7 +24,7 @@ function UserSettingsPage() {
           const response = await getUser(decoded.user_id);
           setUser(response.data);
           setName(response.data.name || "");
-          setAvatarUrl(response.data.avatar_url || "");
+          setAvatarPreview(response.data.avatar_url || null);
         } catch (error) {
           console.error("Failed to fetch user:", error);
           toast.error("Failed to load user data.");
@@ -36,15 +38,31 @@ function UserSettingsPage() {
     fetchUser();
   }, []);
 
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAvatarFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setAvatarPreview(previewUrl);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
+
+    const formData = new FormData();
+    formData.append("name", name);
+    if (avatarFile) {
+      formData.append("avatar", avatarFile);
+    }
+
     try {
-      const updatedData = { name, avatar_url: avatarUrl };
-      const response = await updateUser(user.id, updatedData);
+      const response = await updateUser(user.id, formData);
       setUser(response.data);
       setName(response.data.name || "");
-      setAvatarUrl(response.data.avatar_url || "");
+      setAvatarPreview(response.data.avatar_url || null);
+      setAvatarFile(null); // Reset file input state
       toast.success("Settings updated successfully!");
     } catch (error) {
       console.error("Failed to update user:", error);
@@ -89,14 +107,20 @@ function UserSettingsPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="avatarUrl">Avatar URL</Label>
-            <Input
-              id="avatarUrl"
-              type="text"
-              value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-              placeholder="https://example.com/avatar.png"
-            />
+            <Label>Avatar</Label>
+            <div className="flex items-center gap-4">
+              <Avatar className="h-20 w-20">
+                <AvatarImage src={avatarPreview} />
+                <AvatarFallback>{name?.charAt(0) || "?"}</AvatarFallback>
+              </Avatar>
+              <Input
+                id="avatar"
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="w-full max-w-xs file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-gray-700 hover:file:bg-gray-200 dark:file:bg-gray-800 dark:file:text-gray-200 dark:hover:file:bg-gray-700"
+              />
+            </div>
           </div>
           <Button type="submit" disabled={isSaving}>
             {isSaving ? "Saving..." : "Save Changes"}

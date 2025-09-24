@@ -36,7 +36,7 @@ class User(AbstractUser):
     """
     id = ULIDField(primary_key=True, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='users')
-    avatar_url = models.URLField(max_length=512, null=True, blank=True)
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     role = models.CharField(max_length=20, default='member')
     name = models.CharField(max_length=255, blank=True)
     updated_at = models.DateTimeField(auto_now=True)

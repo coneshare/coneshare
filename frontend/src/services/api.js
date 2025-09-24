@@ -96,6 +96,16 @@ export const deleteFolder = (id) => api.delete(`/folders/${id}/`);
 
 export const getUser = (id) => api.get(`/users/${id}/`);
 
-export const updateUser = (id, data) => api.patch(`/users/${id}/`, data);
+export const updateUser = (id, data) => {
+  const config = {};
+  if (data instanceof FormData) {
+    // When sending FormData, we must let axios set the Content-Type header
+    // itself so it can include the boundary.
+    config.headers = {
+      'Content-Type': 'multipart/form-data',
+    };
+  }
+  return api.patch(`/users/${id}/`, data, config);
+};
 
 export default api;
