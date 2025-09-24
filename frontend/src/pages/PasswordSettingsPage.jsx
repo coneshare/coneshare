@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { toast, Toaster } from 'sonner';
 import { Button } from '../components/ui/Button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
 import { setPassword } from '../services/api';
@@ -50,58 +49,49 @@ function PasswordSettingsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Security Settings</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Change Password</CardTitle>
-          <CardDescription>
-            Update your password here. Please choose a strong password.
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="current-password">Current Password</Label>
-              <Input
-                id="current-password"
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                required
-              />
-              {errors.currentPassword && <p className="text-sm text-red-500">{errors.currentPassword}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-password">New Password</Label>
-              <Input
-                id="new-password"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-              />
-              {errors.newPassword && <p className="text-sm text-red-500">{errors.newPassword}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm New Password</Label>
-              <Input
-                id="confirm-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-              {errors.confirmPassword && <p className="text-sm text-red-500">{errors.confirmPassword}</p>}
-            </div>
-          </CardContent>
-          <CardFooter className="border-t px-6 py-4">
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save Password'}
-            </Button>
-          </CardFooter>
+    <div className="p-4 sm:mx-4 sm:pt-8">
+      <Toaster richColors />
+      <div className="mx-auto max-w-2xl">
+        <h1 className="text-2xl font-bold mb-6">Change Password</h1>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="current-password">Current Password</Label>
+            <Input
+              id="current-password"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+            />
+            {errors.currentPassword && <p className="text-sm text-red-500">{errors.currentPassword}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="new-password">New Password</Label>
+            <Input
+              id="new-password"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+            />
+            {errors.newPassword && <p className="text-sm text-red-500">{errors.newPassword}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm-password">Confirm New Password</Label>
+            <Input
+              id="confirm-password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+            {errors.confirmPassword && <p className="text-sm text-red-500">{errors.confirmPassword}</p>}
+          </div>
+          <Button type="submit" disabled={isSaving}>
+            {isSaving ? 'Saving...' : 'Save Password'}
+          </Button>
         </form>
-      </Card>
+      </div>
     </div>
   );
 }
