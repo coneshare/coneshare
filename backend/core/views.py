@@ -7,8 +7,8 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from core.models import Organization, UserGroup
-from core.serializers import (OrganizationSerializer, UserGroupSerializer,
-                              UserSerializer)
+from core.serializers import (ChangePasswordSerializer, OrganizationSerializer,
+                              UserGroupSerializer, UserSerializer)
 
 User = get_user_model()
 
@@ -73,6 +73,26 @@ class RegisterView(APIView):
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SetPasswordView(APIView):
+    """View to set a user's password."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            user = request.user
+            old_password = serializer.validated_data['old_password']
+
+            if not user.check_password(old_password):
+                return Response({"old_password": ["Wrong password."]}, status=status.HTTP_400_BAD_REQUEST)
+
+            user.set_password(serializer.validated_data['new_password1'])
+            user.save()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

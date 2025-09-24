@@ -26,8 +26,12 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
-    // Check if the error is 401 and it's not a retry request
-    if (error.response.status === 401 && !originalRequest._retry) {
+    // Check if the error is 401, not a retry, and not for a token endpoint
+    if (
+      error.response.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url.includes('/token')
+    ) {
       originalRequest._retry = true; // Mark request to avoid infinite loops
 
       try {
@@ -95,6 +99,8 @@ export const deleteDocument = (id) => api.delete(`/documents/${id}/`);
 export const deleteFolder = (id) => api.delete(`/folders/${id}/`);
 
 export const getUser = (id) => api.get(`/users/${id}/`);
+
+export const setPassword = (data) => api.post('/users/set-password/', data);
 
 export const updateUser = (id, data) => {
   const config = {};

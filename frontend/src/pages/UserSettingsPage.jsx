@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { jwtDecode } from "jwt-decode";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { getUser, updateUser } from "../services/api";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -116,7 +116,6 @@ function UserSettingsPage() {
 
   return (
     <div className="p-4 sm:mx-4 sm:pt-8">
-      <Toaster richColors />
       <div className="mx-auto max-w-2xl">
         <h1 className="text-2xl font-bold mb-6">User Settings</h1>
         <form onSubmit={handleSubmit} className="space-y-6">

@@ -1,4 +1,4 @@
-import { ChevronsUpDown, CircleUserRound, LogOut } from "lucide-react";
+import { ChevronsUpDown, CircleUserRound, KeyRound, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
 import { jwtDecode } from "jwt-decode";
@@ -83,6 +83,10 @@ function NavUser() {
           <DropdownMenuItem onSelect={() => navigate("/settings")}>
             <CircleUserRound className="mr-2 h-4 w-4" />
             <span>User Settings</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => navigate("/settings/password")}>
+            <KeyRound className="mr-2 h-4 w-4" />
+            <span>Change Password</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
