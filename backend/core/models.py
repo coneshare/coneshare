@@ -22,10 +22,10 @@ class BaseModel(models.Model):
 def user_avatar_path(instance, filename):
     """
     Generates a unique path for a user's avatar image.
-    e.g., avatars/user@example.com/pic.jpg
+    e.g., avatars/usr_0123456789ABCDEF/pic.jpg
     """
     _, extension = os.path.splitext(filename)
-    return f'avatars/{instance.email}/pic{extension}'
+    return f'avatars/{instance.id}/pic{extension}'
 
 
 class Organization(BaseModel):
