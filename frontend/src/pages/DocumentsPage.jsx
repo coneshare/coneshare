@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { DocumentsList } from "../components/documents/DocumentsList";
-import { Breadcrumbs } from '../components/documents/Breadcrumbs';
+import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
 import { Separator } from '../components/ui/Separator';
 import { SearchBox } from '../components/SearchBox';
@@ -16,6 +16,7 @@ import { uploadDocument, getFolderContents, getRootFolderContents, createFolderF
 
 function DocumentsPage() {
   const { folderId } = useParams();
+  const { setBreadcrumbData } = useBreadcrumb();
   const [documents, setDocuments] = useState([]);
   const [folders, setFolders] = useState([]);
   const [currentFolder, setCurrentFolder] = useState(null);
@@ -41,6 +42,7 @@ function DocumentsPage() {
       setCurrentFolder(current_folder);
       setFolders(sub_folders);
       setDocuments(documents);
+      setBreadcrumbData(current_folder);
     } catch (error) {
       console.error('Failed to fetch data:', error);
       // The API interceptor will show a toast for errors.
@@ -52,7 +54,11 @@ function DocumentsPage() {
 
   useEffect(() => {
     fetchData();
-  }, [folderId]);
+
+    return () => {
+      setBreadcrumbData(null);
+    };
+  }, [folderId, setBreadcrumbData]);
 
   const handleFolderSelect = () => {
     folderInputRef.current.click();
@@ -133,10 +139,7 @@ function DocumentsPage() {
   return (
     <div className="sticky top-0 mb-4 rounded-lg bg-white p-4 dark:bg-gray-900 sm:mx-4 sm:pt-8">
       <Toaster richColors />
-      <section className="mb-4 flex items-center justify-between space-x-2 sm:space-x-0">
-        <div className="flex items-center">
-          <Breadcrumbs currentFolder={currentFolder} />
-        </div>
+      <section className="mb-4 flex items-center justify-end space-x-2 sm:space-x-0">
         <div className="relative flex items-center gap-x-2">
           <input
             type="file"
