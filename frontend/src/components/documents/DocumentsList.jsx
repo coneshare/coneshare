@@ -208,7 +208,6 @@ export function DocumentsList({
                       id={folder.id}
                       isSelected={selectedFolders.includes(folder.id)}
                       onSelect={handleSelect}
-                      isDraggingSelected={isDragging}
                       type="folder"
                     >
                       <FolderCard
@@ -236,7 +235,6 @@ export function DocumentsList({
                     key={document.id}
                     id={document.id}
                     isSelected={selectedDocuments.includes(document.id)}
-                    isDraggingSelected={isDragging}
                     type="document"
                     onSelect={handleSelect}
                   >
