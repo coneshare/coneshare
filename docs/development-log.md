@@ -367,3 +367,25 @@ This session focused on implementing key user-facing features, hardening the fro
 - **React Router Upgrade Warnings**: Addressed future flag warnings from `react-router-dom` by enabling the recommended flags in `main.jsx`.
 - **Styling Cleanup**: Removed unnecessary CSS classes from an error message element in `RenameItemDialog.jsx` for cleaner code.
 
+
+## Session 14: Testing & Component Refinements (2025-09-25)
+
+### 1. Breadcrumb Provider Fixes
+- Resolved test failures by properly wrapping components with `BreadcrumbProvider`
+- Updated test utilities to include necessary context providers
+- Refactored header breadcrumb display logic after component relocation
+
+### 2. Checkbox Interaction Fix
+- Fixed `DraggableItem` checkbox error by switching from `onCheckedChange` to `onClick`
+- Resolved type mismatch in checkbox event handling
+- Updated selection logic to work with boolean state changes
+
+### 3. Test Suite Updates
+- Refactored `DocumentsPage.test.jsx` to verify breadcrumb context usage
+- Added test cases for multi-selection highlight behavior
+- Fixed drag-and-drop test mocks after component updates
+
+### 4. Development Log Maintenance
+- Documented recent fixes for checkbox interactions and test infrastructure
+- Updated session history with component refinement details
+- Maintained chronological record of UI/UX improvements
