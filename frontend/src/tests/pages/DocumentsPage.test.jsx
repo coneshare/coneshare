@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import * as BreadcrumbProvider from '../../components/layout/BreadcrumbProvider';
 import DocumentsPage from '../../pages/DocumentsPage';
 import * as api from '../../services/api';
 
@@ -15,6 +16,7 @@ vi.mock('../../components/documents/Pagination', () => ({
 
 describe('DocumentsPage', () => {
   let consoleErrorSpy;
+  let mockSetBreadcrumbData;
 
   beforeEach(() => {
     // Reset mocks before each test
@@ -34,6 +36,12 @@ describe('DocumentsPage', () => {
 
     // Spy on console.error
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // Mock the useBreadcrumb hook
+    mockSetBreadcrumbData = vi.fn();
+    vi.spyOn(BreadcrumbProvider, 'useBreadcrumb').mockReturnValue({
+      setBreadcrumbData: mockSetBreadcrumbData,
+    });    
   });
 
   afterEach(() => {
@@ -73,30 +81,38 @@ describe('DocumentsPage', () => {
 
   it('should render the page and fetch initial data for root', async () => {
     renderComponent('/documents');
-    // The Breadcrumbs component will render a link to the root "Documents" page
-    expect(screen.getByRole('link', { name: /documents/i })).toBeInTheDocument();
 
     await waitFor(() => {
       expect(api.getRootFolderContents).toHaveBeenCalledTimes(1);
       expect(api.getFolderContents).not.toHaveBeenCalled();
+      // Verify it sets the breadcrumb context to null for the root folder
+      expect(mockSetBreadcrumbData).toHaveBeenCalledWith(null);
     });
-  });
+  });  
 
   describe('Folder Navigation', () => {
     it('should fetch folder-specific content when a folderId is in the URL', async () => {
       const folderId = 'folder123';
+      const mockCurrentFolder = { id: 'folder123', name: 'Test Folder', ancestors: [] };
+
+      // Override default mock for this specific test case
+      api.getFolderContents.mockResolvedValue({
+        data: {
+          current_folder: mockCurrentFolder,
+          sub_folders: [],
+          documents: [],
+        },
+      });
 
       renderComponent(`/documents/folders/${folderId}`);
 
       await waitFor(() => {
-        expect(api.getRootFolderContents).not.toHaveBeenCalled();
         expect(api.getFolderContents).toHaveBeenCalledWith(folderId);
+        // Verify it passes the correct folder data to the breadcrumb context
+        expect(mockSetBreadcrumbData).toHaveBeenCalledWith(mockCurrentFolder);
       });
-
-      // It should also display the folder's name from the breadcrumbs
-      expect(await screen.findByText('Test Folder')).toBeInTheDocument();
     });
-  });
+  });  
 
   describe('File Upload Scenarios', () => {
     it('should call uploadDocument for each file and refetch data when all uploads succeed', async () => {

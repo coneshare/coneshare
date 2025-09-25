@@ -33,7 +33,7 @@ export function DraggableItem({
       >
         <Checkbox
           checked={isSelected}
-          onCheckedChange={handleCheckboxClick}
+          /* onCheckedChange={handleCheckboxClick} */
           onClick={handleCheckboxClick}
           aria-label="Select item"
         />
