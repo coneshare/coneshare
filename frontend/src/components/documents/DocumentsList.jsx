@@ -1,6 +1,6 @@
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core";
 import { FileIcon, FolderIcon, } from "lucide-react";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState, useEffect } from "react";
 import * as React from 'react';
 import { createPortal } from "react-dom";
 import { useDropzone } from "react-dropzone";
@@ -26,6 +26,7 @@ export function DocumentsList({
   foldersLoading,
   onDataRefresh,
   onFilesDrop,
+  onSelectionChange,
 }) {
   const [selectedDocuments, setSelectedDocuments] = useState([]);
   const [selectedFolders, setSelectedFolders] = useState([]);
@@ -55,6 +56,15 @@ export function DocumentsList({
     () => selectedFolders && selectedFolders.length,
     [selectedFolders]
   );
+
+  useEffect(() => {
+    if (onSelectionChange) {
+      onSelectionChange({
+        documents: selectedDocuments,
+        folders: selectedFolders,
+      });
+    }
+  }, [selectedDocuments, selectedFolders, onSelectionChange]);
 
   const onDrop = useCallback(
     (acceptedFiles) => {
@@ -189,79 +199,6 @@ export function DocumentsList({
     console.log(`Share action for: ${document.name} (${document.id})`);
   };
 
-  const HeaderContent = memo(() => {
-    if (selectedDocumentsLength > 0 || selectedFoldersLength > 0) {
-      const totalItems = (documents?.length || 0) + (folders?.length || 0);
-      const isAllSelected = totalItems === totalSelectedItem;
-
-      const handleSelectAll = () => {
-        if (isAllSelected) {
-          setSelectedDocuments([]);
-          setSelectedFolders([]);
-        } else {
-          const allDocumentIds = documents?.map((doc) => doc.id) || [];
-          const allFolderIds = folders?.map((folder) => folder.id) || [];
-          setSelectedDocuments(allDocumentIds);
-          setSelectedFolders(allFolderIds);
-        }
-      };
-
-      return (
-        <div className="mb-2 flex items-center gap-x-1 rounded-3xl bg-gray-100 p-1 text-sm text-foreground dark:bg-gray-800">
-          <Checkbox
-            id="select-all"
-            checked={isAllSelected}
-            onCheckedChange={handleSelectAll}
-            className="ml-2 h-5 w-5"
-            aria-label="Select all"
-          />
-          <Button
-            onClick={resetSelection}
-            variant="ghost"
-            size="sm"
-          >
-            Clear
-          </Button>
-
-          {selectedDocumentsLength ? (
-            <div className="mr-2 tabular-nums">
-              {selectedDocumentsLength} document{selectedDocumentsLength > 1 ? "s" : ""} selected
-            </div>
-          ) : null}
-          {selectedFoldersLength ? (
-            <div className="mr-2 tabular-nums">
-              {selectedFoldersLength} folder{selectedFoldersLength > 1 ? "s" : ""} selected
-            </div>
-          ) : null}
-        </div>
-      );
-    } else {
-      return (
-        <div className="mb-2 flex items-center gap-x-2 pt-5">
-          {folders && folders.length > 0 && (
-            <p className="flex items-center gap-x-1 text-sm text-gray-400">
-              <FolderIcon className="h-5 w-5" />
-              <span>
-                {folders.length} folder{folders.length > 1 ? "s" : ""}
-              </span>
-            </p>
-          )}
-          {documents && documents.length > 0 && (
-            <p className="flex items-center gap-x-1 text-sm text-gray-400">
-              <FileIcon className="h-5 w-5" />
-              <span>
-                {documents.length} document{documents.length > 1 ? "s" : ""}
-              </span>
-            </p>
-          )}
-        </div>
-      );
-    }
-  });
-  HeaderContent.displayName = "HeaderContent";
-
-  const documentsHeaderPortal = document.getElementById("documents-header-count");
-
   return (
     <>
       {itemToDelete && (
@@ -373,8 +310,6 @@ export function DocumentsList({
               )}
             </div>
           </DragOverlay>, document.body)}
-
-          {documentsHeaderPortal && createPortal(<HeaderContent />, documentsHeaderPortal)}
 
           {!loading && !foldersLoading && documents.length === 0 && folders.length === 0 && (
             <div className="flex items-center justify-center">

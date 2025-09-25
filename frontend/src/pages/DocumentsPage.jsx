@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { DocumentsList } from "../components/documents/DocumentsList";
@@ -8,11 +8,13 @@ import { Separator } from '../components/ui/Separator';
 import { SearchBox } from '../components/SearchBox';
 import { SortButton } from '../components/documents/filters/SortButton';
 import { Pagination } from '../components/documents/Pagination';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, createFolderFromPath } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, createFolderFromPath, deleteMultipleDocuments, deleteMultipleFolders } from '../services/api';
+import { SelectionActionBar } from '../components/documents/SelectionActionBar';
+import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 
 function DocumentsPage() {
   const { folderId } = useParams();
@@ -22,6 +24,8 @@ function DocumentsPage() {
   const [currentFolder, setCurrentFolder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [foldersLoading, setFoldersLoading] = useState(true);
+  const [selection, setSelection] = useState({ documents: [], folders: [] });
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
 
@@ -59,6 +63,35 @@ function DocumentsPage() {
       setBreadcrumbData(null);
     };
   }, [folderId, setBreadcrumbData]);
+
+  const handleSelectionChange = useCallback((newSelection) => {
+    setSelection(newSelection);
+  }, []);
+
+  const handleBulkDelete = async () => {
+    const { documents: docIds, folders: folderIds } = selection;
+    const results = await Promise.all([
+      deleteMultipleDocuments(docIds),
+      deleteMultipleFolders(folderIds),
+    ]);
+
+    let failedCount = 0;
+    results.forEach(result => {
+      if (result.status === 'fulfilled' && result.value) {
+        failedCount += result.value.filter(r => r.status === 'rejected').length;
+      }
+    });
+
+    if (failedCount > 0) {
+      toast.error(`${failedCount} item(s) could not be deleted.`);
+    } else {
+      toast.success("Selected items deleted successfully.");
+    }
+
+    setIsBulkDeleteConfirmOpen(false);
+    setSelection({ documents: [], folders: [] }); // Clear selection
+    fetchData(); // Refresh data
+  };
 
   const handleFolderSelect = () => {
     folderInputRef.current.click();
@@ -139,6 +172,14 @@ function DocumentsPage() {
   return (
     <div className="sticky top-0 mb-4 rounded-lg bg-white p-4 dark:bg-gray-900 sm:mx-4 sm:pt-8">
       <Toaster richColors />
+      <ConfirmationDialog
+        isOpen={isBulkDeleteConfirmOpen}
+        onOpenChange={setIsBulkDeleteConfirmOpen}
+        title="Delete Selected Items?"
+        description="This action cannot be undone. This will permanently delete all selected items and their contents."
+        onConfirm={handleBulkDelete}
+        confirmText="Delete"
+      />
       <section className="mb-4 flex items-center justify-end space-x-2 sm:space-x-0">
         <div className="relative flex items-center gap-x-2">
           <input
@@ -198,7 +239,18 @@ function DocumentsPage() {
       {/*   <SortButton /> */}
       {/* </div> */}
 
-      <div id="documents-header-count"></div>
+      <div className="mb-4">
+        {selection.documents.length > 0 || selection.folders.length > 0 ? (
+          <SelectionActionBar
+            selectedDocumentsCount={selection.documents.length}
+            selectedFoldersCount={selection.folders.length}
+            onClearSelection={() => setSelection({ documents: [], folders: [] })}
+            onDelete={() => setIsBulkDeleteConfirmOpen(true)}
+          />
+        ) : (
+          <div id="documents-header-count"></div>
+        )}
+      </div>
 
       <Separator className="mb-5 bg-gray-200 dark:bg-gray-800" />
 
@@ -209,6 +261,7 @@ function DocumentsPage() {
         foldersLoading={foldersLoading}
         onDataRefresh={fetchData}
         onFilesDrop={handleFileUploads}
+        onSelectionChange={handleSelectionChange}
       />
 
       {documents.length > 0 && (

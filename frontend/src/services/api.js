@@ -102,6 +102,16 @@ export const renameDocument = (id, name) => api.patch(`/documents/${id}/`, { nam
 
 export const renameFolder = (id, name) => api.patch(`/folders/${id}/`, { name });
 
+export const deleteMultipleDocuments = (ids) => {
+  const promises = ids.map((id) => deleteDocument(id));
+  return Promise.allSettled(promises);
+};
+
+export const deleteMultipleFolders = (ids) => {
+  const promises = ids.map((id) => deleteFolder(id));
+  return Promise.allSettled(promises);
+};
+
 export const getUser = (id) => api.get(`/users/${id}/`);
 
 export const setPassword = (data) => api.post('/users/set-password/', data);
