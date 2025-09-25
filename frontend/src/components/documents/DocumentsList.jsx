@@ -77,8 +77,8 @@ export function DocumentsList({
     noKeyboard: true,
   });
 
-  const handleSelect = useCallback((id, type) => {
-    onItemSelect(id, type);
+  const handleSelect = useCallback((id, type, event) => {
+    onItemSelect(id, type, event);
   }, [onItemSelect]);
 
   const handleDragStart = useCallback(

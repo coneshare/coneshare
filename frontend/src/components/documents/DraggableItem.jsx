@@ -1,3 +1,4 @@
+import React from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Checkbox } from "../ui/Checkbox";
 
@@ -15,7 +16,7 @@ export function DraggableItem({
 
   const handleCheckboxClick = (e) => {
     e.stopPropagation();
-    onSelect(id, type);
+    onSelect(id, type, e);
   };
 
   return (
@@ -37,7 +38,7 @@ export function DraggableItem({
           aria-label="Select item"
         />
       </div>
-      <div className="pl-8">{children}</div>
+      <div className="pl-8">{React.cloneElement(children, { isSelected })}</div>
     </div>
   );
 }
