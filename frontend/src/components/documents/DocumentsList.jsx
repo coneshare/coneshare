@@ -26,10 +26,11 @@ export function DocumentsList({
   foldersLoading,
   onDataRefresh,
   onFilesDrop,
-  onSelectionChange,
+  selectedDocuments,
+  selectedFolders,
+  onItemSelect,
+  onClearSelection,
 }) {
-  const [selectedDocuments, setSelectedDocuments] = useState([]);
-  const [selectedFolders, setSelectedFolders] = useState([]);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [itemToRename, setItemToRename] = useState(null);
 
@@ -57,15 +58,6 @@ export function DocumentsList({
     [selectedFolders]
   );
 
-  useEffect(() => {
-    if (onSelectionChange) {
-      onSelectionChange({
-        documents: selectedDocuments,
-        folders: selectedFolders,
-      });
-    }
-  }, [selectedDocuments, selectedFolders, onSelectionChange]);
-
   const onDrop = useCallback(
     (acceptedFiles) => {
       // When a folder is dropped, react-dropzone provides a list of all files
@@ -86,35 +78,8 @@ export function DocumentsList({
   });
 
   const handleSelect = useCallback((id, type) => {
-    if (type === "folder") {
-      setSelectedFolders((prev) =>
-        prev.includes(id)
-          ? prev.filter((docId) => docId !== id)
-          : [...prev, id]
-      );
-    } else {
-      setSelectedDocuments((prev) =>
-        prev.includes(id)
-          ? prev.filter((docId) => docId !== id)
-          : [...prev, id]
-      );
-    }
-  }, []);
-
-  const handleDragForType = useCallback(
-    (itemId, items, setDraggedItem, selectedItems, setSelectedItems) => {
-      if (!items) return;
-
-      const draggedItem = items.find((item) => item.id === itemId) ?? null;
-      setDraggedItem(draggedItem);
-
-      const isSelected = selectedItems.includes(itemId);
-      if (!isSelected) {
-        setSelectedItems([...selectedItems, itemId]);
-      }
-    },
-    []
-  );
+    onItemSelect(id, type);
+  }, [onItemSelect]);
 
   const handleDragStart = useCallback(
     (event) => {
@@ -123,26 +88,22 @@ export function DocumentsList({
       const itemId = event.active.id;
 
       if (type === "document") {
-        handleDragForType(
-          itemId,
-          documents,
-          setDraggedDocument,
-          selectedDocuments,
-          setSelectedDocuments
-        );
+        const draggedItem = documents.find((item) => item.id === itemId) ?? null;
+        setDraggedDocument(draggedItem);
+        if (!selectedDocuments.includes(itemId)) {
+          onItemSelect(itemId, type);
+        }
       }
 
       if (type === "folder") {
-        handleDragForType(
-          itemId,
-          folders,
-          setDraggedFolder,
-          selectedFolders,
-          setSelectedFolders
-        );
+        const draggedItem = folders.find((item) => item.id === itemId) ?? null;
+        setDraggedFolder(draggedItem);
+        if (!selectedFolders.includes(itemId)) {
+          onItemSelect(itemId, type);
+        }
       }
     },
-    [handleDragForType, documents, folders, selectedDocuments, selectedFolders]
+    [documents, folders, selectedDocuments, selectedFolders, onItemSelect]
   );
 
   const handleDragEnd = async (event) => {
@@ -157,13 +118,11 @@ export function DocumentsList({
       // For now, we just reset selection
     }
 
-    setSelectedDocuments([]);
-    setSelectedFolders([]);
+    onClearSelection();
   };
 
   const resetSelection = () => {
-    setSelectedDocuments([]);
-    setSelectedFolders([]);
+    onClearSelection();
   };
 
   const handleRename = (item, type) => {

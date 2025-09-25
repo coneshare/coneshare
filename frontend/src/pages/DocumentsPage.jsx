@@ -64,8 +64,26 @@ function DocumentsPage() {
     };
   }, [folderId, setBreadcrumbData]);
 
-  const handleSelectionChange = useCallback((newSelection) => {
-    setSelection(newSelection);
+  const handleItemSelect = useCallback((id, type) => {
+    setSelection((prevSelection) => {
+      const newSelection = { ...prevSelection };
+      if (type === "folder") {
+        const current = newSelection.folders;
+        newSelection.folders = current.includes(id)
+          ? current.filter((folderId) => folderId !== id)
+          : [...current, id];
+      } else {
+        const current = newSelection.documents;
+        newSelection.documents = current.includes(id)
+          ? current.filter((docId) => docId !== id)
+          : [...current, id];
+      }
+      return newSelection;
+    });
+  }, []);
+
+  const handleClearSelection = useCallback(() => {
+    setSelection({ documents: [], folders: [] });
   }, []);
 
   const handleBulkDelete = async () => {
@@ -244,7 +262,7 @@ function DocumentsPage() {
           <SelectionActionBar
             selectedDocumentsCount={selection.documents.length}
             selectedFoldersCount={selection.folders.length}
-            onClearSelection={() => setSelection({ documents: [], folders: [] })}
+            onClearSelection={handleClearSelection}
             onDelete={() => setIsBulkDeleteConfirmOpen(true)}
           />
         ) : (
@@ -261,7 +279,10 @@ function DocumentsPage() {
         foldersLoading={foldersLoading}
         onDataRefresh={fetchData}
         onFilesDrop={handleFileUploads}
-        onSelectionChange={handleSelectionChange}
+        selectedDocuments={selection.documents}
+        selectedFolders={selection.folders}
+        onItemSelect={handleItemSelect}
+        onClearSelection={handleClearSelection}
       />
 
       {documents.length > 0 && (
