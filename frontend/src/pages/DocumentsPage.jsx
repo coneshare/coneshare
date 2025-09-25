@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { DocumentsList } from "../components/documents/DocumentsList";
@@ -30,10 +30,17 @@ function DocumentsPage() {
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
 
+  const allItems = useMemo(() => [
+    ...folders.map((f) => ({ ...f, type: "folder" })),
+    ...documents.map((d) => ({ ...d, type: "document" })),
+  ], [folders, documents]);
+
   const fetchData = async () => {
     setLoading(true);
     setFoldersLoading(true);
     // Reset state before fetching
+    setSelection({ documents: [], folders: [] });
+    setLastSelectedItem(null);
     setCurrentFolder(null);
     setDocuments([]);
     setFolders([]);
@@ -66,10 +73,6 @@ function DocumentsPage() {
   }, [folderId, setBreadcrumbData]);
 
   const handleItemSelect = useCallback((id, type, event) => {
-    const allItems = [
-      ...folders.map((f) => ({ ...f, type: "folder" })),
-      ...documents.map((d) => ({ ...d, type: "document" })),
-    ];
     const currentIndex = allItems.findIndex(
       (item) => item.id === id && item.type === type
     );
@@ -121,7 +124,7 @@ function DocumentsPage() {
       });
       setLastSelectedItem({ id, type });
     }
-  }, [documents, folders, lastSelectedItem]);
+  }, [allItems, lastSelectedItem]);
 
   const handleClearSelection = useCallback(() => {
     setSelection({ documents: [], folders: [] });
@@ -136,11 +139,10 @@ function DocumentsPage() {
     ]);
 
     let failedCount = 0;
-    results.forEach(result => {
-      if (result.status === 'fulfilled' && result.value) {
-        failedCount += result.value.filter(r => r.status === 'rejected').length;
-      }
-    });
+    results.forEach(settlementArray => {
+      const failuresInBatch = settlementArray.filter(r => r.status === 'rejected').length;
+      failedCount += failuresInBatch;
+    });    
 
     if (failedCount > 0) {
       toast.error(`${failedCount} item(s) could not be deleted.`);
