@@ -3,8 +3,8 @@ import { Link, useLocation } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import { useSidebar } from "./SidebarProvider";
 
-const NAV_ITEMS = [
-  { href: "/", label: "Home", icon: Home },
+export const NAV_ITEMS = [
+  { href: "/", label: "Dashboard", icon: Home },
   { href: "/documents", label: "Documents", icon: File },
 ];
 
@@ -20,7 +20,7 @@ function SidebarContent() {
           to={item.href}
           className={cn(
             "flex items-center gap-3 rounded-lg py-2 text-gray-500 transition-all hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50",
-            pathname === item.href &&
+            (item.href === "/" ? pathname === item.href : pathname.startsWith(item.href)) &&
               "bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-50",
             isCollapsed ? "justify-center px-0 h-10 w-10" : "px-3"
           )}

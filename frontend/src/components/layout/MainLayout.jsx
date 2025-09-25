@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
+import { BreadcrumbProvider } from "./BreadcrumbProvider";
 import { SidebarProvider, useSidebar } from "./SidebarProvider";
 import { cn } from "../../lib/utils";
 
@@ -29,7 +30,9 @@ function Layout() {
 function MainLayout() {
   return (
     <SidebarProvider>
-      <Layout />
+      <BreadcrumbProvider>
+        <Layout />
+      </BreadcrumbProvider>
     </SidebarProvider>
   );
 }

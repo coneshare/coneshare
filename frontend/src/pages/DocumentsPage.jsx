@@ -1,33 +1,46 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { DocumentsList } from "../components/documents/DocumentsList";
-import { Breadcrumbs } from '../components/documents/Breadcrumbs';
+import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
 import { Separator } from '../components/ui/Separator';
 import { SearchBox } from '../components/SearchBox';
 import { SortButton } from '../components/documents/filters/SortButton';
 import { Pagination } from '../components/documents/Pagination';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, createFolderFromPath } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, createFolderFromPath, deleteMultipleDocuments, deleteMultipleFolders } from '../services/api';
+import { SelectionActionBar } from '../components/documents/SelectionActionBar';
+import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 
 function DocumentsPage() {
   const { folderId } = useParams();
+  const { setBreadcrumbData } = useBreadcrumb();
   const [documents, setDocuments] = useState([]);
   const [folders, setFolders] = useState([]);
   const [currentFolder, setCurrentFolder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [foldersLoading, setFoldersLoading] = useState(true);
+  const [selection, setSelection] = useState({ documents: [], folders: [] });
+  const [lastSelectedItem, setLastSelectedItem] = useState(null);
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
+
+  const allItems = useMemo(() => [
+    ...folders.map((f) => ({ ...f, type: "folder" })),
+    ...documents.map((d) => ({ ...d, type: "document" })),
+  ], [folders, documents]);
 
   const fetchData = async () => {
     setLoading(true);
     setFoldersLoading(true);
     // Reset state before fetching
+    setSelection({ documents: [], folders: [] });
+    setLastSelectedItem(null);
     setCurrentFolder(null);
     setDocuments([]);
     setFolders([]);
@@ -41,6 +54,7 @@ function DocumentsPage() {
       setCurrentFolder(current_folder);
       setFolders(sub_folders);
       setDocuments(documents);
+      setBreadcrumbData(current_folder);
     } catch (error) {
       console.error('Failed to fetch data:', error);
       // The API interceptor will show a toast for errors.
@@ -52,7 +66,94 @@ function DocumentsPage() {
 
   useEffect(() => {
     fetchData();
-  }, [folderId]);
+
+    return () => {
+      setBreadcrumbData(null);
+    };
+  }, [folderId, setBreadcrumbData]);
+
+  const handleItemSelect = useCallback((id, type, event) => {
+    const currentIndex = allItems.findIndex(
+      (item) => item.id === id && item.type === type
+    );
+
+    if (event?.shiftKey && lastSelectedItem) {
+      const lastIndex = allItems.findIndex(
+        (item) =>
+          item.id === lastSelectedItem.id && item.type === lastSelectedItem.type
+      );
+      const start = Math.min(currentIndex, lastIndex);
+      const end = Math.max(currentIndex, lastIndex);
+      const itemsToSelect = allItems.slice(start, end + 1);
+
+      setSelection((prev) => {
+        const newSelection = {
+          documents: [...prev.documents],
+          folders: [...prev.folders],
+        };
+        itemsToSelect.forEach((item) => {
+          if (
+            item.type === "folder" &&
+            !newSelection.folders.includes(item.id)
+          ) {
+            newSelection.folders.push(item.id);
+          } else if (
+            item.type === "document" &&
+            !newSelection.documents.includes(item.id)
+          ) {
+            newSelection.documents.push(item.id);
+          }
+        });
+        return newSelection;
+      });
+    } else {
+      setSelection((prevSelection) => {
+        const newSelection = { ...prevSelection };
+        if (type === "folder") {
+          const current = newSelection.folders;
+          newSelection.folders = current.includes(id)
+            ? current.filter((folderId) => folderId !== id)
+            : [...current, id];
+        } else {
+          const current = newSelection.documents;
+          newSelection.documents = current.includes(id)
+            ? current.filter((docId) => docId !== id)
+            : [...current, id];
+        }
+        return newSelection;
+      });
+      setLastSelectedItem({ id, type });
+    }
+  }, [allItems, lastSelectedItem]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelection({ documents: [], folders: [] });
+    setLastSelectedItem(null);
+  }, []);
+
+  const handleBulkDelete = async () => {
+    const { documents: docIds, folders: folderIds } = selection;
+    const results = await Promise.all([
+      deleteMultipleDocuments(docIds),
+      deleteMultipleFolders(folderIds),
+    ]);
+
+    let failedCount = 0;
+    results.forEach(settlementArray => {
+      const failuresInBatch = settlementArray.filter(r => r.status === 'rejected').length;
+      failedCount += failuresInBatch;
+    });    
+
+    if (failedCount > 0) {
+      toast.error(`${failedCount} item(s) could not be deleted.`);
+    } else {
+      toast.success("Selected items deleted successfully.");
+    }
+
+    setIsBulkDeleteConfirmOpen(false);
+    setSelection({ documents: [], folders: [] }); // Clear selection
+    fetchData(); // Refresh data
+  };
 
   const handleFolderSelect = () => {
     folderInputRef.current.click();
@@ -133,10 +234,15 @@ function DocumentsPage() {
   return (
     <div className="sticky top-0 mb-4 rounded-lg bg-white p-4 dark:bg-gray-900 sm:mx-4 sm:pt-8">
       <Toaster richColors />
-      <section className="mb-4 flex items-center justify-between space-x-2 sm:space-x-0">
-        <div className="flex items-center">
-          <Breadcrumbs currentFolder={currentFolder} />
-        </div>
+      <ConfirmationDialog
+        isOpen={isBulkDeleteConfirmOpen}
+        onOpenChange={setIsBulkDeleteConfirmOpen}
+        title="Delete Selected Items?"
+        description="This action cannot be undone. This will permanently delete all selected items and their contents."
+        onConfirm={handleBulkDelete}
+        confirmText="Delete"
+      />
+      <section className="mb-4 flex items-center justify-end space-x-2 sm:space-x-0">
         <div className="relative flex items-center gap-x-2">
           <input
             type="file"
@@ -195,7 +301,18 @@ function DocumentsPage() {
       {/*   <SortButton /> */}
       {/* </div> */}
 
-      <div id="documents-header-count"></div>
+      <div className="mb-4">
+        {selection.documents.length > 0 || selection.folders.length > 0 ? (
+          <SelectionActionBar
+            selectedDocumentsCount={selection.documents.length}
+            selectedFoldersCount={selection.folders.length}
+            onClearSelection={handleClearSelection}
+            onDelete={() => setIsBulkDeleteConfirmOpen(true)}
+          />
+        ) : (
+          <div id="documents-header-count"></div>
+        )}
+      </div>
 
       <Separator className="mb-5 bg-gray-200 dark:bg-gray-800" />
 
@@ -206,6 +323,10 @@ function DocumentsPage() {
         foldersLoading={foldersLoading}
         onDataRefresh={fetchData}
         onFilesDrop={handleFileUploads}
+        selectedDocuments={selection.documents}
+        selectedFolders={selection.folders}
+        onItemSelect={handleItemSelect}
+        onClearSelection={handleClearSelection}
       />
 
       {documents.length > 0 && (

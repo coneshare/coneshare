@@ -77,8 +77,7 @@ The sidebar's core interactive feature is its ability to be toggled between an e
 
 ### 1. `SidebarHeader`
 
--   **Logo**: Displays a compact icon when the sidebar is collapsed and the full logo and application name when it is expanded.
--   **Team Switcher**: Includes a placeholder for a future team-switching component. A `Skeleton` loader is used to represent the initial loading state.
+-   **Logo & Branding**: Displays a compact icon when the sidebar is collapsed and the full logo and application name ("Coneshare") when it is expanded. This component provides a consistent brand presence at the top of the navigation.
 
 ### 2. `SidebarContent`
 
@@ -88,7 +87,7 @@ The sidebar's core interactive feature is its ability to be toggled between an e
 
 ### 3. `SidebarFooter` & `NavUser`
 
--   The `SidebarFooter` component renders the `NavUser` component and includes `Skeleton` placeholders for future features like `UsageProgress` and `ProBanner`.
+-   The `SidebarFooter` component renders the `NavUser` component and includes generic `Skeleton` placeholders for future functionality.
 -   The `NavUser` component is a user profile dropdown menu built with Radix UI primitives for accessibility.
     -   The trigger is a `Button` showing the user's avatar, name, and email.
     -   The dropdown content includes links to user settings and a logout action, complete with icons.
@@ -108,4 +107,4 @@ To create a clean and responsive collapsed state, the implementation relies on d
       className="... data-[collapsed=true]:w-16 data-[collapsed=false]:w-64"
     >
     ```
--   Child components then use Tailwind's data attribute variants (e.g., `data-[collapsed=true]:hidden`) to responsively show or hide elements like text labels. When collapsed, only icons are visible. This is a clean and efficient way to manage conditional styling directly in the markup without cluttering components with conditional rendering logic.
+-   Child components consume the `isCollapsed` boolean from the `useSidebar()` hook. They use this state with a utility like `cn()` to conditionally apply classes (e.g., `"hidden"`). This allows elements like text labels to be hidden when the sidebar is collapsed, leaving only the icons visible.

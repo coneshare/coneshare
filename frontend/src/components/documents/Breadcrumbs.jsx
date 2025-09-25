@@ -10,7 +10,7 @@ export function Breadcrumbs({ currentFolder }) {
             to="/documents"
             className="flex items-center gap-x-2 hover:text-foreground"
           >
-            <HomeIcon className="h-5 w-5 flex-shrink-0" />
+            {/* <HomeIcon className="h-5 w-5 flex-shrink-0" /> */}
             <span className="hidden sm:inline">Documents</span>
           </Link>
         </li>
