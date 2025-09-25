@@ -4,7 +4,7 @@ import { ActionsDropdown } from "./ActionsDropdown";
 
 function DocumentCard({ document, onRename, onDelete, onShare }) {
   return (
-    <div className="group relative flex w-full items-center space-x-3 rounded-lg border bg-white px-4 py-5 shadow-sm hover:border-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-500">
+    <div className="relative flex w-full items-center space-x-3 rounded-lg border bg-white px-4 py-5 shadow-sm group-hover:border-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:group-hover:border-gray-500">
       <div className="flex-shrink-0">
         <FileIcon className="h-6 w-6 text-gray-400" />
       </div>
