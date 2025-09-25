@@ -74,7 +74,7 @@ function DocumentsPage() {
       (item) => item.id === id && item.type === type
     );
 
-    if (event.shiftKey && lastSelectedItem) {
+    if (event?.shiftKey && lastSelectedItem) {
       const lastIndex = allItems.findIndex(
         (item) =>
           item.id === lastSelectedItem.id && item.type === lastSelectedItem.type
