@@ -28,15 +28,20 @@ function CopyableLink({ slug }) {
   };
 
   return (
-    <button
+    <div
       onClick={handleCopy}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="truncate rounded px-1 py-0.5 text-left text-sm text-gray-600 transition-colors hover:bg-gray-100 hover:text-blue-600"
+      className="relative w-full cursor-pointer rounded px-1 py-0.5 text-left text-sm text-gray-600 transition-colors hover:bg-gray-100 hover:text-blue-600"
       title={url}
     >
-      {isHovered ? 'Copy to Clipboard' : displayUrl}
-    </button>
+      <span className={`block truncate ${isHovered ? 'invisible' : ''}`}>{displayUrl}</span>
+      {isHovered && (
+        <span className="absolute inset-0 flex items-center justify-center">
+          Copy to Clipboard
+        </span>
+      )}
+    </div>
   );
 }
 
