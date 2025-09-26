@@ -12,7 +12,6 @@ export function DocumentPage() {
   const { documentId } = useParams();
   const [document, setDocument] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [isLinkSheetOpen, setIsLinkSheetOpen] = useState(false);
   const [editingLink, setEditingLink] = useState(null);
 
@@ -22,7 +21,7 @@ export function DocumentPage() {
       const response = await getDocumentDetails(documentId);
       setDocument(response.data);
     } catch (err) {
-      setError('Failed to fetch document details.');
+      // API errors are handled by the global interceptor in api.js
       console.error(err);
     } finally {
       setLoading(false);
@@ -56,14 +55,6 @@ export function DocumentPage() {
             <Skeleton className="h-24 w-full" />
           </div>
         </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-red-500">{error}</p>
       </div>
     );
   }
