@@ -78,7 +78,7 @@ export function LinksTable({ links, onEditLink }) {
                 </TableCell>
                 <TableCell>{new Date(link.created_at).toLocaleDateString()}</TableCell>
                 <TableCell>{link.expires_at ? new Date(link.expires_at).toLocaleDateString() : 'Never'}</TableCell>
-                <TableCell>{link.password_hash ? 'Yes' : 'No'}</TableCell>
+                <TableCell>{link.has_password ? 'Yes' : 'No'}</TableCell>
                 <TableCell className="text-right">
                   <TooltipProvider>
                     <Tooltip>

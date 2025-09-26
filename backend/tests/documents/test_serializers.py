@@ -30,7 +30,19 @@ class TestShareLinkSerializer:
         assert instance.password_hash is not None
         assert check_password("testpassword", instance.password_hash)
         assert "password" not in serializer.data
-        assert "password_hash" in serializer.data
+        assert "password_hash" not in serializer.data
+        assert serializer.data["has_password"] is True
+
+    def test_create_without_password(self, document, serializer_context):
+        serializer = ShareLinkSerializer(
+            data={"document": document.id}, context=serializer_context
+        )
+        assert serializer.is_valid(), serializer.errors
+        instance = serializer.save()
+
+        assert instance.password_hash is None
+        assert "password_hash" not in serializer.data
+        assert serializer.data["has_password"] is False
 
     def test_update_to_add_password(self, share_link, serializer_context):
         assert share_link.password_hash is None
@@ -43,6 +55,8 @@ class TestShareLinkSerializer:
         )
         assert serializer.is_valid(), serializer.errors
         instance = serializer.save()
+
+        assert serializer.data["has_password"] is True
 
         instance.refresh_from_db()
         assert instance.password_hash is not None
@@ -59,6 +73,8 @@ class TestShareLinkSerializer:
         )
         assert serializer.is_valid(), serializer.errors
         instance = serializer.save()
+
+        assert serializer.data["has_password"] is False
 
         instance.refresh_from_db()
         assert instance.password_hash is None
