@@ -70,14 +70,10 @@ export function DocumentPage() {
   return (
     <div className="container mx-auto p-4 sm:p-6">
       <DocumentHeader document={document} onCreateLink={handleCreateLink} />
-      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-8">
-          <LinksTable links={document.share_links} onEditLink={handleEditLink} />
-          <VisitorsTable views={document.views} />
-        </div>
-        <div>
-          <Stats views={document.views} />
-        </div>
+      <div className="mt-8 space-y-8">
+        <Stats views={document.views} />
+        <LinksTable links={document.share_links} onEditLink={handleEditLink} />
+        <VisitorsTable views={document.views} />
       </div>
       <LinkSheet
         isOpen={isLinkSheetOpen}
