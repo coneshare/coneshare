@@ -104,6 +104,24 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class ShareLinkSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShareLink
+        fields = [
+            'id', 'document', 'created_by', 'name', 'slug', 'expires_at',
+            'password_hash', 'requires_email_verification', 'allow_download',
+            'enable_watermark', 'is_archived', 'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'id', 'created_by', 'slug', 'created_at', 'updated_at'
+        ]
+        # TODO: Slug should be auto-generated on creation
+
+    def create(self, validated_data):
+        request = self.context['request']
+        # Automatically assign the creator
+        validated_data['created_by'] = request.user
+        return super().create(validated_data)
 
 
 class DocumentSerializer(serializers.ModelSerializer):
@@ -154,25 +172,6 @@ class ShareLinkPresetSerializer(serializers.ModelSerializer):
         validated_data['organization'] = request.user.organization
         return super().create(validated_data)
 
-
-class ShareLinkSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ShareLink
-        fields = [
-            'id', 'document', 'created_by', 'name', 'slug', 'expires_at',
-            'password_hash', 'requires_email_verification', 'allow_download',
-            'enable_watermark', 'is_archived', 'created_at', 'updated_at'
-        ]
-        read_only_fields = [
-            'id', 'created_by', 'slug', 'created_at', 'updated_at'
-        ]
-        # TODO: Slug should be auto-generated on creation
-
-    def create(self, validated_data):
-        request = self.context['request']
-        # Automatically assign the creator
-        validated_data['created_by'] = request.user
-        return super().create(validated_data)
 
 
 class ViewerSerializer(serializers.ModelSerializer):
