@@ -1,5 +1,32 @@
 # Development Log
 
+## Session 15: Document Detail Page & Link Management (2025-09-26)
+
+This session focused on building the document detail page, implementing the full lifecycle for creating and editing share links, and adding several UI/UX enhancements.
+
+### 1. Document Detail Page Implementation
+- **Backend**: The `DocumentSerializer` was enhanced to nest related `share_links` and aggregate all `views` associated with a document, providing a complete data payload for the detail page.
+- **Frontend**:
+  - A new route and `DocumentPage.jsx` component were created to fetch and display the document details.
+  - The UI was structured with new components: `DocumentHeader`, `LinksTable`, `VisitorsTable`, and `Stats`, initially as placeholders.
+
+### 2. Share Link Creation & Editing
+- **Secure Backend**: The `ShareLinkSerializer` was updated to securely handle password hashing. It now accepts a `password` field on create/update, hashes it, and stores it in `password_hash`, without ever exposing the hash in API responses.
+- **Frontend Form**:
+  - A slide-over panel was implemented using a new, reusable `Sheet.jsx` UI component.
+  - The `LinkSheet.jsx` component was created to house the form for creating and editing share links, including fields for name, password, and other settings.
+  - The `DocumentPage` now manages the state for opening the `LinkSheet` for both creating new links and editing existing ones.
+- **UI Components**:
+  - The placeholder `LinksTable.jsx` was replaced with a full implementation using a new, reusable `Table.jsx` component.
+  - Fixed a build failure by creating a missing `Switch.jsx` component for the form.
+
+### 3. UI/UX Enhancements
+- **Action Header**: The `DocumentHeader` was updated to include primary action buttons ("Create Link"), secondary icon buttons ("Preview", "Upload New Version"), and a dropdown menu for less frequent actions ("Download", "Delete").
+- **Tooltips**: Added tooltips to the icon buttons for better usability, which involved creating a reusable `Tooltip.jsx` component based on Radix UI. This resolved an earlier build failure caused by a missing component.
+- **Copy-to-Clipboard**: Implemented a "Link" column in the `LinksTable` with a user-friendly copy-to-clipboard feature that shows a "Copy" message on hover.
+
+---
+
 This document tracks the key architectural decisions and implementation steps made during the initial setup of the Coneshare backend.
 
 ## Session 1: Core Model & API Setup (2025-09-15)
