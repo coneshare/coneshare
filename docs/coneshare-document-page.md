@@ -45,7 +45,7 @@ To handle the creation and editing of share links, you will implement a `LinkShe
 1.  **Create API Views**:
     In `coneshare/documents/views.py`, create two new `APIView` classes for handling links:
     *   `LinkCreateView`: Handles `POST /api/links/`. It will receive link settings and a `document_id` in the request body, validate the data, and create a new `ShareLink` record.
-    *   `LinkUpdateView`: Handles `PUT /api/links/<link_id>/`. It will update an existing `ShareLink` record.
+    *   `LinkUpdateView`: Handles `PATCH /api/links/<link_id>/`. It will update an existing `ShareLink` record.
 
 2.  **Add URL Routes**:
     In your `urls.py`, add routes for these new views.
