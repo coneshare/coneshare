@@ -13,16 +13,6 @@ from documents.models import Document, Folder, ShareLink, DocumentVersion, Docum
 User = get_user_model()
 
 
-@pytest.fixture
-def user2(db, organization):
-    """Fixture to create a second user in the same organization."""
-    return User.objects.create_user(
-        username='user2@example.com',
-        email='user2@example.com',
-        password='password123',
-        organization=organization,
-        role='member'
-    )
 
 
 @pytest.mark.django_db
@@ -472,76 +462,61 @@ def test_delete_document_permission_denied(api_client, user, user2):
 class TestShareLinkViewDataView:
     """Tests for the public ShareLinkViewDataView endpoint."""
 
-    @pytest.fixture(autouse=True)
-    def setup(self, user):
-        """Set up the necessary objects for the tests."""
-        self.doc = Document.objects.create(
-            organization=user.organization,
-            created_by=user,
-            name="shared_doc.pdf",
-            status='ready'
-        )
-        version = DocumentVersion.objects.create(
-            document=self.doc,
-            version_number=1,
-            is_primary=True,
-            has_pages=True,
-            num_pages=1
-        )
+    @pytest.fixture
+    def document_with_pages(self, document):
+        """Fixture for a document that has pages."""
+        version = document.versions.get(is_primary=True)
+        version.has_pages = True
+        version.num_pages = 1
+        version.save()
         DocumentPage.objects.create(
             document_version=version, page_number=1, storage_key="pages/shared_1.png"
         )
-        self.link = ShareLink.objects.create(
-            document=self.doc,
-            created_by=user,
-            name="Public Link"
-        )
+        return document
 
     @patch('django.core.files.storage.default_storage.url')
-    def test_get_share_link_data_success(self, mock_storage_url, public_client):
+    def test_get_share_link_data_success(self, mock_storage_url, public_client, share_link, document_with_pages):
         """Test successful retrieval of public share link data."""
         mock_storage_url.return_value = "http://test.com/shared_page.png"
-        response = public_client.get(f'/api/v1/links/{self.link.slug}/view-data/')
+        response = public_client.get(f'/api/v1/links/{share_link.slug}/view-data/')
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert data['id'] == str(self.doc.id)
-        assert data['name'] == "shared_doc.pdf"
+        assert data['id'] == str(document_with_pages.id)
+        assert data['name'] == document_with_pages.name
         assert len(data['pages']) == 1
         assert data['pages'][0]['url'] == "http://test.com/shared_page.png"
-        assert data['linkSettings']['allowDownload'] == self.link.allow_download
+        assert data['linkSettings']['allowDownload'] == share_link.allow_download
 
     def test_get_share_link_data_not_found(self, public_client):
         """Test getting a link with a non-existent slug returns 404."""
         response = public_client.get('/api/v1/links/non-existent-slug/view-data/')
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_get_share_link_data_archived(self, public_client):
+    def test_get_share_link_data_archived(self, public_client, share_link):
         """Test that an archived link returns 404."""
-        self.link.is_archived = True
-        self.link.save()
-        response = public_client.get(f'/api/v1/links/{self.link.slug}/view-data/')
+        share_link.is_archived = True
+        share_link.save()
+        response = public_client.get(f'/api/v1/links/{share_link.slug}/view-data/')
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_get_share_link_data_expired(self, public_client):
+    def test_get_share_link_data_expired(self, public_client, share_link):
         """Test that an expired link returns 410 Gone."""
-        self.link.expires_at = timezone.now() - timedelta(days=1)
-        self.link.save()
-        response = public_client.get(f'/api/v1/links/{self.link.slug}/view-data/')
+        share_link.expires_at = timezone.now() - timedelta(days=1)
+        share_link.save()
+        response = public_client.get(f'/api/v1/links/{share_link.slug}/view-data/')
         assert response.status_code == status.HTTP_410_GONE
 
-    def test_get_share_link_data_password_protected(self, public_client):
+    def test_get_share_link_data_password_protected(self, public_client, share_link_with_password):
         """Test that a password-protected link returns 401 Unauthorized."""
-        self.link.password_hash = "some_hash"
-        self.link.save()
-        response = public_client.get(f'/api/v1/links/{self.link.slug}/view-data/')
+        response = public_client.get(f'/api/v1/links/{share_link_with_password.slug}/view-data/')
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_get_share_link_data_document_not_ready(self, public_client):
+    def test_get_share_link_data_document_not_ready(self, public_client, share_link, document):
         """Test link for a document that isn't ready returns 400."""
-        self.doc.status = 'processing'
-        self.doc.save()
-        response = public_client.get(f'/api/v1/links/{self.link.slug}/view-data/')
+        document.status = 'processing'
+        document.save()
+        response = public_client.get(f'/api/v1/links/{share_link.slug}/view-data/')
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
@@ -549,51 +524,43 @@ class TestShareLinkViewDataView:
 class TestDocumentVersionUploadView:
     """Tests for the DocumentVersionUploadView endpoint."""
 
-    @pytest.fixture(autouse=True)
-    def setup(self, user):
-        """Set up a document with one version."""
-        self.doc = Document.objects.create(
-            organization=user.organization,
-            created_by=user,
-            name="initial_doc.pdf",
-            status='ready'
-        )
-        self.initial_version = DocumentVersion.objects.create(
-            document=self.doc,
-            version_number=1,
-            is_primary=True
-        )
+    @pytest.fixture
+    def document_with_version(self, document):
+        """Fixture for a document that has one version."""
+        initial_version = document.versions.get(is_primary=True)
+        return document, initial_version
 
     @patch('documents.services.generate_pdf_pages_task.delay')
-    def test_upload_new_version_success(self, mock_task_delay, api_client):
+    def test_upload_new_version_success(self, mock_task_delay, api_client, document_with_version):
         """Test successfully uploading a new version of a document."""
+        doc, initial_version = document_with_version
         dummy_file = SimpleUploadedFile("v2.pdf", b"new_content", "application/pdf")
 
         response = api_client.post(
-            f'/api/v1/documents/{self.doc.id}/versions/',
+            f'/api/v1/documents/{doc.id}/versions/',
             {'file': dummy_file},
             format='multipart'
         )
 
         assert response.status_code == status.HTTP_202_ACCEPTED
 
-        self.doc.refresh_from_db()
-        self.initial_version.refresh_from_db()
+        doc.refresh_from_db()
+        initial_version.refresh_from_db()
 
-        assert self.doc.status == 'processing'
-        assert self.doc.versions.count() == 2
+        assert doc.status == 'processing'
+        assert doc.versions.count() == 2
 
-        new_version = self.doc.versions.get(version_number=2)
+        new_version = doc.versions.get(version_number=2)
         assert new_version.is_primary is True
-        assert self.initial_version.is_primary is False
+        assert initial_version.is_primary is False
 
         mock_task_delay.assert_called_once_with(new_version.id)
 
     @patch('documents.services.generate_pdf_pages_task.delay')
-    def test_upload_version_for_other_user_doc_same_org(self, mock_task_delay, api_client, user2):
+    def test_upload_version_for_other_user_doc_same_org(self, mock_task_delay, api_client, user2, organization):
         """Test a user can upload a version to another user's doc in the same org."""
         doc_by_user2 = Document.objects.create(
-            organization=user2.organization,
+            organization=organization,
             created_by=user2,
             name="user2_doc.pdf",
             status='ready'
@@ -642,10 +609,11 @@ class TestDocumentVersionUploadView:
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_upload_version_no_file(self, api_client):
+    def test_upload_version_no_file(self, api_client, document_with_version):
         """Test uploading a new version without providing a file."""
+        doc, _ = document_with_version
         response = api_client.post(
-            f'/api/v1/documents/{self.doc.id}/versions/',
+            f'/api/v1/documents/{doc.id}/versions/',
             {},
             format='multipart'
         )
