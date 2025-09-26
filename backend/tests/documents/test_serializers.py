@@ -1,10 +1,10 @@
 import pytest
 from django.contrib.auth.hashers import check_password
 from rest_framework.request import Request
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIRequestFactory, force_authenticate
 
-from backend.documents.models import Folder
-from backend.documents.serializers import FolderSerializer, ShareLinkSerializer
+from documents.models import Folder
+from documents.serializers import FolderSerializer, ShareLinkSerializer
 
 pytestmark = pytest.mark.django_db
 
@@ -14,7 +14,7 @@ def serializer_context(user):
     """Creates a mock request context for serializers."""
     factory = APIRequestFactory()
     request = factory.post("/")  # Method doesn't matter for this context
-    request.user = user
+    force_authenticate(request, user=user)
     return {"request": Request(request)}
 
 
