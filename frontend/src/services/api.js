@@ -112,6 +112,8 @@ export const deleteMultipleFolders = (ids) => {
   return Promise.allSettled(promises);
 };
 
+export const getDocumentDetails = (id) => api.get(`/documents/${id}/`);
+
 export const getUser = (id) => api.get(`/users/${id}/`);
 
 export const setPassword = (data) => api.post('/users/set-password/', data);
