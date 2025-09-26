@@ -1,4 +1,6 @@
 import { Pencil } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '../ui/Button';
 import {
   Table,
@@ -14,6 +16,29 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../ui/Tooltip';
+
+function CopyableLink({ slug }) {
+  const [isHovered, setIsHovered] = useState(false);
+  const url = `${window.location.origin}/view/${slug}`;
+  const displayUrl = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(url);
+    toast.success('Link copied to clipboard!');
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="truncate rounded px-1 py-0.5 text-left text-sm text-gray-600 transition-colors hover:bg-gray-100 hover:text-blue-600"
+      title={url}
+    >
+      {isHovered ? 'Copy to Clipboard' : displayUrl}
+    </button>
+  );
+}
 
 export function LinksTable({ links, onEditLink }) {
   if (!links || links.length === 0) {
@@ -35,6 +60,7 @@ export function LinksTable({ links, onEditLink }) {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>Link</TableHead>
               <TableHead>Created At</TableHead>
               <TableHead>Expires</TableHead>
               <TableHead>Password</TableHead>
@@ -47,6 +73,9 @@ export function LinksTable({ links, onEditLink }) {
             {links.map((link) => (
               <TableRow key={link.id}>
                 <TableCell className="font-medium">{link.name || 'Untitled Link'}</TableCell>
+                <TableCell>
+                  <CopyableLink slug={link.slug} />
+                </TableCell>
                 <TableCell>{new Date(link.created_at).toLocaleDateString()}</TableCell>
                 <TableCell>{link.expires_at ? new Date(link.expires_at).toLocaleDateString() : 'Never'}</TableCell>
                 <TableCell>{link.password_hash ? 'Yes' : 'No'}</TableCell>
