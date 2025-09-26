@@ -6,6 +6,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/DropdownMenu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../ui/Tooltip';
 import { ChevronDownIcon } from '../icons/ChevronDownIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 
@@ -13,15 +19,30 @@ export function DocumentHeader({ document }) {
   return (
     <div className="border-b border-gray-200 pb-5 sm:flex sm:items-center sm:justify-between">
       <h1 className="text-2xl font-bold leading-6 text-gray-900">{document.name}</h1>
-      <div className="mt-3 flex sm:ml-4 sm:mt-0">
-        <Button variant="outline" size="icon" className="mr-2" title="Preview">
-          <Eye className="h-5 w-5" />
-          <span className="sr-only">Preview</span>
-        </Button>
-        <Button variant="outline" size="icon" className="mr-2" title="Upload New Version">
-          <Upload className="h-5 w-5" />
-          <span className="sr-only">Upload New Version</span>
-        </Button>
+      <TooltipProvider>
+        <div className="mt-3 flex sm:ml-4 sm:mt-0">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" className="mr-2">
+                <Eye className="h-5 w-5" />
+                <span className="sr-only">Preview</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Preview</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" className="mr-2">
+                <Upload className="h-5 w-5" />
+                <span className="sr-only">Upload New Version</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Upload New Version</p>
+            </TooltipContent>
+          </Tooltip>
         <Button className="mr-2">
           <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
           Create Link
@@ -40,7 +61,8 @@ export function DocumentHeader({ document }) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
+        </div>
+      </TooltipProvider>
     </div>
   );
 }
