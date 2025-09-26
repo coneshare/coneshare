@@ -109,17 +109,22 @@ class ShareLinkSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
         write_only=True, required=False, allow_blank=True, style={'input_type': 'password'}
     )
+    has_password = serializers.SerializerMethodField()
 
     class Meta:
         model = ShareLink
         fields = [
             'id', 'document', 'created_by', 'name', 'slug', 'expires_at',
-            'password_hash', 'password', 'requires_email_verification', 'allow_download',
+            'has_password', 'password', 'requires_email_verification', 'allow_download',
             'enable_watermark', 'is_archived', 'created_at', 'updated_at'
         ]
         read_only_fields = [
-            'id', 'created_by', 'slug', 'password_hash', 'created_at', 'updated_at'
+            'id', 'created_by', 'slug', 'created_at', 'updated_at'
         ]
+
+    def get_has_password(self, obj):
+        """Returns True if the link is password-protected."""
+        return obj.password_hash is not None
 
     def _hash_password(self, validated_data):
         """Hashes the password if it exists in the validated data."""
