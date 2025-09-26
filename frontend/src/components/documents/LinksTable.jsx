@@ -37,7 +37,7 @@ function CopyableLink({ slug }) {
     >
       <span className={`block truncate ${isHovered ? 'invisible' : ''}`}>{displayUrl}</span>
       {isHovered && (
-        <span className="absolute inset-0 flex items-center justify-center">
+        <span className="absolute inset-0 flex items-center justify-center rounded-md border border-blue-600">
           Copy to Clipboard
         </span>
       )}
