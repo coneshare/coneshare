@@ -114,6 +114,10 @@ export const deleteMultipleFolders = (ids) => {
 
 export const getDocumentDetails = (id) => api.get(`/documents/${id}/`);
 
+export const createShareLink = (data) => api.post('/share-links/', data);
+
+export const updateShareLink = (id, data) => api.patch(`/share-links/${id}/`, data);
+
 export const getUser = (id) => api.get(`/users/${id}/`);
 
 export const setPassword = (data) => api.post('/users/set-password/', data);

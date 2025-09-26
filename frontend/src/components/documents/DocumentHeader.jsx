@@ -15,7 +15,7 @@ import {
 import { ChevronDownIcon } from '../icons/ChevronDownIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 
-export function DocumentHeader({ document }) {
+export function DocumentHeader({ document, onCreateLink }) {
   return (
     <div className="border-b border-gray-200 pb-5 sm:flex sm:items-center sm:justify-between">
       <h1 className="text-2xl font-bold leading-6 text-gray-900">{document.name}</h1>
@@ -43,7 +43,7 @@ export function DocumentHeader({ document }) {
               <p>Upload New Version</p>
             </TooltipContent>
           </Tooltip>
-        <Button className="mr-2">
+        <Button className="mr-2" onClick={onCreateLink}>
           <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
           Create Link
         </Button>
