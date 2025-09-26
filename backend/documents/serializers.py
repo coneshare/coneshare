@@ -1,3 +1,4 @@
+from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from core.models import Organization
 from .models import Document, DocumentPage, DocumentVersion, Folder, ShareLink, ShareLinkPreset, View, Viewer
@@ -104,64 +105,46 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class DocumentSerializer(serializers.ModelSerializer):
-    versions = DocumentVersionSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Document
-        fields = [
-            'id', 'organization', 'folder', 'name', 'description', 'status',
-            'storage_key', 'original_storage_key', 'type', 'content_type',
-            'num_pages', 'download_only', 'assistant_enabled', 'created_by',
-            'created_at', 'updated_at', 'versions'
-        ]
-        read_only_fields = [
-            'id', 'organization', 'created_by', 'created_at', 'updated_at'
-        ]
-
-    def create(self, validated_data):
-        request = self.context['request']
-        # Automatically assign the user's organization and the user
-        validated_data['organization'] = request.user.organization
-        validated_data['created_by'] = request.user
-        return super().create(validated_data)
-
-
-class ShareLinkPresetSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ShareLinkPreset
-        fields = [
-            'id', 'organization', 'name', 'is_default', 'expires_in_days',
-            'requires_password', 'requires_email_verification', 'allow_download',
-            'enable_watermark', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
-
-    def create(self, validated_data):
-        request = self.context['request']
-        # Automatically assign the user's organization
-        validated_data['organization'] = request.user.organization
-        return super().create(validated_data)
-
-
 class ShareLinkSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(
+        write_only=True, required=False, allow_blank=True, style={'input_type': 'password'}
+    )
+    has_password = serializers.SerializerMethodField()
+
     class Meta:
         model = ShareLink
         fields = [
             'id', 'document', 'created_by', 'name', 'slug', 'expires_at',
-            'password_hash', 'requires_email_verification', 'allow_download',
+            'has_password', 'password', 'requires_email_verification', 'allow_download',
             'enable_watermark', 'is_archived', 'created_at', 'updated_at'
         ]
         read_only_fields = [
             'id', 'created_by', 'slug', 'created_at', 'updated_at'
         ]
-        # TODO: Slug should be auto-generated on creation
+
+    def get_has_password(self, obj):
+        """Returns True if the link is password-protected."""
+        return obj.password_hash is not None
+
+    def _hash_password(self, validated_data):
+        """Hashes the password if it exists in the validated data."""
+        if 'password' in validated_data:
+            password = validated_data.pop('password')
+            if password:
+                validated_data['password_hash'] = make_password(password)
+            else:
+                # If password is an empty string, treat it as clearing the password
+                validated_data['password_hash'] = None
 
     def create(self, validated_data):
         request = self.context['request']
-        # Automatically assign the creator
         validated_data['created_by'] = request.user
+        self._hash_password(validated_data)
         return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        self._hash_password(validated_data)
+        return super().update(instance, validated_data)
 
 
 class ViewerSerializer(serializers.ModelSerializer):
@@ -199,4 +182,63 @@ class ViewSerializer(serializers.ModelSerializer):
             # Associate the view with the identified viewer
             validated_data['viewer'] = viewer
 
+        return super().create(validated_data)
+
+
+class DocumentSerializer(serializers.ModelSerializer):
+    versions = DocumentVersionSerializer(many=True, read_only=True)
+    share_links = ShareLinkSerializer(many=True, read_only=True)
+    views = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Document
+        fields = [
+            'id', 'organization', 'folder', 'name', 'description', 'status',
+            'storage_key', 'original_storage_key', 'type', 'content_type',
+            'num_pages', 'download_only', 'assistant_enabled', 'created_by',
+            'created_at', 'updated_at', 'versions', 'share_links', 'views'
+        ]
+        read_only_fields = [
+            'id', 'organization', 'created_by', 'created_at', 'updated_at'
+        ]
+
+    def create(self, validated_data):
+        request = self.context['request']
+        # Automatically assign the user's organization and the user
+        validated_data['organization'] = request.user.organization
+        validated_data['created_by'] = request.user
+        return super().create(validated_data)
+
+    def get_views(self, obj):
+        """
+        Aggregates all views from all share links associated with the document.
+        This method relies on `share_links__views` being prefetched on the
+        queryset to avoid N+1 queries.
+        """
+        all_views = []
+        # The `obj.share_links` accessor will use the prefetched data.
+        for link in obj.share_links.all():
+            # The `link.views` accessor will also use the prefetched data.
+            all_views.extend(list(link.views.all()))
+
+        # Sort views by viewed_at descending
+        all_views.sort(key=lambda x: x.viewed_at, reverse=True)
+
+        return ViewSerializer(all_views, many=True).data
+
+
+class ShareLinkPresetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShareLinkPreset
+        fields = [
+            'id', 'organization', 'name', 'is_default', 'expires_in_days',
+            'requires_password', 'requires_email_verification', 'allow_download',
+            'enable_watermark', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
+
+    def create(self, validated_data):
+        request = self.context['request']
+        # Automatically assign the user's organization
+        validated_data['organization'] = request.user.organization
         return super().create(validated_data)

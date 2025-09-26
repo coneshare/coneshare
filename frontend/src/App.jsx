@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router'
 import { Toaster } from 'sonner'
 import './App.css'
 import MainLayout from './components/layout/MainLayout'
+import { DocumentPage } from './pages/DocumentPage'
 import DocumentsPage from './pages/DocumentsPage'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
@@ -18,6 +19,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/documents/folders/:folderId" element={<DocumentsPage />} />
+          <Route path="/documents/:documentId" element={<DocumentPage />} />
           <Route path="/settings" element={<UserSettingsPage />} />
           <Route path="/settings/password" element={<PasswordSettingsPage />} />
         </Route>
