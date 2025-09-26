@@ -212,9 +212,19 @@ class DocumentSerializer(serializers.ModelSerializer):
     def get_views(self, obj):
         """
         Aggregates all views from all share links associated with the document.
+        This method relies on `share_links__views` being prefetched on the
+        queryset to avoid N+1 queries.
         """
-        views = View.objects.filter(share_link__document=obj).order_by('-viewed_at')
-        return ViewSerializer(views, many=True).data
+        all_views = []
+        # The `obj.share_links` accessor will use the prefetched data.
+        for link in obj.share_links.all():
+            # The `link.views` accessor will also use the prefetched data.
+            all_views.extend(list(link.views.all()))
+
+        # Sort views by viewed_at descending
+        all_views.sort(key=lambda x: x.viewed_at, reverse=True)
+
+        return ViewSerializer(all_views, many=True).data
 
 
 class ShareLinkPresetSerializer(serializers.ModelSerializer):

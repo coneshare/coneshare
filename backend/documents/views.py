@@ -326,7 +326,9 @@ class FolderViewSet(viewsets.ModelViewSet):
     def _get_folder_contents(self, folder, request):
         """Helper to fetch and serialize sub-folders and documents for a given folder."""
         sub_folders = folder.children.filter(created_by=request.user)
-        documents = folder.documents.filter(created_by=request.user)
+        documents = folder.documents.filter(created_by=request.user).prefetch_related(
+            'versions', 'share_links', 'share_links__views'
+        )
 
         sub_folders_serializer = self.get_serializer(sub_folders, many=True)
         documents_serializer = DocumentSerializer(documents, many=True, context={'request': request})
@@ -405,7 +407,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
             organization=organization,
             created_by=self.request.user,
             folder=target_folder
-        )
+        ).prefetch_related('versions', 'share_links', 'share_links__views')
 
     def destroy(self, request, *args, **kwargs):
         document = self.get_object()
