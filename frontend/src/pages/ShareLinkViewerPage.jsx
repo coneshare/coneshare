@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
+import { Cone } from 'lucide-react';
 import { PreviewViewer } from '../components/documents/PreviewViewer';
 import { Skeleton } from '../components/ui/Skeleton';
 import { getShareLinkViewData } from '../services/api';
@@ -63,7 +64,16 @@ export function ShareLinkViewerPage() {
   }
 
   return (
-    <div className="h-screen w-screen bg-gray-50">
+    <div className="relative h-screen w-screen bg-gray-50">
+      <div className="absolute left-6 top-4 z-10">
+        <a
+          href="/"
+          className="flex items-center gap-2 rounded-md bg-white p-2 font-semibold shadow-sm"
+        >
+          <Cone className="h-6 w-6" />
+          <span>ConeShare</span>
+        </a>
+      </div>
       {documentData && <PreviewViewer documentData={documentData} />}
     </div>
   );
