@@ -74,7 +74,7 @@ export function LinkSheet({
       }
 
       if (preview) {
-        const { previewToken } = await generateShareLinkPreview(savedLink.id);
+        const { data: { previewToken } } = await generateShareLinkPreview(savedLink.id);
         window.open(`/view/${savedLink.slug}?previewToken=${previewToken}`, '_blank');
       }
 
