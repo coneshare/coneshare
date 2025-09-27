@@ -489,11 +489,11 @@ class ShareLinkViewDataView(APIView):
         if preview_token:
             try:
                 with transaction.atomic():
-                    session = PreviewSession.objects.select_related('user', 'share_link__document__organization').select_for_update().get(token=preview_token)
+                    session = PreviewSession.objects.select_related('user', 'share_link__created_by').select_for_update().get(token=preview_token)
                     if not session.is_expired() and session.share_link.slug == slug:
                         # Security check: Ensure the user who created the preview session
-                        # belongs to the same organization that owns the document.
-                        if session.user.organization_id == session.share_link.document.organization_id:
+                        # is the same user who created the share link.
+                        if session.user == session.share_link.created_by:
                             is_preview = True
                             session.delete()  # Invalidate token after use
             except PreviewSession.DoesNotExist:
