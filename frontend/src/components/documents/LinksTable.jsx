@@ -49,7 +49,8 @@ function CopyableLink({ slug }) {
 export function LinksTable({ links, onEditLink }) {
   const handlePreview = async (linkId, slug) => {
     try {
-      const { previewToken } = await generateShareLinkPreview(linkId);
+      const response = await generateShareLinkPreview(linkId);
+      const { previewToken } = response.data;
       window.open(`/view/${slug}?previewToken=${previewToken}`, '_blank');
     } catch (error) {
       toast.error('Could not generate preview link. Please try again.');
