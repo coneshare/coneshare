@@ -1,5 +1,7 @@
 import logging
 import os
+import secrets
+from datetime import timedelta
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -14,7 +16,7 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Document, Folder, ShareLink, ShareLinkPreset, View, Viewer
+from .models import Document, Folder, ShareLink, ShareLinkPreset, View, Viewer, PreviewSession
 from .serializers import (
     DocumentSerializer,
     FolderFromPathSerializer,
@@ -437,6 +439,24 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return ShareLink.objects.filter(created_by=self.request.user)
 
+    @action(detail=True, methods=['post'], url_path='preview')
+    def create_preview_session(self, request, pk=None):
+        """
+        Creates a short-lived, single-use preview session for the share link owner.
+        """
+        share_link = self.get_object()  # This correctly uses the scoped get_queryset
+
+        # Clean up any old, expired sessions for this link to prevent clutter
+        share_link.preview_sessions.filter(expires_at__lt=timezone.now()).delete()
+
+        session = self.queryset.model.preview_sessions.model.objects.create(
+            share_link=share_link,
+            user=request.user,
+            token=secrets.token_urlsafe(32),
+            expires_at=timezone.now() + timedelta(minutes=5)
+        )
+        return Response({'previewToken': session.token}, status=status.HTTP_201_CREATED)
+
 
 class ViewerViewSet(viewsets.ModelViewSet):
     queryset = Viewer.objects.all()
@@ -464,6 +484,22 @@ class ShareLinkViewDataView(APIView):
     # No permission_classes, as this is a public endpoint with internal checks.
 
     def get(self, request, slug, *args, **kwargs):
+        is_preview = False
+        preview_token = request.query_params.get('previewToken')
+
+        if preview_token:
+            try:
+                session = PreviewSession.objects.select_related('user', 'share_link__document__organization').get(token=preview_token)
+                if not session.is_expired() and session.share_link.slug == slug:
+                    # Security check: Ensure the user who created the preview session
+                    # belongs to the same organization that owns the document.
+                    if session.user.organization_id == session.share_link.document.organization_id:
+                        is_preview = True
+                        session.delete()  # Invalidate token after use
+            except PreviewSession.DoesNotExist:
+                # Token is invalid, proceed with normal access checks.
+                pass
+
         try:
             link = ShareLink.objects.get(slug=slug, is_archived=False)
         except ShareLink.DoesNotExist:
@@ -471,11 +507,11 @@ class ShareLinkViewDataView(APIView):
 
         # --- SERVER-SIDE ACCESS CONTROL ---
         # 1. Check for expiration
-        if link.expires_at and link.expires_at < timezone.now():
+        if not is_preview and link.expires_at and link.expires_at < timezone.now():
             return Response({"message": "This link has expired."}, status=status.HTTP_410_GONE)
 
         # 2. Check for password protection (placeholder for now)
-        if link.password_hash:
+        if not is_preview and link.password_hash:
             # In a real implementation, we would check for a valid session token
             # that proves the user has already entered the password.
             # For now, we will deny access if a password is set.
