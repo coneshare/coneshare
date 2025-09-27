@@ -15,7 +15,7 @@ import {
 import { ChevronDownIcon } from '../icons/ChevronDownIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 
-export function DocumentHeader({ document, onCreateLink }) {
+export function DocumentHeader({ document, onCreateLink, onPreview }) {
   return (
     <div className="border-b border-gray-200 pb-5 sm:flex sm:items-center sm:justify-between">
       <h1 className="text-2xl font-bold leading-6 text-gray-900">{document.name}</h1>
@@ -23,7 +23,7 @@ export function DocumentHeader({ document, onCreateLink }) {
         <div className="mt-3 flex sm:ml-4 sm:mt-0">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="outline" size="icon" className="mr-2">
+              <Button variant="outline" size="icon" className="mr-2" onClick={onPreview}>
                 <Eye className="h-5 w-5" />
                 <span className="sr-only">Preview</span>
               </Button>

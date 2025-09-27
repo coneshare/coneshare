@@ -7,6 +7,7 @@ import { VisitorsTable } from '../components/documents/VisitorsTable';
 import { Stats } from '../components/documents/Stats';
 import { Skeleton } from '../components/ui/Skeleton';
 import { LinkSheet } from '../components/links/LinkSheet';
+import { DocumentPreviewModal } from '../components/documents/DocumentPreviewModal';
 
 export function DocumentPage() {
   const { documentId } = useParams();
@@ -14,6 +15,7 @@ export function DocumentPage() {
   const [loading, setLoading] = useState(true);
   const [isLinkSheetOpen, setIsLinkSheetOpen] = useState(false);
   const [editingLink, setEditingLink] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const fetchDocument = useCallback(async () => {
     try {
@@ -40,6 +42,10 @@ export function DocumentPage() {
   const handleEditLink = (link) => {
     setEditingLink(link);
     setIsLinkSheetOpen(true);
+  };
+
+  const handlePreview = () => {
+    setIsPreviewOpen(true);
   };
 
   if (loading) {
@@ -69,7 +75,7 @@ export function DocumentPage() {
 
   return (
     <div className="container mx-auto p-4 sm:p-6">
-      <DocumentHeader document={document} onCreateLink={handleCreateLink} />
+      <DocumentHeader document={document} onCreateLink={handleCreateLink} onPreview={handlePreview} />
       <div className="mt-8 space-y-8">
         <Stats views={document.views} />
         <LinksTable links={document.share_links} onEditLink={handleEditLink} />
@@ -81,6 +87,11 @@ export function DocumentPage() {
         documentId={documentId}
         currentLink={editingLink}
         onSuccess={fetchDocument}
+      />
+      <DocumentPreviewModal
+        isOpen={isPreviewOpen}
+        onOpenChange={setIsPreviewOpen}
+        documentId={documentId}
       />
     </div>
   );
