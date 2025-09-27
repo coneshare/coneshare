@@ -288,9 +288,10 @@ class DocumentPreviewDataView(APIView):
         if primary_version.has_pages:
             pages = primary_version.pages.order_by('page_number')
             for page in pages:
+                page_url = default_storage.url(page.storage_key)
                 pages_data.append({
                     "page_number": page.page_number,
-                    "url": default_storage.url(page.storage_key),
+                    "url": request.build_absolute_uri(page_url),
                     "metadata": page.metadata,
                 })
 
@@ -496,9 +497,10 @@ class ShareLinkViewDataView(APIView):
             # Here, we mirror DocumentPreviewDataView but use the key directly for simplicity.
             pages = primary_version.pages.order_by('page_number')
             for page in pages:
+                page_url = default_storage.url(page.storage_key)
                 pages_data.append({
                     "page_number": page.page_number,
-                    "url": default_storage.url(page.storage_key),
+                    "url": request.build_absolute_uri(page_url),
                     "metadata": page.metadata,
                 })
 
