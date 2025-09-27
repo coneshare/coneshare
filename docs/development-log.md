@@ -1,32 +1,5 @@
 # Development Log
 
-## Session 15: Document Detail Page & Link Management (2025-09-26)
-
-This session focused on building the document detail page, implementing the full lifecycle for creating and editing share links, and adding several UI/UX enhancements.
-
-### 1. Document Detail Page Implementation
-- **Backend**: The `DocumentSerializer` was enhanced to nest related `share_links` and aggregate all `views` associated with a document, providing a complete data payload for the detail page.
-- **Frontend**:
-  - A new route and `DocumentPage.jsx` component were created to fetch and display the document details.
-  - The UI was structured with new components: `DocumentHeader`, `LinksTable`, `VisitorsTable`, and `Stats`, initially as placeholders.
-
-### 2. Share Link Creation & Editing
-- **Secure Backend**: The `ShareLinkSerializer` was updated to securely handle password hashing. It now accepts a `password` field on create/update, hashes it, and stores it in `password_hash`, without ever exposing the hash in API responses.
-- **Frontend Form**:
-  - A slide-over panel was implemented using a new, reusable `Sheet.jsx` UI component.
-  - The `LinkSheet.jsx` component was created to house the form for creating and editing share links, including fields for name, password, and other settings.
-  - The `DocumentPage` now manages the state for opening the `LinkSheet` for both creating new links and editing existing ones.
-- **UI Components**:
-  - The placeholder `LinksTable.jsx` was replaced with a full implementation using a new, reusable `Table.jsx` component.
-  - Fixed a build failure by creating a missing `Switch.jsx` component for the form.
-
-### 3. UI/UX Enhancements
-- **Action Header**: The `DocumentHeader` was updated to include primary action buttons ("Create Link"), secondary icon buttons ("Preview", "Upload New Version"), and a dropdown menu for less frequent actions ("Download", "Delete").
-- **Tooltips**: Added tooltips to the icon buttons for better usability, which involved creating a reusable `Tooltip.jsx` component based on Radix UI. This resolved an earlier build failure caused by a missing component.
-- **Copy-to-Clipboard**: Implemented a "Link" column in the `LinksTable` with a user-friendly copy-to-clipboard feature that shows a "Copy" message on hover.
-
----
-
 This document tracks the key architectural decisions and implementation steps made during the initial setup of the Coneshare backend.
 
 ## Session 1: Core Model & API Setup (2025-09-15)
@@ -394,6 +367,7 @@ This session focused on implementing key user-facing features, hardening the fro
 - **React Router Upgrade Warnings**: Addressed future flag warnings from `react-router-dom` by enabling the recommended flags in `main.jsx`.
 - **Styling Cleanup**: Removed unnecessary CSS classes from an error message element in `RenameItemDialog.jsx` for cleaner code.
 
+---
 
 ## Session 14: Testing & Component Refinements (2025-09-25)
 
@@ -416,3 +390,60 @@ This session focused on implementing key user-facing features, hardening the fro
 - Documented recent fixes for checkbox interactions and test infrastructure
 - Updated session history with component refinement details
 - Maintained chronological record of UI/UX improvements
+
+---
+
+## Session 15: Document Detail Page & Link Management (2025-09-26)
+
+This session focused on building the document detail page, implementing the full lifecycle for creating and editing share links, and adding several UI/UX enhancements. [https://github.com/coneshare/coneshare/pull/13](https://github.com/coneshare/coneshare/pull/13)
+
+### 1. Document Detail Page Implementation
+- **Backend**: The `DocumentSerializer` was enhanced to nest related `share_links` and aggregate all `views` associated with a document, providing a complete data payload for the detail page.
+- **Frontend**:
+  - A new route and `DocumentPage.jsx` component were created to fetch and display the document details.
+  - The UI was structured with new components: `DocumentHeader`, `LinksTable`, `VisitorsTable`, and `Stats`, initially as placeholders.
+
+### 2. Share Link Creation & Editing
+- **Secure Backend**: The `ShareLinkSerializer` was updated to securely handle password hashing. It now accepts a `password` field on create/update, hashes it, and stores it in `password_hash`, without ever exposing the hash in API responses.
+- **Frontend Form**:
+  - A slide-over panel was implemented using a new, reusable `Sheet.jsx` UI component.
+  - The `LinkSheet.jsx` component was created to house the form for creating and editing share links, including fields for name, password, and other settings.
+  - The `DocumentPage` now manages the state for opening the `LinkSheet` for both creating new links and editing existing ones.
+- **UI Components**:
+  - The placeholder `LinksTable.jsx` was replaced with a full implementation using a new, reusable `Table.jsx` component.
+  - Fixed a build failure by creating a missing `Switch.jsx` component for the form.
+
+### 3. UI/UX Enhancements
+- **Action Header**: The `DocumentHeader` was updated to include primary action buttons ("Create Link"), secondary icon buttons ("Preview", "Upload New Version"), and a dropdown menu for less frequent actions ("Download", "Delete").
+- **Tooltips**: Added tooltips to the icon buttons for better usability, which involved creating a reusable `Tooltip.jsx` component based on Radix UI. This resolved an earlier build failure caused by a missing component.
+- **Copy-to-Clipboard**: Implemented a "Link" column in the `LinksTable` with a user-friendly copy-to-clipboard feature that shows a "Copy" message on hover.
+
+---
+
+## Session 16: Internal Document Preview & Security Hardening (2025-09-27)
+
+This session focused on implementing the end-to-end internal document preview feature, addressing security vulnerabilities in the API, and improving the robustness of both the frontend and backend. [https://github.com/coneshare/coneshare/pull/14](https://github.com/coneshare/coneshare/pull/14)
+
+### 1. Internal Document Preview Implementation
+- **End-to-End Feature**:
+  - **Frontend**: Created `DocumentPreviewModal` and `PreviewViewer` components to fetch and render document pages in a dialog.
+  - **API Integration**: Added a `getDocumentPreviewData` service function and integrated the modal into the `DocumentPage`, triggered by a "Preview" button in the `DocumentHeader`.
+  - **Development Server Fix**: Configured the Vite dev server to proxy `/media` requests to the Django backend, resolving an issue where preview images were not loading in the local development environment.
+
+### 2. API Security & Robustness
+- **Ownership Enforcement for Preview**:
+  - Identified and fixed a critical security vulnerability in the `DocumentPreviewDataView`. The view was updated to ensure that only the user who created a document can access its preview data.
+  - Added a backend unit test to confirm that a user cannot access another user's document preview.
+- **Ownership Enforcement for Versioning**:
+  - Secured the `DocumentVersionUploadView` to prevent a user from uploading a new version to another user's document.
+  - Updated the corresponding test case to assert that this action is correctly denied.
+- **Absolute URL Generation**:
+  - Fixed a bug where the preview API was returning relative URLs for page images, making them unusable by the frontend.
+  - The implementation was updated to use `urllib.parse.urljoin` with the `SITE_DOMAIN` setting to reliably construct absolute URLs, accommodating both relative paths and fully-qualified URLs from storage backends. This also resolved a related test failure.
+
+### 3. Frontend Component Robustness
+- **Race Condition Fix**:
+  - Addressed a potential race condition in `DocumentPreviewModal.jsx` where a state update could be attempted on an unmounted component if the modal was closed before the data fetch completed.
+  - The `useEffect` hook was refactored to include a cleanup function, ensuring state is only updated if the component is still mounted.
+
+---
