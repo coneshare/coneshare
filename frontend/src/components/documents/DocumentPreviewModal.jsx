@@ -15,25 +15,38 @@ export function DocumentPreviewModal({ documentId, isOpen, onOpenChange }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (isOpen && documentId) {
-      const fetchPreviewData = async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-          const response = await getDocumentPreviewData(documentId);
+    if (!isOpen || !documentId) {
+      setDocumentData(null);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const fetchPreviewData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await getDocumentPreviewData(documentId);
+        if (!isCancelled) {
           setDocumentData(response.data);
-        } catch (err) {
+        }
+      } catch (err) {
+        if (!isCancelled) {
           setError('Failed to load document preview. Please try again.');
-          console.error(err);
-        } finally {
+        }
+        console.error(err);
+      } finally {
+        if (!isCancelled) {
           setIsLoading(false);
         }
-      };
-      fetchPreviewData();
-    } else {
-      // Reset state when modal is closed
-      setDocumentData(null);
-    }
+      }
+    };
+
+    fetchPreviewData();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [isOpen, documentId]);
 
   return (
