@@ -1,6 +1,7 @@
-import { Pencil } from 'lucide-react';
+import { Eye, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { generateShareLinkPreview } from '../../services/api';
 import { Button } from '../ui/Button';
 import {
   Table,
@@ -46,6 +47,15 @@ function CopyableLink({ slug }) {
 }
 
 export function LinksTable({ links, onEditLink }) {
+  const handlePreview = async (linkId, slug) => {
+    try {
+      const { previewToken } = await generateShareLinkPreview(linkId);
+      window.open(`/view/${slug}?previewToken=${previewToken}`, '_blank');
+    } catch (error) {
+      toast.error('Could not generate preview link. Please try again.');
+    }
+  };
+
   if (!links || links.length === 0) {
     return (
       <div>
@@ -86,6 +96,21 @@ export function LinksTable({ links, onEditLink }) {
                 <TableCell>{link.has_password ? 'Yes' : 'No'}</TableCell>
                 <TableCell className="text-right">
                   <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handlePreview(link.id, link.slug)}
+                        >
+                          <Eye className="h-4 w-4" />
+                          <span className="sr-only">Preview Link</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Preview Link</p>
+                      </TooltipContent>
+                    </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="ghost" size="icon" onClick={() => onEditLink(link)}>
