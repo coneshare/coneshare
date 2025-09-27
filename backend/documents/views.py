@@ -449,8 +449,7 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
         # Clean up any old, expired sessions for this link to prevent clutter
         share_link.preview_sessions.filter(expires_at__lt=timezone.now()).delete()
 
-        session = self.queryset.model.preview_sessions.model.objects.create(
-            share_link=share_link,
+        session = share_link.preview_sessions.create(
             user=request.user,
             token=secrets.token_urlsafe(32),
             expires_at=timezone.now() + timedelta(minutes=5)
