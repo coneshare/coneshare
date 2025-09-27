@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework import status
 
 from core.models import Organization
-from documents.models import Document, Folder, ShareLink, DocumentVersion, DocumentPage
+from documents.models import Document, Folder, ShareLink, DocumentVersion, DocumentPage, PreviewSession
 
 User = get_user_model()
 
@@ -634,3 +634,43 @@ class TestDocumentVersionUploadView:
             format='multipart'
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+class TestShareLinkPreview:
+    """Tests for the Share Link Preview functionality."""
+
+    def test_create_preview_session_for_share_link(self, api_client, share_link):
+        """
+        Verify that a preview session can be created for a share link.
+        """
+        url = f'/api/v1/share-links/{share_link.id}/preview/'
+        response = api_client.post(url)
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert 'previewToken' in response.data
+        assert PreviewSession.objects.filter(share_link=share_link).exists()
+
+    def test_preview_token_bypasses_share_link_security(self, api_client, share_link_with_password, public_client):
+        """
+        Verify that a valid preview token bypasses share link security (e.g., password)
+        and is single-use.
+        """
+        # 1. Create a preview session as the owner
+        url_create = f'/api/v1/share-links/{share_link_with_password.id}/preview/'
+        response_create = api_client.post(url_create)
+        assert response_create.status_code == status.HTTP_201_CREATED
+        token = response_create.data['previewToken']
+        assert PreviewSession.objects.count() == 1
+
+        # 2. Use the token to view the data - should succeed and consume the token
+        url_view = f'/api/v1/links/{share_link_with_password.slug}/view-data/?previewToken={token}'
+        response_view = public_client.get(url_view)
+
+        assert response_view.status_code == status.HTTP_200_OK
+        assert response_view.data['id'] == str(share_link_with_password.document.id)
+        assert PreviewSession.objects.count() == 0  # Token should be deleted
+
+        # 3. Try to use the token again - should fail (revert to password protection)
+        response_view_2 = public_client.get(url_view)
+        assert response_view_2.status_code == status.HTTP_401_UNAUTHORIZED
