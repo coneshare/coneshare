@@ -572,10 +572,10 @@ class TestDocumentVersionUploadView:
         mock_task_delay.assert_called_once_with(new_version.id)
 
     @patch('documents.services.generate_pdf_pages_task.delay')
-    def test_upload_version_for_other_user_doc_same_org(self, mock_task_delay, api_client, user2, organization):
-        """Test a user can upload a version to another user's doc in the same org."""
+    def test_upload_version_for_other_user_doc_permission_denied(self, mock_task_delay, api_client, user2):
+        """Test a user cannot upload a new version to another user's document."""
         doc_by_user2 = Document.objects.create(
-            organization=organization,
+            organization=user2.organization,
             created_by=user2,
             name="user2_doc.pdf",
             status='ready'
@@ -584,16 +584,17 @@ class TestDocumentVersionUploadView:
 
         dummy_file = SimpleUploadedFile("v2.pdf", b"new_content", "application/pdf")
 
+        # api_client (logged in as user) tries to upload a new version
         response = api_client.post(
             f'/api/v1/documents/{doc_by_user2.id}/versions/',
             {'file': dummy_file},
             format='multipart'
         )
 
-        assert response.status_code == status.HTTP_202_ACCEPTED
+        assert response.status_code == status.HTTP_404_NOT_FOUND
         doc_by_user2.refresh_from_db()
-        assert doc_by_user2.versions.count() == 2
-        mock_task_delay.assert_called_once()
+        assert doc_by_user2.versions.count() == 1
+        mock_task_delay.assert_not_called()
 
     def test_upload_version_for_other_org_doc(self, api_client):
         """Test uploading a version for a document in another organization."""

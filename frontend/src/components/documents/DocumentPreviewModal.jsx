@@ -41,7 +41,7 @@ export function DocumentPreviewModal({ documentId, isOpen, onOpenChange }) {
       <DialogContent className="h-[90vh] max-w-4xl">
         <DialogHeader>
           <DialogTitle>
-            {documentData ? documentData.documentName : 'Document Preview'}
+            {documentData ? documentData.name : 'Document Preview'}
           </DialogTitle>
         </DialogHeader>
         <div className="h-[calc(90vh-80px)] py-4">

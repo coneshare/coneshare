@@ -1,6 +1,7 @@
 import logging
 import os
 from pathlib import Path
+from urllib.parse import urljoin
 
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -257,7 +258,8 @@ class DocumentPreviewDataView(APIView):
         try:
             document = Document.objects.get(
                 id=document_id,
-                organization=request.user.organization
+                organization=request.user.organization,
+                created_by=request.user
             )
         except Document.DoesNotExist:
             return Response(
@@ -293,7 +295,7 @@ class DocumentPreviewDataView(APIView):
                 page_url = default_storage.url(page.storage_key)
                 pages_data.append({
                     "page_number": page.page_number,
-                    "url": f"{settings.SITE_DOMAIN}{page_url}",
+                    "url": urljoin(settings.SITE_DOMAIN, page_url),
                     "metadata": page.metadata,
                 })
 
@@ -502,7 +504,7 @@ class ShareLinkViewDataView(APIView):
                 page_url = default_storage.url(page.storage_key)
                 pages_data.append({
                     "page_number": page.page_number,
-                    "url": f"{settings.SITE_DOMAIN}{page_url}",
+                    "url": urljoin(settings.SITE_DOMAIN, page_url),
                     "metadata": page.metadata,
                 })
 

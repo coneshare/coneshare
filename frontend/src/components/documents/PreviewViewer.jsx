@@ -4,7 +4,7 @@ export function PreviewViewer({ documentData }) {
       {documentData.pages.map((page) => (
         <img
           key={page.page_number}
-          src={page.file}
+          src={page.url}
           alt={`Page ${page.page_number}`}
           className="mx-auto max-w-full rounded-md shadow-md"
         />
