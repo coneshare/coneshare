@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { createShareLink, updateShareLink } from '../../services/api';
+import {
+  createShareLink,
+  updateShareLink,
+  generateShareLinkPreview,
+} from '../../services/api';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
@@ -25,6 +29,7 @@ export function LinkSheet({
   const [password, setPassword] = useState('');
   const [allowDownload, setAllowDownload] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
 
   const isEditing = !!currentLink;
 
@@ -42,9 +47,12 @@ export function LinkSheet({
     }
   }, [currentLink, isEditing, isOpen]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e, preview = false) => {
     e.preventDefault();
     setIsSaving(true);
+    if (preview) {
+      setIsPreviewing(true);
+    }
 
     const linkData = {
       document: documentId,
@@ -56,13 +64,20 @@ export function LinkSheet({
     }
 
     try {
+      let savedLink;
       if (isEditing) {
-        await updateShareLink(currentLink.id, linkData);
+        savedLink = await updateShareLink(currentLink.id, linkData);
         toast.success('Link updated successfully.');
       } else {
-        await createShareLink(linkData);
+        savedLink = await createShareLink(linkData);
         toast.success('Link created successfully.');
       }
+
+      if (preview) {
+        const { previewToken } = await generateShareLinkPreview(savedLink.id);
+        window.open(`/view/${savedLink.slug}?previewToken=${previewToken}`, '_blank');
+      }
+
       onSuccess(); // Trigger data refresh
       onOpenChange(false); // Close the sheet
     } catch (error) {
@@ -70,6 +85,7 @@ export function LinkSheet({
       // but you could add more specific handling here if needed.
     } finally {
       setIsSaving(false);
+      setIsPreviewing(false);
     }
   };
 
@@ -116,6 +132,14 @@ export function LinkSheet({
             />
           </div>
           <SheetFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={(e) => handleSubmit(e, true)}
+              disabled={isSaving}
+            >
+              {isPreviewing ? 'Generating...' : 'Save & Preview'}
+            </Button>
             <Button type="submit" disabled={isSaving}>
               {isSaving ? 'Saving...' : 'Save Changes'}
             </Button>
