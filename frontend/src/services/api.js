@@ -124,6 +124,8 @@ export const createShareLink = (data) => api.post('/share-links/', data);
 
 export const updateShareLink = (id, data) => api.patch(`/share-links/${id}/`, data);
 
+export const generateShareLinkPreview = (id) => api.post(`/share-links/${id}/preview/`);
+
 export const getUser = (id) => api.get(`/users/${id}/`);
 
 export const setPassword = (data) => api.post('/users/set-password/', data);
