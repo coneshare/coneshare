@@ -3,7 +3,6 @@ import { toast } from 'sonner';
 import {
   createShareLink,
   updateShareLink,
-  generateShareLinkPreview,
 } from '../../services/api';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -29,7 +28,6 @@ export function LinkSheet({
   const [password, setPassword] = useState('');
   const [allowDownload, setAllowDownload] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isPreviewing, setIsPreviewing] = useState(false);
 
   const isEditing = !!currentLink;
 
@@ -47,12 +45,9 @@ export function LinkSheet({
     }
   }, [currentLink, isEditing, isOpen]);
 
-  const handleSubmit = async (e, preview = false) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
-    if (preview) {
-      setIsPreviewing(true);
-    }
 
     const linkData = {
       document: documentId,
@@ -64,18 +59,12 @@ export function LinkSheet({
     }
 
     try {
-      let savedLink;
       if (isEditing) {
-        savedLink = await updateShareLink(currentLink.id, linkData);
+        await updateShareLink(currentLink.id, linkData);
         toast.success('Link updated successfully.');
       } else {
-        savedLink = await createShareLink(linkData);
+        await createShareLink(linkData);
         toast.success('Link created successfully.');
-      }
-
-      if (preview) {
-        const { data: { previewToken } } = await generateShareLinkPreview(savedLink.id);
-        window.open(`/view/${savedLink.slug}?previewToken=${previewToken}`, '_blank');
       }
 
       onSuccess(); // Trigger data refresh
@@ -85,7 +74,6 @@ export function LinkSheet({
       // but you could add more specific handling here if needed.
     } finally {
       setIsSaving(false);
-      setIsPreviewing(false);
     }
   };
 
@@ -132,14 +120,6 @@ export function LinkSheet({
             />
           </div>
           <SheetFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={(e) => handleSubmit(e, true)}
-              disabled={isSaving}
-            >
-              {isPreviewing ? 'Generating...' : 'Save & Preview'}
-            </Button>
             <Button type="submit" disabled={isSaving}>
               {isSaving ? 'Saving...' : 'Save Changes'}
             </Button>
