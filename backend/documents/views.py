@@ -2,6 +2,7 @@ import logging
 import os
 from pathlib import Path
 
+from django.conf import settings
 from django.core.files.storage import default_storage
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -211,7 +212,8 @@ class DocumentVersionUploadView(APIView):
         try:
             document = Document.objects.get(
                 id=document_id,
-                organization=request.user.organization
+                organization=request.user.organization,
+                created_by=request.user
             )
         except Document.DoesNotExist:
             return Response(
@@ -291,7 +293,7 @@ class DocumentPreviewDataView(APIView):
                 page_url = default_storage.url(page.storage_key)
                 pages_data.append({
                     "page_number": page.page_number,
-                    "url": request.build_absolute_uri(page_url),
+                    "url": f"{settings.SITE_DOMAIN}{page_url}",
                     "metadata": page.metadata,
                 })
 
@@ -500,7 +502,7 @@ class ShareLinkViewDataView(APIView):
                 page_url = default_storage.url(page.storage_key)
                 pages_data.append({
                     "page_number": page.page_number,
-                    "url": request.build_absolute_uri(page_url),
+                    "url": f"{settings.SITE_DOMAIN}{page_url}",
                     "metadata": page.metadata,
                 })
 
