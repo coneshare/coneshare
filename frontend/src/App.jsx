@@ -7,6 +7,7 @@ import DocumentsPage from './pages/DocumentsPage'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import PasswordSettingsPage from './pages/PasswordSettingsPage'
+import { ShareLinkViewerPage } from './pages/ShareLinkViewerPage'
 import UserSettingsPage from './pages/UserSettingsPage'
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
       <Toaster richColors />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/view/:slug" element={<ShareLinkViewerPage />} />
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/documents" element={<DocumentsPage />} />
