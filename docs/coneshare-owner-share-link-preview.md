@@ -47,22 +47,23 @@ The process begins when a user is creating or editing a share link within the `L
 
 After saving the link, the frontend calls a new, dedicated API endpoint to get a preview token.
 
--   **New Model**: A `PreviewSession` model will be created to store the temporary tokens.
+-   **New Model**: A `PreviewSession` model will be created to store the temporary tokens. It inherits from `BaseModel` to get ULID `id` and timestamp fields.
     ```python
     # coneshare/documents/models.py
-    class PreviewSession(models.Model):
-        id = models.ULIDField(primary_key=True, default=generate_ulid)
+    class PreviewSession(BaseModel):
         token = models.CharField(max_length=64, unique=True, db_index=True)
-        share_link = models.ForeignKey('ShareLink', on_delete=models.CASCADE)
+        share_link = models.ForeignKey('ShareLink', on_delete=models.CASCADE, related_name='preview_sessions')
         user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-        created_at = models.DateTimeField(auto_now_add=True)
         expires_at = models.DateTimeField()
+
+        def is_expired(self):
+            return self.expires_at < timezone.now()
     ```
 
--   **New Endpoint**: `POST /api/links/{id}/preview/`
--   **New View**: A new `APIView` in `coneshare/documents/views.py` will handle token creation.
-    -   **Authentication**: It will use `permission_classes = [IsAuthenticated]` to ensure only a logged-in user can generate a token.
-    -   **Logic**: It will create a `PreviewSession` record with a secure random token, a short expiry (e.g., 5 minutes), and a link to the user and `ShareLink`. It will then return the token.
+-   **New Endpoint**: `POST /api/v1/share-links/{id}/preview/`
+-   **View Logic**: A custom `@action` named `create_preview_session` is added to the `ShareLinkViewSet` in `coneshare/documents/views.py`.
+    -   **Authentication**: It uses the `ShareLinkViewSet`'s existing permissions to ensure only the link's owner can generate a token.
+    -   **Logic**: It creates a `PreviewSession` record with a secure random token, a short expiry (e.g., 5 minutes), and a link to the user and `ShareLink`. It then returns the token.
 
 ### Step 3: Redirecting to the Public Viewer
 
