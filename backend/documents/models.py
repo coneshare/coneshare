@@ -1,5 +1,8 @@
 import secrets
+
+from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from core.fields import ULIDField
 from core.models import BaseModel, Organization, User
@@ -154,3 +157,17 @@ class View(models.Model):
 
     def __str__(self):
         return f"View {self.id} on {self.share_link}"
+
+
+class PreviewSession(BaseModel):
+    """
+    A temporary, single-use session for a user to preview a share link,
+    bypassing its security settings.
+    """
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    share_link = models.ForeignKey('ShareLink', on_delete=models.CASCADE, related_name='preview_sessions')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    expires_at = models.DateTimeField()
+
+    def is_expired(self):
+        return self.expires_at < timezone.now()
