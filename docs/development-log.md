@@ -447,3 +447,31 @@ This session focused on implementing the end-to-end internal document preview fe
   - The `useEffect` hook was refactored to include a cleanup function, ensuring state is only updated if the component is still mounted.
 
 ---
+
+## Session 17: Share Link Preview & Public Viewer (2025-09-27)
+
+This session focused on implementing the end-to-end "Owner's Share Link Preview" feature, which allows a document owner to view a share link as an external user, bypassing all security settings. This involved creating a public-facing viewer page and the secure token-based mechanism to enable the preview.
+
+### 1. Share Link Preview Mechanism
+- **Backend Token System**:
+  - A new `PreviewSession` model was added to store temporary, single-use preview tokens.
+  - A dedicated endpoint `POST /api/v1/share-links/{id}/preview/` was created to generate a short-lived token for the link owner.
+  - The public data view (`ShareLinkViewDataView`) was enhanced to recognize a `previewToken` query parameter. If valid, it bypasses security checks (like passwords) and deletes the token to ensure it's single-use.
+- **Frontend Integration**:
+  - A "Preview" icon button was added to the `LinksTable` component, allowing owners to generate and open a preview in a new tab.
+  - A "Save & Preview" button was added to the `LinkSheet` component for a streamlined workflow when creating or editing links.
+  - A `generateShareLinkPreview` function was added to the `api.js` service to communicate with the new backend endpoint.
+
+### 2. Public Document Viewer Page
+- **Frontend Implementation**:
+  - A new public page component, `ShareLinkViewerPage.jsx`, was created to render documents for external users.
+  - A corresponding API service function, `getShareLinkViewData`, was added to fetch the necessary document data using the link's slug and an optional preview token.
+  - A new route, `/view/:slug`, was added to `App.jsx` to make the viewer page accessible.
+- **UI Polish**: A company logo and name were added to the top-left corner of the public viewer page to maintain brand presence.
+
+### 3. Testing & Hardening
+- **Backend Unit Tests**: Added unit tests for the share link preview feature, verifying successful token generation, security bypass, and the single-use nature of the token.
+- **Bug Fixes**:
+  - Resolved a CSRF `Forbidden (Origin checking failed)` error by adding the frontend development server to Django's `CSRF_TRUSTED_ORIGINS`.
+  - Fixed a bug where the preview token was `undefined` in the frontend by correctly destructuring the token from the API response object.
+  - Corrected a Django `AttributeError` by using the proper related manager (`share_link.preview_sessions.create`) to create the `PreviewSession` instance.
