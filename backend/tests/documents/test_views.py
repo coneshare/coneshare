@@ -4,6 +4,7 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from django.utils import timezone
 from rest_framework import status
 
@@ -343,11 +344,12 @@ def test_upload_document_with_path(api_client, user):
 
 
 @pytest.mark.django_db
+@override_settings(SITE_DOMAIN="http://test.coneshare.com")
 @patch('django.core.files.storage.default_storage.url')
 def test_get_document_preview_data_success(mock_storage_url, api_client, user):
     """Test successfully retrieving document preview data."""
     # Setup
-    mock_storage_url.return_value = "http://test.com/page.png"
+    mock_storage_url.return_value = "/media/pages/page.png"
     doc = Document.objects.create(
         organization=user.organization,
         created_by=user,
@@ -359,13 +361,10 @@ def test_get_document_preview_data_success(mock_storage_url, api_client, user):
         version_number=1,
         is_primary=True,
         has_pages=True,
-        num_pages=2
+        num_pages=1
     )
     DocumentPage.objects.create(
         document_version=version, page_number=1, storage_key="pages/1.png"
-    )
-    DocumentPage.objects.create(
-        document_version=version, page_number=2, storage_key="pages/2.png"
     )
 
     # Action
@@ -376,11 +375,27 @@ def test_get_document_preview_data_success(mock_storage_url, api_client, user):
     data = response.json()
     assert data['id'] == str(doc.id)
     assert data['name'] == "preview.pdf"
-    assert data['numPages'] == 2
-    assert len(data['pages']) == 2
+    assert data['numPages'] == 1
+    assert len(data['pages']) == 1
     assert data['pages'][0]['page_number'] == 1
-    assert data['pages'][0]['url'] == "http://test.com/page.png"
-    assert mock_storage_url.call_count == 2
+    assert data['pages'][0]['url'] == "http://test.coneshare.com/media/pages/page.png"
+    assert mock_storage_url.call_count == 1
+
+
+@pytest.mark.django_db
+def test_get_document_preview_data_permission_denied_for_other_user(api_client, user2):
+    """Test a user cannot access preview data for a document they don't own."""
+    # user2 creates a document
+    doc_by_user2 = Document.objects.create(
+        organization=user2.organization,
+        created_by=user2,
+        name="user2_doc.pdf",
+        status='ready'
+    )
+    
+    # api_client (logged in as user) tries to access it
+    response = api_client.get(f'/api/v1/documents/{doc_by_user2.id}/preview-data/')
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
@@ -557,10 +572,10 @@ class TestDocumentVersionUploadView:
         mock_task_delay.assert_called_once_with(new_version.id)
 
     @patch('documents.services.generate_pdf_pages_task.delay')
-    def test_upload_version_for_other_user_doc_same_org(self, mock_task_delay, api_client, user2, organization):
-        """Test a user can upload a version to another user's doc in the same org."""
+    def test_upload_version_for_other_user_doc_permission_denied(self, mock_task_delay, api_client, user2):
+        """Test a user cannot upload a new version to another user's document."""
         doc_by_user2 = Document.objects.create(
-            organization=organization,
+            organization=user2.organization,
             created_by=user2,
             name="user2_doc.pdf",
             status='ready'
@@ -569,16 +584,17 @@ class TestDocumentVersionUploadView:
 
         dummy_file = SimpleUploadedFile("v2.pdf", b"new_content", "application/pdf")
 
+        # api_client (logged in as user) tries to upload a new version
         response = api_client.post(
             f'/api/v1/documents/{doc_by_user2.id}/versions/',
             {'file': dummy_file},
             format='multipart'
         )
 
-        assert response.status_code == status.HTTP_202_ACCEPTED
+        assert response.status_code == status.HTTP_404_NOT_FOUND
         doc_by_user2.refresh_from_db()
-        assert doc_by_user2.versions.count() == 2
-        mock_task_delay.assert_called_once()
+        assert doc_by_user2.versions.count() == 1
+        mock_task_delay.assert_not_called()
 
     def test_upload_version_for_other_org_doc(self, api_client):
         """Test uploading a version for a document in another organization."""

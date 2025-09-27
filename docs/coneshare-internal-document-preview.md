@@ -1,44 +1,132 @@
 # Coneshare Internal Document Preview Logic
 
-This document details the backend logic for Coneshare's internal document preview, implemented in Python using the Django REST Framework. This feature allows a logged-in user to view a document directly within the application without creating a public share link.
+This document details the end-to-end logic for Coneshare's internal document preview feature. This functionality allows a logged-in user to view a document directly within the app, without generating a public share link.
 
-The architecture is based on a dedicated API endpoint that provides the frontend with all the necessary data and secure URLs to render the document pages.
-
-The core of this logic resides in an API endpoint defined in `coneshare/documents/urls.py`: `GET /api/documents/{document_id}/preview-data/`.
+The flow involves a React frontend component that triggers a modal, which in turn calls a dedicated Django REST API to securely fetch the document's content for rendering.
 
 ---
 
-## The API Flow in 4 Steps
+## System Diagram
 
-1.  **Authentication & Authorization**: Verify the user is logged in and is a member of the organization that owns the document.
-2.  **Data Fetching**: Retrieve the document, its primary version, and all associated page data from the PostgreSQL database using Django's ORM.
-3.  **Content Processing**: Generate secure, short-lived, pre-signed URLs for the page images stored in MinIO (or the configured storage backend).
-4.  **Response Shaping**: Return a structured JSON object containing the document metadata and the secure URLs for the frontend to render.
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend as React Frontend
+    participant DataHook as Data Fetching Hook
+    participant API as Django REST API
+    participant DB as PostgreSQL
+    participant Storage as MinIO
+
+    User->>Frontend: Clicks 'Preview' button
+    Frontend->>Frontend: Opens DocumentPreviewModal
+    Frontend->>DataHook: useDocumentPreview(docId)
+    DataHook->>API: GET /api/documents/{id}/preview-data/
+    API->>DB: Verify user & organization
+    API->>DB: Fetch document & pages
+    DB-->>API: Returns document data
+    API->>Storage: Generate pre-signed URLs for pages
+    Storage-->>API: Pre-signed URLs
+    API-->>DataHook: Returns JSON with signed URLs
+    DataHook->>Frontend: Updates data state (loading -> success)
+    Frontend->>User: Renders document pages in modal
+```
 
 ---
 
-### Implementation with Django REST Framework
+## Frontend Flow (Implementation Plan)
 
-The logic is implemented as a class-based view using Django REST Framework's `APIView` for clear, structured code.
+The user initiates the preview from the document management page. The flow is managed by two key React components, mirroring the structure in `papermark-internal-document-preview.md`.
 
-**File**: `coneshare/documents/views.py`
+### 1. Initiation (`DocumentPreviewButton.jsx`)
+
+-   **File**: `src/components/documents/DocumentPreviewButton.jsx`
+-   A user clicks the `<DocumentPreviewButton />` on the document page.
+-   The button first checks if the document type supports previewing.
+-   On click, it sets a state variable that triggers the opening of the `<DocumentPreviewModal />`.
+
+```jsx
+// File: src/components/documents/DocumentPreviewButton.jsx
+
+export function DocumentPreviewButton({ documentId, ... }) {
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const handlePreviewClick = (e) => {
+    // ...
+    setIsPreviewOpen(true); // Opens the modal
+  };
+
+  return (
+    <>
+      <Button onClick={handlePreviewClick}> ... </Button>
+      <DocumentPreviewModal
+        documentId={documentId}
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+      />
+    </>
+  );
+}
+```
+
+### 2. Data Fetching & Rendering (`DocumentPreviewModal.jsx`)
+
+-   **File**: `src/components/documents/DocumentPreviewModal.jsx`
+-   When the modal opens, it uses a data fetching hook (e.g., SWR or React Query) to get the necessary data from the backend.
+-   The hook makes a request to the `/api/documents/{document_id}/preview-data/` endpoint.
+-   While data is being fetched, it displays a loading spinner.
+-   Once the data is successfully fetched, it is passed to a `<PreviewViewer />` component, which renders the document pages.
+
+```jsx
+// File: src/components/documents/DocumentPreviewModal.jsx
+
+export function DocumentPreviewModal({ documentId, isOpen, ... }) {
+  const {
+    data: documentData,
+    isLoading,
+    error,
+  } = useDocumentPreview(documentId, isOpen); // Example custom hook
+
+  // ...
+
+  return (
+    <Dialog open={isOpen}>
+      <DialogContent>
+        {/* ... */}
+        {isLoading && <LoadingSpinner />}
+        {error && <p>Failed to load document preview</p>}
+        {documentData && <PreviewViewer documentData={documentData} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
+```
+
+---
+
+## Backend Flow (Django)
+
+The core of the backend logic resides in a single API endpoint that serves the data needed for the preview modal.
+
+-   **Endpoint**: `GET /api/documents/{document_id}/preview-data/`
+-   **File**: `coneshare/documents/views.py`
+
+The flow can be broken down into 4 steps:
+
+### Step 1: Authentication and Authorization
+
+The API first ensures that the request is made by an authenticated user who is part of the organization that owns the document.
 
 ```python
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+# coneshare/documents/views.py
 
-from .models import Document, DocumentVersion
-from .services import generate_presigned_url # A helper for storage
+from rest_framework.permissions import IsAuthenticated
 
 class DocumentPreviewDataView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, document_id, *args, **kwargs):
-        # Step 1: Authentication & Authorization.
-        # The IsAuthenticated permission class ensures a valid user session.
-        # We then filter by the user's organization for security.
+        # The IsAuthenticated permission class handles session checks.
+        # We then filter by the user's organization for data isolation.
         try:
             document = Document.objects.get(
                 id=document_id,
@@ -49,88 +137,43 @@ class DocumentPreviewDataView(APIView):
                 {"message": "Access denied or document not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
-
-        # Step 2: Data Fetching using Django's ORM.
-        primary_version = document.versions.filter(is_primary=True).first()
-        if not primary_version:
-            return Response(
-                {"message": "Document version not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        # Handle documents that are still processing.
-        if document.status == 'processing':
-            return Response(
-                {"message": "Document is still processing. Please wait and try again."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Step 3 & 4: Content Processing and Response Shaping.
-        pages_data = []
-        if primary_version.has_pages:
-            # Loop through pages and generate secure URLs.
-            pages = primary_version.pages.order_by('page_number')
-            for page in pages:
-                page_url = generate_presigned_url(page.storage_key)
-                pages_data.append({
-                    "page_number": page.page_number,
-                    "file": page_url,
-                    "metadata": page.metadata,
-                })
-        
-        # Prepare the final JSON response.
-        response_data = {
-            "documentId": document.id,
-            "documentName": document.name,
-            "documentType": document.type,
-            "numPages": primary_version.num_pages,
-            "pages": pages_data,
-        }
-
-        return Response(response_data, status=status.HTTP_200_OK)
-
+        # ...
 ```
 
-### Generating Pre-signed URLs
+### Step 2 & 3: Data Fetching and Content Processing
 
-A helper service function is required to generate secure, temporary URLs for files in storage. This prevents direct, unauthorized access to storage buckets.
-
-**File**: `coneshare/documents/services.py`
+The API then fetches the primary version of the document and its pages. A key step is calling a service function to generate a secure, pre-signed URL for each page image stored in MinIO.
 
 ```python
-import boto3
-from botocore.client import Config
-from django.conf import settings
+# coneshare/documents/views.py
 
-def generate_presigned_url(storage_key):
-    """
-    Generates a pre-signed URL for a file in MinIO/S3 using credentials
-    from the project's settings.py file.
-    """
-    s3_client = boto3.client(
-        's3',
-        endpoint_url=settings.MINIO_ENDPOINT,
-        aws_access_key_id=settings.MINIO_ACCESS_KEY,
-        aws_secret_access_key=settings.MINIO_SECRET_KEY,
-        config=Config(signature_version='s3v4')
-    )
+# ... (inside DocumentPreviewDataView.get)
+primary_version = document.versions.filter(is_primary=True).first()
+if not primary_version:
+    # ... return 404
 
-    try:
-        url = s3_client.generate_presigned_url(
-            'get_object',
-            Params={'Bucket': settings.MINIO_BUCKET_NAME, 'Key': storage_key},
-            ExpiresIn=3600  # URL expires in 1 hour
-        )
-        return url
-    except Exception as e:
-        # It's good practice to log the error.
-        print(f"Error generating pre-signed URL: {e}")
-        return None
+# Handle documents that are still processing.
+if document.status == 'processing':
+    # ... return 400
+
+# Generate pre-signed URLs for pages
+pages_data = []
+if primary_version.has_pages:
+    pages = primary_version.pages.order_by('page_number')
+    for page in pages:
+        page_url = generate_presigned_url(page.storage_key) # Service function
+        pages_data.append({
+            "page_number": page.page_number,
+            "file": page_url,
+            "metadata": page.metadata,
+        })
 ```
 
-### Example Successful Response
+### Step 4: Final Response
 
-A successful `GET` request to `/api/documents/doc_123abc/preview-data/` would return a JSON payload like this, which the frontend can use to render the document viewer.
+If the document is processed and the user is authorized, the API returns a `200 OK` with a JSON payload containing all the necessary data for the frontend to render the preview.
+
+**Example Successful Response:**
 
 ```json
 {

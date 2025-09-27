@@ -1,7 +1,9 @@
 import logging
 import os
 from pathlib import Path
+from urllib.parse import urljoin
 
+from django.conf import settings
 from django.core.files.storage import default_storage
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -211,7 +213,8 @@ class DocumentVersionUploadView(APIView):
         try:
             document = Document.objects.get(
                 id=document_id,
-                organization=request.user.organization
+                organization=request.user.organization,
+                created_by=request.user
             )
         except Document.DoesNotExist:
             return Response(
@@ -255,7 +258,8 @@ class DocumentPreviewDataView(APIView):
         try:
             document = Document.objects.get(
                 id=document_id,
-                organization=request.user.organization
+                organization=request.user.organization,
+                created_by=request.user
             )
         except Document.DoesNotExist:
             return Response(
@@ -288,9 +292,10 @@ class DocumentPreviewDataView(APIView):
         if primary_version.has_pages:
             pages = primary_version.pages.order_by('page_number')
             for page in pages:
+                page_url = default_storage.url(page.storage_key)
                 pages_data.append({
                     "page_number": page.page_number,
-                    "url": default_storage.url(page.storage_key),
+                    "url": urljoin(settings.SITE_DOMAIN, page_url),
                     "metadata": page.metadata,
                 })
 
@@ -496,9 +501,10 @@ class ShareLinkViewDataView(APIView):
             # Here, we mirror DocumentPreviewDataView but use the key directly for simplicity.
             pages = primary_version.pages.order_by('page_number')
             for page in pages:
+                page_url = default_storage.url(page.storage_key)
                 pages_data.append({
                     "page_number": page.page_number,
-                    "url": default_storage.url(page.storage_key),
+                    "url": urljoin(settings.SITE_DOMAIN, page_url),
                     "metadata": page.metadata,
                 })
 

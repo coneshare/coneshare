@@ -116,6 +116,8 @@ export const deleteMultipleFolders = (ids) => {
   return Promise.allSettled(promises);
 };
 
+export const getDocumentPreviewData = (id) => api.get(`/documents/${id}/preview-data/`);
+
 export const getDocumentDetails = (id) => api.get(`/documents/${id}/`);
 
 export const createShareLink = (data) => api.post('/share-links/', data);
