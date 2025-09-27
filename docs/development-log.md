@@ -450,7 +450,7 @@ This session focused on implementing the end-to-end internal document preview fe
 
 ## Session 17: Share Link Preview & Public Viewer (2025-09-27)
 
-This session focused on implementing the end-to-end "Owner's Share Link Preview" feature, which allows a document owner to view a share link as an external user, bypassing all security settings. This involved creating a public-facing viewer page and the secure token-based mechanism to enable the preview.
+This session focused on implementing the end-to-end "Owner's Share Link Preview" feature, which allows a document owner to view a share link as an external user, bypassing all security settings. This involved creating a public-facing viewer page and the secure token-based mechanism to enable the preview. [https://github.com/coneshare/coneshare/pull/15](https://github.com/coneshare/coneshare/pull/15)
 
 ### 1. Share Link Preview Mechanism
 - **Backend Token System**:

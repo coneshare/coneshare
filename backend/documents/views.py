@@ -7,6 +7,7 @@ from urllib.parse import urljoin
 
 from django.conf import settings
 from django.core.files.storage import default_storage
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
