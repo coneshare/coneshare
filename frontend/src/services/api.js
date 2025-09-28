@@ -30,7 +30,8 @@ api.interceptors.response.use(
     if (
       error.response.status === 401 &&
       !originalRequest._retry &&
-      !originalRequest.url.includes('/token')
+      !originalRequest.url.includes('/token') &&
+      !originalRequest.url.includes('/links/') // ignore 401 errors from the public link viewing endpoint
     ) {
       originalRequest._retry = true; // Mark request to avoid infinite loops
 
