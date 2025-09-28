@@ -25,9 +25,12 @@ export function LinkSheet({
   onSuccess,
 }) {
   const [name, setName] = useState('');
+  const [requiresEmailVerification, setRequiresEmailVerification] = useState(false);
+  const [receiveEmailNotification, setReceiveEmailNotification] = useState(false);
   const [password, setPassword] = useState('');
   const [isPasswordEnabled, setIsPasswordEnabled] = useState(false);
   const [allowDownload, setAllowDownload] = useState(true);
+  const [expiresAt, setExpiresAt] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   const isEditing = !!currentLink;
@@ -36,16 +39,22 @@ export function LinkSheet({
   useEffect(() => {
     if (isEditing) {
       setName(currentLink.name || '');
+      setRequiresEmailVerification(currentLink.requires_email_verification || false);
       setAllowDownload(currentLink.allow_download);
       setIsPasswordEnabled(currentLink.has_password);
       setPassword(currentLink.has_password ? DUMMY_PASSWORD : '');
+      setExpiresAt(currentLink.expires_at ? new Date(currentLink.expires_at).toISOString().split('T')[0] : '');
     } else {
       // Reset form for new link
       setName('');
+      setRequiresEmailVerification(false);
       setAllowDownload(true);
       setIsPasswordEnabled(false);
       setPassword('');
+      setExpiresAt('');
     }
+    // This is a UI-only placeholder for now
+    setReceiveEmailNotification(false);
   }, [currentLink, isEditing, isOpen]);
 
   const handleSubmit = async (e) => {
@@ -55,7 +64,9 @@ export function LinkSheet({
     const linkData = {
       document: documentId,
       name,
+      requires_email_verification: requiresEmailVerification,
       allow_download: allowDownload,
+      expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
     };
 
     if (isEditing) {
@@ -105,20 +116,50 @@ export function LinkSheet({
         </SheetHeader>
         <form onSubmit={handleSubmit} className="space-y-6 py-6">
           <div className="space-y-2">
-            <Label htmlFor="name">Name (Optional)</Label>
+            <Label htmlFor="name">Name link</Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., 'Marketing Campaign Link'"
             />
+            <p className="text-sm text-muted-foreground">
+              Organize link audiences to aggregate metrics. Leave blank to assign to a generic
+              Example Account. This field is not visible to visitors.
+            </p>
           </div>
+
+          <div className="flex items-center justify-between">
+            <Label htmlFor="require-email" className="flex flex-col space-y-1">
+              <span>Require email to view</span>
+              <span className="text-sm font-normal text-muted-foreground">
+                Viewers must enter their email address to view.
+              </span>
+            </Label>
+            <Switch
+              id="require-email"
+              checked={requiresEmailVerification}
+              onCheckedChange={setRequiresEmailVerification}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Label htmlFor="email-notification" className="flex flex-col space-y-1">
+              <span>Receive email notification</span>
+              <span className="text-sm font-normal text-muted-foreground">
+                Get notified via email when someone views your content.
+              </span>
+            </Label>
+            <Switch
+              id="email-notification"
+              checked={receiveEmailNotification}
+              onCheckedChange={setReceiveEmailNotification}
+            />
+          </div>
+
           <div className="flex items-center justify-between">
             <Label htmlFor="password-enabled" className="flex flex-col space-y-1">
-              <span>Password Protection</span>
-              <span className="text-sm font-normal text-muted-foreground">
-                Require a password to view this link.
-              </span>
+              <span>Password protection</span>
             </Label>
             <Switch
               id="password-enabled"
@@ -145,10 +186,7 @@ export function LinkSheet({
           )}
           <div className="flex items-center justify-between">
             <Label htmlFor="allow-download" className="flex flex-col space-y-1">
-              <span>Allow Download</span>
-              <span className="text-sm font-normal text-muted-foreground">
-                Allow viewers to download the original file.
-              </span>
+              <span>Allow download</span>
             </Label>
             <Switch
               id="allow-download"
@@ -156,6 +194,21 @@ export function LinkSheet({
               onCheckedChange={setAllowDownload}
             />
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="expires-at">Expiration date</Label>
+            <Input
+              id="expires-at"
+              type="date"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+              className="w-full"
+            />
+            <p className="text-sm text-muted-foreground">
+              Set a date after which the link will no longer be accessible.
+            </p>
+          </div>
+
           <SheetFooter>
             <Button type="submit" disabled={isSaving}>
               {isSaving ? 'Saving...' : 'Save Changes'}
