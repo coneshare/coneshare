@@ -505,13 +505,7 @@ This session focused on implementing the end-to-end password protection feature 
   - Added a new test suite for the `PasswordForm` component to verify its rendering, state changes, and API interactions.
   - Fixed test failures related to mocking browser APIs (`ResizeObserver`) and handling asynchronous state updates in the test environment.
 
----
-
-## Session 19: Security Hardening with API Rate Limiting (2025-09-28)
-
-This session focused on hardening the application's security by implementing rate-limiting on the public-facing password verification endpoint to mitigate the risk of brute-force attacks. [https://github.com/coneshare/coneshare/pull/17](https://github.com/coneshare/coneshare/pull/17)
-
-### 1. Brute-Force Protection for Share Links
+### 4. Brute-Force Protection for Share Links
 - **Vulnerability Identified**: The public endpoint for verifying a share link's password (`/api/v1/links/<slug>/verify-password/`) was identified as a potential target for automated guessing attacks.
 - **Solution using DRF Throttling**:
   - Instead of adding an external dependency, the decision was made to use Django REST Framework's powerful built-in throttling mechanism.
@@ -519,3 +513,5 @@ This session focused on hardening the application's security by implementing rat
   - The throttle was configured in `settings.py` to a rate of `10/min` for the `'password_verify'` scope and applied directly to the `ShareLinkVerifyPasswordView`.
 - **Testing**:
   - A new unit test was added to `tests/documents/test_views.py` to verify the rate-limiting functionality. The test confirms that after 10 failed attempts, the 11th request receives a `429 TOO_MANY_REQUESTS` response, ensuring the protection is active.
+
+---
