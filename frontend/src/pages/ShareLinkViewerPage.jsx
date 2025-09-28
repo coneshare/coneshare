@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Cone } from 'lucide-react';
 import { PasswordForm } from '../components/viewer/PasswordForm';
@@ -17,6 +17,22 @@ export function ShareLinkViewerPage() {
   const [error, setError] = useState(null);
   const [protectionType, setProtectionType] = useState(null);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const viewerRef = useRef(null);
+
+  const handleFullScreen = () => {
+    if (viewerRef.current) {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        viewerRef.current.requestFullscreen();
+      }
+    }
+  };
+
+  const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.1, 3));
+  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
 
   useEffect(() => {
     let isCancelled = false;
@@ -86,7 +102,7 @@ export function ShareLinkViewerPage() {
   }
 
   return (
-    <div className="relative h-screen w-screen bg-gray-50">
+    <div ref={viewerRef} className="relative h-screen w-screen bg-gray-50">
       <div className="absolute left-6 top-4 z-10">
         <a
           href="/"
@@ -98,8 +114,19 @@ export function ShareLinkViewerPage() {
       </div>
       {documentData && (
         <>
-          <ViewerToolbar allowDownload={documentData.linkSettings.allowDownload} />
-          <PreviewViewer documentData={documentData} />
+          <ViewerToolbar
+            allowDownload={documentData.linkSettings.allowDownload}
+            onFullScreen={handleFullScreen}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            currentPage={currentPage}
+            totalPages={documentData.numPages}
+          />
+          <PreviewViewer
+            documentData={documentData}
+            zoomLevel={zoomLevel}
+            onPageChange={setCurrentPage}
+          />
         </>
       )}
     </div>
