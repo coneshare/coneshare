@@ -135,6 +135,9 @@ export const getShareLinkViewData = (slug, previewToken = null) => {
   return api.get(`/links/${slug}/view-data/`, { params });
 };
 
+export const verifyShareLinkPassword = (slug, password) =>
+  api.post(`/links/${slug}/verify-password/`, { password });
+
 export const getUser = (id) => api.get(`/users/${id}/`);
 
 export const setPassword = (data) => api.post('/users/set-password/', data);

@@ -14,10 +14,17 @@ export function ShareLinkViewerPage() {
   const [documentData, setDocumentData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [protectionType, setProtectionType] = useState(null);
+  const [refetchTrigger, setRefetchTrigger] = useState(0);
 
   useEffect(() => {
     let isCancelled = false;
     const fetchData = async () => {
+      // Reset state before fetching
+      setIsLoading(true);
+      setError(null);
+      setProtectionType(null);
+
       try {
         const response = await getShareLinkViewData(slug, previewToken);
         if (!isCancelled) {
@@ -25,7 +32,13 @@ export function ShareLinkViewerPage() {
         }
       } catch (err) {
         if (!isCancelled) {
-          setError(err.response?.data || { message: 'Failed to load document. The link may be invalid or expired.' });
+          const errorData =
+            err.response?.data || { message: 'Failed to load document. The link may be invalid or expired.' };
+          setError(errorData);
+
+          if (err.response?.status === 401 && errorData?.protectionType === 'password') {
+            setProtectionType('password');
+          }
         }
       } finally {
         if (!isCancelled) {
@@ -38,7 +51,7 @@ export function ShareLinkViewerPage() {
     return () => {
       isCancelled = true;
     };
-  }, [slug, previewToken]);
+  }, [slug, previewToken, refetchTrigger]);
 
   if (isLoading) {
     return (
@@ -51,10 +64,17 @@ export function ShareLinkViewerPage() {
     );
   }
 
+  if (protectionType === 'password') {
+    return (
+      <PasswordForm
+        slug={slug}
+        message={error?.message}
+        onSuccess={() => setRefetchTrigger((c) => c + 1)}
+      />
+    );
+  }
+
   if (error) {
-    if (error.protectionType === 'password') {
-      return <PasswordForm slug={slug} />;
-    }
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
         <div className="rounded-lg bg-white p-8 text-center shadow-md">
