@@ -26,6 +26,7 @@ export function LinkSheet({
 }) {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
+  const [isPasswordEnabled, setIsPasswordEnabled] = useState(false);
   const [passwordChanged, setPasswordChanged] = useState(false);
   const [allowDownload, setAllowDownload] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -36,10 +37,12 @@ export function LinkSheet({
     if (isEditing) {
       setName(currentLink.name || '');
       setAllowDownload(currentLink.allow_download);
+      setIsPasswordEnabled(currentLink.has_password);
     } else {
       // Reset form for new link
       setName('');
       setAllowDownload(true);
+      setIsPasswordEnabled(false);
     }
     // Always reset password fields on open to ensure security and correct logic
     setPassword('');
@@ -57,15 +60,20 @@ export function LinkSheet({
     };
 
     if (isEditing) {
-      // For edits, only include the password in the payload if the user has changed it.
-      // This prevents accidentally removing the password if the field is left blank.
-      if (passwordChanged) {
+      // For edits, logic is based on the state of the password switch and user interaction.
+      if (!isPasswordEnabled) {
+        // If switch is off, explicitly remove password.
+        linkData.password = '';
+      } else if (passwordChanged) {
+        // If switch is on AND user touched the input, send the new value.
         linkData.password = password;
       }
+      // If switch is on and user did NOT touch input, don't send `password` key to keep existing.
     } else {
-      // For new links, always include the password field.
-      // An empty string will correctly result in no password being set.
-      linkData.password = password;
+      // For new links, only include password if the feature is enabled.
+      if (isPasswordEnabled) {
+        linkData.password = password;
+      }
     }
 
     try {
@@ -106,19 +114,37 @@ export function LinkSheet({
               placeholder="e.g., 'Marketing Campaign Link'"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password (Optional)</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setPasswordChanged(true);
-              }}
-              placeholder={isEditing ? 'Leave blank to keep existing' : 'Enter a password'}
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password-enabled" className="flex flex-col space-y-1">
+              <span>Password Protection</span>
+              <span className="text-sm font-normal text-muted-foreground">
+                Require a password to view this link.
+              </span>
+            </Label>
+            <Switch
+              id="password-enabled"
+              checked={isPasswordEnabled}
+              onCheckedChange={setIsPasswordEnabled}
             />
           </div>
+          {isPasswordEnabled && (
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setPasswordChanged(true);
+                }}
+                placeholder={
+                  isEditing && currentLink.has_password ? 'Leave blank to keep existing' : 'Enter a password'
+                }
+                autoFocus
+              />
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <Label htmlFor="allow-download" className="flex flex-col space-y-1">
               <span>Allow Download</span>
