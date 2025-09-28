@@ -515,3 +515,23 @@ This session focused on implementing the end-to-end password protection feature 
   - A new unit test was added to `tests/documents/test_views.py` to verify the rate-limiting functionality. The test confirms that after 10 failed attempts, the 11th request receives a `429 TOO_MANY_REQUESTS` response, ensuring the protection is active.
 
 ---
+
+## Session 19: Share Link Settings UX Overhaul (2025-09-28)
+
+This session focused on a major redesign and enhancement of the share link creation and editing form (`LinkSheet`), significantly improving its usability and adding several new security and tracking features. [https://github.com/coneshare/coneshare/pull/17](https://github.com/coneshare/coneshare/pull/17)
+
+### 1. LinkSheet Component Redesign
+- **Wider, Scrollable Layout**: The `LinkSheet` component was made wider and scrollable to accommodate the new settings and improve usability on screens with many options.
+- **UI Polish**: Labels, descriptions, and placeholder text were updated to be more descriptive and user-friendly, guiding the user through the available options.
+
+### 2. New Share Link Features
+- **Email Requirement Options**:
+  - A "Require email to view" switch was added to capture viewer emails.
+  - A nested, conditional "Verify email to view" switch was implemented, which only appears when email is required. This provides more granular control over viewer identification.
+- **Email Notifications**: A "Receive email notification" switch was added, allowing link creators to be notified when their content is viewed.
+- **Expiration Date**: An expiration date picker was added to allow users to set a date after which a link will automatically become inaccessible.
+
+### 3. Backend & Database Support
+- **Model Updates**: The `ShareLink` and `ShareLinkPreset` models were updated with new boolean fields (`requires_email`, `receive_email_notification`) to support the new features.
+- **Database Migrations**: New database migrations were created and applied to add the new fields to the database schema, ensuring data persistence for the new settings.
+- **Serializer Updates**: The corresponding DRF serializers were updated to include and handle the new fields.
