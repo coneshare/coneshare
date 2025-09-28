@@ -7,10 +7,11 @@ from urllib.parse import urljoin
 
 from django.conf import settings
 from django.core.files.storage import default_storage
+from django.contrib.auth.hashers import check_password
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework import permissions, status, viewsets
+from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
 from rest_framework.parsers import MultiPartParser
@@ -476,6 +477,18 @@ class ViewViewSet(viewsets.ModelViewSet):
         return View.objects.filter(share_link__document__organization=self.request.user.organization)
 
 
+def is_viewer_authorized(request, link) -> bool:
+    """
+    Checks if the current session is authorized to view a password-protected link.
+    """
+    if not link.password_hash:
+        return True  # Not protected, so authorized.
+
+    authorized_links = request.session.get('authorized_share_links', {})
+    # Check if the link's ID is in the authorized dictionary and its value is True
+    return authorized_links.get(str(link.id)) is True
+
+
 class ShareLinkViewDataView(APIView):
     """
     Provides the data needed for a public viewer to render a document from a share link.
@@ -511,12 +524,8 @@ class ShareLinkViewDataView(APIView):
         if not is_preview and link.expires_at and link.expires_at < timezone.now():
             return Response({"message": "This link has expired."}, status=status.HTTP_410_GONE)
 
-        # 2. Check for password protection (placeholder for now)
-        if not is_preview and link.password_hash:
-            # In a real implementation, we would check for a valid session token
-            # that proves the user has already entered the password.
-            # For now, we will deny access if a password is set.
-            # is_viewer_authorized(request, link) # Placeholder for future logic
+        # 2. Check for password protection
+        if not is_preview and not is_viewer_authorized(request, link):
             return Response(
                 {"message": "Password required", "protectionType": "password"},
                 status=status.HTTP_401_UNAUTHORIZED
@@ -557,3 +566,41 @@ class ShareLinkViewDataView(APIView):
             }
         }
         return Response(response_data, status=status.HTTP_200_OK)
+
+
+class ShareLinkPasswordSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True)
+
+
+class ShareLinkVerifyPasswordView(APIView):
+    """
+    Verifies the password for a share link and authorizes the session.
+    """
+    # No permission_classes, as this is a public endpoint.
+
+    def post(self, request, slug, *args, **kwargs):
+        try:
+            link = ShareLink.objects.get(slug=slug, is_archived=False)
+        except ShareLink.DoesNotExist:
+            return Response({"message": "Link not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not link.password_hash:
+            return Response(
+                {"message": "This link is not password protected."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = ShareLinkPasswordSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        password = serializer.validated_data['password']
+        if check_password(password, link.password_hash):
+            # Password is correct. Store authorization in the session.
+            # Using a dictionary for authorized links to support multiple links in one session.
+            authorized_links = request.session.get('authorized_share_links', {})
+            authorized_links[str(link.id)] = True
+            request.session['authorized_share_links'] = authorized_links
+            return Response({"message": "Password verified successfully."}, status=status.HTTP_200_OK)
+        else:
+            return Response({"message": "Invalid password."}, status=status.HTTP_401_UNAUTHORIZED)
