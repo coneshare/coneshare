@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Cone } from 'lucide-react';
+import { PasswordForm } from '../components/viewer/PasswordForm';
 import { PreviewViewer } from '../components/documents/PreviewViewer';
 import { Skeleton } from '../components/ui/Skeleton';
 import { getShareLinkViewData } from '../services/api';
@@ -24,9 +25,7 @@ export function ShareLinkViewerPage() {
         }
       } catch (err) {
         if (!isCancelled) {
-          setError(
-            err.response?.data?.message || 'Failed to load document. The link may be invalid or expired.'
-          );
+          setError(err.response?.data || { message: 'Failed to load document. The link may be invalid or expired.' });
         }
       } finally {
         if (!isCancelled) {
@@ -53,11 +52,14 @@ export function ShareLinkViewerPage() {
   }
 
   if (error) {
+    if (error.protectionType === 'password') {
+      return <PasswordForm slug={slug} />;
+    }
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
         <div className="rounded-lg bg-white p-8 text-center shadow-md">
           <h1 className="mb-4 text-2xl font-bold text-red-600">Error</h1>
-          <p className="text-gray-700">{error}</p>
+          <p className="text-gray-700">{error.message}</p>
         </div>
       </div>
     );
