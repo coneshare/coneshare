@@ -26,6 +26,7 @@ export function LinkSheet({
 }) {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordChanged, setPasswordChanged] = useState(false);
   const [allowDownload, setAllowDownload] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -35,14 +36,14 @@ export function LinkSheet({
     if (isEditing) {
       setName(currentLink.name || '');
       setAllowDownload(currentLink.allow_download);
-      // Don't pre-fill password for security
-      setPassword('');
     } else {
       // Reset form for new link
       setName('');
-      setPassword('');
       setAllowDownload(true);
     }
+    // Always reset password fields on open to ensure security and correct logic
+    setPassword('');
+    setPasswordChanged(false);
   }, [currentLink, isEditing, isOpen]);
 
   const handleSubmit = async (e) => {
@@ -54,7 +55,16 @@ export function LinkSheet({
       name,
       allow_download: allowDownload,
     };
-    if (password) {
+
+    if (isEditing) {
+      // For edits, only include the password in the payload if the user has changed it.
+      // This prevents accidentally removing the password if the field is left blank.
+      if (passwordChanged) {
+        linkData.password = password;
+      }
+    } else {
+      // For new links, always include the password field.
+      // An empty string will correctly result in no password being set.
       linkData.password = password;
     }
 
@@ -102,7 +112,10 @@ export function LinkSheet({
               id="password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setPasswordChanged(true);
+              }}
               placeholder={isEditing ? 'Leave blank to keep existing' : 'Enter a password'}
             />
           </div>
