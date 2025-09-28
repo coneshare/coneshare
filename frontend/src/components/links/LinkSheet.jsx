@@ -25,6 +25,7 @@ export function LinkSheet({
   onSuccess,
 }) {
   const [name, setName] = useState('');
+  const [requiresEmail, setRequiresEmail] = useState(false);
   const [requiresEmailVerification, setRequiresEmailVerification] = useState(false);
   const [receiveEmailNotification, setReceiveEmailNotification] = useState(false);
   const [password, setPassword] = useState('');
@@ -39,6 +40,7 @@ export function LinkSheet({
   useEffect(() => {
     if (isEditing) {
       setName(currentLink.name || '');
+      setRequiresEmail(currentLink.requires_email || false);
       setRequiresEmailVerification(currentLink.requires_email_verification || false);
       setAllowDownload(currentLink.allow_download);
       setIsPasswordEnabled(currentLink.has_password);
@@ -47,6 +49,7 @@ export function LinkSheet({
     } else {
       // Reset form for new link
       setName('');
+      setRequiresEmail(false);
       setRequiresEmailVerification(false);
       setAllowDownload(true);
       setIsPasswordEnabled(false);
@@ -64,7 +67,8 @@ export function LinkSheet({
     const linkData = {
       document: documentId,
       name,
-      requires_email_verification: requiresEmailVerification,
+      requires_email: requiresEmail,
+      requires_email_verification: requiresEmail && requiresEmailVerification,
       allow_download: allowDownload,
       expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
     };
@@ -129,18 +133,41 @@ export function LinkSheet({
             </p>
           </div>
 
-          <div className="flex items-center justify-between">
-            <Label htmlFor="require-email" className="flex flex-col space-y-1">
-              <span>Require email to view</span>
-              <span className="text-sm font-normal text-muted-foreground">
-                Viewers must enter their email address to view.
-              </span>
-            </Label>
-            <Switch
-              id="require-email"
-              checked={requiresEmailVerification}
-              onCheckedChange={setRequiresEmailVerification}
-            />
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="require-email" className="flex flex-col space-y-1">
+                <span>Require email to view</span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  Viewers must enter their email address to view.
+                </span>
+              </Label>
+              <Switch
+                id="require-email"
+                checked={requiresEmail}
+                onCheckedChange={(checked) => {
+                  setRequiresEmail(checked);
+                  if (!checked) {
+                    // If email is not required, verification must also be disabled.
+                    setRequiresEmailVerification(false);
+                  }
+                }}
+              />
+            </div>
+            {requiresEmail && (
+              <div className="flex items-center justify-between rounded-md border bg-gray-50 p-4 dark:bg-gray-800/50">
+                <Label htmlFor="verify-email" className="flex flex-col space-y-1">
+                  <span>Verify email to view</span>
+                  <span className="text-sm font-normal text-muted-foreground">
+                    Viewers must click a link in an email to verify their identity.
+                  </span>
+                </Label>
+                <Switch
+                  id="verify-email"
+                  checked={requiresEmailVerification}
+                  onCheckedChange={setRequiresEmailVerification}
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between">
