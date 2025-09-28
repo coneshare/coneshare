@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Cone } from 'lucide-react';
 import { PasswordForm } from '../components/viewer/PasswordForm';
+import { ViewerToolbar } from '../components/viewer/ViewerToolbar';
 import { PreviewViewer } from '../components/documents/PreviewViewer';
 import { Skeleton } from '../components/ui/Skeleton';
 import { getShareLinkViewData } from '../services/api';
@@ -95,7 +96,12 @@ export function ShareLinkViewerPage() {
           <span>ConeShare</span>
         </a>
       </div>
-      {documentData && <PreviewViewer documentData={documentData} />}
+      {documentData && (
+        <>
+          <ViewerToolbar allowDownload={documentData.linkSettings.allowDownload} />
+          <PreviewViewer documentData={documentData} />
+        </>
+      )}
     </div>
   );
 }
