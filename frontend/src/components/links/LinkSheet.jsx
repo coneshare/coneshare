@@ -71,7 +71,7 @@ export function LinkSheet({
       requires_email_verification: requiresEmail && requiresEmailVerification,
       receive_email_notification: receiveEmailNotification,
       allow_download: allowDownload,
-      expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+      expires_at: expiresAt ? new Date(`${expiresAt}T23:59:59.999Z`).toISOString() : null,
     };
 
     if (isEditing) {
