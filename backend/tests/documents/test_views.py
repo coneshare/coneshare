@@ -703,7 +703,7 @@ class TestShareLinkPasswordProtection:
         """
         # Step 1: Verify the password
         verify_url = f'/api/v1/links/{share_link_with_password.slug}/verify-password/'
-        response_verify = public_client.post(verify_url, {'password': 'test-password'})
+        response_verify = public_client.post(verify_url, {'password': 'password123'})
 
         assert response_verify.status_code == status.HTTP_200_OK
         assert 'verified successfully' in response_verify.json()['message']

@@ -4,6 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LinkSheet } from '../../../components/links/LinkSheet';
 import * as api from '../../../services/api';
 
+// Mock ResizeObserver for Radix UI components in JSDOM
+const ResizeObserverMock = vi.fn(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}));
+vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+
 // Mock the API service
 vi.mock('../../../services/api', () => ({
   createShareLink: vi.fn(),

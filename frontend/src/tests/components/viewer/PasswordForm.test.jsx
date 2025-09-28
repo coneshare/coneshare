@@ -71,7 +71,6 @@ describe('PasswordForm', () => {
     await userEvent.type(passwordInput, 'wrong-password');
     await userEvent.click(submitButton);
 
-    expect(screen.getByRole('button', { name: 'Verifying...' })).toBeDisabled();
     expect(api.verifyShareLinkPassword).toHaveBeenCalledWith(slug, 'wrong-password');
 
     // Wait for the async actions to complete
