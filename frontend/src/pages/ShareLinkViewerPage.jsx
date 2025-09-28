@@ -68,7 +68,6 @@ export function ShareLinkViewerPage() {
     return (
       <PasswordForm
         slug={slug}
-        message={error?.message}
         onSuccess={() => setRefetchTrigger((c) => c + 1)}
       />
     );
