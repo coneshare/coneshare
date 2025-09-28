@@ -67,11 +67,22 @@ api.interceptors.response.use(
       }
     }
 
-    // For other errors, show a toast
-    if (error.response?.data?.detail) {
-      toast.error(error.response.data.detail);
-    } else if (error.message) {
-      toast.error(error.message);
+    // For other errors, show a toast.
+    // Suppress toasts for share link password flows, as the UI handles these errors directly.
+    const isPasswordProtectedView =
+      error.response?.status === 401 &&
+      originalRequest.url.includes('/view-data/') &&
+      error.response?.data?.protectionType === 'password';
+
+    const isInvalidPasswordSubmission =
+      error.response?.status === 401 && originalRequest.url.includes('/verify-password/');
+
+    if (!isPasswordProtectedView && !isInvalidPasswordSubmission) {
+      if (error.response?.data?.detail) {
+        toast.error(error.response.data.detail);
+      } else if (error.message) {
+        toast.error(error.message);
+      }
     }
 
     return Promise.reject(error);

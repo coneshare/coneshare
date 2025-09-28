@@ -527,7 +527,7 @@ class ShareLinkViewDataView(APIView):
         # 2. Check for password protection
         if not is_preview and not is_viewer_authorized(request, link):
             return Response(
-                {"message": "Password required", "protectionType": "password"},
+                {"message": "This link is password-protected. Please enter the password to continue.", "protectionType": "password"},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
