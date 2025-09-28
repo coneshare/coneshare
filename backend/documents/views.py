@@ -16,6 +16,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from .models import Document, Folder, ShareLink, ShareLinkPreset, View, Viewer, PreviewSession
@@ -572,10 +573,32 @@ class ShareLinkPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
 
+class PerSlugScopedRateThrottle(ScopedRateThrottle):
+    """
+    A custom throttle that scopes the rate limit to a combination of the user's
+    IP address and the share link's slug. This prevents a single IP from being
+    blocked across all links if it targets just one.
+    """
+    def get_cache_key(self, request, view):
+        # The 'slug' is retrieved from the URL kwargs.
+        slug = view.kwargs.get('slug')
+        
+        # Use a more robust identifier that combines the standard IP-based ident
+        # with the slug for per-link throttling.
+        ident = self.get_ident(request)
+        
+        return self.cache_format % {
+            'scope': self.scope,
+            'ident': f"{ident}:{slug}"
+        }
+
+
 class ShareLinkVerifyPasswordView(APIView):
     """
     Verifies the password for a share link and authorizes the session.
     """
+    throttle_classes = [PerSlugScopedRateThrottle]
+    throttle_scope = 'password_verify'
     # No permission_classes, as this is a public endpoint.
 
     def post(self, request, slug, *args, **kwargs):
