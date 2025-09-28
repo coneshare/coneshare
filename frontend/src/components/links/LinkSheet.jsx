@@ -27,7 +27,6 @@ export function LinkSheet({
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordEnabled, setIsPasswordEnabled] = useState(false);
-  const [passwordChanged, setPasswordChanged] = useState(false);
   const [allowDownload, setAllowDownload] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -44,9 +43,8 @@ export function LinkSheet({
       setAllowDownload(true);
       setIsPasswordEnabled(false);
     }
-    // Always reset password fields on open to ensure security and correct logic
+    // Always reset password field on open for security.
     setPassword('');
-    setPasswordChanged(false);
   }, [currentLink, isEditing, isOpen]);
 
   const handleSubmit = async (e) => {
@@ -59,22 +57,15 @@ export function LinkSheet({
       allow_download: allowDownload,
     };
 
-    if (isEditing) {
-      // For edits, logic is based on the state of the password switch and user interaction.
-      if (!isPasswordEnabled) {
-        // If switch is off, explicitly remove password.
-        linkData.password = '';
-      } else if (passwordChanged) {
-        // If switch is on AND user touched the input, send the new value.
-        linkData.password = password;
-      }
-      // If switch is on and user did NOT touch input, don't send `password` key to keep existing.
-    } else {
-      // For new links, only include password if the feature is enabled.
-      if (isPasswordEnabled) {
-        linkData.password = password;
-      }
+    if (isPasswordEnabled) {
+      // If the switch is on, the input field is the source of truth.
+      // An empty string will remove the password; a value will set/update it.
+      linkData.password = password;
+    } else if (isEditing && !isPasswordEnabled) {
+      // If editing and the switch is turned off, explicitly remove the password.
+      linkData.password = '';
     }
+    // If creating and the switch is off, the password field is not sent.
 
     try {
       if (isEditing) {
@@ -134,12 +125,11 @@ export function LinkSheet({
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setPasswordChanged(true);
-                }}
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder={
-                  isEditing && currentLink.has_password ? 'Leave blank to keep existing' : 'Enter a password'
+                  isEditing && currentLink.has_password
+                    ? 'Enter new password (blank to remove)'
+                    : 'Enter a password'
                 }
                 autoFocus
               />
