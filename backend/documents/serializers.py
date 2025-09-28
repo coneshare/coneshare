@@ -116,7 +116,7 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'document', 'created_by', 'name', 'slug', 'expires_at',
             'has_password', 'password', 'requires_email', 'requires_email_verification', 'allow_download',
-            'enable_watermark', 'is_archived', 'created_at', 'updated_at'
+            'enable_watermark', 'receive_email_notification', 'is_archived', 'created_at', 'updated_at'
         ]
         read_only_fields = [
             'id', 'created_by', 'slug', 'created_at', 'updated_at'
@@ -233,7 +233,7 @@ class ShareLinkPresetSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'organization', 'name', 'is_default', 'expires_in_days',
             'requires_password', 'requires_email', 'requires_email_verification', 'allow_download',
-            'enable_watermark', 'created_at', 'updated_at'
+            'enable_watermark', 'receive_email_notification', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
 

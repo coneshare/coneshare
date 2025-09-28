@@ -108,6 +108,7 @@ class ShareLinkPreset(BaseModel):
     requires_email_verification = models.BooleanField(default=False)
     allow_download = models.BooleanField(default=True)
     enable_watermark = models.BooleanField(default=False)
+    receive_email_notification = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
@@ -124,6 +125,7 @@ class ShareLink(BaseModel):
     requires_email_verification = models.BooleanField(default=False)
     allow_download = models.BooleanField(default=True)
     enable_watermark = models.BooleanField(default=False)
+    receive_email_notification = models.BooleanField(default=False)
     is_archived = models.BooleanField(default=False)
 
     def __str__(self):

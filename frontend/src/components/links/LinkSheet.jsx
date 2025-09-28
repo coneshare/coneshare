@@ -46,6 +46,7 @@ export function LinkSheet({
       setIsPasswordEnabled(currentLink.has_password);
       setPassword(currentLink.has_password ? DUMMY_PASSWORD : '');
       setExpiresAt(currentLink.expires_at ? new Date(currentLink.expires_at).toISOString().split('T')[0] : '');
+      setReceiveEmailNotification(currentLink.receive_email_notification || false);
     } else {
       // Reset form for new link
       setName('');
@@ -55,9 +56,8 @@ export function LinkSheet({
       setIsPasswordEnabled(false);
       setPassword('');
       setExpiresAt('');
+      setReceiveEmailNotification(false);
     }
-    // This is a UI-only placeholder for now
-    setReceiveEmailNotification(false);
   }, [currentLink, isEditing, isOpen]);
 
   const handleSubmit = async (e) => {
@@ -69,6 +69,7 @@ export function LinkSheet({
       name,
       requires_email: requiresEmail,
       requires_email_verification: requiresEmail && requiresEmailVerification,
+      receive_email_notification: receiveEmailNotification,
       allow_download: allowDownload,
       expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
     };
