@@ -723,3 +723,18 @@ class TestShareLinkPasswordProtection:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert 'not password protected' in response.json()['message']
+
+    def test_password_verification_is_rate_limited(self, public_client, share_link_with_password):
+        """Test that the password verification endpoint is rate-limited."""
+        url = f'/api/v1/links/{share_link_with_password.slug}/verify-password/'
+        data = {'password': 'wrong-password'}
+
+        # The rate limit is 10/min.
+        for i in range(10):
+            response = public_client.post(url, data)
+            # The first 10 attempts should be unauthorized but not rate-limited.
+            assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+        # The 11th attempt should be rate-limited.
+        response = public_client.post(url, data)
+        assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
