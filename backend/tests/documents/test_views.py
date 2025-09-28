@@ -674,3 +674,67 @@ class TestShareLinkPreview:
         # 3. Try to use the token again - should fail (revert to password protection)
         response_view_2 = public_client.get(url_view)
         assert response_view_2.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+class TestShareLinkPasswordProtection:
+    """Tests for password-protected share links."""
+
+    def test_view_data_requires_password(self, public_client, share_link_with_password):
+        """Accessing data for a password-protected link should fail with 401."""
+        url = f'/api/v1/links/{share_link_with_password.slug}/view-data/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.json()['protectionType'] == 'password'
+
+    def test_verify_password_wrong_password(self, public_client, share_link_with_password):
+        """Submitting an incorrect password should fail."""
+        url = f'/api/v1/links/{share_link_with_password.slug}/verify-password/'
+        response = public_client.post(url, {'password': 'wrong-password'})
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert 'Invalid password' in response.json()['message']
+
+    def test_verify_password_and_view_data_success(self, public_client, share_link_with_password):
+        """
+        Submitting the correct password should grant access for subsequent requests
+        within the same session.
+        """
+        # Step 1: Verify the password
+        verify_url = f'/api/v1/links/{share_link_with_password.slug}/verify-password/'
+        response_verify = public_client.post(verify_url, {'password': 'password123'})
+
+        assert response_verify.status_code == status.HTTP_200_OK
+        assert 'verified successfully' in response_verify.json()['message']
+
+        # Step 2: Access the data with the authorized session
+        view_data_url = f'/api/v1/links/{share_link_with_password.slug}/view-data/'
+        response_view = public_client.get(view_data_url)
+
+        assert response_view.status_code == status.HTTP_200_OK
+        assert 'id' in response_view.json()
+        assert response_view.json()['id'] == str(share_link_with_password.document.id)
+
+    def test_verify_password_for_non_protected_link(self, public_client, share_link):
+        """Attempting to verify a password for a non-protected link should fail."""
+        url = f'/api/v1/links/{share_link.slug}/verify-password/'
+        response = public_client.post(url, {'password': 'any-password'})
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'not password protected' in response.json()['message']
+
+    def test_password_verification_is_rate_limited(self, public_client, share_link_with_password):
+        """Test that the password verification endpoint is rate-limited."""
+        url = f'/api/v1/links/{share_link_with_password.slug}/verify-password/'
+        data = {'password': 'wrong-password'}
+
+        # The rate limit is 10/min.
+        for i in range(10):
+            response = public_client.post(url, data)
+            # The first 10 attempts should be unauthorized but not rate-limited.
+            assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+        # The 11th attempt should be rate-limited.
+        response = public_client.post(url, data)
+        assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS

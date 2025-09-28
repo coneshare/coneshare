@@ -30,7 +30,8 @@ api.interceptors.response.use(
     if (
       error.response.status === 401 &&
       !originalRequest._retry &&
-      !originalRequest.url.includes('/token')
+      !originalRequest.url.includes('/token') &&
+      !originalRequest.url.includes('/links/') // ignore 401 errors from the public link viewing endpoint
     ) {
       originalRequest._retry = true; // Mark request to avoid infinite loops
 
@@ -66,10 +67,25 @@ api.interceptors.response.use(
       }
     }
 
-    // For other errors, show a toast
-    if (error.response?.data?.detail) {
+    // For other errors, show a toast.
+    const isPasswordProtectedView =
+      error.response?.status === 401 &&
+      originalRequest.url.includes('/view-data/') &&
+      error.response?.data?.protectionType === 'password';
+
+    const isInvalidPasswordSubmission =
+      error.response?.status === 401 && originalRequest.url.includes('/verify-password/');
+
+    // For password-related flows, use the specific 'message' field from the API response.
+    if (isPasswordProtectedView || isInvalidPasswordSubmission) {
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      }
+    } else if (error.response?.data?.detail) {
+      // For standard DRF errors, use the 'detail' field.
       toast.error(error.response.data.detail);
     } else if (error.message) {
+      // Fallback for network errors or other issues.
       toast.error(error.message);
     }
 
@@ -133,6 +149,9 @@ export const getShareLinkViewData = (slug, previewToken = null) => {
   }
   return api.get(`/links/${slug}/view-data/`, { params });
 };
+
+export const verifyShareLinkPassword = (slug, password) =>
+  api.post(`/links/${slug}/verify-password/`, { password });
 
 export const getUser = (id) => api.get(`/users/${id}/`);
 
