@@ -31,20 +31,21 @@ export function LinkSheet({
   const [isSaving, setIsSaving] = useState(false);
 
   const isEditing = !!currentLink;
+  const DUMMY_PASSWORD = '●●●●●●●●';
 
   useEffect(() => {
     if (isEditing) {
       setName(currentLink.name || '');
       setAllowDownload(currentLink.allow_download);
       setIsPasswordEnabled(currentLink.has_password);
+      setPassword(currentLink.has_password ? DUMMY_PASSWORD : '');
     } else {
       // Reset form for new link
       setName('');
       setAllowDownload(true);
       setIsPasswordEnabled(false);
+      setPassword('');
     }
-    // Always reset password field on open for security.
-    setPassword('');
   }, [currentLink, isEditing, isOpen]);
 
   const handleSubmit = async (e) => {
@@ -57,15 +58,22 @@ export function LinkSheet({
       allow_download: allowDownload,
     };
 
-    if (isPasswordEnabled) {
-      // If the switch is on, the input field is the source of truth.
-      // An empty string will remove the password; a value will set/update it.
-      linkData.password = password;
-    } else if (isEditing && !isPasswordEnabled) {
-      // If editing and the switch is turned off, explicitly remove the password.
-      linkData.password = '';
+    if (isEditing) {
+      if (isPasswordEnabled) {
+        // Only include password in payload if it has been changed from the dummy value.
+        // This prevents accidental password changes. An empty string means removal.
+        if (password !== DUMMY_PASSWORD) {
+          linkData.password = password;
+        }
+      } else {
+        // If the switch is off, explicitly remove the password.
+        linkData.password = '';
+      }
+    } else { // Creating a new link
+      if (isPasswordEnabled) {
+        linkData.password = password;
+      }
     }
-    // If creating and the switch is off, the password field is not sent.
 
     try {
       if (isEditing) {
