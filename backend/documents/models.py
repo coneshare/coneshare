@@ -104,9 +104,11 @@ class ShareLinkPreset(BaseModel):
     is_default = models.BooleanField(default=False)
     expires_in_days = models.IntegerField(null=True, blank=True)
     requires_password = models.BooleanField(default=False)
+    requires_email = models.BooleanField(default=False)
     requires_email_verification = models.BooleanField(default=False)
     allow_download = models.BooleanField(default=True)
     enable_watermark = models.BooleanField(default=False)
+    receive_email_notification = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
@@ -119,9 +121,11 @@ class ShareLink(BaseModel):
     slug = models.CharField(max_length=50, unique=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     password_hash = models.CharField(max_length=255, null=True, blank=True)
+    requires_email = models.BooleanField(default=False)
     requires_email_verification = models.BooleanField(default=False)
     allow_download = models.BooleanField(default=True)
     enable_watermark = models.BooleanField(default=False)
+    receive_email_notification = models.BooleanField(default=False)
     is_archived = models.BooleanField(default=False)
 
     def __str__(self):
