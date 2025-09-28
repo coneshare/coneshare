@@ -111,14 +111,15 @@ export function LinkSheet({
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent>
+      <SheetContent className="sm:max-w-3xl flex flex-col">
         <SheetHeader>
           <SheetTitle>{isEditing ? 'Edit Link' : 'Create New Link'}</SheetTitle>
           <SheetDescription>
             Configure the settings for your share link below. Click save when you're done.
           </SheetDescription>
         </SheetHeader>
-        <form onSubmit={handleSubmit} className="space-y-6 py-6">
+        <form id="link-sheet-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+          <div className="space-y-6 py-6 pr-6">
           <div className="space-y-2">
             <Label htmlFor="name">Name link</Label>
             <Input
@@ -235,13 +236,13 @@ export function LinkSheet({
               Set a date after which the link will no longer be accessible.
             </p>
           </div>
-
-          <SheetFooter>
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </SheetFooter>
+          </div>
         </form>
+        <SheetFooter>
+          <Button type="submit" form="link-sheet-form" disabled={isSaving}>
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </SheetFooter>
       </SheetContent>
     </Sheet>
   );
