@@ -33,13 +33,11 @@ export function DraggableItem({
 
   const handleClick = (e) => {
     e.stopPropagation();
-    if (
-      e.target.closest('[role="checkbox"]') ||
-      e.target.closest("[data-radix-dropdown-menu-trigger]") ||
-      e.target.closest("[data-star-button]")
-    ) {
+    // If a child component (like a dropdown menu item) has already handled this
+    // event by calling `preventDefault`, do not proceed with navigation.
+    if (e.defaultPrevented) {
       return;
-    }
+    }    
 
     if (type === "folder") {
       navigate(`/documents/folders/${id}`);
@@ -114,6 +112,7 @@ export function DraggableItem({
           "ml-auto flex w-16 justify-end transition-opacity",
           isSelected || isHovered || isMenuOpen ? "opacity-100" : "opacity-0"
         )}
+        onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
         <ActionsDropdown

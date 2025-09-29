@@ -403,7 +403,7 @@ function DocumentsPage() {
         )}
       </div>
 
-      <Separator className="mb-5 bg-gray-200 dark:bg-gray-800" />
+      {/* <Separator className="mb-5 bg-gray-200 dark:bg-gray-800" /> */}
 
       <DocumentsList
         allItems={allItems}

@@ -30,6 +30,7 @@ export function ActionsDropdown({ item, type, onRename, onDelete, onShare, onOpe
         <DropdownMenu.Item
           onSelect={(e) => {
             e.preventDefault();
+            e.stopPropagation();
             onRename(item);
           }}
           className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
@@ -42,6 +43,7 @@ export function ActionsDropdown({ item, type, onRename, onDelete, onShare, onOpe
            <DropdownMenu.Item
             onSelect={(e) => {
                 e.preventDefault();
+              e.stopPropagation();
                 onShare(item);
             }}
             className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
@@ -56,6 +58,7 @@ export function ActionsDropdown({ item, type, onRename, onDelete, onShare, onOpe
         <DropdownMenu.Item
           onSelect={(e) => {
             e.preventDefault();
+            e.stopPropagation();
             onDelete(item);
           }}
           className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 focus:bg-red-50 focus:text-red-700 focus:outline-none dark:text-red-500 dark:hover:bg-red-900/20 dark:focus:bg-red-900/20"
