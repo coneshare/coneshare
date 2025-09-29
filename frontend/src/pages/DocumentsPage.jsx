@@ -361,12 +361,12 @@ function DocumentsPage() {
         </div>
       </section>
 
-      <div className="mb-2 flex justify-end gap-x-2">
-        <div className="relative w-full sm:max-w-xs">
-          <SearchBox loading={loading} inputClassName="h-10" />
-        </div>
-        <SortButton onSort={handleSort} sortConfig={sortConfig} />
-      </div>
+      {/* <div className="mb-2 flex justify-end gap-x-2"> */}
+      {/*   <div className="relative w-full sm:max-w-xs"> */}
+      {/*     <SearchBox loading={loading} inputClassName="h-10" /> */}
+      {/*   </div> */}
+      {/*   <SortButton onSort={handleSort} sortConfig={sortConfig} /> */}
+      {/* </div> */}
 
       <div className="mb-4">
         {selection.documents.length > 0 || selection.folders.length > 0 ? (
