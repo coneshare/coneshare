@@ -72,23 +72,19 @@ export function DraggableItem({
           />
         </div>
       </div>
-      <div className="flex w-[40%] items-center gap-3 truncate">
+      <div className="flex w-[40%] items-center gap-2 truncate">
         {type === "folder" ? (
           <FolderIcon className="h-5 w-5 text-gray-500" />
         ) : (
           <FileIcon className="h-5 w-5 text-gray-500" />
         )}
-        <span className="truncate font-medium">{item.name}</span>
         <button
           data-star-button
           onClick={(e) => {
             e.stopPropagation();
             onToggleStar(id, type);
           }}
-          className={cn(
-            "ml-auto p-1 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100",
-            item.is_starred && "opacity-100"
-          )}
+          className={cn("p-1")}
         >
           <Star
             className={cn(
@@ -97,6 +93,7 @@ export function DraggableItem({
             )}
           />
         </button>
+        <span className="truncate font-medium">{item.name}</span>
       </div>
       <div className="w-[20%] truncate">{item.created_by?.name || "Me"}</div>
       <div className="w-[20%]">
