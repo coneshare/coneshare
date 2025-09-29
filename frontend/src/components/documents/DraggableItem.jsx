@@ -107,7 +107,7 @@ export function DraggableItem({
       <div className="ml-auto flex w-16 justify-end">
         <div
           className={cn(
-            "opacity-0 transition-opacity group-hover:opacity-100",
+            "flex w-full justify-end opacity-0 transition-opacity group-hover:opacity-100",
             isSelected && "opacity-100"
           )}
         >
