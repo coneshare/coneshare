@@ -1,7 +1,7 @@
 import { useDraggable } from "@dnd-kit/core";
 import { formatDistanceToNow } from "date-fns";
 import { FileIcon, FolderIcon, Star } from "lucide-react";
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import { ActionsDropdown } from "./ActionsDropdown";
@@ -23,6 +23,7 @@ export function DraggableItem({
     data: { type },
   });
   const navigate = useNavigate();
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleCheckboxClick = (e) => {
     e.stopPropagation();
@@ -52,8 +53,10 @@ export function DraggableItem({
       {...attributes}
       {...listeners}
       onClick={handleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       className={cn(
-        `group flex w-full cursor-pointer items-center px-4 py-2 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/50`,
+        `flex w-full cursor-pointer items-center px-4 py-2 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/50`,
         isDragging && "opacity-50",
         isSelected && "bg-blue-50 dark:bg-blue-900/20"
       )}
@@ -62,7 +65,7 @@ export function DraggableItem({
         <div
           className={cn(
             "transition-opacity",
-            isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            isSelected || isHovered ? "opacity-100" : "opacity-0"
           )}
         >
           <Checkbox
@@ -107,9 +110,7 @@ export function DraggableItem({
       <div
         className={cn(
           "ml-auto flex w-16 justify-end transition-opacity",
-          isSelected
-            ? "opacity-100"
-            : "opacity-0 group-hover:opacity-100"
+          isSelected || isHovered ? "opacity-100" : "opacity-0"
         )}
         onPointerDown={(e) => e.stopPropagation()}
       >

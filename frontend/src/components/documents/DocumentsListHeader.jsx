@@ -2,6 +2,7 @@ import { ArrowUpDown } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Checkbox } from "../ui/Checkbox";
 import { cn } from "../../lib/utils";
+import { useState } from "react";
 
 const columns = [
   { key: "name", label: "Name", className: "w-[40%]" },
@@ -16,15 +17,19 @@ export function DocumentsListHeader({
   onSelectAll,
   isAllSelected,
 }) {
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
-    <div className="group flex items-center border-b border-gray-200 px-4 py-2 text-sm font-medium text-gray-500 dark:border-gray-800 dark:text-gray-400">
+    <div
+      className="flex items-center border-b border-gray-200 px-4 py-2 text-sm font-medium text-gray-500 dark:border-gray-800 dark:text-gray-400"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <div className="w-12">
         <div
           className={cn(
             "transition-opacity",
-            isAllSelected
-              ? "opacity-100"
-              : "opacity-0 group-hover:opacity-100"
+            isAllSelected || isHovered ? "opacity-100" : "opacity-0"
           )}
         >
           <Checkbox
