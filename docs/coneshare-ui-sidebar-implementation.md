@@ -108,3 +108,45 @@ To create a clean and responsive collapsed state, the implementation relies on d
     >
     ```
 -   Child components consume the `isCollapsed` boolean from the `useSidebar()` hook. They use this state with a utility like `cn()` to conditionally apply classes (e.g., `"hidden"`). This allows elements like text labels to be hidden when the sidebar is collapsed, leaving only the icons visible.
+
+---
+
+## VI. Final Implementation for Sticky Footer
+
+After several iterations, a robust solution was implemented to ensure the sidebar footer remains sticky at the bottom of the viewport, regardless of the main content's length. The core issue was that the main content area was stretching the entire page layout, which in turn stretched the sidebar and pushed the footer off-screen.
+
+The final solution involves two key parts that work together:
+
+### 1. Constraining the Main Layout
+
+-   **File**: `src/components/layout/MainLayout.jsx`
+-   **Change**: The root grid container's height was fixed to the viewport height by changing `min-h-screen` to `h-screen`.
+-   **Change**: The `div` wrapping the main content area (containing the `Header` and `<main>`) was given the `overflow-hidden` class.
+
+**Why it works**: These changes prevent the main grid from growing beyond the screen height. The `overflow-hidden` class ensures that the content `div` does not stretch its parent grid cell, effectively containing the layout.
+
+*Example from `src/components/layout/MainLayout.jsx`:*
+```jsx
+<div
+  className={cn(
+    "grid h-screen w-full ...", // Fixed height
+    ...
+  )}
+>
+  <Sidebar />
+  <div className="flex flex-col overflow-hidden"> // Prevents stretching
+    <Header />
+    <main className="flex-1 overflow-auto ..."> // This now scrolls independently
+      <Outlet />
+    </main>
+  </div>
+</div>
+```
+
+### 2. Leveraging Flexbox in the Sidebar
+
+-   **File**: `src/components/layout/Sidebar.jsx` & `SidebarFooter.jsx`
+-   **Structure**: The `Sidebar` component uses `flex flex-col`.
+-   **Mechanism**: With the sidebar's height now constrained by the main layout, the `mt-auto` utility class on the `SidebarFooter` correctly pushes it to the bottom of the available vertical space within the sidebar.
+
+This combination ensures the sidebar and main content areas have independent scrolling behavior, providing the desired user experience where the sidebar footer is always visible.
