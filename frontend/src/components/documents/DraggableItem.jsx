@@ -104,23 +104,21 @@ export function DraggableItem({
           ? `${(item.file_size / 1024).toFixed(1)} KB`
           : "—"}
       </div>
-      <div className="ml-auto flex w-16 justify-end">
-        <div
-          className={cn(
-            "flex w-full justify-end transition-opacity",
-            isSelected
-              ? "opacity-100"
-              : "opacity-0 group-hover:opacity-100"
-          )}
-        >
-          <ActionsDropdown
-            item={item}
-            type={type}
-            onRename={onRename}
-            onDelete={onDelete}
-            onShare={onShare}
-          />
-        </div>
+      <div
+        className={cn(
+          "ml-auto flex w-16 justify-end transition-opacity",
+          isSelected
+            ? "opacity-100"
+            : "opacity-0 group-hover:opacity-100"
+        )}
+      >
+        <ActionsDropdown
+          item={item}
+          type={type}
+          onRename={onRename}
+          onDelete={onDelete}
+          onShare={onShare}
+        />
       </div>
     </div>
   );
