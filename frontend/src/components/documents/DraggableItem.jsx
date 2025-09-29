@@ -78,13 +78,14 @@ export function DraggableItem({
         ) : (
           <FileIcon className="h-5 w-5 text-gray-500" />
         )}
+        <span className="truncate font-medium">{item.name}</span>
         <button
           data-star-button
           onClick={(e) => {
             e.stopPropagation();
             onToggleStar(id, type);
           }}
-          className={cn("p-1")}
+          className={cn("ml-auto p-1")}
         >
           <Star
             className={cn(
@@ -93,7 +94,6 @@ export function DraggableItem({
             )}
           />
         </button>
-        <span className="truncate font-medium">{item.name}</span>
       </div>
       <div className="w-[20%] truncate">{item.created_by?.name || "Me"}</div>
       <div className="w-[20%]">
@@ -105,7 +105,12 @@ export function DraggableItem({
           : "—"}
       </div>
       <div className="ml-auto flex w-16 justify-end">
-        <div className="opacity-0 transition-opacity group-hover:opacity-100">
+        <div
+          className={cn(
+            "opacity-0 transition-opacity group-hover:opacity-100",
+            isSelected && "opacity-100"
+          )}
+        >
           <ActionsDropdown
             item={item}
             type={type}
