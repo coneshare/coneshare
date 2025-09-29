@@ -5,6 +5,15 @@ import { MemoryRouter } from "react-router-dom";
 import { vi } from "vitest";
 import { DraggableItem } from "../../../components/documents/DraggableItem";
 
+const mockedNavigate = vi.fn();
+vi.mock("react-router-dom", async () => {
+  const original = await vi.importActual("react-router-dom");
+  return {
+    ...original,
+    useNavigate: () => mockedNavigate,
+  };
+});
+
 const mockDocument = {
   id: "doc_123",
   name: "Test Document.pdf",
@@ -38,6 +47,10 @@ const renderDraggableItem = (props = {}) => {
 };
 
 describe("DraggableItem", () => {
+  beforeEach(() => {
+    mockedNavigate.mockClear();
+  });
+
   it("should show checkbox and actions dropdown on hover", async () => {
     const user = userEvent.setup();
     renderDraggableItem();
@@ -95,5 +108,49 @@ describe("DraggableItem", () => {
     // even if we move the mouse away (which would fire onMouseLeave)
     await user.unhover(itemRow);
     expect(renameMenuItem).toBeVisible();
+  });
+
+  it("should not navigate when rename menu item is clicked", async () => {
+    const user = userEvent.setup();
+    const onRename = vi.fn();
+    renderDraggableItem({ onRename });
+
+    const itemRow = screen.getByTestId(`draggable-item-${mockDocument.id}`);
+    await user.hover(itemRow);
+
+    const triggerButton = screen.getByLabelText(
+      `Actions for ${mockDocument.name}`
+    );
+    await user.click(triggerButton);
+
+    const renameMenuItem = await screen.findByRole("menuitem", {
+      name: /rename/i,
+    });
+    await user.click(renameMenuItem);
+
+    expect(onRename).toHaveBeenCalledWith(mockDocument);
+    expect(mockedNavigate).not.toHaveBeenCalled();
+  });
+
+  it("should not navigate when delete menu item is clicked", async () => {
+    const user = userEvent.setup();
+    const onDelete = vi.fn();
+    renderDraggableItem({ onDelete });
+
+    const itemRow = screen.getByTestId(`draggable-item-${mockDocument.id}`);
+    await user.hover(itemRow);
+
+    const triggerButton = screen.getByLabelText(
+      `Actions for ${mockDocument.name}`
+    );
+    await user.click(triggerButton);
+
+    const deleteMenuItem = await screen.findByRole("menuitem", {
+      name: /delete/i,
+    });
+    await user.click(deleteMenuItem);
+
+    expect(onDelete).toHaveBeenCalledWith(mockDocument);
+    expect(mockedNavigate).not.toHaveBeenCalled();
   });
 });
