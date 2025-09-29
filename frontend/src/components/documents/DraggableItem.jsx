@@ -39,6 +39,8 @@ export function DraggableItem({
 
     if (type === "folder") {
       navigate(`/documents/folders/${id}`);
+    } else if (type === "document") {
+      navigate(`/documents/${id}`);
     }
   };
 

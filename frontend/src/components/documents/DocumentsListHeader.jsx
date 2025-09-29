@@ -17,13 +17,22 @@ export function DocumentsListHeader({
   isAllSelected,
 }) {
   return (
-    <div className="flex items-center border-b border-gray-200 px-4 py-2 text-sm font-medium text-gray-500 dark:border-gray-800 dark:text-gray-400">
+    <div className="group flex items-center border-b border-gray-200 px-4 py-2 text-sm font-medium text-gray-500 dark:border-gray-800 dark:text-gray-400">
       <div className="w-12">
-        <Checkbox
-          checked={isAllSelected}
-          onCheckedChange={onSelectAll}
-          aria-label="Select all items"
-        />
+        <div
+          className={cn(
+            "transition-opacity",
+            isAllSelected
+              ? "opacity-100"
+              : "opacity-0 group-hover:opacity-100"
+          )}
+        >
+          <Checkbox
+            checked={isAllSelected}
+            onCheckedChange={onSelectAll}
+            aria-label="Select all items"
+          />
+        </div>
       </div>
       {columns.map(({ key, label, className }) => (
         <div key={key} className={cn("flex items-center", className)}>
