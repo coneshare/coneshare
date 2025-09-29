@@ -552,3 +552,36 @@ This session focused on enhancing the public-facing document viewer with an inte
 - **Page Count & Tracking**:
   - The toolbar now displays the current page and total page count (e.g., "2 / 10").
   - The `PreviewViewer` was refactored to use an `IntersectionObserver`. This efficiently tracks which document page is currently visible in the viewport and updates the page count in the toolbar in real-time.
+
+---
+
+## Session 21: Interactive Document List & UI Hardening (2025-09-29)
+
+This session was dedicated to a major overhaul of the document list's user experience, focusing on interactivity, modernizing the UI, and fixing a series of complex event-handling bugs. The session also introduced the "Star" feature and comprehensive unit tests to ensure component reliability.
+
+### 1. Modernized List UI
+- **Visual Cleanup**: The document list's table style was refined for a cleaner look by removing vertical borders and the header's background color.
+- **Interactive Checkboxes**: Item checkboxes (and the header's "select all" checkbox) were hidden by default and are now revealed on hover or when an item is selected, reducing visual clutter.
+
+### 2. "Star" Feature Implementation
+- **UI Elements**:
+  - A star icon was added to each document and folder row, allowing users to mark items as favorites. The icon's position and visibility were refined based on feedback.
+  - A "Starred" filter button was added to the main action bar area, visible when no items are selected.
+- **State Management**: The starred status is managed in the `DocumentsPage` state for now, as a frontend-only feature.
+
+### 3. `ActionsDropdown` Bug Fixing & Hardening
+- **The Problem**: A series of stubborn bugs caused by event conflicts between `dnd-kit` (drag-and-drop) and Radix UI (dropdown menu) were identified and resolved. Symptoms included the dropdown closing immediately after opening and clicks on menu items triggering navigation on the parent row.
+- **The Solution (Multi-layered)**:
+  1.  **State-Managed Visibility**: Replaced CSS `group-hover` logic with explicit React `useState` (`isHovered`, `isMenuOpen`) to control the visibility of the "three dots" icon, which resolved conflicts with `dnd-kit`'s event listeners.
+  2.  **Event Propagation Control**: Implemented `e.stopPropagation()` on both `onClick` and `onPointerDown` for the `div` wrapping the `ActionsDropdown`. This created a "hard boundary" that prevents any pointer or click events from bubbling up to the draggable parent row, which was the final key to fixing the navigation bug.
+  3.  **Code Simplification**: After fixing the event propagation at the source, the complex `e.target.closest()` checks in the row's `handleClick` handler became redundant and were removed.
+
+### 4. Comprehensive Testing
+- **New Test Suite**: Created `frontend/src/tests/components/documents/DraggableItem.test.jsx` to specifically target the `ActionsDropdown`'s behavior.
+- **Test Scenarios**: Added tests to verify:
+  - The "three dots" icon appears correctly on hover and selection.
+  - The dropdown menu opens and remains visible after being clicked.
+  - Clicking menu items (like "Rename" or "Delete") does not trigger the parent row's navigation action.
+
+### 5. Documentation
+- **New Implementation Guide**: Created `docs/coneshare-ui-document-list-imple.md` to document the final, robust solutions for the interactive document list, including the state management and event propagation strategies. This serves as a reference for future development.
