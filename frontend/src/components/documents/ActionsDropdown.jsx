@@ -9,7 +9,7 @@ export function ActionsDropdown({ item, type, onRename, onDelete, onShare }) {
         <Button
           variant="ghost"
           size="icon"
-          className="absolute right-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-full opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+          className="h-8 w-8 rounded-full"
           onClick={(e) => {
             // Prevent card's link navigation when clicking the trigger
             e.preventDefault();
