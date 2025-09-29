@@ -24,6 +24,7 @@ export function DraggableItem({
   });
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleCheckboxClick = (e) => {
     e.stopPropagation();
@@ -55,6 +56,7 @@ export function DraggableItem({
       onClick={handleClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      data-testid={`draggable-item-${id}`}
       className={cn(
         `flex w-full cursor-pointer items-center px-4 py-2 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/50`,
         isDragging && "opacity-50",
@@ -65,7 +67,7 @@ export function DraggableItem({
         <div
           className={cn(
             "transition-opacity",
-            isSelected || isHovered ? "opacity-100" : "opacity-0"
+            isSelected || isHovered || isMenuOpen ? "opacity-100" : "opacity-0"
           )}
         >
           <Checkbox
@@ -110,7 +112,7 @@ export function DraggableItem({
       <div
         className={cn(
           "ml-auto flex w-16 justify-end transition-opacity",
-          isSelected || isHovered ? "opacity-100" : "opacity-0"
+          isSelected || isHovered || isMenuOpen ? "opacity-100" : "opacity-0"
         )}
         onPointerDown={(e) => e.stopPropagation()}
       >
@@ -120,6 +122,7 @@ export function DraggableItem({
           onRename={onRename}
           onDelete={onDelete}
           onShare={onShare}
+          onOpenChange={setIsMenuOpen}
         />
       </div>
     </div>

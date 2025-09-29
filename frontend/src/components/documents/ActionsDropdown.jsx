@@ -2,9 +2,9 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Edit, MoreHorizontal, Share2, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 
-export function ActionsDropdown({ item, type, onRename, onDelete, onShare }) {
+export function ActionsDropdown({ item, type, onRename, onDelete, onShare, onOpenChange }) {
   return (
-    <DropdownMenu.Root>
+    <DropdownMenu.Root onOpenChange={onOpenChange}>
       <DropdownMenu.Trigger asChild>
         <Button
           variant="ghost"
