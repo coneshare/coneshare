@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { Star } from 'lucide-react';
 import { DocumentsList } from "../components/documents/DocumentsList";
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
@@ -167,6 +168,22 @@ function DocumentsPage() {
   const handleClearSelection = useCallback(() => {
     setSelection({ documents: [], folders: [] });
     setLastSelectedItem(null);
+  }, []);
+
+  const handleToggleStar = useCallback((id, type) => {
+    if (type === 'folder') {
+      setFolders((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, is_starred: !item.is_starred } : item
+        )
+      );
+    } else {
+      setDocuments((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, is_starred: !item.is_starred } : item
+        )
+      );
+    }
   }, []);
 
   const handleSort = (key) => {
@@ -377,7 +394,12 @@ function DocumentsPage() {
             onDelete={() => setIsBulkDeleteConfirmOpen(true)}
           />
         ) : (
-          <div id="documents-header-count"></div>
+          <div>
+            <Button variant="ghost" size="sm">
+              <Star className="mr-2 h-4 w-4" />
+              Starred
+            </Button>
+          </div>
         )}
       </div>
 
@@ -396,6 +418,7 @@ function DocumentsPage() {
         sortConfig={sortConfig}
         onSelectAll={handleSelectAll}
         isAllSelected={isAllSelected}
+        onToggleStar={handleToggleStar}
       />
 
       {documents.length > 0 && (

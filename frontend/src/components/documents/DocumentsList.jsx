@@ -24,6 +24,7 @@ export function DocumentsList({
   sortConfig,
   onSelectAll,
   isAllSelected,
+  onToggleStar,
 }) {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [itemToRename, setItemToRename] = useState(null);
@@ -189,6 +190,7 @@ export function DocumentsList({
                   onRename={() => handleRename(item, item.type)}
                   onDelete={() => handleDelete(item, item.type)}
                   onShare={() => handleShare(item)}
+                  onToggleStar={onToggleStar}
                 />
               ))}
             </div>

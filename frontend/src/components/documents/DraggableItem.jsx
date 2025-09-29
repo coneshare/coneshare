@@ -1,6 +1,6 @@
 import { useDraggable } from "@dnd-kit/core";
 import { formatDistanceToNow } from "date-fns";
-import { FileIcon, FolderIcon } from "lucide-react";
+import { FileIcon, FolderIcon, Star } from "lucide-react";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../../lib/utils";
@@ -16,6 +16,7 @@ export function DraggableItem({
   onRename,
   onDelete,
   onShare,
+  onToggleStar,
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id,
@@ -32,7 +33,8 @@ export function DraggableItem({
     e.stopPropagation();
     if (
       e.target.closest('[role="checkbox"]') ||
-      e.target.closest("[data-radix-dropdown-menu-trigger]")
+      e.target.closest("[data-radix-dropdown-menu-trigger]") ||
+      e.target.closest("[data-star-button]")
     ) {
       return;
     }
@@ -77,6 +79,24 @@ export function DraggableItem({
           <FileIcon className="h-5 w-5 text-gray-500" />
         )}
         <span className="truncate font-medium">{item.name}</span>
+        <button
+          data-star-button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleStar(id, type);
+          }}
+          className={cn(
+            "ml-auto p-1 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100",
+            item.is_starred && "opacity-100"
+          )}
+        >
+          <Star
+            className={cn(
+              "h-4 w-4 text-gray-400",
+              item.is_starred && "fill-yellow-400 text-yellow-500"
+            )}
+          />
+        </button>
       </div>
       <div className="w-[20%] truncate">{item.created_by?.name || "Me"}</div>
       <div className="w-[20%]">
