@@ -141,7 +141,7 @@ export function DocumentsList({
         <div
           {...getRootProps({
             className:
-              "relative rounded-lg border border-gray-200 dark:border-gray-800",
+              "relative border-y border-gray-200 dark:border-gray-800",
           })}
         >
           <input {...getInputProps()} />

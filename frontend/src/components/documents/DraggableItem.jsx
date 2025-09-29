@@ -55,11 +55,18 @@ export function DraggableItem({
       )}
     >
       <div className="w-12">
-        <Checkbox
-          checked={isSelected}
-          onClick={handleCheckboxClick}
-          aria-label={`Select ${item.name}`}
-        />
+        <div
+          className={cn(
+            "transition-opacity",
+            isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          )}
+        >
+          <Checkbox
+            checked={isSelected}
+            onClick={handleCheckboxClick}
+            aria-label={`Select ${item.name}`}
+          />
+        </div>
       </div>
       <div className="flex w-[40%] items-center gap-3 truncate">
         {type === "folder" ? (
