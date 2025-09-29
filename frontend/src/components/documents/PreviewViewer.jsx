@@ -9,9 +9,9 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange }) {
     const observer = new IntersectionObserver(
       (entries) => {
         // Find the entry that is most visible in the viewport
-        const mostVisibleEntry = entries.reduce((prev, current) => {
-          return prev.intersectionRatio > current.intersectionRatio ? prev : current;
-        });
+        const [mostVisibleEntry] = [...entries].sort(
+          (a, b) => b.intersectionRatio - a.intersectionRatio
+        );
 
         if (mostVisibleEntry && mostVisibleEntry.isIntersecting) {
           const pageNum = parseInt(mostVisibleEntry.target.dataset.pageNumber, 10);
