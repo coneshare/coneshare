@@ -10,14 +10,14 @@ function Layout() {
   return (
     <div
       className={cn(
-        "grid min-h-screen w-full transition-all",
+        "grid h-screen w-full transition-all",
         isCollapsed
           ? "md:grid-cols-[4rem_1fr]"
           : "md:grid-cols-[16rem_1fr]"
       )}
     >
       <Sidebar />
-      <div className="flex flex-col">
+      <div className="flex flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-auto p-4 md:p-6">
           <Outlet />
