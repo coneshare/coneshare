@@ -535,3 +535,20 @@ This session focused on a major redesign and enhancement of the share link creat
 - **Model Updates**: The `ShareLink` and `ShareLinkPreset` models were updated with new boolean fields (`requires_email`, `receive_email_notification`) to support the new features.
 - **Database Migrations**: New database migrations were created and applied to add the new fields to the database schema, ensuring data persistence for the new settings.
 - **Serializer Updates**: The corresponding DRF serializers were updated to include and handle the new fields.
+
+---
+
+## Session 20: Interactive Public Document Viewer (2025-09-29)
+
+This session focused on enhancing the public-facing document viewer with an interactive toolbar, providing users with essential controls for a better viewing experience. [https://github.com/coneshare/coneshare/pull/18](https://github.com/coneshare/coneshare/pull/18)
+
+### 1. Viewer Toolbar Implementation
+- **New Component**: A `ViewerToolbar.jsx` component was created to house all viewer actions, such as zoom controls, full-screen toggle, download, and print buttons.
+- **Conditional Actions**: The toolbar intelligently hides the "Download" and "Print" buttons if the share link settings disallow downloads, ensuring security settings are respected in the UI.
+
+### 2. Interactive Viewer Features
+- **Zoom Functionality**: Implemented zoom in and zoom out controls, allowing users to adjust the document's scale. The zoom level is managed in the `ShareLinkViewerPage` and applied via CSS transforms in the `PreviewViewer` component.
+- **Full-Screen Mode**: Added a button to toggle full-screen viewing mode for an immersive reading experience, using the browser's Fullscreen API.
+- **Page Count & Tracking**:
+  - The toolbar now displays the current page and total page count (e.g., "2 / 10").
+  - The `PreviewViewer` was refactored to use an `IntersectionObserver`. This efficiently tracks which document page is currently visible in the viewport and updates the page count in the toolbar in real-time.
