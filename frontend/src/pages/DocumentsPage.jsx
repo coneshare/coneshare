@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { Star } from 'lucide-react';
 import { DocumentsList } from "../components/documents/DocumentsList";
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
@@ -23,21 +24,60 @@ function DocumentsPage() {
   const [folders, setFolders] = useState([]);
   const [currentFolder, setCurrentFolder] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [foldersLoading, setFoldersLoading] = useState(true);
   const [selection, setSelection] = useState({ documents: [], folders: [] });
   const [lastSelectedItem, setLastSelectedItem] = useState(null);
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
+  const [sortConfig, setSortConfig] = useState({
+    key: "name",
+    direction: "ascending",
+  });
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
 
-  const allItems = useMemo(() => [
-    ...folders.map((f) => ({ ...f, type: "folder" })),
-    ...documents.map((d) => ({ ...d, type: "document" })),
-  ], [folders, documents]);
+  const allItems = useMemo(() => {
+    const combined = [
+      ...folders.map((f) => ({ ...f, type: "folder" })),
+      ...documents.map((d) => ({ ...d, type: "document" })),
+    ];
 
-  const fetchData = async () => {
+    combined.sort((a, b) => {
+      // Folders always come first and are sorted by name
+      if (a.type === "folder" && b.type === "document") return -1;
+      if (a.type === "document" && b.type === "folder") return 1;
+      
+      const dir = sortConfig.direction === "ascending" ? 1 : -1;
+      const key = sortConfig.key;
+
+      if (a.type === "folder" && b.type === "folder") {
+        return a.name.localeCompare(b.name);
+      }
+      
+      const aVal = a[key];
+      const bVal = b[key];
+
+      if (key === "updated_at") {
+        return (new Date(aVal) - new Date(bVal)) * dir;
+      }
+
+      if (key === 'file_size') {
+        return ((aVal || 0) - (bVal || 0)) * dir;
+      }
+
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return aVal.localeCompare(bVal) * dir;
+      }
+      
+      if (aVal < bVal) return -1 * dir;
+      if (aVal > bVal) return 1 * dir;
+
+      return 0;
+    });
+
+    return combined;
+  }, [folders, documents, sortConfig]);
+
+  const fetchData = useCallback(async () => {
     setLoading(true);
-    setFoldersLoading(true);
     // Reset state before fetching
     setSelection({ documents: [], folders: [] });
     setLastSelectedItem(null);
@@ -56,13 +96,12 @@ function DocumentsPage() {
       setDocuments(documents);
       setBreadcrumbData(current_folder);
     } catch (error) {
-      console.error('Failed to fetch data:', error);
+      console.error("Failed to fetch data:", error);
       // The API interceptor will show a toast for errors.
     } finally {
       setLoading(false);
-      setFoldersLoading(false);
     }
-  };
+  }, [folderId, setBreadcrumbData]);
 
   useEffect(() => {
     fetchData();
@@ -70,7 +109,7 @@ function DocumentsPage() {
     return () => {
       setBreadcrumbData(null);
     };
-  }, [folderId, setBreadcrumbData]);
+  }, [fetchData]);
 
   const handleItemSelect = useCallback((id, type, event) => {
     const currentIndex = allItems.findIndex(
@@ -130,6 +169,51 @@ function DocumentsPage() {
     setSelection({ documents: [], folders: [] });
     setLastSelectedItem(null);
   }, []);
+
+  const handleToggleStar = useCallback((id, type) => {
+    if (type === 'folder') {
+      setFolders((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, is_starred: !item.is_starred } : item
+        )
+      );
+    } else {
+      setDocuments((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, is_starred: !item.is_starred } : item
+        )
+      );
+    }
+  }, []);
+
+  const handleSort = (key) => {
+    setSortConfig((prevConfig) => {
+      if (prevConfig.key === key) {
+        return {
+          ...prevConfig,
+          direction:
+            prevConfig.direction === "ascending" ? "descending" : "ascending",
+        };
+      }
+      return { key, direction: "ascending" };
+    });
+  };
+
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      setSelection({
+        documents: documents.map((d) => d.id),
+        folders: folders.map((f) => f.id),
+      });
+    } else {
+      handleClearSelection();
+    }
+  };
+
+  const isAllSelected =
+    (documents.length > 0 || folders.length > 0) &&
+    selection.documents.length === documents.length &&
+    selection.folders.length === folders.length;
 
   const handleBulkDelete = async () => {
     const { documents: docIds, folders: folderIds } = selection;
@@ -298,7 +382,7 @@ function DocumentsPage() {
       {/*   <div className="relative w-full sm:max-w-xs"> */}
       {/*     <SearchBox loading={loading} inputClassName="h-10" /> */}
       {/*   </div> */}
-      {/*   <SortButton /> */}
+      {/*   <SortButton onSort={handleSort} sortConfig={sortConfig} /> */}
       {/* </div> */}
 
       <div className="mb-4">
@@ -310,23 +394,31 @@ function DocumentsPage() {
             onDelete={() => setIsBulkDeleteConfirmOpen(true)}
           />
         ) : (
-          <div id="documents-header-count"></div>
+          <div>
+            <Button variant="ghost" size="sm">
+              <Star className="mr-2 h-4 w-4" />
+              Starred
+            </Button>
+          </div>
         )}
       </div>
 
-      <Separator className="mb-5 bg-gray-200 dark:bg-gray-800" />
+      {/* <Separator className="mb-5 bg-gray-200 dark:bg-gray-800" /> */}
 
       <DocumentsList
-        folders={folders}
-        documents={documents}
+        allItems={allItems}
         loading={loading}
-        foldersLoading={foldersLoading}
         onDataRefresh={fetchData}
         onFilesDrop={handleFileUploads}
         selectedDocuments={selection.documents}
         selectedFolders={selection.folders}
         onItemSelect={handleItemSelect}
         onClearSelection={handleClearSelection}
+        onSort={handleSort}
+        sortConfig={sortConfig}
+        onSelectAll={handleSelectAll}
+        isAllSelected={isAllSelected}
+        onToggleStar={handleToggleStar}
       />
 
       {documents.length > 0 && (

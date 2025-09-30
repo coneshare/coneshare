@@ -1,44 +1,37 @@
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core";
-import { FileIcon, FolderIcon, } from "lucide-react";
-import { memo, useCallback, useMemo, useState, useEffect } from "react";
-import * as React from 'react';
+import React, { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { deleteDocument, deleteFolder } from "../../services/api";
 import { ConfirmationDialog } from "../dialogs/ConfirmationDialog";
 import { RenameItemDialog } from "../dialogs/RenameItemDialog";
-
-import { Button } from "../ui/Button";
-import { Checkbox } from "../ui/Checkbox";
 import { Skeleton } from "../ui/Skeleton";
-import DocumentCard from "./DocumentCard";
+import { DocumentsListHeader } from "./DocumentsListHeader";
 import { DraggableItem } from "./DraggableItem";
-import { DroppableFolder } from "./DroppableFolder";
 import { EmptyDocuments } from "./EmptyDocuments";
-import FolderCard from "./FolderCard";
-
 
 export function DocumentsList({
-  folders,
-  documents,
+  allItems,
   loading,
-  foldersLoading,
   onDataRefresh,
   onFilesDrop,
   selectedDocuments,
   selectedFolders,
   onItemSelect,
   onClearSelection,
+  onSort,
+  sortConfig,
+  onSelectAll,
+  isAllSelected,
+  onToggleStar,
 }) {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [itemToRename, setItemToRename] = useState(null);
-
-  const [draggedDocument, setDraggedDocument] = useState(null);
-  const [draggedFolder, setDraggedFolder] = useState(null);
+  const [draggedItem, setDraggedItem] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  const totalSelectedItem = [...selectedDocuments, ...selectedFolders].length;
+  const totalSelectedItem = selectedDocuments.length + selectedFolders.length;
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -48,22 +41,8 @@ export function DocumentsList({
     })
   );
 
-  const selectedDocumentsLength = useMemo(
-    () => selectedDocuments && selectedDocuments.length,
-    [selectedDocuments]
-  );
-
-  const selectedFoldersLength = useMemo(
-    () => selectedFolders && selectedFolders.length,
-    [selectedFolders]
-  );
-
   const onDrop = useCallback(
     (acceptedFiles) => {
-      // When a folder is dropped, react-dropzone provides a list of all files
-      // within it. Each file object is augmented with a `path` property
-      // representing its relative path inside the folder. We use this to
-      // reconstruct the folder structure on the server.
       if (acceptedFiles && acceptedFiles.length > 0) {
         onFilesDrop(acceptedFiles);
       }
@@ -73,80 +52,60 @@ export function DocumentsList({
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    noClick: true, // We have dedicated buttons for click-to-upload
+    noClick: true,
     noKeyboard: true,
   });
 
-  const handleSelect = useCallback((id, type, event) => {
-    onItemSelect(id, type, event);
-  }, [onItemSelect]);
+  const handleSelect = useCallback(
+    (id, type, event) => {
+      onItemSelect(id, type, event);
+    },
+    [onItemSelect]
+  );
 
   const handleDragStart = useCallback(
     (event) => {
       setIsDragging(true);
-      const { type } = event.active.data.current ?? {};
-      const itemId = event.active.id;
-
-      if (type === "document") {
-        const draggedItem = documents.find((item) => item.id === itemId) ?? null;
-        setDraggedDocument(draggedItem);
-        if (!selectedDocuments.includes(itemId)) {
-          onItemSelect(itemId, type);
-        }
-      }
-
-      if (type === "folder") {
-        const draggedItem = folders.find((item) => item.id === itemId) ?? null;
-        setDraggedFolder(draggedItem);
-        if (!selectedFolders.includes(itemId)) {
-          onItemSelect(itemId, type);
+      const { id } = event.active;
+      const item = allItems.find((i) => i.id === id);
+      if (item) {
+        setDraggedItem(item);
+        if (
+          (item.type === "document" && !selectedDocuments.includes(id)) ||
+            (item.type === "folder" && !selectedFolders.includes(id))
+        ) {
+          onItemSelect(id, item.type);
         }
       }
     },
-    [documents, folders, selectedDocuments, selectedFolders, onItemSelect]
+    [allItems, selectedDocuments, selectedFolders, onItemSelect]
   );
 
   const handleDragEnd = async (event) => {
     setIsDragging(false);
+    setDraggedItem(null);
     const { over } = event;
-    setDraggedDocument(null);
-    setDraggedFolder(null);
 
     if (over) {
       console.log(`Moved items to folder ${over.id}`);
-      // Here you would call an API to move the files
-      // For now, we just reset selection
     }
-
     onClearSelection();
   };
 
-  const resetSelection = () => {
-    onClearSelection();
-  };
-
-  const handleRename = (item, type) => {
-    setItemToRename({ ...item, type });
-  };
-
-  const handleDelete = (item, type) => {
-    setItemToDelete({ ...item, type });
-  };
+  const handleRename = (item, type) => setItemToRename({ ...item, type });
+  const handleDelete = (item, type) => setItemToDelete({ ...item, type });
 
   const handleConfirmDelete = async () => {
     if (!itemToDelete) return;
-
     try {
       if (itemToDelete.type === "document") {
         await deleteDocument(itemToDelete.id);
-        toast.success(`Document "${itemToDelete.name}" deleted successfully.`);
       } else {
         await deleteFolder(itemToDelete.id);
-        toast.success(`Folder "${itemToDelete.name}" deleted successfully.`);
       }
+      toast.success(`"${itemToDelete.name}" deleted successfully.`);
       onDataRefresh();
     } catch (error) {
-      // Interceptor will show a generic error toast
       console.error(`Failed to delete ${itemToDelete.name}:`, error);
     } finally {
       setItemToDelete(null);
@@ -154,7 +113,6 @@ export function DocumentsList({
   };
 
   const handleShare = (document) => {
-    // In a real implementation, this would open a sharing modal.
     console.log(`Share action for: ${document.name} (${document.id})`);
   };
 
@@ -183,7 +141,12 @@ export function DocumentsList({
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div {...getRootProps({ className: "space-y-4 relative" })}>
+        <div
+          {...getRootProps({
+            className:
+              "relative border-y border-gray-200 dark:border-gray-800",
+          })}
+        >
           <input {...getInputProps()} />
           {isDragActive && (
             <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary/10">
@@ -192,88 +155,64 @@ export function DocumentsList({
               </p>
             </div>
           )}
-          {/* Folders list */}
-          <ul role="list" className="space-y-4">
-            {folders && !foldersLoading
-              ? folders.map((folder) => (
-                <li key={folder.id}>
-                  <DroppableFolder
-                    key={folder.id}
-                    id={folder.id}
-                    disabledFolder={selectedFolders}
-                    path={folder.path}
-                  >
-                    <DraggableItem
-                      key={folder.id}
-                      id={folder.id}
-                      isSelected={selectedFolders.includes(folder.id)}
-                      onSelect={handleSelect}
-                      type="folder"
-                    >
-                      <FolderCard
-                        folder={folder}
-                        onRename={() => handleRename(folder, "folder")}
-                        onDelete={() => handleDelete(folder, "folder")}
-                      />
-                    </DraggableItem>
-                  </DroppableFolder>
-                </li>
-              ))
-              : Array.from({ length: 2 }).map((_, i) => (
-                <li key={i}>
-                  <Skeleton className="h-20 w-full" />
-                </li>
-              ))}
-          </ul>
 
-          {/* Documents list */}
-          <ul role="list" className="space-y-4">
-            {documents && !loading
-              ? documents.map((document) => (
-                <li key={document.id}>
-                  <DraggableItem
-                    key={document.id}
-                    id={document.id}
-                    isSelected={selectedDocuments.includes(document.id)}
-                    type="document"
-                    onSelect={handleSelect}
-                  >
-                    <DocumentCard
-                      document={document}
-                      onRename={() => handleRename(document, "document")}
-                      onDelete={() => handleDelete(document, "document")}
-                      onShare={handleShare}
-                    />
-                  </DraggableItem>
-                </li>
-              ))
-              : Array.from({ length: 3 }).map((_, i) => (
-                <li key={i}>
-                  <Skeleton className="h-20 w-full" />
-                </li>
-              ))}
-          </ul>
-
-          {createPortal(<DragOverlay>
-            <div className="relative">
-              {draggedDocument && <DocumentCard document={draggedDocument} />}
-              {draggedFolder && <FolderCard folder={draggedFolder} />}
-              {totalSelectedItem > 1 && (
-                <div className="absolute -right-4 -top-4 rounded-full border bg-foreground px-4 py-2">
-                  <span className="text-sm font-semibold text-background">
-                    {totalSelectedItem}
-                  </span>
+          <DocumentsListHeader
+            onSort={onSort}
+            sortConfig={sortConfig}
+            onSelectAll={onSelectAll}
+            isAllSelected={isAllSelected}
+          />
+          {loading ? (
+            <div className="divide-y divide-gray-200 dark:divide-gray-800">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex h-[53px] items-center px-4">
+                  <Skeleton className="h-4 w-4" />
+                  <Skeleton className="ml-8 h-4 flex-1" />
                 </div>
-              )}
+              ))}
             </div>
-          </DragOverlay>, document.body)}
-
-          {!loading && !foldersLoading && documents.length === 0 && folders.length === 0 && (
-            <div className="flex items-center justify-center">
+          ) : allItems.length === 0 ? (
+            <div className="flex items-center justify-center py-10">
               <EmptyDocuments />
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200 dark:divide-gray-800">
+              {allItems.map((item) => (
+                <DraggableItem
+                  key={item.id}
+                  id={item.id}
+                  item={item}
+                  type={item.type}
+                  isSelected={
+                    item.type === "folder"
+                      ? selectedFolders.includes(item.id)
+                      : selectedDocuments.includes(item.id)
+                  }
+                  onSelect={handleSelect}
+                  onRename={() => handleRename(item, item.type)}
+                  onDelete={() => handleDelete(item, item.type)}
+                  onShare={() => handleShare(item)}
+                  onToggleStar={onToggleStar}
+                />
+              ))}
             </div>
           )}
         </div>
+        {createPortal(
+          <DragOverlay>
+            {draggedItem && (
+              <div className="relative rounded-lg border bg-white p-2 shadow-md dark:border-gray-700 dark:bg-gray-800">
+                <span>{draggedItem.name}</span>
+                {totalSelectedItem > 1 && (
+                  <div className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border bg-primary text-xs font-semibold text-primary-foreground">
+                    {totalSelectedItem}
+                  </div>
+                )}
+              </div>
+            )}
+          </DragOverlay>,
+          document.body
+        )}
       </DndContext>
     </>
   );
