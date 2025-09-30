@@ -60,7 +60,7 @@ function DocumentsPage() {
       }
 
       if (key === 'file_size') {
-        return (aVal || 0 - bVal || 0) * dir;
+        return ((aVal || 0) - (bVal || 0)) * dir;
       }
 
       if (typeof aVal === 'string' && typeof bVal === 'string') {
