@@ -68,12 +68,14 @@ export function DocumentsList({
       setIsDragging(true);
       const { id } = event.active;
       const item = allItems.find((i) => i.id === id);
-      setDraggedItem(item);
-      if (
-        (item.type === "document" && !selectedDocuments.includes(id)) ||
-        (item.type === "folder" && !selectedFolders.includes(id))
-      ) {
-        onItemSelect(id, item.type);
+      if (item) {
+        setDraggedItem(item);
+        if (
+          (item.type === "document" && !selectedDocuments.includes(id)) ||
+            (item.type === "folder" && !selectedFolders.includes(id))
+        ) {
+          onItemSelect(id, item.type);
+        }
       }
     },
     [allItems, selectedDocuments, selectedFolders, onItemSelect]

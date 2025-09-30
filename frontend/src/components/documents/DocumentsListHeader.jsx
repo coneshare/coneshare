@@ -1,4 +1,4 @@
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Checkbox } from "../ui/Checkbox";
 import { cn } from "../../lib/utils";
@@ -47,9 +47,12 @@ export function DocumentsListHeader({
             className="-ml-2 h-auto px-2 py-1"
           >
             {label}
-            {sortConfig.key === key && (
-              <ArrowUpDown className="ml-2 h-4 w-4" />
-            )}
+            {sortConfig.key === key &&
+              (sortConfig.direction === "ascending" ? (
+                <ArrowUp className="ml-2 h-4 w-4" />
+              ) : (
+                <ArrowDown className="ml-2 h-4 w-4" />
+              ))}            
           </Button>
         </div>
       ))}
