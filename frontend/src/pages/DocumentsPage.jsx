@@ -49,7 +49,7 @@ function DocumentsPage() {
       const key = sortConfig.key;
 
       if (a.type === "folder" && b.type === "folder") {
-        return a.name.localeCompare(b.name) * dir;
+        return a.name.localeCompare(b.name);
       }
       
       const aVal = a[key];
