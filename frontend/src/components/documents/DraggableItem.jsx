@@ -104,7 +104,7 @@ export function DraggableItem({
       </div>
       <div className="w-[10%]">
         {type === "document" && item.file_size
-          ? `${(item.file_size / 1024).toFixed(1)} KB`
+          ? formatFileSize(item.file_size)
           : "—"}
       </div>
       <div
