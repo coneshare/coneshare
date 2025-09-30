@@ -5,30 +5,13 @@ import { describe, it, expect, vi } from "vitest";
 import { DocumentsList } from "../../../components/documents/DocumentsList";
 
 // Mock child components and hooks to isolate the DocumentsList component
-vi.mock("../../../components/documents/DocumentCard", () => ({
-  default: ({ document, onRename }) => (
-    <div>
-      <span>{document.name}</span>
-      <button onClick={onRename}>Rename Document</button>
-    </div>
-  ),
-}));
-
-vi.mock("../../../components/documents/FolderCard", () => ({
-  default: ({ folder, onRename }) => (
-    <div>
-      <span>{folder.name}</span>
-      <button onClick={onRename}>Rename Folder</button>
-    </div>
-  ),
-}));
-
 vi.mock("../../../components/documents/DraggableItem", () => ({
-  DraggableItem: ({ children }) => <div>{children}</div>,
-}));
-
-vi.mock("../../../components/documents/DroppableFolder", () => ({
-  DroppableFolder: ({ children }) => <div>{children}</div>,
+  DraggableItem: ({ item, onRename }) => (
+    <div>
+      <span>{item.name}</span>
+      <button onClick={onRename}>Rename {item.type}</button>
+    </div>
+  ),
 }));
 
 vi.mock("react-dropzone", () => ({
@@ -52,16 +35,14 @@ vi.mock("@dnd-kit/core", async () => {
 });
 
 describe("DocumentsList", () => {
-  const mockDocuments = [{ id: "doc1", name: "Test Document 1" }];
-  const mockFolders = [{ id: "folder1", name: "Test Folder 1" }];
+  const mockDocuments = [{ id: "doc1", name: "Test Document 1", type: "document" }];
+  const mockFolders = [{ id: "folder1", name: "Test Folder 1", type: "folder" }];
 
   it("should open the rename dialog when rename is clicked on a document", async () => {
     render(
       <DocumentsList
-        documents={mockDocuments}
-        folders={[]}
+        allItems={mockDocuments}
         loading={false}
-        foldersLoading={false}
         onDataRefresh={() => {}}
         onFilesDrop={() => {}}
       />
@@ -80,10 +61,8 @@ describe("DocumentsList", () => {
   it("should open the rename dialog when rename is clicked on a folder", async () => {
     render(
       <DocumentsList
-        documents={[]}
-        folders={mockFolders}
+        allItems={mockFolders}
         loading={false}
-        foldersLoading={false}
         onDataRefresh={() => {}}
         onFilesDrop={() => {}}
       />
