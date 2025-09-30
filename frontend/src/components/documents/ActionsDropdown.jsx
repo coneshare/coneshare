@@ -42,9 +42,9 @@ export function ActionsDropdown({ item, type, onRename, onDelete, onShare, onOpe
         {type === 'document' && onShare && (
            <DropdownMenu.Item
             onSelect={(e) => {
-                e.preventDefault();
+              e.preventDefault();
               e.stopPropagation();
-                onShare(item);
+              onShare(item);
             }}
             className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
            >
