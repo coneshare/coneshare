@@ -56,7 +56,7 @@ function DocumentsPage() {
       const bVal = b[key];
 
       if (key === "updated_at") {
-        return (new Date(bVal) - new Date(aVal)) * dir;
+        return (new Date(aVal) - new Date(bVal)) * dir;
       }
 
       if (key === 'file_size') {
