@@ -45,6 +45,9 @@ describe("DocumentsList", () => {
         loading={false}
         onDataRefresh={() => {}}
         onFilesDrop={() => {}}
+        sortConfig={{ key: "name", direction: "ascending" }}
+        selectedDocuments={[]}
+        selectedFolders={[]}
       />
     );
     
@@ -65,6 +68,9 @@ describe("DocumentsList", () => {
         loading={false}
         onDataRefresh={() => {}}
         onFilesDrop={() => {}}
+        sortConfig={{ key: "name", direction: "ascending" }}
+        selectedDocuments={[]}
+        selectedFolders={[]}
       />
     );
     
