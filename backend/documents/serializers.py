@@ -111,6 +111,19 @@ class ShareLinkSerializer(serializers.ModelSerializer):
     )
     has_password = serializers.SerializerMethodField()
 
+    def validate(self, data):
+        """
+        Enforce business rules:
+        - If the associated document is download-only, force allow_download to be true.
+        """
+        # On update, 'document' may not be in the payload. We get it from the instance.
+        document = data.get('document') or getattr(self.instance, 'document', None)
+
+        if document and document.download_only:
+            data['allow_download'] = True
+
+        return data
+
     class Meta:
         model = ShareLink
         fields = [

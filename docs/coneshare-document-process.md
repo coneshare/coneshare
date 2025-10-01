@@ -24,40 +24,28 @@ Based on the `coneshare-techstack.md`, the key components involved in this proce
 
 ## V1.0 File Processing Logic
 
-The `process_document` service function is the entry point for all uploads. It detects the file type and triggers the appropriate background task, ensuring a consistent and modular pipeline.
+The `process_document` service function is the entry point for all uploads. It inspects the file's type and size to determine if it can be previewed. Based on this, it either triggers the appropriate background processing task or marks the file as "download-only."
 
-### Document Files (e.g., DOCX, PPTX)
+### Previewable Documents (Office, PDF, Images)
 
-This follows a two-stage pipeline to convert office documents into a viewable format.
+Files that are of a supported type (Office, PDF, Image) and under the configured size limit (e.g., 100MB) are sent for processing.
 
-1.  **Initiation**: The `process_document` service detects the file is an office document (e.g., `.docx`). It creates the initial `Document` and `DocumentVersion` records with a status of `'processing'` and triggers the `convert_office_to_pdf_task`.
+1.  **Initiation**: The `process_document` service checks the file. It creates `Document` records with a status of `'processing'`.
 
-2.  **Conversion to PDF (Async Task 1)**: The `convert_office_to_pdf_task` runs in the background.
-    *   It uses a tool like LibreOffice to convert the original file into a PDF.
-    *   It saves the new PDF to storage.
-    *   It updates the `DocumentVersion`, changing its `storage_key` to point to the new PDF and its `type` to `'pdf'`.
+2.  **Routing**:
+    *   **Office Documents**: The `convert_office_to_pdf_task` is triggered. This task converts the file to PDF and then triggers the `generate_pdf_pages_task`.
+    *   **PDFs**: The `generate_pdf_pages_task` is triggered directly.
+    *   **Images**: No task is needed. The status is set to `'ready'`.
 
-3.  **PDF Page Processing (Async Task 2)**: After the conversion is complete, the task immediately triggers the `generate_pdf_pages_task` with the ID of the version (which now points to a PDF). This reuses the standard PDF processing logic.
+### Download-Only Files (Unsupported Types or Large Files)
 
-### PDF Files
+If a file is of an unsupported type (e.g., a ZIP archive) or exceeds the preview size limit, it is marked for download only.
 
-When a PDF is uploaded directly, it bypasses the initial conversion step.
+1.  **Initiation**: The `process_document` service identifies the file as download-only.
 
-1.  **Initiation**: The `process_document` service detects the file is a PDF. It creates the `Document` and `DocumentVersion` records with a status of `'processing'`.
+2.  **No Processing**: No Celery task is triggered. The `Document` is created with a `download_only` flag set to `True` and its status is immediately set to `'ready'`.
 
-2.  **Page Processing Trigger**: It directly triggers the `generate_pdf_pages_task` background task.
-
-3.  **Asynchronous Page Processing**: This task runs in the background to extract each page from the PDF and convert it into an image. This is the final step for all viewable documents.
-
-### Image Files (e.g., PNG, JPG)
-
-Image files are handled differently as they are natively viewable and require no processing.
-
-1.  **Initiation**: The `process_document` service detects the file is an image. It creates the `Document` and `DocumentVersion` records and stores the file.
-
-2.  **No Processing Task**: No Celery task is triggered. The document's status is set directly to `'ready'`.
-
-3.  **Direct Viewing**: The frontend preview logic will generate a secure, direct URL to the stored image file for rendering in the viewer.
+3.  **Share Link Behavior**: When a share link is created for this document, the "Allow Download" option is automatically and permanently enabled.
 
 ---
 
@@ -76,16 +64,19 @@ sequenceDiagram
     API->>Storage: Store original file
     API->>DB: Create Document & Version
     
-    alt Office Document
+    alt Office Doc (previewable size)
         API->>DB: Set status: 'processing'
         API->>Queue: Push convert_office_to_pdf_task
         API-->>Client: 202 Accepted
-    else PDF Document
+    else PDF Doc (previewable size)
         API->>DB: Set status: 'processing'
         API->>Queue: Push generate_pdf_pages_task
         API-->>Client: 202 Accepted
-    else Image File
+    else Image File (previewable size)
         API->>DB: Set status: 'ready'
+        API-->>Client: 201 Created
+    else Unsupported Type or Too Large
+        API->>DB: Set status: 'ready', download_only: true
         API-->>Client: 201 Created
     end
 

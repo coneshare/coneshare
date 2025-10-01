@@ -1,4 +1,5 @@
 import os
+from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
 from django.core.files.storage import default_storage
 from django.db import transaction
@@ -28,7 +29,7 @@ def create_document_from_upload(
 ) -> Document:
     """
     Creates document records and routes the file to the correct
-    asynchronous processing task based on its content type.
+    asynchronous processing task based on its content type and size.
     """
     # 1. Store the original file
     file_id = generate_ulid()
@@ -78,16 +79,19 @@ def create_document_from_upload(
         is_primary=True,
     )
 
-    # 3. Trigger background task based on type
-    if content_type in OFFICE_MIMETYPES:
+    # 3. Trigger background task based on type and size
+    max_size_bytes = settings.MAX_PREVIEW_FILE_SIZE_MB * 1024 * 1024
+    is_too_large = uploaded_file.size > max_size_bytes
+
+    if (content_type in OFFICE_MIMETYPES) and not is_too_large:
         document.status = 'processing'
         document.save()
         convert_office_to_pdf_task.delay(version.id)
-    elif content_type == PDF_MIMETYPE:
+    elif (content_type == PDF_MIMETYPE) and not is_too_large:
         document.status = 'processing'
         document.save()
         generate_pdf_pages_task.delay(version.id)
-    elif content_type in IMAGE_MIMETYPES:
+    elif (content_type in IMAGE_MIMETYPES) and not is_too_large:
         document.status = 'ready'
         document.num_pages = 1
         document.save()
@@ -95,6 +99,7 @@ def create_document_from_upload(
         version.has_pages = True
         version.save()
     else:
+        # Mark as download-only if type is unsupported or file is too large
         document.download_only = True
         document.status = 'ready'
         document.save()
@@ -130,11 +135,8 @@ def create_new_document_version(
     requesting_user: User
 ) -> DocumentVersion:
     """
-    Handles creating a new version of a document.
-    1. Stores the new file.
-    2. Creates a new DocumentVersion record and marks it as primary.
-    3. De-primary-s the old version.
-    4. Triggers async processing.
+    Handles creating a new version of a document, routing to the correct
+    processing task based on file type and size.
     """
     # 1. Find the current version number
     latest_version = document.versions.order_by('-version_number').first()
@@ -145,6 +147,15 @@ def create_new_document_version(
     file_ext = os.path.splitext(uploaded_file.name)[1]
     storage_key = f"{requesting_user.organization.id}/{file_id}{file_ext}"
     new_storage_key = default_storage.save(storage_key, uploaded_file)
+
+    content_type = uploaded_file.content_type
+    doc_type = 'file'  # default
+    if content_type in OFFICE_MIMETYPES:
+        doc_type = 'document'
+    elif content_type == PDF_MIMETYPE:
+        doc_type = 'pdf'
+    elif content_type in IMAGE_MIMETYPES:
+        doc_type = 'image'
 
     with transaction.atomic():
         # 3. Set the old version to not be primary
@@ -159,16 +170,37 @@ def create_new_document_version(
             original_storage_key=new_storage_key,
             storage_key=new_storage_key,
             is_primary=True,
-            content_type=uploaded_file.content_type,
+            content_type=content_type,
             file_size=uploaded_file.size,
-            type='pdf'  # V1 only supports PDF
+            type=doc_type
         )
 
-        # 5. Update the parent Document's status
-        document.status = 'processing'
-        document.save()
+        # 5. Update parent document and decide on processing
+        max_size_bytes = settings.MAX_PREVIEW_FILE_SIZE_MB * 1024 * 1024
+        is_too_large = uploaded_file.size > max_size_bytes
+        is_previewable = doc_type != 'file' and not is_too_large
 
-    # 6. Trigger the same async processing task as a new document
-    generate_pdf_pages_task.delay(new_version.id)
+        document.download_only = not is_previewable
+        document.type = doc_type
+        document.content_type = content_type
+
+        # 6. Trigger task or set status to ready
+        if is_previewable:
+            if doc_type == 'image':
+                document.status = 'ready'
+                document.num_pages = 1
+                new_version.num_pages = 1
+                new_version.has_pages = True
+                new_version.save()
+            else:  # Office or PDF
+                document.status = 'processing'
+                if doc_type == 'document':
+                    convert_office_to_pdf_task.delay(new_version.id)
+                elif doc_type == 'pdf':
+                    generate_pdf_pages_task.delay(new_version.id)
+        else:  # Download only
+            document.status = 'ready'
+
+        document.save()
 
     return new_version
