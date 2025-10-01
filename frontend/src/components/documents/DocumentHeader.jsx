@@ -23,16 +23,19 @@ export function DocumentHeader({ document, onCreateLink, onPreview }) {
         <div className="mt-3 flex sm:ml-4 sm:mt-0">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="mr-2"
-                onClick={onPreview}
-                disabled={document.download_only}
-              >
-                <Eye className="h-5 w-5" />
-                <span className="sr-only">Preview</span>
-              </Button>
+              <span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="mr-2"
+                  onClick={onPreview}
+                  disabled={document.download_only}
+                  style={document.download_only ? { pointerEvents: 'none' } : {}}
+                >
+                  <Eye className="h-5 w-5" />
+                  <span className="sr-only">Preview</span>
+                </Button>
+              </span>
             </TooltipTrigger>
             <TooltipContent>
               {document.download_only ? (
