@@ -537,6 +537,37 @@ class TestShareLinkViewDataView:
         assert data['pages'][0]['url'] == "http://test.com/shared_page.png"
         assert data['linkSettings']['allowDownload'] == share_link.allow_download
 
+    @override_settings(SITE_DOMAIN="http://test.coneshare.com")
+    @patch('django.core.files.storage.default_storage.url')
+    def test_get_share_link_data_for_image_document(self, mock_storage_url, public_client, image_document_with_content, user):
+        """Test successful retrieval of public share link data for an image document."""
+        # Setup
+        image_share_link = ShareLink.objects.create(
+            document=image_document_with_content,
+            created_by=user
+        )
+        primary_version = image_document_with_content.versions.get(is_primary=True)
+        # Mock storage url to return a relative path
+        mock_storage_url.return_value = f"/{primary_version.original_storage_key}"
+
+        # Action
+        response = public_client.get(f'/api/v1/links/{image_share_link.slug}/view-data/')
+
+        # Assertions
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data['id'] == str(image_document_with_content.id)
+        assert data['type'] == 'image'
+        assert data['numPages'] == 1
+        assert len(data['pages']) == 1
+
+        page_data = data['pages'][0]
+        assert page_data['page_number'] == 1
+
+        expected_url = f"http://test.coneshare.com/{primary_version.original_storage_key}"
+        assert page_data['url'] == expected_url
+        mock_storage_url.assert_called_once_with(primary_version.original_storage_key)
+
     def test_get_share_link_data_not_found(self, public_client):
         """Test getting a link with a non-existent slug returns 404."""
         response = public_client.get('/api/v1/links/non-existent-slug/view-data/')

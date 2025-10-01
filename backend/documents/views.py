@@ -554,7 +554,15 @@ class ShareLinkViewDataView(APIView):
             )
 
         pages_data = []
-        if primary_version.has_pages:
+        if document.type == 'image':
+            image_url = default_storage.url(primary_version.original_storage_key)
+            absolute_url = urljoin(settings.SITE_DOMAIN, image_url)
+            pages_data.append({
+                'page_number': 1,
+                'url': absolute_url,
+                'metadata': {},
+            })
+        elif primary_version.has_pages:
             # Note: In a production system, a service would generate pre-signed URLs.
             # Here, we mirror DocumentPreviewDataView but use the key directly for simplicity.
             pages = primary_version.pages.order_by('page_number')
@@ -570,7 +578,7 @@ class ShareLinkViewDataView(APIView):
             "id": document.id,
             "name": document.name,
             "type": document.type,
-            "numPages": primary_version.num_pages,
+            "numPages": document.num_pages,
             "pages": pages_data,
             "linkSettings": {
                 "allowDownload": link.allow_download,
