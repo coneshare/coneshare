@@ -294,13 +294,24 @@ class DocumentPreviewDataView(APIView):
 
         # Content Processing and Response Shaping
         pages_data = []
-        if primary_version.has_pages:
+        if document.type == 'image':
+            # For images, the preview is the original file itself.
+            image_url = default_storage.url(primary_version.original_storage_key)
+            absolute_url = urljoin(settings.SITE_DOMAIN, image_url)
+            pages_data.append({
+                'page_number': 1,
+                'url': absolute_url,
+                'metadata': {},
+            })
+        elif primary_version.has_pages:
+            # For PDFs/Office docs, we have pre-generated page images.
             pages = primary_version.pages.order_by('page_number')
             for page in pages:
                 page_url = default_storage.url(page.storage_key)
+                absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
                 pages_data.append({
                     "page_number": page.page_number,
-                    "url": urljoin(settings.SITE_DOMAIN, page_url),
+                    "url": absolute_url,
                     "metadata": page.metadata,
                 })
 
@@ -308,7 +319,7 @@ class DocumentPreviewDataView(APIView):
             "id": document.id,
             "name": document.name,
             "type": document.type,
-            "numPages": primary_version.num_pages,
+            "numPages": document.num_pages,
             "pages": pages_data,
         }
 
