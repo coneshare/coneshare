@@ -388,6 +388,7 @@ def test_get_document_preview_data_success(mock_storage_url, api_client, user):
         organization=user.organization,
         created_by=user,
         name="preview.pdf",
+        num_pages=1,
         status='ready'
     )
     version = DocumentVersion.objects.create(

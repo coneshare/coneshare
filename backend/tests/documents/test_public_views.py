@@ -48,5 +48,4 @@ class TestShareLinkViewDataView:
 
         assert response.status_code == 401
         data = response.json()
-        assert data["message"] == "Password required"
-        assert data["protectionType"] == "password"
+        assert data["message"] == "This link is password-protected. Please enter the password to continue."
