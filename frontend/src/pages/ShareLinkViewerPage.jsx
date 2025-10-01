@@ -1,11 +1,24 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Cone } from 'lucide-react';
+import { Cone, FileDown } from 'lucide-react';
 import { PasswordForm } from '../components/viewer/PasswordForm';
 import { ViewerToolbar } from '../components/viewer/ViewerToolbar';
 import { PreviewViewer } from '../components/documents/PreviewViewer';
 import { Skeleton } from '../components/ui/Skeleton';
 import { getShareLinkViewData } from '../services/api';
+import { Button } from '../components/ui/Button';
+
+function formatBytes(bytes, decimals = 2) {
+  if (!+bytes) return '0 Bytes';
+
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
 
 export function ShareLinkViewerPage() {
   const { slug } = useParams();
@@ -96,6 +109,46 @@ export function ShareLinkViewerPage() {
         <div className="rounded-lg bg-white p-8 text-center shadow-md">
           <h1 className="mb-4 text-2xl font-bold text-red-600">Error</h1>
           <p className="text-gray-700">{error.message}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const isDownloadOnly = documentData && (!documentData.pages || documentData.pages.length === 0);
+
+  if (documentData && isDownloadOnly) {
+    return (
+      <div className="relative h-screen w-screen bg-gray-50">
+        <div className="absolute left-6 top-4 z-10">
+          <a
+            href="/"
+            className="flex items-center gap-2 rounded-md bg-white p-2 font-semibold shadow-sm"
+          >
+            <Cone className="h-6 w-6" />
+            <span>ConeShare</span>
+          </a>
+        </div>
+        <div className="flex h-full items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-8 text-center shadow-lg">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+              <FileDown className="h-6 w-6 text-gray-600" />
+            </div>
+            <h1 className="mb-1 text-xl font-bold text-gray-900" title={documentData.name}>
+              {documentData.name}
+            </h1>
+            {documentData.fileSize ? (
+              <p className="mb-6 text-sm text-gray-500">{formatBytes(documentData.fileSize)}</p>
+            ) : null}
+            <p className="mb-6 text-gray-700">
+              This type of file is not available for online preview. Download the file and open it
+              on your device.
+            </p>
+            <Button asChild size="lg" className="w-full">
+              <a href={documentData.downloadUrl} download>
+                Download
+              </a>
+            </Button>
+          </div>
         </div>
       </div>
     );
