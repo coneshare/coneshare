@@ -23,13 +23,23 @@ export function DocumentHeader({ document, onCreateLink, onPreview }) {
         <div className="mt-3 flex sm:ml-4 sm:mt-0">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="outline" size="icon" className="mr-2" onClick={onPreview}>
+              <Button
+                variant="outline"
+                size="icon"
+                className="mr-2"
+                onClick={onPreview}
+                disabled={document.download_only}
+              >
                 <Eye className="h-5 w-5" />
                 <span className="sr-only">Preview</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Preview</p>
+              {document.download_only ? (
+                <p>Preview not available for this file type.</p>
+              ) : (
+                <p>Preview</p>
+              )}
             </TooltipContent>
           </Tooltip>
           <Tooltip>
