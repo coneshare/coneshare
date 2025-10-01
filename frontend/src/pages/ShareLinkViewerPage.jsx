@@ -114,7 +114,7 @@ export function ShareLinkViewerPage() {
     );
   }
 
-  const isDownloadOnly = documentData && (!documentData.pages || documentData.pages.length === 0);
+  const isDownloadOnly = documentData?.download_only;
 
   if (documentData && isDownloadOnly) {
     return (
