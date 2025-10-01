@@ -63,7 +63,7 @@ def convert_office_to_pdf_task(version_id):
         if 'document' in locals():
             document.status = 'error'
             document.save()
-        print(f"Error converting document version {version_id}: {e}")
+        logging.error(f"Error converting document version {version_id}: {e}")
 
 
 @shared_task
