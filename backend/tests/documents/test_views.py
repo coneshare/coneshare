@@ -346,6 +346,40 @@ def test_upload_document_with_path(api_client, user):
 @pytest.mark.django_db
 @override_settings(SITE_DOMAIN="http://test.coneshare.com")
 @patch('django.core.files.storage.default_storage.url')
+def test_get_document_preview_data_for_image_document(
+    mock_storage_url, api_client, image_document_with_content
+):
+    """
+    Verify that preview data for an image document returns the direct URL
+    to the image file itself.
+    """
+    primary_version = image_document_with_content.versions.get(is_primary=True)
+    # Mock storage url to return a relative path
+    mock_storage_url.return_value = f"/{primary_version.original_storage_key}"
+
+    url = f'/api/v1/documents/{image_document_with_content.id}/preview-data/'
+    response = api_client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data['id'] == str(image_document_with_content.id)
+    assert data['type'] == 'image'
+    assert data['numPages'] == 1
+    assert len(data['pages']) == 1
+
+    page_data = data['pages'][0]
+    assert page_data['page_number'] == 1
+    assert 'url' in page_data
+
+    expected_url = f"http://test.coneshare.com/{primary_version.original_storage_key}"
+    assert page_data['url'] == expected_url
+
+    mock_storage_url.assert_called_once_with(primary_version.original_storage_key)
+
+
+@pytest.mark.django_db
+@override_settings(SITE_DOMAIN="http://test.coneshare.com")
+@patch('django.core.files.storage.default_storage.url')
 def test_get_document_preview_data_success(mock_storage_url, api_client, user):
     """Test successfully retrieving document preview data."""
     # Setup
