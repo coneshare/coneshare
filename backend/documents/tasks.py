@@ -1,11 +1,69 @@
 import os
+import tempfile
+import subprocess
+from pathlib import Path
 from io import BytesIO
 from celery import shared_task
 from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
+from django.core.files.base import ContentFile, File
 from pdf2image import convert_from_bytes
 
 from .models import DocumentVersion, DocumentPage
+
+
+@shared_task
+def convert_office_to_pdf_task(version_id):
+    """
+    Converts an office document (e.g., .docx, .pptx) to a PDF.
+    This is the first stage in a two-stage processing pipeline.
+    """
+    try:
+        version = DocumentVersion.objects.select_related('document').get(id=version_id)
+        document = version.document
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_dir_path = Path(temp_dir)
+            
+            original_file_name = Path(version.original_storage_key).name
+            original_file_path = temp_dir_path / original_file_name
+
+            # 1. Download original file from storage
+            with default_storage.open(version.original_storage_key, 'rb') as f_in:
+                with open(original_file_path, 'wb') as f_out:
+                    f_out.write(f_in.read())
+
+            # 2. Convert to PDF using LibreOffice
+            subprocess.run(
+                ["libreoffice", "--headless", "--convert-to", "pdf", "--outdir", temp_dir, original_file_path],
+                check=True, timeout=300  # 5 minute timeout
+            )
+            
+            pdf_path = temp_dir_path / f"{original_file_path.stem}.pdf"
+            if not pdf_path.exists():
+                raise FileNotFoundError("LibreOffice did not create a PDF file.")
+
+            # 3. Upload new PDF to storage
+            base_path, _ = os.path.splitext(version.original_storage_key)
+            new_storage_key = f"{base_path}.pdf"
+            
+            with open(pdf_path, 'rb') as pdf_file:
+                version.storage_key = default_storage.save(new_storage_key, File(pdf_file))
+
+            # 4. Update the document version to point to the new PDF
+            version.content_type = 'application/pdf'
+            version.type = 'pdf'
+            version.save()
+            
+            # 5. Trigger the next stage of processing
+            generate_pdf_pages_task.delay(version.id)
+
+    except DocumentVersion.DoesNotExist:
+        return
+    except Exception as e:
+        if 'document' in locals():
+            document.status = 'error'
+            document.save()
+        print(f"Error converting document version {version_id}: {e}")
 
 
 @shared_task
@@ -22,7 +80,7 @@ def generate_pdf_pages_task(version_id):
 
     try:
         # 1. Fetch PDF from storage
-        with default_storage.open(version.original_storage_key) as pdf_file:
+        with default_storage.open(version.storage_key) as pdf_file:
             pdf_bytes = pdf_file.read()
 
         # 2. Convert PDF pages to images (PNG)
