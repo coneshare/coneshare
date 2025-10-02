@@ -58,8 +58,6 @@ export function VisitorsTable({ views }) {
             <TableRow>
               <TableHead>Visitor</TableHead>
               <TableHead>Link</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Device</TableHead>
               <TableHead>Viewed At</TableHead>
               <TableHead className="text-right">Duration</TableHead>
               <TableHead className="text-right">Completion</TableHead>
@@ -68,12 +66,19 @@ export function VisitorsTable({ views }) {
           <TableBody>
             {views.map((view) => {
               const { browser, os } = parseUserAgent(view.user_agent);
+              const deviceInfo = browser !== 'Unknown' ? `${browser} on ${os}` : 'Unknown device';
+              const locationInfo = view.ip_address ? ` - ${view.ip_address}` : '';
+
               return (
                 <TableRow key={view.id}>
-                  <TableCell className="font-medium">{view.viewer_email || 'Anonymous'}</TableCell>
+                  <TableCell>
+                    <div className="font-medium">{view.viewer_email || 'Anonymous'}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {deviceInfo}
+                      {locationInfo}
+                    </div>
+                  </TableCell>
                   <TableCell>{view.share_link_name || 'Untitled Link'}</TableCell>
-                  <TableCell>{view.ip_address || 'N/A'}</TableCell>
-                  <TableCell>{browser !== 'Unknown' ? `${browser} on ${os}` : 'N/A'}</TableCell>
                   <TableCell>
                     {new Date(view.viewed_at).toLocaleString(undefined, {
                       dateStyle: 'medium',
