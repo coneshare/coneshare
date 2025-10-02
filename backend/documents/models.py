@@ -66,8 +66,8 @@ class DocumentVersion(BaseModel):
     """
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='versions')
     version_number = models.IntegerField()
-    storage_key = models.CharField(max_length=1024, blank=True)
-    original_storage_key = models.CharField(max_length=1024)
+    storage_key = models.CharField(max_length=1024, blank=True)  # Key for the file to be processed into pages (e.g., a PDF).
+    original_storage_key = models.CharField(max_length=1024)     # Key for the original, untouched uploaded file (e.g., .docx, .pdf).
     content_type = models.CharField(max_length=255, blank=True)
     type = models.CharField(max_length=50, blank=True)
     storage_type = models.CharField(max_length=20, blank=True)

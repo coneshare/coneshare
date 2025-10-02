@@ -20,7 +20,7 @@ import { Switch } from '../ui/Switch';
 export function LinkSheet({
   isOpen,
   onOpenChange,
-  documentId,
+  document,
   currentLink,
   onSuccess,
 }) {
@@ -58,14 +58,18 @@ export function LinkSheet({
       setExpiresAt('');
       setReceiveEmailNotification(false);
     }
-  }, [currentLink, isEditing, isOpen]);
+
+    if (document?.download_only) {
+      setAllowDownload(true);
+    }
+  }, [currentLink, document, isEditing, isOpen]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
 
     const linkData = {
-      document: documentId,
+      document: document.id,
       name,
       requires_email: requiresEmail,
       requires_email_verification: requiresEmail && requiresEmailVerification,
@@ -216,11 +220,17 @@ export function LinkSheet({
           <div className="flex items-center justify-between">
             <Label htmlFor="allow-download" className="flex flex-col space-y-1">
               <span>Allow download</span>
+              {document?.download_only && (
+                <span className="text-sm font-normal text-muted-foreground">
+                  Download cannot be disabled for this file type.
+                </span>
+              )}
             </Label>
             <Switch
               id="allow-download"
               checked={allowDownload}
               onCheckedChange={setAllowDownload}
+              disabled={document?.download_only}
             />
           </div>
 

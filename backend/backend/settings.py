@@ -170,6 +170,10 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Storage Configuration (for FileSystem or MinIO)
 STORAGE_TYPE = os.environ.get('STORAGE_TYPE', 'FILESYSTEM')
 
+# Maximum file size in megabytes for which a preview will be generated.
+# Files larger than this will be marked as download-only.
+MAX_PREVIEW_FILE_SIZE_MB = int(os.environ.get('MAX_PREVIEW_FILE_SIZE_MB', 100))
+
 if STORAGE_TYPE == 'MINIO':
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     AWS_ACCESS_KEY_ID = os.environ.get('MINIO_ROOT_USER')

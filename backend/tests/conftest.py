@@ -1,10 +1,12 @@
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
+from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
 
 from core.models import Organization
 from documents.models import Document, DocumentVersion, ShareLink
+from documents.services import create_document_from_upload
 
 User = get_user_model()
 
@@ -84,3 +86,24 @@ def api_client(user):
 def public_client():
     """Fixture to create an unauthenticated API client."""
     return APIClient()
+
+
+@pytest.fixture
+def image_document_with_content(user):
+    """
+    Creates a real image document by calling the upload service, so it has
+    content in storage for URL generation.
+    """
+    # 1x1 transparent gif
+    image_content = (
+        b'GIF89a\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00'
+        b'!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01'
+        b'\x00\x00\x02\x02D\x01\x00;'
+    )
+    image_file = SimpleUploadedFile(
+        "test_image.gif",
+        image_content,
+        content_type="image/gif"
+    )
+    document = create_document_from_upload(requesting_user=user, uploaded_file=image_file)
+    return document

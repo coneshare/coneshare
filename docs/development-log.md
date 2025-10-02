@@ -557,7 +557,7 @@ This session focused on enhancing the public-facing document viewer with an inte
 
 ## Session 21: Interactive Document List & UI Hardening (2025-09-29)
 
-This session was dedicated to a major overhaul of the document list's user experience, focusing on interactivity, modernizing the UI, and fixing a series of complex event-handling bugs. The session also introduced the "Star" feature and comprehensive unit tests to ensure component reliability.
+This session was dedicated to a major overhaul of the document list's user experience, focusing on interactivity, modernizing the UI, and fixing a series of complex event-handling bugs. The session also introduced the "Star" feature and comprehensive unit tests to ensure component reliability. [https://github.com/coneshare/coneshare/pull/19](https://github.com/coneshare/coneshare/pull/19)
 
 ### 1. Modernized List UI
 - **Visual Cleanup**: The document list's table style was refined for a cleaner look by removing vertical borders and the header's background color.
@@ -585,3 +585,23 @@ This session was dedicated to a major overhaul of the document list's user exper
 
 ### 5. Documentation
 - **New Implementation Guide**: Created `docs/coneshare-ui-document-list-imple.md` to document the final, robust solutions for the interactive document list, including the state management and event propagation strategies. This serves as a reference for future development.
+
+---
+
+## Session 22: Download-Only Documents & Image Preview Fixes (2025-10-01)
+
+This session focused on implementing end-to-end support for non-previewable ("download-only") documents and fixing a critical bug that prevented image previews from working correctly. [https://github.com/coneshare/coneshare/pull/20](https://github.com/coneshare/coneshare/pull/20)
+
+### 1. Frontend & Backend Support for Download-Only Documents
+- **Document Detail Page**: The `DocumentHeader` was updated to disable the "Preview" button for download-only files, with a tooltip explaining why it's unavailable. ([`0273869`](https://github.com/coneshare/coneshare/commit/0273869))
+- **Share Link Creation**: The `LinkSheet` form now enforces the "Allow download" setting for download-only documents, preventing users from disabling it. ([`abced03`](https://github.com/coneshare/coneshare/commit/abced03))
+- **Public Viewer Page**: The `ShareLinkViewerPage` was enhanced to display a user-friendly message and a prominent "Download" button when viewing a share link for a download-only file, instead of showing an empty viewer. ([`078e969`](https://github.com/coneshare/coneshare/commit/078e969))
+
+### 2. Backend Image Preview Fix
+- **Vulnerability Identified**: A core logic flaw was discovered where the backend would not generate preview data for image files because they are optimized to not have `DocumentPage` records. This affected both internal previews and public share links.
+- **Internal Preview Fix**: The `DocumentPreviewDataView` was updated to detect documents with `type='image'` and return a direct URL to the original uploaded file, enabling internal previews to function correctly. ([`af60553`](https://github.com/coneshare/coneshare/commit/af60553))
+- **Public Share Link Fix**: The same logic was applied to the `ShareLinkViewDataView` to ensure that public share links for images would also display the preview correctly. ([`9a92f16`](https://github.com/coneshare/coneshare/commit/9a92f16))
+
+### 3. Testing Enhancements
+- **Image Preview Test Case**: A new test fixture for creating image documents was added to `tests/conftest.py`.
+- **Comprehensive Verification**: Unit tests were added to `tests/documents/test_views.py` to verify the correct behavior of both the internal and public preview endpoints when serving image documents, ensuring the fix is robust.

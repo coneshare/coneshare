@@ -84,7 +84,7 @@ export function DocumentPage() {
       <LinkSheet
         isOpen={isLinkSheetOpen}
         onOpenChange={setIsLinkSheetOpen}
-        documentId={documentId}
+        document={document}
         currentLink={editingLink}
         onSuccess={fetchDocument}
       />

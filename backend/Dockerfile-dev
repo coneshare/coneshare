@@ -8,8 +8,11 @@ ENV PYTHONUNBUFFERED 1
 # Set the working directory in the container
 WORKDIR /app
 
-# Install system dependencies for PDF processing
-RUN apt-get update && apt-get install -y poppler-utils
+# Install system dependencies for document processing
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    poppler-utils \
+    libreoffice \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
 COPY requirements.txt .

@@ -64,7 +64,8 @@ class TestGeneratePdfPagesTask:
         version = DocumentVersion.objects.create(
             document=document,
             version_number=1,
-            original_storage_key="path/to/original.pdf"
+            original_storage_key="path/to/original.pdf",
+            storage_key="path/to/original.pdf"
         )
         sample_pdf_bytes = b"dummy-pdf-content"
         mock_images = [MagicMock(), MagicMock()]
@@ -77,7 +78,7 @@ class TestGeneratePdfPagesTask:
         generate_pdf_pages_task(version.id)
 
         # 1. Assert that storage.open was called with the correct key
-        mock_storage_open.assert_called_once_with(version.original_storage_key)
+        mock_storage_open.assert_called_once_with(version.storage_key)
 
         # 2. Assert that convert_from_bytes was called with the PDF data
         mock_convert.assert_called_once_with(sample_pdf_bytes, fmt='png')
