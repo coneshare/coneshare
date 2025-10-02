@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework import status
 
 from core.models import Organization
-from documents.models import Document, Folder, ShareLink, DocumentVersion, DocumentPage, PreviewSession
+from documents.models import Document, Folder, ShareLink, DocumentVersion, DocumentPage, PreviewSession, View, PageView
 
 User = get_user_model()
 
@@ -804,3 +804,60 @@ class TestShareLinkPasswordProtection:
         # The 11th attempt should be rate-limited.
         response = public_client.post(url, data)
         assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+
+
+@pytest.mark.django_db
+class TestRecordPageView:
+    def test_record_page_view_success(self, public_client, share_link):
+        """Test that a page view is recorded successfully."""
+        # 1. Create a View session
+        view_session = View.objects.create(share_link=share_link, duration_seconds=10)
+        assert PageView.objects.count() == 0
+
+        # 2. Send tracking data
+        data = {
+            'view': view_session.id,
+            'page_number': 1,
+            'duration_seconds': 5
+        }
+        response = public_client.post('/api/v1/page-views/record/', data)
+
+        # 3. Assertions
+        assert response.status_code == status.HTTP_200_OK
+        assert PageView.objects.count() == 1
+
+        page_view = PageView.objects.first()
+        assert page_view.view == view_session
+        assert page_view.page_number == 1
+        assert page_view.duration_seconds == 5
+
+        view_session.refresh_from_db()
+        assert view_session.duration_seconds == 15  # 10 + 5
+
+    def test_record_page_view_invalid_view_id(self, public_client):
+        """Test that recording a page view with an invalid view ID fails."""
+        data = {
+            'view': '01J4Z7YJ8ZJ4Z7YJ8ZJ4Z7YJ8Z', # A valid but non-existent ULID
+            'page_number': 1,
+            'duration_seconds': 5
+        }
+        response = public_client.post('/api/v1/page-views/record/', data)
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        # It's a validation error because the view does not exist.
+        assert 'view' in response.data
+        assert PageView.objects.count() == 0
+
+    def test_record_page_view_missing_data(self, public_client, share_link):
+        """Test that recording a page view with missing data fails."""
+        view_session = View.objects.create(share_link=share_link)
+        data = {
+            'view': view_session.id,
+            # 'page_number' is missing
+            'duration_seconds': 5
+        }
+        response = public_client.post('/api/v1/page-views/record/', data)
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'page_number' in response.data
+        assert PageView.objects.count() == 0
