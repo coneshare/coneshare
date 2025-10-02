@@ -514,15 +514,12 @@ class ViewViewSet(viewsets.ModelViewSet):
 
         # GeoIP lookup
         location_data = {}
-        if ip_address:
+        if ip_address and settings.GEOIP:
             try:
-                g = GeoIP2()
-                location_data = g.city(ip_address)
+                location_data = settings.GEOIP.city(ip_address)
             except AddressNotFoundError:
-                # IP address not found in the database (e.g., local, private)
-                pass
+                pass  # Expected for local/private IPs
             except Exception as e:
-                # Handle cases where the GeoIP database might be missing
                 logger.error(f"GeoIP2 lookup failed: {e}")
 
         serializer.save(

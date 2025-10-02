@@ -210,6 +210,11 @@ if 'test' in sys.argv or 'pytest' in sys.modules:
 
 # GeoIP Configuration
 GEOIP_PATH = '/app/geoip'
+try:
+    GEOIP = GeoIP2()
+except Exception as e:
+    GEOIP = None
+    logger.error(f"Failed to initialize GeoIP2: {e}")
 
 
 # Site domain (for constructing absolute URLs)
