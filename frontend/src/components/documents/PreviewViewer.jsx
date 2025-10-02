@@ -8,6 +8,8 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId })
   const activePageRef = useRef(1);
   const timeOnPageRef = useRef(0);
   const intervalRef = useRef(null);
+  const isInactiveRef = useRef(false);
+  const inactivityTimerRef = useRef(null);
 
   const sendTrackingData = useCallback(
     (page, duration, useBeacon = false) => {
@@ -26,7 +28,9 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId })
 
   useEffect(() => {
     const tick = () => {
-      timeOnPageRef.current += 1;
+      if (!isInactiveRef.current) {
+        timeOnPageRef.current += 1;
+      }
     };
 
     if (viewId) {
@@ -39,6 +43,29 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId })
       sendTrackingData(activePageRef.current, timeOnPageRef.current);
     };
   }, [viewId, sendTrackingData]);
+
+  useEffect(() => {
+    if (!viewId) return;
+
+    const INACTIVITY_TIMEOUT = 60000; // 60 seconds
+
+    const handleActivity = () => {
+      isInactiveRef.current = false;
+      clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = setTimeout(() => {
+        isInactiveRef.current = true;
+      }, INACTIVITY_TIMEOUT);
+    };
+
+    const events = ['mousemove', 'keydown', 'scroll', 'mousedown'];
+    events.forEach((event) => window.addEventListener(event, handleActivity));
+    handleActivity(); // Initial call to start the timer
+
+    return () => {
+      events.forEach((event) => window.removeEventListener(event, handleActivity));
+      clearTimeout(inactivityTimerRef.current);
+    };
+  }, [viewId]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
