@@ -895,3 +895,27 @@ class TestRecordPageView:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert 'page_number' in response.data
         assert PageView.objects.count() == 0
+
+
+@pytest.mark.django_db
+class TestViewViewSet:
+    def test_create_view_records_ip_and_user_agent(self, public_client, share_link):
+        """Test that creating a view session records the IP and User-Agent."""
+        assert View.objects.count() == 0
+
+        user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.0.0 Safari/537.36"
+
+        response = public_client.post(
+            '/api/v1/views/',
+            {'share_link': share_link.id},
+            HTTP_USER_AGENT=user_agent,
+            REMOTE_ADDR='192.0.2.1'
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert View.objects.count() == 1
+
+        view = View.objects.first()
+        assert view.share_link == share_link
+        assert view.ip_address == '192.0.2.1'
+        assert view.user_agent == user_agent

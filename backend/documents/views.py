@@ -506,6 +506,11 @@ class ViewViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return View.objects.filter(share_link__document__organization=self.request.user.organization)
 
+    def perform_create(self, serializer):
+        ip_address = self.request.META.get('REMOTE_ADDR')
+        user_agent = self.request.META.get('HTTP_USER_AGENT', '')[:255]
+        serializer.save(ip_address=ip_address, user_agent=user_agent)
+
 
 def is_viewer_authorized(request, link) -> bool:
     """

@@ -25,12 +25,17 @@ def document_with_share_link(user_context):
     return ShareLink.objects.create(document=doc, created_by=user)
 
 
-@when('a viewer creates a view session for the share link', target_fixture="view_session")
-def create_view_session(share_link):
-    """Simulates creating a view session, similar to what the frontend would do."""
-    # In a real frontend flow, this would be a POST to /api/v1/views/
-    # For simplicity in this test, we create it directly.
-    return View.objects.create(share_link=share_link)
+@when(parsers.parse('a viewer creates a view session for the share link from "{ip}" with user agent "{user_agent}"'), target_fixture="view_session")
+def create_view_session(public_client, share_link, ip, user_agent):
+    """Simulates creating a view session by calling the API with context."""
+    response = public_client.post(
+        '/api/v1/views/',
+        {'share_link': share_link.id},
+        REMOTE_ADDR=ip,
+        HTTP_USER_AGENT=user_agent
+    )
+    assert response.status_code == 201
+    return View.objects.get(id=response.data['id'])
 
 
 @when(parsers.parse('the viewer spends {duration:d} seconds on page {page:d}'))
@@ -61,3 +66,10 @@ def page_view_is_recorded(view_session, page, duration):
 def total_view_duration_is_updated(view_session, total_duration):
     """Checks that the parent View's total duration has been updated."""
     assert view_session.duration_seconds == total_duration
+
+
+@then(parsers.parse('the view session should have IP "{ip}" and user agent "{user_agent}"'))
+def view_session_has_context(view_session, ip, user_agent):
+    """Checks that the View has the correct IP and user agent recorded."""
+    assert view_session.ip_address == ip
+    assert view_session.user_agent == user_agent
