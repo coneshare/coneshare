@@ -22,6 +22,17 @@ IMAGE_MIMETYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 PDF_MIMETYPE = 'application/pdf'
 
 
+def _get_doc_type_from_content_type(content_type: str) -> str:
+    """Determines the document type from its MIME type."""
+    if content_type in OFFICE_MIMETYPES:
+        return 'document'
+    elif content_type == PDF_MIMETYPE:
+        return 'pdf'
+    elif content_type in IMAGE_MIMETYPES:
+        return 'image'
+    return 'file'  # default
+
+
 def create_document_from_upload(
     requesting_user: User,
     uploaded_file: UploadedFile,
@@ -47,15 +58,7 @@ def create_document_from_upload(
         )
 
     content_type = uploaded_file.content_type
-
-    # Determine document type from content_type
-    doc_type = 'file'  # default
-    if content_type in OFFICE_MIMETYPES:
-        doc_type = 'document'
-    elif content_type == PDF_MIMETYPE:
-        doc_type = 'pdf'
-    elif content_type in IMAGE_MIMETYPES:
-        doc_type = 'image'
+    doc_type = _get_doc_type_from_content_type(content_type)
 
     # 2. Create database records
     document = Document.objects.create(
@@ -149,13 +152,7 @@ def create_new_document_version(
     new_storage_key = default_storage.save(storage_key, uploaded_file)
 
     content_type = uploaded_file.content_type
-    doc_type = 'file'  # default
-    if content_type in OFFICE_MIMETYPES:
-        doc_type = 'document'
-    elif content_type == PDF_MIMETYPE:
-        doc_type = 'pdf'
-    elif content_type in IMAGE_MIMETYPES:
-        doc_type = 'image'
+    doc_type = _get_doc_type_from_content_type(content_type)
 
     with transaction.atomic():
         # 3. Set the old version to not be primary
