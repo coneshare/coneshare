@@ -47,7 +47,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django.contrib.gis',
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
@@ -210,7 +209,7 @@ if 'test' in sys.argv or 'pytest' in sys.modules:
 
 
 # GeoIP Configuration
-GEOIP_PATH = BASE_DIR / 'geoip'
+GEOIP_PATH = '/app/geoip'
 
 
 # Site domain (for constructing absolute URLs)
