@@ -173,13 +173,15 @@ class ViewerSerializer(serializers.ModelSerializer):
 
 
 class ViewSerializer(serializers.ModelSerializer):
+    share_link_name = serializers.CharField(source='share_link.name', read_only=True)
+
     class Meta:
         model = View
         fields = [
-            'id', 'share_link', 'viewer', 'viewer_email', 'ip_address', 'user_agent', 'duration_seconds',
+            'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name', 'ip_address', 'user_agent', 'duration_seconds',
             'completion_rate', 'viewed_at'
         ]
-        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent']
+        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name']
 
     def create(self, validated_data):
         email = validated_data.get('viewer_email')
@@ -202,6 +204,10 @@ class PageViewRecordSerializer(serializers.ModelSerializer):
     """
     Serializer for validating and creating PageView records from tracking data.
     """
+    view = serializers.PrimaryKeyRelatedField(
+        queryset=View.objects.select_related('share_link__document').all()
+    )
+
     class Meta:
         model = PageView
         fields = ['view', 'page_number', 'duration_seconds']

@@ -676,7 +676,17 @@ class RecordPageView(APIView):
 
                 # 2. Update the parent View's total duration
                 view.duration_seconds += duration
-                view.save(update_fields=['duration_seconds'])
+
+                # 3. Update completion rate
+                document = view.share_link.document
+                update_fields = ['duration_seconds']
+                if document and document.num_pages and document.num_pages > 0:
+                    viewed_pages_count = view.page_views.values('page_number').distinct().count()
+                    completion_rate = viewed_pages_count / document.num_pages
+                    view.completion_rate = min(completion_rate, 1.0)
+                    update_fields.append('completion_rate')
+
+                view.save(update_fields=update_fields)
 
             return Response({"message": "View recorded"}, status=status.HTTP_200_OK)
         except View.DoesNotExist:

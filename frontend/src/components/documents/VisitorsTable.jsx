@@ -57,6 +57,7 @@ export function VisitorsTable({ views }) {
           <TableHeader>
             <TableRow>
               <TableHead>Visitor</TableHead>
+              <TableHead>Link</TableHead>
               <TableHead>Location</TableHead>
               <TableHead>Device</TableHead>
               <TableHead>Viewed At</TableHead>
@@ -70,6 +71,7 @@ export function VisitorsTable({ views }) {
               return (
                 <TableRow key={view.id}>
                   <TableCell className="font-medium">{view.viewer_email || 'Anonymous'}</TableCell>
+                  <TableCell>{view.share_link_name || 'Untitled Link'}</TableCell>
                   <TableCell>{view.ip_address || 'N/A'}</TableCell>
                   <TableCell>{browser !== 'Unknown' ? `${browser} on ${os}` : 'N/A'}</TableCell>
                   <TableCell>
