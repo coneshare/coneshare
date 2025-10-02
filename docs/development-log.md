@@ -605,3 +605,21 @@ This session focused on implementing end-to-end support for non-previewable ("do
 ### 3. Testing Enhancements
 - **Image Preview Test Case**: A new test fixture for creating image documents was added to `tests/conftest.py`.
 - **Comprehensive Verification**: Unit tests were added to `tests/documents/test_views.py` to verify the correct behavior of both the internal and public preview endpoints when serving image documents, ensuring the fix is robust.
+
+---
+
+## Session 23: Tracking document viewing activity (2025-10-02)
+
+This session implements a robust system for tracking document viewing activity, providing document owners with deeper insights into how their shared content is consumed. It introduces granular page-level tracking, records comprehensive viewer metadata including geographical location and device information, and ensures reliable data transmission from the frontend. This enhancement significantly improves the analytics capabilities, allowing for a better understanding of user engagement.  [https://github.com/coneshare/coneshare/pull/21](https://github.com/coneshare/coneshare/pull/21)
+
+-  Granular Page View Tracking: Introduced a new PageView model and an API endpoint (/api/v1/page-views/record/) to record detailed page-level viewing durations within a document.
+
+-  Enhanced View Session Data: The existing View model now captures ip_address, user_agent, country, city, latitude, and longitude for each viewing session, leveraging GeoIP lookup.
+
+-  Frontend Integration: The PreviewViewer.jsx component has been updated to track active page duration and send this data reliably to the backend, including using navigator.sendBeacon for unload events.
+
+-  GeoIP Setup: The development Dockerfile and Django settings have been configured to download the GeoLite2-City database and integrate django.contrib.gis.geoip2 for IP-based location lookups.
+
+-  Improved Visitor Analytics Display: The VisitorsTable.jsx component now presents a richer view of visitor data, including browser, OS, and geographical location, along with formatted viewing durations.
+
+-  Comprehensive Testing: New BDD feature and step definitions, along with unit tests, have been added to cover the new view tracking and GeoIP functionalities.
