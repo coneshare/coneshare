@@ -1,3 +1,4 @@
+import { UAParser } from 'ua-parser-js';
 import {
   Table,
   TableBody,
@@ -24,23 +25,12 @@ function formatDuration(seconds) {
 
 function parseUserAgent(uaString) {
   if (!uaString) return { browser: 'N/A', os: 'N/A' };
-
-  let browser = 'Unknown';
-  let os = 'Unknown';
-
-  // A very basic parser. A library like ua-parser-js would be more robust.
-  if (uaString.includes('Windows')) os = 'Windows';
-  else if (uaString.includes('Macintosh')) os = 'macOS';
-  else if (uaString.includes('Linux')) os = 'Linux';
-  else if (uaString.includes('Android')) os = 'Android';
-  else if (uaString.includes('iPhone') || uaString.includes('iPad')) os = 'iOS';
-
-  if (uaString.includes('Edg/')) browser = 'Edge';
-  else if (uaString.includes('Chrome/') && !uaString.includes('Chromium')) browser = 'Chrome';
-  else if (uaString.includes('Firefox/')) browser = 'Firefox';
-  else if (uaString.includes('Safari/') && !uaString.includes('Chrome')) browser = 'Safari';
-
-  return { browser, os };
+  const parser = new UAParser(uaString);
+  const result = parser.getResult();
+  return {
+    browser: result.browser.name || 'Unknown',
+    os: result.os.name || 'Unknown',
+  };
 }
 
 export function VisitorsTable({ views }) {
