@@ -67,7 +67,9 @@ export function VisitorsTable({ views }) {
             {views.map((view) => {
               const { browser, os } = parseUserAgent(view.user_agent);
               const deviceInfo = browser !== 'Unknown' ? `${browser} on ${os}` : 'Unknown device';
-              const locationInfo = view.ip_address ? ` - ${view.ip_address}` : '';
+              const locationParts = [view.city, view.country].filter(Boolean);
+              const locationInfo =
+                locationParts.length > 0 ? ` - ${locationParts.join(', ')}` : '';
 
               return (
                 <TableRow key={view.id}>

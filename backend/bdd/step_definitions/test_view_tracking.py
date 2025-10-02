@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch
 from pytest_bdd import scenario, given, when, then, parsers
 
 from documents.models import Document, ShareLink, View, PageView
@@ -28,12 +29,15 @@ def document_with_share_link(user_context):
 @when(parsers.parse('a viewer creates a view session for the share link from "{ip}" with user agent "{user_agent}"'), target_fixture="view_session")
 def create_view_session(public_client, share_link, ip, user_agent):
     """Simulates creating a view session by calling the API with context."""
-    response = public_client.post(
-        '/api/v1/views/',
-        {'share_link': share_link.id},
-        REMOTE_ADDR=ip,
-        HTTP_USER_AGENT=user_agent
-    )
+    mock_city_data = {'city': 'Mountain View', 'country_name': 'United States', 'latitude': 37.422, 'longitude': -122.084}
+    with patch('documents.views.GeoIP2') as mock_geoip2:
+        mock_geoip2.return_value.city.return_value = mock_city_data
+        response = public_client.post(
+            '/api/v1/views/',
+            {'share_link': share_link.id},
+            REMOTE_ADDR=ip,
+            HTTP_USER_AGENT=user_agent
+        )
     assert response.status_code == 201
     return View.objects.get(id=response.data['id'])
 
@@ -73,3 +77,11 @@ def view_session_has_context(view_session, ip, user_agent):
     """Checks that the View has the correct IP and user agent recorded."""
     assert view_session.ip_address == ip
     assert view_session.user_agent == user_agent
+
+
+@then(parsers.parse('the view session should have location data for "{location}"'))
+def view_session_has_location(view_session, location):
+    """Checks that the View has the correct location recorded."""
+    city, country = [part.strip() for part in location.split(',')]
+    assert view_session.city == city
+    assert view_session.country == country

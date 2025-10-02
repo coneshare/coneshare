@@ -899,8 +899,17 @@ class TestRecordPageView:
 
 @pytest.mark.django_db
 class TestViewViewSet:
-    def test_create_view_records_ip_and_user_agent(self, public_client, share_link):
-        """Test that creating a view session records the IP and User-Agent."""
+    @patch('documents.views.GeoIP2')
+    def test_create_view_records_ip_and_user_agent(self, mock_geoip2, public_client, share_link):
+        """Test that creating a view session records the IP, User-Agent, and location."""
+        # Mock the GeoIP2 lookup
+        mock_city_data = {
+            'city': 'Mountain View',
+            'country_name': 'United States',
+            'latitude': 37.422,
+            'longitude': -122.084,
+        }
+        mock_geoip2.return_value.city.return_value = mock_city_data
         assert View.objects.count() == 0
 
         user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.0.0 Safari/537.36"
@@ -909,7 +918,7 @@ class TestViewViewSet:
             '/api/v1/views/',
             {'share_link': share_link.id},
             HTTP_USER_AGENT=user_agent,
-            REMOTE_ADDR='192.0.2.1'
+            REMOTE_ADDR='98.137.11.155'  # Example public IP for Yahoo
         )
 
         assert response.status_code == status.HTTP_201_CREATED
@@ -917,5 +926,9 @@ class TestViewViewSet:
 
         view = View.objects.first()
         assert view.share_link == share_link
-        assert view.ip_address == '192.0.2.1'
+        assert view.ip_address == '98.137.11.155'
         assert view.user_agent == user_agent
+        assert view.city == 'Mountain View'
+        assert view.country == 'United States'
+        assert view.latitude == 37.422
+        assert view.longitude == -122.084

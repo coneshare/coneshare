@@ -11,3 +11,4 @@ Feature: View Tracking
     Then a page view should be recorded for page 1 with a duration of 15 seconds
     And the total view duration for the session should be 15 seconds
     And the view session should have IP "198.51.100.1" and user agent "Test Browser"
+    And the view session should have location data for "Mountain View, United States"
