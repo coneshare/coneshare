@@ -188,13 +188,31 @@ Records an instance of a `ShareLink` being accessed. This is the core of the ana
 -   **share_link_id**: Foreign Key to `ShareLink`
 -   **viewer_id**: Foreign Key to `Viewer` (Nullable, for identified viewers)
 -   **viewer_email**: String (If captured but not yet a `Viewer` record)
+-   **ip_address**: String (IP address of the viewer)
+-   **user_agent**: String (User agent string of the viewer's browser)
+-   **country**: String (Country derived from GeoIP lookup)
+-   **city**: String (City derived from GeoIP lookup)
+-   **latitude**: Float (Latitude from GeoIP)
+-   **longitude**: Float (Longitude from GeoIP)
 -   **duration_seconds**: Integer
 -   **completion_rate**: Float (0.0 to 1.0)
 -   **viewed_at**: DateTime
 
-**Relations:** Belongs to one ShareLink and one optional Viewer.
+**Relations:** Belongs to one ShareLink and one optional Viewer. Has many PageViews.
 
-### 11. Viewer
+### 11. PageView
+
+Records a granular page view event within a single viewing session (`View`).
+
+-   **id**: ULID, Primary Key
+-   **view_id**: Foreign Key to `View`
+-   **page_number**: Integer
+-   **duration_seconds**: Integer
+-   **created_at**: DateTime
+
+**Relations:** Belongs to one View.
+
+### 12. Viewer
 
 Represents an external, non-team member who has accessed a shared link and has been identified (e.g., via email verification).
 
@@ -211,7 +229,7 @@ Represents an external, non-team member who has accessed a shared link and has b
 
 These models introduce the concept of a `Dataroom` for sharing collections of documents. Note that `DataroomFolder` is distinct from the general-purpose `Folder` model and is scoped exclusively to a single `Dataroom`.
 
-### 12. Dataroom
+### 13. Dataroom
 
 A container for organizing and sharing a collection of documents and folders.
 
@@ -225,7 +243,7 @@ A container for organizing and sharing a collection of documents and folders.
 
 **Relations:** Belongs to one Organization. Has many DataroomDocuments, DataroomFolders, and ShareLinks.
 
-### 13. DataroomFolder
+### 14. DataroomFolder
 
 A folder within a `Dataroom` to create a hierarchical structure.
 
@@ -238,7 +256,7 @@ A folder within a `Dataroom` to create a hierarchical structure.
 
 **Relations:** Belongs to one Dataroom.
 
-### 14. DataroomDocument
+### 15. DataroomDocument
 
 A linking table to place a `Document` within a Dataroom's structure.
 
@@ -250,7 +268,7 @@ A linking table to place a `Document` within a Dataroom's structure.
 
 **Relations:** Links a Document to a Dataroom and an optional DataroomFolder.
 
-### 15. DocumentUpload
+### 16. DocumentUpload
 
 A log entry created when a new document is uploaded by an external viewer via a `ShareLink`. This is critical for tracking contributions in a deal room context.
 
@@ -272,7 +290,7 @@ A log entry created when a new document is uploaded by an external viewer via a 
 
 ## Permissions and Audit Models (V2.0/Future)
 
-### 16. DataroomPermission
+### 17. DataroomPermission
 
 Assigns permissions for a `UserGroup` on a specific `DataroomDocument` or `DataroomFolder`.
 
@@ -283,7 +301,7 @@ Assigns permissions for a `UserGroup` on a specific `DataroomDocument` or `Datar
 -   **folder_id**: Foreign Key to `DataroomFolder` (Nullable)
 -   **permission_level**: String (e.g., 'view', 'download')
 
-### 17. AuditLog
+### 18. AuditLog
 
 Records significant events in the system for administrative review.
 
