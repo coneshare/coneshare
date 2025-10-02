@@ -11,7 +11,6 @@ from django.contrib.auth.hashers import check_password
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.contrib.gis.geoip2 import GeoIP2
 from geoip2.errors import AddressNotFoundError
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action

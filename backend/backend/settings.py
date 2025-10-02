@@ -15,6 +15,8 @@ from datetime import timedelta
 import os
 import sys
 
+from django.contrib.gis.geoip2 import GeoIP2
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -212,9 +214,10 @@ if 'test' in sys.argv or 'pytest' in sys.modules:
 GEOIP_PATH = '/app/geoip'
 try:
     GEOIP = GeoIP2()
+    print("Successfully initialized GeoIP2.")
 except Exception as e:
     GEOIP = None
-    logger.error(f"Failed to initialize GeoIP2: {e}")
+    print(f"Failed to initialize GeoIP2: {e}")
 
 
 # Site domain (for constructing absolute URLs)
