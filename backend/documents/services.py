@@ -33,6 +33,42 @@ def _get_doc_type_from_content_type(content_type: str) -> str:
     return 'file'  # default
 
 
+def _route_document_for_processing(document: Document, version: DocumentVersion, file_size: int, content_type: str):
+    """
+    Routes a document/version for processing based on type and size.
+    Updates the parent document's state and triggers the appropriate async task.
+    """
+    max_size_bytes = settings.MAX_PREVIEW_FILE_SIZE_MB * 1024 * 1024
+    is_too_large = file_size > max_size_bytes
+
+    doc_type = _get_doc_type_from_content_type(content_type)
+    is_previewable = doc_type != 'file' and not is_too_large
+
+    # Update parent document attributes
+    document.download_only = not is_previewable
+    document.type = doc_type
+    document.content_type = content_type
+
+    # Trigger task or set status to ready
+    if is_previewable:
+        if doc_type == 'image':
+            document.status = 'ready'
+            document.num_pages = 1
+            version.num_pages = 1
+            version.has_pages = True
+            version.save()
+        else:  # Office or PDF
+            document.status = 'processing'
+            if doc_type == 'document':
+                convert_office_to_pdf_task.delay(version.id)
+            elif doc_type == 'pdf':
+                generate_pdf_pages_task.delay(version.id)
+    else:  # Download only
+        document.status = 'ready'
+
+    document.save()
+
+
 def create_document_from_upload(
     requesting_user: User,
     uploaded_file: UploadedFile,
@@ -82,30 +118,13 @@ def create_document_from_upload(
         is_primary=True,
     )
 
-    # 3. Trigger background task based on type and size
-    max_size_bytes = settings.MAX_PREVIEW_FILE_SIZE_MB * 1024 * 1024
-    is_too_large = uploaded_file.size > max_size_bytes
-
-    if (content_type in OFFICE_MIMETYPES) and not is_too_large:
-        document.status = 'processing'
-        document.save()
-        convert_office_to_pdf_task.delay(version.id)
-    elif (content_type == PDF_MIMETYPE) and not is_too_large:
-        document.status = 'processing'
-        document.save()
-        generate_pdf_pages_task.delay(version.id)
-    elif (content_type in IMAGE_MIMETYPES) and not is_too_large:
-        document.status = 'ready'
-        document.num_pages = 1
-        document.save()
-        version.num_pages = 1
-        version.has_pages = True
-        version.save()
-    else:
-        # Mark as download-only if type is unsupported or file is too large
-        document.download_only = True
-        document.status = 'ready'
-        document.save()
+    # 3. Route for processing
+    _route_document_for_processing(
+        document=document,
+        version=version,
+        file_size=uploaded_file.size,
+        content_type=content_type,
+    )
 
     return document
 
@@ -172,32 +191,12 @@ def create_new_document_version(
             type=doc_type
         )
 
-        # 5. Update parent document and decide on processing
-        max_size_bytes = settings.MAX_PREVIEW_FILE_SIZE_MB * 1024 * 1024
-        is_too_large = uploaded_file.size > max_size_bytes
-        is_previewable = doc_type != 'file' and not is_too_large
-
-        document.download_only = not is_previewable
-        document.type = doc_type
-        document.content_type = content_type
-
-        # 6. Trigger task or set status to ready
-        if is_previewable:
-            if doc_type == 'image':
-                document.status = 'ready'
-                document.num_pages = 1
-                new_version.num_pages = 1
-                new_version.has_pages = True
-                new_version.save()
-            else:  # Office or PDF
-                document.status = 'processing'
-                if doc_type == 'document':
-                    convert_office_to_pdf_task.delay(new_version.id)
-                elif doc_type == 'pdf':
-                    generate_pdf_pages_task.delay(new_version.id)
-        else:  # Download only
-            document.status = 'ready'
-
-        document.save()
+        # 5. Route for processing
+        _route_document_for_processing(
+            document=document,
+            version=new_version,
+            file_size=uploaded_file.size,
+            content_type=content_type,
+        )
 
     return new_version
