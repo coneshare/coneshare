@@ -237,16 +237,19 @@ class DocumentSerializer(serializers.ModelSerializer):
         This method relies on `share_links__views` being prefetched on the
         queryset to avoid N+1 queries.
         """
-        all_views = []
+        # Using a set to ensure uniqueness of views, in case of complex prefetch
+        # patterns that might introduce duplicates.
+        all_views = set()
         # The `obj.share_links` accessor will use the prefetched data.
         for link in obj.share_links.all():
             # The `link.views` accessor will also use the prefetched data.
-            all_views.extend(list(link.views.all()))
+            for view in link.views.all():
+                all_views.add(view)
 
         # Sort views by viewed_at descending
-        all_views.sort(key=lambda x: x.viewed_at, reverse=True)
+        sorted_views = sorted(list(all_views), key=lambda x: x.viewed_at, reverse=True)
 
-        return ViewSerializer(all_views, many=True).data
+        return ViewSerializer(sorted_views, many=True).data
 
 
 class ShareLinkPresetSerializer(serializers.ModelSerializer):

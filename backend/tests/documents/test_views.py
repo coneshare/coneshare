@@ -807,6 +807,40 @@ class TestShareLinkPasswordProtection:
 
 
 @pytest.mark.django_db
+class TestDocumentViewSet:
+    def test_document_views_aggregation_is_correct(self, api_client, document, share_link, public_client):
+        """
+        Tests that when multiple PageView events are recorded for a single View session,
+        the document detail endpoint returns only one aggregated View object.
+        """
+        # 1. Simulate a single view session starting.
+        view_session = View.objects.create(share_link=share_link)
+
+        # 2. Simulate tracking multiple page views within this session.
+        public_client.post('/api/v1/page-views/record/', {'view': view_session.id, 'page_number': 1, 'duration_seconds': 10})
+        public_client.post('/api/v1/page-views/record/', {'view': view_session.id, 'page_number': 2, 'duration_seconds': 15})
+        public_client.post('/api/v1/page-views/record/', {'view': view_session.id, 'page_number': 3, 'duration_seconds': 5})
+
+        # 3. Check database state is correct
+        assert View.objects.count() == 1
+        assert PageView.objects.count() == 3
+        view_session.refresh_from_db()
+        assert view_session.duration_seconds == 30  # 10 + 15 + 5
+
+        # 4. Fetch the document details via the API
+        response = api_client.get(f'/api/v1/documents/{document.id}/')
+        assert response.status_code == status.HTTP_200_OK
+
+        # 5. Assert that the `views` field contains only the single view session.
+        data = response.json()
+        assert 'views' in data
+        assert len(data['views']) == 1, "Should only return one aggregated view session"
+        view_data = data['views'][0]
+        assert view_data['id'] == str(view_session.id)
+        assert view_data['duration_seconds'] == 30
+
+
+@pytest.mark.django_db
 class TestRecordPageView:
     def test_record_page_view_success(self, public_client, share_link):
         """Test that a page view is recorded successfully."""
