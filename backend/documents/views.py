@@ -493,7 +493,15 @@ class ViewerViewSet(viewsets.ModelViewSet):
 class ViewViewSet(viewsets.ModelViewSet):
     queryset = View.objects.all()
     serializer_class = ViewSerializer
-    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        """
+        Allow anonymous users to create view sessions, but restrict
+        all other actions to authenticated users.
+        """
+        if self.action == 'create':
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
         return View.objects.filter(share_link__document__organization=self.request.user.organization)
