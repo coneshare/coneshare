@@ -6,6 +6,12 @@ import {
   TableHeader,
   TableRow,
 } from '../ui/Table';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../ui/Tooltip';
 
 function formatDuration(seconds) {
   if (seconds < 60) {
@@ -50,53 +56,67 @@ export function VisitorsTable({ views }) {
   }
 
   return (
-    <div>
-      <h2 className="text-xl font-semibold">Visitors</h2>
-      <div className="mt-4 overflow-hidden rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Visitor</TableHead>
-              <TableHead>Link</TableHead>
-              <TableHead>Viewed At</TableHead>
-              <TableHead className="text-right">Duration</TableHead>
-              <TableHead className="text-right">Completion</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {views.map((view) => {
-              const { browser, os } = parseUserAgent(view.user_agent);
-              const deviceInfo = browser !== 'Unknown' ? `${browser} on ${os}` : 'Unknown device';
-              const locationParts = [view.city, view.country].filter(Boolean);
-              const locationInfo =
-                locationParts.length > 0 ? ` - ${locationParts.join(', ')}` : '';
+    <TooltipProvider>
+      <div>
+        <h2 className="text-xl font-semibold">Visitors</h2>
+        <div className="mt-4 overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Visitor</TableHead>
+                <TableHead>Link</TableHead>
+                <TableHead>Viewed At</TableHead>
+                <TableHead className="text-right">Duration</TableHead>
+                <TableHead className="text-right">Completion</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {views.map((view) => {
+                const { browser, os } = parseUserAgent(view.user_agent);
+                const deviceInfo = browser !== 'Unknown' ? `${browser} on ${os}` : 'Unknown device';
+                const locationParts = [view.city, view.country].filter(Boolean);
+                const hasLocation = locationParts.length > 0;
 
-              return (
-                <TableRow key={view.id}>
-                  <TableCell>
-                    <div className="font-medium">{view.viewer_email || 'Anonymous'}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {deviceInfo}
-                      {locationInfo}
-                    </div>
-                  </TableCell>
-                  <TableCell>{view.share_link_name || 'Untitled Link'}</TableCell>
-                  <TableCell>
-                    {new Date(view.viewed_at).toLocaleString(undefined, {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    })}
-                  </TableCell>
-                  <TableCell className="text-right">{formatDuration(view.duration_seconds)}</TableCell>
-                  <TableCell className="text-right">
-                    {`${(view.completion_rate * 100).toFixed(0)}%`}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                return (
+                  <TableRow key={view.id}>
+                    <TableCell>
+                      <div className="font-medium">{view.viewer_email || 'Anonymous'}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {deviceInfo}
+                        {hasLocation ? (
+                          ` - ${locationParts.join(', ')}`
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-default"> - Unknown location</span>
+                            </TooltipTrigger>
+                            {view.ip_address && (
+                              <TooltipContent>
+                                <p>{view.ip_address}</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{view.share_link_name || 'Untitled Link'}</TableCell>
+                    <TableCell>
+                      {new Date(view.viewed_at).toLocaleString(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}
+                    </TableCell>
+                    <TableCell className="text-right">{formatDuration(view.duration_seconds)}</TableCell>
+                    <TableCell className="text-right">
+                      {`${(view.completion_rate * 100).toFixed(0)}%`}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }
