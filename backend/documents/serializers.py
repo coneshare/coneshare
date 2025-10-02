@@ -1,7 +1,7 @@
 from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from core.models import Organization
-from .models import Document, DocumentPage, DocumentVersion, Folder, ShareLink, ShareLinkPreset, View, Viewer
+from .models import Document, DocumentPage, DocumentVersion, Folder, PageView, ShareLink, ShareLinkPreset, View, Viewer
 
 
 class FolderFromPathSerializer(serializers.Serializer):
@@ -196,6 +196,15 @@ class ViewSerializer(serializers.ModelSerializer):
             validated_data['viewer'] = viewer
 
         return super().create(validated_data)
+
+
+class PageViewRecordSerializer(serializers.ModelSerializer):
+    """
+    Serializer for validating and creating PageView records from tracking data.
+    """
+    class Meta:
+        model = PageView
+        fields = ['view', 'page_number', 'duration_seconds']
 
 
 class DocumentSerializer(serializers.ModelSerializer):

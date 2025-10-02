@@ -1,26 +1,78 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { LazyImage } from './LazyImage';
+import { recordPageView } from '../../services/api';
 
-export function PreviewViewer({ documentData, zoomLevel, onPageChange }) {
+export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId }) {
   const scrollContainerRef = useRef(null);
   const pageRefs = useRef(new Map());
+  const activePageRef = useRef(1);
+  const timeOnPageRef = useRef(0);
+  const intervalRef = useRef(null);
+
+  const sendTrackingData = useCallback(
+    (page, duration, useBeacon = false) => {
+      if (!viewId || duration < 1) return;
+      recordPageView(
+        {
+          view: viewId,
+          page_number: page,
+          duration_seconds: Math.round(duration),
+        },
+        useBeacon
+      );
+    },
+    [viewId]
+  );
+
+  useEffect(() => {
+    const tick = () => {
+      timeOnPageRef.current += 1;
+    };
+
+    if (viewId) {
+      intervalRef.current = setInterval(tick, 1000);
+    }
+
+    return () => {
+      clearInterval(intervalRef.current);
+      // Send final duration for the last active page when component unmounts
+      sendTrackingData(activePageRef.current, timeOnPageRef.current);
+    };
+  }, [viewId, sendTrackingData]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      sendTrackingData(activePageRef.current, timeOnPageRef.current, true);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [sendTrackingData]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        // Find the entry that is most visible in the viewport
         const [mostVisibleEntry] = [...entries].sort(
           (a, b) => b.intersectionRatio - a.intersectionRatio
         );
 
         if (mostVisibleEntry && mostVisibleEntry.isIntersecting) {
-          const pageNum = parseInt(mostVisibleEntry.target.dataset.pageNumber, 10);
-          onPageChange(pageNum);
+          const newPageNumber = parseInt(mostVisibleEntry.target.dataset.pageNumber, 10);
+          if (newPageNumber !== activePageRef.current) {
+            // Page has changed, send tracking data for the previous page
+            sendTrackingData(activePageRef.current, timeOnPageRef.current);
+            // Reset timer and update current page
+            timeOnPageRef.current = 0;
+            activePageRef.current = newPageNumber;
+          }
+          onPageChange(newPageNumber);
         }
       },
       {
         root: scrollContainerRef.current,
-        threshold: [0.25, 0.5, 0.75, 1.0], // Fire at different visibility levels for accuracy
+        threshold: [0.25, 0.5, 0.75], // Trigger when a good portion is visible
       }
     );
 
@@ -35,7 +87,7 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange }) {
       });
       observer.disconnect();
     };
-  }, [documentData.pages, onPageChange]);
+  }, [documentData.pages, onPageChange, sendTrackingData]);
 
   return (
     <div

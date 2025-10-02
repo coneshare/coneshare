@@ -572,6 +572,7 @@ class ShareLinkViewDataView(APIView):
             "numPages": document.num_pages,
             "pages": pages_data,
             "linkSettings": {
+                "id": link.id,
                 "allowDownload": link.allow_download,
                 "enableWatermark": link.enable_watermark,
             }
