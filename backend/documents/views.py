@@ -11,6 +11,8 @@ from django.contrib.auth.hashers import check_password
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.contrib.gis.geoip2 import GeoIP2
+from geoip2.errors import AddressNotFoundError
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
@@ -509,7 +511,28 @@ class ViewViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         ip_address = self.request.META.get('REMOTE_ADDR')
         user_agent = self.request.META.get('HTTP_USER_AGENT', '')[:255]
-        serializer.save(ip_address=ip_address, user_agent=user_agent)
+
+        # GeoIP lookup
+        location_data = {}
+        if ip_address:
+            try:
+                g = GeoIP2()
+                location_data = g.city(ip_address)
+            except AddressNotFoundError:
+                # IP address not found in the database (e.g., local, private)
+                pass
+            except Exception as e:
+                # Handle cases where the GeoIP database might be missing
+                logger.error(f"GeoIP2 lookup failed: {e}")
+
+        serializer.save(
+            ip_address=ip_address,
+            user_agent=user_agent,
+            country=location_data.get('country_name', ''),
+            city=location_data.get('city', ''),
+            latitude=location_data.get('latitude'),
+            longitude=location_data.get('longitude')
+        )
 
 
 def is_viewer_authorized(request, link) -> bool:

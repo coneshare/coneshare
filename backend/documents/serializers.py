@@ -178,10 +178,10 @@ class ViewSerializer(serializers.ModelSerializer):
     class Meta:
         model = View
         fields = [
-            'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name', 'ip_address', 'user_agent', 'duration_seconds',
+            'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name', 'ip_address', 'user_agent', 'country', 'city', 'latitude', 'longitude', 'duration_seconds',
             'completion_rate', 'viewed_at'
         ]
-        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name']
+        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name', 'country', 'city', 'latitude', 'longitude']
 
     def create(self, validated_data):
         email = validated_data.get('viewer_email')
