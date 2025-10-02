@@ -252,6 +252,35 @@ class DocumentVersionUploadView(APIView):
         return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
 
 
+def _prepare_pages_data(document, primary_version):
+    """
+    Prepares a list of page data with absolute URLs for a given document version.
+    Handles both image types and paginated document types.
+    """
+    pages_data = []
+    if document.type == 'image':
+        # For images, the preview is the original file itself.
+        image_url = default_storage.url(primary_version.original_storage_key)
+        absolute_url = urljoin(settings.SITE_DOMAIN, image_url)
+        pages_data.append({
+            'page_number': 1,
+            'url': absolute_url,
+            'metadata': {},
+        })
+    elif primary_version.has_pages:
+        # For PDFs/Office docs, we have pre-generated page images.
+        pages = primary_version.pages.order_by('page_number')
+        for page in pages:
+            page_url = default_storage.url(page.storage_key)
+            absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
+            pages_data.append({
+                "page_number": page.page_number,
+                "url": absolute_url,
+                "metadata": page.metadata,
+            })
+    return pages_data
+
+
 class DocumentPreviewDataView(APIView):
     """
     Provides data for rendering an internal document preview.
@@ -293,27 +322,7 @@ class DocumentPreviewDataView(APIView):
             )
 
         # Content Processing and Response Shaping
-        pages_data = []
-        if document.type == 'image':
-            # For images, the preview is the original file itself.
-            image_url = default_storage.url(primary_version.original_storage_key)
-            absolute_url = urljoin(settings.SITE_DOMAIN, image_url)
-            pages_data.append({
-                'page_number': 1,
-                'url': absolute_url,
-                'metadata': {},
-            })
-        elif primary_version.has_pages:
-            # For PDFs/Office docs, we have pre-generated page images.
-            pages = primary_version.pages.order_by('page_number')
-            for page in pages:
-                page_url = default_storage.url(page.storage_key)
-                absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
-                pages_data.append({
-                    "page_number": page.page_number,
-                    "url": absolute_url,
-                    "metadata": page.metadata,
-                })
+        pages_data = _prepare_pages_data(document, primary_version)
 
         response_data = {
             "id": document.id,
@@ -553,26 +562,7 @@ class ShareLinkViewDataView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        pages_data = []
-        if document.type == 'image':
-            image_url = default_storage.url(primary_version.original_storage_key)
-            absolute_url = urljoin(settings.SITE_DOMAIN, image_url)
-            pages_data.append({
-                'page_number': 1,
-                'url': absolute_url,
-                'metadata': {},
-            })
-        elif primary_version.has_pages:
-            # Note: In a production system, a service would generate pre-signed URLs.
-            # Here, we mirror DocumentPreviewDataView but use the key directly for simplicity.
-            pages = primary_version.pages.order_by('page_number')
-            for page in pages:
-                page_url = default_storage.url(page.storage_key)
-                pages_data.append({
-                    "page_number": page.page_number,
-                    "url": urljoin(settings.SITE_DOMAIN, page_url),
-                    "metadata": page.metadata,
-                })
+        pages_data = _prepare_pages_data(document, primary_version)
 
         response_data = {
             "id": document.id,
