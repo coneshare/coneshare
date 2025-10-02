@@ -24,6 +24,7 @@ from .serializers import (
     DocumentSerializer,
     FolderFromPathSerializer,
     FolderSerializer,
+    PageViewRecordSerializer,
     ShareLinkPresetSerializer,
     ShareLinkSerializer,
     ViewerSerializer,
@@ -636,3 +637,36 @@ class ShareLinkVerifyPasswordView(APIView):
             return Response({"message": "Password verified successfully."}, status=status.HTTP_200_OK)
         else:
             return Response({"message": "Invalid password."}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+class RecordPageView(APIView):
+    """
+    Receives and records granular page view tracking data.
+    """
+    # No permission_classes, as this is a public endpoint. Security is implicit
+    # as it requires a valid, existing `view_id`.
+
+    def post(self, request, *args, **kwargs):
+        serializer = PageViewRecordSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        validated_data = serializer.validated_data
+        view = validated_data['view']
+        duration = validated_data['duration_seconds']
+
+        try:
+            with transaction.atomic():
+                # 1. Create the PageView record
+                serializer.save()
+
+                # 2. Update the parent View's total duration
+                view.duration_seconds += duration
+                view.save(update_fields=['duration_seconds'])
+
+            return Response({"message": "View recorded"}, status=status.HTTP_200_OK)
+        except View.DoesNotExist:
+            return Response({"error": "Invalid view session"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Error recording page view: {e}")
+            return Response({"error": "Server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
