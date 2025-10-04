@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.contrib.auth.hashers import check_password
 from django.db import transaction
+from django.db.models import F
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from geoip2.errors import AddressNotFoundError
@@ -693,8 +694,8 @@ class RecordPageView(APIView):
                 # 1. Create the PageView record
                 serializer.save()
 
-                # 2. Update the parent View's total duration
-                view.duration_seconds += duration
+                # 2. Atomically update the parent View's total duration to prevent race conditions.
+                view.duration_seconds = F('duration_seconds') + duration
 
                 # 3. Update completion rate
                 document = view.share_link.document
@@ -708,8 +709,6 @@ class RecordPageView(APIView):
                 view.save(update_fields=update_fields)
 
             return Response({"message": "View recorded"}, status=status.HTTP_200_OK)
-        except View.DoesNotExist:
-            return Response({"error": "Invalid view session"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Error recording page view: {e}")
             return Response({"error": "Server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
