@@ -899,8 +899,8 @@ class TestRecordPageView:
 
 @pytest.mark.django_db
 class TestViewViewSet:
-    @patch('documents.views.GeoIP2')
-    def test_create_view_records_ip_and_user_agent(self, mock_geoip2, public_client, share_link):
+    @patch('documents.views.settings.GEOIP')
+    def test_create_view_records_ip_and_user_agent(self, mock_geoip, public_client, share_link):
         """Test that creating a view session records the IP, User-Agent, and location."""
         # Mock the GeoIP2 lookup
         mock_city_data = {
@@ -909,7 +909,7 @@ class TestViewViewSet:
             'latitude': 37.422,
             'longitude': -122.084,
         }
-        mock_geoip2.return_value.city.return_value = mock_city_data
+        mock_geoip.city.return_value = mock_city_data
         assert View.objects.count() == 0
 
         user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.0.0 Safari/537.36"
