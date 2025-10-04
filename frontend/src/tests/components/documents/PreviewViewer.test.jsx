@@ -229,7 +229,7 @@ describe('PreviewViewer', () => {
     expect(api.recordPageView).toHaveBeenCalledTimes(1);
     expect(api.recordPageView).toHaveBeenCalledWith(
       { view: viewId, page_number: 1, duration_seconds: 7 },
-      undefined
+      false
     );
   });
 });
