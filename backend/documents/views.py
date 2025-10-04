@@ -9,8 +9,10 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.contrib.auth.hashers import check_password
 from django.db import transaction
+from django.db.models import F
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from geoip2.errors import AddressNotFoundError
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
@@ -24,6 +26,7 @@ from .serializers import (
     DocumentSerializer,
     FolderFromPathSerializer,
     FolderSerializer,
+    PageViewRecordSerializer,
     ShareLinkPresetSerializer,
     ShareLinkSerializer,
     ViewerSerializer,
@@ -492,10 +495,41 @@ class ViewerViewSet(viewsets.ModelViewSet):
 class ViewViewSet(viewsets.ModelViewSet):
     queryset = View.objects.all()
     serializer_class = ViewSerializer
-    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        """
+        Allow anonymous users to create view sessions, but restrict
+        all other actions to authenticated users.
+        """
+        if self.action == 'create':
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
         return View.objects.filter(share_link__document__organization=self.request.user.organization)
+
+    def perform_create(self, serializer):
+        ip_address = self.request.META.get('REMOTE_ADDR')
+        user_agent = self.request.META.get('HTTP_USER_AGENT', '')[:255]
+
+        # GeoIP lookup
+        location_data = {}
+        if ip_address and settings.GEOIP:
+            try:
+                location_data = settings.GEOIP.city(ip_address)
+            except AddressNotFoundError:
+                pass  # Expected for local/private IPs
+            except Exception as e:
+                logger.error(f"GeoIP2 lookup failed: {e}")
+
+        serializer.save(
+            ip_address=ip_address,
+            user_agent=user_agent,
+            country=location_data.get('country_name', ''),
+            city=location_data.get('city', ''),
+            latitude=location_data.get('latitude'),
+            longitude=location_data.get('longitude')
+        )
 
 
 def is_viewer_authorized(request, link) -> bool:
@@ -571,6 +605,7 @@ class ShareLinkViewDataView(APIView):
             "numPages": document.num_pages,
             "pages": pages_data,
             "linkSettings": {
+                "id": link.id,
                 "allowDownload": link.allow_download,
                 "enableWatermark": link.enable_watermark,
             }
@@ -636,3 +671,44 @@ class ShareLinkVerifyPasswordView(APIView):
             return Response({"message": "Password verified successfully."}, status=status.HTTP_200_OK)
         else:
             return Response({"message": "Invalid password."}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+class RecordPageView(APIView):
+    """
+    Receives and records granular page view tracking data.
+    """
+    # No permission_classes, as this is a public endpoint. Security is implicit
+    # as it requires a valid, existing `view_id`.
+
+    def post(self, request, *args, **kwargs):
+        serializer = PageViewRecordSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        validated_data = serializer.validated_data
+        view = validated_data['view']
+        duration = validated_data['duration_seconds']
+
+        try:
+            with transaction.atomic():
+                # 1. Create the PageView record
+                serializer.save()
+
+                # 2. Atomically update the parent View's total duration to prevent race conditions.
+                view.duration_seconds = F('duration_seconds') + duration
+
+                # 3. Update completion rate
+                document = view.share_link.document
+                update_fields = ['duration_seconds']
+                if document and document.num_pages and document.num_pages > 0:
+                    viewed_pages_count = view.page_views.values('page_number').distinct().count()
+                    completion_rate = viewed_pages_count / document.num_pages
+                    view.completion_rate = min(completion_rate, 1.0)
+                    update_fields.append('completion_rate')
+
+                view.save(update_fields=update_fields)
+
+            return Response({"message": "View recorded"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error recording page view: {e}")
+            return Response({"error": "Server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

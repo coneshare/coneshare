@@ -12,7 +12,12 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     poppler-utils \
     libreoffice \
+    curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Download GeoIP database
+RUN mkdir -p /app/geoip && \
+    curl -L 'https://git.io/GeoLite2-City.mmdb' -o /app/geoip/GeoLite2-City.mmdb
 
 # Install dependencies
 COPY requirements.txt .

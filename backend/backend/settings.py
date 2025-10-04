@@ -15,6 +15,8 @@ from datetime import timedelta
 import os
 import sys
 
+from django.contrib.gis.geoip2 import GeoIP2
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -206,6 +208,16 @@ CELERY_TIMEZONE = 'UTC'
 # Test-specific Celery settings to run tasks synchronously
 if 'test' in sys.argv or 'pytest' in sys.modules:
     CELERY_TASK_ALWAYS_EAGER = True
+
+
+# GeoIP Configuration
+GEOIP_PATH = '/app/geoip'
+try:
+    GEOIP = GeoIP2()
+    print("Successfully initialized GeoIP2.")
+except Exception as e:
+    GEOIP = None
+    print(f"Failed to initialize GeoIP2: {e}")
 
 
 # Site domain (for constructing absolute URLs)

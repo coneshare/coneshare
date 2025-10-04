@@ -155,12 +155,35 @@ class View(models.Model):
     share_link = models.ForeignKey(ShareLink, on_delete=models.CASCADE, related_name='views')
     viewer = models.ForeignKey(Viewer, on_delete=models.SET_NULL, null=True, blank=True, related_name='views')
     viewer_email = models.EmailField(blank=True)
-    duration_seconds = models.IntegerField()
-    completion_rate = models.FloatField()
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+    country = models.CharField(max_length=100, blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    duration_seconds = models.IntegerField(default=0)
+    completion_rate = models.FloatField(default=0.0)
     viewed_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"View {self.id} on {self.share_link}"
+
+
+class PageView(models.Model):
+    """
+    Records a granular page view event within a single viewing session (View).
+    """
+    id = ULIDField(primary_key=True, editable=False)
+    view = models.ForeignKey('View', on_delete=models.CASCADE, related_name='page_views')
+    page_number = models.PositiveIntegerField()
+    duration_seconds = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"PageView {self.id} for View {self.view.id}, Page {self.page_number}"
 
 
 class PreviewSession(BaseModel):

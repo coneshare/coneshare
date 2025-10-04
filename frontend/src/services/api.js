@@ -153,6 +153,28 @@ export const getShareLinkViewData = (slug, previewToken = null) => {
 export const verifyShareLinkPassword = (slug, password) =>
   api.post(`/links/${slug}/verify-password/`, { password });
 
+export const createView = (data) => api.post('/views/', data);
+
+export const recordPageView = (data, useBeacon = false) => {
+  const payload = JSON.stringify(data);
+  const url = `${api.defaults.baseURL}/page-views/record/`;
+
+  // Use sendBeacon for maximum reliability during page unload
+  if (useBeacon && navigator.sendBeacon) {
+    const blob = new Blob([payload], { type: 'application/json' });
+    navigator.sendBeacon(url, blob);
+    return Promise.resolve(); // Return a resolved promise
+  }
+
+  // Fallback to fetch with keepalive for other scenarios
+  return fetch(url, {
+    method: 'POST',
+    body: payload,
+    headers: { 'Content-Type': 'application/json' },
+    keepalive: true, // Critical for page unload scenarios
+  });
+};
+
 export const getUser = (id) => api.get(`/users/${id}/`);
 
 export const setPassword = (data) => api.post('/users/set-password/', data);

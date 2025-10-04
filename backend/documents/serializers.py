@@ -1,7 +1,7 @@
 from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from core.models import Organization
-from .models import Document, DocumentPage, DocumentVersion, Folder, ShareLink, ShareLinkPreset, View, Viewer
+from .models import Document, DocumentPage, DocumentVersion, Folder, PageView, ShareLink, ShareLinkPreset, View, Viewer
 
 
 class FolderFromPathSerializer(serializers.Serializer):
@@ -173,13 +173,15 @@ class ViewerSerializer(serializers.ModelSerializer):
 
 
 class ViewSerializer(serializers.ModelSerializer):
+    share_link_name = serializers.CharField(source='share_link.name', read_only=True)
+
     class Meta:
         model = View
         fields = [
-            'id', 'share_link', 'viewer', 'viewer_email', 'duration_seconds',
+            'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name', 'ip_address', 'user_agent', 'country', 'city', 'latitude', 'longitude', 'duration_seconds',
             'completion_rate', 'viewed_at'
         ]
-        read_only_fields = ['id', 'viewed_at']
+        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name', 'country', 'city', 'latitude', 'longitude']
 
     def create(self, validated_data):
         email = validated_data.get('viewer_email')
@@ -196,6 +198,19 @@ class ViewSerializer(serializers.ModelSerializer):
             validated_data['viewer'] = viewer
 
         return super().create(validated_data)
+
+
+class PageViewRecordSerializer(serializers.ModelSerializer):
+    """
+    Serializer for validating and creating PageView records from tracking data.
+    """
+    view = serializers.PrimaryKeyRelatedField(
+        queryset=View.objects.select_related('share_link__document').all()
+    )
+
+    class Meta:
+        model = PageView
+        fields = ['view', 'page_number', 'duration_seconds']
 
 
 class DocumentSerializer(serializers.ModelSerializer):
@@ -228,16 +243,19 @@ class DocumentSerializer(serializers.ModelSerializer):
         This method relies on `share_links__views` being prefetched on the
         queryset to avoid N+1 queries.
         """
-        all_views = []
+        # Using a set to ensure uniqueness of views, in case of complex prefetch
+        # patterns that might introduce duplicates.
+        all_views = set()
         # The `obj.share_links` accessor will use the prefetched data.
         for link in obj.share_links.all():
             # The `link.views` accessor will also use the prefetched data.
-            all_views.extend(list(link.views.all()))
+            for view in link.views.all():
+                all_views.add(view)
 
         # Sort views by viewed_at descending
-        all_views.sort(key=lambda x: x.viewed_at, reverse=True)
+        sorted_views = sorted(list(all_views), key=lambda x: x.viewed_at, reverse=True)
 
-        return ViewSerializer(all_views, many=True).data
+        return ViewSerializer(sorted_views, many=True).data
 
 
 class ShareLinkPresetSerializer(serializers.ModelSerializer):

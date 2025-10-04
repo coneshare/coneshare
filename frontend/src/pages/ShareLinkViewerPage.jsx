@@ -5,7 +5,7 @@ import { PasswordForm } from '../components/viewer/PasswordForm';
 import { ViewerToolbar } from '../components/viewer/ViewerToolbar';
 import { PreviewViewer } from '../components/documents/PreviewViewer';
 import { Skeleton } from '../components/ui/Skeleton';
-import { getShareLinkViewData } from '../services/api';
+import { getShareLinkViewData, createView } from '../services/api';
 import { Button } from '../components/ui/Button';
 
 function formatBytes(bytes, decimals = 2) {
@@ -32,6 +32,7 @@ export function ShareLinkViewerPage() {
   const [refetchTrigger, setRefetchTrigger] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [viewId, setViewId] = useState(null);
   const viewerRef = useRef(null);
 
   const handleFullScreen = () => {
@@ -54,11 +55,21 @@ export function ShareLinkViewerPage() {
       setIsLoading(true);
       setError(null);
       setProtectionType(null);
+      setViewId(null); // Reset viewId on fetch
 
       try {
         const response = await getShareLinkViewData(slug, previewToken);
         if (!isCancelled) {
           setDocumentData(response.data);
+          // Create a view session as soon as we have the link ID
+          try {
+            const viewResponse = await createView({ share_link: response.data.linkSettings.id });
+            if (!isCancelled) {
+              setViewId(viewResponse.data.id);
+            }
+          } catch (viewError) {
+            console.error('Failed to create view session:', viewError);
+          }
         }
       } catch (err) {
         if (!isCancelled) {
@@ -179,6 +190,7 @@ export function ShareLinkViewerPage() {
             documentData={documentData}
             zoomLevel={zoomLevel}
             onPageChange={setCurrentPage}
+            viewId={viewId}
           />
         </>
       )}
