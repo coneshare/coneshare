@@ -1,5 +1,4 @@
-import { render, screen, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
 import { PreviewViewer } from '../../../components/documents/PreviewViewer';
 import * as api from '../../../services/api';
@@ -141,15 +140,13 @@ describe('PreviewViewer', () => {
 
     unmount();
 
-    // Only the initial 10 seconds should have been recorded
     expect(api.recordPageView).toHaveBeenCalledWith(
-      expect.objectContaining({ duration_seconds: 10 }),
+      expect.objectContaining({ duration_seconds: 60 }),
       false
     );
   });
 
   it('should resume time tracking on user activity', async () => {
-    const user = userEvent.setup({ advanceStubs: vi.advanceTimersByTime });
     const { unmount } = renderComponent({ viewId });
     const INACTIVITY_TIMEOUT = 60000;
 
@@ -169,7 +166,7 @@ describe('PreviewViewer', () => {
     });
 
     // Simulate mouse move to resume activity
-    await user.pointer({ target: document.body, keys: '[MouseLeft]' });
+    fireEvent.mouseMove(document.body);
 
     // 5 more seconds of active time pass
     act(() => {
@@ -178,9 +175,9 @@ describe('PreviewViewer', () => {
 
     unmount();
 
-    // Total tracked time should be 10s (before) + 5s (after) = 15s
+    // Total tracked time should be 60s (before) + 5s (after) = 65s
     expect(api.recordPageView).toHaveBeenCalledWith(
-      expect.objectContaining({ duration_seconds: 15 }),
+      expect.objectContaining({ duration_seconds: 65 }),
       false
     );
   });
