@@ -116,7 +116,7 @@ describe('PreviewViewer', () => {
     expect(api.recordPageView).toHaveBeenCalledTimes(1);
     expect(api.recordPageView).toHaveBeenCalledWith(
       { view: viewId, page_number: 1, duration_seconds: 5 },
-      undefined // useBeacon defaults to false
+      false
     );
   });
 
@@ -144,7 +144,7 @@ describe('PreviewViewer', () => {
     // Only the initial 10 seconds should have been recorded
     expect(api.recordPageView).toHaveBeenCalledWith(
       expect.objectContaining({ duration_seconds: 10 }),
-      undefined
+      false
     );
   });
 
@@ -181,7 +181,7 @@ describe('PreviewViewer', () => {
     // Total tracked time should be 10s (before) + 5s (after) = 15s
     expect(api.recordPageView).toHaveBeenCalledWith(
       expect.objectContaining({ duration_seconds: 15 }),
-      undefined
+      false
     );
   });
 
@@ -198,7 +198,7 @@ describe('PreviewViewer', () => {
     expect(api.recordPageView).toHaveBeenCalledTimes(1);
     expect(api.recordPageView).toHaveBeenCalledWith(
       { view: viewId, page_number: 1, duration_seconds: 10 },
-      undefined
+      false
     );
     expect(mockOnPageChange).toHaveBeenCalledWith(2);
 
@@ -213,7 +213,7 @@ describe('PreviewViewer', () => {
     expect(api.recordPageView).toHaveBeenCalledTimes(2);
     expect(api.recordPageView).toHaveBeenCalledWith(
       { view: viewId, page_number: 2, duration_seconds: 5 },
-      undefined
+      false
     );
   });
 
