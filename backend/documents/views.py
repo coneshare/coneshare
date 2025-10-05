@@ -514,6 +514,16 @@ class ViewViewSet(viewsets.ModelViewSet):
         ip_address = self.request.META.get('REMOTE_ADDR')
         user_agent = self.request.META.get('HTTP_USER_AGENT', '')[:255]
 
+        # Attempt to find the viewer's email from the session if they've been
+        # authorized via an email-required link.
+        share_link = serializer.validated_data.get('share_link')
+        viewer_email = None
+        if share_link:
+            authorized_links = self.request.session.get('authorized_share_links', {})
+            auth_status = authorized_links.get(str(share_link.id), {})
+            if auth_status.get('email_verified'):
+                viewer_email = auth_status.get('viewer_email')
+
         # GeoIP lookup
         location_data = {}
         if ip_address and settings.GEOIP:
@@ -527,6 +537,7 @@ class ViewViewSet(viewsets.ModelViewSet):
         serializer.save(
             ip_address=ip_address,
             user_agent=user_agent,
+            viewer_email=viewer_email,
             country=location_data.get('country_name', ''),
             city=location_data.get('city', ''),
             latitude=location_data.get('latitude'),
@@ -575,6 +586,7 @@ class ShareLinkViewDataView(APIView):
                         authorized_links[str(link.id)] = {
                             'password_verified': True,
                             'email_verified': True,
+                            'viewer_email': verification.email,
                         }
                         request.session['authorized_share_links'] = authorized_links
                         verification.delete()
@@ -730,6 +742,7 @@ class ShareLinkRequestAccessView(APIView):
             if str(link.id) not in authorized_links:
                 authorized_links[str(link.id)] = {}
             authorized_links[str(link.id)]['email_verified'] = True
+            authorized_links[str(link.id)]['viewer_email'] = email
             request.session['authorized_share_links'] = authorized_links
             return Response({"message": "Access granted.", "verification_required": False}, status=status.HTTP_200_OK)
         else:

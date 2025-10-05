@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch
 from pytest_bdd import scenario, given, when, then, parsers
 
-from documents.models import Document, ShareLink, EmailVerificationToken, DocumentVersion
+from documents.models import Document, ShareLink, EmailVerificationToken, DocumentVersion, View
 
 pytest_plugins = "bdd.step_definitions.common_steps"
 
@@ -22,6 +22,12 @@ def test_email_required_with_verification():
 @pytest.mark.django_db
 @scenario('../features/share_link_email_protection.feature', 'A viewer uses a valid magic link to access a document')
 def test_viewer_uses_magic_link():
+    pass
+
+
+@pytest.mark.django_db
+@scenario('../features/share_link_email_protection.feature', "A viewer's email is recorded for a link that requires email")
+def test_viewer_email_is_recorded():
     pass
 
 
@@ -73,6 +79,21 @@ def check_immediate_access(public_client, share_link_context, api_response_conte
     view_url = f'/api/v1/links/{share_link.slug}/view-data/'
     view_response = public_client.get(view_url)
     assert view_response.status_code == 200
+
+
+@when("they create a view session for the share link", target_fixture="view_session")
+def create_view_session(public_client, share_link_context):
+    share_link = share_link_context['share_link']
+    response = public_client.post('/api/v1/views/', {'share_link': share_link.id})
+    assert response.status_code == 201
+    return View.objects.get(id=response.data['id'])
+
+
+@then(parsers.parse('the view session should be associated with the email "{email}"'))
+def check_view_session_email(view_session, email):
+    assert view_session.viewer is not None
+    assert view_session.viewer.email == email
+    assert view_session.viewer_email == email
 
 
 @then(parsers.parse('a verification email should be sent to "{email}"'))
