@@ -579,6 +579,7 @@ class ShareLinkViewDataView(APIView):
                         request.session['authorized_share_links'] = authorized_links
                         verification.delete()
             except EmailVerificationToken.DoesNotExist:
+                logger.debug(f"Invalid or expired access token used for share link {slug}: {access_token}")
                 pass  # Token is invalid, proceed with normal checks.
 
         # --- SERVER-SIDE ACCESS CONTROL ---
