@@ -160,6 +160,11 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
+class ShareLinkEmailSerializer(serializers.Serializer):
+    """Serializer for the email submission form."""
+    email = serializers.EmailField()
+
+
 class ViewerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Viewer

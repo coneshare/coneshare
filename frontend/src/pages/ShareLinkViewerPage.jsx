@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Cone, FileDown } from 'lucide-react';
 import { PasswordForm } from '../components/viewer/PasswordForm';
+import { EmailForm } from '../components/viewer/EmailForm';
 import { ViewerToolbar } from '../components/viewer/ViewerToolbar';
 import { PreviewViewer } from '../components/documents/PreviewViewer';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -24,6 +25,7 @@ export function ShareLinkViewerPage() {
   const { slug } = useParams();
   const [searchParams] = useSearchParams();
   const previewToken = searchParams.get('previewToken');
+  const accessToken = searchParams.get('accessToken');
 
   const [documentData, setDocumentData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,7 +60,7 @@ export function ShareLinkViewerPage() {
       setViewId(null); // Reset viewId on fetch
 
       try {
-        const response = await getShareLinkViewData(slug, previewToken);
+        const response = await getShareLinkViewData(slug, previewToken, accessToken);
         if (!isCancelled) {
           setDocumentData(response.data);
           // Create a view session as soon as we have the link ID
@@ -77,8 +79,8 @@ export function ShareLinkViewerPage() {
             err.response?.data || { message: 'Failed to load document. The link may be invalid or expired.' };
           setError(errorData);
 
-          if (err.response?.status === 401 && errorData?.protectionType === 'password') {
-            setProtectionType('password');
+          if (err.response?.status === 401 && errorData?.protectionType) {
+            setProtectionType(errorData.protectionType);
           }
         }
       } finally {
@@ -92,7 +94,7 @@ export function ShareLinkViewerPage() {
     return () => {
       isCancelled = true;
     };
-  }, [slug, previewToken, refetchTrigger]);
+  }, [slug, previewToken, accessToken, refetchTrigger]);
 
   if (isLoading) {
     return (
@@ -108,6 +110,15 @@ export function ShareLinkViewerPage() {
   if (protectionType === 'password') {
     return (
       <PasswordForm
+        slug={slug}
+        onSuccess={() => setRefetchTrigger((c) => c + 1)}
+      />
+    );
+  }
+
+  if (protectionType === 'email') {
+    return (
+      <EmailForm
         slug={slug}
         onSuccess={() => setRefetchTrigger((c) => c + 1)}
       />

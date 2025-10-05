@@ -6,6 +6,7 @@ from pathlib import Path
 from urllib.parse import urljoin
 
 from django.conf import settings
+from django.core.mail import send_mail
 from django.core.files.storage import default_storage
 from django.contrib.auth.hashers import check_password
 from django.db import transaction
@@ -21,12 +22,13 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from .models import Document, Folder, ShareLink, ShareLinkPreset, View, Viewer, PreviewSession
+from .models import Document, Folder, ShareLink, ShareLinkPreset, View, Viewer, PreviewSession, EmailVerificationToken
 from .serializers import (
     DocumentSerializer,
     FolderFromPathSerializer,
     FolderSerializer,
     PageViewRecordSerializer,
+    ShareLinkEmailSerializer,
     ShareLinkPresetSerializer,
     ShareLinkSerializer,
     ViewerSerializer,
@@ -554,6 +556,7 @@ class ShareLinkViewDataView(APIView):
     def get(self, request, slug, *args, **kwargs):
         is_preview = False
         preview_token = request.query_params.get('previewToken')
+        access_token = request.query_params.get('accessToken')
 
         if preview_token:
             try:
@@ -570,21 +573,42 @@ class ShareLinkViewDataView(APIView):
                 pass
 
         try:
-            link = ShareLink.objects.get(slug=slug, is_archived=False)
+            link = ShareLink.objects.select_related('document').get(slug=slug, is_archived=False)
         except ShareLink.DoesNotExist:
             return Response({"message": "Link not found or has been archived."}, status=status.HTTP_404_NOT_FOUND)
 
-        # --- SERVER-SIDE ACCESS CONTROL ---
-        # 1. Check for expiration
-        if not is_preview and link.expires_at and link.expires_at < timezone.now():
-            return Response({"message": "This link has expired."}, status=status.HTTP_410_GONE)
+        if access_token:
+            try:
+                with transaction.atomic():
+                    verification = EmailVerificationToken.objects.select_for_update().get(token=access_token)
+                    if not verification.is_expired() and verification.share_link == link:
+                        # Authorize the session
+                        authorized_links = request.session.get('authorized_share_links', {})
+                        authorized_links[str(link.id)] = True
+                        request.session['authorized_share_links'] = authorized_links
+                        verification.delete()
+            except EmailVerificationToken.DoesNotExist:
+                pass  # Token is invalid, proceed with normal checks.
 
-        # 2. Check for password protection
-        if not is_preview and not is_viewer_authorized(request, link):
-            return Response(
-                {"message": "This link is password-protected. Please enter the password to continue.", "protectionType": "password"},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+        # --- SERVER-SIDE ACCESS CONTROL ---
+        if not is_preview:
+            # 1. Check for expiration
+            if link.expires_at and link.expires_at < timezone.now():
+                return Response({"message": "This link has expired."}, status=status.HTTP_410_GONE)
+
+            # 2. Check for protection if not authorized
+            is_protected = link.password_hash or link.requires_email
+            if is_protected and not is_viewer_authorized(request, link):
+                if link.password_hash:
+                    return Response(
+                        {"message": "This link is password-protected. Please enter the password to continue.", "protectionType": "password"},
+                        status=status.HTTP_401_UNAUTHORIZED
+                    )
+                # This will be caught if password is not set but email is required.
+                return Response(
+                    {"message": "This link requires an email address to view.", "protectionType": "email"},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
 
         # If all checks pass, proceed to fetch and return data.
         document = link.document
@@ -671,6 +695,82 @@ class ShareLinkVerifyPasswordView(APIView):
             return Response({"message": "Password verified successfully."}, status=status.HTTP_200_OK)
         else:
             return Response({"message": "Invalid password."}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+class ShareLinkRequestAccessView(APIView):
+    """
+    Handles a viewer's request to access a link that requires an email.
+    """
+    # No permission_classes, as this is a public endpoint.
+
+    def post(self, request, slug, *args, **kwargs):
+        try:
+            link = ShareLink.objects.get(slug=slug, is_archived=False)
+        except ShareLink.DoesNotExist:
+            return Response({"message": "Link not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not link.requires_email:
+            return Response(
+                {"message": "This link does not require an email address."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = ShareLinkEmailSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        email = serializer.validated_data['email']
+
+        # Ensure viewer record exists for tracking purposes
+        viewer, _ = Viewer.objects.get_or_create(
+            organization=link.document.organization,
+            email=email
+        )
+
+        if not link.requires_email_verification:
+            # Just authorize the session and grant access immediately.
+            authorized_links = request.session.get('authorized_share_links', {})
+            authorized_links[str(link.id)] = True
+            request.session['authorized_share_links'] = authorized_links
+            return Response({"message": "Access granted.", "verification_required": False}, status=status.HTTP_200_OK)
+        else:
+            # Create a verification token and send the magic link email.
+            verification = EmailVerificationToken.objects.create(share_link=link, email=email)
+            
+            # Construct magic link URL
+            access_url = urljoin(
+                settings.SITE_DOMAIN,
+                f"/view/{link.slug}?accessToken={verification.token}"
+            )
+            
+            # Send email
+            try:
+                # In a real app, this would use an HTML template.
+                email_body = (
+                    f"Hello,\n\n"
+                    f"Please click the link below to view the document '{link.document.name}'.\n\n"
+                    f"{access_url}\n\n"
+                    f"This link will expire in 15 minutes.\n\n"
+                    f"Thank you."
+                )
+                send_mail(
+                    subject=f"Verify your email to view '{link.document.name}'",
+                    message=email_body,
+                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@coneshare.com'),
+                    recipient_list=[email],
+                    fail_silently=False,
+                )
+            except Exception as e:
+                logger.error(f"Failed to send verification email: {e}")
+                return Response(
+                    {"message": "Could not send verification email. Please try again later."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            return Response(
+                {"message": "Verification link sent. Please check your email to continue.", "verification_required": True},
+                status=status.HTTP_200_OK
+            )
 
 
 class RecordPageView(APIView):
