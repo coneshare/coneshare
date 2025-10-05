@@ -75,6 +75,23 @@ def share_link_with_password(share_link):
 
 
 @pytest.fixture
+def share_link_requires_email(share_link):
+    """Fixture to create a share link that requires email."""
+    share_link.requires_email = True
+    share_link.save()
+    return share_link
+
+
+@pytest.fixture
+def share_link_requires_email_verification(share_link):
+    """Fixture to create a share link that requires email and verification."""
+    share_link.requires_email = True
+    share_link.requires_email_verification = True
+    share_link.save()
+    return share_link
+
+
+@pytest.fixture
 def api_client(user):
     """Fixture to create an authenticated API client."""
     client = APIClient()

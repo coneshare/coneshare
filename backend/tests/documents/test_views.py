@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework import status
 
 from core.models import Organization
-from documents.models import Document, Folder, ShareLink, DocumentVersion, DocumentPage, PreviewSession, View, PageView
+from documents.models import Document, Folder, ShareLink, DocumentVersion, DocumentPage, PreviewSession, View, PageView, EmailVerificationToken
 
 User = get_user_model()
 
@@ -932,3 +932,106 @@ class TestViewViewSet:
         assert view.country == 'United States'
         assert view.latitude == 37.422
         assert view.longitude == -122.084
+
+
+@pytest.mark.django_db
+class TestShareLinkEmailProtection:
+    """Tests for email-protected share links."""
+
+    def test_view_data_requires_email(self, public_client, share_link_requires_email):
+        """Accessing data for an email-protected link should fail with 401."""
+        url = f'/api/v1/links/{share_link_requires_email.slug}/view-data/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.json()['protectionType'] == 'email'
+
+    def test_request_access_for_non_protected_link(self, public_client, share_link):
+        """Attempting to request access for a non-protected link should fail."""
+        url = f'/api/v1/links/{share_link.slug}/request-access/'
+        response = public_client.post(url, {'email': 'viewer@example.com'})
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'does not require an email' in response.json()['message']
+
+    def test_request_access_no_verification_success(self, public_client, share_link_requires_email):
+        """
+        Requesting access for a link that requires email (but not verification)
+        should grant access immediately.
+        """
+        # Step 1: Request access
+        request_url = f'/api/v1/links/{share_link_requires_email.slug}/request-access/'
+        response_request = public_client.post(request_url, {'email': 'viewer@example.com'})
+
+        assert response_request.status_code == status.HTTP_200_OK
+        assert response_request.json()['verification_required'] is False
+
+        # Step 2: Access the data with the authorized session
+        view_data_url = f'/api/v1/links/{share_link_requires_email.slug}/view-data/'
+        response_view = public_client.get(view_data_url)
+
+        assert response_view.status_code == status.HTTP_200_OK
+        assert 'id' in response_view.json()
+
+    @patch('documents.views.send_mail')
+    def test_request_access_with_verification_success(self, mock_send_mail, public_client, share_link_requires_email_verification):
+        """
+        Requesting access for a link that requires email verification should
+        trigger an email and not grant immediate access.
+        """
+        request_url = f'/api/v1/links/{share_link_requires_email_verification.slug}/request-access/'
+        response_request = public_client.post(request_url, {'email': 'viewer@example.com'})
+
+        assert response_request.status_code == status.HTTP_200_OK
+        assert response_request.json()['verification_required'] is True
+        
+        # Check that an email was sent and a token was created
+        mock_send_mail.assert_called_once()
+        assert EmailVerificationToken.objects.count() == 1
+        
+        # Check that immediate access is not granted
+        view_data_url = f'/api/v1/links/{share_link_requires_email_verification.slug}/view-data/'
+        response_view = public_client.get(view_data_url)
+        assert response_view.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_view_data_with_valid_access_token(self, public_client, share_link_requires_email_verification):
+        """
+        Using a valid access token from an email magic link should grant access.
+        """
+        # Step 1: Create a token manually (as if an email was sent)
+        token = EmailVerificationToken.objects.create(
+            share_link=share_link_requires_email_verification,
+            email='viewer@example.com'
+        )
+        assert EmailVerificationToken.objects.count() == 1
+
+        # Step 2: Access the data with the token
+        view_data_url = f'/api/v1/links/{share_link_requires_email_verification.slug}/view-data/?accessToken={token.token}'
+        response_view = public_client.get(view_data_url)
+
+        assert response_view.status_code == status.HTTP_200_OK
+        assert 'id' in response_view.json()
+        
+        # Step 3: Verify the token was single-use and deleted
+        assert EmailVerificationToken.objects.count() == 0
+
+        # Step 4: Subsequent access without the token should be allowed due to session
+        response_view_2 = public_client.get(f'/api/v1/links/{share_link_requires_email_verification.slug}/view-data/')
+        assert response_view_2.status_code == status.HTTP_200_OK
+
+    def test_view_data_with_expired_access_token(self, public_client, share_link_requires_email_verification):
+        """An expired access token should not grant access."""
+        # Create an expired token
+        expired_time = timezone.now() - timedelta(minutes=30)
+        token = EmailVerificationToken.objects.create(
+            share_link=share_link_requires_email_verification,
+            email='viewer@example.com',
+            expires_at=expired_time
+        )
+
+        view_data_url = f'/api/v1/links/{share_link_requires_email_verification.slug}/view-data/?accessToken={token.token}'
+        response_view = public_client.get(view_data_url)
+
+        assert response_view.status_code == status.HTTP_401_UNAUTHORIZED
+        assert 'protectionType' in response_view.json()
+        assert response_view.json()['protectionType'] == 'email'
