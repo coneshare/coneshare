@@ -536,11 +536,15 @@ class ViewViewSet(viewsets.ModelViewSet):
 
 def is_viewer_authorized(request, link) -> bool:
     """
-    Checks if the current session is authorized to view a password-protected link.
+    Checks if the current session is authorized to view a protected link
+    (e.g., password or email required).
     """
-    if not link.password_hash:
-        return True  # Not protected, so authorized.
+    # 1. Check if the link has any protection enabled.
+    is_protected = link.password_hash or link.requires_email
+    if not is_protected:
+        return True  # Not protected, so implicitly authorized.
 
+    # 2. If protected, check if the session has been granted authorization.
     authorized_links = request.session.get('authorized_share_links', {})
     # Check if the link's ID is in the authorized dictionary and its value is True
     return authorized_links.get(str(link.id)) is True
