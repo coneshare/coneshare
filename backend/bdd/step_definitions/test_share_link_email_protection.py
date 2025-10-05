@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch
 from pytest_bdd import scenario, given, when, then, parsers
 
-from documents.models import Document, ShareLink, EmailVerificationToken
+from documents.models import Document, ShareLink, EmailVerificationToken, DocumentVersion
 
 pytest_plugins = "bdd.step_definitions.common_steps"
 
@@ -31,6 +31,7 @@ def share_link_requires_email(user_context):
     doc = Document.objects.create(
         name="Test Doc.pdf", organization=user.organization, created_by=user, status='ready'
     )
+    DocumentVersion.objects.create(document=doc, version_number=1, is_primary=True)
     share_link = ShareLink.objects.create(
         document=doc, created_by=user, requires_email=True
     )
@@ -43,6 +44,7 @@ def share_link_requires_email_verification(user_context):
     doc = Document.objects.create(
         name="Secure Doc.pdf", organization=user.organization, created_by=user, status='ready'
     )
+    DocumentVersion.objects.create(document=doc, version_number=1, is_primary=True)
     share_link = ShareLink.objects.create(
         document=doc, created_by=user, requires_email=True, requires_email_verification=True
     )
