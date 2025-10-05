@@ -1,4 +1,6 @@
 import { UAParser } from 'ua-parser-js';
+import { Pagination } from './Pagination';
+import { Skeleton } from '../ui/Skeleton';
 import {
   Table,
   TableBody,
@@ -33,8 +35,21 @@ function parseUserAgent(uaString) {
   };
 }
 
-export function VisitorsTable({ views }) {
-  if (!views || views.length === 0) {
+export function VisitorsTable({ viewsData, loading, currentPage, onPageChange, pageSize }) {
+  if (loading) {
+    return (
+      <div>
+        <h2 className="text-xl font-semibold">Visitors</h2>
+        <div className="mt-4 space-y-4">
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!viewsData || viewsData.count === 0) {
     return (
       <div>
         <h2 className="text-xl font-semibold">Visitors</h2>
@@ -61,7 +76,7 @@ export function VisitorsTable({ views }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {views.map((view) => {
+              {viewsData.results.map((view) => {
                 const { browser, os } = parseUserAgent(view.user_agent);
                 const deviceInfo = browser !== 'Unknown' ? `${browser} on ${os}` : 'Unknown device';
                 const locationParts = [view.city, view.country].filter(Boolean);
@@ -106,6 +121,12 @@ export function VisitorsTable({ views }) {
             </TableBody>
           </Table>
         </div>
+        <Pagination
+          count={viewsData.count}
+          pageSize={pageSize}
+          currentPage={currentPage}
+          onPageChange={onPageChange}
+        />
       </div>
     </TooltipProvider>
   );
