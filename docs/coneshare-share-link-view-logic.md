@@ -42,6 +42,11 @@ sequenceDiagram
     API->>API: Generate Absolute URLs for pages
     API-->>Client: 200 OK (JSON with document data & URLs)
     Client->>Client: Render Viewer Component
+    
+    Note right of Client: Viewer is now visible. Create view session.
+    Client->>API: POST /api/v1/views/ (link_id)
+    API->>DB: Create View record (with IP, User Agent, etc.)
+    API-->>Client: 201 Created (with new view_id)
 ```
 
 ---
@@ -191,3 +196,21 @@ export function ShareLinkViewerPage() {
 }
 ```
 This architecture provides a secure, modern, and maintainable solution that fits the tech stack.
+
+---
+
+### 4. View and Viewer Tracking Logic
+
+Once the frontend successfully fetches the document data, it initiates the tracking process by creating a `View` session.
+
+1.  **View Session Creation**: The `ShareLinkViewerPage` component makes a `POST` request to `/api/v1/views/` with the `share_link_id`. The backend creates a `View` record, capturing the viewer's IP address, user agent, and GeoIP-derived location. It returns the new `view_id` to the frontend, which is then used for subsequent page-level tracking.
+
+2.  **Anonymous vs. Identified Viewers**: The system distinguishes between anonymous and identified viewers using two related models:
+    -   **`Viewer` Model**: Represents an identified person who has provided an email address. A unique `Viewer` record is created per organization for each email.
+    -   **`View` Model**: Represents a single viewing *session*. It has a nullable foreign key to the `Viewer` model.
+
+3.  **Design Rationale for `viewer_email` Field**: The `View` model contains both a `viewer` foreign key and a denormalized `viewer_email` string field.
+    -   **Handles Anonymous Views**: If a viewer accesses a public link without providing an email, the `viewer` foreign key is `NULL` and `viewer_email` is empty.
+    -   **Performance**: For identified viewers, storing the email directly on the `View` record avoids an extra database `JOIN` to the `Viewer` table. This significantly improves performance when fetching lists of views for analytics dashboards.
+
+4.  **Associating Views with Emails**: The backend uses the Django session to link an email to a view session. When a user successfully authenticates for a protected link (e.g., via password and/or email), their email is stored in the session. When the frontend subsequently calls the `POST /api/v1/views/` endpoint, the backend retrieves this email from the session and associates it with the new `View` record, creating a `Viewer` record if one doesn't already exist.
