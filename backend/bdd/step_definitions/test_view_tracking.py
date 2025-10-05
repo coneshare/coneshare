@@ -30,8 +30,8 @@ def document_with_share_link(user_context):
 def create_view_session(public_client, share_link, ip, user_agent):
     """Simulates creating a view session by calling the API with context."""
     mock_city_data = {'city': 'Mountain View', 'country_name': 'United States', 'latitude': 37.422, 'longitude': -122.084}
-    with patch('documents.views.GeoIP2') as mock_geoip2:
-        mock_geoip2.return_value.city.return_value = mock_city_data
+    with patch('documents.views.settings.GEOIP') as mock_geoip:
+        mock_geoip.city.return_value = mock_city_data
         response = public_client.post(
             '/api/v1/views/',
             {'share_link': share_link.id},
