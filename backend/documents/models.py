@@ -3,6 +3,7 @@ import secrets
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from datetime import timedelta
 
 from core.fields import ULIDField
 from core.models import BaseModel, Organization, User
@@ -135,6 +136,30 @@ class ShareLink(BaseModel):
         if not self.slug:
             self.slug = secrets.token_urlsafe(16)
         super().save(*args, **kwargs)
+
+
+class EmailVerificationToken(models.Model):
+    """
+    A temporary, single-use token to verify a viewer's email address
+    for a share link.
+    """
+    id = ULIDField(primary_key=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    share_link = models.ForeignKey('ShareLink', on_delete=models.CASCADE, related_name='email_verification_tokens')
+    email = models.EmailField()
+    expires_at = models.DateTimeField()
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = secrets.token_urlsafe(32)
+        if not self.expires_at:
+            # Set expiry for 15 minutes from now.
+            self.expires_at = timezone.now() + timedelta(minutes=15)
+        super().save(*args, **kwargs)
+
+    def is_expired(self):
+        return self.expires_at < timezone.now()
 
 
 class Viewer(models.Model):

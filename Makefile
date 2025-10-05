@@ -25,7 +25,7 @@ help:
 
 .PHONY: up
 up:
-	COMPOSE_PROJECT_NAME=beatsight docker-compose up
+	COMPOSE_PROJECT_NAME=coneshare docker-compose up
 
 .PHONY: down
 down:
@@ -41,11 +41,11 @@ logs:
 
 .PHONY: back.sh
 back.sh:
-	COMPOSE_PROJECT_NAME=beatsight docker-compose exec backend bash
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend bash
 
 .PHONY: front.sh
 front.sh:
-	COMPOSE_PROJECT_NAME=beatsight docker-compose exec frontend sh
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend sh
 
 
 # ====================================================================================
@@ -63,4 +63,4 @@ clean:
 .PHONY: test
 test:
 	@echo "Running tests..."
-	COMPOSE_PROJECT_NAME=beatsight docker-compose exec backend pytest
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend pytest
