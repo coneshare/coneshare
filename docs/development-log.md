@@ -641,3 +641,20 @@ This session focused on implementing a sequential, multi-step authentication flo
 - **Test Suite Hardening**:
   - Fixed a fixture lookup failure by refactoring the BDD `given` step to be self-contained, creating its own test data instead of relying on fixtures from the unit test `conftest.py`.
   - Resolved a `user_context not found` error by adding the missing `Given I am an authenticated user` prerequisite step to the BDD scenario.
+
+---
+
+## Session 25: Viewer Email Tracking & Documentation (2025-10-05)
+
+This session focused on fixing a bug where viewer emails were not being correctly associated with their view sessions and documenting the underlying system logic. [https://github.com/coneshare/coneshare/pull/23](https://github.com/coneshare/coneshare/pull/23)
+
+### 1. Bug Fix: Viewer Email Association
+- **Problem**: Identified that the analytics `VisitorsTable` was displaying "Anonymous" for viewers who had provided their email for an email-protected share link.
+- **Solution**:
+  - The backend was updated to use the Django session to store a viewer's email after they successfully requested access.
+  - The `ViewViewSet` was then modified to retrieve this email from the session when creating a new `View` record, ensuring the `viewer_email` field is correctly populated.
+- **Testing**: A new BDD scenario was added to `share_link_email_protection.feature` to reproduce the bug and verify the fix, confirming that view sessions are now correctly linked to viewer emails.
+
+### 2. Architecture Documentation
+- **Viewer Logic**: The `coneshare-share-link-view-logic.md` document was updated with a new section explaining the roles of the `View` and `Viewer` models.
+- **Design Rationale**: The documentation now clarifies the design decision to use a denormalized `viewer_email` field on the `View` model for performance reasons, and it details the session-based mechanism used to associate identified viewers with their activity.
