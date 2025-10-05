@@ -29,6 +29,7 @@ export function Pagination({ count, pageSize, currentPage, onPageChange }) {
           className="h-8 w-8"
           onClick={handleFirst}
           disabled={currentPage === 1}
+          aria-label="Go to first page"
         >
           <ChevronsLeft className="h-4 w-4" />
         </Button>
@@ -38,6 +39,7 @@ export function Pagination({ count, pageSize, currentPage, onPageChange }) {
           className="h-8 w-8"
           onClick={handlePrevious}
           disabled={currentPage === 1}
+          aria-label="Go to previous page"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -50,6 +52,7 @@ export function Pagination({ count, pageSize, currentPage, onPageChange }) {
           className="h-8 w-8"
           onClick={handleNext}
           disabled={currentPage === totalPages}
+          aria-label="Go to next page"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
@@ -59,6 +62,7 @@ export function Pagination({ count, pageSize, currentPage, onPageChange }) {
           className="h-8 w-8"
           onClick={handleLast}
           disabled={currentPage === totalPages}
+          aria-label="Go to last page"
         >
           <ChevronsRight className="h-4 w-4" />
         </Button>
