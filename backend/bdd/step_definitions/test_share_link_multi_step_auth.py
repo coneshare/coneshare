@@ -1,6 +1,7 @@
 import pytest
 from pytest_bdd import scenario, given, when, then, parsers
 
+from django.contrib.auth.hashers import make_password
 from documents.models import Document, DocumentVersion, ShareLink
 
 pytest_plugins = "bdd.step_definitions.common_steps"
@@ -13,9 +14,22 @@ def test_multi_step_auth():
 
 
 @given("I have a document with a share link that requires a password and email", target_fixture="context")
-def share_link_with_password_and_email(user_context, share_link_with_password_and_email):
-    # The fixtures do all the work. We just need to return them.
-    return {'share_link': share_link_with_password_and_email}
+def share_link_with_password_and_email(user_context):
+    user = user_context['user']
+    doc = Document.objects.create(
+        name="Multi-Auth Doc.pdf",
+        organization=user.organization,
+        created_by=user,
+        status='ready'
+    )
+    DocumentVersion.objects.create(document=doc, version_number=1, is_primary=True)
+    share_link = ShareLink.objects.create(
+        document=doc,
+        created_by=user,
+        requires_email=True,
+        password_hash=make_password("password123")
+    )
+    return {'share_link': share_link}
 
 
 @when("a viewer first accesses the link", target_fixture="context")
