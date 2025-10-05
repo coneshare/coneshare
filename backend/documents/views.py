@@ -733,7 +733,9 @@ class ShareLinkRequestAccessView(APIView):
             request.session['authorized_share_links'] = authorized_links
             return Response({"message": "Access granted.", "verification_required": False}, status=status.HTTP_200_OK)
         else:
-            # Create a verification token and send the magic link email.
+            # To prevent database bloat and user confusion from multiple valid links,
+            # atomically delete any existing tokens for this email and link before creating a new one.
+            EmailVerificationToken.objects.filter(share_link=link, email=email).delete()
             verification = EmailVerificationToken.objects.create(share_link=link, email=email)
             
             # Construct magic link URL
