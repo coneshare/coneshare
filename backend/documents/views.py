@@ -534,22 +534,6 @@ class ViewViewSet(viewsets.ModelViewSet):
         )
 
 
-def is_viewer_authorized(request, link) -> bool:
-    """
-    Checks if the current session is authorized to view a protected link
-    (e.g., password or email required).
-    """
-    # 1. Check if the link has any protection enabled.
-    is_protected = link.password_hash or link.requires_email
-    if not is_protected:
-        return True  # Not protected, so implicitly authorized.
-
-    # 2. If protected, check if the session has been granted authorization.
-    authorized_links = request.session.get('authorized_share_links', {})
-    # Check if the link's ID is in the authorized dictionary and its value is True
-    return authorized_links.get(str(link.id)) is True
-
-
 class ShareLinkViewDataView(APIView):
     """
     Provides the data needed for a public viewer to render a document from a share link.
@@ -586,9 +570,12 @@ class ShareLinkViewDataView(APIView):
                 with transaction.atomic():
                     verification = EmailVerificationToken.objects.select_for_update().get(token=access_token)
                     if not verification.is_expired() and verification.share_link == link:
-                        # Authorize the session
+                        # Magic link authorizes both steps.
                         authorized_links = request.session.get('authorized_share_links', {})
-                        authorized_links[str(link.id)] = True
+                        authorized_links[str(link.id)] = {
+                            'password_verified': True,
+                            'email_verified': True,
+                        }
                         request.session['authorized_share_links'] = authorized_links
                         verification.delete()
             except EmailVerificationToken.DoesNotExist:
@@ -600,15 +587,19 @@ class ShareLinkViewDataView(APIView):
             if link.expires_at and link.expires_at < timezone.now():
                 return Response({"message": "This link has expired."}, status=status.HTTP_410_GONE)
 
-            # 2. Check for protection if not authorized
-            is_protected = link.password_hash or link.requires_email
-            if is_protected and not is_viewer_authorized(request, link):
-                if link.password_hash:
-                    return Response(
-                        {"message": "This link is password-protected. Please enter the password to continue.", "protectionType": "password"},
-                        status=status.HTTP_401_UNAUTHORIZED
-                    )
-                # This will be caught if password is not set but email is required.
+            # 2. Sequential Protection Checks
+            authorized_links = request.session.get('authorized_share_links', {})
+            auth_status = authorized_links.get(str(link.id), {})
+
+            # Step 2a: Check password first
+            if link.password_hash and not auth_status.get('password_verified'):
+                return Response(
+                    {"message": "This link is password-protected. Please enter the password to continue.", "protectionType": "password"},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+            # Step 2b: Check email second
+            if link.requires_email and not auth_status.get('email_verified'):
                 return Response(
                     {"message": "This link requires an email address to view.", "protectionType": "email"},
                     status=status.HTTP_401_UNAUTHORIZED
@@ -691,10 +682,11 @@ class ShareLinkVerifyPasswordView(APIView):
 
         password = serializer.validated_data['password']
         if check_password(password, link.password_hash):
-            # Password is correct. Store authorization in the session.
-            # Using a dictionary for authorized links to support multiple links in one session.
+            # Password is correct. Store granular authorization in the session.
             authorized_links = request.session.get('authorized_share_links', {})
-            authorized_links[str(link.id)] = True
+            if str(link.id) not in authorized_links:
+                authorized_links[str(link.id)] = {}
+            authorized_links[str(link.id)]['password_verified'] = True
             request.session['authorized_share_links'] = authorized_links
             return Response({"message": "Password verified successfully."}, status=status.HTTP_200_OK)
         else:
@@ -734,7 +726,9 @@ class ShareLinkRequestAccessView(APIView):
         if not link.requires_email_verification:
             # Just authorize the session and grant access immediately.
             authorized_links = request.session.get('authorized_share_links', {})
-            authorized_links[str(link.id)] = True
+            if str(link.id) not in authorized_links:
+                authorized_links[str(link.id)] = {}
+            authorized_links[str(link.id)]['email_verified'] = True
             request.session['authorized_share_links'] = authorized_links
             return Response({"message": "Access granted.", "verification_required": False}, status=status.HTTP_200_OK)
         else:
