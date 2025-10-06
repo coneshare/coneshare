@@ -136,6 +136,11 @@ export const getDocumentPreviewData = (id) => api.get(`/documents/${id}/preview-
 
 export const getDocumentDetails = (id) => api.get(`/documents/${id}/`);
 
+export const getDocumentViews = (documentId, page = 1) =>
+  api.get(`/documents/${documentId}/views/?page=${page}`);
+
+export const getDocumentStats = (documentId) => api.get(`/documents/${documentId}/stats/`);
+
 export const createShareLink = (data) => api.post('/share-links/', data);
 
 export const updateShareLink = (id, data) => api.patch(`/share-links/${id}/`, data);

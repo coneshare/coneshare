@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { getDocumentDetails } from '../services/api';
+import { getDocumentDetails, getDocumentViews, getDocumentStats } from '../services/api';
 import { DocumentHeader } from '../components/documents/DocumentHeader';
 import { LinksTable } from '../components/documents/LinksTable';
 import { VisitorsTable } from '../components/documents/VisitorsTable';
@@ -12,16 +12,24 @@ import { DocumentPreviewModal } from '../components/documents/DocumentPreviewMod
 export function DocumentPage() {
   const { documentId } = useParams();
   const [document, setDocument] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [viewsData, setViewsData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [viewsLoading, setViewsLoading] = useState(true);
   const [isLinkSheetOpen, setIsLinkSheetOpen] = useState(false);
   const [editingLink, setEditingLink] = useState(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const fetchDocument = useCallback(async () => {
+  const fetchDocumentAndStats = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getDocumentDetails(documentId);
-      setDocument(response.data);
+      const [docResponse, statsResponse] = await Promise.all([
+        getDocumentDetails(documentId),
+        getDocumentStats(documentId),
+      ]);
+      setDocument(docResponse.data);
+      setStats(statsResponse.data);
     } catch (err) {
       // API errors are handled by the global interceptor in api.js
       console.error(err);
@@ -30,9 +38,25 @@ export function DocumentPage() {
     }
   }, [documentId]);
 
+  const fetchViews = useCallback(async () => {
+    try {
+      setViewsLoading(true);
+      const response = await getDocumentViews(documentId, currentPage);
+      setViewsData(response.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setViewsLoading(false);
+    }
+  }, [documentId, currentPage]);
+
   useEffect(() => {
-    fetchDocument();
-  }, [fetchDocument]);
+    fetchDocumentAndStats();
+  }, [fetchDocumentAndStats]);
+
+  useEffect(() => {
+    fetchViews();
+  }, [fetchViews]);
 
   const handleCreateLink = () => {
     setEditingLink(null);
@@ -77,16 +101,25 @@ export function DocumentPage() {
     <div className="container mx-auto p-4 sm:p-6">
       <DocumentHeader document={document} onCreateLink={handleCreateLink} onPreview={handlePreview} />
       <div className="mt-8 space-y-8">
-        <Stats views={document.views} />
+        <Stats stats={stats} />
         <LinksTable links={document.share_links} onEditLink={handleEditLink} />
-        <VisitorsTable views={document.views} />
+        <VisitorsTable
+          viewsData={viewsData}
+          loading={viewsLoading}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          pageSize={10}
+        />
       </div>
       <LinkSheet
         isOpen={isLinkSheetOpen}
         onOpenChange={setIsLinkSheetOpen}
         document={document}
         currentLink={editingLink}
-        onSuccess={fetchDocument}
+        onSuccess={() => {
+          fetchDocumentAndStats();
+          fetchViews();
+        }}
       />
       <DocumentPreviewModal
         isOpen={isPreviewOpen}

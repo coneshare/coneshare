@@ -11,14 +11,11 @@ function formatDuration(seconds) {
   return result.trim();
 }
 
-export function Stats({ views }) {
-  const totalViews = views?.length || 0;
-  const totalDuration =
-    views?.reduce((sum, view) => sum + (view.duration_seconds || 0), 0) || 0;
-  const avgDurationInSeconds = totalViews > 0 ? totalDuration / totalViews : 0;
-  const formattedAvgDuration = formatDuration(avgDurationInSeconds);
+export function Stats({ stats }) {
+  const totalViews = stats?.total_views || 0;
+  const formattedAvgDuration = formatDuration(stats?.avg_duration_seconds || 0);
 
-  const stats = [
+  const statItems = [
     { name: 'Number of visits', value: totalViews },
     { name: 'Number of reactions', value: 0 }, // Placeholder as per request
     { name: 'Avg. view duration', value: formattedAvgDuration },
@@ -28,7 +25,7 @@ export function Stats({ views }) {
     <div>
       <h2 className="text-xl font-semibold">Analytics</h2>
       <dl className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-3">
-        {stats.map((stat) => (
+        {statItems.map((stat) => (
           <div key={stat.name} className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow-sm sm:p-6">
             <dt className="truncate text-sm font-medium text-gray-500">{stat.name}</dt>
             <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">

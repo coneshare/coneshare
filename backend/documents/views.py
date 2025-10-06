@@ -10,13 +10,14 @@ from django.core.mail import send_mail
 from django.core.files.storage import default_storage
 from django.contrib.auth.hashers import check_password
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Sum, Count
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from geoip2.errors import AddressNotFoundError
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -42,6 +43,12 @@ from .services import (
 
 
 logger = logging.getLogger(__name__)
+
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 
 def _get_folder_from_path(organization, folder_path: str) -> Folder | None:
@@ -442,12 +449,48 @@ class DocumentViewSet(viewsets.ModelViewSet):
             organization=organization,
             created_by=self.request.user,
             folder=target_folder
-        ).prefetch_related('versions', 'share_links', 'share_links__views')
+        ).prefetch_related('versions', 'share_links')
 
     def destroy(self, request, *args, **kwargs):
         document = self.get_object()
         delete_document_and_files(document)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['get'])
+    def views(self, request, pk=None):
+        document = self.get_object()
+        view_queryset = View.objects.filter(
+            share_link__document=document
+        ).order_by('-viewed_at').select_related('share_link')
+
+        paginator = StandardResultsSetPagination()
+        page = paginator.paginate_queryset(view_queryset, request, view=self)
+        if page is not None:
+            serializer = ViewSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
+        serializer = ViewSerializer(view_queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def stats(self, request, pk=None):
+        document = self.get_object()
+        aggregates = View.objects.filter(
+            share_link__document=document
+        ).aggregate(
+            total_views=Count('id'),
+            total_duration_seconds=Sum('duration_seconds'),
+        )
+
+        total_views = aggregates['total_views']
+        total_duration = aggregates['total_duration_seconds'] or 0
+        avg_duration = total_duration / total_views if total_views > 0 else 0
+
+        return Response({
+            'total_views': total_views,
+            'total_duration_seconds': total_duration,
+            'avg_duration_seconds': avg_duration,
+        })
 
 
 class ShareLinkPresetViewSet(viewsets.ModelViewSet):
@@ -517,7 +560,7 @@ class ViewViewSet(viewsets.ModelViewSet):
         # Attempt to find the viewer's email from the session if they've been
         # authorized via an email-required link.
         share_link = serializer.validated_data.get('share_link')
-        viewer_email = None
+        viewer_email = ''
         if share_link:
             authorized_links = self.request.session.get('authorized_share_links', {})
             auth_status = authorized_links.get(str(share_link.id), {})

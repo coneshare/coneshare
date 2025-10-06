@@ -221,7 +221,6 @@ class PageViewRecordSerializer(serializers.ModelSerializer):
 class DocumentSerializer(serializers.ModelSerializer):
     versions = DocumentVersionSerializer(many=True, read_only=True)
     share_links = ShareLinkSerializer(many=True, read_only=True)
-    views = serializers.SerializerMethodField()
 
     class Meta:
         model = Document
@@ -229,7 +228,7 @@ class DocumentSerializer(serializers.ModelSerializer):
             'id', 'organization', 'folder', 'name', 'description', 'status',
             'storage_key', 'original_storage_key', 'type', 'content_type',
             'num_pages', 'download_only', 'assistant_enabled', 'created_by',
-            'created_at', 'updated_at', 'versions', 'share_links', 'views'
+            'created_at', 'updated_at', 'versions', 'share_links'
         ]
         read_only_fields = [
             'id', 'organization', 'created_by', 'created_at', 'updated_at'
@@ -241,26 +240,6 @@ class DocumentSerializer(serializers.ModelSerializer):
         validated_data['organization'] = request.user.organization
         validated_data['created_by'] = request.user
         return super().create(validated_data)
-
-    def get_views(self, obj):
-        """
-        Aggregates all views from all share links associated with the document.
-        This method relies on `share_links__views` being prefetched on the
-        queryset to avoid N+1 queries.
-        """
-        # Using a set to ensure uniqueness of views, in case of complex prefetch
-        # patterns that might introduce duplicates.
-        all_views = set()
-        # The `obj.share_links` accessor will use the prefetched data.
-        for link in obj.share_links.all():
-            # The `link.views` accessor will also use the prefetched data.
-            for view in link.views.all():
-                all_views.add(view)
-
-        # Sort views by viewed_at descending
-        sorted_views = sorted(list(all_views), key=lambda x: x.viewed_at, reverse=True)
-
-        return ViewSerializer(sorted_views, many=True).data
 
 
 class ShareLinkPresetSerializer(serializers.ModelSerializer):
