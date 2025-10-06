@@ -137,7 +137,7 @@ export const getDocumentPreviewData = (id) => api.get(`/documents/${id}/preview-
 export const getDocumentDetails = (id) => api.get(`/documents/${id}/`);
 
 export const getDocumentViews = (documentId, page = 1) =>
-  api.get(`/documents/${documentId}/views/?page=${page}`);
+  api.get(`/documents/${documentId}/view-sessions/?page=${page}`);
 
 export const getDocumentStats = (documentId) => api.get(`/documents/${documentId}/stats/`);
 

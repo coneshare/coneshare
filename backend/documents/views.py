@@ -456,8 +456,8 @@ class DocumentViewSet(viewsets.ModelViewSet):
         delete_document_and_files(document)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=True, methods=['get'])
-    def views(self, request, pk=None):
+    @action(detail=True, methods=['get'], url_path='view-sessions')
+    def view_sessions(self, request, pk=None):
         document = self.get_object()
         view_queryset = ViewSession.objects.filter(
             share_link__document=document

@@ -817,7 +817,7 @@ class TestDocumentViewSet:
             ViewSession.objects.create(share_link=share_link, viewer_email=f"viewer{i+1}@example.com")
 
         # 1. Fetch the first page
-        response = api_client.get(f'/api/v1/documents/{document.id}/views/')
+        response = api_client.get(f'/api/v1/documents/{document.id}/view-sessions/')
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
 
