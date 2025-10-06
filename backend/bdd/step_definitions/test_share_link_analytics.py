@@ -2,7 +2,7 @@ import pytest
 from pytest_bdd import given, parsers, scenario, then, when
 from rest_framework import status
 
-from documents.models import Document, ShareLink, View, Viewer
+from documents.models import Document, ShareLink, ViewSession, Viewer
 
 pytest_plugins = "bdd.step_definitions.common_steps"
 
@@ -60,9 +60,9 @@ def viewer_record_exists(user_context, email):
     ).exists()
 
 
-@then("a \"View\" record should exist, linking the viewer and the share link")
+@then("a \"ViewSession\" record should exist, linking the viewer and the share link")
 def view_record_links_entities(user_context):
-    """Checks that the View connects the ShareLink and the Viewer."""
+    """Checks that the ViewSession connects the ShareLink and the Viewer."""
     share_link = ShareLink.objects.get(id=user_context["share_link_id"])
     viewer = Viewer.objects.get(email="viewer@example.com")
-    assert View.objects.filter(share_link=share_link, viewer=viewer).exists()
+    assert ViewSession.objects.filter(share_link=share_link, viewer=viewer).exists()
