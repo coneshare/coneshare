@@ -1,0 +1,63 @@
+Renaming the View model to UniqueView is a significant change that will affect approximately 11 code files across the backend and frontend, plus several documentation files. A database migration will also
+be required.
+
+Here is a list of the files that need to be updated.
+
+Backend (7 files)
+
+ 1 backend/documents/models.py
+    • Rename the View model class to UniqueView.
+    • In the PageView model, rename the foreign key from view to unique_view and update its relation to 'UniqueView'.
+    • Update the related_name on ShareLink's foreign key in the UniqueView model to 'unique_views'.
+ 2 backend/documents/serializers.py
+    • Rename ViewSerializer to UniqueViewSerializer and update its Meta class to point to the UniqueView model.
+    • In PageViewRecordSerializer, rename the view field to unique_view and update its queryset to use UniqueView.objects.
+ 3 backend/documents/views.py
+    • Rename ViewViewSet to UniqueViewViewSet and update its queryset and serializer_class to use UniqueView and UniqueViewSerializer.
+    • Update all queries and references from View to UniqueView in DocumentViewSet and RecordPageView.
+    • In RecordPageView, update the logic to use the unique_view field from the validated data.
+ 4 backend/documents/urls.py
+    • Update the router registration to point to the new UniqueViewViewSet. It's also recommended to change the URL path from views to unique-views for consistency: router.register(r'unique-views',
+      views.UniqueViewViewSet, basename='uniqueview')
+ 5 backend/tests/documents/test_views.py
+    • Update model imports from View to UniqueView.
+    • Update all instances of View.objects to UniqueView.objects.
+    • Change the API endpoint in tests from /api/v1/views/ to /api/v1/unique-views/.
+    • Update the payload for record-page-view to use the unique_view field instead of view.
+ 6 backend/bdd/step_definitions/test_view_tracking.py
+    • Update model imports and object creation to use UniqueView.
+    • Change the API endpoint from /api/v1/views/ to /api/v1/unique-views/.
+    • Update the payload sent to record-page-view to use the unique_view field.
+ 7 backend/bdd/step_definitions/test_share_link_email_protection.py
+    • Update model imports to UniqueView.
+    • Change the view session creation API call from /api/v1/views/ to /api/v1/unique-views/.
+
+Frontend (4 files)
+
+ 1 frontend/src/services/api.js
+    • Rename the createView function to createUniqueView and update its API endpoint to /unique-views/.
+    • In the recordPageView function, change the payload field from view to unique_view.
+ 2 frontend/src/pages/ShareLinkViewerPage.jsx
+    • Update the code to import and call the new createUniqueView function from api.js.
+ 3 frontend/src/components/documents/PreviewViewer.jsx
+    • In the sendTrackingData function, update the call to recordPageView to pass the payload with a unique_view key instead of view.
+ 4 frontend/src/tests/pages/ShareLinkViewerPage.test.jsx
+    • Update test mocks and assertions to use api.createUniqueView instead of api.createView.
+
+Database Migration
+
+After making the code changes, you will need to generate a new database migration to rename the table and its relationships.
+
+
+docker compose exec backend python manage.py makemigrations documents
+docker compose exec backend python manage.py migrate
+
+
+Documentation
+
+Several documentation files in the docs/ directory will also need to be updated to reflect the name change from View to UniqueView, including:
+
+ • docs/coneshare-data-model.md
+ • docs/coneshare-record-view-data.md
+ • docs/development-log.md
+ • docs/coneshare-share-link-view-logic.md
