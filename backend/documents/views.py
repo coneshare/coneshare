@@ -560,7 +560,7 @@ class ViewViewSet(viewsets.ModelViewSet):
         # Attempt to find the viewer's email from the session if they've been
         # authorized via an email-required link.
         share_link = serializer.validated_data.get('share_link')
-        viewer_email = None
+        viewer_email = ''
         if share_link:
             authorized_links = self.request.session.get('authorized_share_links', {})
             auth_status = authorized_links.get(str(share_link.id), {})

@@ -75,7 +75,9 @@ describe('DocumentPage', () => {
 
     // Check pagination text
     expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
-    expect(screen.getByText('Showing 1-10 of 15 visitors.')).toBeInTheDocument();
+    expect(
+      screen.getByText((content, node) => node.textContent === 'Showing 1-10 of 15 visitors.')
+    ).toBeInTheDocument();    
 
     // Mock for second page call
     api.getDocumentViews.mockResolvedValueOnce({ data: mockViewsPage2 });
@@ -97,7 +99,9 @@ describe('DocumentPage', () => {
 
     // Check pagination text and state
     expect(screen.getByText('Page 2 of 2')).toBeInTheDocument();
-    expect(screen.getByText('Showing 11-15 of 15 visitors.')).toBeInTheDocument();
+    expect(
+      screen.getByText((content, node) => node.textContent === 'Showing 11-15 of 15 visitors.')
+    ).toBeInTheDocument();    
     expect(screen.getByRole('button', { name: /go to next page/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /go to last page/i })).toBeDisabled();
   });
