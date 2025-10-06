@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch
 from pytest_bdd import scenario, given, when, then, parsers
 
-from documents.models import Document, ShareLink, View, PageView
+from documents.models import Document, ShareLink, ViewSession, PageView
 
 pytest_plugins = "bdd.step_definitions.common_steps"
 
@@ -33,20 +33,20 @@ def create_view_session(public_client, share_link, ip, user_agent):
     with patch('documents.views.settings.GEOIP') as mock_geoip:
         mock_geoip.city.return_value = mock_city_data
         response = public_client.post(
-            '/api/v1/views/',
+            '/api/v1/view-sessions/',
             {'share_link': share_link.id},
             REMOTE_ADDR=ip,
             HTTP_USER_AGENT=user_agent
         )
     assert response.status_code == 201
-    return View.objects.get(id=response.data['id'])
+    return ViewSession.objects.get(id=response.data['id'])
 
 
 @when(parsers.parse('the viewer spends {duration:d} seconds on page {page:d}'))
 def viewer_spends_time_on_page(public_client, view_session, duration, page):
     """Simulates the frontend sending a page view tracking request."""
     data = {
-        'view': view_session.id,
+        'view_session': view_session.id,
         'page_number': page,
         'duration_seconds': duration,
     }
@@ -60,7 +60,7 @@ def viewer_spends_time_on_page(public_client, view_session, duration, page):
 def page_view_is_recorded(view_session, page, duration):
     """Checks that a PageView record was created with the correct data."""
     assert PageView.objects.filter(
-        view=view_session,
+        view_session=view_session,
         page_number=page,
         duration_seconds=duration
     ).exists()

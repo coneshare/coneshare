@@ -9,7 +9,7 @@ router.register(r'documents', views.DocumentViewSet)
 router.register(r'share-link-presets', views.ShareLinkPresetViewSet)
 router.register(r'share-links', views.ShareLinkViewSet)
 router.register(r'viewers', views.ViewerViewSet)
-router.register(r'views', views.ViewViewSet)
+router.register(r'view-sessions', views.ViewSessionViewSet, basename='viewsession')
 
 urlpatterns = [
     path('folders/from_path/', views.FolderFromPathView.as_view(), name='folder-from-path'),

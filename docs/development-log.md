@@ -40,7 +40,7 @@ This document tracks the key architectural decisions and implementation steps ma
 ## Session 2: Document Management Implementation (2025-09-15)
 
 ### 1. Document App Architecture
-- **Core Models**: Implemented `Document`, `Folder`, `ShareLink`, `Viewer`, and `View` models with ULID primary keys and organization-scoped relationships.
+- **Core Models**: Implemented `Document`, `Folder`, `ShareLink`, `Viewer`, and `ViewSession` models with ULID primary keys and organization-scoped relationships.
 - **API Endpoints**: Created DRF ModelViewSets for all document-related models with:
   - Automatic organization assignment from authenticated user
   - Read-only timestamp fields
@@ -614,7 +614,7 @@ This session implements a robust system for tracking document viewing activity, 
 
 -  Granular Page View Tracking: Introduced a new PageView model and an API endpoint (/api/v1/page-views/record/) to record detailed page-level viewing durations within a document.
 
--  Enhanced View Session Data: The existing View model now captures ip_address, user_agent, country, city, latitude, and longitude for each viewing session, leveraging GeoIP lookup.
+-  Enhanced View Session Data: The existing ViewSession model now captures ip_address, user_agent, country, city, latitude, and longitude for each viewing session, leveraging GeoIP lookup.
 
 -  Frontend Integration: The PreviewViewer.jsx component has been updated to track active page duration and send this data reliably to the backend, including using navigator.sendBeacon for unload events.
 
@@ -652,9 +652,9 @@ This session focused on fixing a bug where viewer emails were not being correctl
 - **Problem**: Identified that the analytics `VisitorsTable` was displaying "Anonymous" for viewers who had provided their email for an email-protected share link.
 - **Solution**:
   - The backend was updated to use the Django session to store a viewer's email after they successfully requested access.
-  - The `ViewViewSet` was then modified to retrieve this email from the session when creating a new `View` record, ensuring the `viewer_email` field is correctly populated.
+  - The `ViewSessionViewSet` was then modified to retrieve this email from the session when creating a new `ViewSession` record, ensuring the `viewer_email` field is correctly populated.
 - **Testing**: A new BDD scenario was added to `share_link_email_protection.feature` to reproduce the bug and verify the fix, confirming that view sessions are now correctly linked to viewer emails.
 
 ### 2. Architecture Documentation
-- **Viewer Logic**: The `coneshare-share-link-view-logic.md` document was updated with a new section explaining the roles of the `View` and `Viewer` models.
-- **Design Rationale**: The documentation now clarifies the design decision to use a denormalized `viewer_email` field on the `View` model for performance reasons, and it details the session-based mechanism used to associate identified viewers with their activity.
+- **Viewer Logic**: The `coneshare-share-link-view-logic.md` document was updated with a new section explaining the roles of the `ViewSession` and `Viewer` models.
+- **Design Rationale**: The documentation now clarifies the design decision to use a denormalized `viewer_email` field on the `ViewSession` model for performance reasons, and it details the session-based mechanism used to associate identified viewers with their activity.

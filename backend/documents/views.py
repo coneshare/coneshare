@@ -23,7 +23,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from .models import Document, Folder, ShareLink, ShareLinkPreset, View, Viewer, PreviewSession, EmailVerificationToken
+from .models import Document, Folder, ShareLink, ShareLinkPreset, ViewSession, Viewer, PreviewSession, EmailVerificationToken
 from .serializers import (
     DocumentSerializer,
     FolderFromPathSerializer,
@@ -33,7 +33,7 @@ from .serializers import (
     ShareLinkPresetSerializer,
     ShareLinkSerializer,
     ViewerSerializer,
-    ViewSerializer,
+    ViewSessionSerializer,
 )
 from .services import (
     create_document_from_upload,
@@ -459,23 +459,23 @@ class DocumentViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def views(self, request, pk=None):
         document = self.get_object()
-        view_queryset = View.objects.filter(
+        view_queryset = ViewSession.objects.filter(
             share_link__document=document
         ).order_by('-viewed_at').select_related('share_link')
 
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(view_queryset, request, view=self)
         if page is not None:
-            serializer = ViewSerializer(page, many=True)
+            serializer = ViewSessionSerializer(page, many=True)
             return paginator.get_paginated_response(serializer.data)
 
-        serializer = ViewSerializer(view_queryset, many=True)
+        serializer = ViewSessionSerializer(view_queryset, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=['get'])
     def stats(self, request, pk=None):
         document = self.get_object()
-        aggregates = View.objects.filter(
+        aggregates = ViewSession.objects.filter(
             share_link__document=document
         ).aggregate(
             total_views=Count('id'),
@@ -537,9 +537,9 @@ class ViewerViewSet(viewsets.ModelViewSet):
         return Viewer.objects.filter(organization=self.request.user.organization)
 
 
-class ViewViewSet(viewsets.ModelViewSet):
-    queryset = View.objects.all()
-    serializer_class = ViewSerializer
+class ViewSessionViewSet(viewsets.ModelViewSet):
+    queryset = ViewSession.objects.all()
+    serializer_class = ViewSessionSerializer
 
     def get_permissions(self):
         """
@@ -551,7 +551,7 @@ class ViewViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
-        return View.objects.filter(share_link__document__organization=self.request.user.organization)
+        return ViewSession.objects.filter(share_link__document__organization=self.request.user.organization)
 
     def perform_create(self, serializer):
         ip_address = self.request.META.get('REMOTE_ADDR')
@@ -843,7 +843,7 @@ class RecordPageView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         validated_data = serializer.validated_data
-        view = validated_data['view']
+        view_session = validated_data['view_session']
         duration = validated_data['duration_seconds']
 
         try:
@@ -852,18 +852,18 @@ class RecordPageView(APIView):
                 serializer.save()
 
                 # 2. Atomically update the parent View's total duration to prevent race conditions.
-                view.duration_seconds = F('duration_seconds') + duration
+                view_session.duration_seconds = F('duration_seconds') + duration
 
                 # 3. Update completion rate
-                document = view.share_link.document
+                document = view_session.share_link.document
                 update_fields = ['duration_seconds']
                 if document and document.num_pages and document.num_pages > 0:
-                    viewed_pages_count = view.page_views.values('page_number').distinct().count()
+                    viewed_pages_count = view_session.page_views.values('page_number').distinct().count()
                     completion_rate = viewed_pages_count / document.num_pages
-                    view.completion_rate = min(completion_rate, 1.0)
+                    view_session.completion_rate = min(completion_rate, 1.0)
                     update_fields.append('completion_rate')
 
-                view.save(update_fields=update_fields)
+                view_session.save(update_fields=update_fields)
 
             return Response({"message": "View recorded"}, status=status.HTTP_200_OK)
         except Exception as e:

@@ -6,7 +6,7 @@ import { EmailForm } from '../components/viewer/EmailForm';
 import { ViewerToolbar } from '../components/viewer/ViewerToolbar';
 import { PreviewViewer } from '../components/documents/PreviewViewer';
 import { Skeleton } from '../components/ui/Skeleton';
-import { getShareLinkViewData, createView } from '../services/api';
+import { getShareLinkViewData, createViewSession } from '../services/api';
 import { Button } from '../components/ui/Button';
 
 function formatBytes(bytes, decimals = 2) {
@@ -65,7 +65,7 @@ export function ShareLinkViewerPage() {
           setDocumentData(response.data);
           // Create a view session as soon as we have the link ID
           try {
-            const viewResponse = await createView({ share_link: response.data.linkSettings.id });
+            const viewResponse = await createViewSession({ share_link: response.data.linkSettings.id });
             if (!isCancelled) {
               setViewId(viewResponse.data.id);
             }

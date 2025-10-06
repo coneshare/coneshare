@@ -180,7 +180,7 @@ A reusable template for `ShareLink` configurations, allowing teams to quickly cr
 
 **Relations:** Belongs to one Organization.
 
-### 10. View
+### 10. ViewSession
 
 Records an instance of a `ShareLink` being accessed. This is the core of the analytics engine.
 
@@ -202,15 +202,15 @@ Records an instance of a `ShareLink` being accessed. This is the core of the ana
 
 ### 11. PageView
 
-Records a granular page view event within a single viewing session (`View`).
+Records a granular page view event within a single viewing session (`ViewSession`).
 
 -   **id**: ULID, Primary Key
--   **view_id**: Foreign Key to `View`
+-   **view_session_id**: Foreign Key to `ViewSession`
 -   **page_number**: Integer
 -   **duration_seconds**: Integer
 -   **created_at**: DateTime
 
-**Relations:** Belongs to one View.
+**Relations:** Belongs to one ViewSession.
 
 ### 12. Viewer
 
@@ -276,7 +276,7 @@ A log entry created when a new document is uploaded by an external viewer via a 
 -   **document_id**: Foreign Key to `Document` (the newly created document)
 -   **organization_id**: Foreign Key to `Organization`
 -   **viewer_id**: Foreign Key to `Viewer` (Nullable)
--   **view_id**: Foreign Key to `View` (Nullable)
+-   **view_session_id**: Foreign Key to `ViewSession` (Nullable)
 -   **share_link_id**: Foreign Key to `ShareLink`
 -   **dataroom_id**: Foreign Key to `Dataroom` (Nullable)
 -   **original_filename**: String

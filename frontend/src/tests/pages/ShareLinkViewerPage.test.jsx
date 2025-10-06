@@ -113,7 +113,7 @@ describe('ShareLinkViewerPage', () => {
 
     // Second load (after password) succeeds
     api.getShareLinkViewData.mockResolvedValueOnce({ data: mockDocumentData });
-    api.createView.mockResolvedValue({ data: mockViewData });
+    api.createViewSession.mockResolvedValue({ data: mockViewData });
 
     renderComponent('/view/test-slug');
 
@@ -134,7 +134,7 @@ describe('ShareLinkViewerPage', () => {
 
   it('fetches data successfully and renders the viewer', async () => {
     api.getShareLinkViewData.mockResolvedValue({ data: mockDocumentData });
-    api.createView.mockResolvedValue({ data: mockViewData });
+    api.createViewSession.mockResolvedValue({ data: mockViewData });
 
     renderComponent('/view/test-slug');
 
@@ -142,12 +142,12 @@ describe('ShareLinkViewerPage', () => {
       expect(screen.getByText('Preview Viewer')).toBeInTheDocument();
     });
     expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', null, null);
-    expect(api.createView).toHaveBeenCalledWith({ share_link: 'link_abc' });
+    expect(api.createViewSession).toHaveBeenCalledWith({ share_link: 'link_abc' });
   });
 
   it('passes accessToken from URL to API call', async () => {
     api.getShareLinkViewData.mockResolvedValue({ data: mockDocumentData });
-    api.createView.mockResolvedValue({ data: mockViewData });
+    api.createViewSession.mockResolvedValue({ data: mockViewData });
 
     renderComponent('/view/test-slug?accessToken=my-secret-token');
 
