@@ -482,8 +482,8 @@ class DocumentViewSet(viewsets.ModelViewSet):
             total_duration_seconds=Sum('duration_seconds'),
         )
 
-        total_views = aggregates.get('total_views', 0) or 0
-        total_duration = aggregates.get('total_duration_seconds', 0) or 0
+        total_views = aggregates['total_views']
+        total_duration = aggregates['total_duration_seconds'] or 0
         avg_duration = total_duration / total_views if total_views > 0 else 0
 
         return Response({
