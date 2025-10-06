@@ -179,7 +179,7 @@ class View(models.Model):
     id = ULIDField(primary_key=True, editable=False)
     share_link = models.ForeignKey(ShareLink, on_delete=models.CASCADE, related_name='views')
     viewer = models.ForeignKey(Viewer, on_delete=models.SET_NULL, null=True, blank=True, related_name='views')
-    viewer_email = models.EmailField(blank=True)
+    viewer_email = models.EmailField(blank=True, default='')
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.CharField(max_length=255, blank=True)
     country = models.CharField(max_length=100, blank=True)
