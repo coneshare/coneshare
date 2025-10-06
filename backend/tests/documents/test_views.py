@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework import status
 
 from core.models import Organization
-from documents.models import Document, Folder, ShareLink, DocumentVersion, DocumentPage, PreviewSession, View, PageView, EmailVerificationToken
+from documents.models import Document, Folder, ShareLink, DocumentVersion, DocumentPage, PreviewSession, ViewSession, PageView, EmailVerificationToken
 
 User = get_user_model()
 
@@ -814,10 +814,10 @@ class TestDocumentViewSet:
         """
         # Create 15 views for the share link
         for i in range(15):
-            View.objects.create(share_link=share_link, viewer_email=f"viewer{i+1}@example.com")
+            ViewSession.objects.create(share_link=share_link, viewer_email=f"viewer{i+1}@example.com")
 
         # 1. Fetch the first page
-        response = api_client.get(f'/api/v1/documents/{document.id}/views/')
+        response = api_client.get(f'/api/v1/documents/{document.id}/view-sessions/')
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
 
@@ -842,12 +842,12 @@ class TestRecordPageView:
     def test_record_page_view_success(self, public_client, share_link):
         """Test that a page view is recorded successfully."""
         # 1. Create a View session
-        view_session = View.objects.create(share_link=share_link, duration_seconds=10)
+        view_session = ViewSession.objects.create(share_link=share_link, duration_seconds=10)
         assert PageView.objects.count() == 0
 
         # 2. Send tracking data
         data = {
-            'view': view_session.id,
+            'view_session': view_session.id,
             'page_number': 1,
             'duration_seconds': 5
         }
@@ -858,7 +858,7 @@ class TestRecordPageView:
         assert PageView.objects.count() == 1
 
         page_view = PageView.objects.first()
-        assert page_view.view == view_session
+        assert page_view.view_session == view_session
         assert page_view.page_number == 1
         assert page_view.duration_seconds == 5
 
@@ -868,7 +868,7 @@ class TestRecordPageView:
     def test_record_page_view_invalid_view_id(self, public_client):
         """Test that recording a page view with an invalid view ID fails."""
         data = {
-            'view': '01J4Z7YJ8ZJ4Z7YJ8ZJ4Z7YJ8Z', # A valid but non-existent ULID
+            'view_session': '01J4Z7YJ8ZJ4Z7YJ8ZJ4Z7YJ8Z', # A valid but non-existent ULID
             'page_number': 1,
             'duration_seconds': 5
         }
@@ -876,14 +876,14 @@ class TestRecordPageView:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         # It's a validation error because the view does not exist.
-        assert 'view' in response.data
+        assert 'view_session' in response.data
         assert PageView.objects.count() == 0
 
     def test_record_page_view_missing_data(self, public_client, share_link):
         """Test that recording a page view with missing data fails."""
-        view_session = View.objects.create(share_link=share_link)
+        view_session = ViewSession.objects.create(share_link=share_link)
         data = {
-            'view': view_session.id,
+            'view_session': view_session.id,
             # 'page_number' is missing
             'duration_seconds': 5
         }
@@ -895,7 +895,7 @@ class TestRecordPageView:
 
 
 @pytest.mark.django_db
-class TestViewViewSet:
+class TestViewSessionViewSet:
     @patch('documents.views.settings.GEOIP')
     def test_create_view_records_ip_and_user_agent(self, mock_geoip, public_client, share_link):
         """Test that creating a view session records the IP, User-Agent, and location."""
@@ -907,28 +907,28 @@ class TestViewViewSet:
             'longitude': -122.084,
         }
         mock_geoip.city.return_value = mock_city_data
-        assert View.objects.count() == 0
+        assert ViewSession.objects.count() == 0
 
         user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.0.0 Safari/537.36"
 
         response = public_client.post(
-            '/api/v1/views/',
+            '/api/v1/view-sessions/',
             {'share_link': share_link.id},
             HTTP_USER_AGENT=user_agent,
             REMOTE_ADDR='98.137.11.155'  # Example public IP for Yahoo
         )
 
         assert response.status_code == status.HTTP_201_CREATED
-        assert View.objects.count() == 1
+        assert ViewSession.objects.count() == 1
 
-        view = View.objects.first()
-        assert view.share_link == share_link
-        assert view.ip_address == '98.137.11.155'
-        assert view.user_agent == user_agent
-        assert view.city == 'Mountain View'
-        assert view.country == 'United States'
-        assert view.latitude == 37.422
-        assert view.longitude == -122.084
+        view_session = ViewSession.objects.first()
+        assert view_session.share_link == share_link
+        assert view_session.ip_address == '98.137.11.155'
+        assert view_session.user_agent == user_agent
+        assert view_session.city == 'Mountain View'
+        assert view_session.country == 'United States'
+        assert view_session.latitude == 37.422
+        assert view_session.longitude == -122.084
 
 
 @pytest.mark.django_db

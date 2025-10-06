@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch
 from pytest_bdd import scenario, given, when, then, parsers
 
-from documents.models import Document, ShareLink, EmailVerificationToken, DocumentVersion, View
+from documents.models import Document, ShareLink, EmailVerificationToken, DocumentVersion, ViewSession
 
 pytest_plugins = "bdd.step_definitions.common_steps"
 
@@ -84,9 +84,9 @@ def check_immediate_access(public_client, share_link_context, api_response_conte
 @when("they create a view session for the share link", target_fixture="view_session")
 def create_view_session(public_client, share_link_context):
     share_link = share_link_context['share_link']
-    response = public_client.post('/api/v1/views/', {'share_link': share_link.id})
+    response = public_client.post('/api/v1/view-sessions/', {'share_link': share_link.id})
     assert response.status_code == 201
-    return View.objects.get(id=response.data['id'])
+    return ViewSession.objects.get(id=response.data['id'])
 
 
 @then(parsers.parse('the view session should be associated with the email "{email}"'))

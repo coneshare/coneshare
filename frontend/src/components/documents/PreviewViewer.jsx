@@ -16,7 +16,7 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId })
       if (!viewId || duration < 1) return;
       recordPageView(
         {
-          view: viewId,
+          view_session: viewId,
           page_number: page,
           duration_seconds: Math.round(duration),
         },

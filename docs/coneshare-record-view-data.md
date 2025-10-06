@@ -99,7 +99,7 @@ To store the granular, per-page analytics, we need to add a new model to `conesh
 
 class PageView(models.Model):
     id = models.ULIDField(primary_key=True, editable=False) # Requires django-ulid-field
-    view = models.ForeignKey('View', on_delete=models.CASCADE, related_name='page_views')
+    view_session = models.ForeignKey('ViewSession', on_delete=models.CASCADE, related_name='page_views')
     page_number = models.PositiveIntegerField()
     duration_seconds = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -114,7 +114,7 @@ This requires updating `coneshare-data-model.md` and creating a Django migration
 -   **Endpoint**: `POST /api/views/record/`
 -   **File**: `coneshare/documents/views.py`
 -   **Responsibilities**:
-    1.  **Receive Data**: Accept `POST` requests from the frontend with a JSON payload (`view_id`, `page_number`, `duration`).
+    1.  **Receive Data**: Accept `POST` requests from the frontend with a JSON payload (`view_session_id`, `page_number`, `duration`).
     2.  **Enrich Data**: Augment the record with server-side information like GeoIP and User-Agent details (using a library like `django-user-agents`).
     3.  **Persist Data**: In a single database transaction:
         -   Create the `PageView` record.
@@ -130,11 +130,11 @@ from .models import View, PageView
 
 class RecordViewAPI(APIView):
     # This is a public endpoint, so no authentication needed here.
-    # Security is implicit, as it requires a valid `view_id`.
+    # Security is implicit, as it requires a valid `view_session_id`.
 
     def post(self, request, *args, **kwargs):
         data = request.data
-        view_id = data.get('view_id')
+        view_session_id = data.get('view_session_id')
         page_number = data.get('page_number')
         duration = data.get('duration_seconds')
 
@@ -142,18 +142,18 @@ class RecordViewAPI(APIView):
             with transaction.atomic():
                 # 1. Create the PageView record
                 PageView.objects.create(
-                    view_id=view_id,
+                    view_session_id=view_session_id,
                     page_number=page_number,
                     duration_seconds=duration
                 )
 
                 # 2. Update the parent View's total duration
-                view = View.objects.select_for_update().get(id=view_id)
-                view.duration_seconds += duration
-                view.save()
+                view_session = ViewSession.objects.select_for_update().get(id=view_session_id)
+                view_session.duration_seconds += duration
+                view_session.save()
             
             return Response({"message": "View recorded"}, status=status.HTTP_200_OK)
-        except View.DoesNotExist:
+        except ViewSession.DoesNotExist:
             return Response({"error": "Invalid view session"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             # Log the error

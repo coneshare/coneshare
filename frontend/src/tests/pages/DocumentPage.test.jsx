@@ -32,7 +32,7 @@ describe('DocumentPage', () => {
   const mockStats = { total_views: 15 };
   const mockViewsPage1 = {
     count: 15,
-    next: 'http://localhost/api/v1/documents/doc123/views/?page=2',
+    next: 'http://localhost/api/v1/documents/doc123/view-sessions/?page=2',
     previous: null,
     results: Array.from({ length: 10 }, (_, i) => ({
       id: `view_${i}`,
@@ -42,7 +42,7 @@ describe('DocumentPage', () => {
   const mockViewsPage2 = {
     count: 15,
     next: null,
-    previous: 'http://localhost/api/v1/documents/doc123/views/?page=1',
+    previous: 'http://localhost/api/v1/documents/doc123/view-sessions/?page=1',
     results: Array.from({ length: 5 }, (_, i) => ({
       id: `view_${i + 10}`,
       viewer_email: `viewer${i + 11}@test.com`,

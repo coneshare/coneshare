@@ -1,7 +1,7 @@
 from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from core.models import Organization
-from .models import Document, DocumentPage, DocumentVersion, Folder, PageView, ShareLink, ShareLinkPreset, View, Viewer
+from .models import Document, DocumentPage, DocumentVersion, Folder, PageView, ShareLink, ShareLinkPreset, ViewSession, Viewer
 
 
 class FolderFromPathSerializer(serializers.Serializer):
@@ -177,11 +177,11 @@ class ViewerSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class ViewSerializer(serializers.ModelSerializer):
+class ViewSessionSerializer(serializers.ModelSerializer):
     share_link_name = serializers.CharField(source='share_link.name', read_only=True)
 
     class Meta:
-        model = View
+        model = ViewSession
         fields = [
             'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name', 'ip_address', 'user_agent', 'country', 'city', 'latitude', 'longitude', 'duration_seconds',
             'completion_rate', 'viewed_at'
@@ -209,13 +209,13 @@ class PageViewRecordSerializer(serializers.ModelSerializer):
     """
     Serializer for validating and creating PageView records from tracking data.
     """
-    view = serializers.PrimaryKeyRelatedField(
-        queryset=View.objects.select_related('share_link__document').all()
+    view_session = serializers.PrimaryKeyRelatedField(
+        queryset=ViewSession.objects.select_related('share_link__document').all()
     )
 
     class Meta:
         model = PageView
-        fields = ['view', 'page_number', 'duration_seconds']
+        fields = ['view_session', 'page_number', 'duration_seconds']
 
 
 class DocumentSerializer(serializers.ModelSerializer):

@@ -40,7 +40,7 @@ This document tracks the key architectural decisions and implementation steps ma
 ## Session 2: Document Management Implementation (2025-09-15)
 
 ### 1. Document App Architecture
-- **Core Models**: Implemented `Document`, `Folder`, `ShareLink`, `Viewer`, and `View` models with ULID primary keys and organization-scoped relationships.
+- **Core Models**: Implemented `Document`, `Folder`, `ShareLink`, `Viewer`, and `ViewSession` models with ULID primary keys and organization-scoped relationships.
 - **API Endpoints**: Created DRF ModelViewSets for all document-related models with:
   - Automatic organization assignment from authenticated user
   - Read-only timestamp fields
@@ -614,7 +614,7 @@ This session implements a robust system for tracking document viewing activity, 
 
 -  Granular Page View Tracking: Introduced a new PageView model and an API endpoint (/api/v1/page-views/record/) to record detailed page-level viewing durations within a document.
 
--  Enhanced View Session Data: The existing View model now captures ip_address, user_agent, country, city, latitude, and longitude for each viewing session, leveraging GeoIP lookup.
+-  Enhanced View Session Data: The existing ViewSession model now captures ip_address, user_agent, country, city, latitude, and longitude for each viewing session, leveraging GeoIP lookup.
 
 -  Frontend Integration: The PreviewViewer.jsx component has been updated to track active page duration and send this data reliably to the backend, including using navigator.sendBeacon for unload events.
 
@@ -652,9 +652,32 @@ This session focused on fixing a bug where viewer emails were not being correctl
 - **Problem**: Identified that the analytics `VisitorsTable` was displaying "Anonymous" for viewers who had provided their email for an email-protected share link.
 - **Solution**:
   - The backend was updated to use the Django session to store a viewer's email after they successfully requested access.
-  - The `ViewViewSet` was then modified to retrieve this email from the session when creating a new `View` record, ensuring the `viewer_email` field is correctly populated.
+  - The `ViewSessionViewSet` was then modified to retrieve this email from the session when creating a new `ViewSession` record, ensuring the `viewer_email` field is correctly populated.
 - **Testing**: A new BDD scenario was added to `share_link_email_protection.feature` to reproduce the bug and verify the fix, confirming that view sessions are now correctly linked to viewer emails.
 
 ### 2. Architecture Documentation
-- **Viewer Logic**: The `coneshare-share-link-view-logic.md` document was updated with a new section explaining the roles of the `View` and `Viewer` models.
-- **Design Rationale**: The documentation now clarifies the design decision to use a denormalized `viewer_email` field on the `View` model for performance reasons, and it details the session-based mechanism used to associate identified viewers with their activity.
+- **Viewer Logic**: The `coneshare-share-link-view-logic.md` document was updated with a new section explaining the roles of the `ViewSession` and `Viewer` models.
+- **Design Rationale**: The documentation now clarifies the design decision to use a denormalized `viewer_email` field on the `ViewSession` model for performance reasons, and it details the session-based mechanism used to associate identified viewers with their activity.
+
+---
+
+## Session 26: Model Renaming & Data Consistency (2025-10-06)
+
+This session focused on improving the clarity of the analytics data model by renaming the core `View` model to `ViewSession` to better reflect its purpose of tracking unique viewing sessions. [https://gitub.com/coneshare/coneshare/pull/25](https://github.com/coneshare/coneshare/pull/25)
+
+### 1. Model & API Renaming
+- **Backend**:
+  - The `View` model was renamed to `ViewSession` across all backend files, including models, serializers, views, and URLs.
+  - The corresponding foreign key in the `PageView` model was updated from `view` to `unique_view`.
+  - The API endpoint was changed from `/api/v1/views/` to `/api/v1/view-sessions/`.
+- **Frontend**:
+  - The `createView` API service function was renamed to `createViewSession`.
+  - All frontend components that initiate or use a view session (`ShareLinkViewerPage`, `PreviewViewer`) were updated to use the new naming convention (`ViewSessionId`) and API endpoints.
+- **Database**: The changes require a new database migration to rename the `documents_view` table to `documents_ViewSession` and update its related foreign keys.
+
+### 2. Test Suite Updates
+- **Unit & BDD Tests**: All backend tests, including unit tests in `test_views.py` and BDD step definitions, were updated to use the new `ViewSession` model and the `/api/v1/view-sessions/` endpoint.
+- **Frontend Tests**: Frontend tests for `ShareLinkViewerPage.test.jsx` were updated to mock and call the new `createViewSession` API function.
+
+### 3. Documentation Consistency
+- All documentation files referencing the old `View` model (e.g., `coneshare-data-model.md`, `coneshare-share-link-view-logic.md`) were updated to use the new `ViewSession` terminology, ensuring the documentation accurately reflects the current state of the codebase.

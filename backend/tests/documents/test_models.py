@@ -1,5 +1,5 @@
 import pytest
-from documents.models import Document, Folder, ShareLink, ShareLinkPreset, View, Viewer
+from documents.models import Document, Folder, ShareLink, ShareLinkPreset, ViewSession, Viewer
 
 
 @pytest.mark.django_db
@@ -73,13 +73,13 @@ def test_viewer_creation(organization):
 
 
 @pytest.mark.django_db
-def test_view_creation(user):
-    """Test that a View instance can be created."""
+def test_view_session_creation(user):
+    """Test that a ViewSession instance can be created."""
     document = Document.objects.create(
         name="Doc for View",
         organization=user.organization,
         created_by=user,
     )
     share_link = ShareLink.objects.create(document=document, slug="another-slug")
-    view = View.objects.create(share_link=share_link, duration_seconds=0, completion_rate=0)
-    assert isinstance(view, View)
+    view_session = ViewSession.objects.create(share_link=share_link, duration_seconds=0, completion_rate=0)
+    assert isinstance(view_session, ViewSession)    
