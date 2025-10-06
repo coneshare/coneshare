@@ -369,7 +369,7 @@ class FolderViewSet(viewsets.ModelViewSet):
         """Helper to fetch and serialize sub-folders and documents for a given folder."""
         sub_folders = folder.children.filter(created_by=request.user)
         documents = folder.documents.filter(created_by=request.user).prefetch_related(
-            'versions', 'share_links', 'share_links__views'
+            'versions', 'share_links', 'share_links__view_sessions'
         )
 
         sub_folders_serializer = self.get_serializer(sub_folders, many=True)
