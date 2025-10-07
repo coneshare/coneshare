@@ -416,6 +416,11 @@ class FolderViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         parent = serializer.validated_data.get('parent')
+        if parent and parent.created_by != self.request.user:
+            raise serializers.ValidationError(
+                {'parent': "You can only create subfolders in your own folders."}
+            )
+
         if not parent:
             parent = self._get_root_folder()
         serializer.save(

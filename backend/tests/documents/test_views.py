@@ -369,7 +369,7 @@ def test_create_folder_with_other_users_parent_folder_fails(api_client, user2, o
     # The serializer will raise a validation error.
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'parent' in response.data
-    assert 'does not exist' in str(response.data['parent'])
+    assert 'only create subfolders in your own folders' in str(response.data['parent'])
 
 
 @pytest.mark.django_db
