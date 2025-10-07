@@ -127,7 +127,7 @@ class ShareLink(BaseModel):
     allow_download = models.BooleanField(default=True)
     enable_watermark = models.BooleanField(default=False)
     receive_email_notification = models.BooleanField(default=False)
-    is_archived = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.name or str(self.id)
