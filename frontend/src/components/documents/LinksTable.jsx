@@ -92,8 +92,9 @@ export function LinksTable({ links, onEditLink, onDeleteLink }) {
   }
 
   return (
-    <div>
-      <h2 className="text-xl font-semibold">Share Links</h2>
+    <TooltipProvider>
+      <div>
+        <h2 className="text-xl font-semibold">Share Links</h2>
       <div className="mt-4 overflow-hidden rounded-lg border">
         <Table>
           <TableHeader>
@@ -134,50 +135,48 @@ export function LinksTable({ links, onEditLink, onDeleteLink }) {
                 <TableCell>{link.expires_at ? new Date(link.expires_at).toLocaleDateString() : 'Never'}</TableCell>
                 <TableCell>{link.has_password ? 'Yes' : 'No'}</TableCell>
                 <TableCell className="text-right">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handlePreview(link.id, link.slug)}
-                        >
-                          <Eye className="h-4 w-4" />
-                          <span className="sr-only">Preview Link</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Preview Link</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => onEditLink(link)}>
-                          <Pencil className="h-4 w-4" />
-                          <span className="sr-only">Edit Link</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Edit Link</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-red-600 hover:text-red-700"
-                          onClick={() => onDeleteLink(link)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Delete Link</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Delete Link</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handlePreview(link.id, link.slug)}
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span className="sr-only">Preview Link</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Preview Link</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" onClick={() => onEditLink(link)}>
+                        <Pencil className="h-4 w-4" />
+                        <span className="sr-only">Edit Link</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Edit Link</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => onDeleteLink(link)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete Link</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Delete Link</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
               );
@@ -186,5 +185,6 @@ export function LinksTable({ links, onEditLink, onDeleteLink }) {
         </Table>
       </div>
     </div>
+    </TooltipProvider>
   );
 }
