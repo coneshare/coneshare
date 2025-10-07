@@ -232,6 +232,83 @@ def test_delete_folder_permission_denied(api_client, user2):
 
 
 @pytest.mark.django_db
+def test_delete_folder_success(api_client, user, organization):
+    """Test a user can delete their own folder."""
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+    folder = Folder.objects.create(
+        name="To Be Deleted", organization=organization, created_by=user, parent=root_folder
+    )
+    folder_id = folder.id
+
+    response = api_client.delete(f'/api/v1/folders/{folder.id}/')
+
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert not Folder.objects.filter(id=folder_id).exists()
+
+
+@pytest.mark.django_db
+def test_update_folder_name(api_client, user, organization):
+    """Test a user can rename their own folder."""
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+    folder = Folder.objects.create(
+        name="Original Name", organization=organization, created_by=user, parent=root_folder
+    )
+
+    response = api_client.patch(f'/api/v1/folders/{folder.id}/', {'name': 'New Name'})
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data['name'] == 'New Name'
+    folder.refresh_from_db()
+    assert folder.name == 'New Name'
+
+
+@pytest.mark.django_db
+def test_update_folder_permission_denied(api_client, user2, organization):
+    """Test a user cannot rename another user's folder."""
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+    folder_by_user2 = Folder.objects.create(
+        name="User2's Folder", organization=organization, created_by=user2, parent=root_folder
+    )
+
+    # api_client (logged in as user) tries to rename it
+    response = api_client.patch(f'/api/v1/folders/{folder_by_user2.id}/', {'name': 'New Name'})
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    folder_by_user2.refresh_from_db()
+    assert folder_by_user2.name == "User2's Folder"
+
+
+@pytest.mark.django_db
+def test_create_folder_with_other_users_parent_folder_fails(api_client, user2, organization):
+    """Test a user cannot create a subfolder in another user's folder."""
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+    parent_by_user2 = Folder.objects.create(
+        name="User2's Parent", organization=organization, created_by=user2, parent=root_folder
+    )
+
+    data = {'name': 'My Subfolder', 'parent': str(parent_by_user2.id)}
+    response = api_client.post('/api/v1/folders/', data)
+
+    # This should fail because the parent folder is not in the user's queryset.
+    # The serializer will raise a validation error.
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert 'parent' in response.data
+    assert 'does not exist' in str(response.data['parent'])
+
+
+@pytest.mark.django_db
+def test_create_folder_with_non_existent_parent_fails(api_client):
+    """Test creating a folder with a parent that does not exist fails."""
+    non_existent_parent_id = 'fld_00000000000000000000000000'
+    data = {'name': 'Subfolder', 'parent': non_existent_parent_id}
+    response = api_client.post('/api/v1/folders/', data)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert 'parent' in response.data
+    assert 'Invalid pk' in str(response.data['parent'])
+
+
+@pytest.mark.django_db
 def test_list_documents_is_scoped_to_user_and_root_only(api_client, user, user2, organization):
     """Test retrieving documents is scoped to the user and only returns root-level documents."""
     folder = Folder.objects.create(organization=organization, created_by=user, name="Test Folder")
