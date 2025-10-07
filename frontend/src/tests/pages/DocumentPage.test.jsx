@@ -13,6 +13,7 @@ vi.mock('../../components/documents/DocumentHeader', () => ({
 vi.mock('../../components/documents/LinksTable', () => ({
   LinksTable: () => <div>Links Table</div>,
 }));
+// We don't mock VisitorsTable so we can test its integration with the page
 vi.mock('../../components/documents/Stats', () => ({
   Stats: () => <div>Stats</div>,
 }));
@@ -89,9 +90,6 @@ describe('DocumentPage', () => {
     // Wait for page 2 to load
     await waitFor(() => {
       expect(api.getDocumentViews).toHaveBeenCalledWith('doc123', 2);
-    });
-
-    await waitFor(() => {
       expect(screen.getByText('viewer11@test.com')).toBeInTheDocument();
       expect(screen.getByText('viewer15@test.com')).toBeInTheDocument();
     });
