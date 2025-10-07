@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { getDocumentDetails, getDocumentViews, getDocumentStats } from '../services/api';
+import { toast } from 'sonner';
+import { getDocumentDetails, getDocumentViews, getDocumentStats, deleteShareLink } from '../services/api';
 import { DocumentHeader } from '../components/documents/DocumentHeader';
 import { LinksTable } from '../components/documents/LinksTable';
 import { VisitorsTable } from '../components/documents/VisitorsTable';
@@ -8,6 +9,7 @@ import { Stats } from '../components/documents/Stats';
 import { Skeleton } from '../components/ui/Skeleton';
 import { LinkSheet } from '../components/links/LinkSheet';
 import { DocumentPreviewModal } from '../components/documents/DocumentPreviewModal';
+import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 
 export function DocumentPage() {
   const { documentId } = useParams();
@@ -20,6 +22,8 @@ export function DocumentPage() {
   const [editingLink, setEditingLink] = useState(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [linkToDelete, setLinkToDelete] = useState(null);
 
   const fetchDocumentAndStats = useCallback(async () => {
     try {
@@ -68,6 +72,28 @@ export function DocumentPage() {
     setIsLinkSheetOpen(true);
   };
 
+  const handleDeleteLink = (link) => {
+    setLinkToDelete(link);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!linkToDelete) return;
+
+    try {
+      await deleteShareLink(linkToDelete.id);
+      toast.success(`Link "${linkToDelete.name || 'Untitled Link'}" deleted successfully.`);
+      // Refresh data
+      fetchDocumentAndStats();
+      fetchViews();
+    } catch (error) {
+      // Error toast is handled by the API interceptor
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setLinkToDelete(null);
+    }
+  };
+
   const handlePreview = () => {
     setIsPreviewOpen(true);
   };
@@ -102,7 +128,11 @@ export function DocumentPage() {
       <DocumentHeader document={document} onCreateLink={handleCreateLink} onPreview={handlePreview} />
       <div className="mt-8 space-y-8">
         <Stats stats={stats} />
-        <LinksTable links={document.share_links} onEditLink={handleEditLink} />
+        <LinksTable
+          links={document.share_links}
+          onEditLink={handleEditLink}
+          onDeleteLink={handleDeleteLink}
+        />
         <VisitorsTable
           views={viewsData?.results || []}
           totalCount={viewsData?.count || 0}
@@ -126,6 +156,14 @@ export function DocumentPage() {
         isOpen={isPreviewOpen}
         onOpenChange={setIsPreviewOpen}
         documentId={documentId}
+      />
+      <ConfirmationDialog
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={handleConfirmDelete}
+        title="Delete Share Link"
+        description={`Are you sure you want to permanently delete the link "${linkToDelete?.name || 'Untitled Link'}"? This action cannot be undone.`}
+        confirmText="Delete"
       />
     </div>
   );
