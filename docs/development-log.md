@@ -692,3 +692,27 @@ This session focused on improving UI consistency in the document detail page. [h
 - **Problem**: The pagination controls in the `VisitorsTable` would disappear when there was only one page of results, causing the layout to shift.
 - **Solution**: The `Pagination.jsx` component was modified to always render, even for a single page. The navigation buttons are disabled in this state, providing a consistent and stable UI layout
 regardless of the number of items. This change involved removing the conditional `null` return when `totalPages <= 1`.
+
+---
+
+## Session 28: Share Link Management Enhancements (2025-10-07)
+
+This session focused on enhancing the management of share links from the document detail page, adding a critical delete feature and improving the UI for expired links.
+
+### 1. Delete Share Link Feature
+- **End-to-End Implementation**: A full-featured "delete link" capability was added.
+- **Backend**: No changes were needed as the `DELETE` method was already supported by the `ShareLinkViewSet`.
+- **Frontend**:
+  - A `deleteShareLink` function was added to `api.js`.
+  - The `DocumentPage` was updated with state management for a `ConfirmationDialog` to prevent accidental deletion.
+  - A "Delete" icon button (`Trash2`) was added to the actions column in the `LinksTable`, triggering the confirmation flow.
+
+### 2. Expired Link UI Enhancements
+- **Visual Indicator**: The `LinksTable` now displays a red "Expired" badge next to the name of any share link whose `expires_at` date is in the past.
+- **Improved UX for Expired Links**:
+  - The copy-to-clipboard functionality is disabled for expired links.
+  - A tooltip was added to the expired link's URL, explaining that the link has expired and guiding the user to update the expiration date in the settings to reactivate it.
+
+### 3. UI Bug Fix: TooltipProvider Context
+- **Problem**: The addition of the new tooltip for expired links caused a runtime error (`Tooltip` must be used within `TooltipProvider`) because the `TooltipProvider` was only wrapped around the action buttons.
+- **Solution**: The `LinksTable` component was refactored to have a single `TooltipProvider` wrapping the entire component, ensuring all tooltips within it have the necessary context and resolving the crash.
