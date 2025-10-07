@@ -429,6 +429,14 @@ class FolderViewSet(viewsets.ModelViewSet):
             parent=parent
         )
 
+    def perform_update(self, serializer):
+        parent = serializer.validated_data.get('parent')
+        if parent and parent.created_by != self.request.user:
+            raise serializers.ValidationError(
+                {'parent': "You can only move folders to destinations you own."}
+            )
+        serializer.save()
+
 
 class DocumentViewSet(viewsets.ModelViewSet):
     queryset = Document.objects.all()
