@@ -104,7 +104,8 @@ export function DocumentPage() {
         <Stats stats={stats} />
         <LinksTable links={document.share_links} onEditLink={handleEditLink} />
         <VisitorsTable
-          viewsData={viewsData}
+          views={viewsData?.results || []}
+          totalCount={viewsData?.count || 0}
           loading={viewsLoading}
           currentPage={currentPage}
           onPageChange={setCurrentPage}

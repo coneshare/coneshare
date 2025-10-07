@@ -35,7 +35,7 @@ function parseUserAgent(uaString) {
   };
 }
 
-export function VisitorsTable({ viewsData, loading, currentPage, onPageChange, pageSize }) {
+export function VisitorsTable({ views, totalCount, loading, currentPage, onPageChange, pageSize }) {
   if (loading) {
     return (
       <div>
@@ -49,7 +49,7 @@ export function VisitorsTable({ viewsData, loading, currentPage, onPageChange, p
     );
   }
 
-  if (!viewsData || viewsData.count === 0) {
+  if (!views || totalCount === 0) {
     return (
       <div>
         <h2 className="text-xl font-semibold">Visitors</h2>
@@ -76,7 +76,7 @@ export function VisitorsTable({ viewsData, loading, currentPage, onPageChange, p
               </TableRow>
             </TableHeader>
             <TableBody>
-              {viewsData.results.map((view) => {
+              {views.map((view) => {
                 const { browser, os } = parseUserAgent(view.user_agent);
                 const deviceInfo = browser !== 'Unknown' ? `${browser} on ${os}` : 'Unknown device';
                 const locationParts = [view.city, view.country].filter(Boolean);
@@ -122,7 +122,7 @@ export function VisitorsTable({ viewsData, loading, currentPage, onPageChange, p
           </Table>
         </div>
         <Pagination
-          count={viewsData.count}
+          count={totalCount}
           pageSize={pageSize}
           currentPage={currentPage}
           onPageChange={onPageChange}

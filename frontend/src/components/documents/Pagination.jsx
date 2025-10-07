@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-r
 
 export function Pagination({ count, pageSize, currentPage, onPageChange }) {
   const totalPages = Math.ceil(count / pageSize);
-  if (totalPages <= 1) return null;
 
   const handleFirst = () => onPageChange(1);
   const handlePrevious = () => onPageChange(currentPage - 1);
