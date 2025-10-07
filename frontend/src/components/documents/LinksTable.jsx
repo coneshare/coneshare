@@ -1,4 +1,4 @@
-import { Eye, Pencil } from 'lucide-react';
+import { Eye, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { generateShareLinkPreview } from '../../services/api';
@@ -46,7 +46,7 @@ function CopyableLink({ slug }) {
   );
 }
 
-export function LinksTable({ links, onEditLink }) {
+export function LinksTable({ links, onEditLink, onDeleteLink }) {
   const handlePreview = async (linkId, slug) => {
     try {
       const response = await generateShareLinkPreview(linkId);
@@ -121,6 +121,22 @@ export function LinksTable({ links, onEditLink }) {
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>Edit Link</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => onDeleteLink(link)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Delete Link</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Delete Link</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
