@@ -697,7 +697,7 @@ regardless of the number of items. This change involved removing the conditional
 
 ## Session 28: Share Link Management Enhancements (2025-10-07)
 
-This session focused on enhancing the management of share links from the document detail page, adding a critical delete feature and improving the UI for expired links.
+This session focused on enhancing the management of share links from the document detail page, adding a critical delete feature and improving the UI for expired links. [https://github.com/coneshare/coneshare/pull/28](https://github.com/coneshare/coneshare/pull/28)
 
 ### 1. Delete Share Link Feature
 - **End-to-End Implementation**: A full-featured "delete link" capability was added.
@@ -716,3 +716,22 @@ This session focused on enhancing the management of share links from the documen
 ### 3. UI Bug Fix: TooltipProvider Context
 - **Problem**: The addition of the new tooltip for expired links caused a runtime error (`Tooltip` must be used within `TooltipProvider`) because the `TooltipProvider` was only wrapped around the action buttons.
 - **Solution**: The `LinksTable` component was refactored to have a single `TooltipProvider` wrapping the entire component, ensuring all tooltips within it have the necessary context and resolving the crash.
+
+---
+
+## Session 29: Share Link Status Toggle (2025-10-07)
+
+This session implemented a feature allowing users to activate or deactivate share links directly from the document detail page, replacing the unused `is_archived` field. [https://github.com/coneshare/coneshare/pull/29](https://github.com/coneshare/coneshare/pull/29)
+
+### 1. Backend Refactoring: `is_archived` to `is_active`
+- **Model & Serializer Update**: The `is_archived` boolean field in the `ShareLink` model was renamed to `is_active`, with its default changed to `True`. The `ShareLinkSerializer` was updated accordingly.
+- **Database Migration**: A database migration was generated to apply the field rename.
+- **API Logic Update**:
+  - The `ShareLinkViewDataView` was updated to check for `is_active=True`.
+  - If a user tries to access an inactive link, the API now returns a `404 Not Found` with the message "This file is not available."
+- **Test Updates**: All relevant backend unit and public view tests were updated to reflect the new `is_active` field and its expected behavior.
+
+### 2. Frontend UI Implementation
+- **Status Toggle Switch**: A "Status" column with a `Switch` component was added to the `LinksTable`.
+- **API Integration**: An `onCheckedChange` handler was implemented for the switch, which calls the `updateShareLink` API to toggle the `is_active` status.
+- **UI Refresh**: A callback was passed from the parent `DocumentPage` to the `LinksTable` to trigger a data refresh after the status is updated, ensuring the UI reflects the change.

@@ -77,6 +77,11 @@ export function DocumentPage() {
     setIsDeleteDialogOpen(true);
   };
 
+  const handleLinkUpdate = useCallback(() => {
+    fetchDocumentAndStats();
+    fetchViews();
+  }, [fetchDocumentAndStats, fetchViews]);
+
   const handleConfirmDelete = async () => {
     if (!linkToDelete) return;
 
@@ -132,6 +137,7 @@ export function DocumentPage() {
           links={document.share_links}
           onEditLink={handleEditLink}
           onDeleteLink={handleDeleteLink}
+          onLinkUpdate={handleLinkUpdate}
         />
         <VisitorsTable
           views={viewsData?.results || []}
@@ -147,10 +153,7 @@ export function DocumentPage() {
         onOpenChange={setIsLinkSheetOpen}
         document={document}
         currentLink={editingLink}
-        onSuccess={() => {
-          fetchDocumentAndStats();
-          fetchViews();
-        }}
+        onSuccess={handleLinkUpdate}
       />
       <DocumentPreviewModal
         isOpen={isPreviewOpen}

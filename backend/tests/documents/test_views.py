@@ -727,12 +727,13 @@ class TestShareLinkViewDataView:
         response = public_client.get('/api/v1/links/non-existent-slug/view-data/')
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_get_share_link_data_archived(self, public_client, share_link):
-        """Test that an archived link returns 404."""
-        share_link.is_archived = True
+    def test_get_share_link_data_inactive(self, public_client, share_link):
+        """Test that an inactive link returns 404."""
+        share_link.is_active = False
         share_link.save()
         response = public_client.get(f'/api/v1/links/{share_link.slug}/view-data/')
         assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["message"] == "This file is not available."
 
     def test_get_share_link_data_expired(self, public_client, share_link):
         """Test that an expired link returns 410 Gone."""

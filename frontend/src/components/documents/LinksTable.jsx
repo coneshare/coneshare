@@ -1,8 +1,9 @@
 import { Eye, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { generateShareLinkPreview } from '../../services/api';
+import { generateShareLinkPreview, updateShareLink } from '../../services/api';
 import { Button } from '../ui/Button';
+import { Switch } from '../ui/Switch';
 import {
   Table,
   TableBody,
@@ -69,7 +70,18 @@ function CopyableLink({ slug, isExpired, expires_at }) {
   );
 }
 
-export function LinksTable({ links, onEditLink, onDeleteLink }) {
+export function LinksTable({ links, onEditLink, onDeleteLink, onLinkUpdate }) {
+  const handleStatusChange = async (link, newStatus) => {
+    try {
+      await updateShareLink(link.id, { is_active: newStatus });
+      toast.success(`Link "${link.name || 'Untitled Link'}" is now ${newStatus ? 'active' : 'inactive'}.`);
+      if (onLinkUpdate) {
+        onLinkUpdate();
+      }
+    } catch (error) {
+    }
+  };
+
   const handlePreview = async (linkId, slug) => {
     try {
       const response = await generateShareLinkPreview(linkId);
@@ -104,6 +116,7 @@ export function LinksTable({ links, onEditLink, onDeleteLink }) {
               <TableHead>Created At</TableHead>
               <TableHead>Expires</TableHead>
               <TableHead>Password</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>
                 <span className="sr-only">Actions</span>
               </TableHead>
@@ -134,6 +147,13 @@ export function LinksTable({ links, onEditLink, onDeleteLink }) {
                   <TableCell>{new Date(link.created_at).toLocaleDateString()}</TableCell>
                 <TableCell>{link.expires_at ? new Date(link.expires_at).toLocaleDateString() : 'Never'}</TableCell>
                 <TableCell>{link.has_password ? 'Yes' : 'No'}</TableCell>
+                <TableCell>
+                  <Switch
+                    checked={link.is_active}
+                    onCheckedChange={(checked) => handleStatusChange(link, checked)}
+                    aria-label="Toggle link status"
+                  />
+                </TableCell>
                 <TableCell className="text-right">
                   <Tooltip>
                     <TooltipTrigger asChild>
