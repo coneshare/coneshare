@@ -681,3 +681,14 @@ This session focused on improving the clarity of the analytics data model by ren
 
 ### 3. Documentation Consistency
 - All documentation files referencing the old `View` model (e.g., `coneshare-data-model.md`, `coneshare-share-link-view-logic.md`) were updated to use the new `ViewSession` terminology, ensuring the documentation accurately reflects the current state of the codebase.
+
+---
+
+## Session 27: UI Consistency & Pagination Refinement (2025-10-06)
+
+This session focused on improving UI consistency in the document detail page. [https://github.com/coneshare/coneshare/pull/27](https://github.com/coneshare/coneshare/pull/27)
+
+### 1. Always-Visible Pagination
+- **Problem**: The pagination controls in the `VisitorsTable` would disappear when there was only one page of results, causing the layout to shift.
+- **Solution**: The `Pagination.jsx` component was modified to always render, even for a single page. The navigation buttons are disabled in this state, providing a consistent and stable UI layout
+regardless of the number of items. This change involved removing the conditional `null` return when `totalPages <= 1`.
