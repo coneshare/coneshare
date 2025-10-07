@@ -416,6 +416,11 @@ class FolderViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         parent = serializer.validated_data.get('parent')
+        if parent and parent.created_by != self.request.user:
+            raise serializers.ValidationError(
+                {'parent': "You can only create subfolders in your own folders."}
+            )
+
         if not parent:
             parent = self._get_root_folder()
         serializer.save(
@@ -423,6 +428,14 @@ class FolderViewSet(viewsets.ModelViewSet):
             organization=self.request.user.organization,
             parent=parent
         )
+
+    def perform_update(self, serializer):
+        parent = serializer.validated_data.get('parent')
+        if parent and parent.created_by != self.request.user:
+            raise serializers.ValidationError(
+                {'parent': "You can only move folders to destinations you own."}
+            )
+        serializer.save()
 
 
 class DocumentViewSet(viewsets.ModelViewSet):
