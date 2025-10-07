@@ -16,7 +16,7 @@ from django.utils import timezone
 from geoip2.errors import AddressNotFoundError
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, NotFound
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
@@ -155,6 +155,24 @@ class DocumentUploadView(APIView):
 
         serializer = DocumentSerializer(document, context={'request': request})
         return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+
+
+def _get_active_share_link(slug: str) -> ShareLink:
+    """
+    Retrieves an active ShareLink by its slug, or raises an appropriate
+    DRF exception if it's not found or inactive.
+    """
+    try:
+        # select_related is an optimization for views that access link.document
+        link = ShareLink.objects.select_related('document').get(slug=slug)
+    except ShareLink.DoesNotExist:
+        raise NotFound(detail="Link not found.")
+
+    if not link.is_active:
+        # Treat inactive links as "not found" from a public perspective.
+        raise NotFound(detail="This file is not available.")
+
+    return link
 
 
 class FolderFromPathView(APIView):
@@ -627,10 +645,7 @@ class ShareLinkViewDataView(APIView):
                 # Token is invalid, proceed with normal access checks.
                 pass
 
-        try:
-            link = ShareLink.objects.select_related('document').get(slug=slug)
-        except ShareLink.DoesNotExist:
-            return Response({"message": "Link not found."}, status=status.HTTP_404_NOT_FOUND)
+        link = _get_active_share_link(slug)
 
         if access_token:
             try:
@@ -652,26 +667,22 @@ class ShareLinkViewDataView(APIView):
 
         # --- SERVER-SIDE ACCESS CONTROL ---
         if not is_preview:
-            # 1. Check for active status
-            if not link.is_active:
-                return Response({"message": "This file is not available."}, status=status.HTTP_404_NOT_FOUND)
-
-            # 2. Check for expiration
+            # 1. Check for expiration
             if link.expires_at and link.expires_at < timezone.now():
                 return Response({"message": "This link has expired."}, status=status.HTTP_410_GONE)
 
-            # 3. Sequential Protection Checks
+            # 2. Sequential Protection Checks
             authorized_links = request.session.get('authorized_share_links', {})
             auth_status = authorized_links.get(str(link.id), {})
 
-            # Step 3a: Check password first
+            # Step 2a: Check password first
             if link.password_hash and not auth_status.get('password_verified'):
                 return Response(
                     {"message": "This link is password-protected. Please enter the password to continue.", "protectionType": "password"},
                     status=status.HTTP_401_UNAUTHORIZED
                 )
 
-            # Step 3b: Check email second
+            # Step 2b: Check email second
             if link.requires_email and not auth_status.get('email_verified'):
                 return Response(
                     {"message": "This link requires an email address to view.", "protectionType": "email"},
@@ -738,13 +749,7 @@ class ShareLinkVerifyPasswordView(APIView):
     # No permission_classes, as this is a public endpoint.
 
     def post(self, request, slug, *args, **kwargs):
-        try:
-            link = ShareLink.objects.get(slug=slug)
-        except ShareLink.DoesNotExist:
-            return Response({"message": "Link not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        if not link.is_active:
-            return Response({"message": "This file is not available."}, status=status.HTTP_404_NOT_FOUND)
+        link = _get_active_share_link(slug)
 
         if not link.password_hash:
             return Response(
@@ -776,13 +781,7 @@ class ShareLinkRequestAccessView(APIView):
     # No permission_classes, as this is a public endpoint.
 
     def post(self, request, slug, *args, **kwargs):
-        try:
-            link = ShareLink.objects.get(slug=slug)
-        except ShareLink.DoesNotExist:
-            return Response({"message": "Link not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        if not link.is_active:
-            return Response({"message": "This file is not available."}, status=status.HTTP_404_NOT_FOUND)
+        link = _get_active_share_link(slug)
 
         if not link.requires_email:
             return Response(
