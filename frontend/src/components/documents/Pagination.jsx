@@ -2,6 +2,8 @@ import { Button } from '../ui/Button';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 export function Pagination({ count, pageSize, currentPage, onPageChange }) {
+  if (count === 0) return null;
+
   const totalPages = Math.ceil(count / pageSize);
 
   const handleFirst = () => onPageChange(1);
