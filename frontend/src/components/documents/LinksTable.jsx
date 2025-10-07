@@ -79,7 +79,6 @@ export function LinksTable({ links, onEditLink, onDeleteLink, onLinkUpdate }) {
         onLinkUpdate();
       }
     } catch (error) {
-      // Error is handled by interceptor. The data refresh will correct the switch state.
     }
   };
 
