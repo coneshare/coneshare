@@ -18,15 +18,38 @@ import {
   TooltipTrigger,
 } from '../ui/Tooltip';
 
-function CopyableLink({ slug }) {
+function CopyableLink({ slug, isExpired, expires_at }) {
   const [isHovered, setIsHovered] = useState(false);
   const url = `${window.location.origin}/view/${slug}`;
   const displayUrl = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
   const handleCopy = () => {
+    if (isExpired) return;
     navigator.clipboard.writeText(url);
     toast.success('Link copied to clipboard!');
   };
+
+  if (isExpired) {
+    const formattedDate = new Date(expires_at).toLocaleDateString();
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div
+            className="relative w-full cursor-not-allowed rounded px-1 py-0.5 text-left text-sm text-gray-400"
+            title={url}
+          >
+            <span className="block truncate">{displayUrl}</span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>
+            Link expired on {formattedDate}. To reactivate this link, please update the expiration
+            date in the settings.
+          </p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
 
   return (
     <div
@@ -86,13 +109,28 @@ export function LinksTable({ links, onEditLink, onDeleteLink }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {links.map((link) => (
-              <TableRow key={link.id}>
-                <TableCell className="font-medium">{link.name || 'Untitled Link'}</TableCell>
-                <TableCell>
-                  <CopyableLink slug={link.slug} />
-                </TableCell>
-                <TableCell>{new Date(link.created_at).toLocaleDateString()}</TableCell>
+            {links.map((link) => {
+              const isExpired = link.expires_at && new Date(link.expires_at) < new Date();
+              return (
+                <TableRow key={link.id}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <span>{link.name || 'Untitled Link'}</span>
+                      {isExpired && (
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                          Expired
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <CopyableLink
+                      slug={link.slug}
+                      isExpired={isExpired}
+                      expires_at={link.expires_at}
+                    />
+                  </TableCell>
+                  <TableCell>{new Date(link.created_at).toLocaleDateString()}</TableCell>
                 <TableCell>{link.expires_at ? new Date(link.expires_at).toLocaleDateString() : 'Never'}</TableCell>
                 <TableCell>{link.has_password ? 'Yes' : 'No'}</TableCell>
                 <TableCell className="text-right">
@@ -142,7 +180,8 @@ export function LinksTable({ links, onEditLink, onDeleteLink }) {
                   </TooltipProvider>
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </div>
