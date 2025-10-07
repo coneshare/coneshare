@@ -89,6 +89,82 @@ def test_get_folder_contents_retrieve(api_client, user, organization):
 
 
 @pytest.mark.django_db
+def test_list_root_folder_with_multiple_items(api_client, user, user2, organization):
+    """
+    Test listing the root folder with multiple items to ensure all and only
+    the correct user's root-level items are returned.
+    """
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+
+    # Items that should appear in the root listing for 'user'
+    Folder.objects.create(name="Root Folder A", organization=organization, created_by=user, parent=root_folder)
+    Folder.objects.create(name="Root Folder B", organization=organization, created_by=user, parent=root_folder)
+    Document.objects.create(name="Root Doc A", organization=organization, created_by=user, folder=root_folder)
+
+    # Item that should NOT appear (it is a sub-folder)
+    parent = Folder.objects.create(name="Parent With Subfolder", organization=organization, created_by=user, parent=root_folder)
+    Folder.objects.create(name="Subfolder", organization=organization, created_by=user, parent=parent)
+
+    # Items that should NOT appear (owned by another user)
+    Folder.objects.create(name="User2 Folder", organization=organization, created_by=user2, parent=root_folder)
+    Document.objects.create(name="User2 Doc", organization=organization, created_by=user2, folder=root_folder)
+
+    response = api_client.get('/api/v1/folders/')
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+
+    assert data['current_folder'] is None
+    
+    # Expected folders: 'Root Folder A', 'Root Folder B', and 'Parent With Subfolder'
+    assert len(data['sub_folders']) == 3
+    folder_names = {f['name'] for f in data['sub_folders']}
+    assert folder_names == {"Root Folder A", "Root Folder B", "Parent With Subfolder"}
+
+    # Expected documents: 'Root Doc A'
+    assert len(data['documents']) == 1
+    doc_names = {d['name'] for d in data['documents']}
+    assert doc_names == {"Root Doc A"}
+
+
+@pytest.mark.django_db
+def test_list_sub_folder_contents_and_check_permissions(api_client, user, user2, organization):
+    """
+    Test listing a sub-folder's contents and verify that a user cannot list the
+    contents of a folder they do not own.
+    """
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+    
+    # Structure for 'user'
+    level1 = Folder.objects.create(name="Level 1", organization=organization, created_by=user, parent=root_folder)
+    level2 = Folder.objects.create(name="Level 2", organization=organization, created_by=user, parent=level1)
+    Folder.objects.create(name="Subfolder in Level 2", organization=organization, created_by=user, parent=level2)
+    Document.objects.create(name="Doc in Level 2", organization=organization, created_by=user, folder=level2)
+    
+    # Item that should NOT appear in Level 2 listing
+    Document.objects.create(name="Doc in Level 1", organization=organization, created_by=user, folder=level1)
+
+    # Folder for 'user2' that 'user' should not be able to access
+    user2_folder = Folder.objects.create(name="User2 Folder", organization=organization, created_by=user2, parent=root_folder)
+
+    # 1. Test listing contents of 'user's 'level2' folder
+    response = api_client.get(f'/api/v1/folders/{level2.id}/')
+    
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    
+    assert data['current_folder']['name'] == "Level 2"
+    assert len(data['sub_folders']) == 1
+    assert data['sub_folders'][0]['name'] == "Subfolder in Level 2"
+    assert len(data['documents']) == 1
+    assert data['documents'][0]['name'] == "Doc in Level 2"
+    
+    # 2. Test trying to list contents of 'user2's folder (should return 404)
+    response_denied = api_client.get(f'/api/v1/folders/{user2_folder.id}/')
+    assert response_denied.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
 def test_create_folder(api_client, user, organization):
     """Test creating a new folder."""
     # The __root__ folder is created automatically
