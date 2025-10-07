@@ -30,15 +30,15 @@ class TestShareLinkViewDataView:
         assert response.status_code == 410
         assert response.json()["message"] == "This link has expired."
 
-    def test_get_archived_link_returns_404(self, public_client, share_link):
-        share_link.is_archived = True
+    def test_get_inactive_link_returns_404(self, public_client, share_link):
+        share_link.is_active = False
         share_link.save()
 
         url = f"/api/v1/links/{share_link.slug}/view-data/"
         response = public_client.get(url)
 
         assert response.status_code == 404
-        assert response.json()["message"] == "Link not found or has been archived."
+        assert response.json()["message"] == "This file is not available."
 
     def test_get_password_protected_link_returns_401(
         self, share_link_with_password, public_client

@@ -628,9 +628,9 @@ class ShareLinkViewDataView(APIView):
                 pass
 
         try:
-            link = ShareLink.objects.select_related('document').get(slug=slug, is_archived=False)
+            link = ShareLink.objects.select_related('document').get(slug=slug)
         except ShareLink.DoesNotExist:
-            return Response({"message": "Link not found or has been archived."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "Link not found."}, status=status.HTTP_404_NOT_FOUND)
 
         if access_token:
             try:
@@ -652,22 +652,26 @@ class ShareLinkViewDataView(APIView):
 
         # --- SERVER-SIDE ACCESS CONTROL ---
         if not is_preview:
-            # 1. Check for expiration
+            # 1. Check for active status
+            if not link.is_active:
+                return Response({"message": "This file is not available."}, status=status.HTTP_404_NOT_FOUND)
+
+            # 2. Check for expiration
             if link.expires_at and link.expires_at < timezone.now():
                 return Response({"message": "This link has expired."}, status=status.HTTP_410_GONE)
 
-            # 2. Sequential Protection Checks
+            # 3. Sequential Protection Checks
             authorized_links = request.session.get('authorized_share_links', {})
             auth_status = authorized_links.get(str(link.id), {})
 
-            # Step 2a: Check password first
+            # Step 3a: Check password first
             if link.password_hash and not auth_status.get('password_verified'):
                 return Response(
                     {"message": "This link is password-protected. Please enter the password to continue.", "protectionType": "password"},
                     status=status.HTTP_401_UNAUTHORIZED
                 )
 
-            # Step 2b: Check email second
+            # Step 3b: Check email second
             if link.requires_email and not auth_status.get('email_verified'):
                 return Response(
                     {"message": "This link requires an email address to view.", "protectionType": "email"},
@@ -735,9 +739,12 @@ class ShareLinkVerifyPasswordView(APIView):
 
     def post(self, request, slug, *args, **kwargs):
         try:
-            link = ShareLink.objects.get(slug=slug, is_archived=False)
+            link = ShareLink.objects.get(slug=slug)
         except ShareLink.DoesNotExist:
             return Response({"message": "Link not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not link.is_active:
+            return Response({"message": "This file is not available."}, status=status.HTTP_404_NOT_FOUND)
 
         if not link.password_hash:
             return Response(
@@ -770,9 +777,12 @@ class ShareLinkRequestAccessView(APIView):
 
     def post(self, request, slug, *args, **kwargs):
         try:
-            link = ShareLink.objects.get(slug=slug, is_archived=False)
+            link = ShareLink.objects.get(slug=slug)
         except ShareLink.DoesNotExist:
             return Response({"message": "Link not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not link.is_active:
+            return Response({"message": "This file is not available."}, status=status.HTTP_404_NOT_FOUND)
 
         if not link.requires_email:
             return Response(
