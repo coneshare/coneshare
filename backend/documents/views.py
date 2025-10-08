@@ -494,13 +494,28 @@ class DocumentViewSet(viewsets.ModelViewSet):
             share_link__document=document
         ).order_by('-viewed_at').select_related('share_link').prefetch_related('page_views')
 
+        # Optimization: pre-fetch all page image URLs for this document
+        primary_version = document.versions.filter(is_primary=True).first()
+        pages_map = {}
+        if primary_version:
+            if document.type == 'image':
+                image_url = default_storage.url(primary_version.original_storage_key)
+                pages_map[1] = request.build_absolute_uri(image_url)
+            elif primary_version.has_pages:
+                for page in primary_version.pages.all().order_by('page_number'):
+                    page_url = default_storage.url(page.storage_key)
+                    pages_map[page.page_number] = request.build_absolute_uri(page_url)
+
+        serializer_context = self.get_serializer_context()
+        serializer_context['pages_map'] = pages_map
+
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(view_queryset, request, view=self)
         if page is not None:
-            serializer = ViewSessionSerializer(page, many=True)
+            serializer = ViewSessionSerializer(page, many=True, context=serializer_context)
             return paginator.get_paginated_response(serializer.data)
 
-        serializer = ViewSessionSerializer(view_queryset, many=True)
+        serializer = ViewSessionSerializer(view_queryset, many=True, context=serializer_context)
         return Response(serializer.data)
 
     @action(detail=True, methods=['get'])

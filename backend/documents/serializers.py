@@ -178,9 +178,15 @@ class ViewerSerializer(serializers.ModelSerializer):
 
 
 class PageViewSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+
     class Meta:
         model = PageView
-        fields = ['page_number', 'duration_seconds']
+        fields = ['page_number', 'duration_seconds', 'url']
+
+    def get_url(self, obj):
+        pages_map = self.context.get('pages_map', {})
+        return pages_map.get(obj.page_number)
 
 
 class ViewSessionSerializer(serializers.ModelSerializer):
