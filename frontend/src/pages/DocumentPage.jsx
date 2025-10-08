@@ -77,10 +77,22 @@ export function DocumentPage() {
     setIsDeleteDialogOpen(true);
   };
 
-  const handleLinkUpdate = useCallback(() => {
-    fetchDocumentAndStats();
-    fetchViews();
-  }, [fetchDocumentAndStats, fetchViews]);
+  const handleLinkUpdate = useCallback((updatedLink) => {
+    if (updatedLink) {
+      // Granular update for status toggle
+      setDocument(prevDoc => {
+        if (!prevDoc) return null;
+        const newLinks = prevDoc.share_links.map(link =>
+          link.id === updatedLink.id ? updatedLink : link
+        );
+        return { ...prevDoc, share_links: newLinks };
+      });
+    } else {
+      // Full refresh for create/edit from LinkSheet
+      fetchDocumentAndStats();
+      fetchViews();
+    }
+  }, [fetchDocumentAndStats, fetchViews]);  
 
   const handleConfirmDelete = async () => {
     if (!linkToDelete) return;

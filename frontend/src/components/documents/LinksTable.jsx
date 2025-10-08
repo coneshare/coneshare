@@ -73,14 +73,14 @@ function CopyableLink({ slug, isExpired, expires_at }) {
 export function LinksTable({ links, onEditLink, onDeleteLink, onLinkUpdate }) {
   const handleStatusChange = async (link, newStatus) => {
     try {
-      await updateShareLink(link.id, { is_active: newStatus });
+      const response = await updateShareLink(link.id, { is_active: newStatus });
       toast.success(`Link "${link.name || 'Untitled Link'}" is now ${newStatus ? 'active' : 'inactive'}.`);
       if (onLinkUpdate) {
-        onLinkUpdate();
+        onLinkUpdate(response.data);
       }
     } catch (error) {
     }
-  };
+  };  
 
   const handlePreview = async (linkId, slug) => {
     try {
