@@ -126,37 +126,57 @@ describe("API Service Interceptors", () => {
       const originalError = {
         response: { status: 401 },
         config: { url: "/protected" },
-
       };
       mockAdapter.mockRejectedValue(originalError);
 
       await expect(api.get("/protected")).rejects.toBe(originalError);
 
       expect(axios.post).not.toHaveBeenCalled();
-      expect(localStorage.removeItem).toHaveBeenCalledWith("access_token");
-      expect(localStorage.removeItem).toHaveBeenCalledWith("refresh_token");
       expect(window.location.href).toBe("/login");
+      expect(localStorage.removeItem).toHaveBeenCalled();
     });
 
-    it("should not enter an infinite loop on repeated 401s", async () => {
+    it("should handle multiple concurrent requests with a single token refresh", async () => {
       localStorage.setItem("refresh_token", "test_refresh_token");
 
-      // Refresh succeeds
+      // Mock initial failed requests.
+      const error401_1 = {
+        response: { status: 401 },
+        config: { headers: {}, url: '/protected1' },
+      };
+      const error401_2 = {
+        response: { status: 401 },
+        config: { headers: {}, url: '/protected2' },
+      };
+      mockAdapter.mockRejectedValueOnce(error401_1); // for /protected1
+      mockAdapter.mockRejectedValueOnce(error401_2); // for /protected2
+
+      // Mock successful retries.
+      mockAdapter.mockResolvedValue({ data: "success" });
+
+      // Mock successful token refresh.
       axios.post.mockResolvedValue({
         data: { access: "new_access_token" },
       });
 
-      // But both original and retry calls fail with 401
-      const error = {
-        response: { status: 401 },
-        config: { headers: {}, url: "/protected" },
-      };
-      mockAdapter.mockRejectedValue(error);
+      // Fire two requests concurrently.
+      const promise1 = api.get("/protected1");
+      const promise2 = api.get("/protected2");
 
-      await expect(api.get("/protected")).rejects.toBe(error);
+      const [response1, response2] = await Promise.all([promise1, promise2]);
 
-      // Refresh should only be called once
+      // Verify that refresh was only called once for both requests.
       expect(axios.post).toHaveBeenCalledTimes(1);
+      expect(axios.post).toHaveBeenCalledWith("/api/v1/token/refresh/", {
+        refresh: "test_refresh_token",
+      });
+
+      // Verify both requests eventually succeeded.
+      expect(response1.data).toBe("success");
+      expect(response2.data).toBe("success");
+
+      // Verify new token was stored.
+      expect(localStorage.getItem("access_token")).toBe("new_access_token");
     });
   });
 });

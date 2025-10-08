@@ -20,73 +20,96 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// --- Token Refresh Logic with Race Condition Prevention ---
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 // Response interceptor to handle 401 errors and token refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    
-    // Check if the error is 401, not a retry, and not for a token endpoint
+
+    // Check if the error is 401, not a retry, and not from a token-related endpoint or public link
     if (
-      error.response.status === 401 &&
+      error.response?.status === 401 &&
       !originalRequest._retry &&
       !originalRequest.url.includes('/token') &&
-      !originalRequest.url.includes('/links/') // ignore 401 errors from the public link viewing endpoint
+      !originalRequest.url.includes('/links/')
     ) {
-      originalRequest._retry = true; // Mark request to avoid infinite loops
+      if (isRefreshing) {
+        // If a refresh is already in progress, queue this request
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(token => {
+            originalRequest.headers['Authorization'] = 'Bearer ' + token;
+            return api(originalRequest);
+          })
+      }
 
-      try {
-        const refreshToken = localStorage.getItem('refresh_token');
-        if (!refreshToken) {
-          // If no refresh token, just clean up and redirect
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
-          return Promise.reject(error);
-        }
+      originalRequest._retry = true;
+      isRefreshing = true;
 
-        const { data } = await axios.post('/api/v1/token/refresh/', {
-          refresh: refreshToken,
-        });
-
-        localStorage.setItem('access_token', data.access);
-        // Also save the new refresh token if it's returned
-        if (data.refresh) {
-          localStorage.setItem('refresh_token', data.refresh);
-        }
-        originalRequest.headers['Authorization'] = `Bearer ${data.access}`;
-        
-        // Retry the original request with the new token
-        return api(originalRequest);
-      } catch (refreshError) {
-        // If refresh fails, clear tokens and redirect to login
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) {
+        isRefreshing = false;
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         window.location.href = '/login';
-        return Promise.reject(refreshError);
+        return Promise.reject(error);
       }
+
+      return new Promise((resolve, reject) => {
+        axios.post('/api/v1/token/refresh/', { refresh: refreshToken })
+          .then(({ data }) => {
+            localStorage.setItem('access_token', data.access);
+            if (data.refresh) localStorage.setItem('refresh_token', data.refresh);
+            
+            api.defaults.headers.common['Authorization'] = 'Bearer ' + data.access;
+            originalRequest.headers['Authorization'] = 'Bearer ' + data.access;
+            
+            processQueue(null, data.access);
+            resolve(api(originalRequest));
+          })
+          .catch((err) => {
+            processQueue(err, null);
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            window.location.href = '/login';
+            reject(err);
+          })
+          .finally(() => {
+            isRefreshing = false;
+          });
+      });
     }
 
-    // For other errors, show a toast.
-    const isPasswordProtectedView =
+    // For other errors, show a toast, preferring 'message' over 'detail'.
+    const errorMessage =
+      error.response?.data?.message ||
+      error.response?.data?.detail ||
+      error.message;
+
+    // Avoid showing a toast for the initial password prompt on the viewer page.
+    const isPasswordPrompt =
       error.response?.status === 401 &&
       originalRequest.url.includes('/view-data/') &&
       error.response?.data?.protectionType === 'password';
 
-    const isInvalidPasswordSubmission =
-      error.response?.status === 401 && originalRequest.url.includes('/verify-password/');
-
-    // For password-related flows, use the specific 'message' field from the API response.
-    if (isPasswordProtectedView || isInvalidPasswordSubmission) {
-      if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
-      }
-    } else if (error.response?.data?.detail) {
-      // For standard DRF errors, use the 'detail' field.
-      toast.error(error.response.data.detail);
-    } else if (error.message) {
-      // Fallback for network errors or other issues.
-      toast.error(error.message);
+    if (!isPasswordPrompt && errorMessage) {
+      toast.error(errorMessage);
     }
 
     return Promise.reject(error);
