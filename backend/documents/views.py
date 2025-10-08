@@ -645,7 +645,10 @@ class ShareLinkViewDataView(APIView):
                 # Token is invalid, proceed with normal access checks.
                 pass
 
-        link = _get_active_share_link(slug)
+        try:
+            link = _get_active_share_link(slug)
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
 
         if access_token:
             try:
@@ -749,7 +752,10 @@ class ShareLinkVerifyPasswordView(APIView):
     # No permission_classes, as this is a public endpoint.
 
     def post(self, request, slug, *args, **kwargs):
-        link = _get_active_share_link(slug)
+        try:
+            link = _get_active_share_link(slug)
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
 
         if not link.password_hash:
             return Response(
@@ -781,7 +787,10 @@ class ShareLinkRequestAccessView(APIView):
     # No permission_classes, as this is a public endpoint.
 
     def post(self, request, slug, *args, **kwargs):
-        link = _get_active_share_link(slug)
+        try:
+            link = _get_active_share_link(slug)
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
 
         if not link.requires_email:
             return Response(
