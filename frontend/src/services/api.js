@@ -20,51 +20,80 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// --- Token Refresh Logic with Race Condition Prevention ---
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 // Response interceptor to handle 401 errors and token refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    
-    // Check if the error is 401, not a retry, and not for a token endpoint
+
+    // Check if the error is 401 and not from a token-related endpoint or public link
     if (
-      error.response.status === 401 &&
-      !originalRequest._retry &&
+      error.response?.status === 401 &&
       !originalRequest.url.includes('/token') &&
-      !originalRequest.url.includes('/links/') // ignore 401 errors from the public link viewing endpoint
+      !originalRequest.url.includes('/links/')
     ) {
-      originalRequest._retry = true; // Mark request to avoid infinite loops
-
-      try {
-        const refreshToken = localStorage.getItem('refresh_token');
-        if (!refreshToken) {
-          // If no refresh token, just clean up and redirect
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
-          return Promise.reject(error);
-        }
-
-        const { data } = await axios.post('/api/v1/token/refresh/', {
-          refresh: refreshToken,
-        });
-
-        localStorage.setItem('access_token', data.access);
-        // Also save the new refresh token if it's returned
-        if (data.refresh) {
-          localStorage.setItem('refresh_token', data.refresh);
-        }
-        originalRequest.headers['Authorization'] = `Bearer ${data.access}`;
-        
-        // Retry the original request with the new token
-        return api(originalRequest);
-      } catch (refreshError) {
-        // If refresh fails, clear tokens and redirect to login
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
+      if (isRefreshing) {
+        // If a refresh is already in progress, queue this request
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(token => {
+            originalRequest.headers['Authorization'] = 'Bearer ' + token;
+            return api(originalRequest);
+          })
+          .catch(err => {
+            return Promise.reject(err);
+          });
       }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) {
+        isRefreshing = false;
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
+      return new Promise((resolve, reject) => {
+        axios.post('/api/v1/token/refresh/', { refresh: refreshToken })
+          .then(({ data }) => {
+            localStorage.setItem('access_token', data.access);
+            if (data.refresh) localStorage.setItem('refresh_token', data.refresh);
+            
+            api.defaults.headers.common['Authorization'] = 'Bearer ' + data.access;
+            originalRequest.headers['Authorization'] = 'Bearer ' + data.access;
+            
+            processQueue(null, data.access);
+            resolve(api(originalRequest));
+          })
+          .catch((err) => {
+            processQueue(err, null);
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            window.location.href = '/login';
+            reject(err);
+          })
+          .finally(() => {
+            isRefreshing = false;
+          });
+      });
     }
 
     // For other errors, show a toast, preferring 'message' over 'detail'.
