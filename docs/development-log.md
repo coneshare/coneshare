@@ -735,3 +735,22 @@ This session implemented a feature allowing users to activate or deactivate shar
 - **Status Toggle Switch**: A "Status" column with a `Switch` component was added to the `LinksTable`.
 - **API Integration**: An `onCheckedChange` handler was implemented for the switch, which calls the `updateShareLink` API to toggle the `is_active` status.
 - **UI Refresh**: A callback was passed from the parent `DocumentPage` to the `LinksTable` to trigger a data refresh after the status is updated, ensuring the UI reflects the change.
+
+---
+
+## Session 30: API Refactoring & Token Refresh Hardening (2025-10-08)
+
+This session focused on improving backend code maintainability by refactoring duplicated logic and hardening the frontend's authentication token refresh mechanism to prevent race conditions.
+
+### 1. Backend Code Refactoring (DRY Principle)
+- **Problem**: The logic to fetch a `ShareLink` and verify that it exists and is active was duplicated across three public-facing API views.
+- **Solution**: A private helper function, `_get_active_share_link`, was created in `documents/views.py` to centralize this logic. The three views were then refactored to use this helper, making the code cleaner and more maintainable.
+
+### 2. API Error Response Standardization
+- **Problem**: The new helper function raised a DRF `NotFound` exception (which returns an error with a `detail` key), while other error responses in the views returned a `message` key, leading to inconsistency.
+- **Solution**: The views were updated to catch the `NotFound` exception and re-format the response to consistently use the `message` key, simplifying frontend error handling.
+
+### 3. Frontend Token Refresh Race Condition Fix
+- **Problem**: The existing token refresh logic in `api.js` was vulnerable to a race condition. If multiple API calls failed with a 401 error simultaneously, it would trigger multiple, redundant token refresh requests.
+- **Solution**: The Axios interceptor was completely rewritten to use a request queue. Now, only the first 401 error triggers a token refresh. Subsequent failed requests are queued and only retried after the new token has been successfully fetched and stored.
+- **Testing**: The test suite for the API service (`api.test.js`) was updated to verify the new, robust token refresh behavior, including a new test case for handling multiple concurrent requests. A minor bug in the test setup (a missing `url` in a mock error object) was also fixed.
