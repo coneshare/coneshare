@@ -19,8 +19,20 @@ export function PageViewsChart({ pageViews }) {
     return <p className="text-sm text-gray-500">No detailed page view data available.</p>;
   }
 
-  const maxDuration = Math.max(...pageViews.map((v) => v.duration_seconds), 0);
-  const totalDuration = pageViews.reduce((sum, v) => sum + v.duration_seconds, 0);
+  // Aggregate views by page_number to prevent duplicate key warnings
+  const uniquePageViews = Object.values(
+    pageViews.reduce((acc, view) => {
+      const pageNum = view.page_number;
+      if (!acc[pageNum]) {
+        acc[pageNum] = { ...view, duration_seconds: 0 };
+      }
+      acc[pageNum].duration_seconds += view.duration_seconds;
+      return acc;
+    }, {})
+  );
+
+  const maxDuration = Math.max(...uniquePageViews.map((v) => v.duration_seconds), 0);
+  const totalDuration = uniquePageViews.reduce((sum, v) => sum + v.duration_seconds, 0);
 
   return (
     <TooltipProvider>
@@ -29,7 +41,7 @@ export function PageViewsChart({ pageViews }) {
           Total time spent: {formatDuration(totalDuration)}
         </p>
         <div className="space-y-1">
-          {pageViews
+          {uniquePageViews
             .sort((a, b) => a.page_number - b.page_number)
             .map((view) => (
               <div key={view.page_number} className="flex items-center gap-4 text-sm">
