@@ -65,8 +65,11 @@ The project employs a comprehensive testing strategy for both the backend and fr
 -   **Test Runner:** **Pytest** with `pytest-django` for seamless integration with the Django framework.
 -   **Unit & Integration Tests:** Cover models, services, serializers, and API endpoints to verify business logic and data integrity.
 -   **Behavior-Driven Development (BDD):** **pytest-bdd** is used to write feature tests that describe application behavior from a user's perspective, ensuring that features meet requirements.
+-   **Fixtures:** Reusable test data and components are managed via Pytest fixtures located in `tests/conftest.py`. This includes fixtures for creating users, documents, and authenticated API clients.
+-   **Mocking:** `unittest.mock.patch` is used to mock external services (like Celery tasks and file storage) to isolate tests and ensure predictable outcomes.
 
 ### Frontend Testing
 -   **Test Runner:** **Vitest**, a fast and modern testing framework compatible with Vite.
 -   **Component Testing:** **React Testing Library** is used to test components by interacting with them as a user would, ensuring they are accessible and functional.
--   **Mocking:** **Vitest's mocking capabilities** are used to isolate components and mock API calls for predictable test outcomes.
+-   **Fixtures & Setup:** Test setup and reusable mocks are managed within test files using `beforeEach` hooks and helper functions to render components with default or overridden props.
+-   **Mocking:** **Vitest's mocking capabilities** (`vi.mock`) are used to isolate components (e.g., child components, API services) and mock external dependencies for predictable test outcomes.
