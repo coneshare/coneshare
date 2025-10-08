@@ -133,21 +133,23 @@ describe("API Service Interceptors", () => {
 
       expect(axios.post).not.toHaveBeenCalled();
       expect(window.location.href).toBe("/login");
-      // With the new logic, tokens are not cleared if no refresh token is present,
-      // as the user is simply redirected.
-      expect(localStorage.removeItem).not.toHaveBeenCalled();
+      expect(localStorage.removeItem).toHaveBeenCalled();
     });
 
     it("should handle multiple concurrent requests with a single token refresh", async () => {
       localStorage.setItem("refresh_token", "test_refresh_token");
 
       // Mock initial failed requests.
-      const error401 = {
+      const error401_1 = {
         response: { status: 401 },
-        config: { headers: {}, url: '/protected' },
+        config: { headers: {}, url: '/protected1' },
       };
-      mockAdapter.mockRejectedValueOnce(error401); // for /protected1
-      mockAdapter.mockRejectedValueOnce(error401); // for /protected2
+      const error401_2 = {
+        response: { status: 401 },
+        config: { headers: {}, url: '/protected2' },
+      };
+      mockAdapter.mockRejectedValueOnce(error401_1); // for /protected1
+      mockAdapter.mockRejectedValueOnce(error401_2); // for /protected2
 
       // Mock successful retries.
       mockAdapter.mockResolvedValue({ data: "success" });

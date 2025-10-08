@@ -41,9 +41,10 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Check if the error is 401 and not from a token-related endpoint or public link
+    // Check if the error is 401, not a retry, and not from a token-related endpoint or public link
     if (
       error.response?.status === 401 &&
+      !originalRequest._retry &&
       !originalRequest.url.includes('/token') &&
       !originalRequest.url.includes('/links/')
     ) {
@@ -56,9 +57,6 @@ api.interceptors.response.use(
             originalRequest.headers['Authorization'] = 'Bearer ' + token;
             return api(originalRequest);
           })
-          .catch(err => {
-            return Promise.reject(err);
-          });
       }
 
       originalRequest._retry = true;
@@ -67,6 +65,8 @@ api.interceptors.response.use(
       const refreshToken = localStorage.getItem('refresh_token');
       if (!refreshToken) {
         isRefreshing = false;
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
         window.location.href = '/login';
         return Promise.reject(error);
       }
