@@ -492,7 +492,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
         document = self.get_object()
         view_queryset = ViewSession.objects.filter(
             share_link__document=document
-        ).order_by('-viewed_at').select_related('share_link')
+        ).order_by('-viewed_at').select_related('share_link').prefetch_related('page_views')
 
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(view_queryset, request, view=self)
