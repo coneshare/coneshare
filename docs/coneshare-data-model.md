@@ -68,6 +68,7 @@ Provides a hierarchical structure for organizing documents, similar to a filesys
 -   **organization_id**: Foreign Key to `Organization`
 -   **name**: String
 -   **parent_id**: Foreign Key to `Folder` (Self-referencing, Nullable for root)
+-   **created_by_id**: Foreign Key to `User`
 -   **created_at**: DateTime
 -   **updated_at**: DateTime
 
@@ -153,16 +154,45 @@ A secure, configurable link for sharing a `Document` or `Dataroom`.
 -   **slug**: String, Unique (The public part of the URL)
 -   **expires_at**: DateTime (Nullable)
 -   **password_hash**: String (Nullable)
+-   **requires_email**: Boolean
 -   **requires_email_verification**: Boolean
 -   **allow_download**: Boolean
 -   **enable_watermark**: Boolean
--   **is_archived**: Boolean
+-   **receive_email_notification**: Boolean
+-   **is_active**: Boolean
 -   **created_at**: DateTime
 -   **updated_at**: DateTime
 
 **Relations:** Belongs to one Document or Dataroom. Has many Views.
 
-### 9. ShareLinkPreset
+### 9. EmailVerificationToken
+
+A temporary, single-use token to verify a viewer's email address for a share link.
+
+-   **id**: ULID, Primary Key
+-   **share_link_id**: Foreign Key to `ShareLink`
+-   **email**: String
+-   **token**: String, Unique
+-   **expires_at**: DateTime
+-   **created_at**: DateTime
+
+**Relations:** Belongs to one ShareLink.
+
+### 10. PreviewSession
+
+A temporary, single-use session for a user to preview a share link, bypassing its security settings.
+
+-   **id**: ULID, Primary Key
+-   **share_link_id**: Foreign Key to `ShareLink`
+-   **user_id**: Foreign Key to `User`
+-   **token**: String, Unique
+-   **expires_at**: DateTime
+-   **created_at**: DateTime
+-   **updated_at**: DateTime
+
+**Relations:** Belongs to one ShareLink and one User.
+
+### 11. ShareLinkPreset
 
 A reusable template for `ShareLink` configurations, allowing teams to quickly create links with consistent security settings.
 
@@ -172,15 +202,17 @@ A reusable template for `ShareLink` configurations, allowing teams to quickly cr
 -   **is_default**: Boolean (Indicates if this is the default preset for new links)
 -   **expires_in_days**: Integer (Nullable, e.g., 30 for a link that expires 30 days from creation)
 -   **requires_password**: Boolean
+-   **requires_email**: Boolean
 -   **requires_email_verification**: Boolean
 -   **allow_download**: Boolean
 -   **enable_watermark**: Boolean
+-   **receive_email_notification**: Boolean
 -   **created_at**: DateTime
 -   **updated_at**: DateTime
 
 **Relations:** Belongs to one Organization.
 
-### 10. ViewSession
+### 12. ViewSession
 
 Records an instance of a `ShareLink` being accessed. This is the core of the analytics engine.
 
@@ -200,7 +232,7 @@ Records an instance of a `ShareLink` being accessed. This is the core of the ana
 
 **Relations:** Belongs to one ShareLink and one optional Viewer. Has many PageViews.
 
-### 11. PageView
+### 13. PageView
 
 Records a granular page view event within a single viewing session (`ViewSession`).
 
@@ -212,7 +244,7 @@ Records a granular page view event within a single viewing session (`ViewSession
 
 **Relations:** Belongs to one ViewSession.
 
-### 12. Viewer
+### 14. Viewer
 
 Represents an external, non-team member who has accessed a shared link and has been identified (e.g., via email verification).
 
@@ -229,7 +261,7 @@ Represents an external, non-team member who has accessed a shared link and has b
 
 These models introduce the concept of a `Dataroom` for sharing collections of documents. Note that `DataroomFolder` is distinct from the general-purpose `Folder` model and is scoped exclusively to a single `Dataroom`.
 
-### 13. Dataroom
+### 15. Dataroom
 
 A container for organizing and sharing a collection of documents and folders.
 
@@ -243,7 +275,7 @@ A container for organizing and sharing a collection of documents and folders.
 
 **Relations:** Belongs to one Organization. Has many DataroomDocuments, DataroomFolders, and ShareLinks.
 
-### 14. DataroomFolder
+### 16. DataroomFolder
 
 A folder within a `Dataroom` to create a hierarchical structure.
 
@@ -256,7 +288,7 @@ A folder within a `Dataroom` to create a hierarchical structure.
 
 **Relations:** Belongs to one Dataroom.
 
-### 15. DataroomDocument
+### 17. DataroomDocument
 
 A linking table to place a `Document` within a Dataroom's structure.
 
@@ -268,7 +300,7 @@ A linking table to place a `Document` within a Dataroom's structure.
 
 **Relations:** Links a Document to a Dataroom and an optional DataroomFolder.
 
-### 16. DocumentUpload
+### 18. DocumentUpload
 
 A log entry created when a new document is uploaded by an external viewer via a `ShareLink`. This is critical for tracking contributions in a deal room context.
 
@@ -290,7 +322,7 @@ A log entry created when a new document is uploaded by an external viewer via a 
 
 ## Permissions and Audit Models (V2.0/Future)
 
-### 17. DataroomPermission
+### 19. DataroomPermission
 
 Assigns permissions for a `UserGroup` on a specific `DataroomDocument` or `DataroomFolder`.
 
@@ -301,7 +333,7 @@ Assigns permissions for a `UserGroup` on a specific `DataroomDocument` or `Datar
 -   **folder_id**: Foreign Key to `DataroomFolder` (Nullable)
 -   **permission_level**: String (e.g., 'view', 'download')
 
-### 18. AuditLog
+### 20. AuditLog
 
 Records significant events in the system for administrative review.
 
