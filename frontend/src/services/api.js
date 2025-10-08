@@ -67,26 +67,20 @@ api.interceptors.response.use(
       }
     }
 
-    // For other errors, show a toast.
-    const isPasswordProtectedView =
+    // For other errors, show a toast, preferring 'message' over 'detail'.
+    const errorMessage =
+      error.response?.data?.message ||
+      error.response?.data?.detail ||
+      error.message;
+
+    // Avoid showing a toast for the initial password prompt on the viewer page.
+    const isPasswordPrompt =
       error.response?.status === 401 &&
       originalRequest.url.includes('/view-data/') &&
       error.response?.data?.protectionType === 'password';
 
-    const isInvalidPasswordSubmission =
-      error.response?.status === 401 && originalRequest.url.includes('/verify-password/');
-
-    // For password-related flows, use the specific 'message' field from the API response.
-    if (isPasswordProtectedView || isInvalidPasswordSubmission) {
-      if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
-      }
-    } else if (error.response?.data?.detail) {
-      // For standard DRF errors, use the 'detail' field.
-      toast.error(error.response.data.detail);
-    } else if (error.message) {
-      // Fallback for network errors or other issues.
-      toast.error(error.message);
+    if (!isPasswordPrompt && errorMessage) {
+      toast.error(errorMessage);
     }
 
     return Promise.reject(error);
