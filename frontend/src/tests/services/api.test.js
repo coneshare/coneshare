@@ -144,7 +144,7 @@ describe("API Service Interceptors", () => {
       // Mock initial failed requests.
       const error401 = {
         response: { status: 401 },
-        config: { headers: {} },
+        config: { headers: {}, url: '/protected' },
       };
       mockAdapter.mockRejectedValueOnce(error401); // for /protected1
       mockAdapter.mockRejectedValueOnce(error401); // for /protected2

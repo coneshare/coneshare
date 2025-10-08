@@ -16,8 +16,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Download GeoIP database
-RUN mkdir -p /app/geoip && \
-    curl -L 'https://git.io/GeoLite2-City.mmdb' -o /app/geoip/GeoLite2-City.mmdb
+RUN mkdir -p /geoip && \
+    curl -L 'https://git.io/GeoLite2-City.mmdb' -o /geoip/GeoLite2-City.mmdb
 
 # Install dependencies
 COPY requirements.txt .

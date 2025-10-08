@@ -211,7 +211,7 @@ if 'test' in sys.argv or 'pytest' in sys.modules:
 
 
 # GeoIP Configuration
-GEOIP_PATH = '/app/geoip'
+GEOIP_PATH = '/geoip'
 try:
     GEOIP = GeoIP2()
     print("Successfully initialized GeoIP2.")
