@@ -480,7 +480,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
             organization=organization,
             created_by=self.request.user,
             folder=target_folder
-        ).prefetch_related('versions', 'share_links')
+        ).prefetch_related('versions', 'share_links', 'share_links__view_sessions')
 
     def destroy(self, request, *args, **kwargs):
         document = self.get_object()

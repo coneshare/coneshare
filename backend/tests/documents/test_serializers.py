@@ -3,7 +3,7 @@ from django.contrib.auth.hashers import check_password
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from documents.models import Folder
+from documents.models import Folder, ShareLink, ViewSession
 from documents.serializers import FolderSerializer, ShareLinkSerializer
 
 pytestmark = pytest.mark.django_db
@@ -78,6 +78,31 @@ class TestShareLinkSerializer:
 
         instance.refresh_from_db()
         assert instance.password_hash is None
+
+    def test_view_count_and_sessions_serialization(self, share_link, serializer_context):
+        """
+        Test that view_count and nested view_sessions are correctly serialized.
+        """
+        # Create some view sessions for the link
+        ViewSession.objects.create(share_link=share_link)
+        ViewSession.objects.create(share_link=share_link)
+
+        # The serializer expects prefetched data for efficiency, which is what the
+        # viewsets are configured to do.
+        share_link_with_prefetch = ShareLink.objects.prefetch_related(
+            'view_sessions'
+        ).get(id=share_link.id)
+
+        serializer = ShareLinkSerializer(
+            instance=share_link_with_prefetch,
+            context=serializer_context,
+        )
+
+        data = serializer.data
+        assert data['view_count'] == 2
+        assert 'view_sessions' in data
+        assert len(data['view_sessions']) == 2
+        assert 'viewer_email' in data['view_sessions'][0]
 
 
 class TestFolderSerializer:

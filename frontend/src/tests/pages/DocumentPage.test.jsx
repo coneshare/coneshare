@@ -60,7 +60,7 @@ describe('DocumentPage', () => {
     );
   };
 
-  it('handles pagination for visitors table', async () => {
+  it('handles pagination for view sessions table', async () => {
     api.getDocumentDetails.mockResolvedValue({ data: mockDocument });
     api.getDocumentStats.mockResolvedValue({ data: mockStats });
     api.getDocumentViews.mockResolvedValueOnce({ data: mockViewsPage1 }); // First call
@@ -77,8 +77,8 @@ describe('DocumentPage', () => {
     // Check pagination text
     expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
     expect(
-      screen.getByText((content, node) => node.textContent === 'Showing 1-10 of 15 visitors.')
-    ).toBeInTheDocument();    
+      screen.getByText((content, node) => node.textContent === 'Showing 1-10 of 15 view sessions.')
+    ).toBeInTheDocument();
 
     // Mock for second page call
     api.getDocumentViews.mockResolvedValueOnce({ data: mockViewsPage2 });
@@ -98,8 +98,8 @@ describe('DocumentPage', () => {
     // Check pagination text and state
     expect(screen.getByText('Page 2 of 2')).toBeInTheDocument();
     expect(
-      screen.getByText((content, node) => node.textContent === 'Showing 11-15 of 15 visitors.')
-    ).toBeInTheDocument();    
+      screen.getByText((content, node) => node.textContent === 'Showing 11-15 of 15 view sessions.')
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /go to next page/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /go to last page/i })).toBeDisabled();
   });

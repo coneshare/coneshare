@@ -21,7 +21,7 @@ export function Pagination({ count, pageSize, currentPage, onPageChange }) {
         <strong>
           {startItem}-{endItem}
         </strong>{' '}
-        of <strong>{count}</strong> visitors.
+        of <strong>{count}</strong> view sessions.
       </div>
       <div className="flex items-center space-x-2">
         <Button

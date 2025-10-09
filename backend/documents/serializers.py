@@ -105,78 +105,6 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class ShareLinkSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(
-        write_only=True, required=False, allow_blank=True, style={'input_type': 'password'}
-    )
-    has_password = serializers.SerializerMethodField()
-
-    def validate(self, data):
-        """
-        Enforce business rules:
-        - If the associated document is download-only, force allow_download to be true.
-        """
-        # On update, 'document' may not be in the payload. We get it from the instance.
-        document = data.get('document') or getattr(self.instance, 'document', None)
-
-        if document and document.download_only:
-            data['allow_download'] = True
-
-        return data
-
-    class Meta:
-        model = ShareLink
-        fields = [
-            'id', 'document', 'created_by', 'name', 'slug', 'expires_at',
-            'has_password', 'password', 'requires_email', 'requires_email_verification', 'allow_download',
-            'enable_watermark', 'receive_email_notification', 'is_active', 'created_at', 'updated_at'
-        ]
-        read_only_fields = [
-            'id', 'created_by', 'slug', 'created_at', 'updated_at'
-        ]
-
-    def get_has_password(self, obj):
-        """Returns True if the link is password-protected."""
-        return obj.password_hash is not None
-
-    def _hash_password(self, validated_data):
-        """Hashes the password if it exists in the validated data."""
-        if 'password' in validated_data:
-            password = validated_data.pop('password')
-            if password:
-                validated_data['password_hash'] = make_password(password)
-            else:
-                # If password is an empty string, treat it as clearing the password
-                validated_data['password_hash'] = None
-
-    def create(self, validated_data):
-        request = self.context['request']
-        validated_data['created_by'] = request.user
-        self._hash_password(validated_data)
-        return super().create(validated_data)
-
-    def update(self, instance, validated_data):
-        self._hash_password(validated_data)
-        return super().update(instance, validated_data)
-
-
-class ShareLinkEmailSerializer(serializers.Serializer):
-    """Serializer for the email submission form."""
-    email = serializers.EmailField()
-
-
-class ViewerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Viewer
-        fields = ['id', 'organization', 'email', 'created_at']
-        read_only_fields = ['id', 'organization', 'created_at']
-
-    def create(self, validated_data):
-        # Automatically assign the default organization
-        validated_data['organization'] = Organization.objects.first()
-        return super().create(validated_data)
-
-
 class PageViewSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
 
@@ -222,6 +150,88 @@ class ViewSessionSerializer(serializers.ModelSerializer):
             # Associate the view with the identified viewer
             validated_data['viewer'] = viewer
 
+        return super().create(validated_data)
+
+
+class ShareLinkSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(
+        write_only=True, required=False, allow_blank=True, style={'input_type': 'password'}
+    )
+    has_password = serializers.SerializerMethodField()
+    view_count = serializers.SerializerMethodField()
+    view_sessions = ViewSessionSerializer(many=True, read_only=True)
+
+    def validate(self, data):
+        """
+        Enforce business rules:
+        - If the associated document is download-only, force allow_download to be true.
+        """
+        # On update, 'document' may not be in the payload. We get it from the instance.
+        document = data.get('document') or getattr(self.instance, 'document', None)
+
+        if document and document.download_only:
+            data['allow_download'] = True
+
+        return data
+
+    class Meta:
+        model = ShareLink
+        fields = [
+            'id', 'document', 'created_by', 'name', 'slug', 'expires_at',
+            'has_password', 'password', 'requires_email', 'requires_email_verification', 'allow_download',
+            'enable_watermark', 'receive_email_notification', 'is_active', 'created_at', 'updated_at',
+            'view_count', 'view_sessions'
+        ]
+        read_only_fields = [
+            'id', 'created_by', 'slug', 'created_at', 'updated_at'
+        ]
+
+    def get_has_password(self, obj):
+        """Returns True if the link is password-protected."""
+        return obj.password_hash is not None
+
+    def get_view_count(self, obj):
+        """Returns the number of view sessions for the link."""
+        # This is efficient because of the prefetch_related in the view.
+        if hasattr(obj, '_prefetched_objects_cache') and 'view_sessions' in obj._prefetched_objects_cache:
+            return len(obj._prefetched_objects_cache['view_sessions'])
+        return obj.view_sessions.count()
+
+    def _hash_password(self, validated_data):
+        """Hashes the password if it exists in the validated data."""
+        if 'password' in validated_data:
+            password = validated_data.pop('password')
+            if password:
+                validated_data['password_hash'] = make_password(password)
+            else:
+                # If password is an empty string, treat it as clearing the password
+                validated_data['password_hash'] = None
+
+    def create(self, validated_data):
+        request = self.context['request']
+        validated_data['created_by'] = request.user
+        self._hash_password(validated_data)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        self._hash_password(validated_data)
+        return super().update(instance, validated_data)
+
+
+class ShareLinkEmailSerializer(serializers.Serializer):
+    """Serializer for the email submission form."""
+    email = serializers.EmailField()
+
+
+class ViewerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Viewer
+        fields = ['id', 'organization', 'email', 'created_at']
+        read_only_fields = ['id', 'organization', 'created_at']
+
+    def create(self, validated_data):
+        # Automatically assign the default organization
+        validated_data['organization'] = Organization.objects.first()
         return super().create(validated_data)
 
 
