@@ -16,8 +16,14 @@ export function ViewerToolbar({
     if (viewId && downloadUrl) {
       // Log the download event in the background
       recordDownload(viewId).catch(err => console.error("Failed to record download", err));
-      // Trigger the download for the user
-      window.open(downloadUrl, '_blank');
+      
+      // Create a temporary link element to trigger the download
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', ''); // An empty download attribute prompts the user to save the file
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
   const handlePrint = () => alert('Print not implemented');
