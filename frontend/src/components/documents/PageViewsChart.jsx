@@ -21,15 +21,14 @@ export function PageViewsChart({ pageViews }) {
 
   // Aggregate views by page_number to prevent duplicate key warnings
   const uniquePageViews = Object.values(
-    pageViews.reduce((acc, view) => {
-      const pageNum = view.page_number;
-      if (!acc[pageNum]) {
-        acc[pageNum] = { ...view, duration_seconds: 0 };
+    pageViews.reduce((acc, { page_number, duration_seconds, url }) => {
+      if (!acc[page_number]) {
+        acc[page_number] = { page_number, url, duration_seconds: 0 };
       }
-      acc[pageNum].duration_seconds += view.duration_seconds;
+      acc[page_number].duration_seconds += duration_seconds;
       return acc;
     }, {})
-  );
+  );  
 
   const maxDuration = Math.max(...uniquePageViews.map((v) => v.duration_seconds), 0);
   const totalDuration = uniquePageViews.reduce((sum, v) => sum + v.duration_seconds, 0);
