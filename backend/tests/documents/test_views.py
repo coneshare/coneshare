@@ -385,6 +385,35 @@ def test_create_folder_with_non_existent_parent_fails(api_client):
 
 
 @pytest.mark.django_db
+def test_list_folder_contents_includes_share_link_views(api_client, user, organization):
+    """
+    Test that the folder contents API response includes nested view session
+    data for share links to avoid N+1 queries on the frontend.
+    """
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+    doc = Document.objects.create(name="Doc with views", organization=organization, created_by=user, folder=root_folder)
+    link = ShareLink.objects.create(document=doc, created_by=user)
+    ViewSession.objects.create(share_link=link, viewer_email="viewer1@test.com")
+    ViewSession.objects.create(share_link=link, viewer_email="viewer2@test.com")
+
+    response = api_client.get('/api/v1/folders/')  # list root folder
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    assert len(data['documents']) == 1
+    document_data = data['documents'][0]
+
+    assert 'share_links' in document_data
+    assert len(document_data['share_links']) == 1
+    share_link_data = document_data['share_links'][0]
+
+    assert 'view_count' in share_link_data
+    assert share_link_data['view_count'] == 2
+    assert 'view_sessions' in share_link_data
+    assert len(share_link_data['view_sessions']) == 2
+
+
+@pytest.mark.django_db
 def test_list_documents_is_scoped_to_user_and_root_only(api_client, user, user2, organization):
     """Test retrieving documents is scoped to the user and only returns root-level documents."""
     folder = Folder.objects.create(organization=organization, created_by=user, name="Test Folder")
@@ -985,6 +1014,28 @@ class TestShareLinkPasswordProtection:
 
 @pytest.mark.django_db
 class TestDocumentViewSet:
+    def test_retrieve_document_with_share_link_views(self, api_client, user, document):
+        """
+        Test that the document detail endpoint includes nested view session
+        data for its share links.
+        """
+        link = ShareLink.objects.create(document=document, created_by=user)
+        ViewSession.objects.create(share_link=link, viewer_email="viewer1@test.com")
+
+        response = api_client.get(f'/api/v1/documents/{document.id}/')
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert data['id'] == str(document.id)
+
+        assert 'share_links' in data
+        assert len(data['share_links']) == 1
+        share_link_data = data['share_links'][0]
+
+        assert share_link_data['view_count'] == 1
+        assert len(share_link_data['view_sessions']) == 1
+        assert share_link_data['view_sessions'][0]['viewer_email'] == "viewer1@test.com"
+
     def test_document_views_pagination(self, api_client, document, share_link):
         """
         Tests that the document views endpoint is properly paginated.

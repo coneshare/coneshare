@@ -1,6 +1,7 @@
-import { Eye, Pencil, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { Eye, Pencil, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
+import { Fragment, useState } from 'react';
 import { toast } from 'sonner';
+import { UAParser } from 'ua-parser-js';
 import { generateShareLinkPreview, updateShareLink } from '../../services/api';
 import { Button } from '../ui/Button';
 import { Switch } from '../ui/Switch';
@@ -18,6 +19,25 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../ui/Tooltip';
+
+function parseUserAgent(uaString) {
+  if (!uaString) return { browser: 'N/A', os: 'N/A' };
+  const parser = new UAParser(uaString);
+  const result = parser.getResult();
+  return {
+    browser: result.browser.name || 'Unknown',
+    os: result.os.name || 'Unknown',
+  };
+}
+
+function formatDuration(seconds) {
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}m ${remainingSeconds}s`;
+}
 
 function CopyableLink({ slug, isExpired, expires_at }) {
   const [isHovered, setIsHovered] = useState(false);
@@ -71,6 +91,8 @@ function CopyableLink({ slug, isExpired, expires_at }) {
 }
 
 export function LinksTable({ links, onEditLink, onDeleteLink, onLinkUpdate }) {
+  const [expandedRowId, setExpandedRowId] = useState(null);
+
   const handleStatusChange = async (link, newStatus) => {
     try {
       const response = await updateShareLink(link.id, { is_active: newStatus });
@@ -111,8 +133,10 @@ export function LinksTable({ links, onEditLink, onDeleteLink, onLinkUpdate }) {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-8" />
               <TableHead>Name</TableHead>
               <TableHead>Link</TableHead>
+              <TableHead>Views</TableHead>
               <TableHead>Created At</TableHead>
               <TableHead>Expires</TableHead>
               <TableHead>Password</TableHead>
@@ -125,80 +149,188 @@ export function LinksTable({ links, onEditLink, onDeleteLink, onLinkUpdate }) {
           <TableBody>
             {links.map((link) => {
               const isExpired = link.expires_at && new Date(link.expires_at) < new Date();
+              const hasViews = link.view_count > 0;
+              const isExpanded = expandedRowId === link.id;
               return (
-                <TableRow key={link.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <span>{link.name || 'Untitled Link'}</span>
-                      {isExpired && (
-                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-                          Expired
-                        </span>
+                <Fragment key={link.id}>
+                  <TableRow>
+                    <TableCell>
+                      {hasViews && (
+                        <button
+                          onClick={() => setExpandedRowId(isExpanded ? null : link.id)}
+                          className="flex items-center justify-center rounded-full p-1 hover:bg-gray-100"
+                          aria-expanded={isExpanded}
+                          aria-label={isExpanded ? 'Collapse row' : 'Expand row'}
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </button>
                       )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <CopyableLink
-                      slug={link.slug}
-                      isExpired={isExpired}
-                      expires_at={link.expires_at}
-                    />
-                  </TableCell>
-                  <TableCell>{new Date(link.created_at).toLocaleDateString()}</TableCell>
-                <TableCell>{link.expires_at ? new Date(link.expires_at).toLocaleDateString() : 'Never'}</TableCell>
-                <TableCell>{link.has_password ? 'Yes' : 'No'}</TableCell>
-                <TableCell>
-                  <Switch
-                    checked={link.is_active}
-                    onCheckedChange={(checked) => handleStatusChange(link, checked)}
-                    aria-label="Toggle link status"
-                  />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handlePreview(link.id, link.slug)}
-                      >
-                        <Eye className="h-4 w-4" />
-                        <span className="sr-only">Preview Link</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Preview Link</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" onClick={() => onEditLink(link)}>
-                        <Pencil className="h-4 w-4" />
-                        <span className="sr-only">Edit Link</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Edit Link</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-red-600 hover:text-red-700"
-                        onClick={() => onDeleteLink(link)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Delete Link</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Delete Link</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TableCell>
-              </TableRow>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <span>{link.name || 'Untitled Link'}</span>
+                        {isExpired && (
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                            Expired
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <CopyableLink
+                        slug={link.slug}
+                        isExpired={isExpired}
+                        expires_at={link.expires_at}
+                      />
+                    </TableCell>
+                    <TableCell>{link.view_count}</TableCell>
+                    <TableCell>{new Date(link.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {link.expires_at ? new Date(link.expires_at).toLocaleDateString() : 'Never'}
+                    </TableCell>
+                    <TableCell>{link.has_password ? 'Yes' : 'No'}</TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={link.is_active}
+                        onCheckedChange={(checked) => handleStatusChange(link, checked)}
+                        aria-label="Toggle link status"
+                      />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handlePreview(link.id, link.slug)}
+                          >
+                            <Eye className="h-4 w-4" />
+                            <span className="sr-only">Preview Link</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Preview Link</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" onClick={() => onEditLink(link)}>
+                            <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Edit Link</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Edit Link</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => onDeleteLink(link)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete Link</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Delete Link</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                  {isExpanded && hasViews && (
+                    <TableRow className="bg-gray-50 hover:bg-gray-50">
+                      <TableCell colSpan={9} className="p-4">
+                        <div className="p-2">
+                          {/* <h4 className="mb-2 text-sm font-semibold text-gray-600"> */}
+                          {/*   View Sessions */}
+                          {/* </h4> */}
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Visitor</TableHead>
+                                <TableHead>Viewed At</TableHead>
+                                <TableHead>Downloaded At</TableHead>
+                                <TableHead className="text-right">Duration</TableHead>
+                                <TableHead className="text-right">Completion</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {link.view_sessions.map((view) => {
+                                const { browser, os } = parseUserAgent(view.user_agent);
+                                const deviceInfo =
+                                  browser !== 'Unknown' ? `${browser} on ${os}` : 'Unknown device';
+                                const locationParts = [view.city, view.country].filter(Boolean);
+                                const hasLocation = locationParts.length > 0;
+                                return (
+                                  <TableRow key={view.id}>
+                                    <TableCell>
+                                      <div className="flex items-center gap-2 font-medium">
+                                        <span>{view.viewer_email || 'Anonymous'}</span>
+                                        {view.is_owner_view && (
+                                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">
+                                            You
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        {deviceInfo}
+                                        {hasLocation ? (
+                                          ` - ${locationParts.join(', ')}`
+                                        ) : (
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <span className="cursor-default"> - Unknown location</span>
+                                            </TooltipTrigger>
+                                            {view.ip_address && (
+                                              <TooltipContent>
+                                                <p>{view.ip_address}</p>
+                                              </TooltipContent>
+                                            )}
+                                          </Tooltip>
+                                        )}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>
+                                      {new Date(view.viewed_at).toLocaleString(undefined, {
+                                        dateStyle: 'medium',
+                                        timeStyle: 'short',
+                                      })}
+                                    </TableCell>
+                                    <TableCell>
+                                      {view.downloaded_at
+                                        ? new Date(view.downloaded_at).toLocaleString(
+                                            undefined,
+                                            {
+                                              dateStyle: 'medium',
+                                              timeStyle: 'short',
+                                            }
+                                          )
+                                        : '—'}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      {formatDuration(view.duration_seconds)}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      {`${(view.completion_rate * 100).toFixed(0)}%`}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
               );
             })}
           </TableBody>
