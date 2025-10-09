@@ -38,13 +38,13 @@ function parseUserAgent(uaString) {
   };
 }
 
-export function VisitorsTable({ views, totalCount, loading, currentPage, onPageChange, pageSize }) {
+export function ViewSessionsTable({ views, totalCount, loading, currentPage, onPageChange, pageSize }) {
   const [expandedRowId, setExpandedRowId] = useState(null);
 
   if (loading) {
     return (
       <div>
-        <h2 className="text-xl font-semibold">Visitors</h2>
+        <h2 className="text-xl font-semibold">View Sessions</h2>
         <div className="mt-4 space-y-4">
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-full" />
@@ -57,7 +57,7 @@ export function VisitorsTable({ views, totalCount, loading, currentPage, onPageC
   if (!views || totalCount === 0) {
     return (
       <div>
-        <h2 className="text-xl font-semibold">Visitors</h2>
+        <h2 className="text-xl font-semibold">View Sessions</h2>
         <div className="mt-4 rounded-lg border px-4 py-8 text-center">
           <p className="text-muted-foreground">This document has not been viewed yet.</p>
         </div>
@@ -68,7 +68,7 @@ export function VisitorsTable({ views, totalCount, loading, currentPage, onPageC
   return (
     <TooltipProvider>
       <div>
-        <h2 className="text-xl font-semibold">Visitors</h2>
+        <h2 className="text-xl font-semibold">View Sessions</h2>
         <div className="mt-4 overflow-hidden rounded-lg border">
           <Table>
             <TableHeader>

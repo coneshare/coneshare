@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { getDocumentDetails, getDocumentViews, getDocumentStats, deleteShareLink } from '../services/api';
 import { DocumentHeader } from '../components/documents/DocumentHeader';
 import { LinksTable } from '../components/documents/LinksTable';
-import { VisitorsTable } from '../components/documents/VisitorsTable';
+import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
 import { Stats } from '../components/documents/Stats';
 import { Skeleton } from '../components/ui/Skeleton';
 import { LinkSheet } from '../components/links/LinkSheet';
@@ -151,7 +151,7 @@ export function DocumentPage() {
           onDeleteLink={handleDeleteLink}
           onLinkUpdate={handleLinkUpdate}
         />
-        <VisitorsTable
+        <ViewSessionsTable
           views={viewsData?.results || []}
           totalCount={viewsData?.count || 0}
           loading={viewsLoading}
