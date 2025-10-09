@@ -502,9 +502,9 @@ class DocumentViewSet(viewsets.ModelViewSet):
                 image_url = default_storage.url(primary_version.original_storage_key)
                 pages_map[1] = urljoin(settings.SITE_DOMAIN, image_url)
             elif primary_version.has_pages:
-                for page in primary_version.pages.all().order_by('page_number'):
-                    page_url = default_storage.url(page.storage_key)
-                    pages_map[page.page_number] = urljoin(settings.SITE_DOMAIN, page_url)
+                for page in primary_version.pages.values('page_number', 'storage_key').order_by('page_number'):
+                    page_url = default_storage.url(page['storage_key'])
+                    pages_map[page['page_number']] = urljoin(settings.SITE_DOMAIN, page_url)
 
         serializer_context = self.get_serializer_context()
         serializer_context['pages_map'] = pages_map
