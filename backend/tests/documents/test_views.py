@@ -693,6 +693,29 @@ class TestShareLinkViewDataView:
 
     @override_settings(SITE_DOMAIN="http://test.coneshare.com")
     @patch('django.core.files.storage.default_storage.url')
+    def test_get_share_link_data_includes_download_url(self, mock_storage_url, public_client, share_link):
+        """Test that the view data includes a correctly constructed downloadUrl."""
+        # Setup
+        primary_version = share_link.document.versions.get(is_primary=True)
+        primary_version.original_storage_key = "path/to/original.pdf"
+        primary_version.save()
+
+        # Mock storage url to return a relative path
+        mock_storage_url.return_value = "/media/path/to/original.pdf"
+
+        # Action
+        response = public_client.get(f'/api/v1/links/{share_link.slug}/view-data/')
+
+        # Assertions
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert "downloadUrl" in data
+        assert data["downloadUrl"] == "http://test.coneshare.com/media/path/to/original.pdf"
+
+        mock_storage_url.assert_called_once_with("path/to/original.pdf")
+
+    @override_settings(SITE_DOMAIN="http://test.coneshare.com")
+    @patch('django.core.files.storage.default_storage.url')
     def test_get_share_link_data_for_image_document(self, mock_storage_url, public_client, image_document_with_content, user):
         """Test successful retrieval of public share link data for an image document."""
         # Setup
@@ -1123,6 +1146,35 @@ class TestViewSessionViewSet:
         assert view_session.country == 'United States'
         assert view_session.latitude == 37.422
         assert view_session.longitude == -122.084
+
+    def test_record_download(self, public_client, share_link):
+        """Test that a download can be recorded for a view session."""
+        # 1. Create a View session
+        view_session = ViewSession.objects.create(share_link=share_link)
+        assert view_session.downloaded_at is None
+
+        # 2. Record the download
+        url = f'/api/v1/view-sessions/{view_session.id}/record-download/'
+        response = public_client.post(url)
+        assert response.status_code == status.HTTP_200_OK
+
+        # 3. Verify the timestamp is set
+        view_session.refresh_from_db()
+        assert view_session.downloaded_at is not None
+        first_download_time = view_session.downloaded_at
+
+        # 4. Try to record again - timestamp should not change
+        response_2 = public_client.post(url)
+        assert response_2.status_code == status.HTTP_200_OK
+        view_session.refresh_from_db()
+        assert view_session.downloaded_at == first_download_time
+
+    def test_record_download_for_non_existent_session(self, public_client):
+        """Test that recording a download for a non-existent session returns 404."""
+        non_existent_id = '01J4Z7YJ8ZJ4Z7YJ8ZJ4Z7YJ8Z'
+        url = f'/api/v1/view-sessions/{non_existent_id}/record-download/'
+        response = public_client.post(url)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
