@@ -192,14 +192,21 @@ class PageViewSerializer(serializers.ModelSerializer):
 class ViewSessionSerializer(serializers.ModelSerializer):
     share_link_name = serializers.CharField(source='share_link.name', read_only=True)
     page_views = PageViewSerializer(many=True, read_only=True)
+    is_owner_view = serializers.SerializerMethodField()
 
     class Meta:
         model = ViewSession
         fields = [
             'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name', 'ip_address', 'user_agent', 'country', 'city', 'latitude', 'longitude', 'duration_seconds',
-            'completion_rate', 'viewed_at', 'page_views'
+            'completion_rate', 'viewed_at', 'page_views', 'is_owner_view'
         ]
-        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name', 'country', 'city', 'latitude', 'longitude', 'page_views']
+        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name', 'country', 'city', 'latitude', 'longitude', 'page_views', 'is_owner_view']
+    
+    def get_is_owner_view(self, obj):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user') and request.user.is_authenticated:
+            return obj.viewer_email == request.user.email
+        return False
 
     def create(self, validated_data):
         email = validated_data.get('viewer_email')

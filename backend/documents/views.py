@@ -603,15 +603,21 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
         ip_address = self.request.META.get('REMOTE_ADDR')
         user_agent = self.request.META.get('HTTP_USER_AGENT', '')[:255]
 
-        # Attempt to find the viewer's email from the session if they've been
-        # authorized via an email-required link.
-        share_link = serializer.validated_data.get('share_link')
-        viewer_email = ''
-        if share_link:
-            authorized_links = self.request.session.get('authorized_share_links', {})
-            auth_status = authorized_links.get(str(share_link.id), {})
-            if auth_status.get('email_verified'):
-                viewer_email = auth_status.get('viewer_email')
+        # Check for owner preview first, which takes precedence.
+        preview_owner_email = self.request.session.pop('preview_owner_email', None)
+
+        if preview_owner_email:
+            viewer_email = preview_owner_email
+        else:
+            # Attempt to find a regular viewer's email from the session if they've been
+            # authorized via an email-required link.
+            share_link = serializer.validated_data.get('share_link')
+            viewer_email = ''
+            if share_link:
+                authorized_links = self.request.session.get('authorized_share_links', {})
+                auth_status = authorized_links.get(str(share_link.id), {})
+                if auth_status.get('email_verified'):
+                    viewer_email = auth_status.get('viewer_email')
 
         # GeoIP lookup
         location_data = {}
@@ -655,6 +661,7 @@ class ShareLinkViewDataView(APIView):
                         # is the same user who created the share link.
                         if session.user == session.share_link.created_by:
                             is_preview = True
+                            request.session['preview_owner_email'] = session.user.email
                             session.delete()  # Invalidate token after use
             except PreviewSession.DoesNotExist:
                 # Token is invalid, proceed with normal access checks.

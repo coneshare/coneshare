@@ -110,7 +110,14 @@ export function VisitorsTable({ views, totalCount, loading, currentPage, onPageC
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">{view.viewer_email || 'Anonymous'}</div>
+                        <div className="flex items-center gap-2 font-medium">
+                          <span>{view.viewer_email || 'Anonymous'}</span>
+                          {view.is_owner_view && (
+                            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">
+                              You
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-muted-foreground">
                           {deviceInfo}
                           {hasLocation ? (
