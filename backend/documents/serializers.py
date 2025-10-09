@@ -198,9 +198,9 @@ class ViewSessionSerializer(serializers.ModelSerializer):
         model = ViewSession
         fields = [
             'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name', 'ip_address', 'user_agent', 'country', 'city', 'latitude', 'longitude', 'duration_seconds',
-            'completion_rate', 'viewed_at', 'page_views', 'is_owner_view'
+            'completion_rate', 'viewed_at', 'page_views', 'is_owner_view', 'downloaded_at'
         ]
-        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name', 'country', 'city', 'latitude', 'longitude', 'page_views', 'is_owner_view']
+        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name', 'country', 'city', 'latitude', 'longitude', 'page_views', 'is_owner_view', 'downloaded_at']
     
     def get_is_owner_view(self, obj):
         request = self.context.get('request')

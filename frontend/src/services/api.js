@@ -191,6 +191,8 @@ export const requestShareLinkAccess = (slug, email) =>
 
 export const createViewSession = (data) => api.post('/view-sessions/', data);
 
+export const recordDownload = (viewSessionId) => api.post(`/view-sessions/${viewSessionId}/record-download/`);
+
 export const recordPageView = (data, useBeacon = false) => {
   const payload = JSON.stringify(data);
   const url = `${api.defaults.baseURL}/page-views/record/`;

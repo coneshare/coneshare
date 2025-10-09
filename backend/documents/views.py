@@ -592,9 +592,22 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
         Allow anonymous users to create view sessions, but restrict
         all other actions to authenticated users.
         """
-        if self.action == 'create':
+        if self.action in ['create', 'record_download']:
             return [permissions.AllowAny()]
         return [permissions.IsAuthenticated()]
+
+    @action(detail=True, methods=['post'], url_path='record-download')
+    def record_download(self, request, pk=None):
+        """Records that a document was downloaded during this view session."""
+        try:
+            view_session = ViewSession.objects.get(pk=pk)
+            # Only record the first download
+            if view_session.downloaded_at is None:
+                view_session.downloaded_at = timezone.now()
+                view_session.save(update_fields=['downloaded_at'])
+            return Response(status=status.HTTP_200_OK)
+        except ViewSession.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
     def get_queryset(self):
         return ViewSession.objects.filter(share_link__document__organization=self.request.user.organization)
@@ -726,12 +739,21 @@ class ShareLinkViewDataView(APIView):
 
         pages_data = _prepare_pages_data(document, primary_version)
 
+        download_url = None
+        if document.type == 'image' and pages_data:
+            # For images, the download URL is the same as the single page's URL.
+            download_url = pages_data[0]['url']
+        elif primary_version and primary_version.original_storage_key:
+            file_url = default_storage.url(primary_version.original_storage_key)
+            download_url = urljoin(settings.SITE_DOMAIN, file_url)
+
         response_data = {
             "id": document.id,
             "name": document.name,
             "type": document.type,
             "numPages": document.num_pages,
             "pages": pages_data,
+            "downloadUrl": download_url,
             "linkSettings": {
                 "id": link.id,
                 "allowDownload": link.allow_download,

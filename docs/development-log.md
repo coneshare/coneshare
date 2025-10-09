@@ -781,3 +781,17 @@ This session focused on significantly enhancing the visitor analytics dashboard 
 - **Duplicate Key Warning Fix**:
   - Identified and fixed a bug where the `PageViewsChart` could receive multiple data points for the same page number, causing a React warning about duplicate keys.
   - The component now aggregates the `pageViews` data, summing the durations for each unique page number before rendering, ensuring stability and correctness.
+
+---
+
+## Session 32: Force File Download & Backend Optimization (2025-10-09)
+
+This session focused on improving the file download user experience and optimizing backend performance for image documents.
+
+### 1. Forced File Download
+- **Problem**: When users clicked the "Download" button for files like images or PDFs, browsers would often open them in a new tab for online preview instead of saving them to the device.
+- **Solution**: The download handler in `ViewerToolbar.jsx` was updated to programmatically create a temporary link (`<a>`) with the `download` attribute. This attribute instructs the browser to treat the URL as a file to be downloaded, providing a consistent user experience.
+
+### 2. Backend Performance Optimization
+- **Problem**: A performance issue was identified where the API would make two separate calls to the storage backend to generate URLs for image documents—one for the preview and one for the download URL, even though they pointed to the same file. This was also causing a test to fail due to an unexpected number of mock calls.
+- **Solution**: The `ShareLinkViewDataView` in the backend was refactored. It now detects when a document is an image and intelligently reuses the already-generated page preview URL as the `downloadUrl`, eliminating the redundant storage call and fixing the failing test.

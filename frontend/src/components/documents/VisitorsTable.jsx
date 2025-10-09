@@ -77,6 +77,7 @@ export function VisitorsTable({ views, totalCount, loading, currentPage, onPageC
                 <TableHead>Visitor</TableHead>
                 <TableHead>Link</TableHead>
                 <TableHead>Viewed At</TableHead>
+                <TableHead>Downloaded At</TableHead>
                 <TableHead className="text-right">Duration</TableHead>
                 <TableHead className="text-right">Completion</TableHead>
               </TableRow>
@@ -143,6 +144,14 @@ export function VisitorsTable({ views, totalCount, loading, currentPage, onPageC
                           timeStyle: 'short',
                         })}
                       </TableCell>
+                      <TableCell>
+                        {view.downloaded_at
+                          ? new Date(view.downloaded_at).toLocaleString(undefined, {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })
+                          : '—'}
+                      </TableCell>
                       <TableCell className="text-right">
                         {formatDuration(view.duration_seconds)}
                       </TableCell>
@@ -152,7 +161,7 @@ export function VisitorsTable({ views, totalCount, loading, currentPage, onPageC
                     </TableRow>
                     {isExpanded && hasPageViews && (
                       <TableRow className="bg-gray-50 hover:bg-gray-50">
-                        <TableCell colSpan={6} className="p-4">
+                        <TableCell colSpan={7} className="p-4">
                           <PageViewsChart pageViews={view.page_views} />
                         </TableCell>
                       </TableRow>
