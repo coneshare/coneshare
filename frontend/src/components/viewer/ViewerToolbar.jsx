@@ -1,16 +1,25 @@
 import { Download, Maximize, Printer, ZoomIn, ZoomOut } from 'lucide-react';
+import { recordDownload } from '../../services/api';
 import { Button } from '../ui/Button';
 
 export function ViewerToolbar({
   allowDownload,
+  downloadUrl,
   onFullScreen,
   onZoomIn,
   onZoomOut,
   currentPage,
   totalPages,
+  viewId,
 }) {
-  // Placeholder functions for actions
-  const handleDownload = () => alert('Download not implemented');
+  const handleDownload = () => {
+    if (viewId && downloadUrl) {
+      // Log the download event in the background
+      recordDownload(viewId).catch(err => console.error("Failed to record download", err));
+      // Trigger the download for the user
+      window.open(downloadUrl, '_blank');
+    }
+  };
   const handlePrint = () => alert('Print not implemented');
 
   return (

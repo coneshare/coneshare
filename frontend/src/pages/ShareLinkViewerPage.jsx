@@ -191,11 +191,13 @@ export function ShareLinkViewerPage() {
         <>
           <ViewerToolbar
             allowDownload={documentData.linkSettings.allowDownload}
+            downloadUrl={documentData.downloadUrl}
             onFullScreen={handleFullScreen}
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
             currentPage={currentPage}
             totalPages={documentData.numPages}
+            viewId={viewId}
           />
           <PreviewViewer
             documentData={documentData}

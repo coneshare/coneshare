@@ -188,6 +188,7 @@ class ViewSession(models.Model):
     longitude = models.FloatField(null=True, blank=True)
     duration_seconds = models.IntegerField(default=0)
     completion_rate = models.FloatField(default=0.0)
+    downloaded_at = models.DateTimeField(null=True, blank=True)
     viewed_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
