@@ -740,7 +740,10 @@ class ShareLinkViewDataView(APIView):
         pages_data = _prepare_pages_data(document, primary_version)
 
         download_url = None
-        if primary_version and primary_version.original_storage_key:
+        if document.type == 'image' and pages_data:
+            # For images, the download URL is the same as the single page's URL.
+            download_url = pages_data[0]['url']
+        elif primary_version and primary_version.original_storage_key:
             file_url = default_storage.url(primary_version.original_storage_key)
             download_url = urljoin(settings.SITE_DOMAIN, file_url)
 
