@@ -21,7 +21,7 @@ import {
 } from '../ui/Tooltip';
 
 function parseUserAgent(uaString) {
-  if (!uaString) return { browser: 'N/A', os: 'N/A' };
+  if (!uaString) return { browser: 'Unknown', os: 'Unknown' };
   const parser = new UAParser(uaString);
   const result = parser.getResult();
   return {
