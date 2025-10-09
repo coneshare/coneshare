@@ -754,3 +754,30 @@ This session focused on improving backend code maintainability by refactoring du
 - **Problem**: The existing token refresh logic in `api.js` was vulnerable to a race condition. If multiple API calls failed with a 401 error simultaneously, it would trigger multiple, redundant token refresh requests.
 - **Solution**: The Axios interceptor was completely rewritten to use a request queue. Now, only the first 401 error triggers a token refresh. Subsequent failed requests are queued and only retried after the new token has been successfully fetched and stored.
 - **Testing**: The test suite for the API service (`api.test.js`) was updated to verify the new, robust token refresh behavior, including a new test case for handling multiple concurrent requests. A minor bug in the test setup (a missing `url` in a mock error object) was also fixed.
+
+---
+
+## Session 31: Interactive Visitor Analytics & UI Enhancements (2025-10-09)
+
+This session focused on significantly enhancing the visitor analytics dashboard by providing granular, page-by-page insights and improving the user experience with interactive elements. [https://github.com/coneshare/coneshare/pull/31](https://github.com/coneshare/coneshare/pull/31)
+
+### 1. Granular Page View Analytics
+- **Backend**:
+  - The `ViewSessionSerializer` was updated to nest-serialize related `PageView` objects, including page number and duration.
+  - The `DocumentViewSet.view_sessions` action was optimized with `prefetch_related('page_views')` to prevent N+1 query issues.
+- **Frontend**:
+  - A new `PageViewsChart.jsx` component was created to render a horizontal bar chart of view durations per page.
+  - The `VisitorsTable.jsx` was made interactive. It now features an expandable row for each visitor session, revealing the `PageViewsChart` with detailed analytics.
+
+### 2. Page Image Preview on Hover
+- **Backend**:
+  - The `view_sessions` API endpoint was enhanced to include the storage URL for each document page. An optimization was added to pre-fetch all page URLs for a document in a single query.
+  - The `PageViewSerializer` was updated to include the `url` field.
+- **Frontend**:
+  - The `PageViewsChart` component was updated to wrap each bar in a `Tooltip` component.
+  - When a user hovers over a bar, a tooltip now displays the corresponding page image, providing immediate visual context for the analytics.
+
+### 3. Frontend Robustness & Bug Fixes
+- **Duplicate Key Warning Fix**:
+  - Identified and fixed a bug where the `PageViewsChart` could receive multiple data points for the same page number, causing a React warning about duplicate keys.
+  - The component now aggregates the `pageViews` data, summing the durations for each unique page number before rendering, ensuring stability and correctness.

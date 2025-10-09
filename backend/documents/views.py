@@ -492,15 +492,30 @@ class DocumentViewSet(viewsets.ModelViewSet):
         document = self.get_object()
         view_queryset = ViewSession.objects.filter(
             share_link__document=document
-        ).order_by('-viewed_at').select_related('share_link')
+        ).order_by('-viewed_at').select_related('share_link').prefetch_related('page_views')
+
+        # Optimization: pre-fetch all page image URLs for this document
+        primary_version = document.versions.filter(is_primary=True).first()
+        pages_map = {}
+        if primary_version:
+            if document.type == 'image':
+                image_url = default_storage.url(primary_version.original_storage_key)
+                pages_map[1] = urljoin(settings.SITE_DOMAIN, image_url)
+            elif primary_version.has_pages:
+                for page in primary_version.pages.values('page_number', 'storage_key').order_by('page_number'):
+                    page_url = default_storage.url(page['storage_key'])
+                    pages_map[page['page_number']] = urljoin(settings.SITE_DOMAIN, page_url)
+
+        serializer_context = self.get_serializer_context()
+        serializer_context['pages_map'] = pages_map
 
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(view_queryset, request, view=self)
         if page is not None:
-            serializer = ViewSessionSerializer(page, many=True)
+            serializer = ViewSessionSerializer(page, many=True, context=serializer_context)
             return paginator.get_paginated_response(serializer.data)
 
-        serializer = ViewSessionSerializer(view_queryset, many=True)
+        serializer = ViewSessionSerializer(view_queryset, many=True, context=serializer_context)
         return Response(serializer.data)
 
     @action(detail=True, methods=['get'])
@@ -588,15 +603,21 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
         ip_address = self.request.META.get('REMOTE_ADDR')
         user_agent = self.request.META.get('HTTP_USER_AGENT', '')[:255]
 
-        # Attempt to find the viewer's email from the session if they've been
-        # authorized via an email-required link.
-        share_link = serializer.validated_data.get('share_link')
-        viewer_email = ''
-        if share_link:
-            authorized_links = self.request.session.get('authorized_share_links', {})
-            auth_status = authorized_links.get(str(share_link.id), {})
-            if auth_status.get('email_verified'):
-                viewer_email = auth_status.get('viewer_email')
+        # Check for owner preview first, which takes precedence.
+        preview_owner_email = self.request.session.pop('preview_owner_email', None)
+
+        if preview_owner_email:
+            viewer_email = preview_owner_email
+        else:
+            # Attempt to find a regular viewer's email from the session if they've been
+            # authorized via an email-required link.
+            share_link = serializer.validated_data.get('share_link')
+            viewer_email = ''
+            if share_link:
+                authorized_links = self.request.session.get('authorized_share_links', {})
+                auth_status = authorized_links.get(str(share_link.id), {})
+                if auth_status.get('email_verified'):
+                    viewer_email = auth_status.get('viewer_email')
 
         # GeoIP lookup
         location_data = {}
@@ -640,6 +661,7 @@ class ShareLinkViewDataView(APIView):
                         # is the same user who created the share link.
                         if session.user == session.share_link.created_by:
                             is_preview = True
+                            request.session['preview_owner_email'] = session.user.email
                             session.delete()  # Invalidate token after use
             except PreviewSession.DoesNotExist:
                 # Token is invalid, proceed with normal access checks.

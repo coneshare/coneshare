@@ -1047,6 +1047,46 @@ class TestRecordPageView:
         assert 'page_number' in response.data
         assert PageView.objects.count() == 0
 
+    def test_record_page_view_updates_completion_rate(self, public_client, document, share_link):
+        """
+        Test that recording page views correctly updates the parent ViewSession's
+        completion rate.
+        """
+        # Set the total number of pages on the document
+        document.num_pages = 4
+        document.save()
+
+        view_session = ViewSession.objects.create(share_link=share_link)
+        assert view_session.completion_rate == 0.0
+
+        # View page 1
+        public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session.id, 'page_number': 1, 'duration_seconds': 5
+        })
+        view_session.refresh_from_db()
+        assert view_session.completion_rate == 0.25  # 1 of 4 pages viewed
+
+        # View page 2
+        public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session.id, 'page_number': 2, 'duration_seconds': 5
+        })
+        view_session.refresh_from_db()
+        assert view_session.completion_rate == 0.50  # 2 of 4 pages viewed
+
+        # View page 1 again (should not increase completion rate)
+        public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session.id, 'page_number': 1, 'duration_seconds': 10
+        })
+        view_session.refresh_from_db()
+        assert view_session.completion_rate == 0.50  # Still 2 unique pages viewed
+
+        # View page 4
+        public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session.id, 'page_number': 4, 'duration_seconds': 8
+        })
+        view_session.refresh_from_db()
+        assert view_session.completion_rate == 0.75  # 3 of 4 pages viewed
+
 
 @pytest.mark.django_db
 class TestViewSessionViewSet:
@@ -1186,3 +1226,84 @@ class TestShareLinkEmailProtection:
         assert response_view.status_code == status.HTTP_401_UNAUTHORIZED
         assert 'protectionType' in response_view.json()
         assert response_view.json()['protectionType'] == 'email'
+
+
+@pytest.mark.django_db
+class TestOwnerPreviewFlag:
+
+    def test_owner_preview_is_flagged_in_view_sessions(self, api_client, public_client, user, document):
+        """
+        Verify that a view session created from an owner's preview is correctly
+        flagged as 'is_owner_view' in the analytics.
+        """
+        # 1. User (owner) creates a share link.
+        share_link = ShareLink.objects.create(document=document, created_by=user)
+
+        # 2. User creates a preview session for the link.
+        preview_url = f'/api/v1/share-links/{share_link.id}/preview/'
+        response_preview = api_client.post(preview_url)
+        assert response_preview.status_code == status.HTTP_201_CREATED
+        preview_token = response_preview.data['previewToken']
+
+        # 3. User "views" the document using the preview token with the public client.
+        # This simulates a browser session that will be used to create the view.
+        view_data_url = f'/api/v1/links/{share_link.slug}/view-data/?previewToken={preview_token}'
+        response_view_data = public_client.get(view_data_url)
+        assert response_view_data.status_code == status.HTTP_200_OK
+
+        # 4. The frontend would then create a ViewSession. We simulate this.
+        # The public_client now has the 'preview_owner_email' in its session.
+        response_create_view = public_client.post(
+            '/api/v1/view-sessions/',
+            {'share_link': share_link.id}
+        )
+        assert response_create_view.status_code == status.HTTP_201_CREATED
+        view_session = ViewSession.objects.get(id=response_create_view.data['id'])
+        assert view_session.viewer_email == user.email
+
+        # 5. As the authenticated owner, fetch the view sessions for the document.
+        sessions_url = f'/api/v1/documents/{document.id}/view-sessions/'
+        response_sessions = api_client.get(sessions_url)
+        assert response_sessions.status_code == status.HTTP_200_OK
+
+        # 6. Verify the 'is_owner_view' flag is true.
+        results = response_sessions.json()['results']
+        assert len(results) == 1
+        assert results[0]['is_owner_view'] is True
+        assert results[0]['viewer_email'] == user.email
+
+    def test_non_owner_view_is_not_flagged(self, api_client, public_client, user, document):
+        """
+        Verify that a view session from a regular viewer is not flagged as 'is_owner_view'.
+        """
+        # 1. User (owner) creates a share link that requires email.
+        share_link = ShareLink.objects.create(
+            document=document,
+            created_by=user,
+            requires_email=True,
+            requires_email_verification=False  # for simplicity
+        )
+
+        # 2. A different person requests access to the link.
+        viewer_email = "random.viewer@example.com"
+        request_access_url = f'/api/v1/links/{share_link.slug}/request-access/'
+        response_access = public_client.post(request_access_url, {'email': viewer_email})
+        assert response_access.status_code == status.HTTP_200_OK
+
+        # 3. Frontend creates a ViewSession with the now-authorized public_client.
+        response_create_view = public_client.post(
+            '/api/v1/view-sessions/',
+            {'share_link': share_link.id}
+        )
+        assert response_create_view.status_code == status.HTTP_201_CREATED
+
+        # 4. As the authenticated owner, fetch the view sessions.
+        sessions_url = f'/api/v1/documents/{document.id}/view-sessions/'
+        response_sessions = api_client.get(sessions_url)
+        assert response_sessions.status_code == status.HTTP_200_OK
+
+        # 5. Verify the 'is_owner_view' flag is false for this external viewer.
+        results = response_sessions.json()['results']
+        assert len(results) == 1
+        assert results[0]['is_owner_view'] is False
+        assert results[0]['viewer_email'] == viewer_email
