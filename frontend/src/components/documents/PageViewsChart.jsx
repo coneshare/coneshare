@@ -22,13 +22,18 @@ export function PageViewsChart({ pageViews }) {
   // Aggregate views by page_number to prevent duplicate key warnings
   const uniquePageViews = Object.values(
     pageViews.reduce((acc, { page_number, duration_seconds, url }) => {
-      if (!acc[page_number]) {
-        acc[page_number] = { page_number, url, duration_seconds: 0 };
+      if (acc[page_number]) {
+        acc[page_number].duration_seconds += duration_seconds;
+        // Prefer a valid URL if the existing one is missing.
+        if (!acc[page_number].url && url) {
+          acc[page_number].url = url;
+        }
+      } else {
+        acc[page_number] = { page_number, url, duration_seconds };
       }
-      acc[page_number].duration_seconds += duration_seconds;
       return acc;
-    }, {})
-  );  
+    }, {})    
+  );
 
   const maxDuration = Math.max(...uniquePageViews.map((v) => v.duration_seconds), 0);
   const totalDuration = uniquePageViews.reduce((sum, v) => sum + v.duration_seconds, 0);
