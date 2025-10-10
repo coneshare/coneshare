@@ -3,7 +3,7 @@ from django.contrib.auth.hashers import check_password
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from documents.models import Folder, ShareLink, ViewSession
+from documents.models import Document, Folder, ShareLink, ViewSession
 from documents.serializers import FolderSerializer, ShareLinkSerializer
 
 pytestmark = pytest.mark.django_db
@@ -103,6 +103,59 @@ class TestShareLinkSerializer:
         assert 'view_sessions' in data
         assert len(data['view_sessions']) == 2
         assert 'viewer_email' in data['view_sessions'][0]
+
+    def test_create_with_duplicate_name_is_renamed(self, document, user, serializer_context):
+        """
+        Test that creating a share link with a duplicate name for the same
+        document results in an appended counter.
+        """
+        # Create first link
+        ShareLink.objects.create(document=document, name="My Test Link", created_by=user)
+
+        # Create second link with the same name
+        serializer = ShareLinkSerializer(
+            data={"document": document.id, "name": "My Test Link"},
+            context=serializer_context,
+        )
+        assert serializer.is_valid(), serializer.errors
+        instance = serializer.save()
+
+        assert instance.name == "My Test Link (2)"
+
+        # Create a third link, which should become (3)
+        serializer_3 = ShareLinkSerializer(
+            data={"document": document.id, "name": "My Test Link"},
+            context=serializer_context,
+        )
+        assert serializer_3.is_valid(), serializer_3.errors
+        instance_3 = serializer_3.save()
+
+        assert instance_3.name == "My Test Link (3)"
+
+    def test_create_with_duplicate_name_for_different_document(self, document, user, serializer_context):
+        """
+        Test that duplicate names are allowed for different documents.
+        """
+        # Create another document for the same user
+        other_document = Document.objects.create(
+            name="Other Document.pdf",
+            organization=user.organization,
+            created_by=user,
+        )
+
+        # Create first link
+        ShareLink.objects.create(document=document, name="My Test Link", created_by=user)
+
+        # Create a link with the same name, but for a different document
+        serializer = ShareLinkSerializer(
+            data={"document": other_document.id, "name": "My Test Link"},
+            context=serializer_context,
+        )
+        assert serializer.is_valid(), serializer.errors
+        instance = serializer.save()
+
+        # The name should NOT be changed
+        assert instance.name == "My Test Link"
 
 
 class TestFolderSerializer:
