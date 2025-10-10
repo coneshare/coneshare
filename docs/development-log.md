@@ -843,3 +843,20 @@ This session focused on implementing the user-facing functionality for uploading
   - Ensuring the confirmation dialog for mismatched file types is displayed correctly.
   - Validating both the confirmation and cancellation paths from the dialog.
 - **Component Mocking**: Updated the mock for the `DocumentHeader` component to allow interaction with the "Upload New Version" button within the test environment.
+
+---
+
+## Session 35: Duplicate Name Handling for Documents & Share Links (2025-10-10)
+
+This session focused on improving data integrity and user experience by implementing automatic renaming for documents and share links with duplicate names. [https://github.com/coneshare/coneshare/pull/35](https://github.com/coneshare/coneshare/pull/35)
+
+### 1. Unique Naming for Document Uploads ([`0adff08`](https://github.com/coneshare/coneshare/commit/0adff08))
+- **Feature**: Implemented an automatic renaming feature to handle uploads of documents with the same name as an existing document in the same folder. The system now appends a numeric suffix (e.g., `report (2).pdf`).
+- **Performance**: The renaming logic is optimized to use a single database query to find existing names, preventing N+1 performance issues.
+- **Database Index**: Added a `db_index` to the `Document.name` field to improve lookup performance.
+- **Testing**: Covered the new functionality with unit tests in `test_services.py`.
+
+### 2. Unique Naming for Share Links ([`a4d32c9`](https://github.com/coneshare/coneshare/commit/a4d32c9))
+- **Feature**: Extended the unique naming logic to `ShareLink` creation. If a user creates a share link with a name that already exists for that specific document, the new link's name is automatically given a numeric suffix (e.g., `My Link (2)`).
+- **Implementation**: Updated the `ShareLinkSerializer` to incorporate this logic during the creation process.
+- **Testing**: Added unit tests to `test_serializers.py` to verify renaming for the same document and ensure duplicate names are still allowed for different documents.
