@@ -546,7 +546,7 @@ def test_get_document_preview_data_for_image_document(
     data = response.json()
     assert data['id'] == str(image_document_with_content.id)
     assert data['type'] == 'image'
-    assert data['numPages'] == 1
+    assert data['num_pages'] == 1
     assert len(data['pages']) == 1
 
     page_data = data['pages'][0]
@@ -592,7 +592,7 @@ def test_get_document_preview_data_success(mock_storage_url, api_client, user):
     data = response.json()
     assert data['id'] == str(doc.id)
     assert data['name'] == "preview.pdf"
-    assert data['numPages'] == 1
+    assert data['num_pages'] == 1
     assert len(data['pages']) == 1
     assert data['pages'][0]['page_number'] == 1
     assert data['pages'][0]['url'] == "http://test.coneshare.com/media/pages/page.png"
@@ -704,6 +704,8 @@ class TestShareLinkViewDataView:
         DocumentPage.objects.create(
             document_version=version, page_number=1, storage_key="pages/shared_1.png"
         )
+        document.num_pages = 1
+        document.save()
         return document
 
     @patch('django.core.files.storage.default_storage.url')
@@ -716,14 +718,15 @@ class TestShareLinkViewDataView:
         data = response.json()
         assert data['id'] == str(document_with_pages.id)
         assert data['name'] == document_with_pages.name
+        assert data['num_pages'] == 1
         assert len(data['pages']) == 1
         assert data['pages'][0]['url'] == "http://test.com/shared_page.png"
-        assert data['linkSettings']['allowDownload'] == share_link.allow_download
+        assert data['link_settings']['allow_download'] == share_link.allow_download
 
     @override_settings(SITE_DOMAIN="http://test.coneshare.com")
     @patch('django.core.files.storage.default_storage.url')
     def test_get_share_link_data_includes_download_url(self, mock_storage_url, public_client, share_link):
-        """Test that the view data includes a correctly constructed downloadUrl."""
+        """Test that the view data includes a correctly constructed download_url."""
         # Setup
         primary_version = share_link.document.versions.get(is_primary=True)
         primary_version.original_storage_key = "path/to/original.pdf"
@@ -738,8 +741,8 @@ class TestShareLinkViewDataView:
         # Assertions
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert "downloadUrl" in data
-        assert data["downloadUrl"] == "http://test.coneshare.com/media/path/to/original.pdf"
+        assert "download_url" in data
+        assert data["download_url"] == "http://test.coneshare.com/media/path/to/original.pdf"
 
         mock_storage_url.assert_called_once_with("path/to/original.pdf")
 

@@ -65,7 +65,7 @@ export function ShareLinkViewerPage() {
           setDocumentData(response.data);
           // Create a view session as soon as we have the link ID
           try {
-            const viewResponse = await createViewSession({ share_link: response.data.linkSettings.id });
+            const viewResponse = await createViewSession({ share_link: response.data.link_settings.id });
             if (!isCancelled) {
               setViewId(viewResponse.data.id);
             }
@@ -136,9 +136,10 @@ export function ShareLinkViewerPage() {
     );
   }
 
-  const isDownloadOnly = documentData?.download_only;
+  const PREVIEWABLE_TYPES = ['image', 'pdf', 'document'];
+  const isPreviewable = documentData && PREVIEWABLE_TYPES.includes(documentData.type);
 
-  if (documentData && isDownloadOnly) {
+  if (documentData && (documentData.download_only || !isPreviewable)) {
     return (
       <div className="relative h-screen w-screen bg-gray-50">
         <div className="absolute left-6 top-4 z-10">
@@ -158,15 +159,15 @@ export function ShareLinkViewerPage() {
             <h1 className="mb-1 text-xl font-bold text-gray-900" title={documentData.name}>
               {documentData.name}
             </h1>
-            {documentData.fileSize ? (
-              <p className="mb-6 text-sm text-gray-500">{formatBytes(documentData.fileSize)}</p>
+            {documentData.file_size ? (
+              <p className="mb-6 text-sm text-gray-500">{formatBytes(documentData.file_size)}</p>
             ) : null}
             <p className="mb-6 text-gray-700">
               This type of file is not available for online preview. Download the file and open it
               on your device.
             </p>
             <Button asChild size="lg" className="w-full">
-              <a href={documentData.downloadUrl} download>
+              <a href={documentData.download_url} download>
                 Download
               </a>
             </Button>
@@ -190,13 +191,13 @@ export function ShareLinkViewerPage() {
       {documentData && (
         <>
           <ViewerToolbar
-            allowDownload={documentData.linkSettings.allowDownload}
-            downloadUrl={documentData.downloadUrl}
+            allowDownload={documentData.link_settings.allow_download}
+            downloadUrl={documentData.download_url}
             onFullScreen={handleFullScreen}
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
             currentPage={currentPage}
-            totalPages={documentData.numPages}
+            totalPages={documentData.num_pages}
             viewId={viewId}
           />
           <PreviewViewer

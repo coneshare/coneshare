@@ -358,7 +358,7 @@ class DocumentPreviewDataView(APIView):
             "id": document.id,
             "name": document.name,
             "type": document.type,
-            "numPages": document.num_pages,
+            "num_pages": document.num_pages,
             "pages": pages_data,
         }
 
@@ -751,13 +751,15 @@ class ShareLinkViewDataView(APIView):
             "id": document.id,
             "name": document.name,
             "type": document.type,
-            "numPages": document.num_pages,
+            "num_pages": document.num_pages,
+            "download_only": document.download_only,
+            "file_size": primary_version.file_size if primary_version else None,
             "pages": pages_data,
-            "downloadUrl": download_url,
-            "linkSettings": {
+            "download_url": download_url,
+            "link_settings": {
                 "id": link.id,
-                "allowDownload": link.allow_download,
-                "enableWatermark": link.enable_watermark,
+                "allow_download": link.allow_download,
+                "enable_watermark": link.enable_watermark,
             }
         }
         return Response(response_data, status=status.HTTP_200_OK)

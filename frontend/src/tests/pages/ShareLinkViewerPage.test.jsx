@@ -41,9 +41,9 @@ describe('ShareLinkViewerPage', () => {
   const mockDocumentData = {
     id: 'doc_123',
     name: 'Test Document',
-    numPages: 3,
+    num_pages: 3,
     pages: [{ page_number: 1, url: '/page1.png' }],
-    linkSettings: { id: 'link_abc', allowDownload: true },
+    link_settings: { id: 'link_abc', allow_download: true },
   };
 
   const mockViewData = {
