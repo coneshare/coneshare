@@ -25,7 +25,7 @@ class Folder(BaseModel):
 class Document(BaseModel):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='documents')
     folder = models.ForeignKey(Folder, on_delete=models.SET_NULL, null=True, blank=True, related_name='documents')
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, db_index=True)
     description = models.TextField(blank=True)
     status = models.CharField(
         max_length=20,
@@ -45,6 +45,9 @@ class Document(BaseModel):
     download_only = models.BooleanField(default=False)
     assistant_enabled = models.BooleanField(default=False)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='documents_created')
+
+    class Meta:
+        unique_together = ('organization', 'folder', 'name')
 
     def __str__(self):
         return self.name
@@ -128,6 +131,9 @@ class ShareLink(BaseModel):
     enable_watermark = models.BooleanField(default=False)
     receive_email_notification = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ('document', 'name')
 
     def __str__(self):
         return self.name or str(self.id)
