@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { getDocumentDetails, getDocumentViews, getDocumentStats, deleteShareLink } from '../services/api';
+import { getDocumentDetails, getDocumentViews, getDocumentStats, deleteShareLink, uploadNewVersion } from '../services/api';
 import { DocumentHeader } from '../components/documents/DocumentHeader';
 import { LinksTable } from '../components/documents/LinksTable';
 import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
@@ -24,6 +24,9 @@ export function DocumentPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [linkToDelete, setLinkToDelete] = useState(null);
+  const fileInputRef = useRef(null);
+  const [isVersionMismatchDialogOpen, setIsVersionMismatchDialogOpen] = useState(false);
+  const [newVersionFile, setNewVersionFile] = useState(null);
 
   const fetchDocumentAndStats = useCallback(async () => {
     try {
@@ -115,6 +118,52 @@ export function DocumentPage() {
     setIsPreviewOpen(true);
   };
 
+  const performUpload = async (file) => {
+    if (!file) return;
+
+    const toastId = toast.loading(`Uploading new version: ${file.name}...`);
+    try {
+      await uploadNewVersion(documentId, file);
+      toast.success('New version uploaded successfully. Processing has started.', { id: toastId });
+      // Refresh data to show processing status
+      fetchDocumentAndStats();
+      fetchViews();
+    } catch (error) {
+      // The API interceptor will show a generic error toast.
+      // We can dismiss the loading toast here.
+      toast.dismiss(toastId);
+    }
+  };
+
+  const handleFileSelected = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Reset file input so user can select the same file again
+    event.target.value = null;
+
+    const getExtension = (filename) => filename.split('.').pop().toLowerCase();
+    const currentExtension = getExtension(document.name);
+    const newExtension = getExtension(file.name);
+
+    if (currentExtension !== newExtension) {
+      setNewVersionFile(file);
+      setIsVersionMismatchDialogOpen(true);
+    } else {
+      performUpload(file);
+    }
+  };
+
+  const handleConfirmUpload = () => {
+    performUpload(newVersionFile);
+    setIsVersionMismatchDialogOpen(false);
+    setNewVersionFile(null);
+  };
+
+  const handleUploadNewVersionClick = () => {
+    fileInputRef.current?.click();
+  };
+
   if (loading) {
     return (
       <div className="space-y-6 p-6">
@@ -142,7 +191,13 @@ export function DocumentPage() {
 
   return (
     <div className="container mx-auto p-4 sm:p-6">
-      <DocumentHeader document={document} onCreateLink={handleCreateLink} onPreview={handlePreview} />
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelected}
+        style={{ display: 'none' }}
+      />
+      <DocumentHeader document={document} onCreateLink={handleCreateLink} onPreview={handlePreview} onUploadNewVersion={handleUploadNewVersionClick} />
       <div className="mt-8 space-y-8">
         <Stats stats={stats} />
         <LinksTable
@@ -179,6 +234,14 @@ export function DocumentPage() {
         title="Delete Share Link"
         description={`Are you sure you want to permanently delete the link "${linkToDelete?.name || 'Untitled Link'}"? This action cannot be undone.`}
         confirmText="Delete"
+      />
+      <ConfirmationDialog
+        isOpen={isVersionMismatchDialogOpen}
+        onOpenChange={setIsVersionMismatchDialogOpen}
+        onConfirm={handleConfirmUpload}
+        title="File Type Mismatch"
+        description={`The file you selected has a different type than the original document. Are you sure you want to replace it with "${newVersionFile?.name}"?`}
+        confirmText="Upload"
       />
     </div>
   );

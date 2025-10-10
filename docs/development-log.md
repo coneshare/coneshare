@@ -798,7 +798,7 @@ This session focused on improving the file download user experience and optimizi
 
 ## Session 33: Visitor Analytics UI Enhancements (2025-10-10)
 
-This session focused on improving the clarity and usability of the visitor analytics UI on the document detail page.
+This session focused on improving the clarity and usability of the visitor analytics UI on the document detail page. [https://github.com/coneshare/coneshare/pull/33](https://github.com/coneshare/coneshare/pull/33)
 
 ### 1. Renaming "Visitors" to "View Sessions"
 - **Problem**: The term "Visitors" was inaccurate, as a single visitor could have multiple distinct viewing sessions.
@@ -820,3 +820,26 @@ This session focused on improving the clarity and usability of the visitor analy
   - "Viewed At" and "Downloaded At" timestamps.
   - Duration and completion percentage.
 This ensures a consistent and intuitive user experience across the analytics dashboard.
+
+---
+
+## Session 34: Document Versioning UI & Testing (2025-10-10)
+
+This session focused on implementing the user-facing functionality for uploading new versions of existing documents, as outlined in `docs/upload-new-version.md`, and adding corresponding frontend tests to ensure its reliability. [https://github.com/coneshare/coneshare/pull/34](https://github.com/coneshare/coneshare/pull/34)
+
+### 1. "Upload New Version" Feature Implementation
+- **API Service**: Added a new `uploadNewVersion` function to `frontend/src/services/api.js` to handle the multipart form data request to the backend. ([`13c42cd`](https://github.com/coneshare/coneshare/commit/13c42cd))
+- **UI Integration**:
+  - The `DocumentHeader` component was updated to include an "Upload New Version" button, which triggers a handler passed down from the `DocumentPage`.
+  - `DocumentPage.jsx` was enhanced with a hidden file input and the core logic to manage the upload process.
+- **File Type Mismatch Confirmation**: Implemented a user-friendly confirmation dialog that appears if the uploaded file has a different extension than the original document, preventing accidental replacement with an incorrect file type.
+- **State Management & Feedback**: Added state management for the upload process, including toast notifications for success and failure, and a data refresh mechanism to update the UI with the new version's status.
+
+### 2. Frontend Testing for Versioning
+- **Test Suite Enhancement**: Added a new test suite to `frontend/src/tests/pages/DocumentPage.test.jsx` specifically for the "Upload New Version" feature. ([`9e92aa5`](https://github.com/coneshare/coneshare/commit/9e92aa5))
+- **Test Scenarios**: The new tests cover the complete user flow:
+  - Verifying that the upload button correctly triggers the file input.
+  - Testing the successful upload of a file with a matching extension.
+  - Ensuring the confirmation dialog for mismatched file types is displayed correctly.
+  - Validating both the confirmation and cancellation paths from the dialog.
+- **Component Mocking**: Updated the mock for the `DocumentHeader` component to allow interaction with the "Upload New Version" button within the test environment.
