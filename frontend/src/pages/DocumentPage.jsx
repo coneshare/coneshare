@@ -28,9 +28,12 @@ export function DocumentPage() {
   const [isVersionMismatchDialogOpen, setIsVersionMismatchDialogOpen] = useState(false);
   const [newVersionFile, setNewVersionFile] = useState(null);
 
-  const fetchDocumentAndStats = useCallback(async () => {
+  const fetchDocumentAndStats = useCallback(async (options = {}) => {
+    const { showSkeleton = true } = options;
     try {
-      setLoading(true);
+      if (showSkeleton) {
+        setLoading(true);
+      }
       const [docResponse, statsResponse] = await Promise.all([
         getDocumentDetails(documentId),
         getDocumentStats(documentId),
@@ -41,7 +44,9 @@ export function DocumentPage() {
       // API errors are handled by the global interceptor in api.js
       console.error(err);
     } finally {
-      setLoading(false);
+      if (showSkeleton) {
+        setLoading(false);
+      }
     }
   }, [documentId]);
 
@@ -92,7 +97,7 @@ export function DocumentPage() {
       });
     } else {
       // Full refresh for create/edit from LinkSheet
-      fetchDocumentAndStats();
+      fetchDocumentAndStats({ showSkeleton: false });
       fetchViews();
     }
   }, [fetchDocumentAndStats, fetchViews]);  
@@ -104,7 +109,7 @@ export function DocumentPage() {
       await deleteShareLink(linkToDelete.id);
       toast.success(`Link "${linkToDelete.name || 'Untitled Link'}" deleted successfully.`);
       // Refresh data
-      fetchDocumentAndStats();
+      fetchDocumentAndStats({ showSkeleton: false });
       fetchViews();
     } catch (error) {
       // Error toast is handled by the API interceptor
@@ -126,7 +131,7 @@ export function DocumentPage() {
       await uploadNewVersion(documentId, file);
       toast.success('New version uploaded successfully. Processing has started.', { id: toastId });
       // Refresh data to show processing status
-      fetchDocumentAndStats();
+      fetchDocumentAndStats({ showSkeleton: false });
       fetchViews();
     } catch (error) {
       // The API interceptor will show a generic error toast.
