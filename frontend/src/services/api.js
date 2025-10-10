@@ -131,6 +131,17 @@ export const uploadDocument = (file, path) => {
   });
 };
 
+export const uploadNewVersion = (documentId, file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  return api.post(`/documents/${documentId}/versions/`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+};
+
 export const getFolderContents = (id) => api.get(`/folders/${id}/`);
 
 export const getRootFolderContents = () => api.get('/folders/');
