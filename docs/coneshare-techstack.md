@@ -12,6 +12,7 @@ The backend is built using the Django framework, chosen for its robust security 
     -   The foundation for data models, business logic, and security.
 -   **API Layer:** **Django REST Framework (DRF)**
     -   Used to build a powerful and flexible REST API for the frontend.
+    -   **JSON Naming Convention:** All API responses use `snake_case` for field names to maintain consistency between the Python backend and the JSON payload.
 -   **Authentication:** **djangorestframework-simplejwt**
     -   Provides stateless API authentication using JSON Web Tokens (JWT), ideal for a decoupled SPA frontend.
 -   **Asynchronous Tasks:** **Celery**
