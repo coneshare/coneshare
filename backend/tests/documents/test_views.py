@@ -767,7 +767,7 @@ class TestShareLinkViewDataView:
         data = response.json()
         assert data['id'] == str(image_document_with_content.id)
         assert data['type'] == 'image'
-        assert data['numPages'] == 1
+        assert data['num_pages'] == 1
         assert len(data['pages']) == 1
 
         page_data = data['pages'][0]

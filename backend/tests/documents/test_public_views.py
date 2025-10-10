@@ -17,8 +17,8 @@ class TestShareLinkViewDataView:
         data = response.json()
         assert data["id"] == str(share_link.document.id)
         assert data["name"] == share_link.document.name
-        assert "linkSettings" in data
-        assert data["linkSettings"]["allowDownload"] is True
+        assert "link_settings" in data
+        assert data["link_settings"]["allow_download"] is True
 
     def test_get_expired_link_returns_410(self, public_client, share_link):
         share_link.expires_at = timezone.now() - timedelta(days=1)
