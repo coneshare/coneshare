@@ -142,7 +142,14 @@ export function DocumentPage() {
     // Reset file input so user can select the same file again
     event.target.value = null;
 
-    const getExtension = (filename) => filename.split('.').pop().toLowerCase();
+    const getExtension = (filename) => {
+      const lastDotIndex = filename.lastIndexOf('.');
+      // No extension if '.' is not found, is the first character, or is the last character.
+      if (lastDotIndex < 1 || lastDotIndex === filename.length - 1) {
+        return '';
+      }
+      return filename.substring(lastDotIndex + 1).toLowerCase();
+    };
     const currentExtension = getExtension(document.name);
     const newExtension = getExtension(file.name);
 
@@ -152,7 +159,7 @@ export function DocumentPage() {
     } else {
       performUpload(file);
     }
-  };
+  };  
 
   const handleConfirmUpload = () => {
     performUpload(newVersionFile);
