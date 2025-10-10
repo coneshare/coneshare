@@ -8,7 +8,12 @@ vi.mock('../../services/api');
 
 // Mock child components to isolate the page
 vi.mock('../../components/documents/DocumentHeader', () => ({
-  DocumentHeader: () => <div>Document Header</div>,
+  DocumentHeader: ({ onUploadNewVersion }) => (
+    <div>
+      <span>Document Header</span>
+      <button onClick={onUploadNewVersion}>Upload New Version</button>
+    </div>
+  ),
 }));
 vi.mock('../../components/documents/LinksTable', () => ({
   LinksTable: () => <div>Links Table</div>,
@@ -102,5 +107,100 @@ describe('DocumentPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /go to next page/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /go to last page/i })).toBeDisabled();
+  });
+
+  describe('Upload New Version', () => {
+    beforeEach(() => {
+      // Setup mocks for each test in this suite
+      api.getDocumentDetails.mockResolvedValue({ data: { ...mockDocument, name: 'Test Doc.pdf' } });
+      api.getDocumentStats.mockResolvedValue({ data: mockStats });
+      api.getDocumentViews.mockResolvedValue({ data: mockViewsPage1 });
+      api.uploadNewVersion.mockResolvedValue({ data: { message: 'success' } });
+    });
+
+    it('clicking upload button triggers file input', async () => {
+      const { container } = renderComponent();
+      await waitFor(() => expect(api.getDocumentDetails).toHaveBeenCalled());
+
+      const fileInput = container.querySelector('input[type="file"]');
+      const clickSpy = vi.spyOn(fileInput, 'click').mockImplementation(() => {});
+
+      const uploadButton = screen.getByRole('button', { name: /upload new version/i });
+      fireEvent.click(uploadButton);
+
+      expect(clickSpy).toHaveBeenCalled();
+      clickSpy.mockRestore();
+    });
+
+    it('uploads a new version with a matching file type', async () => {
+      const { container } = renderComponent();
+      await waitFor(() => expect(api.getDocumentDetails).toHaveBeenCalled());
+
+      const fileInput = container.querySelector('input[type="file"]');
+      const mockPdfFile = new File(['new content'], 'new-version.pdf', { type: 'application/pdf' });
+
+      fireEvent.change(fileInput, { target: { files: [mockPdfFile] } });
+
+      await waitFor(() => {
+        expect(api.uploadNewVersion).toHaveBeenCalledWith('doc123', mockPdfFile);
+      });
+      expect(screen.queryByText('File Type Mismatch')).not.toBeInTheDocument();
+    });
+
+    it('shows confirmation dialog for mismatched file type', async () => {
+      const { container } = renderComponent();
+      await waitFor(() => expect(api.getDocumentDetails).toHaveBeenCalled());
+
+      const fileInput = container.querySelector('input[type="file"]');
+      const mockDocxFile = new File(['new content'], 'new-version.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+
+      fireEvent.change(fileInput, { target: { files: [mockDocxFile] } });
+
+      await waitFor(() => {
+        expect(screen.getByText('File Type Mismatch')).toBeInTheDocument();
+      });
+      expect(api.uploadNewVersion).not.toHaveBeenCalled();
+    });
+
+    it('proceeds with upload after confirming mismatched file type', async () => {
+      const { container } = renderComponent();
+      await waitFor(() => expect(api.getDocumentDetails).toHaveBeenCalled());
+
+      const fileInput = container.querySelector('input[type="file"]');
+      const mockDocxFile = new File(['new content'], 'new-version.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      fireEvent.change(fileInput, { target: { files: [mockDocxFile] } });
+
+      await waitFor(() => expect(screen.getByText('File Type Mismatch')).toBeInTheDocument());
+
+      const uploadButton = screen.getByRole('button', { name: /upload/i });
+      fireEvent.click(uploadButton);
+
+      await waitFor(() => {
+        expect(api.uploadNewVersion).toHaveBeenCalledWith('doc123', mockDocxFile);
+      });
+    });
+
+    it('cancels upload when dismissing mismatched file type dialog', async () => {
+      const { container } = renderComponent();
+      await waitFor(() => expect(api.getDocumentDetails).toHaveBeenCalled());
+
+      const fileInput = container.querySelector('input[type="file"]');
+      const mockDocxFile = new File(['new content'], 'new-version.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      fireEvent.change(fileInput, { target: { files: [mockDocxFile] } });
+
+      await waitFor(() => expect(screen.getByText('File Type Mismatch')).toBeInTheDocument());
+
+      const cancelButton = screen.getByRole('button', { name: /cancel/i });
+      fireEvent.click(cancelButton);
+
+      await waitFor(() => {
+        expect(screen.queryByText('File Type Mismatch')).not.toBeInTheDocument();
+      });
+
+      // Using a short timeout to ensure no async operations are pending
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      expect(api.uploadNewVersion).not.toHaveBeenCalled();
+    });
   });
 });
