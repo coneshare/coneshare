@@ -11,7 +11,7 @@ from core.models import BaseModel, Organization, User
 
 class Folder(BaseModel):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='folders')
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, db_index=True)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='folders_created')
 

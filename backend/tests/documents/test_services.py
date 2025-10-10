@@ -99,3 +99,37 @@ def test_create_document_from_unsupported_file_upload(mock_generate_task, mock_c
     assert document.download_only is True
     mock_generate_task.assert_not_called()
     mock_convert_task.assert_not_called()
+
+
+@patch('documents.services.generate_pdf_pages_task.delay')
+@patch('django.core.files.storage.default_storage.save')
+def test_uploading_duplicate_filename_is_renamed(mock_storage_save, mock_task_delay, user):
+    """
+    Verify that uploading a document with a name that already exists results
+    in the new document being renamed with a suffix like ' (2)'.
+    """
+    mock_file = SimpleUploadedFile(
+        "test.pdf", b"file_content", content_type="application/pdf"
+    )
+    mock_storage_save.return_value = "mock_path.pdf"
+
+    # Upload the first document
+    doc1 = create_document_from_upload(
+        requesting_user=user,
+        uploaded_file=mock_file
+    )
+    assert doc1.name == "test.pdf"
+
+    # Upload the second document with the same name
+    doc2 = create_document_from_upload(
+        requesting_user=user,
+        uploaded_file=mock_file
+    )
+    assert doc2.name == "test (2).pdf"
+
+    # Upload a third time
+    doc3 = create_document_from_upload(
+        requesting_user=user,
+        uploaded_file=mock_file
+    )
+    assert doc3.name == "test (3).pdf"

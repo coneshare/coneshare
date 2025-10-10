@@ -2,6 +2,7 @@ from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from core.models import Organization
 from .models import Document, DocumentPage, DocumentVersion, Folder, PageView, ShareLink, ShareLinkPreset, ViewSession, Viewer
+from .services import _get_unique_share_link_name
 
 
 class FolderFromPathSerializer(serializers.Serializer):
@@ -210,6 +211,12 @@ class ShareLinkSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         request = self.context['request']
         validated_data['created_by'] = request.user
+
+        if 'name' in validated_data and validated_data['name']:
+            document = validated_data['document']
+            original_name = validated_data['name']
+            validated_data['name'] = _get_unique_share_link_name(document, original_name)
+
         self._hash_password(validated_data)
         return super().create(validated_data)
 

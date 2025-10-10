@@ -1,4 +1,5 @@
 import os
+import re
 from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
 from django.core.files.storage import default_storage
@@ -6,7 +7,7 @@ from django.db import transaction
 
 from core.fields import generate_ulid
 from core.models import User
-from .models import Document, DocumentVersion, Folder
+from .models import Document, DocumentVersion, Folder, ShareLink
 from .tasks import generate_pdf_pages_task, convert_office_to_pdf_task
 
 
@@ -69,6 +70,85 @@ def _route_document_for_processing(document: Document, version: DocumentVersion,
     document.save()
 
 
+def _get_unique_document_name(organization, folder, original_name: str) -> str:
+    """
+    Generates a unique name for a document within a folder to avoid duplicates.
+    If 'report.pdf' exists, it will suggest 'report (2).pdf', etc.
+    This is optimized to use a single database query.
+    """
+    # Check if the original name is available. If so, use it.
+    if not Document.objects.filter(
+        organization=organization, folder=folder, name=original_name
+    ).exists():
+        return original_name
+
+    base, ext = os.path.splitext(original_name)
+
+    # Fetch all names that could be duplicates in a single query to process in memory.
+    queryset = Document.objects.filter(
+        organization=organization, folder=folder, name__startswith=base
+    ).values_list('name', flat=True)
+
+    existing_names = set(queryset)
+
+    # Regex to find ' (number)' at the end of the base name.
+    pattern = re.compile(rf'^{re.escape(base)} \((\d+)\)$')
+
+    highest_num = 1
+    for name in existing_names:
+        name_base, name_ext = os.path.splitext(name)
+        if name_ext == ext:
+            match = pattern.match(name_base)
+            if match:
+                num = int(match.group(1))
+                if num > highest_num:
+                    highest_num = num
+
+    # After finding the highest number (e.g., 3 for 'base (3).ext'), the next available is highest + 1.
+    # If original was found but no numbered versions, highest_num remains 1, so next is 'base (2).ext'.
+    return f"{base} ({highest_num + 1}){ext}"
+
+
+def _get_unique_share_link_name(document: Document, original_name: str) -> str:
+    """
+    Generates a unique name for a share link within a document to avoid duplicates.
+    If 'My Link' exists, it will suggest 'My Link (2)', etc.
+    This is optimized to use a single database query.
+    """
+    if not original_name:
+        return ""
+
+    # Check if the original name is available. If so, use it.
+    if not ShareLink.objects.filter(
+        document=document, name=original_name
+    ).exists():
+        return original_name
+
+    base = original_name
+
+    # Fetch all names that could be duplicates in a single query to process in memory.
+    queryset = ShareLink.objects.filter(
+        document=document, name__startswith=base
+    ).values_list('name', flat=True)
+
+    existing_names = set(queryset)
+
+    # Regex to find ' (number)' at the end of the base name.
+    pattern = re.compile(rf'^{re.escape(base)} \((\d+)\)$')
+
+    highest_num = 1
+    for name in existing_names:
+        match = pattern.match(name)
+        if match:
+            num = int(match.group(1))
+            if num > highest_num:
+                highest_num = num
+
+    # After finding the highest number (e.g., 3 for 'base (3)'), the next available is highest + 1.
+    # If original was found but no numbered versions, highest_num remains 1, so next is 'base (2)'.
+    return f"{base} ({highest_num + 1})"
+
+
 def create_document_from_upload(
     requesting_user: User,
     uploaded_file: UploadedFile,
@@ -78,13 +158,6 @@ def create_document_from_upload(
     Creates document records and routes the file to the correct
     asynchronous processing task based on its content type and size.
     """
-    # 1. Store the original file
-    file_id = generate_ulid()
-    file_ext = os.path.splitext(uploaded_file.name)[1]
-    storage_key = f"{requesting_user.organization.id}/{file_id}{file_ext}"
-
-    original_storage_key = default_storage.save(storage_key, uploaded_file)
-
     if folder is None:
         folder, _ = Folder.objects.get_or_create(
             organization=requesting_user.organization,
@@ -93,14 +166,28 @@ def create_document_from_upload(
             defaults={'created_by': None}
         )
 
+    # 1. Get a unique name before storing the file
+    unique_name = _get_unique_document_name(
+        organization=requesting_user.organization,
+        folder=folder,
+        original_name=uploaded_file.name
+    )
+
+    # 2. Store the original file
+    file_id = generate_ulid()
+    file_ext = os.path.splitext(unique_name)[1]
+    storage_key = f"{requesting_user.organization.id}/{file_id}{file_ext}"
+
+    original_storage_key = default_storage.save(storage_key, uploaded_file)
+
     content_type = uploaded_file.content_type
     doc_type = _get_doc_type_from_content_type(content_type)
 
-    # 2. Create database records
+    # 3. Create database records
     document = Document.objects.create(
         organization=requesting_user.organization,
         created_by=requesting_user,
-        name=uploaded_file.name,
+        name=unique_name,
         folder=folder,
         status='uploading',
         type=doc_type,
