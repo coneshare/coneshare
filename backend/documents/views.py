@@ -36,6 +36,7 @@ from .serializers import (
     ViewSessionSerializer,
 )
 from .services import (
+    _get_unique_folder_name,
     create_document_from_upload,
     create_new_document_version,
     delete_document_and_files,
@@ -190,21 +191,41 @@ class EnsureFolderPathsView(APIView):
         requesting_user = request.user
         organization = requesting_user.organization
 
-        # 1. Expand all provided paths into a full set of required directories
-        all_required_paths = set()
-        for path_str in paths:
-            p = Path(path_str)
-            all_required_paths.add(str(p))
-            for parent in p.parents:
-                if parent != Path('.'):
-                    all_required_paths.add(str(parent))
-
-        # 2. Sort paths to ensure parents are processed before children
-        sorted_paths = sorted(list(all_required_paths), key=lambda p: p.count(os.sep))
-
         try:
             with transaction.atomic():
+                # 1. Determine unique names for all top-level folders.
                 root_folder = Folder.objects.get_root_for_org(organization)
+                top_level_dirs = {Path(p).parts[0] for p in paths if Path(p).parts}
+                path_mappings = {}
+                for original_name in top_level_dirs:
+                    unique_name = _get_unique_folder_name(
+                        created_by=requesting_user,
+                        parent_folder=root_folder,
+                        original_name=original_name
+                    )
+                    path_mappings[original_name] = unique_name
+
+                # 2. Reconstruct all required paths with potentially renamed top-level folders.
+                all_required_paths = set()
+                for path_str in paths:
+                    p = Path(path_str)
+                    if not p.parts:
+                        continue
+
+                    original_top_level = p.parts[0]
+                    renamed_top_level = path_mappings.get(original_top_level, original_top_level)
+
+                    new_path_parts = [renamed_top_level] + list(p.parts[1:])
+                    new_p = Path(*new_path_parts)
+
+                    all_required_paths.add(str(new_p))
+                    for parent in new_p.parents:
+                        if parent != Path('.'):
+                            all_required_paths.add(str(parent))
+
+                # 3. Sort paths to ensure parents are processed before children
+                sorted_paths = sorted(list(all_required_paths), key=lambda p: p.count(os.sep))
+
                 # Keep track of created/verified folders to avoid redundant lookups
                 path_to_folder_map = {'': root_folder}
 
@@ -244,7 +265,10 @@ class EnsureFolderPathsView(APIView):
                     path_to_folder_map[path_str] = folder
 
             return Response(
-                {"detail": "Folder structure ensured successfully."},
+                {
+                    "detail": "Folder structure ensured successfully.",
+                    "path_mappings": path_mappings,
+                },
                 status=status.HTTP_201_CREATED
             )
         except PermissionDenied:

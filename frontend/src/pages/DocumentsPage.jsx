@@ -273,9 +273,11 @@ function DocumentsPage() {
     });
 
     // 2. If there are paths, ensure the folder structures exist first.
+    let pathMappings = {};
     if (paths.size > 0) {
       try {
-        await ensureFolderPaths(Array.from(paths));
+        const response = await ensureFolderPaths(Array.from(paths));
+        pathMappings = response.data.path_mappings || {};
       } catch (error) {
         console.error("Failed to create folder structure:", error);
         // The API interceptor will show a toast, so we just log and stop.
@@ -287,7 +289,20 @@ function DocumentsPage() {
     const uploadPromises = Array.from(files).map((file) => {
       // For uploads from the folder dialog, we preserve the path.
       // For all other uploads (including drag-and-drop), we upload to the root.
-      const relativePath = file.webkitRelativePath || null;
+      let relativePath = file.webkitRelativePath || null;
+
+      // If we received path mappings from the backend, use them to reconstruct the path.
+      if (relativePath && Object.keys(pathMappings).length > 0) {
+        const pathParts = relativePath.split('/');
+        const topLevelDir = pathParts[0];
+        const newTopLevelDir = pathMappings[topLevelDir];
+
+        if (newTopLevelDir && newTopLevelDir !== topLevelDir) {
+          pathParts[0] = newTopLevelDir;
+          relativePath = pathParts.join('/');
+        }
+      }
+
       return uploadDocument(file, relativePath);
     });
     const results = await Promise.allSettled(uploadPromises);
