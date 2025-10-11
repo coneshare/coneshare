@@ -70,83 +70,83 @@ def _route_document_for_processing(document: Document, version: DocumentVersion,
     document.save()
 
 
-def _get_unique_document_name(organization, folder, original_name: str) -> str:
+def _get_unique_name(model_class, original_name: str, filter_kwargs: dict, has_extension: bool) -> str:
     """
-    Generates a unique name for a document within a folder to avoid duplicates.
-    If 'report.pdf' exists, it will suggest 'report (2).pdf', etc.
+    Generates a unique name for a model instance within a given scope.
+    If 'name' exists, it will suggest 'name (2)', 'name (3)', etc.
     This is optimized to use a single database query.
-    """
-    # Check if the original name is available. If so, use it.
-    if not Document.objects.filter(
-        organization=organization, folder=folder, name=original_name
-    ).exists():
-        return original_name
 
-    base, ext = os.path.splitext(original_name)
-
-    # Fetch all names that could be duplicates in a single query to process in memory.
-    queryset = Document.objects.filter(
-        organization=organization, folder=folder, name__startswith=base
-    ).values_list('name', flat=True)
-
-    existing_names = set(queryset)
-
-    # Regex to find ' (number)' at the end of the base name.
-    pattern = re.compile(rf'^{re.escape(base)} \((\d+)\)$')
-
-    highest_num = 1
-    for name in existing_names:
-        name_base, name_ext = os.path.splitext(name)
-        if name_ext == ext:
-            match = pattern.match(name_base)
-            if match:
-                num = int(match.group(1))
-                if num > highest_num:
-                    highest_num = num
-
-    # After finding the highest number (e.g., 3 for 'base (3).ext'), the next available is highest + 1.
-    # If original was found but no numbered versions, highest_num remains 1, so next is 'base (2).ext'.
-    return f"{base} ({highest_num + 1}){ext}"
-
-
-def _get_unique_share_link_name(document: Document, original_name: str) -> str:
-    """
-    Generates a unique name for a share link within a document to avoid duplicates.
-    If 'My Link' exists, it will suggest 'My Link (2)', etc.
-    This is optimized to use a single database query.
+    Args:
+        model_class: The Django model class to query (e.g., Document, Folder).
+        original_name: The desired name for the instance.
+        filter_kwargs: A dictionary of filters to define the uniqueness scope
+                       (e.g., {'organization': org, 'folder': folder}).
+        has_extension: A boolean indicating if the name has a file extension
+                       that should be preserved.
     """
     if not original_name:
         return ""
 
     # Check if the original name is available. If so, use it.
-    if not ShareLink.objects.filter(
-        document=document, name=original_name
-    ).exists():
+    initial_check_kwargs = filter_kwargs.copy()
+    initial_check_kwargs['name'] = original_name
+    if not model_class.objects.filter(**initial_check_kwargs).exists():
         return original_name
 
-    base = original_name
+    if has_extension:
+        base, ext = os.path.splitext(original_name)
+    else:
+        base, ext = original_name, ""
 
     # Fetch all names that could be duplicates in a single query to process in memory.
-    queryset = ShareLink.objects.filter(
-        document=document, name__startswith=base
-    ).values_list('name', flat=True)
+    queryset_filter_kwargs = filter_kwargs.copy()
+    queryset_filter_kwargs['name__startswith'] = base
+    if has_extension:
+        # This makes the query more efficient for names with extensions
+        queryset_filter_kwargs['name__endswith'] = ext
 
+    queryset = model_class.objects.filter(**queryset_filter_kwargs).values_list('name', flat=True)
     existing_names = set(queryset)
 
-    # Regex to find ' (number)' at the end of the base name.
-    pattern = re.compile(rf'^{re.escape(base)} \((\d+)\)$')
+    # Regex to find ' (number)' at the end of the name. It handles names with and without extensions.
+    pattern_str = rf'^{re.escape(base)}(?: \((\d+)\))?{re.escape(ext)}$'
+    pattern = re.compile(pattern_str)
 
-    highest_num = 1
+    highest_num = 0
+    # The original name exists, so we start counting from 1.
+    if original_name in existing_names:
+        highest_num = 1
+
     for name in existing_names:
         match = pattern.match(name)
         if match:
-            num = int(match.group(1))
-            if num > highest_num:
-                highest_num = num
+            # group(1) will be the number string if it exists.
+            num_str = match.group(1)
+            if num_str:
+                num = int(num_str)
+                if num > highest_num:
+                    highest_num = num
 
-    # After finding the highest number (e.g., 3 for 'base (3)'), the next available is highest + 1.
-    # If original was found but no numbered versions, highest_num remains 1, so next is 'base (2)'.
-    return f"{base} ({highest_num + 1})"
+    # The new name will have the next number in sequence.
+    return f"{base} ({highest_num + 1}){ext}"
+
+
+def _get_unique_document_name(requesting_user, folder, original_name: str) -> str:
+    """Generates a unique name for a document within a folder to avoid duplicates."""
+    filter_kwargs = {'created_by': requesting_user, 'folder': folder}
+    return _get_unique_name(Document, original_name, filter_kwargs, has_extension=True)
+
+
+def _get_unique_folder_name(created_by, parent_folder, original_name: str) -> str:
+    """Generates a unique name for a folder within a parent folder to avoid duplicates."""
+    filter_kwargs = {'created_by': created_by, 'parent': parent_folder}
+    return _get_unique_name(Folder, original_name, filter_kwargs, has_extension=False)
+
+
+def _get_unique_share_link_name(document: Document, original_name: str) -> str:
+    """Generates a unique name for a share link within a document to avoid duplicates."""
+    filter_kwargs = {'document': document}
+    return _get_unique_name(ShareLink, original_name, filter_kwargs, has_extension=False)
 
 
 def create_document_from_upload(
@@ -168,7 +168,7 @@ def create_document_from_upload(
 
     # 1. Get a unique name before storing the file
     unique_name = _get_unique_document_name(
-        organization=requesting_user.organization,
+        requesting_user=requesting_user,
         folder=folder,
         original_name=uploaded_file.name
     )

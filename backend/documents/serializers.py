@@ -2,7 +2,7 @@ from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from core.models import Organization
 from .models import Document, DocumentPage, DocumentVersion, Folder, PageView, ShareLink, ShareLinkPreset, ViewSession, Viewer
-from .services import _get_unique_share_link_name
+from .services import _get_unique_folder_name, _get_unique_share_link_name
 
 
 class FolderFromPathSerializer(serializers.Serializer):
@@ -49,15 +49,14 @@ class FolderSerializer(serializers.ModelSerializer):
             return data
 
         organization = request.user.organization
-        parent = data.get('parent')
         name = data.get('name', self.instance.name if self.instance else None)
+        # On update, parent might not be in payload. We get it from instance.
+        parent = data.get('parent', self.instance.parent if self.instance else None)
 
         if parent is None:
             # If no parent is specified, the logical parent is the invisible root.
             try:
-                parent = Folder.objects.get(
-                    organization=organization, name='__root__', parent=None
-                )
+                parent = Folder.objects.get_root_for_org(organization)
             except Folder.DoesNotExist:
                 raise serializers.ValidationError({
                     'non_field_errors': [
@@ -65,25 +64,39 @@ class FolderSerializer(serializers.ModelSerializer):
                     ]
                 })
 
-        queryset = Folder.objects.filter(
-            organization=organization, parent=parent, name=name
-        )
-
-        # If we are updating an existing instance, exclude it from the check.
+        # On folder creation, we auto-rename if a duplicate exists.
+        # On folder update, we want to raise an error if the new name is a duplicate.
         if self.instance:
-            queryset = queryset.exclude(pk=self.instance.pk)
+            queryset = Folder.objects.filter(
+                created_by=request.user, parent=parent, name=name
+            ).exclude(pk=self.instance.pk)
 
-        if queryset.exists():
-            raise serializers.ValidationError({
-                'non_field_errors': [
-                    "A folder with this name already exists in this location."
-                ]
-            })
+            if queryset.exists():
+                raise serializers.ValidationError({
+                    'name': "A folder with this name already exists in this location."
+                })
         return data
 
     def create(self, validated_data):
-        # Automatically assign the default organization
-        validated_data['organization'] = Organization.objects.first()
+        # organization and created_by are passed from FolderViewSet.perform_create
+        organization = validated_data['organization']
+        parent = validated_data.get('parent')
+        original_name = validated_data['name']
+
+        if parent is None:
+            try:
+                parent = Folder.objects.get_root_for_org(organization)
+                validated_data['parent'] = parent
+            except Folder.DoesNotExist:
+                raise serializers.ValidationError("Organization root folder is missing.")
+
+        unique_name = _get_unique_folder_name(
+            created_by=validated_data['created_by'],
+            parent_folder=parent,
+            original_name=original_name
+        )
+        validated_data['name'] = unique_name
+
         return super().create(validated_data)
 
 
@@ -166,12 +179,24 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         """
         Enforce business rules:
         - If the associated document is download-only, force allow_download to be true.
+        - On update, check for name uniqueness manually.
         """
         # On update, 'document' may not be in the payload. We get it from the instance.
         document = data.get('document') or getattr(self.instance, 'document', None)
 
         if document and document.download_only:
             data['allow_download'] = True
+
+        # Manually handle uniqueness validation on update only.
+        # On create, the `create` method handles finding a unique name.
+        if self.instance and 'name' in data:
+            name = data['name']
+            if name and ShareLink.objects.filter(
+                document=document, name=name
+            ).exclude(pk=self.instance.pk).exists():
+                raise serializers.ValidationError(
+                    {'name': 'A share link with this name already exists for this document.'}
+                )
 
         return data
 
@@ -186,6 +211,10 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'created_by', 'slug', 'created_at', 'updated_at'
         ]
+        extra_kwargs = {'name': {'required': True, 'allow_blank': True}}
+        # Remove the default UniqueTogetherValidator.
+        # We handle uniqueness manually in `validate()` for updates and `create()` for creations.
+        validators = []
 
     def get_has_password(self, obj):
         """Returns True if the link is password-protected."""
@@ -212,10 +241,10 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         request = self.context['request']
         validated_data['created_by'] = request.user
 
-        if 'name' in validated_data and validated_data['name']:
-            document = validated_data['document']
-            original_name = validated_data['name']
-            validated_data['name'] = _get_unique_share_link_name(document, original_name)
+        document = validated_data['document']
+        # Default to "Untitled Link" if name is not provided or is empty.
+        original_name = validated_data.get('name') or "Untitled Link"
+        validated_data['name'] = _get_unique_share_link_name(document, original_name)
 
         self._hash_password(validated_data)
         return super().create(validated_data)

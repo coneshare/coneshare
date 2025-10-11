@@ -185,21 +185,21 @@ def test_create_folder(api_client, user, organization):
 
 
 @pytest.mark.django_db
-def test_create_duplicate_root_folder_fails(api_client):
-    """Test that creating a folder with a duplicate name at the root level fails."""
+def test_create_duplicate_root_folder_is_renamed(api_client):
+    """Test that creating a folder with a duplicate name at the root level is auto-renamed."""
     data = {'name': 'Duplicate Folder'}
     response1 = api_client.post('/api/v1/folders/', data)
     assert response1.status_code == status.HTTP_201_CREATED
+    assert response1.data['name'] == 'Duplicate Folder'
 
     response2 = api_client.post('/api/v1/folders/', data)
-    assert response2.status_code == status.HTTP_400_BAD_REQUEST
-    assert 'non_field_errors' in response2.data
-    assert 'already exists' in str(response2.data['non_field_errors'][0])
+    assert response2.status_code == status.HTTP_201_CREATED
+    assert response2.data['name'] == 'Duplicate Folder (2)'
 
 
 @pytest.mark.django_db
-def test_create_duplicate_subfolder_fails(api_client, user, organization):
-    """Test that creating a subfolder with a duplicate name within the same parent fails."""
+def test_create_duplicate_subfolder_is_renamed(api_client, user, organization):
+    """Test that creating a subfolder with a duplicate name is auto-renamed."""
     # Create a parent folder via API
     parent_data = {'name': 'Parent'}
     parent_response = api_client.post('/api/v1/folders/', parent_data)
@@ -210,12 +210,12 @@ def test_create_duplicate_subfolder_fails(api_client, user, organization):
     subfolder_data = {'name': 'Duplicate Subfolder', 'parent': parent_id}
     response1 = api_client.post('/api/v1/folders/', subfolder_data)
     assert response1.status_code == status.HTTP_201_CREATED
+    assert response1.data['name'] == 'Duplicate Subfolder'
 
     # Attempt to create another subfolder with the same name and parent
     response2 = api_client.post('/api/v1/folders/', subfolder_data)
-    assert response2.status_code == status.HTTP_400_BAD_REQUEST
-    assert 'non_field_errors' in response2.data
-    assert 'already exists' in str(response2.data['non_field_errors'][0])
+    assert response2.status_code == status.HTTP_201_CREATED
+    assert response2.data['name'] == 'Duplicate Subfolder (2)'
 
 
 @pytest.mark.django_db

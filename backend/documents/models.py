@@ -9,14 +9,26 @@ from core.fields import ULIDField
 from core.models import BaseModel, Organization, User
 
 
+class FolderManager(models.Manager):
+    def get_root_for_org(self, organization):
+        """
+        Retrieves the invisible __root__ folder for a given organization.
+        Raises Folder.DoesNotExist if the root folder is not found, which
+        indicates a critical configuration issue.
+        """
+        return self.get(organization=organization, name='__root__', parent=None)
+
+
 class Folder(BaseModel):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='folders')
     name = models.CharField(max_length=255, db_index=True)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='folders_created')
 
+    objects = FolderManager()
+
     class Meta:
-        unique_together = ('organization', 'parent', 'name')
+        unique_together = ('created_by', 'parent', 'name')
 
     def __str__(self):
         return self.name
@@ -47,7 +59,7 @@ class Document(BaseModel):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='documents_created')
 
     class Meta:
-        unique_together = ('organization', 'folder', 'name')
+        unique_together = ('created_by', 'folder', 'name')
 
     def __str__(self):
         return self.name
@@ -55,10 +67,8 @@ class Document(BaseModel):
     def save(self, *args, **kwargs):
         if self._state.adding and not self.folder_id:
             # On creation, if no folder is specified, assign to the organization's root folder.
-            root_folder = Folder.objects.get(
-                organization=self.organization,
-                parent=None,
-                name='__root__'
+            root_folder = Folder.objects.get_root_for_org(
+                organization=self.organization
             )
             self.folder = root_folder
         super().save(*args, **kwargs)

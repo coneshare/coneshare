@@ -860,3 +860,24 @@ This session focused on improving data integrity and user experience by implemen
 - **Feature**: Extended the unique naming logic to `ShareLink` creation. If a user creates a share link with a name that already exists for that specific document, the new link's name is automatically given a numeric suffix (e.g., `My Link (2)`).
 - **Implementation**: Updated the `ShareLinkSerializer` to incorporate this logic during the creation process.
 - **Testing**: Added unit tests to `test_serializers.py` to verify renaming for the same document and ensure duplicate names are still allowed for different documents.
+
+---
+
+## Session 36: Renaming Logic Refactor & User-Scoped Uniqueness (2025-10-11)
+
+This session focused on abstracting the unique naming logic, applying it to folders, implementing default naming for share links, and refining data ownership to be user-centric. [https://github.com/coneshare/coneshare/pull/36](https://github.com/coneshare/coneshare/pull/36)
+
+### 1. Generic Renaming Logic & Folder Auto-Renaming ([`97c5036`](https://github.com/coneshare/coneshare/commit/97c5036))
+- **Refactor**: Abstracted the auto-renaming logic for documents and share links into a single, generic `_get_unique_name` utility in `documents/services.py` to improve maintainability.
+- **Feature**: Applied the new generic logic to folder creation. If a user creates a folder with a name that already exists in the same parent folder, it is automatically renamed with a numeric suffix (e.g., `My Folder (2)`).
+- **Validation**: Updated the `FolderSerializer` to use the new logic on creation but correctly raise a validation error if a user tries to *rename* an existing folder to a duplicate name.
+
+### 2. Default Naming for Share Links ([`b550b54`](https://github.com/coneshare/coneshare/commit/b550b54), [`11a18a3`](https://github.com/coneshare/coneshare/commit/11a18a3), [`42f49ab`](https://github.com/coneshare/coneshare/commit/42f49ab))
+- **Feature**: Implemented default naming for share links. If a link is created without a name (or with an empty string), it defaults to "Untitled Link". This logic also respects the auto-renaming feature (e.g., "Untitled Link (2)").
+- **Validation Fix**: Reworked the `ShareLinkSerializer`'s validation. The automatic `UniqueTogetherValidator` was removed and replaced with a manual check in the `validate` method that only runs on updates. This prevents the validator from incorrectly blocking the auto-renaming logic during creation.
+
+### 3. User-Scoped Uniqueness for Documents & Folders ([`1644108`](https://github.com/coneshare/coneshare/commit/1644108), [`aac6cba`](https://github.com/coneshare/coneshare/commit/aac6cba))
+- **Data Model Change**: The `unique_together` constraint on the `Document` and `Folder` models was changed from `('organization', 'parent'/'folder', 'name')` to `('created_by', 'parent'/'folder', 'name')`. This scopes name uniqueness to the user, not the entire organization, allowing different users to have items with the same name in the same location.
+- **API Update**: The unique name generation services and serializers were updated to use the new user-scoped filtering logic.
+- **Security Hardening**: The `FolderFromPathView`, used for folder uploads, was updated to be user-scoped and now includes a permission check to prevent a user from creating a subfolder inside a path owned by another user.
+- **Testing**: API view tests were updated to assert the correct auto-renaming behavior instead of expecting validation errors on duplicate creation. ([`46dcf67`](https://github.com/coneshare/coneshare/commit/46dcf67))

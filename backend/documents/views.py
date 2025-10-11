@@ -85,9 +85,7 @@ def _get_or_create_folders_from_path(requesting_user, folder_path: str) -> Folde
     organization's invisible root folder. Returns the final Folder instance.
     """
     try:
-        parent = Folder.objects.get(
-            organization=requesting_user.organization, name='__root__', parent=None
-        )
+        parent = Folder.objects.get_root_for_org(requesting_user.organization)
     except Folder.DoesNotExist:
         logger.error(f"Invisible root folder not found for user {requesting_user.id}'s organization")
         # This is a critical failure, as the root folder should always exist.
@@ -192,9 +190,7 @@ class FolderFromPathView(APIView):
 
         # --- Permission Check ---
         try:
-            parent = Folder.objects.get(
-                organization=requesting_user.organization, name='__root__', parent=None
-            )
+            parent = Folder.objects.get_root_for_org(requesting_user.organization)
         except Folder.DoesNotExist:
             logger.error(f"Invisible root folder not found for user {requesting_user.id}'s organization")
             return Response(
@@ -373,11 +369,7 @@ class FolderViewSet(viewsets.ModelViewSet):
     def _get_root_folder(self):
         """Helper to get the organization's invisible root folder."""
         try:
-            return Folder.objects.get(
-                organization=self.request.user.organization,
-                name='__root__',
-                parent=None
-            )
+            return Folder.objects.get_root_for_org(self.request.user.organization)
         except Folder.DoesNotExist:
             logger.error(f"Invisible root folder not found for organization {self.request.user.organization.id}")
             raise APIException("An unexpected error occurred: root folder missing.",
