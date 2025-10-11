@@ -56,9 +56,7 @@ class FolderSerializer(serializers.ModelSerializer):
         if parent is None:
             # If no parent is specified, the logical parent is the invisible root.
             try:
-                parent = Folder.objects.get(
-                    organization=organization, name='__root__', parent=None
-                )
+                parent = Folder.objects.get_root_for_org(organization)
             except Folder.DoesNotExist:
                 raise serializers.ValidationError({
                     'non_field_errors': [
@@ -87,9 +85,7 @@ class FolderSerializer(serializers.ModelSerializer):
 
         if parent is None:
             try:
-                parent = Folder.objects.get(
-                    organization=organization, name='__root__', parent=None
-                )
+                parent = Folder.objects.get_root_for_org(organization)
                 validated_data['parent'] = parent
             except Folder.DoesNotExist:
                 raise serializers.ValidationError("Organization root folder is missing.")
