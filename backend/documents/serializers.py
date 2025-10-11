@@ -202,7 +202,7 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'created_by', 'slug', 'created_at', 'updated_at'
         ]
-        extra_kwargs = {'name': {'required': False, 'allow_blank': True}}
+        extra_kwargs = {'name': {'required': True, 'allow_blank': True}}
 
     def get_has_password(self, obj):
         """Returns True if the link is password-protected."""

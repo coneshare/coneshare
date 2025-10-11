@@ -21,7 +21,7 @@ def serializer_context(user):
 class TestShareLinkSerializer:
     def test_create_with_password(self, document, serializer_context):
         serializer = ShareLinkSerializer(
-            data={"document": document.id, "password": "testpassword"},
+            data={"document": document.id, "name": "", "password": "testpassword"},
             context=serializer_context,
         )
         assert serializer.is_valid(), serializer.errors
@@ -36,7 +36,7 @@ class TestShareLinkSerializer:
 
     def test_create_without_password(self, document, serializer_context):
         serializer = ShareLinkSerializer(
-            data={"document": document.id}, context=serializer_context
+            data={"document": document.id, "name": ""}, context=serializer_context
         )
         assert serializer.is_valid(), serializer.errors
         instance = serializer.save()
@@ -169,7 +169,7 @@ class TestShareLinkSerializer:
 
         # Create a second link without a name
         serializer = ShareLinkSerializer(
-            data={"document": document.id},
+            data={"document": document.id, "name": ""},
             context=serializer_context,
         )
         assert serializer.is_valid(), serializer.errors
