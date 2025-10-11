@@ -131,15 +131,15 @@ def _get_unique_name(model_class, original_name: str, filter_kwargs: dict, has_e
     return f"{base} ({highest_num + 1}){ext}"
 
 
-def _get_unique_document_name(organization, folder, original_name: str) -> str:
+def _get_unique_document_name(requesting_user, folder, original_name: str) -> str:
     """Generates a unique name for a document within a folder to avoid duplicates."""
-    filter_kwargs = {'organization': organization, 'folder': folder}
+    filter_kwargs = {'created_by': requesting_user, 'folder': folder}
     return _get_unique_name(Document, original_name, filter_kwargs, has_extension=True)
 
 
-def _get_unique_folder_name(organization, parent_folder, original_name: str) -> str:
+def _get_unique_folder_name(created_by, parent_folder, original_name: str) -> str:
     """Generates a unique name for a folder within a parent folder to avoid duplicates."""
-    filter_kwargs = {'organization': organization, 'parent': parent_folder}
+    filter_kwargs = {'created_by': created_by, 'parent': parent_folder}
     return _get_unique_name(Folder, original_name, filter_kwargs, has_extension=False)
 
 
@@ -168,7 +168,7 @@ def create_document_from_upload(
 
     # 1. Get a unique name before storing the file
     unique_name = _get_unique_document_name(
-        organization=requesting_user.organization,
+        requesting_user=requesting_user,
         folder=folder,
         original_name=uploaded_file.name
     )

@@ -16,7 +16,7 @@ class Folder(BaseModel):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='folders_created')
 
     class Meta:
-        unique_together = ('organization', 'parent', 'name')
+        unique_together = ('created_by', 'parent', 'name')
 
     def __str__(self):
         return self.name
@@ -47,7 +47,7 @@ class Document(BaseModel):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='documents_created')
 
     class Meta:
-        unique_together = ('organization', 'folder', 'name')
+        unique_together = ('created_by', 'folder', 'name')
 
     def __str__(self):
         return self.name

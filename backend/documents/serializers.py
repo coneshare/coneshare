@@ -49,8 +49,9 @@ class FolderSerializer(serializers.ModelSerializer):
             return data
 
         organization = request.user.organization
-        parent = data.get('parent')
         name = data.get('name', self.instance.name if self.instance else None)
+        # On update, parent might not be in payload. We get it from instance.
+        parent = data.get('parent', self.instance.parent if self.instance else None)
 
         if parent is None:
             # If no parent is specified, the logical parent is the invisible root.
@@ -69,7 +70,7 @@ class FolderSerializer(serializers.ModelSerializer):
         # On folder update, we want to raise an error if the new name is a duplicate.
         if self.instance:
             queryset = Folder.objects.filter(
-                organization=organization, parent=parent, name=name
+                created_by=request.user, parent=parent, name=name
             ).exclude(pk=self.instance.pk)
 
             if queryset.exists():
@@ -94,7 +95,7 @@ class FolderSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Organization root folder is missing.")
 
         unique_name = _get_unique_folder_name(
-            organization=organization,
+            created_by=validated_data['created_by'],
             parent_folder=parent,
             original_name=original_name
         )
