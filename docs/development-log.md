@@ -886,7 +886,11 @@ This session focused on abstracting the unique naming logic, applying it to fold
 
 ## Session 37: Bulk Folder Creation & API Atomicity (2025-10-11)
 
-This session focused on improving the performance and reliability of the folder upload process by implementing a bulk creation API and hardening its transactional integrity.
+This session focused on: [https://github.com/coneshare/coneshare/pull/37](https://github.com/coneshare/coneshare/pull/37)
+
+- improving the performance and reliability of the folder upload process by implementing a bulk creation API and hardening its transactional integrity.
+
+- making the folder upload feature more robust by implementing auto-renaming for name conflicts and fixing critical bugs related to uploading folders within existing subfolders.
 
 ### 1. Bulk Folder Creation API
 - **Performance Enhancement**: Replaced the inefficient `POST /api/v1/folders/from_path/` endpoint, which created one folder path per request, with a new `POST /api/v1/folders/ensure-paths/` endpoint.
@@ -900,3 +904,18 @@ This session focused on improving the performance and reliability of the folder 
 ### 3. Testing
 - **New Test Suite**: Added a comprehensive test suite for `EnsureFolderPathsView` in `tests/documents/test_views.py`, validating success cases, idempotency, permission denials, and a critical test to ensure the transaction is atomic on failure.
 - **Test Maintenance**: Updated an existing test case for document uploads with paths to use the new, more efficient `ensure-paths` endpoint for its setup.
+
+### 4. Auto-Renaming for Folder Uploads
+- **Feature**: Implemented a system to handle uploads of folders with names that conflict with existing folders. The backend now automatically renames the new folder with a numeric suffix (e.g., `Reports (2)`).
+- **API Enhancement**: The `POST /api/v1/folders/ensure-paths/` endpoint was updated to return a `path_mappings` object in its response (e.g., `{"Reports": "Reports (2)"}`).
+- **Frontend Integration**: `DocumentsPage.jsx` was updated to use these mappings to construct the correct file paths for each upload, ensuring files are placed in the newly renamed directory.
+
+### 5. Subfolder Upload Logic Overhaul
+- **Bug Identified**: A critical bug was found where uploading a folder (e.g., "new-folder") inside an existing subfolder (e.g., "/data") would cause the backend to incorrectly try to rename "/data" instead of "new-folder".
+- **Solution**: The `ensure-paths` API was enhanced with an optional `parent_path` parameter to make the destination explicit.
+- **Backend**: `EnsureFolderPathsView` now uses `parent_path` to correctly scope the folder creation and renaming logic.
+- **Frontend**: The upload logic was refactored. It now sends only the relative paths of the new folder structure to the API, along with the `parent_path` of the current view. It then correctly reconstructs the full path for each file upload using the `basePath` and any `path_mappings` returned by the API.
+
+### 6. Testing
+- **Backend**: Added new unit tests to `tests/documents/test_views.py` to verify the `parent_path` functionality, including success cases, renaming within subfolders, and handling of invalid parent paths.
+- **Frontend**: The test suite in `frontend/src/tests/pages/DocumentsPage.test.jsx` was significantly updated to cover the new, more complex folder upload workflow, including mocking the `ensureFolderPaths` response with path mappings and verifying correct path construction for subfolder uploads.
