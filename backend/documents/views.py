@@ -16,7 +16,7 @@ from django.utils import timezone
 from geoip2.errors import AddressNotFoundError
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import APIException, NotFound
+from rest_framework.exceptions import APIException, NotFound, PermissionDenied
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
@@ -237,9 +237,8 @@ class EnsureFolderPathsView(APIView):
 
                     # If the folder already existed, verify ownership
                     if not created and folder.created_by != requesting_user:
-                        return Response(
-                            {"detail": f"You do not have permission to access or create subfolders in '{path_str}'."},
-                            status=status.HTTP_403_FORBIDDEN
+                        raise PermissionDenied(
+                            detail=f"You do not have permission to access or create subfolders in '{path_str}'."
                         )
 
                     path_to_folder_map[path_str] = folder
@@ -248,7 +247,11 @@ class EnsureFolderPathsView(APIView):
                 {"detail": "Folder structure ensured successfully."},
                 status=status.HTTP_201_CREATED
             )
-
+        except PermissionDenied:
+            # Re-raise to let DRF's exception handler create the 403 response.
+            # The transaction is automatically rolled back when an exception
+            # is raised from within the `atomic` block.
+            raise
         except Folder.DoesNotExist:
             logger.error(f"Invisible root folder not found for user {requesting_user.id}'s organization")
             return Response(

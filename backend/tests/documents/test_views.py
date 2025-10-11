@@ -501,8 +501,8 @@ def test_list_share_links_is_scoped_to_user(api_client, user, user2):
 def test_upload_document_with_path(api_client, user):
     """Test uploading a file with a path to pre-existing folders."""
     # First, create the folder structure
-    path_data = {'path': 'Client Reports/Q4/Final'}
-    response = api_client.post('/api/v1/folders/from_path/', path_data)
+    path_data = {'paths': ['Client Reports/Q4/Final']}
+    response = api_client.post('/api/v1/folders/ensure-paths/', path_data)
     assert response.status_code == status.HTTP_201_CREATED
     assert Folder.objects.filter(created_by=user).count() == 3
 
