@@ -303,6 +303,60 @@ class TestEnsureFolderPathsView:
         assert Folder.objects.count() == 2
         assert not Folder.objects.filter(created_by=user).exists()
 
+    def test_ensure_paths_in_subfolder_success(self, api_client, user):
+        """Test creating a nested structure within an existing subfolder."""
+        root = Folder.objects.get(name='__root__', parent=None)
+        parent = Folder.objects.create(name="Parent", created_by=user, organization=user.organization, parent=root)
+        
+        path_data = {
+            'paths': ['NewFolder/Sub'],
+            'parent_path': 'Parent'
+        }
+        response = api_client.post('/api/v1/folders/ensure-paths/', path_data)
+        
+        assert response.status_code == status.HTTP_201_CREATED
+        assert Folder.objects.count() == 4  # __root__, Parent, NewFolder, Sub
+        
+        new_folder = Folder.objects.get(name='NewFolder')
+        assert new_folder.parent == parent
+        
+        sub_folder = Folder.objects.get(name='Sub')
+        assert sub_folder.parent == new_folder
+
+    def test_ensure_paths_in_subfolder_renames_conflict(self, api_client, user):
+        """Test that a conflicting folder name within a subfolder is correctly renamed."""
+        root = Folder.objects.get(name='__root__', parent=None)
+        parent = Folder.objects.create(name="Parent", created_by=user, organization=user.organization, parent=root)
+        Folder.objects.create(name="Existing", created_by=user, organization=user.organization, parent=parent)
+        
+        path_data = {
+            'paths': ['Existing/Sub'],
+            'parent_path': 'Parent'
+        }
+        response = api_client.post('/api/v1/folders/ensure-paths/', path_data)
+        
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data['path_mappings'] == {'Existing': 'Existing (2)'}
+        assert Folder.objects.count() == 5  # __root__, Parent, Existing, Existing (2), Sub
+        assert Folder.objects.filter(name='Existing (2)').exists()
+        
+        new_existing_folder = Folder.objects.get(name='Existing (2)')
+        assert new_existing_folder.parent == parent
+        
+        sub_folder = Folder.objects.get(name='Sub')
+        assert sub_folder.parent == new_existing_folder
+    
+    def test_ensure_paths_with_invalid_parent_path(self, api_client):
+        """Test that using a non-existent parent_path returns an error."""
+        path_data = {
+            'paths': ['NewFolder/Sub'],
+            'parent_path': 'NonExistent'
+        }
+        response = api_client.post('/api/v1/folders/ensure-paths/', path_data)
+        
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "Parent path 'NonExistent' not found" in response.data['detail']
+
 
 @pytest.mark.django_db
 def test_delete_folder_permission_denied(api_client, user2):

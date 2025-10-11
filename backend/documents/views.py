@@ -188,13 +188,35 @@ class EnsureFolderPathsView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         paths = serializer.validated_data['paths']
+        parent_path = serializer.validated_data.get('parent_path')
         requesting_user = request.user
         organization = requesting_user.organization
 
+        # Determine the root folder for the operation. This could be the org's
+        # root or a specific subfolder defined by parent_path.
+        try:
+            if parent_path:
+                path = Path(parent_path)
+                current_folder = Folder.objects.get_root_for_org(organization)
+                for part in path.parts:
+                    current_folder = Folder.objects.get(
+                        organization=organization,
+                        name=part,
+                        parent=current_folder,
+                        created_by=requesting_user
+                    )
+                root_folder = current_folder
+            else:
+                root_folder = Folder.objects.get_root_for_org(organization)
+        except Folder.DoesNotExist:
+            return Response(
+                {"detail": f"Parent path '{parent_path}' not found or you do not have permission to access it."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         try:
             with transaction.atomic():
-                # 1. Determine unique names for all top-level folders.
-                root_folder = Folder.objects.get_root_for_org(organization)
+                # 1. Determine unique names for all top-level folders relative to the root_folder.
                 top_level_dirs = {Path(p).parts[0] for p in paths if Path(p).parts}
                 path_mappings = {}
                 for original_name in top_level_dirs:

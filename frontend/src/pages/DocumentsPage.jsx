@@ -275,8 +275,7 @@ function DocumentsPage() {
           // Normalize path: remove leading/trailing slashes before adding.
           const normalizedPath = folderPath.replace(/^\/+|\/+$/g, '');
           if (normalizedPath) {
-            const fullPath = basePath ? `${basePath}/${normalizedPath}` : normalizedPath;
-            paths.add(fullPath);
+            paths.add(normalizedPath);
           }
         }
       }
@@ -286,7 +285,7 @@ function DocumentsPage() {
     let pathMappings = {};
     if (paths.size > 0) {
       try {
-        const response = await ensureFolderPaths(Array.from(paths));
+        const response = await ensureFolderPaths(Array.from(paths), basePath || null);
         pathMappings = response.data.path_mappings || {};
       } catch (error) {
         console.error("Failed to create folder structure:", error);
@@ -301,12 +300,7 @@ function DocumentsPage() {
       // For all other uploads (including drag-and-drop), we upload to the root.
       let relativePath = file.webkitRelativePath || null;
 
-      // If uploading a folder into an existing folder, prepend the base path.
-      if (relativePath && basePath) {
-        relativePath = `${basePath}/${relativePath}`;
-      }
-
-      // If we received path mappings from the backend, use them to reconstruct the path.
+      // If we received path mappings from the backend, apply them to the relative path first.
       if (relativePath && Object.keys(pathMappings).length > 0) {
         const pathParts = relativePath.split('/');
         const topLevelDir = pathParts[0];
@@ -316,6 +310,11 @@ function DocumentsPage() {
           pathParts[0] = newTopLevelDir;
           relativePath = pathParts.join('/');
         }
+      }
+
+      // After potential renaming, prepend the base path for where the upload is happening.
+      if (relativePath && basePath) {
+        relativePath = `${basePath}/${relativePath}`;
       }
 
       return uploadDocument(file, relativePath);
