@@ -27,6 +27,7 @@ class TestShareLinkSerializer:
         assert serializer.is_valid(), serializer.errors
         instance = serializer.save()
 
+        assert instance.name == "Untitled Link"
         assert instance.password_hash is not None
         assert check_password("testpassword", instance.password_hash)
         assert "password" not in serializer.data
@@ -40,6 +41,7 @@ class TestShareLinkSerializer:
         assert serializer.is_valid(), serializer.errors
         instance = serializer.save()
 
+        assert instance.name == "Untitled Link"
         assert instance.password_hash is None
         assert "password_hash" not in serializer.data
         assert serializer.data["has_password"] is False
@@ -156,6 +158,24 @@ class TestShareLinkSerializer:
 
         # The name should NOT be changed
         assert instance.name == "My Test Link"
+
+    def test_create_without_name_is_renamed_if_default_exists(self, document, user, serializer_context):
+        """
+        Test that creating a share link without a name results in a default
+        name that is correctly suffixed if it already exists.
+        """
+        # Create a link with the default name first
+        ShareLink.objects.create(document=document, name="Untitled Link", created_by=user)
+
+        # Create a second link without a name
+        serializer = ShareLinkSerializer(
+            data={"document": document.id},
+            context=serializer_context,
+        )
+        assert serializer.is_valid(), serializer.errors
+        instance = serializer.save()
+
+        assert instance.name == "Untitled Link (2)"
 
 
 class TestFolderSerializer:

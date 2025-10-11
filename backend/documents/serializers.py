@@ -202,6 +202,7 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'created_by', 'slug', 'created_at', 'updated_at'
         ]
+        extra_kwargs = {'name': {'required': False, 'allow_blank': True}}
 
     def get_has_password(self, obj):
         """Returns True if the link is password-protected."""
@@ -228,10 +229,10 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         request = self.context['request']
         validated_data['created_by'] = request.user
 
-        if 'name' in validated_data and validated_data['name']:
-            document = validated_data['document']
-            original_name = validated_data['name']
-            validated_data['name'] = _get_unique_share_link_name(document, original_name)
+        document = validated_data['document']
+        # Default to "Untitled Link" if name is not provided or is empty.
+        original_name = validated_data.get('name') or "Untitled Link"
+        validated_data['name'] = _get_unique_share_link_name(document, original_name)
 
         self._hash_password(validated_data)
         return super().create(validated_data)
