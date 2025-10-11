@@ -182,12 +182,24 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         """
         Enforce business rules:
         - If the associated document is download-only, force allow_download to be true.
+        - On update, check for name uniqueness manually.
         """
         # On update, 'document' may not be in the payload. We get it from the instance.
         document = data.get('document') or getattr(self.instance, 'document', None)
 
         if document and document.download_only:
             data['allow_download'] = True
+
+        # Manually handle uniqueness validation on update only.
+        # On create, the `create` method handles finding a unique name.
+        if self.instance and 'name' in data:
+            name = data['name']
+            if name and ShareLink.objects.filter(
+                document=document, name=name
+            ).exclude(pk=self.instance.pk).exists():
+                raise serializers.ValidationError(
+                    {'name': 'A share link with this name already exists for this document.'}
+                )
 
         return data
 
@@ -203,6 +215,9 @@ class ShareLinkSerializer(serializers.ModelSerializer):
             'id', 'created_by', 'slug', 'created_at', 'updated_at'
         ]
         extra_kwargs = {'name': {'required': True, 'allow_blank': True}}
+        # Remove the default UniqueTogetherValidator.
+        # We handle uniqueness manually in `validate()` for updates and `create()` for creations.
+        validators = []
 
     def get_has_password(self, obj):
         """Returns True if the link is password-protected."""

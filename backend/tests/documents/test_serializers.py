@@ -177,6 +177,25 @@ class TestShareLinkSerializer:
 
         assert instance.name == "Untitled Link (2)"
 
+    def test_update_with_duplicate_name_fails(self, document, user, serializer_context):
+        """
+        Test that renaming a share link to an existing name for the same
+        document fails validation.
+        """
+        # Create two links for the same document
+        link1 = ShareLink.objects.create(document=document, name="Link 1", created_by=user)
+        ShareLink.objects.create(document=document, name="Link 2", created_by=user)
+
+        # Attempt to rename link1 to "Link 2"
+        serializer = ShareLinkSerializer(
+            instance=link1,
+            data={"name": "Link 2"},
+            context=serializer_context,
+            partial=True
+        )
+        assert not serializer.is_valid()
+        assert 'name' in serializer.errors
+
 
 class TestFolderSerializer:
     def test_create_with_duplicate_name_is_renamed(self, user, organization, serializer_context):
