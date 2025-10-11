@@ -159,6 +159,57 @@ class TestShareLinkSerializer:
 
 
 class TestFolderSerializer:
+    def test_create_with_duplicate_name_is_renamed(self, user, organization, serializer_context):
+        """
+        Test that creating a folder with a duplicate name in the same parent
+        results in an appended counter.
+        """
+        root = Folder.objects.get(organization=organization, name="__root__")
+
+        # Create first folder
+        Folder.objects.create(
+            organization=organization, name="My Test Folder", parent=root, created_by=user
+        )
+
+        # Create second folder with the same name
+        serializer = FolderSerializer(
+            data={"name": "My Test Folder"},
+            context=serializer_context,
+        )
+        assert serializer.is_valid(), serializer.errors
+        instance = serializer.save(organization=user.organization, created_by=user)
+        assert instance.name == "My Test Folder (2)"
+
+        # Create a third, which should become (3)
+        serializer_3 = FolderSerializer(
+            data={"name": "My Test Folder"},
+            context=serializer_context,
+        )
+        assert serializer_3.is_valid(), serializer_3.errors
+        instance_3 = serializer_3.save(organization=user.organization, created_by=user)
+        assert instance_3.name == "My Test Folder (3)"
+
+    def test_update_with_duplicate_name_fails(self, user, organization, serializer_context):
+        """
+        Test that renaming a folder to an existing name fails validation.
+        """
+        root = Folder.objects.get(organization=organization, name="__root__")
+        folder1 = Folder.objects.create(
+            organization=organization, name="Folder 1", parent=root, created_by=user
+        )
+        Folder.objects.create(
+            organization=organization, name="Folder 2", parent=root, created_by=user
+        )
+
+        serializer = FolderSerializer(
+            instance=folder1,
+            data={"name": "Folder 2"},
+            context=serializer_context,
+            partial=True
+        )
+        assert not serializer.is_valid()
+        assert 'name' in serializer.errors
+
     def test_get_ancestors(self, user, organization):
         root = Folder.objects.get(organization=organization, name="__root__")
         folder1 = Folder.objects.create(

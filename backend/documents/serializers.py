@@ -2,7 +2,7 @@ from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from core.models import Organization
 from .models import Document, DocumentPage, DocumentVersion, Folder, PageView, ShareLink, ShareLinkPreset, ViewSession, Viewer
-from .services import _get_unique_share_link_name
+from .services import _get_unique_folder_name, _get_unique_share_link_name
 
 
 class FolderFromPathSerializer(serializers.Serializer):
@@ -65,25 +65,41 @@ class FolderSerializer(serializers.ModelSerializer):
                     ]
                 })
 
-        queryset = Folder.objects.filter(
-            organization=organization, parent=parent, name=name
-        )
-
-        # If we are updating an existing instance, exclude it from the check.
+        # On folder creation, we auto-rename if a duplicate exists.
+        # On folder update, we want to raise an error if the new name is a duplicate.
         if self.instance:
-            queryset = queryset.exclude(pk=self.instance.pk)
+            queryset = Folder.objects.filter(
+                organization=organization, parent=parent, name=name
+            ).exclude(pk=self.instance.pk)
 
-        if queryset.exists():
-            raise serializers.ValidationError({
-                'non_field_errors': [
-                    "A folder with this name already exists in this location."
-                ]
-            })
+            if queryset.exists():
+                raise serializers.ValidationError({
+                    'name': "A folder with this name already exists in this location."
+                })
         return data
 
     def create(self, validated_data):
-        # Automatically assign the default organization
-        validated_data['organization'] = Organization.objects.first()
+        # organization and created_by are passed from FolderViewSet.perform_create
+        organization = validated_data['organization']
+        parent = validated_data.get('parent')
+        original_name = validated_data['name']
+
+        if parent is None:
+            try:
+                parent = Folder.objects.get(
+                    organization=organization, name='__root__', parent=None
+                )
+                validated_data['parent'] = parent
+            except Folder.DoesNotExist:
+                raise serializers.ValidationError("Organization root folder is missing.")
+
+        unique_name = _get_unique_folder_name(
+            organization=organization,
+            parent_folder=parent,
+            original_name=original_name
+        )
+        validated_data['name'] = unique_name
+
         return super().create(validated_data)
 
 
