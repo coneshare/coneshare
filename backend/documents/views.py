@@ -26,7 +26,7 @@ from rest_framework.views import APIView
 from .models import Document, Folder, ShareLink, ShareLinkPreset, ViewSession, Viewer, PreviewSession, EmailVerificationToken
 from .serializers import (
     DocumentSerializer,
-    FolderFromPathSerializer,
+    EnsureFolderPathsSerializer,
     FolderSerializer,
     PageViewRecordSerializer,
     ShareLinkEmailSerializer,
@@ -173,59 +173,90 @@ def _get_active_share_link(slug: str) -> ShareLink:
     return link
 
 
-class FolderFromPathView(APIView):
+class EnsureFolderPathsView(APIView):
     """
-    A view to ensure a folder path exists, creating it if necessary.
-    This is designed to be called once before a batch of uploads to a new folder.
+    A view to ensure multiple folder paths exist, creating them if necessary.
+    This is designed to be called once before a batch of folder uploads.
+    It's atomic, ensuring that if any path fails, the whole transaction is rolled back.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        serializer = FolderFromPathSerializer(data=request.data)
+        serializer = EnsureFolderPathsSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        folder_path = serializer.validated_data['path']
+        paths = serializer.validated_data['paths']
         requesting_user = request.user
+        organization = requesting_user.organization
 
-        # --- Permission Check ---
+        # 1. Expand all provided paths into a full set of required directories
+        all_required_paths = set()
+        for path_str in paths:
+            p = Path(path_str)
+            all_required_paths.add(str(p))
+            for parent in p.parents:
+                if parent != Path('.'):
+                    all_required_paths.add(str(parent))
+
+        # 2. Sort paths to ensure parents are processed before children
+        sorted_paths = sorted(list(all_required_paths), key=lambda p: p.count(os.sep))
+
         try:
-            parent = Folder.objects.get_root_for_org(requesting_user.organization)
+            with transaction.atomic():
+                root_folder = Folder.objects.get_root_for_org(organization)
+                # Keep track of created/verified folders to avoid redundant lookups
+                path_to_folder_map = {'': root_folder}
+
+                for path_str in sorted_paths:
+                    path = Path(path_str)
+                    parent_path_str = str(path.parent) if path.parent != Path('.') else ''
+
+                    parent_folder = path_to_folder_map.get(parent_path_str)
+                    if not parent_folder:
+                        # This should not happen due to sorting, but as a safeguard.
+                        return Response(
+                            {"detail": f"An error occurred: parent folder for '{path_str}' not found."},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        )
+
+                    # Permission check on the parent
+                    if parent_folder.created_by is not None and parent_folder.created_by != requesting_user:
+                        return Response(
+                            {"detail": f"You do not have permission to create items in '{parent_path_str}'."},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+
+                    folder_name = path.name
+                    folder, created = Folder.objects.get_or_create(
+                        organization=organization,
+                        parent=parent_folder,
+                        name=folder_name,
+                        defaults={'created_by': requesting_user}
+                    )
+
+                    # If the folder already existed, verify ownership
+                    if not created and folder.created_by != requesting_user:
+                        return Response(
+                            {"detail": f"You do not have permission to access or create subfolders in '{path_str}'."},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+
+                    path_to_folder_map[path_str] = folder
+
+            return Response(
+                {"detail": "Folder structure ensured successfully."},
+                status=status.HTTP_201_CREATED
+            )
+
         except Folder.DoesNotExist:
             logger.error(f"Invisible root folder not found for user {requesting_user.id}'s organization")
             return Response(
                 {"detail": "An unexpected error occurred: root folder missing."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-        path = Path(folder_path)
-        for part in path.parts:
-            try:
-                folder = Folder.objects.get(
-                    organization=requesting_user.organization,
-                    name=part,
-                    parent=parent
-                )
-                if folder.created_by != requesting_user:
-                    return Response(
-                        {"detail": f"You do not have permission to access or create subfolders in '{part}'."},
-                        status=status.HTTP_403_FORBIDDEN
-                    )
-                parent = folder
-            except Folder.DoesNotExist:
-                # This part of the path doesn't exist, so we can stop checking.
-                # The rest of the path will be created.
-                break
-
-        try:
-            folder = _get_or_create_folders_from_path(
-                requesting_user=requesting_user,
-                folder_path=folder_path
-            )
-            folder_serializer = FolderSerializer(folder, context={'request': request})
-            return Response(folder_serializer.data, status=status.HTTP_201_CREATED)
         except Exception:
-            logger.exception("Failed to ensure folder path exists for path: %s", folder_path)
+            logger.exception("Failed to ensure folder paths exist for paths: %s", paths)
             return Response(
                 {"detail": "An unexpected error occurred while creating the folder structure."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

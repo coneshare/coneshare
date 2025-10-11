@@ -13,7 +13,7 @@ import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, createFolderFromPath, deleteMultipleDocuments, deleteMultipleFolders } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders } from '../services/api';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 
@@ -275,10 +275,7 @@ function DocumentsPage() {
     // 2. If there are paths, ensure the folder structures exist first.
     if (paths.size > 0) {
       try {
-        const folderCreationPromises = Array.from(paths).map((path) =>
-          createFolderFromPath(path)
-        );
-        await Promise.all(folderCreationPromises);
+        await ensureFolderPaths(Array.from(paths));
       } catch (error) {
         console.error("Failed to create folder structure:", error);
         // The API interceptor will show a toast, so we just log and stop.
