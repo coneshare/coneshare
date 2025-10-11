@@ -250,6 +250,15 @@ function DocumentsPage() {
   const handleFileUploads = async (files) => {
     if (!files || files.length === 0) return;
 
+    // Determine base path if inside a folder
+    let basePath = '';
+    if (currentFolder) {
+      basePath = [
+        ...currentFolder.ancestors.map((a) => a.name),
+        currentFolder.name,
+      ].join('/');
+    }
+
     // 1. Determine unique folder paths from files that have them.
     // We only do this for uploads from the "Upload Folder" dialog, as
     // `webkitRelativePath` is the only reliable indicator of user intent
@@ -266,7 +275,8 @@ function DocumentsPage() {
           // Normalize path: remove leading/trailing slashes before adding.
           const normalizedPath = folderPath.replace(/^\/+|\/+$/g, '');
           if (normalizedPath) {
-            paths.add(normalizedPath);
+            const fullPath = basePath ? `${basePath}/${normalizedPath}` : normalizedPath;
+            paths.add(fullPath);
           }
         }
       }
@@ -290,6 +300,11 @@ function DocumentsPage() {
       // For uploads from the folder dialog, we preserve the path.
       // For all other uploads (including drag-and-drop), we upload to the root.
       let relativePath = file.webkitRelativePath || null;
+
+      // If uploading a folder into an existing folder, prepend the base path.
+      if (relativePath && basePath) {
+        relativePath = `${basePath}/${relativePath}`;
+      }
 
       // If we received path mappings from the backend, use them to reconstruct the path.
       if (relativePath && Object.keys(pathMappings).length > 0) {
