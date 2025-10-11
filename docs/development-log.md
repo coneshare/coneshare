@@ -881,3 +881,22 @@ This session focused on abstracting the unique naming logic, applying it to fold
 - **API Update**: The unique name generation services and serializers were updated to use the new user-scoped filtering logic.
 - **Security Hardening**: The `FolderFromPathView`, used for folder uploads, was updated to be user-scoped and now includes a permission check to prevent a user from creating a subfolder inside a path owned by another user.
 - **Testing**: API view tests were updated to assert the correct auto-renaming behavior instead of expecting validation errors on duplicate creation. ([`46dcf67`](https://github.com/coneshare/coneshare/commit/46dcf67))
+
+---
+
+## Session 37: Bulk Folder Creation & API Atomicity (2025-10-11)
+
+This session focused on improving the performance and reliability of the folder upload process by implementing a bulk creation API and hardening its transactional integrity.
+
+### 1. Bulk Folder Creation API
+- **Performance Enhancement**: Replaced the inefficient `POST /api/v1/folders/from_path/` endpoint, which created one folder path per request, with a new `POST /api/v1/folders/ensure-paths/` endpoint.
+- **Atomic Operations**: The new view accepts a list of paths and creates the entire required folder hierarchy within a single, atomic database transaction, ensuring data integrity.
+- **Frontend Integration**: Updated `DocumentsPage.jsx` to gather all unique folder paths from a folder upload and send them in a single call to the new `ensure-paths` endpoint before uploading any files.
+
+### 2. Transaction Integrity & Bug Fixes
+- **Atomicity Fix**: Corrected a critical bug in the `EnsureFolderPathsView` where returning a `Response` on a permission failure would commit a partial transaction. The view was refactored to raise a `PermissionDenied` exception to correctly trigger a database rollback.
+- **Error Handling Fix**: Resolved a subsequent issue where the `PermissionDenied` exception was being caught by a generic handler, returning a `500 Internal Server Error`. A more specific exception block was added to allow DRF to correctly handle the exception and return the appropriate `403 Forbidden` status.
+
+### 3. Testing
+- **New Test Suite**: Added a comprehensive test suite for `EnsureFolderPathsView` in `tests/documents/test_views.py`, validating success cases, idempotency, permission denials, and a critical test to ensure the transaction is atomic on failure.
+- **Test Maintenance**: Updated an existing test case for document uploads with paths to use the new, more efficient `ensure-paths` endpoint for its setup.
