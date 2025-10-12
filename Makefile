@@ -16,7 +16,10 @@ help:
 	@echo "  back.sh         - Attach a shell to the backend container"
 	@echo "  front.sh        - Attach a shell to the frontend container"
 	@echo "  clean           - Remove migrations, .pyc files, and database"
-	@echo "  test            - Run pytest in the backend container"
+	@echo "  test            - Run backend tests with pytest"
+	@echo "  test.front      - Run frontend tests with vitest"
+	@echo "  migrate         - Run database migrations"
+	@echo "  superuser       - Create a superuser"
 
 
 # ====================================================================================
@@ -25,7 +28,7 @@ help:
 
 .PHONY: up
 up:
-	COMPOSE_PROJECT_NAME=coneshare docker-compose up
+	COMPOSE_PROJECT_NAME=coneshare docker-compose up -d
 
 .PHONY: down
 down:
@@ -62,5 +65,20 @@ clean:
 
 .PHONY: test
 test:
-	@echo "Running tests..."
+	@echo "Running backend tests..."
 	COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend pytest
+
+.PHONY: test.front
+test.front:
+	@echo "Running frontend tests..."
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test
+
+.PHONY: migrate
+migrate:
+	@echo "Running database migrations..."
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend python manage.py migrate
+
+.PHONY: superuser
+superuser:
+	@echo "Creating a superuser..."
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend python manage.py createsuperuser
