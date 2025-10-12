@@ -332,12 +332,18 @@ function DocumentsPage() {
     }
   };
 
-  const onFileChange = (e) => {
-    handleFileUploads(e.target.files);
+  const onFileChange = async (e) => {
+    // The files must be handled before the input is reset.
+    await handleFileUploads(e.target.files);
+    // Reset the input value to allow re-uploading the same file(s).
+    e.target.value = null;
   };
 
-  const onFolderChange = (e) => {
-    handleFileUploads(e.target.files);
+  const onFolderChange = async (e) => {
+    // The files must be handled before the input is reset.
+    await handleFileUploads(e.target.files);
+    // Reset the input value to allow re-uploading the same folder.
+    e.target.value = null;
   };
 
 
