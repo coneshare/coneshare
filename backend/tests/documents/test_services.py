@@ -23,6 +23,7 @@ def test_create_document_from_pdf_upload(mock_generate_task, user):
     document = create_document_from_upload(requesting_user=user, uploaded_file=mock_file)
 
     # Assert
+    assert document.file_size == 12
     assert document.name == "test.pdf"
     assert document.type == "pdf"
     assert document.status == "processing"

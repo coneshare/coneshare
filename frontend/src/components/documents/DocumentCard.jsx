@@ -2,6 +2,7 @@ import { File as FileIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import { ActionsDropdown } from "./ActionsDropdown";
+import { formatBytes } from "../../lib/formatters";
 
 function DocumentCard({ document, onRename, onDelete, onShare, isSelected }) {
   return (
@@ -21,7 +22,7 @@ function DocumentCard({ document, onRename, onDelete, onShare, isSelected }) {
             {document.name}
           </p>
           <p className="truncate text-sm text-gray-500 dark:text-gray-400">
-            {document._count?.links ?? 0} Links · {document._count?.views ?? 0}{" "}
+            {document.file_size != null ? `${formatBytes(document.file_size)} · ` : ''}{document._count?.links ?? 0} Links · {document._count?.views ?? 0}{" "}
             Views
           </p>
         </Link>

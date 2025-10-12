@@ -979,3 +979,22 @@ This session focused on implementing a robust "Move" feature, allowing users to 
 ### 3. Testing
 - **Backend**: A comprehensive test suite was added to `tests/documents/test_views.py` to cover the move endpoint's functionality, including success cases, permission denials, invalid moves (e.g., cyclical paths), and conflict resolution.
 - **Frontend**: A new test suite was added to `frontend/src/tests/pages/DocumentsPage.test.jsx` to verify the end-to-end user flow: selecting items, using the move dialog to select a destination, confirming the move, and ensuring the UI refreshes correctly.
+
+---
+
+## Session 41: File Size Feature Implementation (2025-10-13)
+
+This session focused on implementing the file size feature, providing users with more document information and new sorting capabilities. [https://github.com/coneshare/coneshare/pull/42](https://github.com/coneshare/coneshare/pull/42)
+
+### 1. Backend Implementation
+- **Data Model**: The `Document` model was updated with a `file_size` field.
+- **Service Layer**: The document creation services were updated to populate the `file_size` on the `Document` model from its primary version.
+- **API Exposure**: The `DocumentSerializer` was updated to include the new `file_size` field.
+
+### 2. Frontend Implementation
+- **Display File Size**: The `DocumentCard` component now displays the file size in a human-readable format (e.g., "1.2 MB").
+- **Sorting Capability**: A "File Size" option was added, and the sorting logic on the `DocumentsPage` was enhanced to handle sorting by this new key.
+
+### 3. Testing
+- **Backend**: A unit test was added to confirm that the `file_size` is correctly populated on the `Document` model.
+- **Frontend**: A test case was added to verify that documents can be correctly sorted by file size.

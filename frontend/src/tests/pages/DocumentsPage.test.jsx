@@ -903,5 +903,37 @@ describe('DocumentsPage', () => {
       expect(listItems[0]).toHaveTextContent('New Folder');
       expect(listItems[1]).toHaveTextContent('Old Folder');
     });
+
+    it('should sort documents by file size', async () => {
+      const user = userEvent.setup();
+      const mockDocuments = [
+        { id: 'd1', name: 'Small Doc', file_size: 100, updated_at: '2023-01-01T12:00:00Z' },
+        { id: 'd2', name: 'Large Doc', file_size: 1000, updated_at: '2023-01-02T12:00:00Z' },
+      ];
+      api.getRootFolderContents.mockResolvedValue({
+        data: { current_folder: null, sub_folders: [], documents: mockDocuments },
+      });
+      renderComponent();
+
+      await screen.findByText('Small Doc');
+
+      // Open sort menu and select "File Size"
+      await user.click(screen.getByRole('button', { name: 'Sort' }));
+      await user.click(screen.getByRole('menuitem', { name: 'File Size' }));
+
+      // Default sort is ascending, so "Small Doc" should be first.
+      let listItems = screen.getAllByText(/Doc/);
+      expect(listItems[0]).toHaveTextContent('Small Doc');
+      expect(listItems[1]).toHaveTextContent('Large Doc');
+
+      // Click again to sort descending
+      await user.click(screen.getByRole('button', { name: 'Sort' }));
+      await user.click(screen.getByRole('menuitem', { name: 'File Size' }));
+
+      // Now "Large Doc" should be first
+      listItems = screen.getAllByText(/Doc/);
+      expect(listItems[0]).toHaveTextContent('Large Doc');
+      expect(listItems[1]).toHaveTextContent('Small Doc');
+    });
   });
 });

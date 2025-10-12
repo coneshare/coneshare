@@ -1627,7 +1627,7 @@ class TestMoveItemsView:
             'folder_ids': [str(setup_folders['subfolder_a'].id)],
             'destination_folder_id': None  # None signifies root
         }
-        response = api_client.post('/api/v1/actions/move/', data)
+        response = api_client.post('/api/v1/actions/move/', data, format='json')
         assert response.status_code == status.HTTP_200_OK
 
         setup_folders['doc_in_a'].refresh_from_db()
