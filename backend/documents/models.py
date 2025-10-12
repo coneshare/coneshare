@@ -55,6 +55,7 @@ class Document(BaseModel):
     type = models.CharField(max_length=20)
     content_type = models.CharField(max_length=255)
     num_pages = models.IntegerField(null=True, blank=True)
+    file_size = models.BigIntegerField(null=True, blank=True)
     download_only = models.BooleanField(default=False)
     assistant_enabled = models.BooleanField(default=False)
     is_starred = models.BooleanField(default=False)

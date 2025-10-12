@@ -3,6 +3,15 @@ import { Link } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import { ActionsDropdown } from "./ActionsDropdown";
 
+function formatBytes(bytes, decimals = 2) {
+  if (!+bytes) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
+
 function DocumentCard({ document, onRename, onDelete, onShare, isSelected }) {
   return (
     <div
@@ -21,7 +30,7 @@ function DocumentCard({ document, onRename, onDelete, onShare, isSelected }) {
             {document.name}
           </p>
           <p className="truncate text-sm text-gray-500 dark:text-gray-400">
-            {document._count?.links ?? 0} Links · {document._count?.views ?? 0}{" "}
+            {document.file_size != null ? `${formatBytes(document.file_size)} · ` : ''}{document._count?.links ?? 0} Links · {document._count?.views ?? 0}{" "}
             Views
           </p>
         </Link>

@@ -49,6 +49,7 @@ def _route_document_for_processing(document: Document, version: DocumentVersion,
     document.download_only = not is_previewable
     document.type = doc_type
     document.content_type = content_type
+    document.file_size = file_size
 
     # Trigger task or set status to ready
     if is_previewable:
