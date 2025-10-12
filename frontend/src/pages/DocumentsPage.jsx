@@ -13,9 +13,10 @@ import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders } from '../services/api';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
+import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
 
 function DocumentsPage() {
   const { folderId } = useParams();
@@ -27,6 +28,7 @@ function DocumentsPage() {
   const [selection, setSelection] = useState({ documents: [], folders: [] });
   const [lastSelectedItem, setLastSelectedItem] = useState(null);
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
+  const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState({
     key: "name",
     direction: "ascending",
@@ -243,6 +245,23 @@ function DocumentsPage() {
     folderInputRef.current.click();
   };
 
+  const handleAddFolder = () => {
+    setIsAddFolderOpen(true);
+  };
+
+  const handleCreateFolder = async (name) => {
+    try {
+      await createFolder(name, folderId || null);
+      toast.success(`Folder "${name}" created successfully.`);
+      fetchData();
+    } catch (error) {
+      console.error("Failed to create folder:", error);
+      // The API interceptor will show a toast.
+    } finally {
+      setIsAddFolderOpen(false);
+    }
+  };
+
   const handleFileSelect = () => {
     fileInputRef.current.click();
   };
@@ -332,12 +351,18 @@ function DocumentsPage() {
     }
   };
 
-  const onFileChange = (e) => {
-    handleFileUploads(e.target.files);
+  const onFileChange = async (e) => {
+    // The files must be handled before the input is reset.
+    await handleFileUploads(e.target.files);
+    // Reset the input value to allow re-uploading the same file(s).
+    e.target.value = null;
   };
 
-  const onFolderChange = (e) => {
-    handleFileUploads(e.target.files);
+  const onFolderChange = async (e) => {
+    // The files must be handled before the input is reset.
+    await handleFileUploads(e.target.files);
+    // Reset the input value to allow re-uploading the same folder.
+    e.target.value = null;
   };
 
 
@@ -352,8 +377,22 @@ function DocumentsPage() {
         onConfirm={handleBulkDelete}
         confirmText="Delete"
       />
+      <AddFolderDialog
+        isOpen={isAddFolderOpen}
+        onOpenChange={setIsAddFolderOpen}
+        onConfirm={handleCreateFolder}
+      />
       <section className="mb-4 flex items-center justify-end space-x-2 sm:space-x-0">
         <div className="relative flex items-center gap-x-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-10 w-10"
+            onClick={handleAddFolder}
+            title="Add Folder"
+          >
+            <FolderPlusIcon className="h-5 w-5" />
+          </Button>
           <input
             type="file"
             multiple

@@ -386,6 +386,35 @@ describe('DocumentsPage', () => {
         expect(api.getFolderContents).toHaveBeenCalledTimes(2);
       });
     });
+
+    it('should allow uploading the same folder twice in a row', async () => {
+      renderComponent();
+
+      const file1 = createFolderFile('folderA/file1.txt', 'file1.txt');
+      const files = [file1];
+
+      api.ensureFolderPaths.mockResolvedValue({ data: { path_mappings: { folderA: 'folderA' } } });
+      api.uploadDocument.mockResolvedValue({ status: 202 });
+
+      const folderInput = findFolderInput();
+
+      // First upload
+      fireEvent.change(folderInput, { target: { files } });
+
+      await waitFor(() => {
+        expect(api.ensureFolderPaths).toHaveBeenCalledTimes(1);
+        expect(api.uploadDocument).toHaveBeenCalledTimes(1);
+      });
+
+      // Second upload of the same folder
+      fireEvent.change(folderInput, { target: { files } });
+
+      await waitFor(() => {
+        // The counts should now be double, proving the event fired again
+        expect(api.ensureFolderPaths).toHaveBeenCalledTimes(2);
+        expect(api.uploadDocument).toHaveBeenCalledTimes(2);
+      });
+    });
   });
 
   describe('Selection and Bulk Actions', () => {
