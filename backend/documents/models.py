@@ -24,6 +24,7 @@ class Folder(BaseModel):
     name = models.CharField(max_length=255, db_index=True)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='folders_created')
+    is_starred = models.BooleanField(default=False)
 
     objects = FolderManager()
 
@@ -56,6 +57,7 @@ class Document(BaseModel):
     num_pages = models.IntegerField(null=True, blank=True)
     download_only = models.BooleanField(default=False)
     assistant_enabled = models.BooleanField(default=False)
+    is_starred = models.BooleanField(default=False)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='documents_created')
 
     class Meta:

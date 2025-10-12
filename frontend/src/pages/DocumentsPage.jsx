@@ -13,7 +13,7 @@ import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder } from '../services/api';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
@@ -172,19 +172,42 @@ function DocumentsPage() {
     setLastSelectedItem(null);
   }, []);
 
-  const handleToggleStar = useCallback((id, type) => {
-    if (type === 'folder') {
-      setFolders((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, is_starred: !item.is_starred } : item
-        )
-      );
-    } else {
-      setDocuments((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, is_starred: !item.is_starred } : item
-        )
-      );
+  const handleToggleStar = useCallback(async (id, type) => {
+    const isFolder = type === 'folder';
+    const setItems = isFolder ? setFolders : setDocuments;
+    const updateApiCall = isFolder ? updateFolder : updateDocument;
+    let originalItem = null;
+    let newIsStarred;
+
+    // Optimistic update
+    setItems(prevItems => {
+      const newItems = prevItems.map(item => {
+        if (item.id === id) {
+          originalItem = item;
+          newIsStarred = !item.is_starred;
+          return { ...item, is_starred: newIsStarred };
+        }
+        return item;
+      });
+      return newItems;
+    });
+
+    // API call
+    if (originalItem) {
+      try {
+        await updateApiCall(id, { is_starred: newIsStarred });
+      } catch (error) {
+        // Revert on failure
+        setItems(prevItems =>
+          prevItems.map(item => {
+            if (item.id === id) {
+              return originalItem;
+            }
+            return item;
+          })
+        );
+        toast.error(`Failed to update star for "${originalItem.name}".`);
+      }
     }
   }, []);
 
