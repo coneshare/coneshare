@@ -8,7 +8,6 @@ import { Button } from '../components/ui/Button';
 import { Separator } from '../components/ui/Separator';
 import { SearchBox } from '../components/SearchBox';
 import { SortButton } from '../components/documents/filters/SortButton';
-import { Pagination } from '../components/documents/Pagination';
 import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
@@ -513,10 +512,6 @@ function DocumentsPage() {
         isAllSelected={isAllSelected}
         onToggleStar={handleToggleStar}
       />
-
-      {documents.length > 0 && (
-        <Pagination />
-      )}
     </div>
   );
 }
