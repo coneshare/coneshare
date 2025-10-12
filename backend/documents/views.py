@@ -1090,14 +1090,14 @@ class MoveItemsView(APIView):
 
                 # 3. Validation: Prevent moving a folder into itself or a descendant
                 for folder in folders_to_move:
-                    if str(folder.id) == str(destination_folder.id):
+                    if folder.id == destination_folder.id:
                         raise serializers.ValidationError(
                             f"Cannot move folder '{folder.name}' into itself."
                         )
 
                     parent = destination_folder
                     while parent:
-                        if str(parent.id) == str(folder.id):
+                        if parent.id == folder.id:
                             raise serializers.ValidationError(
                                 f"Cannot move folder '{folder.name}' into one of its own subfolders."
                             )
