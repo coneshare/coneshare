@@ -1104,6 +1104,10 @@ class MoveItemsView(APIView):
                         parent = parent.parent
 
                 # 4. Perform move for documents
+                # TODO: This can lead to performance issues when moving a large number of items,
+                # as it results in N database queries for updates. To improve efficiency,
+                # you can collect the modified objects and use bulk_update to perform all updates
+                # in a single query for documents and another for folders.
                 for doc in documents_to_move:
                     doc.name = _get_unique_document_name(
                         requesting_user=user,
