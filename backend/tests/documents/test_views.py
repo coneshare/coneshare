@@ -408,6 +408,30 @@ def test_update_folder_name(api_client, user, organization):
 
 
 @pytest.mark.django_db
+def test_update_folder_star_status(api_client, user, organization):
+    """Test a user can star and unstar their own folder."""
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+    folder = Folder.objects.create(
+        name="My Folder", organization=organization, created_by=user, parent=root_folder
+    )
+    assert folder.is_starred is False
+
+    # Star the folder
+    response = api_client.patch(f'/api/v1/folders/{folder.id}/', {'is_starred': True})
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data['is_starred'] is True
+    folder.refresh_from_db()
+    assert folder.is_starred is True
+
+    # Unstar the folder
+    response = api_client.patch(f'/api/v1/folders/{folder.id}/', {'is_starred': False})
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data['is_starred'] is False
+    folder.refresh_from_db()
+    assert folder.is_starred is False
+
+
+@pytest.mark.django_db
 def test_update_folder_permission_denied(api_client, user2, organization):
     """Test a user cannot rename another user's folder."""
     root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
@@ -421,6 +445,22 @@ def test_update_folder_permission_denied(api_client, user2, organization):
     assert response.status_code == status.HTTP_404_NOT_FOUND
     folder_by_user2.refresh_from_db()
     assert folder_by_user2.name == "User2's Folder"
+
+
+@pytest.mark.django_db
+def test_star_folder_permission_denied(api_client, user2, organization):
+    """Test a user cannot star another user's folder."""
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+    folder_by_user2 = Folder.objects.create(
+        name="User2's Folder", organization=organization, created_by=user2, parent=root_folder, is_starred=False
+    )
+
+    # api_client (logged in as user) tries to star it
+    response = api_client.patch(f'/api/v1/folders/{folder_by_user2.id}/', {'is_starred': True})
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    folder_by_user2.refresh_from_db()
+    assert folder_by_user2.is_starred is False
 
 
 @pytest.mark.django_db
@@ -1159,6 +1199,40 @@ class TestDocumentViewSet:
         assert len(data_page_2['results']) == 5
         assert data_page_2['next'] is None
         assert data_page_2['previous'] is not None
+
+    def test_update_document_star_status(self, api_client, document):
+        """Test starring and unstarring a document."""
+        assert document.is_starred is False
+
+        # Star the document
+        response = api_client.patch(f'/api/v1/documents/{document.id}/', {'is_starred': True})
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['is_starred'] is True
+        document.refresh_from_db()
+        assert document.is_starred is True
+
+        # Unstar the document
+        response = api_client.patch(f'/api/v1/documents/{document.id}/', {'is_starred': False})
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['is_starred'] is False
+        document.refresh_from_db()
+        assert document.is_starred is False
+
+    def test_star_document_permission_denied(self, api_client, user2, organization):
+        """Test a user cannot star another user's document."""
+        doc_by_user2 = Document.objects.create(
+            name="User2's Document",
+            organization=organization,
+            created_by=user2,
+            is_starred=False
+        )
+
+        # api_client (logged in as user) tries to star it
+        response = api_client.patch(f'/api/v1/documents/{doc_by_user2.id}/', {'is_starred': True})
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        doc_by_user2.refresh_from_db()
+        assert doc_by_user2.is_starred is False
 
 
 @pytest.mark.django_db

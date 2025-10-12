@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
@@ -621,4 +621,163 @@ describe('DocumentsPage', () => {
   //   });
   // });
 
+  describe('Star/Unstar Action', () => {
+    const mockFolder = { id: 'folder1', name: 'My Folder', is_starred: false };
+    const mockDocument = { id: 'doc1', name: 'My Document', is_starred: false };
+
+    beforeEach(() => {
+      api.getRootFolderContents.mockResolvedValue({
+        data: {
+          current_folder: null,
+          sub_folders: [mockFolder],
+          documents: [mockDocument],
+        },
+      });
+      api.updateFolder.mockResolvedValue({ data: {} });
+      api.updateDocument.mockResolvedValue({ data: {} });
+    });
+
+    it('optimistically stars a folder and calls the API', async () => {
+      const user = userEvent.setup();
+      renderComponent();
+
+      const folderCard = await screen.findByText('My Folder');
+      const card = folderCard.closest('div[class*="relative flex"]');
+      const starButton = within(card).getByRole('button', { name: /star/i });
+      
+      await user.click(starButton);
+
+      await waitFor(() => {
+        expect(within(card).getByRole('button', { name: /unstar/i })).toBeInTheDocument();
+      });
+
+      expect(api.updateFolder).toHaveBeenCalledWith('folder1', { is_starred: true });
+    });
+
+    it('optimistically unstars a document and calls the API', async () => {
+      api.getRootFolderContents.mockResolvedValue({
+        data: {
+          current_folder: null,
+          sub_folders: [],
+          documents: [{ id: 'doc1', name: 'My Document', is_starred: true }],
+        },
+      });
+      const user = userEvent.setup();
+      renderComponent();
+
+      const docCard = await screen.findByText('My Document');
+      const card = docCard.closest('div[class*="relative flex"]');
+      const unstarButton = within(card).getByRole('button', { name: /unstar/i });
+
+      await user.click(unstarButton);
+
+      await waitFor(() => {
+        expect(within(card).getByRole('button', { name: /star/i })).toBeInTheDocument();
+      });
+
+      expect(api.updateDocument).toHaveBeenCalledWith('doc1', { is_starred: false });
+    });
+
+    it('reverts the UI and shows a toast if the API call fails', async () => {
+      api.updateDocument.mockRejectedValue(new Error('API Error'));
+      const user = userEvent.setup();
+      renderComponent();
+
+      const docCard = await screen.findByText('My Document');
+      const card = docCard.closest('div[class*="relative flex"]');
+      const starButton = within(card).getByRole('button', { name: /star/i });
+
+      await user.click(starButton);
+
+      await waitFor(() => {
+        expect(within(card).getByRole('button', { name: /unstar/i })).toBeInTheDocument();
+      });
+      expect(api.updateDocument).toHaveBeenCalledWith('doc1', { is_starred: true });
+
+      // Revert on failure
+      await waitFor(() => {
+        expect(within(card).getByRole('button', { name: /star/i })).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText(/Failed to update star for "My Document"./)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Starred Filter', () => {
+    const mockFolders = [
+      { id: 'folder1', name: 'Starred Folder', is_starred: true },
+      { id: 'folder2', name: 'Normal Folder', is_starred: false },
+    ];
+    const mockDocuments = [
+      { id: 'doc1', name: 'Starred Document', is_starred: true },
+      { id: 'doc2', name: 'Normal Document', is_starred: false },
+    ];
+
+    beforeEach(() => {
+      api.getRootFolderContents.mockResolvedValue({
+        data: {
+          current_folder: null,
+          sub_folders: mockFolders,
+          documents: mockDocuments,
+        },
+      });
+    });
+
+    it('should show all items by default', async () => {
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Starred Folder')).toBeInTheDocument();
+        expect(screen.getByText('Normal Folder')).toBeInTheDocument();
+        expect(screen.getByText('Starred Document')).toBeInTheDocument();
+        expect(screen.getByText('Normal Document')).toBeInTheDocument();
+      });
+    });
+
+    it('should filter to show only starred items when "Starred" button is clicked', async () => {
+      const user = userEvent.setup();
+      renderComponent();
+      
+      await waitFor(() => {
+        expect(screen.getByText('Starred Folder')).toBeInTheDocument();
+      });
+
+      const starredButton = screen.getByRole('button', { name: /starred/i });
+      await user.click(starredButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Starred Folder')).toBeInTheDocument();
+        expect(screen.getByText('Starred Document')).toBeInTheDocument();
+        expect(screen.queryByText('Normal Folder')).not.toBeInTheDocument();
+        expect(screen.queryByText('Normal Document')).not.toBeInTheDocument();
+      });
+    });
+
+    it('should toggle back to show all items when "Starred" button is clicked again', async () => {
+      const user = userEvent.setup();
+      renderComponent();
+      
+      await waitFor(() => {
+        expect(screen.getByText('Starred Folder')).toBeInTheDocument();
+      });
+
+      const starredButton = screen.getByRole('button', { name: /starred/i });
+
+      // Click once to filter
+      await user.click(starredButton);
+      await waitFor(() => {
+        expect(screen.queryByText('Normal Folder')).not.toBeInTheDocument();
+      });
+
+      // Click again to un-filter
+      await user.click(starredButton);
+      await waitFor(() => {
+        expect(screen.getByText('Starred Folder')).toBeInTheDocument();
+        expect(screen.getByText('Normal Folder')).toBeInTheDocument();
+        expect(screen.getByText('Starred Document')).toBeInTheDocument();
+        expect(screen.getByText('Normal Document')).toBeInTheDocument();
+      });
+    });
+  });
 });

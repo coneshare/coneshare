@@ -13,7 +13,7 @@ import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder } from '../services/api';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
@@ -29,6 +29,7 @@ function DocumentsPage() {
   const [lastSelectedItem, setLastSelectedItem] = useState(null);
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
+  const [showStarredOnly, setShowStarredOnly] = useState(false);
   const [sortConfig, setSortConfig] = useState({
     key: "name",
     direction: "ascending",
@@ -37,10 +38,14 @@ function DocumentsPage() {
   const folderInputRef = useRef(null);
 
   const allItems = useMemo(() => {
-    const combined = [
+    let combined = [
       ...folders.map((f) => ({ ...f, type: "folder" })),
       ...documents.map((d) => ({ ...d, type: "document" })),
     ];
+
+    if (showStarredOnly) {
+      combined = combined.filter((item) => item.is_starred);
+    }
 
     combined.sort((a, b) => {
       // Folders always come first and are sorted by name
@@ -76,7 +81,7 @@ function DocumentsPage() {
     });
 
     return combined;
-  }, [folders, documents, sortConfig]);
+  }, [folders, documents, sortConfig, showStarredOnly]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -172,21 +177,40 @@ function DocumentsPage() {
     setLastSelectedItem(null);
   }, []);
 
-  const handleToggleStar = useCallback((id, type) => {
-    if (type === 'folder') {
-      setFolders((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, is_starred: !item.is_starred } : item
-        )
-      );
-    } else {
-      setDocuments((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, is_starred: !item.is_starred } : item
-        )
-      );
+  const handleToggleStar = useCallback(async (id, type) => {
+    const isFolder = type === 'folder';
+    const items = isFolder ? folders : documents;
+    const setItems = isFolder ? setFolders : setDocuments;
+    const updateApiCall = isFolder ? updateFolder : updateDocument;
+
+    const originalItem = items.find(item => item.id === id);
+    if (!originalItem) {
+      console.error("Item to star/unstar not found in state.");
+      return;
     }
-  }, []);
+
+    const newIsStarred = !originalItem.is_starred;
+
+    // Optimistic UI update
+    setItems(prevItems =>
+      prevItems.map(item =>
+        item.id === id ? { ...item, is_starred: newIsStarred } : item
+      )
+    );
+
+    // API call
+    try {
+      await updateApiCall(id, { is_starred: newIsStarred });
+    } catch (error) {
+      // Revert on failure
+      setItems(prevItems =>
+        prevItems.map(item =>
+          item.id === id ? originalItem : item
+        )
+      );
+      toast.error(`Failed to update star for "${originalItem.name}".`);
+    }
+  }, [documents, folders]);  
 
   const handleSort = (key) => {
     setSortConfig((prevConfig) => {
@@ -460,7 +484,11 @@ function DocumentsPage() {
           />
         ) : (
           <div>
-            <Button variant="ghost" size="sm">
+            <Button
+              variant={showStarredOnly ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setShowStarredOnly(prev => !prev)}
+            >
               <Star className="mr-2 h-4 w-4" />
               Starred
             </Button>

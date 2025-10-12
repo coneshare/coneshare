@@ -159,6 +159,10 @@ export const renameDocument = (id, name) => api.patch(`/documents/${id}/`, { nam
 
 export const renameFolder = (id, name) => api.patch(`/folders/${id}/`, { name });
 
+export const updateDocument = (id, data) => api.patch(`/documents/${id}/`, data);
+
+export const updateFolder = (id, data) => api.patch(`/folders/${id}/`, data);
+
 export const deleteMultipleDocuments = (ids) => {
   const promises = ids.map((id) => deleteDocument(id));
   return Promise.allSettled(promises);

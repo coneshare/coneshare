@@ -936,3 +936,25 @@ This session focused on improving backend performance, fixing critical bugs in b
 ### 3. Frontend Bug Fix: Folder Re-upload
 - **Problem**: Identified and fixed a bug where a user could not upload the same folder twice in a row because the file input's `onChange` event was not firing.
 - **Solution**: The event handlers for file and folder inputs were updated to reset the input's value to `null` after each upload is processed. A new frontend test case was added to prevent future regressions. ([`fa20b15`](https://github.com/coneshare/coneshare/commit/fa20b15))
+
+---
+
+## Session 39: Star/Unstar Feature & Starred Filter (2025-10-12)
+
+This session focused on implementing a persistent "Star/Unstar" feature for documents and folders, along with a client-side filter to display only starred items. [https://github.com/coneshare/coneshare/pull/40](https://github.com/coneshare/coneshare/pull/40)
+
+### 1. Star/Unstar Feature Persistence
+- **Backend**:
+  - An `is_starred` boolean field was added to the `Document` and `Folder` models to persist the starred state.
+  - The `DocumentSerializer` and `FolderSerializer` were updated to expose this field through the API.
+- **Frontend**:
+  - The `handleToggleStar` function in `DocumentsPage.jsx` was refactored to perform an optimistic UI update. It now calls the API to persist the change and reverts the UI with an error toast if the API call fails.
+
+### 2. "Starred" Filter Implementation
+- **Frontend**:
+  - A "Starred" filter button was added to the `DocumentsPage`.
+  - A new state variable, `showStarredOnly`, was introduced to toggle the filter. The logic for rendering the items list was updated to filter for starred items when this state is active.
+
+### 3. Testing
+- **Backend**: New unit tests were added to `tests/documents/test_views.py` to cover starring and unstarring of documents and folders, including permission checks to ensure users cannot star items they do not own.
+- **Frontend**: A new test suite was added to `tests/pages/DocumentsPage.test.jsx` to verify the optimistic UI updates for the star/unstar action (including the failure/revert case) and the functionality of the "Starred" filter.

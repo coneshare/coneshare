@@ -21,7 +21,7 @@ class FolderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Folder
-        fields = ['id', 'name', 'parent', 'organization', 'created_at', 'updated_at', 'ancestors']
+        fields = ['id', 'name', 'parent', 'organization', 'created_at', 'updated_at', 'ancestors', 'is_starred']
         read_only_fields = ['id', 'organization', 'created_at', 'updated_at', 'ancestors']
 
     def get_ancestors(self, obj):
@@ -297,7 +297,7 @@ class DocumentSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'organization', 'folder', 'name', 'description', 'status',
             'storage_key', 'original_storage_key', 'type', 'content_type',
-            'num_pages', 'download_only', 'assistant_enabled', 'created_by',
+            'num_pages', 'download_only', 'assistant_enabled', 'is_starred', 'created_by',
             'created_at', 'updated_at', 'versions', 'share_links'
         ]
         read_only_fields = [
