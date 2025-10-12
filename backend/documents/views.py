@@ -265,7 +265,7 @@ class EnsureFolderPathsView(APIView):
 
                     # Permission check on the parent
                     if parent_folder.created_by is not None and parent_folder.created_by != requesting_user:
-                        return Response(
+                        raise PermissionDenied(
                             {"detail": f"You do not have permission to create items in '{parent_path_str}'."},
                             status=status.HTTP_403_FORBIDDEN
                         )
