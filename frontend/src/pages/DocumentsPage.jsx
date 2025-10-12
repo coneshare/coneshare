@@ -29,6 +29,7 @@ function DocumentsPage() {
   const [lastSelectedItem, setLastSelectedItem] = useState(null);
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
+  const [showStarredOnly, setShowStarredOnly] = useState(false);
   const [sortConfig, setSortConfig] = useState({
     key: "name",
     direction: "ascending",
@@ -37,10 +38,14 @@ function DocumentsPage() {
   const folderInputRef = useRef(null);
 
   const allItems = useMemo(() => {
-    const combined = [
+    let combined = [
       ...folders.map((f) => ({ ...f, type: "folder" })),
       ...documents.map((d) => ({ ...d, type: "document" })),
     ];
+
+    if (showStarredOnly) {
+      combined = combined.filter((item) => item.is_starred);
+    }
 
     combined.sort((a, b) => {
       // Folders always come first and are sorted by name
@@ -76,7 +81,7 @@ function DocumentsPage() {
     });
 
     return combined;
-  }, [folders, documents, sortConfig]);
+  }, [folders, documents, sortConfig, showStarredOnly]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -483,7 +488,11 @@ function DocumentsPage() {
           />
         ) : (
           <div>
-            <Button variant="ghost" size="sm">
+            <Button
+              variant={showStarredOnly ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setShowStarredOnly(prev => !prev)}
+            >
               <Star className="mr-2 h-4 w-4" />
               Starred
             </Button>
