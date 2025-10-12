@@ -926,8 +926,7 @@ This session focused on: [https://github.com/coneshare/coneshare/pull/37](https:
 
 This session focused on improving backend performance, fixing critical bugs in both the backend and frontend, and implementing a new user-facing feature for manual folder creation. [https://github.com/coneshare/coneshare/pull/39](https://github.com/coneshare/coneshare/pull/39)
 
-### 1. Backend Performance & Bug Fixes
-- **N+1 Query Optimization**: Refactored the `EnsureFolderPathsView` to eliminate an N+1 query problem when resolving deep parent paths. The view now fetches all candidate folders in a single query and validates the structure in memory.
+### 1. Bug Fixes
 - **Subfolder Deletion Fix**: Resolved a critical bug where documents located in subfolders could not be deleted due to improper queryset scoping. The `DocumentViewSet` was refactored to move folder-filtering logic from the global `get_queryset` into the `list` method, ensuring detail-level actions like `destroy` can operate on documents regardless of their location. A regression test was added to verify the fix. ([`30833e2`](https://github.com/coneshare/coneshare/commit/30833e2))
 
 ### 2. Frontend "Add Folder" Feature

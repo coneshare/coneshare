@@ -194,6 +194,7 @@ class EnsureFolderPathsView(APIView):
 
         # Determine the root folder for the operation. This could be the org's
         # root or a specific subfolder defined by parent_path.
+        # TODO: N+1 query problem!
         try:
             if parent_path:
                 path = Path(parent_path)
