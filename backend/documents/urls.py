@@ -20,6 +20,7 @@ urlpatterns = [
     path('links/<slug:slug>/request-access/', views.ShareLinkRequestAccessView.as_view(), name='share-link-request-access'),
     path('links/<slug:slug>/view-data/', views.ShareLinkViewDataView.as_view(), name='share-link-view-data'),
     path('page-views/record/', views.RecordPageView.as_view(), name='record-page-view'),
+    path('actions/move/', views.MoveItemsView.as_view(), name='move-items'),
 
     path('', include(router.urls)),
 ]

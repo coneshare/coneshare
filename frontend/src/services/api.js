@@ -173,6 +173,14 @@ export const deleteMultipleFolders = (ids) => {
   return Promise.allSettled(promises);
 };
 
+export const moveItems = ({ documentIds, folderIds, destinationFolderId }) => {
+  return api.post('/actions/move/', {
+    document_ids: documentIds,
+    folder_ids: folderIds,
+    destination_folder_id: destinationFolderId,
+  });
+};
+
 export const getDocumentPreviewData = (id) => api.get(`/documents/${id}/preview-data/`);
 
 export const getDocumentDetails = (id) => api.get(`/documents/${id}/`);

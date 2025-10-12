@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import { Trash2, FolderInput } from "lucide-react";
 import { Button } from "../ui/Button";
 
 export function SelectionActionBar({
@@ -6,6 +6,7 @@ export function SelectionActionBar({
   selectedFoldersCount,
   onClearSelection,
   onDelete,
+  onMove,
 }) {
   const documentText = `${selectedDocumentsCount} document${selectedDocumentsCount !== 1 ? "s" : ""}`;
   const folderText = `${selectedFoldersCount} folder${selectedFoldersCount !== 1 ? "s" : ""}`;
@@ -28,6 +29,10 @@ export function SelectionActionBar({
         </Button>
       </div>
       <div className="flex items-center gap-x-2">
+        <Button variant="outline" size="sm" onClick={onMove}>
+          <FolderInput className="mr-2 h-4 w-4" />
+          Move
+        </Button>
         <Button variant="outline" size="sm" onClick={onDelete}>
           <Trash2 className="mr-2 h-4 w-4" />
           Delete

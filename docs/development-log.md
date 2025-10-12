@@ -958,3 +958,24 @@ This session focused on implementing a persistent "Star/Unstar" feature for docu
 ### 3. Testing
 - **Backend**: New unit tests were added to `tests/documents/test_views.py` to cover starring and unstarring of documents and folders, including permission checks to ensure users cannot star items they do not own.
 - **Frontend**: A new test suite was added to `tests/pages/DocumentsPage.test.jsx` to verify the optimistic UI updates for the star/unstar action (including the failure/revert case) and the functionality of the "Starred" filter.
+
+---
+
+## Session 40: "Move file/folder" Feature (2025-10-12)
+
+This session focused on implementing a robust "Move" feature, allowing users to move multiple documents and folders to a new location within their file hierarchy. [https://github.com/coneshare/coneshare/pull/41](https://github.com/coneshare/coneshare/pull/41)
+
+### 1. Backend Implementation
+- **Dedicated API Endpoint**: A new endpoint, `POST /api/v1/actions/move/`, was created to handle the move logic atomically.
+- **Transactional Logic**: The `MoveItemsView` uses a database transaction to ensure that the entire move operation succeeds or fails together, preventing partial moves.
+- **Server-Side Validation**: The backend validates user permissions on all source and destination items, and includes logic to prevent invalid operations such as moving a folder into itself or one of its own subfolders.
+- **Conflict Resolution**: If a moved item has a name that conflicts with an existing item in the destination, it is automatically renamed with a numeric suffix (e.g., `report.pdf` becomes `report (2).pdf`).
+
+### 2. Frontend Implementation
+- **"Move" Action**: A "Move" button was added to the `SelectionActionBar`, which appears when one or more items are selected.
+- **`MoveItemsDialog` Component**: A new, reusable dialog was created that allows users to browse their folder hierarchy to select a destination. The dialog includes breadcrumbs for navigation and disables invalid destinations (e.g., the folder being moved).
+- **API Integration**: `DocumentsPage.jsx` was updated to manage the dialog's state, call the new `moveItems` API service on confirmation, and refresh the data list upon a successful move.
+
+### 3. Testing
+- **Backend**: A comprehensive test suite was added to `tests/documents/test_views.py` to cover the move endpoint's functionality, including success cases, permission denials, invalid moves (e.g., cyclical paths), and conflict resolution.
+- **Frontend**: A new test suite was added to `frontend/src/tests/pages/DocumentsPage.test.jsx` to verify the end-to-end user flow: selecting items, using the move dialog to select a destination, confirming the move, and ensuring the UI refreshes correctly.

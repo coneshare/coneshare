@@ -526,6 +526,96 @@ describe('DocumentsPage', () => {
     });
   });
 
+  describe('Move Items', () => {
+    const mockFolders = [
+        { id: 'folder1', name: 'Folder One' }, // To be moved
+        { id: 'folder2', name: 'Folder Two' }, // Destination
+    ];
+    const mockDocuments = [
+        { id: 'doc1', name: 'Document One' }, // To be moved
+    ];
+
+    beforeEach(() => {
+        // Mock data for the main DocumentsPage list
+        api.getRootFolderContents.mockResolvedValue({
+            data: {
+                current_folder: null,
+                sub_folders: mockFolders,
+                documents: mockDocuments,
+            },
+        });
+        // Mock data for the MoveItemsDialog's initial fetch (root)
+        // We need to do this because the dialog re-fetches folder content
+        api.getFolderContents.mockResolvedValue({
+            data: {
+                current_folder: null,
+                sub_folders: mockFolders,
+            },
+        });
+        api.moveItems.mockResolvedValue({ status: 200, data: {} });
+    });
+
+    it('should open move dialog, allow moving items, and refresh list on success', async () => {
+        const user = userEvent.setup();
+        renderComponent();
+        
+        await screen.findByText('Folder One');
+
+        // Select 'Folder One' and 'Document One' to move
+        const checkboxes = screen.getAllByRole('checkbox', { name: 'Select item' });
+        await user.click(checkboxes[0]); // Folder One
+        await user.click(checkboxes[2]); // Document One
+
+        // Click the "Move" button in the action bar
+        const moveButton = screen.getByRole('button', { name: /move/i });
+        await user.click(moveButton);
+
+        // Verify the dialog opens
+        const dialogTitle = await screen.findByRole('heading', { name: /move items/i });
+        const dialog = dialogTitle.closest('div[role="dialog"]');
+
+        // In the dialog, the folder being moved ('Folder One') should be disabled
+        const folderOneInDialog = await within(dialog).findByText('Folder One');
+        expect(folderOneInDialog.closest('button')).toBeDisabled();
+
+        // The destination folder ('Folder Two') should be enabled
+        const folderTwoInDialog = within(dialog).getByText('Folder Two');
+        expect(folderTwoInDialog.closest('button')).not.toBeDisabled();
+
+        // Simulate navigating into 'Folder Two'
+        api.getFolderContents.mockResolvedValue({
+            data: {
+                current_folder: { id: 'folder2', name: 'Folder Two', ancestors: [] },
+                sub_folders: [], // No subfolders inside destination
+            },
+        });
+        await user.click(folderTwoInDialog);
+
+        // Wait for breadcrumb to show we are inside "Folder Two"
+        await within(dialog).findByText('Folder Two', { selector: 'span.font-semibold' });
+
+        // Confirm the move
+        const moveHereButton = within(dialog).getByRole('button', { name: /move here/i });
+        await user.click(moveHereButton);
+
+        // Verify the API was called correctly
+        await waitFor(() => {
+            expect(api.moveItems).toHaveBeenCalledWith({
+                documentIds: ['doc1'],
+                folderIds: ['folder1'],
+                destinationFolderId: 'folder2',
+            });
+        });
+
+        // Verify the dialog is closed and the main list is refreshed
+        expect(screen.queryByRole('heading', { name: /move items/i })).not.toBeInTheDocument();
+        await waitFor(() => {
+            // Initial call + refresh call
+            expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
+        });
+    });
+  });
+
   // describe('Drag and Drop Scenarios', () => {
   //   // Helper to create a file with a mocked path property, mimicking react-dropzone
   //   const createDroppedFile = (path, name) => {

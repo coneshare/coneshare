@@ -37,6 +37,7 @@ from .serializers import (
 )
 from .services import (
     _get_unique_folder_name,
+    _get_unique_document_name,
     create_document_from_upload,
     create_new_document_version,
     delete_document_and_files,
@@ -1035,3 +1036,103 @@ class RecordPageView(APIView):
         except Exception as e:
             logger.error(f"Error recording page view: {e}")
             return Response({"error": "Server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class MoveItemsView(APIView):
+    """
+    A dedicated view for moving documents and folders to a new location.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    class MoveItemsSerializer(serializers.Serializer):
+        document_ids = serializers.ListField(
+            child=serializers.CharField(), required=False, allow_empty=True
+        )
+        folder_ids = serializers.ListField(
+            child=serializers.CharField(), required=False, allow_empty=True
+        )
+        destination_folder_id = serializers.CharField(allow_null=True)
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.MoveItemsSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        validated_data = serializer.validated_data
+        doc_ids = validated_data.get('document_ids', [])
+        folder_ids = validated_data.get('folder_ids', [])
+        dest_id = validated_data.get('destination_folder_id')
+        user = request.user
+        organization = user.organization
+
+        if not doc_ids and not folder_ids:
+            return Response(
+                {"detail": "No items selected to move."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            with transaction.atomic():
+                # 1. Get and validate destination folder
+                if dest_id:
+                    destination_folder = Folder.objects.get(id=dest_id, created_by=user)
+                else:
+                    destination_folder = Folder.objects.get_root_for_org(organization)
+
+                # 2. Get and validate source items
+                documents_to_move = Document.objects.filter(id__in=doc_ids, created_by=user)
+                if documents_to_move.count() != len(doc_ids):
+                    raise PermissionDenied("You do not have permission to move one or more of the selected documents.")
+
+                folders_to_move = Folder.objects.filter(id__in=folder_ids, created_by=user)
+                if folders_to_move.count() != len(folder_ids):
+                    raise PermissionDenied("You do not have permission to move one or more of the selected folders.")
+
+                # 3. Validation: Prevent moving a folder into itself or a descendant
+                for folder in folders_to_move:
+                    if folder.id == destination_folder.id:
+                        raise serializers.ValidationError(
+                            f"Cannot move folder '{folder.name}' into itself."
+                        )
+
+                    parent = destination_folder
+                    while parent:
+                        if parent.id == folder.id:
+                            raise serializers.ValidationError(
+                                f"Cannot move folder '{folder.name}' into one of its own subfolders."
+                            )
+                        parent = parent.parent
+
+                # 4. Perform move for documents
+                for doc in documents_to_move:
+                    doc.name = _get_unique_document_name(
+                        requesting_user=user,
+                        folder=destination_folder,
+                        original_name=doc.name
+                    )
+                    doc.folder = destination_folder
+                    doc.save()
+
+                # 5. Perform move for folders
+                for folder in folders_to_move:
+                    folder.name = _get_unique_folder_name(
+                        created_by=user,
+                        parent_folder=destination_folder,
+                        original_name=folder.name
+                    )
+                    folder.parent = destination_folder
+                    folder.save()
+
+            return Response({"detail": "Items moved successfully."}, status=status.HTTP_200_OK)
+
+        except Folder.DoesNotExist:
+            return Response({"detail": "Destination folder not found."}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionDenied as e:
+            return Response({"detail": str(e)}, status=status.HTTP_403_FORBIDDEN)
+        except serializers.ValidationError as e:
+            # e.detail is a dict, so we convert it for a clean message
+            error_message = next(iter(e.detail.values()))[0] if isinstance(e.detail, dict) else str(e.detail[0])
+            return Response({"detail": error_message}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception("An error occurred during move operation.")
+            return Response({"detail": "An unexpected error occurred."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

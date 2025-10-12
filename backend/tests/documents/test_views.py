@@ -1580,3 +1580,127 @@ class TestOwnerPreviewFlag:
         assert len(results) == 1
         assert results[0]['is_owner_view'] is False
         assert results[0]['viewer_email'] == viewer_email
+
+
+@pytest.mark.django_db
+class TestMoveItemsView:
+    """Tests for the MoveItemsView endpoint."""
+
+    @pytest.fixture
+    def setup_folders(self, user, organization):
+        """Setup initial folder structure for move tests."""
+        root = Folder.objects.get_root_for_org(organization)
+        folder_a = Folder.objects.create(name="Folder A", created_by=user, organization=organization, parent=root)
+        folder_b = Folder.objects.create(name="Folder B", created_by=user, organization=organization, parent=root)
+        subfolder_a = Folder.objects.create(name="Subfolder A", created_by=user, organization=organization, parent=folder_a)
+        doc_in_a = Document.objects.create(name="Doc in A.pdf", created_by=user, organization=organization, folder=folder_a)
+        doc_in_root = Document.objects.create(name="Doc in Root.pdf", created_by=user, organization=organization, folder=root)
+        return {
+            'root': root,
+            'folder_a': folder_a,
+            'folder_b': folder_b,
+            'subfolder_a': subfolder_a,
+            'doc_in_a': doc_in_a,
+            'doc_in_root': doc_in_root,
+        }
+
+    def test_move_items_to_another_folder(self, api_client, setup_folders):
+        """Test moving a document and a folder into another folder."""
+        data = {
+            'document_ids': [str(setup_folders['doc_in_root'].id)],
+            'folder_ids': [str(setup_folders['folder_a'].id)],
+            'destination_folder_id': str(setup_folders['folder_b'].id)
+        }
+        response = api_client.post('/api/v1/actions/move/', data)
+        assert response.status_code == status.HTTP_200_OK
+
+        setup_folders['doc_in_root'].refresh_from_db()
+        setup_folders['folder_a'].refresh_from_db()
+
+        assert setup_folders['doc_in_root'].folder == setup_folders['folder_b']
+        assert setup_folders['folder_a'].parent == setup_folders['folder_b']
+
+    def test_move_items_to_root(self, api_client, setup_folders):
+        """Test moving items from a subfolder to the root folder."""
+        data = {
+            'document_ids': [str(setup_folders['doc_in_a'].id)],
+            'folder_ids': [str(setup_folders['subfolder_a'].id)],
+            'destination_folder_id': None  # None signifies root
+        }
+        response = api_client.post('/api/v1/actions/move/', data)
+        assert response.status_code == status.HTTP_200_OK
+
+        setup_folders['doc_in_a'].refresh_from_db()
+        setup_folders['subfolder_a'].refresh_from_db()
+
+        assert setup_folders['doc_in_a'].folder == setup_folders['root']
+        assert setup_folders['subfolder_a'].parent == setup_folders['root']
+
+    def test_move_folder_into_itself_fails(self, api_client, setup_folders):
+        """Test that moving a folder into itself is not allowed."""
+        data = {
+            'folder_ids': [str(setup_folders['folder_a'].id)],
+            'destination_folder_id': str(setup_folders['folder_a'].id)
+        }
+        response = api_client.post('/api/v1/actions/move/', data)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "into itself" in response.data['detail']
+
+    def test_move_folder_into_descendant_fails(self, api_client, setup_folders):
+        """Test that moving a folder into one of its own children is not allowed."""
+        data = {
+            'folder_ids': [str(setup_folders['folder_a'].id)],
+            'destination_folder_id': str(setup_folders['subfolder_a'].id)
+        }
+        response = api_client.post('/api/v1/actions/move/', data)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "into one of its own subfolders" in response.data['detail']
+
+    def test_move_items_permission_denied_for_destination(self, api_client, user2, setup_folders):
+        """A user cannot move items into a folder they do not own."""
+        other_user_folder = Folder.objects.create(name="User2 Folder", created_by=user2, organization=user2.organization, parent=setup_folders['root'])
+        data = {
+            'document_ids': [str(setup_folders['doc_in_root'].id)],
+            'destination_folder_id': str(other_user_folder.id)
+        }
+        response = api_client.post('/api/v1/actions/move/', data)
+        assert response.status_code == status.HTTP_404_NOT_FOUND  # Because the folder is not in the user's queryset
+        assert "Destination folder not found" in response.data['detail']
+
+    def test_move_items_permission_denied_for_source(self, api_client, user2, setup_folders):
+        """A user cannot move items they do not own."""
+        other_user_doc = Document.objects.create(name="User2 Doc.pdf", created_by=user2, organization=user2.organization, folder=setup_folders['root'])
+        data = {
+            'document_ids': [str(other_user_doc.id)],
+            'destination_folder_id': str(setup_folders['folder_a'].id)
+        }
+        response = api_client.post('/api/v1/actions/move/', data)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert "permission to move" in response.data['detail']
+
+    def test_move_items_with_name_conflict_is_renamed(self, api_client, user, setup_folders):
+        """Test that a moved item with a name conflict is automatically renamed."""
+        # Create a document in Folder B with the same name as a document in Folder A
+        Document.objects.create(name="Doc in A.pdf", created_by=user, organization=user.organization, folder=setup_folders['folder_b'])
+        
+        data = {
+            'document_ids': [str(setup_folders['doc_in_a'].id)],
+            'destination_folder_id': str(setup_folders['folder_b'].id)
+        }
+        response = api_client.post('/api/v1/actions/move/', data)
+        assert response.status_code == status.HTTP_200_OK
+
+        setup_folders['doc_in_a'].refresh_from_db()
+        assert setup_folders['doc_in_a'].folder == setup_folders['folder_b']
+        assert setup_folders['doc_in_a'].name == "Doc in A (2).pdf"
+
+    def test_move_no_items_fails(self, api_client, setup_folders):
+        """Test that calling the move endpoint with no item IDs fails."""
+        data = {
+            'document_ids': [],
+            'folder_ids': [],
+            'destination_folder_id': str(setup_folders['folder_a'].id)
+        }
+        response = api_client.post('/api/v1/actions/move/', data)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "No items selected to move" in response.data['detail']
