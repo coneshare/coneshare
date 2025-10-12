@@ -16,6 +16,7 @@ import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
 import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders } from '../services/api';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
+import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
 
 function DocumentsPage() {
   const { folderId } = useParams();
@@ -27,6 +28,7 @@ function DocumentsPage() {
   const [selection, setSelection] = useState({ documents: [], folders: [] });
   const [lastSelectedItem, setLastSelectedItem] = useState(null);
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
+  const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState({
     key: "name",
     direction: "ascending",
@@ -243,17 +245,20 @@ function DocumentsPage() {
     folderInputRef.current.click();
   };
 
-  const handleAddFolder = async () => {
-    const name = window.prompt("Enter new folder name:");
-    if (name) {
-      try {
-        await createFolder(name, folderId || null);
-        toast.success(`Folder "${name}" created successfully.`);
-        fetchData();
-      } catch (error) {
-        console.error("Failed to create folder:", error);
-        // The API interceptor will show a toast.
-      }
+  const handleAddFolder = () => {
+    setIsAddFolderOpen(true);
+  };
+
+  const handleCreateFolder = async (name) => {
+    try {
+      await createFolder(name, folderId || null);
+      toast.success(`Folder "${name}" created successfully.`);
+      fetchData();
+    } catch (error) {
+      console.error("Failed to create folder:", error);
+      // The API interceptor will show a toast.
+    } finally {
+      setIsAddFolderOpen(false);
     }
   };
 
@@ -371,6 +376,11 @@ function DocumentsPage() {
         description="This action cannot be undone. This will permanently delete all selected items and their contents."
         onConfirm={handleBulkDelete}
         confirmText="Delete"
+      />
+      <AddFolderDialog
+        isOpen={isAddFolderOpen}
+        onOpenChange={setIsAddFolderOpen}
+        onConfirm={handleCreateFolder}
       />
       <section className="mb-4 flex items-center justify-end space-x-2 sm:space-x-0">
         <div className="relative flex items-center gap-x-2">
