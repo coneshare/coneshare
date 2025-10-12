@@ -125,3 +125,13 @@ The included `Makefile` provides shortcuts for common development tasks.
 ## Contributing
 
 Contributions are welcome! Please feel free to open an issue or submit a pull request.
+
+---
+
+## Acknowledgements
+
+This project was built with the assistance of [Aider](https://github.com/paul-gauthier/aider), an AI-powered pair programmer. Special thanks to the Aider project for its powerful capabilities in code generation and refactoring.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
