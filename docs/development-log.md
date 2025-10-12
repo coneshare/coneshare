@@ -919,3 +919,21 @@ This session focused on: [https://github.com/coneshare/coneshare/pull/37](https:
 ### 6. Testing
 - **Backend**: Added new unit tests to `tests/documents/test_views.py` to verify the `parent_path` functionality, including success cases, renaming within subfolders, and handling of invalid parent paths.
 - **Frontend**: The test suite in `frontend/src/tests/pages/DocumentsPage.test.jsx` was significantly updated to cover the new, more complex folder upload workflow, including mocking the `ensureFolderPaths` response with path mappings and verifying correct path construction for subfolder uploads.
+
+---
+
+## Session 38: API Optimization, Bug Fixes & Manual Folder Creation (2025-10-12)
+
+This session focused on improving backend performance, fixing critical bugs in both the backend and frontend, and implementing a new user-facing feature for manual folder creation. [https://github.com/coneshare/coneshare/pull/39](https://github.com/coneshare/coneshare/pull/39)
+
+### 1. Backend Performance & Bug Fixes
+- **N+1 Query Optimization**: Refactored the `EnsureFolderPathsView` to eliminate an N+1 query problem when resolving deep parent paths. The view now fetches all candidate folders in a single query and validates the structure in memory.
+- **Subfolder Deletion Fix**: Resolved a critical bug where documents located in subfolders could not be deleted due to improper queryset scoping. The `DocumentViewSet` was refactored to move folder-filtering logic from the global `get_queryset` into the `list` method, ensuring detail-level actions like `destroy` can operate on documents regardless of their location. A regression test was added to verify the fix. ([`30833e2`](https://github.com/coneshare/coneshare/commit/30833e2))
+
+### 2. Frontend "Add Folder" Feature
+- **Initial Implementation**: Added an "Add Folder" button to the `DocumentsPage` that used a native browser prompt to get the folder name and called the backend API to create it. ([`de0a24f`](https://github.com/coneshare/coneshare/commit/de0a24f))
+- **UX Improvement**: Replaced the native prompt with a polished, reusable `AddFolderDialog` component for a better user experience. The dialog's layout was further refined for better alignment and usability. ([`986ac10`](https://github.com/coneshare/coneshare/commit/986ac10), [`fa6da82`](https://github.com/coneshare/coneshare/commit/fa6da82))
+
+### 3. Frontend Bug Fix: Folder Re-upload
+- **Problem**: Identified and fixed a bug where a user could not upload the same folder twice in a row because the file input's `onChange` event was not firing.
+- **Solution**: The event handlers for file and folder inputs were updated to reset the input's value to `null` after each upload is processed. A new frontend test case was added to prevent future regressions. ([`fa20b15`](https://github.com/coneshare/coneshare/commit/fa20b15))

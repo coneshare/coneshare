@@ -34,7 +34,7 @@ export function AddFolderDialog({ isOpen, onOpenChange, onConfirm }) {
         <DialogHeader>
           <DialogTitle>Add New Folder</DialogTitle>
           <DialogDescription>
-            Enter a name for your new folder. Click create when you're done.
+            Enter a name for your new folder.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} id="add-folder-form">
