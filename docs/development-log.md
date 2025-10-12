@@ -979,3 +979,13 @@ This session focused on implementing a robust "Move" feature, allowing users to 
 ### 3. Testing
 - **Backend**: A comprehensive test suite was added to `tests/documents/test_views.py` to cover the move endpoint's functionality, including success cases, permission denials, invalid moves (e.g., cyclical paths), and conflict resolution.
 - **Frontend**: A new test suite was added to `frontend/src/tests/pages/DocumentsPage.test.jsx` to verify the end-to-end user flow: selecting items, using the move dialog to select a destination, confirming the move, and ensuring the UI refreshes correctly.
+
+---
+
+## Session 41: Test Suite Hardening (2025-10-12)
+
+This session focused on improving the robustness of the backend test suite.
+
+### 1. "Move to Root" Test Fix
+- **Problem**: The `test_move_items_to_root` test case was failing with a `TypeError` because the test client attempted to send a Python `None` value using `multipart/form-data` encoding, which does not support it.
+- **Solution**: The `api_client.post` call in the test was updated to use `format='json'`. This ensures the payload is serialized correctly (with `None` becoming `null`), aligning the test's behavior with that of the actual frontend client. This fixes the test and makes it a more accurate representation of the API contract.
