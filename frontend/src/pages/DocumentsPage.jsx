@@ -56,10 +56,6 @@ function DocumentsPage() {
       const dir = sortConfig.direction === "ascending" ? 1 : -1;
       const key = sortConfig.key;
 
-      if (a.type === "folder" && b.type === "folder") {
-        return a.name.localeCompare(b.name);
-      }
-      
       const aVal = a[key];
       const bVal = b[key];
 

@@ -870,4 +870,38 @@ describe('DocumentsPage', () => {
       });
     });
   });
+
+  describe('Sorting', () => {
+    it('should sort folders by "last modified" date', async () => {
+      const user = userEvent.setup();
+      const mockFolders = [
+        { id: 'f1', name: 'Old Folder', updated_at: '2023-01-01T12:00:00Z', type: 'folder' },
+        { id: 'f2', name: 'New Folder', updated_at: '2023-01-02T12:00:00Z', type: 'folder' },
+      ];
+      api.getRootFolderContents.mockResolvedValue({
+        data: { current_folder: null, sub_folders: mockFolders, documents: [] },
+      });
+      renderComponent();
+
+      await screen.findByText('Old Folder');
+
+      // Open sort menu and select "Last modified"
+      await user.click(screen.getByRole('button', { name: 'Sort' }));
+      await user.click(screen.getByRole('menuitem', { name: 'Last modified' }));
+
+      // Default sort is ascending, so "Old Folder" should be first.
+      let listItems = screen.getAllByText(/Folder/);
+      expect(listItems[0]).toHaveTextContent('Old Folder');
+      expect(listItems[1]).toHaveTextContent('New Folder');
+
+      // Click again to sort descending
+      await user.click(screen.getByRole('button', { name: 'Sort' }));
+      await user.click(screen.getByRole('menuitem', { name: 'Last modified' }));
+
+      // Now "New Folder" should be first
+      listItems = screen.getAllByText(/Folder/);
+      expect(listItems[0]).toHaveTextContent('New Folder');
+      expect(listItems[1]).toHaveTextContent('Old Folder');
+    });
+  });
 });
