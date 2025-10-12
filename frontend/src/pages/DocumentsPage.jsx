@@ -12,10 +12,11 @@ import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems } from '../services/api';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
+import { MoveItemsDialog } from '../components/dialogs/MoveItemsDialog';
 
 function DocumentsPage() {
   const { folderId } = useParams();
@@ -28,6 +29,7 @@ function DocumentsPage() {
   const [lastSelectedItem, setLastSelectedItem] = useState(null);
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
+  const [isMoveItemsOpen, setIsMoveItemsOpen] = useState(false);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
   const [sortConfig, setSortConfig] = useState({
     key: "name",
@@ -264,6 +266,24 @@ function DocumentsPage() {
     fetchData(); // Refresh data
   };
 
+  const handleMoveItems = async (destinationFolderId) => {
+    const { documents: docIds, folders: folderIds } = selection;
+    try {
+      await moveItems({
+        documentIds: docIds,
+        folderIds,
+        destinationFolderId,
+      });
+      toast.success("Selected items moved successfully.");
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error("Failed to move items:", error);
+      // The API interceptor will show a toast.
+    } finally {
+      setIsMoveItemsOpen(false);
+    }
+  };
+
   const handleFolderSelect = () => {
     folderInputRef.current.click();
   };
@@ -400,6 +420,12 @@ function DocumentsPage() {
         onConfirm={handleBulkDelete}
         confirmText="Delete"
       />
+      <MoveItemsDialog
+        isOpen={isMoveItemsOpen}
+        onOpenChange={setIsMoveItemsOpen}
+        onConfirm={handleMoveItems}
+        selectedFolderIds={selection.folders}
+      />
       <AddFolderDialog
         isOpen={isAddFolderOpen}
         onOpenChange={setIsAddFolderOpen}
@@ -480,6 +506,7 @@ function DocumentsPage() {
             selectedFoldersCount={selection.folders.length}
             onClearSelection={handleClearSelection}
             onDelete={() => setIsBulkDeleteConfirmOpen(true)}
+            onMove={() => setIsMoveItemsOpen(true)}
           />
         ) : (
           <div>
