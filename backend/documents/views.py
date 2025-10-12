@@ -16,7 +16,7 @@ from django.utils import timezone
 from geoip2.errors import AddressNotFoundError
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import APIException, NotFound
+from rest_framework.exceptions import APIException, NotFound, PermissionDenied
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
@@ -26,7 +26,7 @@ from rest_framework.views import APIView
 from .models import Document, Folder, ShareLink, ShareLinkPreset, ViewSession, Viewer, PreviewSession, EmailVerificationToken
 from .serializers import (
     DocumentSerializer,
-    FolderFromPathSerializer,
+    EnsureFolderPathsSerializer,
     FolderSerializer,
     PageViewRecordSerializer,
     ShareLinkEmailSerializer,
@@ -36,6 +36,7 @@ from .serializers import (
     ViewSessionSerializer,
 )
 from .services import (
+    _get_unique_folder_name,
     create_document_from_upload,
     create_new_document_version,
     delete_document_and_files,
@@ -173,59 +174,138 @@ def _get_active_share_link(slug: str) -> ShareLink:
     return link
 
 
-class FolderFromPathView(APIView):
+class EnsureFolderPathsView(APIView):
     """
-    A view to ensure a folder path exists, creating it if necessary.
-    This is designed to be called once before a batch of uploads to a new folder.
+    A view to ensure multiple folder paths exist, creating them if necessary.
+    This is designed to be called once before a batch of folder uploads.
+    It's atomic, ensuring that if any path fails, the whole transaction is rolled back.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        serializer = FolderFromPathSerializer(data=request.data)
+        serializer = EnsureFolderPathsSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        folder_path = serializer.validated_data['path']
+        paths = serializer.validated_data['paths']
+        parent_path = serializer.validated_data.get('parent_path')
         requesting_user = request.user
+        organization = requesting_user.organization
 
-        # --- Permission Check ---
+        # Determine the root folder for the operation. This could be the org's
+        # root or a specific subfolder defined by parent_path.
         try:
-            parent = Folder.objects.get_root_for_org(requesting_user.organization)
+            if parent_path:
+                path = Path(parent_path)
+                current_folder = Folder.objects.get_root_for_org(organization)
+                for part in path.parts:
+                    current_folder = Folder.objects.get(
+                        organization=organization,
+                        name=part,
+                        parent=current_folder,
+                        created_by=requesting_user
+                    )
+                root_folder = current_folder
+            else:
+                root_folder = Folder.objects.get_root_for_org(organization)
+        except Folder.DoesNotExist:
+            return Response(
+                {"detail": f"Parent path '{parent_path}' not found or you do not have permission to access it."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                # 1. Determine unique names for all top-level folders relative to the root_folder.
+                top_level_dirs = {Path(p).parts[0] for p in paths if Path(p).parts}
+                path_mappings = {}
+                for original_name in top_level_dirs:
+                    unique_name = _get_unique_folder_name(
+                        created_by=requesting_user,
+                        parent_folder=root_folder,
+                        original_name=original_name
+                    )
+                    path_mappings[original_name] = unique_name
+
+                # 2. Reconstruct all required paths with potentially renamed top-level folders.
+                all_required_paths = set()
+                for path_str in paths:
+                    p = Path(path_str)
+                    if not p.parts:
+                        continue
+
+                    original_top_level = p.parts[0]
+                    renamed_top_level = path_mappings.get(original_top_level, original_top_level)
+
+                    new_path_parts = [renamed_top_level] + list(p.parts[1:])
+                    new_p = Path(*new_path_parts)
+
+                    all_required_paths.add(str(new_p))
+                    for parent in new_p.parents:
+                        if parent != Path('.'):
+                            all_required_paths.add(str(parent))
+
+                # 3. Sort paths to ensure parents are processed before children
+                sorted_paths = sorted(list(all_required_paths), key=lambda p: p.count(os.sep))
+
+                # Keep track of created/verified folders to avoid redundant lookups
+                path_to_folder_map = {'': root_folder}
+
+                for path_str in sorted_paths:
+                    path = Path(path_str)
+                    parent_path_str = str(path.parent) if path.parent != Path('.') else ''
+
+                    parent_folder = path_to_folder_map.get(parent_path_str)
+                    if not parent_folder:
+                        # This should not happen due to sorting, but as a safeguard.
+                        return Response(
+                            {"detail": f"An error occurred: parent folder for '{path_str}' not found."},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        )
+
+                    # Permission check on the parent
+                    if parent_folder.created_by is not None and parent_folder.created_by != requesting_user:
+                        raise PermissionDenied(
+                            {"detail": f"You do not have permission to create items in '{parent_path_str}'."},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+
+                    folder_name = path.name
+                    folder, created = Folder.objects.get_or_create(
+                        organization=organization,
+                        parent=parent_folder,
+                        name=folder_name,
+                        defaults={'created_by': requesting_user}
+                    )
+
+                    # If the folder already existed, verify ownership
+                    if not created and folder.created_by != requesting_user:
+                        raise PermissionDenied(
+                            detail=f"You do not have permission to access or create subfolders in '{path_str}'."
+                        )
+
+                    path_to_folder_map[path_str] = folder
+
+            return Response(
+                {
+                    "detail": "Folder structure ensured successfully.",
+                    "path_mappings": path_mappings,
+                },
+                status=status.HTTP_201_CREATED
+            )
+        except PermissionDenied:
+            # Re-raise to let DRF's exception handler create the 403 response.
+            # The transaction is automatically rolled back when an exception
+            # is raised from within the `atomic` block.
+            raise
         except Folder.DoesNotExist:
             logger.error(f"Invisible root folder not found for user {requesting_user.id}'s organization")
             return Response(
                 {"detail": "An unexpected error occurred: root folder missing."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-        path = Path(folder_path)
-        for part in path.parts:
-            try:
-                folder = Folder.objects.get(
-                    organization=requesting_user.organization,
-                    name=part,
-                    parent=parent
-                )
-                if folder.created_by != requesting_user:
-                    return Response(
-                        {"detail": f"You do not have permission to access or create subfolders in '{part}'."},
-                        status=status.HTTP_403_FORBIDDEN
-                    )
-                parent = folder
-            except Folder.DoesNotExist:
-                # This part of the path doesn't exist, so we can stop checking.
-                # The rest of the path will be created.
-                break
-
-        try:
-            folder = _get_or_create_folders_from_path(
-                requesting_user=requesting_user,
-                folder_path=folder_path
-            )
-            folder_serializer = FolderSerializer(folder, context={'request': request})
-            return Response(folder_serializer.data, status=status.HTTP_201_CREATED)
         except Exception:
-            logger.exception("Failed to ensure folder path exists for path: %s", folder_path)
+            logger.exception("Failed to ensure folder paths exist for paths: %s", paths)
             return Response(
                 {"detail": "An unexpected error occurred while creating the folder structure."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

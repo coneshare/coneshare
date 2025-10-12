@@ -10,11 +10,11 @@ The goal for V1 is to implement a clean, reliable file and folder upload feature
 
 ### 1. Backend (Django)
 
--   **Decoupled Folder Creation Endpoint**:
+-   **Bulk Folder Creation Endpoint**:
     -   **File**: `backend/documents/views.py`
-    -   **Endpoint**: `POST /api/v1/folders/from_path/`
-    -   **Action**: A new `FolderFromPathView` handles the idempotent creation of nested folder structures from a path string (e.g., `Reports/Q1/Final`).
-    -   **Logic**: This endpoint is called once by the frontend before a batch upload. It parses the path and creates any missing folders, ensuring the structure exists before files are uploaded. This prevents race conditions.
+    -   **Endpoint**: `POST /api/v1/folders/ensure-paths/`
+    -   **Action**: A new `EnsureFolderPathsView` handles the atomic, idempotent creation of multiple folder structures from a list of path strings (e.g., `["Reports/Q1", "Reports/Q2/Internal"]`).
+    -   **Logic**: This endpoint is called once by the frontend before a batch folder upload. It receives a list of required directory paths. The backend is responsible for parsing all paths, determining the complete hierarchy (e.g., creating `Reports` before creating `Reports/Q1`), and creating all missing folders in a single database transaction. This guarantees data integrity and prevents race conditions.
 
 -   **Dedicated Upload Endpoint**:
     -   **File**: `backend/documents/views.py`
@@ -34,11 +34,20 @@ The goal for V1 is to implement a clean, reliable file and folder upload feature
     -   **Logic for File Upload**:
         1.  The "Files" option uses an `<input type="file" multiple>`.
         2.  On selection, each file is uploaded concurrently via `Promise.allSettled` by sending a `POST` request to `/api/v1/uploads/document/`.
-    -   **Logic for Folder Upload (Two-Step Process)**:
-        1.  The "Folder" option uses an `<input type="file" webkitdirectory>`.
-        2.  **Step 1: Ensure Folder Structure**: Before uploading, the frontend extracts all unique directory paths from the selected files' `webkitRelativePath`. It then makes a single API call for each unique path to the new `POST /api/v1/folders/from_path/` endpoint.
-        3.  **Step 2: Upload Files**: Only after the folder creation call succeeds, it proceeds to upload all files concurrently using `Promise.allSettled`. Each file is sent with its full `webkitRelativePath` to the `/api/v1/uploads/document/` endpoint.
-        4.  After all successful uploads, the document list is refreshed.
+    -   **Logic for Folder Upload (Two-Step Process)**: This process is designed to prevent race conditions by creating the folder structure before uploading files.
+        1.  **User Action**: The user selects the "Folder" option from the "Upload" dropdown, which triggers a hidden `<input type="file" webkitdirectory>`.
+        2.  **Event Handling**: The `onFolderChange` event handler in `DocumentsPage.jsx` calls the `handleFileUploads` function with the list of selected files.
+        3.  **Step 1: Folder Path Extraction & Bulk Creation**:
+            -   The `handleFileUploads` function first iterates through all file objects to inspect their `webkitRelativePath` property (e.g., `"Reports/Q1/Analysis.pdf"`).
+            -   It extracts the directory portion of each path (e.g., `"Reports/Q1"`) and collects all unique paths into a `Set`.
+            -   It then sends this entire set of paths in a **single API call** to the `POST /api/v1/folders/ensure-paths/` endpoint. This call is made once before any files are uploaded.
+            -   The backend handles the complexity of creating the entire folder hierarchy atomically, ensuring the structure is fully in place before the frontend proceeds.
+        4.  **Step 2: Concurrent File Uploads**:
+            -   Once the folder creation promise has been successfully resolved, the function proceeds to upload the files.
+            -   It calls the `uploadDocument(file, file.webkitRelativePath)` service for each file. The full `webkitRelativePath` is passed as the `path` parameter in the request.
+            -   The backend's `DocumentUploadView` uses this path to place the file in the correct, pre-existing folder.
+            -   Uploads are performed concurrently using `Promise.allSettled` to ensure that a failure of one file does not stop the entire batch.
+        5.  **UI Refresh**: After the uploads are complete, `fetchData()` is called to refresh the document list and display the newly uploaded folder and its contents.
     -   **Logic for Drag-and-Drop (V1 Implementation)**:
         -   The main document view area serves as a drop zone.
         -   To avoid ambiguity and prevent accidental folder creation from dropped files, the V1 implementation treats all drag-and-drop operations as flat file uploads. Folder structures are ignored.

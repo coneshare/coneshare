@@ -13,7 +13,7 @@ import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, createFolderFromPath, deleteMultipleDocuments, deleteMultipleFolders } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders } from '../services/api';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 
@@ -250,6 +250,15 @@ function DocumentsPage() {
   const handleFileUploads = async (files) => {
     if (!files || files.length === 0) return;
 
+    // Determine base path if inside a folder
+    let basePath = '';
+    if (currentFolder) {
+      basePath = [
+        ...currentFolder.ancestors.map((a) => a.name),
+        currentFolder.name,
+      ].join('/');
+    }
+
     // 1. Determine unique folder paths from files that have them.
     // We only do this for uploads from the "Upload Folder" dialog, as
     // `webkitRelativePath` is the only reliable indicator of user intent
@@ -273,12 +282,11 @@ function DocumentsPage() {
     });
 
     // 2. If there are paths, ensure the folder structures exist first.
+    let pathMappings = {};
     if (paths.size > 0) {
       try {
-        const folderCreationPromises = Array.from(paths).map((path) =>
-          createFolderFromPath(path)
-        );
-        await Promise.all(folderCreationPromises);
+        const response = await ensureFolderPaths(Array.from(paths), basePath || null);
+        pathMappings = response.data.path_mappings || {};
       } catch (error) {
         console.error("Failed to create folder structure:", error);
         // The API interceptor will show a toast, so we just log and stop.
@@ -290,7 +298,25 @@ function DocumentsPage() {
     const uploadPromises = Array.from(files).map((file) => {
       // For uploads from the folder dialog, we preserve the path.
       // For all other uploads (including drag-and-drop), we upload to the root.
-      const relativePath = file.webkitRelativePath || null;
+      let relativePath = file.webkitRelativePath || null;
+
+      // If we received path mappings from the backend, apply them to the relative path first.
+      if (relativePath && Object.keys(pathMappings).length > 0) {
+        const pathParts = relativePath.split('/');
+        const topLevelDir = pathParts[0];
+        const newTopLevelDir = pathMappings[topLevelDir];
+
+        if (newTopLevelDir && newTopLevelDir !== topLevelDir) {
+          pathParts[0] = newTopLevelDir;
+          relativePath = pathParts.join('/');
+        }
+      }
+
+      // After potential renaming, prepend the base path for where the upload is happening.
+      if (relativePath && basePath) {
+        relativePath = `${basePath}/${relativePath}`;
+      }
+
       return uploadDocument(file, relativePath);
     });
     const results = await Promise.allSettled(uploadPromises);

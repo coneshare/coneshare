@@ -210,28 +210,27 @@ describe('DocumentsPage', () => {
       return file;
     };
 
-    it('should call createFolderFromPath once then uploadDocument for each file', async () => {
+    it('should call ensureFolderPaths once then uploadDocument for each file', async () => {
       renderComponent();
 
       const file1 = createFolderFile('folderA/file1.txt', 'file1.txt');
       const file2 = createFolderFile('folderA/file2.txt', 'file2.txt');
 
       // Mock API calls
-      api.createFolderFromPath.mockResolvedValue({ status: 201 });
+      api.ensureFolderPaths.mockResolvedValue({ data: { path_mappings: { folderA: 'folderA' } } });
       api.uploadDocument.mockResolvedValue({ status: 202 });
 
       const folderInput = findFolderInput();
 
-      // Simulate user selecting a folder
       fireEvent.change(folderInput, {
         target: { files: [file1, file2] },
       });
 
       // Verify folder path is created first
       await waitFor(() => {
-        expect(api.createFolderFromPath).toHaveBeenCalledTimes(1);
+        expect(api.ensureFolderPaths).toHaveBeenCalledTimes(1);
       });
-      expect(api.createFolderFromPath).toHaveBeenCalledWith('folderA');
+      expect(api.ensureFolderPaths).toHaveBeenCalledWith(['folderA'], null);
 
       // Verify documents are uploaded next
       await waitFor(() => {
@@ -253,7 +252,7 @@ describe('DocumentsPage', () => {
       const file2 = createFolderFile('folderB/file2.txt', 'file2.txt');
       const file3 = createFolderFile('folderA/sub1/file3.txt', 'file3.txt'); // Duplicate path
 
-      api.createFolderFromPath.mockResolvedValue({ status: 201 });
+      api.ensureFolderPaths.mockResolvedValue({ data: { path_mappings: {} } });
       api.uploadDocument.mockResolvedValue({ status: 202 });
 
       const folderInput = findFolderInput();
@@ -264,10 +263,13 @@ describe('DocumentsPage', () => {
 
       // Verify folder paths are created (and normalized)
       await waitFor(() => {
-        expect(api.createFolderFromPath).toHaveBeenCalledTimes(2);
+        expect(api.ensureFolderPaths).toHaveBeenCalledTimes(1);
       });
-      expect(api.createFolderFromPath).toHaveBeenCalledWith('folderA/sub1');
-      expect(api.createFolderFromPath).toHaveBeenCalledWith('folderB');
+      expect(api.ensureFolderPaths).toHaveBeenCalledWith(
+        expect.arrayContaining(['folderA/sub1', 'folderB']),
+        null
+      );
+      expect(api.ensureFolderPaths.mock.calls[0][0].length).toBe(2);
 
       // Verify documents are uploaded with original (non-normalized) paths
       await waitFor(() => {
@@ -285,7 +287,7 @@ describe('DocumentsPage', () => {
       renderComponent();
 
       const file1 = createFolderFile('folderC/file1.txt', 'file1.txt');
-      api.createFolderFromPath.mockRejectedValue(new Error('Folder creation failed'));
+      api.ensureFolderPaths.mockRejectedValue(new Error('Folder creation failed'));
 
       const folderInput = findFolderInput();
 
@@ -294,7 +296,7 @@ describe('DocumentsPage', () => {
       });
 
       await waitFor(() => {
-        expect(api.createFolderFromPath).toHaveBeenCalledWith('folderC');
+        expect(api.ensureFolderPaths).toHaveBeenCalledWith(['folderC'], null);
       });
 
       // Ensure uploadDocument is NOT called
@@ -308,6 +310,81 @@ describe('DocumentsPage', () => {
         'Failed to create folder structure:',
         expect.any(Error)
       );
+    });
+
+    it('should use path mappings from ensureFolderPaths for upload', async () => {
+      renderComponent();
+
+      const file1 = createFolderFile('folderA/file1.txt', 'file1.txt');
+
+      // Mock API calls
+      api.ensureFolderPaths.mockResolvedValue({
+        data: { path_mappings: { 'folderA': 'folderA (2)' } },
+      });
+      api.uploadDocument.mockResolvedValue({ status: 202 });
+
+      const folderInput = findFolderInput();
+
+      fireEvent.change(folderInput, {
+        target: { files: [file1] },
+      });
+
+      // Verify folder path is created
+      await waitFor(() => {
+        expect(api.ensureFolderPaths).toHaveBeenCalledWith(['folderA'], null);
+      });
+
+      // Verify document is uploaded with the RENAMED path
+      await waitFor(() => {
+        expect(api.uploadDocument).toHaveBeenCalledWith(file1, 'folderA (2)/file1.txt');
+      });
+    });
+
+    it('should handle folder upload inside a subfolder', async () => {
+      const parentFolderId = 'parent123';
+      const mockCurrentFolder = {
+        id: parentFolderId,
+        name: 'Parent',
+        ancestors: [{ id: 'grandparent', name: 'Grandparent' }],
+      };
+      api.getFolderContents.mockResolvedValue({
+        data: { current_folder: mockCurrentFolder, sub_folders: [], documents: [] },
+      });
+
+      renderComponent(`/documents/folders/${parentFolderId}`);
+      await waitFor(() => expect(api.getFolderContents).toHaveBeenCalledWith(parentFolderId));
+
+      const file1 = createFolderFile('new-folder/file1.txt', 'file1.txt');
+      api.ensureFolderPaths.mockResolvedValue({
+        data: { path_mappings: { 'new-folder': 'new-folder (2)' } },
+      });
+      api.uploadDocument.mockResolvedValue({ status: 202 });
+
+      const folderInput = findFolderInput();
+      fireEvent.change(folderInput, {
+        target: { files: [file1] },
+      });
+
+      // Verify ensureFolderPaths is called with parent_path
+      await waitFor(() => {
+        expect(api.ensureFolderPaths).toHaveBeenCalledWith(
+          ['new-folder'],
+          'Grandparent/Parent'
+        );
+      });
+
+      // Verify document is uploaded with full path including base path and renamed folder
+      await waitFor(() => {
+        expect(api.uploadDocument).toHaveBeenCalledWith(
+          file1,
+          'Grandparent/Parent/new-folder (2)/file1.txt'
+        );
+      });
+
+      // Verify data for the current folder is refetched
+      await waitFor(() => {
+        expect(api.getFolderContents).toHaveBeenCalledTimes(2);
+      });
     });
   });
 

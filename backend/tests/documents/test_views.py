@@ -219,74 +219,143 @@ def test_create_duplicate_subfolder_is_renamed(api_client, user, organization):
 
 
 @pytest.mark.django_db
-def test_create_folder_from_path(api_client, user):
-    """Test creating a nested folder structure from a path string."""
-    # __root__ folder exists
-    assert Folder.objects.count() == 1
+class TestEnsureFolderPathsView:
+    """Tests for the EnsureFolderPathsView endpoint."""
 
-    path_data = {'path': 'Top/Middle/Bottom'}
-    response = api_client.post('/api/v1/folders/from_path/', path_data)
+    def test_ensure_paths_success_and_returns_mappings(self, api_client, user):
+        """
+        Test creating a nested structure from multiple paths and verify it
+        returns the correct path mappings.
+        """
+        # __root__ folder exists
+        assert Folder.objects.count() == 1
 
-    assert response.status_code == status.HTTP_201_CREATED
-    assert response.data['name'] == 'Bottom'
-    assert Folder.objects.count() == 4
+        path_data = {'paths': ['Reports/Q1', 'Data/Internal']}
+        response = api_client.post('/api/v1/folders/ensure-paths/', path_data)
 
-    bottom = Folder.objects.get(name='Bottom')
-    middle = bottom.parent
-    top = middle.parent
-    root = top.parent
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data['path_mappings'] == {
+            'Reports': 'Reports',
+            'Data': 'Data',
+        }
+        # __root__, Reports, Q1, Data, Internal
+        assert Folder.objects.count() == 5
 
-    assert bottom.created_by == user
-    assert middle.name == 'Middle'
-    assert middle.created_by == user
-    assert top.name == 'Top'
-    assert top.created_by == user
-    assert root.name == '__root__'
-    assert root.parent is None
+        q1 = Folder.objects.get(name='Q1')
+        reports = q1.parent
+        internal = Folder.objects.get(name='Internal')
+        data = internal.parent
 
+        assert q1.created_by == user
+        assert reports.name == 'Reports'
+        assert reports.created_by == user
+        assert internal.created_by == user
+        assert data.name == 'Data'
+        assert data.created_by == user
 
-@pytest.mark.django_db
-def test_create_folder_from_path_idempotent(api_client, user):
-    """Test that calling from_path multiple times has no adverse effect."""
-    root_folder = Folder.objects.get(name='__root__', parent=None)
-    Folder.objects.create(name="Top", created_by=user, organization=user.organization, parent=root_folder)
-    # Total folders: __root__, Top
-    assert Folder.objects.count() == 2
+    def test_ensure_paths_renames_conflicting_top_level_folder(self, api_client, user):
+        """
+        Test that if a top-level folder name conflicts, it is renamed
+        and the correct mapping is returned.
+        """
+        root = Folder.objects.get(name='__root__', parent=None)
+        Folder.objects.create(name="Reports", created_by=user, organization=user.organization, parent=root)
+        assert Folder.objects.count() == 2  # __root__, Reports
 
-    path_data = {'path': 'Top/Middle/Bottom'}
-    response1 = api_client.post('/api/v1/folders/from_path/', path_data)
-    assert response1.status_code == status.HTTP_201_CREATED
-    # Total folders: __root__, Top, Middle, Bottom
-    assert Folder.objects.count() == 4
+        path_data = {'paths': ['Reports/Q1', 'Reports/Q2']}
+        response = api_client.post('/api/v1/folders/ensure-paths/', path_data)
 
-    response2 = api_client.post('/api/v1/folders/from_path/', path_data)
-    assert response2.status_code == status.HTTP_201_CREATED
-    assert Folder.objects.count() == 4  # No new folders created
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data['path_mappings'] == {'Reports': 'Reports (2)'}
 
+        # __root__, Reports, Reports (2), Q1, Q2
+        assert Folder.objects.count() == 5
+        assert Folder.objects.filter(name='Reports (2)').exists()
 
-@pytest.mark.django_db
-def test_create_folder_from_path_permission_denied(api_client, user, user2):
-    """Test a user cannot create a subfolder inside another user's folder."""
-    root_folder = Folder.objects.get(name='__root__', parent=None, organization=user2.organization)
-    # user2 creates a root folder
-    Folder.objects.create(
-        name="User2's Root",
-        organization=user2.organization,
-        created_by=user2,
-        parent=root_folder
-    )
-    # Total folders: __root__, User2's Root
-    assert Folder.objects.count() == 2
+        new_reports_folder = Folder.objects.get(name='Reports (2)')
+        assert new_reports_folder.children.count() == 2
+        child_names = {c.name for c in new_reports_folder.children.all()}
+        assert child_names == {'Q1', 'Q2'}
 
-    # user (via api_client) tries to create a nested folder inside user2's folder
-    path_data = {'path': "User2's Root/My Subfolder"}
-    response = api_client.post('/api/v1/folders/from_path/', path_data)
+    def test_ensure_paths_permission_denied(self, api_client, user2):
+        """Test a user cannot create a subfolder inside another user's folder."""
+        root = Folder.objects.get(name='__root__', parent=None, organization=user2.organization)
+        user2_folder = Folder.objects.create(name="User2s-Folder", organization=user2.organization, created_by=user2, parent=root)
+        assert Folder.objects.count() == 2
 
-    assert response.status_code == status.HTTP_403_FORBIDDEN
-    # Ensure no new folders were created by 'user'
-    assert not Folder.objects.filter(created_by=user).exists()
-    # The original folder should still exist, and no new ones created
-    assert Folder.objects.count() == 2
+        path_data = {'paths': ["User2s-Folder/My-Stuff"]}
+        response = api_client.post('/api/v1/folders/ensure-paths/', path_data)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert Folder.objects.count() == 2  # No new folders created
+
+    def test_ensure_paths_is_atomic(self, api_client, user, user2):
+        """Test that if one path fails, the whole transaction is rolled back."""
+        root = Folder.objects.get(name='__root__', parent=None, organization=user2.organization)
+        user2_folder = Folder.objects.create(name="User2s-Folder", organization=user2.organization, created_by=user2, parent=root)
+        assert Folder.objects.count() == 2
+
+        path_data = {'paths': ["Good-Folder/Sub", "User2s-Folder/My-Stuff"]}
+        response = api_client.post('/api/v1/folders/ensure-paths/', path_data)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        # Ensure no folders were created at all
+        assert Folder.objects.count() == 2
+        assert not Folder.objects.filter(created_by=user).exists()
+
+    def test_ensure_paths_in_subfolder_success(self, api_client, user):
+        """Test creating a nested structure within an existing subfolder."""
+        root = Folder.objects.get(name='__root__', parent=None)
+        parent = Folder.objects.create(name="Parent", created_by=user, organization=user.organization, parent=root)
+        
+        path_data = {
+            'paths': ['NewFolder/Sub'],
+            'parent_path': 'Parent'
+        }
+        response = api_client.post('/api/v1/folders/ensure-paths/', path_data)
+        
+        assert response.status_code == status.HTTP_201_CREATED
+        assert Folder.objects.count() == 4  # __root__, Parent, NewFolder, Sub
+        
+        new_folder = Folder.objects.get(name='NewFolder')
+        assert new_folder.parent == parent
+        
+        sub_folder = Folder.objects.get(name='Sub')
+        assert sub_folder.parent == new_folder
+
+    def test_ensure_paths_in_subfolder_renames_conflict(self, api_client, user):
+        """Test that a conflicting folder name within a subfolder is correctly renamed."""
+        root = Folder.objects.get(name='__root__', parent=None)
+        parent = Folder.objects.create(name="Parent", created_by=user, organization=user.organization, parent=root)
+        Folder.objects.create(name="Existing", created_by=user, organization=user.organization, parent=parent)
+        
+        path_data = {
+            'paths': ['Existing/Sub'],
+            'parent_path': 'Parent'
+        }
+        response = api_client.post('/api/v1/folders/ensure-paths/', path_data)
+        
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data['path_mappings'] == {'Existing': 'Existing (2)'}
+        assert Folder.objects.count() == 5  # __root__, Parent, Existing, Existing (2), Sub
+        assert Folder.objects.filter(name='Existing (2)').exists()
+        
+        new_existing_folder = Folder.objects.get(name='Existing (2)')
+        assert new_existing_folder.parent == parent
+        
+        sub_folder = Folder.objects.get(name='Sub')
+        assert sub_folder.parent == new_existing_folder
+    
+    def test_ensure_paths_with_invalid_parent_path(self, api_client):
+        """Test that using a non-existent parent_path returns an error."""
+        path_data = {
+            'paths': ['NewFolder/Sub'],
+            'parent_path': 'NonExistent'
+        }
+        response = api_client.post('/api/v1/folders/ensure-paths/', path_data)
+        
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "Parent path 'NonExistent' not found" in response.data['detail']
 
 
 @pytest.mark.django_db
@@ -497,8 +566,8 @@ def test_list_share_links_is_scoped_to_user(api_client, user, user2):
 def test_upload_document_with_path(api_client, user):
     """Test uploading a file with a path to pre-existing folders."""
     # First, create the folder structure
-    path_data = {'path': 'Client Reports/Q4/Final'}
-    response = api_client.post('/api/v1/folders/from_path/', path_data)
+    path_data = {'paths': ['Client Reports/Q4/Final']}
+    response = api_client.post('/api/v1/folders/ensure-paths/', path_data)
     assert response.status_code == status.HTTP_201_CREATED
     assert Folder.objects.filter(created_by=user).count() == 3
 

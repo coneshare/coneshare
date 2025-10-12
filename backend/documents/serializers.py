@@ -5,11 +5,15 @@ from .models import Document, DocumentPage, DocumentVersion, Folder, PageView, S
 from .services import _get_unique_folder_name, _get_unique_share_link_name
 
 
-class FolderFromPathSerializer(serializers.Serializer):
+class EnsureFolderPathsSerializer(serializers.Serializer):
     """
-    Serializer for validating the path for the from_path endpoint.
+    Serializer for validating paths for the ensure-paths endpoint.
     """
-    path = serializers.CharField(max_length=1024, allow_blank=False)
+    paths = serializers.ListField(
+        child=serializers.CharField(max_length=1024, allow_blank=False),
+        allow_empty=False
+    )
+    parent_path = serializers.CharField(max_length=1024, allow_blank=True, required=False)
 
 
 class FolderSerializer(serializers.ModelSerializer):
