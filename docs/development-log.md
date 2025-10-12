@@ -982,10 +982,19 @@ This session focused on implementing a robust "Move" feature, allowing users to 
 
 ---
 
-## Session 41: Test Suite Hardening (2025-10-12)
+## Session 41: File Size Feature Implementation (2025-10-13)
 
-This session focused on improving the robustness of the backend test suite.
+This session focused on implementing the file size feature, providing users with more document information and new sorting capabilities. [https://github.com/coneshare/coneshare/pull/42](https://github.com/coneshare/coneshare/pull/42)
 
-### 1. "Move to Root" Test Fix
-- **Problem**: The `test_move_items_to_root` test case was failing with a `TypeError` because the test client attempted to send a Python `None` value using `multipart/form-data` encoding, which does not support it.
-- **Solution**: The `api_client.post` call in the test was updated to use `format='json'`. This ensures the payload is serialized correctly (with `None` becoming `null`), aligning the test's behavior with that of the actual frontend client. This fixes the test and makes it a more accurate representation of the API contract.
+### 1. Backend Implementation
+- **Data Model**: The `Document` model was updated with a `file_size` field.
+- **Service Layer**: The document creation services were updated to populate the `file_size` on the `Document` model from its primary version.
+- **API Exposure**: The `DocumentSerializer` was updated to include the new `file_size` field.
+
+### 2. Frontend Implementation
+- **Display File Size**: The `DocumentCard` component now displays the file size in a human-readable format (e.g., "1.2 MB").
+- **Sorting Capability**: A "File Size" option was added, and the sorting logic on the `DocumentsPage` was enhanced to handle sorting by this new key.
+
+### 3. Testing
+- **Backend**: A unit test was added to confirm that the `file_size` is correctly populated on the `Document` model.
+- **Frontend**: A test case was added to verify that documents can be correctly sorted by file size.
