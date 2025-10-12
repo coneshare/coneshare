@@ -760,6 +760,30 @@ def test_delete_document_permission_denied(api_client, user, user2):
 
 
 @pytest.mark.django_db
+def test_delete_document_in_subfolder_success(api_client, user, organization):
+    """
+    Test that a user can delete their document via its ID, even if it's in a subfolder.
+    This reproduces a bug where the lookup for destroy actions was incorrectly
+    scoped to the root folder.
+    """
+    # Setup: Create a document inside a subfolder
+    root_folder = Folder.objects.get_root_for_org(organization)
+    subfolder = Folder.objects.create(
+        organization=organization, created_by=user, name="Subfolder", parent=root_folder
+    )
+    doc = Document.objects.create(
+        organization=organization, created_by=user, folder=subfolder
+    )
+
+    # Action: Attempt to delete the document by its ID
+    response = api_client.delete(f'/api/v1/documents/{doc.id}/')
+
+    # Assertions: The request should succeed, not 404
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+    assert not Document.objects.filter(id=doc.id).exists()
+
+
+@pytest.mark.django_db
 class TestShareLinkViewDataView:
     """Tests for the public ShareLinkViewDataView endpoint."""
 

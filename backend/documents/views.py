@@ -535,9 +535,21 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        This view should return a list of documents for the currently
-        authenticated user, optionally filtered by a parent folder.
+        This queryset is used for all actions. It ensures that users can only
+        access documents they have created within their organization.
+        Filtering by folder is handled in the `list` action.
         """
+        return self.queryset.filter(
+            organization=self.request.user.organization,
+            created_by=self.request.user
+        ).prefetch_related('versions', 'share_links', 'share_links__view_sessions')
+
+    def list(self, request, *args, **kwargs):
+        """
+        Returns a list of documents for the currently authenticated user,
+        optionally filtered by a parent folder.
+        """
+        queryset = self.get_queryset()
         organization = self.request.user.organization
         folder_id = self.request.query_params.get('folder')
 
@@ -548,11 +560,15 @@ class DocumentViewSet(viewsets.ModelViewSet):
             # Default to listing documents in the root folder
             target_folder = get_object_or_404(Folder, organization=organization, name='__root__', parent=None)
 
-        return self.queryset.filter(
-            organization=organization,
-            created_by=self.request.user,
-            folder=target_folder
-        ).prefetch_related('versions', 'share_links', 'share_links__view_sessions')
+        queryset = queryset.filter(folder=target_folder)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):
         document = self.get_object()
