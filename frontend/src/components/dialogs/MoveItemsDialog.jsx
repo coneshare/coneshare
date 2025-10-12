@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Folder as FolderIcon, ChevronRight, Home, ArrowLeft } from 'lucide-react';
+import { Folder as FolderIcon, ChevronRight, Home, ArrowLeft, FolderPlusIcon } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -9,13 +9,15 @@ import {
   DialogFooter,
 } from '../ui/Dialog';
 import { Button } from '../ui/Button';
-import { getFolderContents, getRootFolderContents } from '../../services/api';
+import { createFolder, getFolderContents, getRootFolderContents } from '../../services/api';
 import { Skeleton } from '../ui/Skeleton';
+import { AddFolderDialog } from './AddFolderDialog';
 
 export function MoveItemsDialog({ isOpen, onOpenChange, onConfirm, selectedFolderIds = [] }) {
   const [currentFolder, setCurrentFolder] = useState(null);
   const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
 
   const fetchFolders = useCallback(async (folderId) => {
     setLoading(true);
@@ -57,6 +59,20 @@ export function MoveItemsDialog({ isOpen, onOpenChange, onConfirm, selectedFolde
     onConfirm(currentFolder?.id || null);
   };
 
+  const handleCreateFolder = async (name) => {
+    try {
+      // Create the folder in the currently viewed directory
+      await createFolder(name, currentFolder?.id || null);
+      // Refresh the folder list to show the new folder
+      await fetchFolders(currentFolder?.id || null);
+    } catch (error) {
+      // API interceptor will show toast on error, but we log just in case.
+      console.error("Failed to create folder:", error);
+    } finally {
+      setIsAddFolderOpen(false);
+    }
+  };
+
   const renderBreadcrumbs = () => (
     <nav className="flex flex-wrap items-center gap-1 text-sm font-medium text-muted-foreground">
       <button
@@ -88,6 +104,11 @@ export function MoveItemsDialog({ isOpen, onOpenChange, onConfirm, selectedFolde
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <AddFolderDialog
+        isOpen={isAddFolderOpen}
+        onOpenChange={setIsAddFolderOpen}
+        onConfirm={handleCreateFolder}
+      />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Move Items</DialogTitle>
@@ -134,13 +155,19 @@ export function MoveItemsDialog({ isOpen, onOpenChange, onConfirm, selectedFolde
           )}
         </div>
         
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+        <DialogFooter className="sm:justify-between">
+          <Button variant="outline" onClick={() => setIsAddFolderOpen(true)}>
+            <FolderPlusIcon className="mr-2 h-4 w-4" />
+            New Folder
           </Button>
-          <Button onClick={handleMoveHere}>
-            Move Here
-          </Button>
+          <div className="flex gap-x-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleMoveHere}>
+              Move Here
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
