@@ -179,42 +179,38 @@ function DocumentsPage() {
 
   const handleToggleStar = useCallback(async (id, type) => {
     const isFolder = type === 'folder';
+    const items = isFolder ? folders : documents;
     const setItems = isFolder ? setFolders : setDocuments;
     const updateApiCall = isFolder ? updateFolder : updateDocument;
-    let originalItem = null;
-    let newIsStarred;
 
-    // Optimistic update
-    setItems(prevItems => {
-      const newItems = prevItems.map(item => {
-        if (item.id === id) {
-          originalItem = item;
-          newIsStarred = !item.is_starred;
-          return { ...item, is_starred: newIsStarred };
-        }
-        return item;
-      });
-      return newItems;
-    });
+    const originalItem = items.find(item => item.id === id);
+    if (!originalItem) {
+      console.error("Item to star/unstar not found in state.");
+      return;
+    }
+
+    const newIsStarred = !originalItem.is_starred;
+
+    // Optimistic UI update
+    setItems(prevItems =>
+      prevItems.map(item =>
+        item.id === id ? { ...item, is_starred: newIsStarred } : item
+      )
+    );
 
     // API call
-    if (originalItem) {
-      try {
-        await updateApiCall(id, { is_starred: newIsStarred });
-      } catch (error) {
-        // Revert on failure
-        setItems(prevItems =>
-          prevItems.map(item => {
-            if (item.id === id) {
-              return originalItem;
-            }
-            return item;
-          })
-        );
-        toast.error(`Failed to update star for "${originalItem.name}".`);
-      }
+    try {
+      await updateApiCall(id, { is_starred: newIsStarred });
+    } catch (error) {
+      // Revert on failure
+      setItems(prevItems =>
+        prevItems.map(item =>
+          item.id === id ? originalItem : item
+        )
+      );
+      toast.error(`Failed to update star for "${originalItem.name}".`);
     }
-  }, []);
+  }, [documents, folders]);  
 
   const handleSort = (key) => {
     setSortConfig((prevConfig) => {
