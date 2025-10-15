@@ -20,6 +20,8 @@ urlpatterns = [
     path('links/<slug:slug>/request-access/', views.ShareLinkRequestAccessView.as_view(), name='share-link-request-access'),
     path('links/<slug:slug>/view-data/', views.ShareLinkViewDataView.as_view(), name='share-link-view-data'),
     path('page-views/record/', views.RecordPageView.as_view(), name='record-page-view'),
+    path('links/<slug:slug>/render-page/<int:page_number>/', views.WatermarkedPageRenderView.as_view(), name='watermarked-page-render'),
+    path('links/<slug:slug>/download/', views.WatermarkedFileDownloadView.as_view(), name='watermarked-file-download'),
     path('actions/move/', views.MoveItemsView.as_view(), name='move-items'),
 
     path('', include(router.urls)),

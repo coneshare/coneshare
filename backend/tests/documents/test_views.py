@@ -10,6 +10,11 @@ from rest_framework import status
 
 from core.models import Organization
 from documents.models import Document, Folder, ShareLink, DocumentVersion, DocumentPage, PreviewSession, ViewSession, PageView, EmailVerificationToken
+from io import BytesIO
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
 
 User = get_user_model()
 
@@ -1704,3 +1709,92 @@ class TestMoveItemsView:
         response = api_client.post('/api/v1/actions/move/', data)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "No items selected to move" in response.data['detail']
+
+
+@pytest.mark.django_db
+class TestWatermarkingViews:
+    """Tests for the dynamic watermarking endpoints."""
+
+    @pytest.fixture
+    def document_with_page(self, document):
+        """Fixture for a document that has one page."""
+        version = document.versions.get(is_primary=True)
+        version.has_pages = True
+        version.num_pages = 1
+        version.original_storage_key = "path/to/original.pdf"
+        version.save()
+        DocumentPage.objects.create(
+            document_version=version, page_number=1, storage_key="pages/page_1.png"
+        )
+        document.num_pages = 1
+        document.type = 'pdf'
+        document.save()
+        return document
+
+    @pytest.fixture
+    def watermarked_link(self, share_link_with_watermark, document_with_page):
+        """Connects the watermarked link to the document with a page."""
+        share_link_with_watermark.document = document_with_page
+        share_link_with_watermark.save()
+        return share_link_with_watermark
+
+    @patch('django.core.files.storage.default_storage.open')
+    def test_render_watermarked_page_success(self, mock_storage_open, public_client, watermarked_link):
+        """Test that a watermarked page image is rendered successfully."""
+        # Create a dummy image in memory to be returned by storage
+        img = Image.new('RGB', (100, 100), color='white')
+        buffer = BytesIO()
+        img.save(buffer, 'JPEG')
+        buffer.seek(0)
+        mock_storage_open.return_value = buffer
+
+        url = f'/api/v1/links/{watermarked_link.slug}/render-page/1/'
+        response = public_client.get(url, REMOTE_ADDR='192.168.1.1')
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.get('Content-Type') == 'image/jpeg'
+
+        # Verify the mock was called correctly
+        page = DocumentPage.objects.get(page_number=1)
+        mock_storage_open.assert_called_once_with(page.storage_key, 'rb')
+
+    @patch('django.core.files.storage.default_storage.open')
+    def test_download_watermarked_file_success(self, mock_storage_open, public_client, watermarked_link):
+        """Test that a watermarked PDF file is generated and served for download."""
+        # Create a dummy PDF in memory. A simple bytestring is enough for pypdf to read.
+        pdf_content = b'%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000010 00000 n \n0000000059 00000 n \n0000000112 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF'
+        pdf_buffer = BytesIO(pdf_content)
+        mock_storage_open.return_value = pdf_buffer
+        
+        url = f'/api/v1/links/{watermarked_link.slug}/download/'
+        response = public_client.get(url, REMOTE_ADDR='192.168.1.1')
+        
+        assert response.status_code == status.HTTP_200_OK
+        assert response.get('Content-Type') == 'application/pdf'
+        assert 'attachment; filename=' in response.get('Content-Disposition')
+        
+        # Check that the file content is a PDF and is larger than the original (due to watermark)
+        assert response.content.startswith(b'%PDF-')
+        assert len(response.content) > len(pdf_content)
+
+        # Verify the mock was called correctly
+        version = watermarked_link.document.versions.get(is_primary=True)
+        mock_storage_open.assert_called_once_with(version.original_storage_key, 'rb')
+
+    def test_download_watermarked_file_not_allowed(self, public_client, watermarked_link):
+        """Test that downloading is forbidden if allow_download is false."""
+        watermarked_link.allow_download = False
+        watermarked_link.save()
+
+        url = f'/api/v1/links/{watermarked_link.slug}/download/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_render_page_for_link_without_watermark_fails(self, public_client, share_link):
+        """Test that the render endpoint fails if watermarking is not enabled."""
+        url = f'/api/v1/links/{share_link.slug}/render-page/1/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'Watermarking is not enabled' in response.data['message']

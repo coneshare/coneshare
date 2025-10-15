@@ -31,11 +31,14 @@ export function LinkSheet({
   const [password, setPassword] = useState('');
   const [isPasswordEnabled, setIsPasswordEnabled] = useState(false);
   const [allowDownload, setAllowDownload] = useState(true);
+  const [enableWatermark, setEnableWatermark] = useState(false);
+  const [watermarkText, setWatermarkText] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   const isEditing = !!currentLink;
   const DUMMY_PASSWORD = '●●●●●●●●';
+  const isWatermarkable = document?.type === 'pdf' || document?.type === 'document';
 
   useEffect(() => {
     if (isEditing) {
@@ -47,6 +50,8 @@ export function LinkSheet({
       setPassword(currentLink.has_password ? DUMMY_PASSWORD : '');
       setExpiresAt(currentLink.expires_at ? new Date(currentLink.expires_at).toISOString().split('T')[0] : '');
       setReceiveEmailNotification(currentLink.receive_email_notification || false);
+      setEnableWatermark(isWatermarkable && (currentLink.enable_watermark || false));
+      setWatermarkText(currentLink.watermark_text || '');
     } else {
       // Reset form for new link
       setName('');
@@ -57,6 +62,8 @@ export function LinkSheet({
       setPassword('');
       setExpiresAt('');
       setReceiveEmailNotification(false);
+      setEnableWatermark(false);
+      setWatermarkText('');
     }
 
     if (document?.download_only) {
@@ -75,6 +82,8 @@ export function LinkSheet({
       requires_email_verification: requiresEmail && requiresEmailVerification,
       receive_email_notification: receiveEmailNotification,
       allow_download: allowDownload,
+      enable_watermark: isWatermarkable && enableWatermark,
+      watermark_text: isWatermarkable && enableWatermark ? watermarkText : '',
       expires_at: expiresAt ? new Date(`${expiresAt}T23:59:59.999Z`).toISOString() : null,
     };
 
@@ -133,10 +142,10 @@ export function LinkSheet({
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., 'Marketing Campaign Link'"
             />
-            <p className="text-sm text-muted-foreground">
-              Organize link audiences to aggregate metrics. Leave blank to assign to a generic
-              Example Account. This field is not visible to visitors.
-            </p>
+            {/* <p className="text-sm text-muted-foreground"> */}
+            {/*   Organize link audiences to aggregate metrics. Leave blank to assign to a generic */}
+            {/*   Example Account. This field is not visible to visitors. */}
+            {/* </p> */}
           </div>
 
           <div className="space-y-4">
@@ -232,6 +241,36 @@ export function LinkSheet({
               onCheckedChange={setAllowDownload}
               disabled={document?.download_only}
             />
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="enable-watermark" className="flex flex-col space-y-1">
+                <span>Enable watermark</span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  {isWatermarkable
+                    ? 'Display a watermark on the document.'
+                    : 'Watermarks are only available for PDF and Office documents.'}
+                </span>
+              </Label>
+              <Switch
+                id="enable-watermark"
+                checked={enableWatermark}
+                onCheckedChange={setEnableWatermark}
+                disabled={!isWatermarkable}
+              />
+            </div>
+            {isWatermarkable && enableWatermark && (
+              <div className="space-y-2">
+                <Input
+                  id="watermark-text"
+                  value={watermarkText}
+                  onChange={(e) => setWatermarkText(e.target.value)}
+                  placeholder="e.g., Confidential, {{ip-address}}"
+                />
+
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

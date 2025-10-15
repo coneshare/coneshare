@@ -21,9 +21,27 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
+from django.http import HttpResponse
+from io import BytesIO
 from rest_framework.views import APIView
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    Image = None
+try:
+    from pypdf import PdfReader, PdfWriter
+except ImportError:
+    PdfReader = None
+    PdfWriter = None
+try:
+    from reportlab.pdfgen import canvas
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+except ImportError:
+    canvas = None
 
-from .models import Document, Folder, ShareLink, ShareLinkPreset, ViewSession, Viewer, PreviewSession, EmailVerificationToken
+
+from .models import Document, DocumentPage, Folder, ShareLink, ShareLinkPreset, ViewSession, Viewer, PreviewSession, EmailVerificationToken
 from .serializers import (
     DocumentSerializer,
     EnsureFolderPathsSerializer,
@@ -360,16 +378,24 @@ class DocumentVersionUploadView(APIView):
         return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
 
 
-def _prepare_pages_data(document, primary_version):
+def _prepare_pages_data(document, primary_version, share_link=None):
     """
     Prepares a list of page data with absolute URLs for a given document version.
     Handles both image types and paginated document types.
+    If a share_link with watermarking is provided, it generates render URLs instead.
     """
     pages_data = []
+    is_watermarked = share_link and share_link.enable_watermark and share_link.watermark_text
+
     if document.type == 'image':
         # For images, the preview is the original file itself.
-        image_url = default_storage.url(primary_version.original_storage_key)
-        absolute_url = urljoin(settings.SITE_DOMAIN, image_url)
+        if is_watermarked:
+            # Note: For images, there is no DocumentPage, so we render by page number (always 1).
+            page_url = f"/api/v1/links/{share_link.slug}/render-page/1/"
+        else:
+            page_url = default_storage.url(primary_version.original_storage_key)
+
+        absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
         pages_data.append({
             'page_number': 1,
             'url': absolute_url,
@@ -379,7 +405,11 @@ def _prepare_pages_data(document, primary_version):
         # For PDFs/Office docs, we have pre-generated page images.
         pages = primary_version.pages.order_by('page_number')
         for page in pages:
-            page_url = default_storage.url(page.storage_key)
+            if is_watermarked:
+                page_url = f"/api/v1/links/{share_link.slug}/render-page/{page.page_number}/"
+            else:
+                page_url = default_storage.url(page.storage_key)
+
             absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
             pages_data.append({
                 "page_number": page.page_number,
@@ -827,10 +857,13 @@ class ShareLinkViewDataView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        pages_data = _prepare_pages_data(document, primary_version)
+        pages_data = _prepare_pages_data(document, primary_version, share_link=link)
 
         download_url = None
-        if document.type == 'image' and pages_data:
+        is_watermarked = link.enable_watermark and link.watermark_text
+        if is_watermarked:
+            download_url = urljoin(settings.SITE_DOMAIN, f"/api/v1/links/{link.slug}/download/")
+        elif document.type == 'image' and pages_data:
             # For images, the download URL is the same as the single page's URL.
             download_url = pages_data[0]['url']
         elif primary_version and primary_version.original_storage_key:
@@ -850,6 +883,7 @@ class ShareLinkViewDataView(APIView):
                 "id": link.id,
                 "allow_download": link.allow_download,
                 "enable_watermark": link.enable_watermark,
+                "watermark_text": link.watermark_text,
             }
         }
         return Response(response_data, status=status.HTTP_200_OK)
@@ -994,6 +1028,214 @@ class ShareLinkRequestAccessView(APIView):
             return Response(
                 {"message": "Verification link sent. Please check your email to continue.", "verification_required": True},
                 status=status.HTTP_200_OK
+            )
+
+
+def _render_watermark_text(template_string: str, request) -> str:
+    """Renders a watermark template string with dynamic variables."""
+    ip_address = request.META.get('REMOTE_ADDR', 'N/A')
+    # Add more variables here in the future if needed
+    rendered_text = template_string.replace('{{ip-address}}', ip_address)
+    return rendered_text
+
+
+class WatermarkedPageRenderView(APIView):
+    """
+    Dynamically renders a watermarked image for a document page.
+    This is a public endpoint, but it checks for an active share link.
+    """
+    def get(self, request, slug, page_number, *args, **kwargs):
+        if not Image:
+            logger.error("Pillow is not installed. Watermarking is not available.")
+            return Response(
+                {"detail": "Watermarking service is currently unavailable."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+        try:
+            link = _get_active_share_link(slug)
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
+
+        if not link.enable_watermark or not link.watermark_text:
+            return Response({"message": "Watermarking is not enabled for this link."}, status=status.HTTP_400_BAD_REQUEST)
+
+        document = link.document
+        primary_version = document.versions.filter(is_primary=True).first()
+
+        if not primary_version:
+            return Response({"message": "Document version not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get source image
+        source_image_key = None
+        if document.type == 'image' and page_number == 1:
+            source_image_key = primary_version.original_storage_key
+        elif primary_version.has_pages:
+            try:
+                page = DocumentPage.objects.get(document_version=primary_version, page_number=page_number)
+                source_image_key = page.storage_key
+            except DocumentPage.DoesNotExist:
+                return Response({"message": "Page not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not source_image_key:
+            return Response({"message": "Source image for page not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Render watermark
+        try:
+            with default_storage.open(source_image_key, 'rb') as f:
+                image = Image.open(f).convert("RGBA")
+
+            watermark_text = _render_watermark_text(link.watermark_text, request)
+            
+            # Create a transparent layer for the text
+            txt_layer = Image.new('RGBA', image.size, (255, 255, 255, 0))
+            draw = ImageDraw.Draw(txt_layer)
+            
+            try:
+                # TODO: A default font is usually available on most systems, but it's small.
+                # For production, consider including a specific .ttf font file in the container.
+                font_size = max(12, int(image.width / 40))
+                font = ImageFont.truetype("DejaVuSans.ttf", size=font_size)
+            except IOError:
+                font = ImageFont.load_default()
+
+            # --- Tiled & Rotated Watermark Logic ---
+            # Measure text size
+            text_bbox = draw.textbbox((0, 0), watermark_text, font=font)
+            # Use the right and bottom coordinates of the bounding box for the tile size
+            # to ensure the canvas is large enough for the font's internal bearings.
+            text_width = text_bbox[2] - text_bbox[0]
+            text_height = text_bbox[3] - text_bbox[1]
+
+            text_tile = Image.new('RGBA', (text_width, text_height), (255, 255, 255, 0))
+            text_tile_draw = ImageDraw.Draw(text_tile)
+
+            # Draw at (0,0) - the text's internal offsets will place it correctly on this larger canvas.
+            text_tile_draw.text((-text_bbox[0], -text_bbox[1]), watermark_text, font=font, fill=(0, 0, 0, 60))
+
+            # Rotate the text tile. 'expand=True' makes the image larger to fit the rotated text.
+            rotated_tile = text_tile.rotate(45, resample=Image.BICUBIC, expand=True)
+
+            # Calculate spacing for the tiles
+            x_spacing = rotated_tile.width + int(image.width / 5)
+            y_spacing = rotated_tile.height + int(image.height / 5)
+
+            # Tile the rotated watermark across the entire image layer
+            for x in range(-rotated_tile.width, image.width + x_spacing, x_spacing):
+                for y in range(-rotated_tile.height, image.height + y_spacing, y_spacing):
+                    txt_layer.alpha_composite(rotated_tile, (x, y))  # USE alpha_composite instead of paste
+
+            watermarked_image = Image.alpha_composite(image, txt_layer)
+
+            # Save to buffer and return as response
+            buffer = BytesIO()
+            watermarked_image.convert("RGB").save(buffer, format="JPEG", quality=90)
+            buffer.seek(0)
+
+            return HttpResponse(buffer, content_type='image/jpeg')
+
+        except Exception as e:
+            logger.exception(f"Failed to apply watermark for page: {e}")
+            return Response(
+                {"message": "An error occurred while generating the watermark."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class WatermarkedFileDownloadView(APIView):
+    """
+    Dynamically generates and serves a watermarked PDF file for download.
+    This is a public endpoint that checks for an active share link.
+    """
+    def get(self, request, slug, *args, **kwargs):
+        if not PdfReader or not canvas:
+            missing = []
+            if not PdfReader: missing.append("pypdf")
+            if not canvas: missing.append("reportlab")
+            logger.error(f"{', '.join(missing)} is not installed. PDF watermarking is not available.")
+            return Response(
+                {"detail": "PDF watermarking service is currently unavailable."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+        try:
+            link = _get_active_share_link(slug)
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
+
+        if not link.enable_watermark or not link.watermark_text:
+            return Response({"message": "Watermarking is not enabled for this link."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not link.allow_download:
+            return Response({"message": "Download is not allowed for this link."}, status=status.HTTP_403_FORBIDDEN)
+
+        document = link.document
+        primary_version = document.versions.filter(is_primary=True).first()
+
+        if not primary_version:
+            return Response({"message": "Document version not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get source PDF. For office docs, use the converted PDF (storage_key). For PDFs, use original.
+        if document.type == 'pdf':
+            source_pdf_key = primary_version.original_storage_key
+        elif document.type == 'document' and primary_version.storage_key: # office doc that was converted
+             source_pdf_key = primary_version.storage_key
+        else:
+            return Response({"message": "A previewable PDF is not available for this document type."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Apply watermark to PDF
+        try:
+            with default_storage.open(source_pdf_key, 'rb') as f:
+                reader = PdfReader(f)
+                writer = PdfWriter()
+
+                if not reader.pages:
+                    return Response({"message": "Cannot apply watermark to an empty PDF."}, status=status.HTTP_400_BAD_REQUEST)
+                
+                watermark_text = _render_watermark_text(link.watermark_text, request)
+
+                # Create a watermark page in memory
+                watermark_buffer = BytesIO()
+                first_page_box = reader.pages[0].mediabox
+                page_size = (float(first_page_box.width), float(first_page_box.height))
+
+                p = canvas.Canvas(watermark_buffer, pagesize=page_size)
+                p.setFont("Helvetica", 40)
+                p.setFillColor(colors.black, alpha=0.1)
+
+                # Tiled and rotated watermark
+                width, height = page_size
+                p.translate(width/2, height/2)
+                p.rotate(45)
+                # Draw text in a grid pattern around the center
+                spacing = 250
+                for x in range(-int(width), int(width), spacing):
+                    for y in range(-int(height), int(height), spacing):
+                        p.drawCentredString(x, y, watermark_text)
+                p.save()
+                watermark_buffer.seek(0)
+                
+                watermark_pdf = PdfReader(watermark_buffer)
+                watermark_page = watermark_pdf.pages[0]
+                
+                # Merge watermark onto each page
+                for page in reader.pages:
+                    page.merge_page(watermark_page)
+                    writer.add_page(page)
+
+                output_buffer = BytesIO()
+                writer.write(output_buffer)
+                output_buffer.seek(0)
+
+                response = HttpResponse(output_buffer, content_type='application/pdf')
+                safe_filename = document.name.replace('"', '\\"')
+                response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
+                return response
+        except Exception as e:
+            logger.exception(f"Failed to apply watermark to PDF: {e}")
+            return Response(
+                {"message": "An error occurred while generating the watermarked file."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 
