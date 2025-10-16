@@ -1082,6 +1082,16 @@ class WatermarkedPageRenderView(APIView):
         if not source_image_key:
             return Response({"message": "Source image for page not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        # Generate an ETag based on factors that would change the output image.
+        ip_address = request.META.get('REMOTE_ADDR', '')
+        etag_source = f"{source_image_key}-{link.updated_at.isoformat()}-{link.watermark_text}-{ip_address}"
+        etag = hashlib.md5(etag_source.encode()).hexdigest()
+
+        # Check against the If-None-Match header from the client.
+        if_none_match = request.META.get('HTTP_IF_NONE_MATCH')
+        if if_none_match and quote_etag(etag) == if_none_match:
+            return HttpResponse(status=304)
+
         # Render watermark
         try:
             with default_storage.open(source_image_key, 'rb') as f:
@@ -1136,8 +1146,11 @@ class WatermarkedPageRenderView(APIView):
 
             response = HttpResponse(buffer.getvalue(), content_type="image/jpeg")
             response["Content-Length"] = str(len(buffer.getvalue()))
-            response["Content-Disposition"] = f'inline; filename="{link.id}_page_{page_number}.jpg"'
-            response['Cache-Control'] = 'public, max-age=86400'  # Cache for 24 hours
+            response["Content-Disposition"] = f'inline; filename="{document.id}_page_{page_number}.jpg"'
+            
+            # Set caching headers with the new ETag
+            response['ETag'] = quote_etag(etag)
+            response['Cache-Control'] = 'public, max-age=86400, must-revalidate'
 
             return response
 
