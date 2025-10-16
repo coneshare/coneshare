@@ -2,6 +2,7 @@ import logging
 import os
 import secrets
 import hashlib
+import math
 from datetime import timedelta
 from pathlib import Path
 from urllib.parse import urljoin
@@ -1033,6 +1034,23 @@ class ShareLinkRequestAccessView(APIView):
             )
 
 
+def _calculate_watermark_grid_params(page_width, page_height, rotated_tile_width, rotated_tile_height):
+    """
+    Calculates spacing and drawing range for a tiled watermark grid.
+    This logic is shared between Pillow (image) and ReportLab (PDF) generation.
+    """
+    x_spacing = int(rotated_tile_width + page_width / 5)
+    y_spacing = int(rotated_tile_height + page_height / 5)
+
+    x_range = range(-int(rotated_tile_width), int(page_width) + x_spacing, x_spacing)
+    y_range = range(-int(rotated_tile_height), int(page_height) + y_spacing, y_spacing)
+
+    return {
+        'x_range': x_range,
+        'y_range': y_range,
+    }
+
+
 def _render_watermark_text(template_string: str, request, viewer_email: str = '') -> str:
     """Renders a watermark template string with dynamic variables."""
     ip_address = request.META.get('REMOTE_ADDR', 'N/A')
@@ -1134,13 +1152,16 @@ class WatermarkedPageRenderView(APIView):
             # Rotate the text tile. 'expand=True' makes the image larger to fit the rotated text.
             rotated_tile = text_tile.rotate(45, resample=Image.BICUBIC, expand=True)
 
-            # Calculate spacing for the tiles
-            x_spacing = rotated_tile.width + int(image.width / 5)
-            y_spacing = rotated_tile.height + int(image.height / 5)
+            grid_params = _calculate_watermark_grid_params(
+                page_width=image.width,
+                page_height=image.height,
+                rotated_tile_width=rotated_tile.width,
+                rotated_tile_height=rotated_tile.height
+            )
 
             # Tile the rotated watermark across the entire image layer
-            for x in range(-rotated_tile.width, image.width + x_spacing, x_spacing):
-                for y in range(-rotated_tile.height, image.height + y_spacing, y_spacing):
+            for x in grid_params['x_range']:
+                for y in grid_params['y_range']:
                     txt_layer.alpha_composite(rotated_tile, (x, y))  # USE alpha_composite instead of paste
 
             watermarked_image = Image.alpha_composite(image, txt_layer)
@@ -1227,21 +1248,44 @@ class WatermarkedFileDownloadView(APIView):
                 # Create a watermark page in memory
                 watermark_buffer = BytesIO()
                 first_page_box = reader.pages[0].mediabox
-                page_size = (float(first_page_box.width), float(first_page_box.height))
+                page_width, page_height = (float(first_page_box.width), float(first_page_box.height))
 
-                p = canvas.Canvas(watermark_buffer, pagesize=page_size)
-                p.setFont("Helvetica", 40)
+                # --- Logic mirrored from Pillow implementation ---
+                font_size = max(12, int(page_width / 40))
+                
+                # Use a temporary canvas to get text dimensions
+                temp_canvas = canvas.Canvas(BytesIO())
+                temp_canvas.setFont("Helvetica", font_size)
+                text_width = temp_canvas.stringWidth(watermark_text, "Helvetica", font_size)
+                text_height = font_size  # Approximation
+
+                # Calculate bounding box of rotated text
+                rad_angle = 45 * (math.pi / 180)
+                cos_a = math.cos(rad_angle)
+                sin_a = math.sin(rad_angle)
+                rotated_width = text_width * cos_a + text_height * sin_a
+                rotated_height = text_width * sin_a + text_height * cos_a
+
+                grid_params = _calculate_watermark_grid_params(
+                    page_width=page_width,
+                    page_height=page_height,
+                    rotated_tile_width=rotated_width,
+                    rotated_tile_height=rotated_height
+                )
+
+                # --- Create the actual watermark page ---
+                p = canvas.Canvas(watermark_buffer, pagesize=(page_width, page_height))
+                p.setFont("Helvetica", font_size)
                 p.setFillColor(colors.black, alpha=0.1)
 
-                # Tiled and rotated watermark
-                width, height = page_size
-                p.translate(width/2, height/2)
-                p.rotate(45)
-                # Draw text in a grid pattern around the center
-                spacing = 250
-                for x in range(-int(width), int(width), spacing):
-                    for y in range(-int(height), int(height), spacing):
-                        p.drawCentredString(x, y, watermark_text)
+                # Draw rotated text at each grid position
+                for x in grid_params['x_range']:
+                    for y in grid_params['y_range']:
+                        p.saveState()
+                        p.translate(x, y)
+                        p.rotate(45)
+                        p.drawCentredString(0, 0, watermark_text)
+                        p.restoreState()
                 p.save()
                 watermark_buffer.seek(0)
                 
