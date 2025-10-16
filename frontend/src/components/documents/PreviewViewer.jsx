@@ -1,15 +1,21 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { LazyImage } from './LazyImage';
 import { recordPageView } from '../../services/api';
 
 export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId }) {
-  const scrollContainerRef = useRef(null);
+  const [scrollContainer, setScrollContainer] = useState(null);
   const pageRefs = useRef(new Map());
   const activePageRef = useRef(1);
   const timeOnPageRef = useRef(0);
   const intervalRef = useRef(null);
   const isInactiveRef = useRef(false);
   const inactivityTimerRef = useRef(null);
+
+  const scrollContainerCallbackRef = useCallback((node) => {
+    if (node !== null) {
+      setScrollContainer(node);
+    }
+  }, []);
 
   const sendTrackingData = useCallback(
     (page, duration, useBeacon = false) => {
@@ -79,6 +85,8 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId })
   }, [sendTrackingData]);
 
   useEffect(() => {
+    if (!scrollContainer) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         const [mostVisibleEntry] = [...entries].sort(
@@ -98,7 +106,7 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId })
         }
       },
       {
-        root: scrollContainerRef.current,
+        root: scrollContainer,
         threshold: [0.25, 0.5, 0.75], // Trigger when a good portion is visible
       }
     );
@@ -114,11 +122,11 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId })
       });
       observer.disconnect();
     };
-  }, [documentData.pages, onPageChange, sendTrackingData]);
+  }, [documentData.pages, onPageChange, sendTrackingData, scrollContainer]);
 
   return (
     <div
-      ref={scrollContainerRef}
+      ref={scrollContainerCallbackRef}
       className="h-full overflow-y-auto bg-gray-100 dark:bg-gray-800"
     >
       <div
@@ -141,6 +149,7 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId })
               src={page.url}
               alt={`Page ${page.page_number}`}
               className="mx-auto max-w-full rounded-md shadow-md"
+              scrollContainer={scrollContainer}
             />
           </div>
         ))}
