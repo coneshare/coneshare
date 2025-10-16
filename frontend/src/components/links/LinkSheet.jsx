@@ -277,6 +277,14 @@ export function LinkSheet({
                   >
                     {`{{ip-address}}`}
                   </span>
+                  <span
+                    className="cursor-pointer rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground hover:bg-secondary/80"
+                    onClick={() =>
+                      setWatermarkText((prev) => (prev ? `${prev} {{email}}` : '{{email}}'))
+                    }
+                  >
+                    {`{{email}}`}
+                  </span>
                 </div>
               </div>
             )}            

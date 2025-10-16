@@ -1033,11 +1033,13 @@ class ShareLinkRequestAccessView(APIView):
             )
 
 
-def _render_watermark_text(template_string: str, request) -> str:
+def _render_watermark_text(template_string: str, request, viewer_email: str = '') -> str:
     """Renders a watermark template string with dynamic variables."""
     ip_address = request.META.get('REMOTE_ADDR', 'N/A')
+    email = viewer_email or 'N/A'
     # Add more variables here in the future if needed
     rendered_text = template_string.replace('{{ip-address}}', ip_address)
+    rendered_text = rendered_text.replace('{{email}}', email)
     return rendered_text
 
 
@@ -1082,9 +1084,13 @@ class WatermarkedPageRenderView(APIView):
         if not source_image_key:
             return Response({"message": "Source image for page not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        authorized_links = request.session.get('authorized_share_links', {})
+        auth_status = authorized_links.get(str(link.id), {})
+        viewer_email = auth_status.get('viewer_email', '')
+
         # Generate an ETag based on factors that would change the output image.
         ip_address = request.META.get('REMOTE_ADDR', '')
-        etag_source = f"{source_image_key}-{link.updated_at.isoformat()}-{link.watermark_text}-{ip_address}"
+        etag_source = f"{source_image_key}-{link.updated_at.isoformat()}-{link.watermark_text}-{ip_address}-{viewer_email}"
         etag = hashlib.md5(etag_source.encode()).hexdigest()
 
         # Check against the If-None-Match header from the client.
@@ -1097,7 +1103,7 @@ class WatermarkedPageRenderView(APIView):
             with default_storage.open(source_image_key, 'rb') as f:
                 image = Image.open(f).convert("RGBA")
 
-            watermark_text = _render_watermark_text(link.watermark_text, request)
+            watermark_text = _render_watermark_text(link.watermark_text, request, viewer_email=viewer_email)
             
             # Create a transparent layer for the text
             txt_layer = Image.new('RGBA', image.size, (255, 255, 255, 0))
@@ -1189,6 +1195,10 @@ class WatermarkedFileDownloadView(APIView):
         if not link.allow_download:
             return Response({"message": "Download is not allowed for this link."}, status=status.HTTP_403_FORBIDDEN)
 
+        authorized_links = request.session.get('authorized_share_links', {})
+        auth_status = authorized_links.get(str(link.id), {})
+        viewer_email = auth_status.get('viewer_email', '')
+
         document = link.document
         primary_version = document.versions.filter(is_primary=True).first()
 
@@ -1212,7 +1222,7 @@ class WatermarkedFileDownloadView(APIView):
                 if not reader.pages:
                     return Response({"message": "Cannot apply watermark to an empty PDF."}, status=status.HTTP_400_BAD_REQUEST)
                 
-                watermark_text = _render_watermark_text(link.watermark_text, request)
+                watermark_text = _render_watermark_text(link.watermark_text, request, viewer_email=viewer_email)
 
                 # Create a watermark page in memory
                 watermark_buffer = BytesIO()
