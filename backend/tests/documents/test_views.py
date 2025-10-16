@@ -1793,8 +1793,79 @@ class TestWatermarkingViews:
 
     def test_render_page_for_link_without_watermark_fails(self, public_client, share_link):
         """Test that the render endpoint fails if watermarking is not enabled."""
-        url = f'/api/v1/links/{share_link.slug}/render-page/1/'
+        url = f'/api/v1/links/{share_link.slug}/render-page/1.jpg'
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert 'Watermarking is not enabled' in response.data['message']
+
+    @patch('django.core.files.storage.default_storage.open')
+    def test_render_watermarked_page_returns_caching_headers(self, mock_storage_open, public_client, watermarked_link):
+        """Test that the initial response for a watermarked page includes ETag and Cache-Control headers."""
+        img = Image.new('RGB', (100, 100), color='white')
+        buffer = BytesIO()
+        img.save(buffer, 'JPEG')
+        buffer.seek(0)
+        mock_storage_open.return_value = buffer
+
+        url = f'/api/v1/links/{watermarked_link.slug}/render-page/1.jpg'
+        response = public_client.get(url, REMOTE_ADDR='192.168.1.1')
+
+        assert response.status_code == status.HTTP_200_OK
+        assert 'ETag' in response
+        assert response['ETag'] is not None
+        assert 'Cache-Control' in response
+        assert response['Cache-Control'] == 'public, max-age=60, must-revalidate'
+
+    @patch('django.core.files.storage.default_storage.open')
+    def test_render_watermarked_page_with_etag_returns_304(self, mock_storage_open, public_client, watermarked_link):
+        """Test that sending a valid ETag in If-None-Match returns a 304 Not Modified."""
+        img = Image.new('RGB', (100, 100), color='white')
+        buffer = BytesIO()
+        img.save(buffer, 'JPEG')
+        buffer.seek(0)
+        mock_storage_open.return_value = buffer
+
+        # First request to get the ETag
+        url = f'/api/v1/links/{watermarked_link.slug}/render-page/1.jpg'
+        response1 = public_client.get(url, REMOTE_ADDR='192.168.1.1')
+        assert response1.status_code == status.HTTP_200_OK
+        etag = response1['ETag']
+
+        # Second request with the ETag
+        response2 = public_client.get(url, REMOTE_ADDR='192.168.1.1', HTTP_IF_NONE_MATCH=etag)
+        assert response2.status_code == status.HTTP_304_NOT_MODIFIED
+
+        # Ensure the storage was only accessed once
+        mock_storage_open.assert_called_once()
+
+    @patch('django.core.files.storage.default_storage.open')
+    def test_render_watermarked_page_with_changed_link_returns_200(self, mock_storage_open, public_client, watermarked_link):
+        """
+        Test that ETag validation fails and returns a new 200 response if the
+        link's watermark text has changed.
+        """
+        img = Image.new('RGB', (100, 100), color='white')
+        buffer = BytesIO()
+        img.save(buffer, 'JPEG')
+        buffer.seek(0)
+        mock_storage_open.return_value = buffer
+
+        # First request to get the ETag
+        url = f'/api/v1/links/{watermarked_link.slug}/render-page/1.jpg'
+        response1 = public_client.get(url, REMOTE_ADDR='192.168.1.1')
+        assert response1.status_code == status.HTTP_200_OK
+        etag1 = response1['ETag']
+
+        # Change the watermark text, which should invalidate the ETag
+        watermarked_link.watermark_text = "New Watermark"
+        watermarked_link.save()
+
+        # Second request with the old ETag
+        response2 = public_client.get(url, REMOTE_ADDR='192.168.1.1', HTTP_IF_NONE_MATCH=etag1)
+        assert response2.status_code == status.HTTP_200_OK
+        etag2 = response2['ETag']
+
+        assert etag1 != etag2
+        # Ensure storage was accessed twice (once for each render)
+        assert mock_storage_open.call_count == 2
