@@ -406,7 +406,7 @@ def _prepare_pages_data(document, primary_version, share_link=None):
         pages = primary_version.pages.order_by('page_number')
         for page in pages:
             if is_watermarked:
-                page_url = f"/api/v1/links/{share_link.slug}/render-page/{page.page_number}/"
+                page_url = f"/api/v1/links/{share_link.slug}/render-page/{page.page_number}.jpg"
             else:
                 page_url = default_storage.url(page.storage_key)
 
@@ -1132,7 +1132,12 @@ class WatermarkedPageRenderView(APIView):
             watermarked_image.convert("RGB").save(buffer, format="JPEG", quality=90)
             buffer.seek(0)
 
-            return HttpResponse(buffer, content_type='image/jpeg')
+            response = HttpResponse(buffer.getvalue(), content_type="image/jpeg")
+            response["Content-Length"] = str(len(buffer.getvalue()))
+            response["Content-Disposition"] = f'inline; filename="{link.id}_page_{page_number}.jpg"'
+            response['Cache-Control'] = 'public, max-age=86400'  # Cache for 24 hours
+
+            return response
 
         except Exception as e:
             logger.exception(f"Failed to apply watermark for page: {e}")
