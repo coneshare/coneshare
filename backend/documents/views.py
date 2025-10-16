@@ -408,7 +408,7 @@ def _prepare_pages_data(document, primary_version, share_link=None):
         pages = primary_version.pages.order_by('page_number')
         for page in pages:
             if is_watermarked:
-                page_url = f"/api/v1/links/{share_link.slug}/render-page/{page.page_number}.jpg"
+                page_url = f"/api/v1/links/{share_link.slug}/render-page/{page.page_number}/"
             else:
                 page_url = default_storage.url(page.storage_key)
 
@@ -1150,7 +1150,7 @@ class WatermarkedPageRenderView(APIView):
             
             # Set caching headers with the new ETag
             response['ETag'] = quote_etag(etag)
-            response['Cache-Control'] = 'public, max-age=86400, must-revalidate'
+            response['Cache-Control'] = 'public, max-age=60, must-revalidate'
 
             return response
 

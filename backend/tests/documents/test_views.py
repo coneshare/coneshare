@@ -1793,7 +1793,7 @@ class TestWatermarkingViews:
 
     def test_render_page_for_link_without_watermark_fails(self, public_client, share_link):
         """Test that the render endpoint fails if watermarking is not enabled."""
-        url = f'/api/v1/links/{share_link.slug}/render-page/1.jpg'
+        url = f'/api/v1/links/{share_link.slug}/render-page/1/'
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -1808,7 +1808,7 @@ class TestWatermarkingViews:
         buffer.seek(0)
         mock_storage_open.return_value = buffer
 
-        url = f'/api/v1/links/{watermarked_link.slug}/render-page/1.jpg'
+        url = f'/api/v1/links/{watermarked_link.slug}/render-page/1/'
         response = public_client.get(url, REMOTE_ADDR='192.168.1.1')
 
         assert response.status_code == status.HTTP_200_OK
@@ -1827,7 +1827,7 @@ class TestWatermarkingViews:
         mock_storage_open.return_value = buffer
 
         # First request to get the ETag
-        url = f'/api/v1/links/{watermarked_link.slug}/render-page/1.jpg'
+        url = f'/api/v1/links/{watermarked_link.slug}/render-page/1/'
         response1 = public_client.get(url, REMOTE_ADDR='192.168.1.1')
         assert response1.status_code == status.HTTP_200_OK
         etag = response1['ETag']
@@ -1845,14 +1845,16 @@ class TestWatermarkingViews:
         Test that ETag validation fails and returns a new 200 response if the
         link's watermark text has changed.
         """
-        img = Image.new('RGB', (100, 100), color='white')
-        buffer = BytesIO()
-        img.save(buffer, 'JPEG')
-        buffer.seek(0)
-        mock_storage_open.return_value = buffer
+        def create_mock_image_file(*args, **kwargs):
+            img = Image.new('RGB', (100, 100), color='white')
+            buffer = BytesIO()
+            img.save(buffer, 'JPEG')
+            buffer.seek(0)
+            return buffer
+        mock_storage_open.side_effect = create_mock_image_file
 
         # First request to get the ETag
-        url = f'/api/v1/links/{watermarked_link.slug}/render-page/1.jpg'
+        url = f'/api/v1/links/{watermarked_link.slug}/render-page/1/'
         response1 = public_client.get(url, REMOTE_ADDR='192.168.1.1')
         assert response1.status_code == status.HTTP_200_OK
         etag1 = response1['ETag']

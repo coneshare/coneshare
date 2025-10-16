@@ -268,9 +268,18 @@ export function LinkSheet({
                   onChange={(e) => setWatermarkText(e.target.value)}
                   placeholder="e.g., Confidential, {{ip-address}}"
                 />
-
+                <div className="flex items-center gap-2 pt-1">
+                  <span
+                    className="cursor-pointer rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground hover:bg-secondary/80"
+                    onClick={() =>
+                      setWatermarkText((prev) => (prev ? `${prev} {{ip-address}}` : '{{ip-address}}'))
+                    }
+                  >
+                    {`{{ip-address}}`}
+                  </span>
+                </div>
               </div>
-            )}
+            )}            
           </div>
 
           <div className="space-y-2">
