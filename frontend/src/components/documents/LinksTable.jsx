@@ -3,6 +3,7 @@ import { Fragment, useState } from 'react';
 import { toast } from 'sonner';
 import { UAParser } from 'ua-parser-js';
 import { generateShareLinkPreview, updateShareLink } from '../../services/api';
+import { LinkSettingsSummary } from './LinkSettingsSummary';
 import { Button } from '../ui/Button';
 import { Switch } from '../ui/Switch';
 import {
@@ -138,8 +139,7 @@ export function LinksTable({ links, onEditLink, onDeleteLink, onLinkUpdate }) {
               <TableHead>Link</TableHead>
               <TableHead>Views</TableHead>
               <TableHead>Created At</TableHead>
-              <TableHead>Expires</TableHead>
-              <TableHead>Password</TableHead>
+              <TableHead>Settings</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>
                 <span className="sr-only">Actions</span>
@@ -190,15 +190,24 @@ export function LinksTable({ links, onEditLink, onDeleteLink, onLinkUpdate }) {
                     <TableCell>{link.view_count}</TableCell>
                     <TableCell>{new Date(link.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
-                      {link.expires_at ? new Date(link.expires_at).toLocaleDateString() : 'Never'}
+                      <LinkSettingsSummary link={link} onClick={() => onEditLink(link)} />
                     </TableCell>
-                    <TableCell>{link.has_password ? 'Yes' : 'No'}</TableCell>
                     <TableCell>
-                      <Switch
-                        checked={link.is_active}
-                        onCheckedChange={(checked) => handleStatusChange(link, checked)}
-                        aria-label="Toggle link status"
-                      />
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          {/* Wrap Switch in a span to resolve event conflicts with TooltipTrigger */}
+                          <span className="inline-flex align-middle">
+                            <Switch
+                              checked={link.is_active}
+                              onCheckedChange={(checked) => handleStatusChange(link, checked)}
+                              aria-label="Toggle link status"
+                            />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{link.is_active ? 'Active' : 'Inactive'}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </TableCell>
                     <TableCell className="text-right">
                       <Tooltip>
@@ -247,7 +256,7 @@ export function LinksTable({ links, onEditLink, onDeleteLink, onLinkUpdate }) {
                   </TableRow>
                   {isExpanded && hasViews && (
                     <TableRow className="bg-gray-50 hover:bg-gray-50">
-                      <TableCell colSpan={9} className="p-4">
+                      <TableCell colSpan={8} className="p-4">
                         <div className="p-2">
                           {/* <h4 className="mb-2 text-sm font-semibold text-gray-600"> */}
                           {/*   View Sessions */}
