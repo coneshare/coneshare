@@ -25,7 +25,7 @@ export function DocumentsListHeader({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="w-12">
+      <div className="w-8">
         <div
           className={cn(
             "transition-opacity",

@@ -70,7 +70,7 @@ export function DraggableItem({
         isSelected && "bg-blue-50 dark:bg-blue-900/20"
       )}
     >
-      <div className="w-12">
+      <div className="w-8">
         <div
           className={cn(
             "transition-opacity",
@@ -97,7 +97,7 @@ export function DraggableItem({
             e.stopPropagation();
             onToggleStar(id, type);
           }}
-          className={cn("ml-auto p-1")}
+          className={cn("ml-auto p-1 mr-1")}
         >
           <Star
             className={cn(

@@ -1,38 +1,49 @@
-import { Cone } from "lucide-react";
+import { Cone, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Skeleton } from "../ui/Skeleton";
 import { useSidebar } from "./SidebarProvider";
 import { cn } from "../../lib/utils";
+import { Button } from "../ui/Button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../ui/Tooltip";
 
 function SidebarHeader() {
-  const { isCollapsed } = useSidebar();
+  const { isCollapsed, toggleSidebar } = useSidebar();
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-4 p-2",
-        isCollapsed ? "items-center" : "items-start"
-      )}
-    >
-      <div className="flex h-10 items-center">
-        <Link
-          to="/"
-          className="flex items-center text-lg font-semibold"
-          aria-label="Coneshare Home"
-        >
-          <Cone className="h-6 w-6" />
-          <span className={cn("ml-2", isCollapsed && "hidden")}>
-            Coneshare
-          </span>
-        </Link>
-      </div>
-      {/* <div className={cn("w-full", isCollapsed ? "px-0" : "px-2")}> */}
-      {/*   <Skeleton */}
-      {/*     className={cn( */}
-      {/*       "w-full", */}
-      {/*       isCollapsed ? "h-8 w-8 rounded-full" : "h-10" */}
-      {/*     )} */}
-      {/*   /> */}
-      {/* </div> */}
+    <div className="flex h-14 items-center border-b px-4">
+      <Link
+        to="/"
+        className="flex flex-1 items-center gap-2 font-semibold"
+        aria-label="Coneshare Home"
+      >
+        <Cone className="h-6 w-6" />
+        <span className={cn(isCollapsed && "hidden")}>Coneshare</span>
+      </Link>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSidebar}
+              className="h-8 w-8"
+            >
+              {isCollapsed ? (
+                <ChevronsRight className="h-5 w-5" />
+              ) : (
+                <ChevronsLeft className="h-5 w-5" />
+              )}
+              <span className="sr-only">Toggle sidebar</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>Press ] to toggle sidebar</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 }

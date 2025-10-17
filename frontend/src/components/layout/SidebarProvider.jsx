@@ -17,7 +17,7 @@ export function SidebarProvider({ children }) {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === "[") {
+      if (event.key === "]") {
         event.preventDefault();
         toggleSidebar();
       }
