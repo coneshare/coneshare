@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Eye, Pencil, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import { toast } from 'sonner';
@@ -92,7 +93,7 @@ function CopyableLink({ slug, isExpired, expires_at }) {
   );
 }
 
-export function LinksTable({ links, onEditLink, onDeleteLink, onLinkUpdate }) {
+export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLinkUpdate }) {
   const [expandedRowId, setExpandedRowId] = useState(null);
 
   const handleStatusChange = async (link, newStatus) => {
@@ -237,7 +238,7 @@ export function LinksTable({ links, onEditLink, onDeleteLink, onLinkUpdate }) {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {link.view_sessions.map((view) => {
+                              {link.recent_view_sessions.map((view) => {
                                 const { browser, os } = parseUserAgent(view.user_agent);
                                 const deviceInfo =
                                   browser !== 'Unknown' ? `${browser} on ${os}` : 'Unknown device';
@@ -300,6 +301,16 @@ export function LinksTable({ links, onEditLink, onDeleteLink, onLinkUpdate }) {
                               })}
                             </TableBody>
                           </Table>
+                          {link.view_count > link.recent_view_sessions.length && (
+                            <div className="mt-2 text-center">
+                              <Link
+                                to={`/documents/${documentId}/links/${link.id}`}
+                                className="text-sm font-medium text-blue-600 hover:underline"
+                              >
+                                View all {link.view_count} sessions
+                              </Link>
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

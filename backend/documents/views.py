@@ -683,6 +683,20 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return ShareLink.objects.filter(created_by=self.request.user)
 
+    @action(detail=True, methods=['get'], url_path='view-sessions')
+    def view_sessions(self, request, pk=None):
+        share_link = self.get_object()
+        view_queryset = share_link.view_sessions.all()
+
+        paginator = StandardResultsSetPagination()
+        page = paginator.paginate_queryset(view_queryset, request, view=self)
+        if page is not None:
+            serializer = ViewSessionSerializer(page, many=True, context=self.get_serializer_context())
+            return paginator.get_paginated_response(serializer.data)
+
+        serializer = ViewSessionSerializer(view_queryset, many=True, context=self.get_serializer_context())
+        return Response(serializer.data)
+
     @action(detail=True, methods=['post'], url_path='preview')
     def create_preview_session(self, request, pk=None):
         """

@@ -215,6 +215,9 @@ class ViewSession(models.Model):
     def __str__(self):
         return f"ViewSession {self.id} on {self.share_link}"
 
+    class Meta:
+        ordering = ['-viewed_at']
+
 
 class PageView(models.Model):
     """
