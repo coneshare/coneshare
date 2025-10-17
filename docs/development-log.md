@@ -1016,8 +1016,7 @@ This pull request delivers a significant new feature: dynamic watermarking for s
 
 ## Session 43: Share Link UX & Analytics Refinements (2025-10-17)
 
-This session focused on significantly improving the user experience for managing and understanding share links, introducing a consolidated settings summary, interactive elements, and several bug fixes.
-[https://github.com/coneshare/coneshare/pull/44](https://github.com/coneshare/coneshare/pull/44)
+This session focused on significantly improving the user experience for managing and understanding share links, introducing a consolidated settings summary, interactive elements, and several bug fixes. [https://github.com/coneshare/coneshare/pull/44](https://github.com/coneshare/coneshare/pull/44)
 
 ### 1. Enhanced Share Link Expiration
 - **Precise Expiration**: Upgraded the share link settings to allow setting an expiration time in addition to the date, providing more granular control.
@@ -1032,3 +1031,28 @@ This session focused on significantly improving the user experience for managing
   - Resolved a bug where tooltips would not appear on custom components like `Badge` by ensuring props were correctly forwarded.
   - Fixed a critical UI bug where adding a tooltip to the status `Switch` component caused it to render incorrectly. The fix involved wrapping the `Switch` in a `span` to isolate pointer events.
 - **Active/Inactive Status Tooltip**: Added a tooltip to the status toggle in the links table, clearly indicating whether a link is "Active" or "Inactive" on hover.
+
+
+---
+
+## Session 44: Analytics UI/UX Enhancements (2025-10-17)
+
+This session focused on refining the analytics and share link management UI, improving data presentation, and enhancing user experience by replacing cluttered elements with more modern, consolidated components.  [https://github.com/coneshare/coneshare/pull/45](https://github.com/coneshare/coneshare/pull/45)
+
+### 1. Replaced Reactions with Downloads in Analytics ([`12daace`](https://github.com/coneshare/coneshare/commit/12daace))
+- **Backend**: The `DocumentViewSet`'s `stats` action was updated to aggregate the total number of downloads (`Count('downloaded_at')`) from `ViewSession` records.
+- **Frontend**: The `Stats.jsx` component was modified to display "Number of downloads" instead of the placeholder "Number of reactions", consuming the new `total_downloads` field from the API.
+
+### 2. Consolidated Share Link Actions ([`ccda15c`](https://github.com/coneshare/coneshare/commit/ccda15c))
+- **New Component**: A `LinkActionsDropdown.jsx` component was created to encapsulate "Preview", "Edit", and "Delete" actions into a single "three dots" menu, consistent with the main document list UI.
+- **UI Refactor**: The `LinksTable.jsx` was updated to use the new dropdown component, replacing the individual icon buttons and reducing visual clutter in the actions column.
+
+### 3. Paginated View Sessions for Share Links ([`8709ad7`](https://github.com/coneshare/coneshare/commit/8709ad7))
+- **Problem**: Share links with a high number of views would create an impractically long list when expanded in the `LinksTable`.
+- **Solution**: Implemented a "View more" link that directs users to a new, dedicated analytics page for that specific share link.
+  - **Backend**:
+    - The `ShareLinkSerializer` was modified to only nest the 10 most recent view sessions (`recent_view_sessions`).
+    - A new paginated endpoint, `/api/v1/share-links/{id}/view-sessions/`, was added to the `ShareLinkViewSet` to serve all view sessions for a single link.
+  - **Frontend**:
+    - A new `ShareLinkAnalyticsPage.jsx` was created to display the paginated view sessions, reusing the existing `ViewSessionsTable` component.
+    - The `LinksTable.jsx` was updated to display the "View all sessions" link when the total view count exceeds the number of recent sessions shown.
