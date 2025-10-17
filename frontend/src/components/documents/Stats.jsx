@@ -14,10 +14,11 @@ function formatDuration(seconds) {
 export function Stats({ stats }) {
   const totalViews = stats?.total_views || 0;
   const formattedAvgDuration = formatDuration(stats?.avg_duration_seconds || 0);
+  const totalDownloads = stats?.total_downloads || 0;
 
   const statItems = [
     { name: 'Number of visits', value: totalViews },
-    { name: 'Number of reactions', value: 0 }, // Placeholder as per request
+    { name: 'Number of downloads', value: totalDownloads },
     { name: 'Avg. view duration', value: formattedAvgDuration },
   ];
 
