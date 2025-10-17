@@ -48,7 +48,18 @@ export function LinkSheet({
       setAllowDownload(currentLink.allow_download);
       setIsPasswordEnabled(currentLink.has_password);
       setPassword(currentLink.has_password ? DUMMY_PASSWORD : '');
-      setExpiresAt(currentLink.expires_at ? new Date(currentLink.expires_at).toISOString().split('T')[0] : '');
+      if (currentLink.expires_at) {
+        const d = new Date(currentLink.expires_at);
+        // Format date to YYYY-MM-DDTHH:mm for datetime-local input in user's local timezone
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        setExpiresAt(`${year}-${month}-${day}T${hours}:${minutes}`);
+      } else {
+        setExpiresAt('');
+      }      
       setReceiveEmailNotification(currentLink.receive_email_notification || false);
       setEnableWatermark(isWatermarkable && (currentLink.enable_watermark || false));
       setWatermarkText(currentLink.watermark_text || '');
@@ -84,7 +95,7 @@ export function LinkSheet({
       allow_download: allowDownload,
       enable_watermark: isWatermarkable && enableWatermark,
       watermark_text: isWatermarkable && enableWatermark ? watermarkText : '',
-      expires_at: expiresAt ? new Date(`${expiresAt}T23:59:59.999Z`).toISOString() : null,
+      expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
     };
 
     if (isEditing) {
@@ -291,16 +302,16 @@ export function LinkSheet({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="expires-at">Expiration date</Label>
+            <Label htmlFor="expires-at">Expiration date and time</Label>
             <Input
               id="expires-at"
-              type="date"
+              type="datetime-local"
               value={expiresAt}
               onChange={(e) => setExpiresAt(e.target.value)}
               className="w-full"
             />
             <p className="text-sm text-muted-foreground">
-              Set a date after which the link will no longer be accessible.
+              Set a date and time after which the link will no longer be accessible.
             </p>
           </div>
           </div>
