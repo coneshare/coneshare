@@ -650,16 +650,19 @@ class DocumentViewSet(viewsets.ModelViewSet):
         ).aggregate(
             total_views=Count('id'),
             total_duration_seconds=Sum('duration_seconds'),
+            total_downloads=Count('downloaded_at'),
         )
 
         total_views = aggregates['total_views']
         total_duration = aggregates['total_duration_seconds'] or 0
         avg_duration = total_duration / total_views if total_views > 0 else 0
+        total_downloads = aggregates['total_downloads']
 
         return Response({
             'total_views': total_views,
             'total_duration_seconds': total_duration,
             'avg_duration_seconds': avg_duration,
+            'total_downloads': total_downloads,
         })
 
 
@@ -679,6 +682,20 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return ShareLink.objects.filter(created_by=self.request.user)
+
+    @action(detail=True, methods=['get'], url_path='view-sessions')
+    def view_sessions(self, request, pk=None):
+        share_link = self.get_object()
+        view_queryset = share_link.view_sessions.all()
+
+        paginator = StandardResultsSetPagination()
+        page = paginator.paginate_queryset(view_queryset, request, view=self)
+        if page is not None:
+            serializer = ViewSessionSerializer(page, many=True, context=self.get_serializer_context())
+            return paginator.get_paginated_response(serializer.data)
+
+        serializer = ViewSessionSerializer(view_queryset, many=True, context=self.get_serializer_context())
+        return Response(serializer.data)
 
     @action(detail=True, methods=['post'], url_path='preview')
     def create_preview_session(self, request, pk=None):

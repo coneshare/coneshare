@@ -177,7 +177,7 @@ class ShareLinkSerializer(serializers.ModelSerializer):
     )
     has_password = serializers.SerializerMethodField()
     view_count = serializers.SerializerMethodField()
-    view_sessions = ViewSessionSerializer(many=True, read_only=True)
+    recent_view_sessions = serializers.SerializerMethodField()
 
     def validate(self, data):
         """
@@ -210,7 +210,7 @@ class ShareLinkSerializer(serializers.ModelSerializer):
             'id', 'document', 'created_by', 'name', 'slug', 'expires_at',
             'has_password', 'password', 'requires_email', 'requires_email_verification', 'allow_download',
             'enable_watermark', 'watermark_text', 'receive_email_notification', 'is_active', 'created_at', 'updated_at',
-            'view_count', 'view_sessions'
+            'view_count', 'recent_view_sessions'
         ]
         read_only_fields = [
             'id', 'created_by', 'slug', 'created_at', 'updated_at'
@@ -230,6 +230,19 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         if hasattr(obj, '_prefetched_objects_cache') and 'view_sessions' in obj._prefetched_objects_cache:
             return len(obj._prefetched_objects_cache['view_sessions'])
         return obj.view_sessions.count()
+
+    def get_recent_view_sessions(self, obj):
+        """Returns up to 10 most recent view sessions."""
+        # This is efficient because of the prefetch_related in the view.
+        if hasattr(obj, '_prefetched_objects_cache') and 'view_sessions' in obj._prefetched_objects_cache:
+            # Slicing the prefetched list. Relies on the model's Meta ordering.
+            sessions = obj._prefetched_objects_cache['view_sessions'][:10]
+        else:
+            # Fallback to a query if not prefetched. Relies on Meta.ordering.
+            sessions = obj.view_sessions.all()[:10]
+
+        serializer = ViewSessionSerializer(sessions, many=True, context=self.context)
+        return serializer.data
 
     def _hash_password(self, validated_data):
         """Hashes the password if it exists in the validated data."""

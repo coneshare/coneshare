@@ -1,9 +1,11 @@
+import { Link } from 'react-router-dom';
 import { Eye, Pencil, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import { toast } from 'sonner';
 import { UAParser } from 'ua-parser-js';
 import { generateShareLinkPreview, updateShareLink } from '../../services/api';
 import { LinkSettingsSummary } from './LinkSettingsSummary';
+import { LinkActionsDropdown } from './LinkActionsDropdown';
 import { Button } from '../ui/Button';
 import { Switch } from '../ui/Switch';
 import {
@@ -91,7 +93,7 @@ function CopyableLink({ slug, isExpired, expires_at }) {
   );
 }
 
-export function LinksTable({ links, onEditLink, onDeleteLink, onLinkUpdate }) {
+export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLinkUpdate }) {
   const [expandedRowId, setExpandedRowId] = useState(null);
 
   const handleStatusChange = async (link, newStatus) => {
@@ -210,48 +212,12 @@ export function LinksTable({ links, onEditLink, onDeleteLink, onLinkUpdate }) {
                       </Tooltip>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handlePreview(link.id, link.slug)}
-                          >
-                            <Eye className="h-4 w-4" />
-                            <span className="sr-only">Preview Link</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Preview Link</p>
-                        </TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={() => onEditLink(link)}>
-                            <Pencil className="h-4 w-4" />
-                            <span className="sr-only">Edit Link</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Edit Link</p>
-                        </TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() => onDeleteLink(link)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete Link</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Delete Link</p>
-                        </TooltipContent>
-                      </Tooltip>
+                      <LinkActionsDropdown
+                        link={link}
+                        onPreview={handlePreview}
+                        onEdit={onEditLink}
+                        onDelete={onDeleteLink}
+                      />
                     </TableCell>
                   </TableRow>
                   {isExpanded && hasViews && (
@@ -272,7 +238,7 @@ export function LinksTable({ links, onEditLink, onDeleteLink, onLinkUpdate }) {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {link.view_sessions.map((view) => {
+                              {link.recent_view_sessions.map((view) => {
                                 const { browser, os } = parseUserAgent(view.user_agent);
                                 const deviceInfo =
                                   browser !== 'Unknown' ? `${browser} on ${os}` : 'Unknown device';
@@ -335,6 +301,16 @@ export function LinksTable({ links, onEditLink, onDeleteLink, onLinkUpdate }) {
                               })}
                             </TableBody>
                           </Table>
+                          {link.view_count > link.recent_view_sessions.length && (
+                            <div className="mt-2 text-center">
+                              <Link
+                                to={`/documents/${documentId}/links/${link.id}`}
+                                className="text-sm font-medium text-blue-600 hover:underline"
+                              >
+                                View all {link.view_count} sessions
+                              </Link>
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

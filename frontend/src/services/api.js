@@ -196,6 +196,11 @@ export const updateShareLink = (id, data) => api.patch(`/share-links/${id}/`, da
 
 export const deleteShareLink = (id) => api.delete(`/share-links/${id}/`);
 
+export const getShareLinkDetails = (id) => api.get(`/share-links/${id}/`);
+
+export const getShareLinkViewSessions = (linkId, page = 1) =>
+  api.get(`/share-links/${linkId}/view-sessions/?page=${page}`);
+
 export const generateShareLinkPreview = (id) => api.post(`/share-links/${id}/preview/`);
 
 export const getShareLinkViewData = (slug, previewToken = null, accessToken = null) => {

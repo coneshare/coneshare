@@ -7,6 +7,7 @@ import DocumentsPage from './pages/DocumentsPage'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import PasswordSettingsPage from './pages/PasswordSettingsPage'
+import { ShareLinkAnalyticsPage } from './pages/ShareLinkAnalyticsPage'
 import { ShareLinkViewerPage } from './pages/ShareLinkViewerPage'
 import UserSettingsPage from './pages/UserSettingsPage'
 
@@ -22,6 +23,7 @@ function App() {
           <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/documents/folders/:folderId" element={<DocumentsPage />} />
           <Route path="/documents/:documentId" element={<DocumentPage />} />
+          <Route path="/documents/:documentId/links/:linkId" element={<ShareLinkAnalyticsPage />} />
           <Route path="/settings" element={<UserSettingsPage />} />
           <Route path="/settings/password" element={<PasswordSettingsPage />} />
         </Route>
