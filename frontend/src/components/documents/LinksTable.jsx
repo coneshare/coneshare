@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { UAParser } from 'ua-parser-js';
 import { generateShareLinkPreview, updateShareLink } from '../../services/api';
 import { LinkSettingsSummary } from './LinkSettingsSummary';
+import { LinkActionsDropdown } from './LinkActionsDropdown';
 import { Button } from '../ui/Button';
 import { Switch } from '../ui/Switch';
 import {
@@ -210,48 +211,12 @@ export function LinksTable({ links, onEditLink, onDeleteLink, onLinkUpdate }) {
                       </Tooltip>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handlePreview(link.id, link.slug)}
-                          >
-                            <Eye className="h-4 w-4" />
-                            <span className="sr-only">Preview Link</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Preview Link</p>
-                        </TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={() => onEditLink(link)}>
-                            <Pencil className="h-4 w-4" />
-                            <span className="sr-only">Edit Link</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Edit Link</p>
-                        </TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() => onDeleteLink(link)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete Link</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Delete Link</p>
-                        </TooltipContent>
-                      </Tooltip>
+                      <LinkActionsDropdown
+                        link={link}
+                        onPreview={handlePreview}
+                        onEdit={onEditLink}
+                        onDelete={onDeleteLink}
+                      />
                     </TableCell>
                   </TableRow>
                   {isExpanded && hasViews && (
