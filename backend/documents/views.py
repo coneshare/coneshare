@@ -16,6 +16,7 @@ from django.db.models import F, Sum, Count
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.http import quote_etag
+from django.utils.text import get_valid_filename
 from geoip2.errors import AddressNotFoundError
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
@@ -1229,8 +1230,8 @@ class WatermarkedFileDownloadView(APIView):
         # Get source PDF. For office docs, use the converted PDF (storage_key). For PDFs, use original.
         if document.type == 'pdf':
             source_pdf_key = primary_version.original_storage_key
-        elif document.type == 'document' and primary_version.storage_key: # office doc that was converted
-             source_pdf_key = primary_version.storage_key
+        elif document.type == 'document' and primary_version.storage_key:  # office doc that was converted
+            source_pdf_key = primary_version.storage_key
         else:
             return Response({"message": "A previewable PDF is not available for this document type."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1302,7 +1303,7 @@ class WatermarkedFileDownloadView(APIView):
                 output_buffer.seek(0)
 
                 response = HttpResponse(output_buffer, content_type='application/pdf')
-                safe_filename = document.name.replace('"', '\\"')
+                safe_filename = get_valid_filename(document.name)
                 response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
                 return response
         except Exception as e:
