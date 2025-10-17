@@ -48,7 +48,18 @@ export function LinkSheet({
       setAllowDownload(currentLink.allow_download);
       setIsPasswordEnabled(currentLink.has_password);
       setPassword(currentLink.has_password ? DUMMY_PASSWORD : '');
-      setExpiresAt(currentLink.expires_at ? new Date(new Date(currentLink.expires_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '');
+      if (currentLink.expires_at) {
+        const d = new Date(currentLink.expires_at);
+        // Format date to YYYY-MM-DDTHH:mm for datetime-local input in user's local timezone
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        setExpiresAt(`${year}-${month}-${day}T${hours}:${minutes}`);
+      } else {
+        setExpiresAt('');
+      }      
       setReceiveEmailNotification(currentLink.receive_email_notification || false);
       setEnableWatermark(isWatermarkable && (currentLink.enable_watermark || false));
       setWatermarkText(currentLink.watermark_text || '');

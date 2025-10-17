@@ -40,18 +40,20 @@ export function LinkSettingsSummary({ link, onClick }) {
   }
 
   if (link.expires_at) {
-    const formattedDate = new Date(link.expires_at).toLocaleDateString(undefined, {
+    const formattedDateTime = new Date(link.expires_at).toLocaleString(undefined, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
     });
     settings.push(
       <LinkSetting
         key="expires"
         icon={<CalendarOff className="h-4 w-4 text-gray-500" />}
-        text={`Expires on ${formattedDate}`}
+        text={`Expires on ${formattedDateTime}`}
       />
-    );
+    );    
   }
 
   if (link.allow_download) {
