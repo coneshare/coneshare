@@ -100,6 +100,15 @@ def share_link_with_password_and_email(share_link_with_password):
 
 
 @pytest.fixture
+def share_link_with_watermark(share_link):
+    """Fixture for a share link with watermarking enabled."""
+    share_link.enable_watermark = True
+    share_link.watermark_text = "Confidential - {{ip-address}}"
+    share_link.save()
+    return share_link
+
+
+@pytest.fixture
 def api_client(user):
     """Fixture to create an authenticated API client."""
     client = APIClient()

@@ -998,3 +998,17 @@ This session focused on implementing the file size feature, providing users with
 ### 3. Testing
 - **Backend**: A unit test was added to confirm that the `file_size` is correctly populated on the `Document` model.
 - **Frontend**: A test case was added to verify that documents can be correctly sorted by file size.
+
+---
+
+## Session 42: Watermark Feature Implementation (2025-10-16)
+
+This pull request delivers a significant new feature: dynamic watermarking for shared documents. It enables users to protect their content by applying customizable watermarks, which can include viewer-specific information, to both online previews and downloadable files. The changes span across the backend, introducing new data models, API endpoints, and robust image/PDF processing, and the frontend, providing an intuitive interface for configuring these watermark settings. [https://github.com/coneshare/coneshare/pull/43](https://github.com/coneshare/coneshare/pull/43)
+
+-  Watermark Feature Implementation: Introduced a new watermarking capability for shared documents, allowing users to apply custom text watermarks to document previews and downloads.
+-  Dynamic Watermark Text: Watermark text can now include dynamic variables like {{ip-address}} and {{email}}, which are replaced with real-time viewer data when the document is accessed.
+-  Backend API Endpoints: Added new API endpoints for dynamically rendering watermarked document pages (images) and generating watermarked PDF files for download.
+-  Frontend UI for Watermarks: Integrated UI controls into the share link creation/editing form, enabling users to toggle watermarks, input custom text, and see available dynamic variables.
+-  Image and PDF Watermarking: Implemented backend logic using Pillow for image watermarking and pypdf/reportlab for PDF watermarking, featuring tiled and 45-degree rotated text for enhanced visibility.
+-  Caching and Performance: Watermarked image rendering includes ETag caching to optimize performance and reduce redundant processing for unchanged content.
+
