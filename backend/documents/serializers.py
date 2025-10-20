@@ -139,14 +139,16 @@ class ViewSessionSerializer(serializers.ModelSerializer):
     share_link_name = serializers.CharField(source='share_link.name', read_only=True)
     page_views = PageViewSerializer(many=True, read_only=True)
     is_owner_view = serializers.SerializerMethodField()
+    document_id = serializers.CharField(source='share_link.document.id', read_only=True)
+    document_name = serializers.CharField(source='share_link.document.name', read_only=True)
 
     class Meta:
         model = ViewSession
         fields = [
-            'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name', 'ip_address', 'user_agent', 'country', 'city', 'latitude', 'longitude', 'duration_seconds',
+            'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name', 'document_id', 'document_name', 'ip_address', 'user_agent', 'country', 'city', 'latitude', 'longitude', 'duration_seconds',
             'completion_rate', 'viewed_at', 'page_views', 'is_owner_view', 'downloaded_at'
         ]
-        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name', 'country', 'city', 'latitude', 'longitude', 'page_views', 'is_owner_view', 'downloaded_at']
+        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name', 'document_id', 'document_name', 'country', 'city', 'latitude', 'longitude', 'page_views', 'is_owner_view', 'downloaded_at']
     
     def get_is_owner_view(self, obj):
         request = self.context.get('request')
@@ -178,6 +180,7 @@ class ShareLinkSerializer(serializers.ModelSerializer):
     has_password = serializers.SerializerMethodField()
     view_count = serializers.SerializerMethodField()
     recent_view_sessions = serializers.SerializerMethodField()
+    document_name = serializers.CharField(source='document.name', read_only=True)
 
     def validate(self, data):
         """
@@ -207,13 +210,13 @@ class ShareLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShareLink
         fields = [
-            'id', 'document', 'created_by', 'name', 'slug', 'expires_at',
+            'id', 'document', 'document_name', 'created_by', 'name', 'slug', 'expires_at',
             'has_password', 'password', 'requires_email', 'requires_email_verification', 'allow_download',
             'enable_watermark', 'watermark_text', 'receive_email_notification', 'is_active', 'created_at', 'updated_at',
             'view_count', 'recent_view_sessions'
         ]
         read_only_fields = [
-            'id', 'created_by', 'slug', 'created_at', 'updated_at'
+            'id', 'created_by', 'slug', 'created_at', 'updated_at', 'document_name'
         ]
         extra_kwargs = {'name': {'required': True, 'allow_blank': True}}
         # Remove the default UniqueTogetherValidator.

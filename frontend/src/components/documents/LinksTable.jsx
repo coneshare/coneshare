@@ -93,7 +93,7 @@ function CopyableLink({ slug, isExpired, expires_at }) {
   );
 }
 
-export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLinkUpdate }) {
+export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLinkUpdate, isDashboardWidget }) {
   const [expandedRowId, setExpandedRowId] = useState(null);
 
   const handleStatusChange = async (link, newStatus) => {
@@ -139,6 +139,7 @@ export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLink
               <TableHead className="w-8" />
               <TableHead>Name</TableHead>
               <TableHead>Link</TableHead>
+              {isDashboardWidget && <TableHead>Document</TableHead>}
               <TableHead>Views</TableHead>
               <TableHead>Created At</TableHead>
               <TableHead>Settings</TableHead>
@@ -189,6 +190,17 @@ export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLink
                         expires_at={link.expires_at}
                       />
                     </TableCell>
+                    {isDashboardWidget && (
+                      <TableCell>
+                        <Link
+                          to={`/documents/${link.document}`}
+                          className="truncate hover:underline"
+                          title={link.document_name}
+                        >
+                          {link.document_name}
+                        </Link>
+                      </TableCell>
+                    )}
                     <TableCell>{link.view_count}</TableCell>
                     <TableCell>{new Date(link.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
@@ -222,7 +234,7 @@ export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLink
                   </TableRow>
                   {isExpanded && hasViews && (
                     <TableRow className="bg-gray-50 hover:bg-gray-50">
-                      <TableCell colSpan={8} className="p-4">
+                      <TableCell colSpan={isDashboardWidget ? 9 : 8} className="p-4">
                         <div className="p-2">
                           {/* <h4 className="mb-2 text-sm font-semibold text-gray-600"> */}
                           {/*   View Sessions */}

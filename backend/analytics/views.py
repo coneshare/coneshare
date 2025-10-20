@@ -34,7 +34,7 @@ class DashboardSummaryView(APIView):
 
         recent_links = ShareLink.objects.filter(
             document__organization=organization
-        ).annotate(
+        ).select_related('document').annotate(
             last_viewed_at=Subquery(latest_view_subquery)
         ).filter(
             last_viewed_at__isnull=False

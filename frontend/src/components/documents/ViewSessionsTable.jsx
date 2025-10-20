@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { UAParser } from 'ua-parser-js';
 import { PageViewsChart } from './PageViewsChart';
@@ -38,7 +39,7 @@ function parseUserAgent(uaString) {
   };
 }
 
-export function ViewSessionsTable({ views, totalCount, loading, currentPage, onPageChange, pageSize }) {
+export function ViewSessionsTable({ views, totalCount, loading, currentPage, onPageChange, pageSize, isDashboardWidget }) {
   const [expandedRowId, setExpandedRowId] = useState(null);
 
   if (loading) {
@@ -76,6 +77,7 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                 <TableHead className="w-8" />
                 <TableHead>Visitor</TableHead>
                 <TableHead>Link</TableHead>
+                {isDashboardWidget && <TableHead>Document</TableHead>}
                 <TableHead>Viewed At</TableHead>
                 <TableHead>Downloaded At</TableHead>
                 <TableHead className="text-right">Duration</TableHead>
@@ -138,6 +140,17 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                         </div>
                       </TableCell>
                       <TableCell>{view.share_link_name || 'Untitled Link'}</TableCell>
+                      {isDashboardWidget && (
+                        <TableCell>
+                          <Link
+                            to={`/documents/${view.document_id}`}
+                            className="truncate hover:underline"
+                            title={view.document_name}
+                          >
+                            {view.document_name}
+                          </Link>
+                        </TableCell>
+                      )}
                       <TableCell>
                         {new Date(view.viewed_at).toLocaleString(undefined, {
                           dateStyle: 'medium',
@@ -161,7 +174,7 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                     </TableRow>
                     {isExpanded && hasPageViews && (
                       <TableRow className="bg-gray-50 hover:bg-gray-50">
-                        <TableCell colSpan={7} className="p-4">
+                        <TableCell colSpan={isDashboardWidget ? 8 : 7} className="p-4">
                           <PageViewsChart pageViews={view.page_views} />
                         </TableCell>
                       </TableRow>
