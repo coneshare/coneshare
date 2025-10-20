@@ -143,10 +143,12 @@ export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLink
               <TableHead>Views</TableHead>
               <TableHead>Created At</TableHead>
               <TableHead>Settings</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>
-                <span className="sr-only">Actions</span>
-              </TableHead>
+              {!isDashboardWidget && <TableHead>Status</TableHead>}
+              {!isDashboardWidget && (
+                <TableHead>
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -206,35 +208,39 @@ export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLink
                     <TableCell>
                       <LinkSettingsSummary link={link} onClick={() => onEditLink(link)} />
                     </TableCell>
-                    <TableCell>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          {/* Wrap Switch in a span to resolve event conflicts with TooltipTrigger */}
-                          <span className="inline-flex align-middle">
-                            <Switch
-                              checked={link.is_active}
-                              onCheckedChange={(checked) => handleStatusChange(link, checked)}
-                              aria-label="Toggle link status"
-                            />
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{link.is_active ? 'Active' : 'Inactive'}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <LinkActionsDropdown
-                        link={link}
-                        onPreview={handlePreview}
-                        onEdit={onEditLink}
-                        onDelete={onDeleteLink}
-                      />
-                    </TableCell>
+                    {!isDashboardWidget && (
+                      <>
+                        <TableCell>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              {/* Wrap Switch in a span to resolve event conflicts with TooltipTrigger */}
+                              <span className="inline-flex align-middle">
+                                <Switch
+                                  checked={link.is_active}
+                                  onCheckedChange={(checked) => handleStatusChange(link, checked)}
+                                  aria-label="Toggle link status"
+                                />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{link.is_active ? 'Active' : 'Inactive'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <LinkActionsDropdown
+                            link={link}
+                            onPreview={handlePreview}
+                            onEdit={onEditLink}
+                            onDelete={onDeleteLink}
+                          />
+                        </TableCell>
+                      </>
+                    )}
                   </TableRow>
                   {isExpanded && hasViews && (
                     <TableRow className="bg-gray-50 hover:bg-gray-50">
-                      <TableCell colSpan={isDashboardWidget ? 9 : 8} className="p-4">
+                      <TableCell colSpan={isDashboardWidget ? 7 : 8} className="p-4">
                         <div className="p-2">
                           {/* <h4 className="mb-2 text-sm font-semibold text-gray-600"> */}
                           {/*   View Sessions */}
