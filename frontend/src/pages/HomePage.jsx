@@ -59,7 +59,7 @@ function HomePage() {
         <DailyVisitsChart data={visitsData} loading={loading} />
       </div>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+      <div className="space-y-8">
         <div className="rounded-lg border bg-white p-6 shadow-sm dark:bg-gray-900">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Latest View Sessions</h2>
@@ -76,6 +76,8 @@ function HomePage() {
               <ViewSessionsTable
                 views={summaryData?.recent_views || []}
                 isDashboardWidget
+                totalCount={summaryData?.recent_views?.length || 0}
+                pageSize={10}
               />
             )}
           </div>
