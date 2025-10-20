@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { UAParser } from 'ua-parser-js';
 import { PageViewsChart } from './PageViewsChart';
-import { Pagination } from './Pagination';
+import { Pagination } from '../ui/Pagination';
 import { Skeleton } from '../ui/Skeleton';
 import {
   Table,
@@ -42,10 +42,12 @@ function parseUserAgent(uaString) {
 export function ViewSessionsTable({ views, totalCount, loading, currentPage, onPageChange, pageSize, isDashboardWidget }) {
   const [expandedRowId, setExpandedRowId] = useState(null);
 
+  const totalPages = pageSize > 0 ? Math.ceil(totalCount / pageSize) : 0;
+
   if (loading) {
     return (
       <div>
-        <h2 className="text-xl font-semibold">View Sessions</h2>
+        {!isDashboardWidget && <h2 className="text-xl font-semibold">View Sessions</h2>}
         <div className="mt-4 space-y-4">
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-full" />
@@ -58,7 +60,7 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
   if (!views || totalCount === 0) {
     return (
       <div>
-        <h2 className="text-xl font-semibold">View Sessions</h2>
+        {!isDashboardWidget && <h2 className="text-xl font-semibold">View Sessions</h2>}
         <div className="mt-4 rounded-lg border px-4 py-8 text-center">
           <p className="text-muted-foreground">This document has not been viewed yet.</p>
         </div>
@@ -69,7 +71,7 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
   return (
     <TooltipProvider>
       <div>
-        <h2 className="text-xl font-semibold">View Sessions</h2>
+        {!isDashboardWidget && <h2 className="text-xl font-semibold">View Sessions</h2>}
         <div className="mt-4 overflow-hidden rounded-lg border">
           <Table>
             <TableHeader>
@@ -186,8 +188,7 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
           </Table>
         </div>
         <Pagination
-          count={totalCount}
-          pageSize={pageSize}
+          totalPages={totalPages}
           currentPage={currentPage}
           onPageChange={onPageChange}
         />

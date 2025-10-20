@@ -120,7 +120,7 @@ export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLink
   if (!links || links.length === 0) {
     return (
       <div>
-        <h2 className="text-xl font-semibold">Share Links</h2>
+        {!isDashboardWidget && <h2 className="text-xl font-semibold">Share Links</h2>}
         <p className="mt-2 text-sm text-gray-500">
           No share links have been created for this document yet.
         </p>
@@ -131,7 +131,7 @@ export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLink
   return (
     <TooltipProvider>
       <div>
-        <h2 className="text-xl font-semibold">Share Links</h2>
+        {!isDashboardWidget && <h2 className="text-xl font-semibold">Share Links</h2>}
       <div className="mt-4 overflow-hidden rounded-lg border">
         <Table>
           <TableHeader>
