@@ -41,7 +41,7 @@ export function AllLinksPage() {
           <Skeleton className="h-96 w-full" />
         ) : (
           <>
-            <LinksTable links={linksData?.results || []} />
+            <LinksTable links={linksData?.results || []} isDashboardWidget />
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}

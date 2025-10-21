@@ -41,12 +41,14 @@ export function AllViewSessionsPage() {
           <Skeleton className="h-96 w-full" />
         ) : (
           <>
-            <ViewSessionsTable views={viewsData?.results || []} />
-            <Pagination
+            <ViewSessionsTable
+              views={viewsData?.results || []}
+              isDashboardWidget
+              totalCount={viewsData?.count || 0}
               currentPage={currentPage}
-              totalPages={totalPages}
               onPageChange={setCurrentPage}
-            />
+              pageSize={pageSize}
+            />            
           </>
         )}
       </div>
