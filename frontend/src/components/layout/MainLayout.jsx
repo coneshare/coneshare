@@ -17,12 +17,12 @@ function Layout() {
       )}
     >
       <Sidebar />
-      <div className="flex flex-col">
+      <div className="grid grid-rows-[auto_1fr] overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="overflow-auto p-4 md:p-6">
           <Outlet />
         </main>
-      </div>
+      </div>      
     </div>
   );
 }
