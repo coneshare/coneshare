@@ -93,7 +93,7 @@ function CopyableLink({ slug, isExpired, expires_at }) {
   );
 }
 
-export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLinkUpdate }) {
+export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLinkUpdate, isDashboardWidget }) {
   const [expandedRowId, setExpandedRowId] = useState(null);
 
   const handleStatusChange = async (link, newStatus) => {
@@ -120,7 +120,7 @@ export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLink
   if (!links || links.length === 0) {
     return (
       <div>
-        <h2 className="text-xl font-semibold">Share Links</h2>
+        {!isDashboardWidget && <h2 className="text-xl font-semibold">Share Links</h2>}
         <p className="mt-2 text-sm text-gray-500">
           No share links have been created for this document yet.
         </p>
@@ -131,7 +131,7 @@ export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLink
   return (
     <TooltipProvider>
       <div>
-        <h2 className="text-xl font-semibold">Share Links</h2>
+        {!isDashboardWidget && <h2 className="text-xl font-semibold">Share Links</h2>}
       <div className="mt-4 overflow-hidden rounded-lg border">
         <Table>
           <TableHeader>
@@ -139,13 +139,16 @@ export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLink
               <TableHead className="w-8" />
               <TableHead>Name</TableHead>
               <TableHead>Link</TableHead>
+              {isDashboardWidget && <TableHead>Document</TableHead>}
               <TableHead>Views</TableHead>
               <TableHead>Created At</TableHead>
               <TableHead>Settings</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>
-                <span className="sr-only">Actions</span>
-              </TableHead>
+              {!isDashboardWidget && <TableHead>Status</TableHead>}
+              {!isDashboardWidget && (
+                <TableHead>
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -189,40 +192,55 @@ export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLink
                         expires_at={link.expires_at}
                       />
                     </TableCell>
+                    {isDashboardWidget && (
+                      <TableCell>
+                        <Link
+                          to={`/documents/${link.document}`}
+                          className="truncate hover:underline"
+                          title={link.document_name}
+                        >
+                          {link.document_name}
+                        </Link>
+                      </TableCell>
+                    )}
                     <TableCell>{link.view_count}</TableCell>
                     <TableCell>{new Date(link.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
                       <LinkSettingsSummary link={link} onClick={() => onEditLink(link)} />
                     </TableCell>
-                    <TableCell>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          {/* Wrap Switch in a span to resolve event conflicts with TooltipTrigger */}
-                          <span className="inline-flex align-middle">
-                            <Switch
-                              checked={link.is_active}
-                              onCheckedChange={(checked) => handleStatusChange(link, checked)}
-                              aria-label="Toggle link status"
-                            />
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{link.is_active ? 'Active' : 'Inactive'}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <LinkActionsDropdown
-                        link={link}
-                        onPreview={handlePreview}
-                        onEdit={onEditLink}
-                        onDelete={onDeleteLink}
-                      />
-                    </TableCell>
+                    {!isDashboardWidget && (
+                      <>
+                        <TableCell>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              {/* Wrap Switch in a span to resolve event conflicts with TooltipTrigger */}
+                              <span className="inline-flex align-middle">
+                                <Switch
+                                  checked={link.is_active}
+                                  onCheckedChange={(checked) => handleStatusChange(link, checked)}
+                                  aria-label="Toggle link status"
+                                />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{link.is_active ? 'Active' : 'Inactive'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <LinkActionsDropdown
+                            link={link}
+                            onPreview={handlePreview}
+                            onEdit={onEditLink}
+                            onDelete={onDeleteLink}
+                          />
+                        </TableCell>
+                      </>
+                    )}
                   </TableRow>
                   {isExpanded && hasViews && (
                     <TableRow className="bg-gray-50 hover:bg-gray-50">
-                      <TableCell colSpan={8} className="p-4">
+                      <TableCell colSpan={isDashboardWidget ? 7 : 8} className="p-4">
                         <div className="p-2">
                           {/* <h4 className="mb-2 text-sm font-semibold text-gray-600"> */}
                           {/*   View Sessions */}

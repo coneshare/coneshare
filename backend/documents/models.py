@@ -210,7 +210,7 @@ class ViewSession(models.Model):
     duration_seconds = models.IntegerField(default=0)
     completion_rate = models.FloatField(default=0.0)
     downloaded_at = models.DateTimeField(null=True, blank=True)
-    viewed_at = models.DateTimeField(auto_now_add=True)
+    viewed_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"ViewSession {self.id} on {self.share_link}"

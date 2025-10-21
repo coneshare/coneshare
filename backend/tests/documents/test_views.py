@@ -524,8 +524,8 @@ def test_list_folder_contents_includes_share_link_views(api_client, user, organi
 
     assert 'view_count' in share_link_data
     assert share_link_data['view_count'] == 2
-    assert 'view_sessions' in share_link_data
-    assert len(share_link_data['view_sessions']) == 2
+    assert 'recent_view_sessions' in share_link_data
+    assert len(share_link_data['recent_view_sessions']) == 2
 
 
 @pytest.mark.django_db
@@ -1175,8 +1175,8 @@ class TestDocumentViewSet:
         share_link_data = data['share_links'][0]
 
         assert share_link_data['view_count'] == 1
-        assert len(share_link_data['view_sessions']) == 1
-        assert share_link_data['view_sessions'][0]['viewer_email'] == "viewer1@test.com"
+        assert len(share_link_data['recent_view_sessions']) == 1
+        assert share_link_data['recent_view_sessions'][0]['viewer_email'] == "viewer1@test.com"
 
     def test_document_views_pagination(self, api_client, document, share_link):
         """
