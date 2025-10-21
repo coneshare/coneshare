@@ -142,6 +142,7 @@ export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLink
               {isDashboardWidget && <TableHead>Document</TableHead>}
               <TableHead>Views</TableHead>
               <TableHead>Created At</TableHead>
+              <TableHead>Last Viewed At</TableHead>
               <TableHead>Settings</TableHead>
               {!isDashboardWidget && <TableHead>Status</TableHead>}
               {!isDashboardWidget && (
@@ -206,6 +207,11 @@ export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLink
                     <TableCell>{link.view_count}</TableCell>
                     <TableCell>{new Date(link.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
+                      {link.last_viewed_at
+                        ? new Date(link.last_viewed_at).toLocaleDateString()
+                        : '—'}
+                    </TableCell>
+                    <TableCell>
                       <LinkSettingsSummary link={link} onClick={() => onEditLink(link)} />
                     </TableCell>
                     {!isDashboardWidget && (
@@ -240,7 +246,7 @@ export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLink
                   </TableRow>
                   {isExpanded && hasViews && (
                     <TableRow className="bg-gray-50 hover:bg-gray-50">
-                      <TableCell colSpan={isDashboardWidget ? 7 : 8} className="p-4">
+                      <TableCell colSpan={isDashboardWidget ? 8 : 9} className="p-4">
                         <div className="p-2">
                           {/* <h4 className="mb-2 text-sm font-semibold text-gray-600"> */}
                           {/*   View Sessions */}
