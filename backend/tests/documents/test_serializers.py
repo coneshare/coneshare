@@ -102,9 +102,9 @@ class TestShareLinkSerializer:
 
         data = serializer.data
         assert data['view_count'] == 2
-        assert 'view_sessions' in data
-        assert len(data['view_sessions']) == 2
-        assert 'viewer_email' in data['view_sessions'][0]
+        assert 'recent_view_sessions' in data
+        assert len(data['recent_view_sessions']) == 2
+        assert 'viewer_email' in data['recent_view_sessions'][0]
 
     def test_create_with_duplicate_name_is_renamed(self, document, user, serializer_context):
         """
