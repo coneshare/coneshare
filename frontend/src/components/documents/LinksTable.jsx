@@ -328,7 +328,7 @@ export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLink
                           {link.view_count > link.recent_view_sessions.length && (
                             <div className="mt-2 text-center">
                               <Link
-                                to={`/documents/${documentId}/links/${link.id}`}
+                                to={`/documents/${link.document}/links/${link.id}`}
                                 className="text-sm font-medium text-blue-600 hover:underline"
                               >
                                 View all {link.view_count} sessions
