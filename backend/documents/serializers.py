@@ -181,6 +181,7 @@ class ShareLinkSerializer(serializers.ModelSerializer):
     view_count = serializers.SerializerMethodField()
     recent_view_sessions = serializers.SerializerMethodField()
     document_name = serializers.CharField(source='document.name', read_only=True)
+    last_viewed_at = serializers.SerializerMethodField()
 
     def validate(self, data):
         """
@@ -213,7 +214,7 @@ class ShareLinkSerializer(serializers.ModelSerializer):
             'id', 'document', 'document_name', 'created_by', 'name', 'slug', 'expires_at',
             'has_password', 'password', 'requires_email', 'requires_email_verification', 'allow_download',
             'enable_watermark', 'watermark_text', 'receive_email_notification', 'is_active', 'created_at', 'updated_at',
-            'view_count', 'recent_view_sessions'
+            'view_count', 'recent_view_sessions', 'last_viewed_at'
         ]
         read_only_fields = [
             'id', 'created_by', 'slug', 'created_at', 'updated_at', 'document_name'
@@ -246,6 +247,21 @@ class ShareLinkSerializer(serializers.ModelSerializer):
 
         serializer = ViewSessionSerializer(sessions, many=True, context=self.context)
         return serializer.data
+
+    def get_last_viewed_at(self, obj):
+        """Returns the timestamp of the most recent view session."""
+        # This is efficient because of the prefetch_related in the view.
+        # The ViewSession model's Meta ordering is '-viewed_at', so the first session is the latest.
+        if hasattr(obj, '_prefetched_objects_cache') and 'view_sessions' in obj._prefetched_objects_cache:
+            sessions = obj._prefetched_objects_cache['view_sessions']
+            if sessions:
+                return sessions[0].viewed_at
+        else:
+            # Fallback to a query if not prefetched.
+            latest_session = obj.view_sessions.first()
+            if latest_session:
+                return latest_session.viewed_at
+        return None
 
     def _hash_password(self, validated_data):
         """Hashes the password if it exists in the validated data."""
