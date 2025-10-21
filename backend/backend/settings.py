@@ -223,3 +223,11 @@ except Exception as e:
 
 # Site domain (for constructing absolute URLs)
 SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'http://localhost:5173')
+
+
+# Cloud Services Configuration
+# A comma-separated list of enabled cloud providers (e.g., "dropbox,google_drive")
+ENABLED_CLOUD_PROVIDERS_STR = os.environ.get('ENABLED_CLOUD_PROVIDERS', '')
+ENABLED_CLOUD_PROVIDERS = [
+    provider.strip() for provider in ENABLED_CLOUD_PROVIDERS_STR.split(',') if provider.strip()
+]
