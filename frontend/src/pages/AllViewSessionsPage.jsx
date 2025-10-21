@@ -1,8 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { getAllViewSessions } from '../services/api';
 import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Pagination } from '../components/ui/Pagination';
+import { Button } from '../components/ui/Button';
 
 export function AllViewSessionsPage() {
   const [viewsData, setViewsData] = useState(null);
@@ -30,6 +33,14 @@ export function AllViewSessionsPage() {
 
   return (
     <div className="container mx-auto p-4 sm:p-6">
+      <div className="mb-8">
+        <Button asChild variant="outline">
+          <Link to="/" className="flex items-center gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back to Dashboard</span>
+          </Link>
+        </Button>
+      </div>
       <div className="space-y-2">
         <h1 className="text-2xl font-bold">All View Sessions</h1>
         <p className="text-muted-foreground">
