@@ -266,4 +266,17 @@ export const getDailyVisits = () => api.get('/analytics/daily-visits/');
 export const getAllActiveLinks = (page = 1) => api.get(`/analytics/links/?page=${page}`);
 export const getAllViewSessions = (page = 1) => api.get(`/analytics/view-sessions/?page=${page}`);
 
+// Cloud Imports
+export const getCloudProviders = () => api.get('/cloud/providers/');
+
+export const listCloudFiles = (connectionId, path = '/') =>
+  api.get(`/cloud/connections/${connectionId}/list/`, { params: { path } });
+
+export const importCloudFile = (connectionId, { fileId, fileName, fileSize }) =>
+  api.post(`/cloud/connections/${connectionId}/import/`, {
+    file_id: fileId,
+    file_name: fileName,
+    file_size: fileSize,
+  });
+
 export default api;
