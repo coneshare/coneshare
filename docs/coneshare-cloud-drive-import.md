@@ -1,8 +1,17 @@
 # Coneshare: Cloud Drive Import Implementation Plan
 
-This document outlines the implementation plan for allowing users to import files and folders from third-party cloud storage providers like Dropbox, Google Drive, or self-hosted solutions like ownCloud.
+This document outlines the implementation plan for allowing users to import files from third-party cloud storage providers like Dropbox, Google Drive, or self-hosted solutions like ownCloud.
 
 The architecture is designed to be configurable by a system administrator, secure through the use of OAuth2, and scalable by leveraging an asynchronous import process.
+
+---
+
+## V1 Scope & Limitations
+
+The initial implementation of this feature will focus exclusively on **single file imports**.
+
+-   **Folder Imports**: The ability to import entire folders will be deferred to a future version. The user interface will only allow the selection of individual files.
+-   **File Size Limit**: Each imported file must be less than 100MB. The backend will validate the file size using metadata from the cloud provider's API before initiating a download.
 
 ---
 
@@ -61,7 +70,6 @@ To prevent API timeouts when importing large files, the file transfer process mu
     -   The `POST /api/v1/cloud/import/` endpoint will trigger this new background task.
     -   **Logic**: The task will receive the connection details and the ID of the file to import. It will use the stored tokens to download the file directly from the cloud provider's server to Coneshare's storage backend (e.g., MinIO) as a stream.
     -   After the transfer, the task will call existing internal services to create the `Document` and `DocumentVersion` records.
-    -   For folder imports, the task will recursively list the folder's contents and queue individual import tasks for each file.
 
 ---
 
