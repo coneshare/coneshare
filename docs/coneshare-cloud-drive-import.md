@@ -92,5 +92,5 @@ A handler function for the dynamic menu items will implement the core conditiona
 ### 3. Cloud File Picker Modal
 
 -   A new modal component will serve as a file browser for the user's connected cloud drives.
--   When opened, it will use the `GET /api/v1/cloud/<connection_id>/list/` endpoint to display the user's cloud files and folders.
--   The user can select items and click an "Import" button, which will call the `POST /api/v1/cloud/import/` endpoint to start the asynchronous background process.
+-   When opened, it will use the `GET /api/v1/cloud/<connection_id>/list/` endpoint to display the user's cloud files and folders (though only files will be selectable in V1).
+-   The user can select a single file and click an "Import" button, which will call the `POST /api/v1/cloud/import/` endpoint to start the asynchronous background process.
