@@ -61,7 +61,7 @@ class DropboxConnectView(APIView):
     def get(self, request, *args, **kwargs):
         try:
             service = get_cloud_service('dropbox')
-            auth_url = service.get_authorization_url()
+            auth_url = service.get_authorization_url(request)
             return redirect(auth_url)
         except CloudServiceError as e:
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

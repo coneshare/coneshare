@@ -49,26 +49,33 @@ class DropboxService(BaseCloudService):
         if not self.app_key or not self.app_secret:
             raise CloudServiceError("Dropbox API credentials are not configured in settings.py.")
 
-    def _get_oauth_flow(self):
+    def _get_oauth_flow(self, request):
         # Note: The frontend URL is used here for the final redirect, but the
         # callback is handled by the backend. This URL must be added to your
         # Dropbox App's "Redirect URIs".
         redirect_uri = urljoin(
-            "http://localhost:8000", # This is a placeholder, will be replaced by the actual backend URL
+            settings.SITE_DOMAIN,
             reverse('dropbox-oauth-callback')
         )
         return dropbox.DropboxOAuth2Flow(
-            self.app_key, self.app_secret, str(redirect_uri), None, "token_access_type", include_granted_scopes="user"
+            consumer_key=self.app_key,
+            consumer_secret=self.app_secret,
+            redirect_uri=str(redirect_uri),
+            session=request.session,
+            csrf_token_session_key="dropbox-auth-csrf-token",
+            token_access_type="offline",  # or 'online' if you don’t need refresh tokens
+            scope=["account_info.read", "files.metadata.read", "files.content.read"],
+            include_granted_scopes="user",
         )
 
-    def get_authorization_url(self):
-        oauth_flow = self._get_oauth_flow()
+    def get_authorization_url(self, request):
+        oauth_flow = self._get_oauth_flow(request)
         # In a real app, you would store the session state to prevent CSRF attacks.
         return oauth_flow.start()
 
     def handle_callback(self, request):
         try:
-            oauth_flow = self._get_oauth_flow()
+            oauth_flow = self._get_oauth_flow(request)
             oauth_result = oauth_flow.finish(request.GET)
             return {
                 'access_token': oauth_result.access_token,
