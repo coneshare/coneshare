@@ -14,6 +14,7 @@ from pathlib import Path
 from datetime import timedelta
 import os
 import sys
+import json
 
 from django.contrib.gis.geoip2 import GeoIP2
 
@@ -231,3 +232,12 @@ ENABLED_CLOUD_PROVIDERS_STR = os.environ.get('ENABLED_CLOUD_PROVIDERS', '')
 ENABLED_CLOUD_PROVIDERS = [
     provider.strip() for provider in ENABLED_CLOUD_PROVIDERS_STR.split(',') if provider.strip()
 ]
+
+# A JSON string mapping cloud providers to their default import folder names.
+# e.g., '{"dropbox": "Dropbox Imports", "google_drive": "Google Drive"}'
+CLOUD_IMPORT_FOLDER_MAPPING_JSON = os.environ.get('CLOUD_IMPORT_FOLDER_MAPPING', '{}')
+try:
+    CLOUD_IMPORT_FOLDER_MAPPING = json.loads(CLOUD_IMPORT_FOLDER_MAPPING_JSON)
+except json.JSONDecodeError:
+    print("Warning: Invalid JSON in CLOUD_IMPORT_FOLDER_MAPPING. Using empty mapping.")
+    CLOUD_IMPORT_FOLDER_MAPPING = {}

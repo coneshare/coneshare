@@ -32,7 +32,7 @@ The backend will manage secure connections to external providers and handle the 
 
 ### 1. System Administrator Configuration
 
-To allow administrators to control which services are available, a new setting will be added to `backend/settings.py`. This setting will parse a comma-separated list of provider names from an environment variable.
+To allow administrators to control which services are available, new settings will be added to `backend/settings.py`. These settings will parse environment variables to configure enabled providers and their destination folders.
 
 **File**: `backend/backend/settings.py`
 ```python
@@ -42,6 +42,15 @@ ENABLED_CLOUD_PROVIDERS_STR = os.environ.get('ENABLED_CLOUD_PROVIDERS', '')
 ENABLED_CLOUD_PROVIDERS = [
     provider.strip() for provider in ENABLED_CLOUD_PROVIDERS_STR.split(',') if provider.strip()
 ]
+
+# A JSON string mapping cloud providers to their default import folder names.
+# e.g., '{"dropbox": "Dropbox Imports", "google_drive": "Google Drive"}'
+CLOUD_IMPORT_FOLDER_MAPPING_JSON = os.environ.get('CLOUD_IMPORT_FOLDER_MAPPING', '{}')
+try:
+    CLOUD_IMPORT_FOLDER_MAPPING = json.loads(CLOUD_IMPORT_FOLDER_MAPPING_JSON)
+except json.JSONDecodeError:
+    print("Warning: Invalid JSON in CLOUD_IMPORT_FOLDER_MAPPING. Using empty mapping.")
+    CLOUD_IMPORT_FOLDER_MAPPING = {}
 ```
 
 ### 2. New `CloudConnection` Model
@@ -68,8 +77,20 @@ To prevent API timeouts when importing large files, the file transfer process mu
 
 -   **New Celery Task (`import_from_cloud_task`)**:
     -   The `POST /api/v1/cloud/import/` endpoint will trigger this new background task.
-    -   **Logic**: The task will receive the connection details and the ID of the file to import. It will use the stored tokens to download the file directly from the cloud provider's server to Coneshare's storage backend (e.g., MinIO) as a stream.
-    -   After the transfer, the task will call existing internal services to create the `Document` and `DocumentVersion` records.
+    -   **Logic**:
+        -   The task receives the connection details and the ID of the file to import.
+        -   It determines the destination folder for the import based on the provider (e.g., "Dropbox Imports"), creating it if it does not exist.
+        -   It uses the stored tokens to download the file directly from the cloud provider's server to Coneshare's storage backend (e.g., MinIO) as a stream.
+        -   After the transfer, it calls existing internal services to create the `Document` and `DocumentVersion` records within the designated folder.
+
+### Error Handling and Status Updates
+
+To communicate the status of the asynchronous import back to the user, especially in case of connection failures, the following mechanism will be used:
+
+1.  **Error Detection**: The `import_from_cloud_task` will wrap the cloud provider API calls (e.g., file download) in a `try...except` block to catch connection errors or other API exceptions.
+2.  **Status Update**:
+    -   On success, the task will set the corresponding `Document` status to `'ready'`.
+    -   On failure, it will set the status to `'error'` and store a user-friendly message (e.g., "Connection to the cloud provider was lost. Please try again.") in the new `status_message` field on the `Document` model.
 
 ---
 
@@ -94,3 +115,9 @@ A handler function for the dynamic menu items will implement the core conditiona
 -   A new modal component will serve as a file browser for the user's connected cloud drives.
 -   When opened, it will use the `GET /api/v1/cloud/<connection_id>/list/` endpoint to display the user's cloud files and folders (though only files will be selectable in V1).
 -   The user can select a single file and click an "Import" button, which will call the `POST /api/v1/cloud/import/` endpoint to start the asynchronous background process.
+
+### 4. Displaying Import Status and Errors
+
+-   After an import is initiated, the frontend will periodically poll the document's API endpoint (`GET /api/v1/documents/{id}/`).
+-   The UI will display an "Importing..." indicator while the document's status is `'processing'`.
+-   If the status changes to `'error'`, the frontend will display the `status_message` from the API response in a toast notification to inform the user of the failure.

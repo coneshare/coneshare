@@ -90,6 +90,7 @@ The core entity for a file. It stores metadata and points to the primary version
 -   **name**: String (Original filename)
 -   **description**: String (Nullable)
 -   **status**: String (e.g., 'uploading', 'processing', 'ready', 'error')
+-   **status_message**: String (Nullable, stores user-friendly error messages)
 -   **storage_key**: String (Path to the primary version's processed file)
 -   **original_storage_key**: String (Path to the primary version's original file)
 -   **type**: String (e.g., 'pdf', 'sheet', 'slides')
