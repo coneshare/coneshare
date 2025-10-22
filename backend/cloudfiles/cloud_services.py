@@ -44,10 +44,10 @@ class DropboxService(BaseCloudService):
 
     def __init__(self, connection=None):
         super().__init__(connection)
-        self.app_key = os.environ.get('DROPBOX_APP_KEY')
-        self.app_secret = os.environ.get('DROPBOX_APP_SECRET')
+        self.app_key = getattr(settings, 'DROPBOX_APP_KEY', None)
+        self.app_secret = getattr(settings, 'DROPBOX_APP_SECRET', None)
         if not self.app_key or not self.app_secret:
-            raise CloudServiceError("Dropbox API credentials are not configured in environment variables.")
+            raise CloudServiceError("Dropbox API credentials are not configured in settings.py.")
 
     def _get_oauth_flow(self):
         # Note: The frontend URL is used here for the final redirect, but the

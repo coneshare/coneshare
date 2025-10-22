@@ -46,6 +46,11 @@ CLOUD_IMPORT_FOLDER_MAPPING = {
     "dropbox": "Dropbox Imports",
     "google_drive": "Google Drive Imports",
 }
+
+# Dropbox API Credentials
+# Get these from your Dropbox App Console.
+DROPBOX_APP_KEY = 'your_dropbox_app_key'
+DROPBOX_APP_SECRET = 'your_dropbox_app_secret'
 ```
 
 ### 2. New `CloudConnection` Model
