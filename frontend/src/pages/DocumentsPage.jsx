@@ -535,7 +535,7 @@ function DocumentsPage() {
                   className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
                 >
                   <Cloud className="h-5 w-5" aria-hidden="true" />
-                  <span>Import from {provider.display_name}</span>
+                  <span>{provider.display_name}</span>
                 </DropdownMenu.Item>
               ))}
             </DropdownMenu.Content>
