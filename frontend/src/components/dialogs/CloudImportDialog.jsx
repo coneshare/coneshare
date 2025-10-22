@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Dialog } from '../ui/Dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/Table';
 import { Folder as FolderIcon, File as FileIcon, ArrowLeft, Loader2 } from 'lucide-react';
@@ -92,13 +92,12 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
   const breadcrumbs = currentPath.split('/').filter(Boolean);
 
   return (
-    <Dialog
-      isOpen={isOpen}
-      onOpenChange={onOpenChange}
-      title={`Import from ${provider?.display_name}`}
-      description={`Browsing: /${breadcrumbs.join('/')}`}
-      className="max-w-3xl"
-    >
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Import from {provider?.display_name}</DialogTitle>
+          <DialogDescription>Browsing: /{breadcrumbs.join('/')}</DialogDescription>
+        </DialogHeader>
       <div className="mt-4 flex items-center">
         <Button
           variant="ghost"
@@ -175,6 +174,7 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
           Close
         </Button>
       </div>
+    </DialogContent>
     </Dialog>
   );
 }
