@@ -21,7 +21,13 @@ The user experience is designed to be intuitive and follows a conditional logic 
 
 1.  **Admin Configuration**: A system administrator first enables a list of approved cloud providers (e.g., "dropbox,owncloud") in the system's configuration.
 2.  **Dynamic UI**: The "Upload" dropdown menu in the user interface is dynamically populated with the providers enabled by the administrator.
-3.  **First-Time Connection**: When a user clicks on a provider (e.g., "Dropbox") for the first time, they are redirected to that provider's OAuth2 authorization page to grant Coneshare access to their files.
+3.  **First-Time Connection (API-Driven Flow)**:
+    -   The frontend makes an authenticated API call to Coneshare's backend (e.g., `GET /api/v1/cloud/connect/dropbox/`).
+    -   The backend generates the provider's authorization URL, securely caches a CSRF token, and returns the URL in a JSON response.
+    -   The frontend receives the URL and redirects the user's browser to the provider's OAuth2 page.
+    -   After granting access, the provider redirects the user back to a dedicated frontend callback route (e.g., `/auth/dropbox/callback`).
+    -   This frontend route extracts the authorization `code` and `state` from the URL and sends them to the backend's callback API.
+    -   The backend verifies the CSRF token, exchanges the code for access tokens, and securely saves the new connection. The frontend then redirects the user back to their documents.
 4.  **Subsequent Imports**: After a successful connection, clicking the same "Dropbox" menu item will open a file browser modal, allowing the user to navigate their cloud files and select items to import.
 
 ---
@@ -62,9 +68,20 @@ A new model is required to securely store user-specific authorization tokens for
 ### 3. OAuth2 and API Endpoints
 
 -   **Provider Configuration Endpoint**: A new API endpoint (`GET /api/v1/cloud/providers/` in `cloudfiles/urls.py`) will be created to return the list of `ENABLED_CLOUD_PROVIDERS` to the frontend.
--   **OAuth2 Endpoints**: For each supported provider, two endpoints (in `cloudfiles/urls.py`) will handle the OAuth2 flow:
-    -   **Authorization Endpoint**: Initiates the process by redirecting the user to the cloud provider's consent screen.
-    -   **Callback Endpoint**: Handles the redirect back from the provider, exchanges the authorization code for tokens, and securely saves them in the `CloudConnection` model.
+-   **API-Driven OAuth2 Flow**: To integrate smoothly with the SPA frontend and its JWT-based authentication, the OAuth2 flow is handled via API endpoints without relying on traditional sessions.
+    -   **Authorization URL Endpoint (`GET /api/v1/cloud/connect/<provider>/`)**:
+        -   The frontend makes an authenticated request to this endpoint.
+        -   The backend generates the provider's authorization URL and a unique CSRF `state` token.
+        -   The `state` token is cached on the server (e.g., in Redis) with a short expiry, keyed to the user.
+        -   The endpoint returns a JSON response containing the `authorization_url`. The frontend then performs the client-side redirect.
+    -   **Frontend Callback Route (`/auth/<provider>/callback`)**:
+        -   This is a new, dedicated route in the React application. It is configured as the "Redirect URI" in the cloud provider's app settings.
+        -   Its sole purpose is to capture the `code` and `state` query parameters from the provider's redirect and send them to the backend's callback API.
+    -   **Backend Callback Endpoint (`POST /api/v1/cloud/callback/<provider>/`)**:
+        -   The frontend sends the `code` and `state` to this authenticated endpoint.
+        -   The backend retrieves the cached `state` token for the user and compares it to the one received, preventing CSRF attacks.
+        -   It then securely exchanges the `code` for an `access_token` and `refresh_token` by making a server-to-server request to the provider.
+        -   Finally, it saves the new `CloudConnection` in the database.
 -   **Cloud File Operations API** (all in `cloudfiles/urls.py`):
     -   **File Listing Endpoint**: `GET /api/v1/cloud/connections/<connection_id>/list/` will allow the frontend to browse files and folders in a connected drive.
     -   **Import Endpoint**: `POST /api/v1/cloud/connections/<connection_id>/import/` will trigger the asynchronous import process for selected files and folders.

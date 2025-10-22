@@ -1,6 +1,7 @@
 import logging
 
 from django.conf import settings
+from django.core.cache import cache
 from django.shortcuts import redirect
 from rest_framework import permissions, status
 from rest_framework.response import Response
@@ -9,7 +10,7 @@ from rest_framework.views import APIView
 from documents.serializers import DocumentSerializer
 from .cloud_services import CloudServiceError, get_cloud_service
 from .models import CloudConnection
-from .serializers import CloudConnectionSerializer, CloudImportSerializer
+from .serializers import CloudConnectionSerializer, CloudImportSerializer, DropboxCallbackSerializer
 from .services import create_document_for_import
 
 logger = logging.getLogger(__name__)
@@ -54,30 +55,57 @@ class CloudConnectionListView(APIView):
 
 class DropboxConnectView(APIView):
     """
-    Initiates the OAuth2 flow by redirecting the user to Dropbox.
+    Generates a Dropbox authorization URL and returns it to the frontend.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         try:
             service = get_cloud_service('dropbox')
-            auth_url = service.get_authorization_url(request)
-            return redirect(auth_url)
+            auth_url, state = service.get_authorization_url(request)
+            if not state:
+                raise CloudServiceError("Failed to generate CSRF state token.")
+
+            # Cache the state token for 10 minutes, keyed by user ID for security.
+            cache.set(f"dropbox_oauth_state_{request.user.id}", state, timeout=600)
+
+            return Response({'authorization_url': auth_url})
         except CloudServiceError as e:
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class DropboxCallbackView(APIView):
     """
-    Handles the OAuth2 callback from Dropbox.
+    Handles the final step of the OAuth2 flow, receiving the code and state
+    from the frontend.
     """
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
-        try:
-            service = get_cloud_service('dropbox')
-            token_data = service.handle_callback(request)
+    def post(self, request, *args, **kwargs):
+        serializer = DropboxCallbackSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        code = serializer.validated_data['code']
+        state = serializer.validated_data['state']
+        user_id = request.user.id
+
+        # 1. Verify CSRF token (state)
+        cache_key = f"dropbox_oauth_state_{user_id}"
+        cached_state = cache.get(cache_key)
+
+        if not cached_state or cached_state != state:
+            logger.warning(f"Dropbox CSRF token mismatch for user {user_id}.")
+            return Response({"detail": "Invalid state parameter. Please try connecting again."}, status=status.HTTP_400_BAD_REQUEST)
+
+        cache.delete(cache_key)
+
+        try:
+            # 2. Exchange code for token
+            service = get_cloud_service('dropbox')
+            token_data = service.handle_callback(code)
+
+            # 3. Save connection
             connection, created = CloudConnection.objects.update_or_create(
                 user=request.user,
                 provider='dropbox',
@@ -88,6 +116,7 @@ class DropboxCallbackView(APIView):
                 }
             )
 
+            # 4. Get user info and finalize
             service.connection = connection
             user_info = service.get_user_info()
             connection.email = user_info.get('email', '')
@@ -96,10 +125,10 @@ class DropboxCallbackView(APIView):
             return Response({"detail": "Successfully connected to Dropbox."})
 
         except CloudServiceError as e:
-            logger.error(f"Dropbox callback failed for user {request.user.id}: {e}")
+            logger.error(f"Dropbox callback failed for user {user_id}: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
-            logger.exception(f"Unexpected error in Dropbox callback for user {request.user.id}: {e}")
+            logger.exception(f"Unexpected error in Dropbox callback for user {user_id}: {e}")
             return Response({"detail": "An unexpected error occurred."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

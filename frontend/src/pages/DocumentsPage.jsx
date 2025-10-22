@@ -12,7 +12,7 @@ import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl } from '../services/api';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
@@ -137,7 +137,7 @@ function DocumentsPage() {
     fetchProviders();
   }, []);
 
-  const handleCloudProviderClick = (provider) => {
+  const handleCloudProviderClick = async (provider) => {
     if (provider.is_connected) {
       const connection = cloudConnections.find(c => c.provider === provider.name);
       if (connection) {
@@ -147,8 +147,14 @@ function DocumentsPage() {
         toast.error(`Could not find connection details for ${provider.display_name}. Please try again or reconnect.`);
       }
     } else {
-      // Redirect to backend OAuth2 flow
-      window.location.href = `/api/v1/cloud/connect/${provider.name}/`;
+      try {
+        const response = await getDropboxConnectUrl();
+        // Redirect user to Dropbox for authorization
+        window.location.href = response.data.authorization_url;
+      } catch (error) {
+        console.error('Failed to get Dropbox connect URL:', error);
+        // Toast is shown by interceptor
+      }
     }
   };
 

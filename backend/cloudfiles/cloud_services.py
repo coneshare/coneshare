@@ -3,6 +3,7 @@ from io import BytesIO
 from urllib.parse import urljoin
 
 import dropbox
+import httpx
 from django.conf import settings
 from django.urls import reverse
 
@@ -49,14 +50,16 @@ class DropboxService(BaseCloudService):
         if not self.app_key or not self.app_secret:
             raise CloudServiceError("Dropbox API credentials are not configured in settings.py.")
 
-    def _get_oauth_flow(self, request):
-        # Note: The frontend URL is used here for the final redirect, but the
-        # callback is handled by the backend. This URL must be added to your
-        # Dropbox App's "Redirect URIs".
-        redirect_uri = urljoin(
+    def _get_redirect_uri(self):
+        # The frontend handles the final redirect from Dropbox. This URI must be
+        # registered in your Dropbox App's settings.
+        return urljoin(
             settings.SITE_DOMAIN,
-            reverse('dropbox-oauth-callback')
+            "auth/dropbox/callback"  # This is a frontend route
         )
+
+    def _get_oauth_flow(self, request):
+        redirect_uri = self._get_redirect_uri()
         return dropbox.DropboxOAuth2Flow(
             consumer_key=self.app_key,
             consumer_secret=self.app_secret,
@@ -70,18 +73,44 @@ class DropboxService(BaseCloudService):
 
     def get_authorization_url(self, request):
         oauth_flow = self._get_oauth_flow(request)
-        # In a real app, you would store the session state to prevent CSRF attacks.
-        return oauth_flow.start()
+        auth_url = oauth_flow.start()
+        state = request.session.get("dropbox-auth-csrf-token")
+        return auth_url, state
 
-    def handle_callback(self, request):
+    def handle_callback(self, code):
+        """
+        Exchanges an authorization code for an access token.
+        This method performs a server-to-server request to Dropbox.
+        """
+        redirect_uri = self._get_redirect_uri()
+        token_url = "https://api.dropboxapi.com/oauth2/token"
+
+        data = {
+            'code': code,
+            'grant_type': 'authorization_code',
+            'redirect_uri': redirect_uri,
+        }
+
         try:
-            oauth_flow = self._get_oauth_flow(request)
-            oauth_result = oauth_flow.finish(request.GET)
-            return {
-                'access_token': oauth_result.access_token,
-                'refresh_token': oauth_result.refresh_token,
-                'expires_at': oauth_result.expires_at,
-            }
+            with httpx.Client() as client:
+                response = client.post(
+                    token_url,
+                    data=data,
+                    auth=(self.app_key, self.app_secret)
+                )
+                response.raise_for_status()
+                token_data = response.json()
+
+                # Dropbox doesn't return an expiry timestamp for offline tokens with refresh tokens.
+                # The SDK calculates it, but we can leave it null for simplicity unless needed.
+                return {
+                    'access_token': token_data['access_token'],
+                    'refresh_token': token_data.get('refresh_token'),
+                    'expires_at': None,
+                }
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Dropbox token exchange failed: {e.response.status_code} - {e.response.text}")
+            raise CloudServiceError("Failed to get token from Dropbox.")
         except Exception as e:
             raise CloudServiceError(f"Dropbox OAuth callback error: {e}")
 
