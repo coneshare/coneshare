@@ -269,6 +269,8 @@ export const getAllViewSessions = (page = 1) => api.get(`/analytics/view-session
 // Cloud Imports
 export const getCloudProviders = () => api.get('/cloud/providers/');
 
+export const getCloudConnections = () => api.get('/cloud/connections/');
+
 export const listCloudFiles = (connectionId, path = '/') =>
   api.get(`/cloud/connections/${connectionId}/list/`, { params: { path } });
 
