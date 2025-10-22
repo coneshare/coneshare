@@ -1,4 +1,5 @@
 import logging
+import logging
 import os
 from io import BytesIO
 from urllib.parse import urljoin
@@ -9,6 +10,9 @@ from django.conf import settings
 from django.urls import reverse
 
 logger = logging.getLogger(__name__)
+
+logger = logging.getLogger(__name__)
+
 
 class CloudServiceError(Exception):
     """Custom exception for cloud service errors."""

@@ -66,20 +66,37 @@ class TestCloudConnectionListView:
 
 
 @pytest.mark.django_db
+@patch('cloudfiles.views.cache')
 @patch('cloudfiles.views.get_cloud_service')
-class TestDropboxAuthViews:
-    def test_connect_redirects(self, mock_get_service, api_client):
+class TestDropboxConnectView:
+    def test_connect_returns_auth_url(self, mock_get_service, mock_cache, api_client, user):
         mock_service_instance = MagicMock()
-        mock_service_instance.get_authorization_url.return_value = 'https://dropbox.com/oauth'
+        mock_service_instance.get_authorization_url.return_value = ('https://dropbox.com/oauth', 'test_state')
         mock_get_service.return_value = mock_service_instance
 
         response = api_client.get('/api/v1/cloud/connect/dropbox/')
 
-        assert response.status_code == status.HTTP_302_FOUND
-        assert response.url == 'https://dropbox.com/oauth'
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == {'authorization_url': 'https://dropbox.com/oauth'}
         mock_get_service.assert_called_once_with('dropbox')
+        mock_service_instance.get_authorization_url.assert_called_once()
+        mock_cache.set.assert_called_once_with(f"dropbox_oauth_state_{user.id}", 'test_state', timeout=600)
 
-    def test_callback_success(self, mock_get_service, api_client, user):
+    def test_connect_service_error(self, mock_get_service, mock_cache, api_client):
+        from cloudfiles.cloud_services import CloudServiceError
+        mock_get_service.side_effect = CloudServiceError("Test error")
+
+        response = api_client.get('/api/v1/cloud/connect/dropbox/')
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.data['detail'] == "Test error"
+
+
+@pytest.mark.django_db
+class TestDropboxCallbackView:
+    @patch('cloudfiles.views.cache')
+    @patch('cloudfiles.views.get_cloud_service')
+    def test_callback_success(self, mock_get_service, mock_cache, api_client, user):
+        mock_cache.get.return_value = 'test_state'
         mock_service_instance = MagicMock()
         mock_service_instance.handle_callback.return_value = {
             'access_token': 'new_access_token',
@@ -89,16 +106,49 @@ class TestDropboxAuthViews:
         mock_service_instance.get_user_info.return_value = {'email': 'user@dropbox.com'}
         mock_get_service.return_value = mock_service_instance
 
-        response = api_client.get('/api/v1/cloud/callback/dropbox/')
+        data = {'code': 'test_code', 'state': 'test_state'}
+        response = api_client.post('/api/v1/cloud/callback/dropbox/', data)
 
         assert response.status_code == status.HTTP_200_OK
+        mock_cache.get.assert_called_once_with(f"dropbox_oauth_state_{user.id}")
+        mock_cache.delete.assert_called_once_with(f"dropbox_oauth_state_{user.id}")
+
         assert CloudConnection.objects.filter(user=user, provider='dropbox').exists()
         connection = CloudConnection.objects.get(user=user, provider='dropbox')
         assert connection.access_token == 'new_access_token'
         assert connection.email == 'user@dropbox.com'
+
         mock_get_service.assert_called_once_with('dropbox')
-        mock_service_instance.handle_callback.assert_called_once()
+        mock_service_instance.handle_callback.assert_called_once_with('test_code')
         mock_service_instance.get_user_info.assert_called_once()
+
+    @patch('cloudfiles.views.cache')
+    def test_callback_invalid_state(self, mock_cache, api_client, user):
+        mock_cache.get.return_value = 'different_state'
+        data = {'code': 'test_code', 'state': 'test_state'}
+        response = api_client.post('/api/v1/cloud/callback/dropbox/', data)
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'Invalid state parameter' in response.data['detail']
+        mock_cache.get.assert_called_once_with(f"dropbox_oauth_state_{user.id}")
+        assert not mock_cache.delete.called
+        assert not CloudConnection.objects.filter(user=user, provider='dropbox').exists()
+
+    @patch('cloudfiles.views.cache')
+    def test_callback_missing_state_in_cache(self, mock_cache, api_client, user):
+        mock_cache.get.return_value = None
+        data = {'code': 'test_code', 'state': 'test_state'}
+        response = api_client.post('/api/v1/cloud/callback/dropbox/', data)
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'Invalid state parameter' in response.data['detail']
+        mock_cache.get.assert_called_once_with(f"dropbox_oauth_state_{user.id}")
+
+    def test_callback_missing_payload(self, api_client):
+        response = api_client.post('/api/v1/cloud/callback/dropbox/', {})
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'code' in response.data
+        assert 'state' in response.data
 
 
 @pytest.mark.django_db
