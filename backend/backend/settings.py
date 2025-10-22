@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import os
+import re
 import sys
 import json
 
@@ -29,7 +30,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-(ptz@00bnu41y5xkt51b6qi23hqv9@8our!x+14vi7r)9ga)#b'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = [
     '127.0.0.1',
@@ -242,3 +243,28 @@ CLOUD_IMPORT_FOLDER_MAPPING = {
 # Get these from your Dropbox App Console.
 DROPBOX_APP_KEY = ''
 DROPBOX_APP_SECRET = ''
+
+
+def load_local_settings(module):
+    """Import any symbols that begin with A-Z. Append to lists any symbols that begin with "EXTRA_".
+    """
+    for attr in dir(module):
+        match = re.search('^EXTRA_(\w+)', attr)
+        if match:
+            name = match.group(1)
+            value = getattr(module, attr)
+            try:
+                globals()[name] += value
+            except KeyError:
+                globals()[name] = value
+        elif re.search('^[A-Z]', attr):
+            globals()[attr] = getattr(module, attr)
+
+try:
+    from . import local_settings
+    print("loading local_settings ... Done.")
+except ImportError:
+    pass
+else:
+    load_local_settings(local_settings)
+    del local_settings
