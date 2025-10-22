@@ -242,7 +242,7 @@ SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'http://localhost:5173')
 # Cloud Services Configuration
 # A list of enabled cloud providers.
 # Example: ENABLED_CLOUD_PROVIDERS = ["dropbox", "google_drive"]
-ENABLED_CLOUD_PROVIDERS = ["dropbox"]
+ENABLED_CLOUD_PROVIDERS = ["dropbox", "google_drive"]
 
 # A dictionary mapping cloud providers to their default import folder names.
 CLOUD_IMPORT_FOLDER_MAPPING = {
@@ -254,6 +254,12 @@ CLOUD_IMPORT_FOLDER_MAPPING = {
 # Get these from your Dropbox App Console.
 DROPBOX_APP_KEY = ''
 DROPBOX_APP_SECRET = ''
+
+
+# Google Drive API Credentials
+# Get these from your Google Cloud Console.
+GOOGLE_DRIVE_CLIENT_ID = ''
+GOOGLE_DRIVE_CLIENT_SECRET = ''
 
 
 def load_local_settings(module):

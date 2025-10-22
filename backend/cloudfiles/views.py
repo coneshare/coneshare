@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from documents.serializers import DocumentSerializer
 from .cloud_services import CloudServiceError, get_cloud_service
 from .models import CloudConnection
-from .serializers import CloudConnectionSerializer, CloudImportSerializer, DropboxCallbackSerializer
+from .serializers import CloudConnectionSerializer, CloudImportSerializer, DropboxCallbackSerializer, GoogleDriveCallbackSerializer
 from .services import create_document_for_import
 
 logger = logging.getLogger(__name__)
@@ -129,6 +129,85 @@ class DropboxCallbackView(APIView):
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             logger.exception(f"Unexpected error in Dropbox callback for user {user_id}: {e}")
+            return Response({"detail": "An unexpected error occurred."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class GoogleDriveConnectView(APIView):
+    """
+    Generates a Google Drive authorization URL and returns it to the frontend.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        try:
+            service = get_cloud_service('google_drive')
+            auth_url, state = service.get_authorization_url(request)
+            if not state:
+                raise CloudServiceError("Failed to generate CSRF state token.")
+
+            # Cache the state token for 10 minutes, keyed by user ID for security.
+            cache.set(f"google_drive_oauth_state_{request.user.id}", state, timeout=600)
+
+            return Response({'authorization_url': auth_url})
+        except CloudServiceError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class GoogleDriveCallbackView(APIView):
+    """
+    Handles the final step of the OAuth2 flow for Google Drive, receiving the code
+    and state from the frontend.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = GoogleDriveCallbackSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        code = serializer.validated_data['code']
+        state = serializer.validated_data['state']
+        user_id = request.user.id
+
+        # 1. Verify CSRF token (state)
+        cache_key = f"google_drive_oauth_state_{user_id}"
+        cached_state = cache.get(cache_key)
+
+        if not cached_state or cached_state != state:
+            logger.warning(f"Google Drive CSRF token mismatch for user {user_id}.")
+            return Response({"detail": "Invalid state parameter. Please try connecting again."}, status=status.HTTP_400_BAD_REQUEST)
+
+        cache.delete(cache_key)
+
+        try:
+            # 2. Exchange code for token
+            service = get_cloud_service('google_drive')
+            token_data = service.handle_callback(code)
+
+            # 3. Save connection
+            connection, created = CloudConnection.objects.update_or_create(
+                user=request.user,
+                provider='google_drive',
+                defaults={
+                    'access_token': token_data['access_token'],
+                    'refresh_token': token_data.get('refresh_token'),
+                    'expires_at': token_data.get('expires_at')
+                }
+            )
+
+            # 4. Get user info and finalize
+            service.connection = connection
+            user_info = service.get_user_info()
+            connection.email = user_info.get('email', '')
+            connection.save()
+
+            return Response({"detail": "Successfully connected to Google Drive."})
+
+        except CloudServiceError as e:
+            logger.error(f"Google Drive callback failed for user {user_id}: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.exception(f"Unexpected error in Google Drive callback for user {user_id}: {e}")
             return Response({"detail": "An unexpected error occurred."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

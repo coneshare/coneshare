@@ -22,3 +22,11 @@ class DropboxCallbackSerializer(serializers.Serializer):
     """
     code = serializers.CharField()
     state = serializers.CharField()
+
+
+class GoogleDriveCallbackSerializer(serializers.Serializer):
+    """
+    Validates the data sent from the frontend after Google Drive OAuth redirect.
+    """
+    code = serializers.CharField()
+    state = serializers.CharField()

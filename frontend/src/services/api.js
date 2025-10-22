@@ -273,8 +273,13 @@ export const getCloudConnections = () => api.get('/cloud/connections/');
 
 export const getDropboxConnectUrl = () => api.get('/cloud/connect/dropbox/');
 
+export const getGoogleDriveConnectUrl = () => api.get('/cloud/connect/google_drive/');
+
 export const completeDropboxConnect = ({ code, state }) =>
   api.post('/cloud/callback/dropbox/', { code, state });
+
+export const completeGoogleDriveConnect = ({ code, state }) =>
+  api.post('/cloud/callback/google_drive/', { code, state });
 
 export const listCloudFiles = (connectionId, path = '/') =>
   api.get(`/cloud/connections/${connectionId}/list/`, { params: { path } });

@@ -12,7 +12,7 @@ import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl } from '../services/api';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
@@ -148,11 +148,19 @@ function DocumentsPage() {
       }
     } else {
       try {
-        const response = await getDropboxConnectUrl();
-        // Redirect user to Dropbox for authorization
+        let response;
+        if (provider.name === 'dropbox') {
+          response = await getDropboxConnectUrl();
+        } else if (provider.name === 'google_drive') {
+          response = await getGoogleDriveConnectUrl();
+        } else {
+          toast.error(`Connecting to ${provider.display_name} is not supported yet.`);
+          return;
+        }
+        // Redirect user to provider for authorization
         window.location.href = response.data.authorization_url;
       } catch (error) {
-        console.error('Failed to get Dropbox connect URL:', error);
+        console.error(`Failed to get ${provider.display_name} connect URL:`, error);
         // Toast is shown by interceptor
       }
     }
