@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Star } from 'lucide-react';
+import { Star, Cloud } from 'lucide-react';
 import { DocumentsList } from "../components/documents/DocumentsList";
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
@@ -12,7 +12,7 @@ import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders } from '../services/api';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
@@ -23,6 +23,7 @@ function DocumentsPage() {
   const { setBreadcrumbData } = useBreadcrumb();
   const [documents, setDocuments] = useState([]);
   const [folders, setFolders] = useState([]);
+  const [cloudProviders, setCloudProviders] = useState([]);
   const [currentFolder, setCurrentFolder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState({ documents: [], folders: [] });
@@ -114,6 +115,29 @@ function DocumentsPage() {
       setBreadcrumbData(null);
     };
   }, [fetchData]);
+
+  useEffect(() => {
+    const fetchProviders = async () => {
+      try {
+        const response = await getCloudProviders();
+        setCloudProviders(response.data);
+      } catch (error) {
+        console.error("Failed to fetch cloud providers:", error);
+        // Toast will be shown by interceptor
+      }
+    };
+    fetchProviders();
+  }, []);
+
+  const handleCloudProviderClick = (provider) => {
+    if (provider.is_connected) {
+      // TODO: Open cloud file picker modal
+      alert(`Already connected to ${provider.display_name}. Modal coming soon!`);
+    } else {
+      // Redirect to backend OAuth2 flow
+      window.location.href = `/api/v1/cloud/connect/${provider.name}/`;
+    }
+  };
 
   const handleItemSelect = useCallback((id, type, event) => {
     const currentIndex = allItems.findIndex(
@@ -483,6 +507,17 @@ function DocumentsPage() {
                 <FolderPlusIcon className="h-5 w-5" aria-hidden="true" />
                 <span>Folder</span>
               </DropdownMenu.Item>
+              {cloudProviders.length > 0 && <DropdownMenu.Separator className="my-1 h-px bg-gray-200 dark:bg-gray-700" />}
+              {cloudProviders.map((provider) => (
+                <DropdownMenu.Item
+                  key={provider.name}
+                  onSelect={() => handleCloudProviderClick(provider)}
+                  className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
+                >
+                  <Cloud className="h-5 w-5" aria-hidden="true" />
+                  <span>Import from {provider.display_name}</span>
+                </DropdownMenu.Item>
+              ))}
             </DropdownMenu.Content>
           </DropdownMenu.Root>
         </div>
