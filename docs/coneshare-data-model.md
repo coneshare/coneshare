@@ -258,6 +258,26 @@ Represents an external, non-team member who has accessed a shared link and has b
 
 ---
 
+## Cloud Integration Models (`cloudfiles` app)
+
+### CloudConnection
+
+Stores user-specific authorization tokens for a cloud provider.
+
+-   **id**: ULID, Primary Key
+-   **user_id**: Foreign Key to `User`
+-   **provider**: String (e.g., 'dropbox', 'google_drive')
+-   **email**: String (The email associated with the cloud account, Nullable)
+-   **access_token**: String (Stores the OAuth2 access token)
+-   **refresh_token**: String (Nullable, stores the OAuth2 refresh token)
+-   **expires_at**: DateTime (Nullable, for tokens that expire)
+-   **created_at**: DateTime
+-   **updated_at**: DateTime
+
+**Relations:** Belongs to one User. Unique on (`user_id`, `provider`).
+
+---
+
 ## V2.0: Dataroom Models
 
 These models introduce the concept of a `Dataroom` for sharing collections of documents. Note that `DataroomFolder` is distinct from the general-purpose `Folder` model and is scoped exclusively to a single `Dataroom`.

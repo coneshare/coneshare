@@ -1,5 +1,6 @@
 import os
 import re
+import mimetypes
 from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
 from django.core.files.storage import default_storage
@@ -288,3 +289,43 @@ def create_new_document_version(
         )
 
     return new_version
+
+
+def process_imported_file(document: Document, file_data: dict):
+    """
+    Processes a file downloaded from a cloud service, saves it to storage,
+    and routes it for further processing (e.g., PDF conversion).
+    """
+    file_name = file_data['name']
+    file_content = file_data['content']  # This is an in-memory file
+    file_size = file_data['size']
+
+    content_type, _ = mimetypes.guess_type(file_name)
+    if not content_type:
+        content_type = 'application/octet-stream'
+
+    # 1. Store the file
+    file_id = generate_ulid()
+    file_ext = os.path.splitext(file_name)[1]
+    storage_key = f"{document.organization.id}/{file_id}{file_ext}"
+
+    original_storage_key = default_storage.save(storage_key, file_content)
+
+    # 2. Update document and version records
+    version = document.versions.get(version_number=1)
+    version.original_storage_key = original_storage_key
+    version.storage_key = original_storage_key
+    version.content_type = content_type
+    version.type = _get_doc_type_from_content_type(content_type)
+    version.save()
+
+    document.status_message = 'File imported. Starting processing...'
+    document.save()
+
+    # 3. Route for processing
+    _route_document_for_processing(
+        document=document,
+        version=version,
+        file_size=file_size,
+        content_type=content_type,
+    )

@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'core',
     'documents',
     'analytics',
+    'cloudfiles',
 ]
 
 MIDDLEWARE = [

@@ -61,13 +61,13 @@ A new model is required to securely store user-specific authorization tokens for
 
 ### 3. OAuth2 and API Endpoints
 
--   **Provider Configuration Endpoint**: A new API endpoint (`GET /api/v1/cloud/providers/`) will be created to return the list of `ENABLED_CLOUD_PROVIDERS` to the frontend.
--   **OAuth2 Endpoints**: For each supported provider, two endpoints will handle the OAuth2 flow:
+-   **Provider Configuration Endpoint**: A new API endpoint (`GET /api/v1/cloud/providers/` in `cloudfiles/urls.py`) will be created to return the list of `ENABLED_CLOUD_PROVIDERS` to the frontend.
+-   **OAuth2 Endpoints**: For each supported provider, two endpoints (in `cloudfiles/urls.py`) will handle the OAuth2 flow:
     -   **Authorization Endpoint**: Initiates the process by redirecting the user to the cloud provider's consent screen.
     -   **Callback Endpoint**: Handles the redirect back from the provider, exchanges the authorization code for tokens, and securely saves them in the `CloudConnection` model.
--   **Cloud File Operations API**:
-    -   **File Listing Endpoint**: `GET /api/v1/cloud/<connection_id>/list/` will allow the frontend to browse files and folders in a connected drive.
-    -   **Import Endpoint**: `POST /api/v1/cloud/import/` will trigger the asynchronous import process for selected files and folders.
+-   **Cloud File Operations API** (all in `cloudfiles/urls.py`):
+    -   **File Listing Endpoint**: `GET /api/v1/cloud/connections/<connection_id>/list/` will allow the frontend to browse files and folders in a connected drive.
+    -   **Import Endpoint**: `POST /api/v1/cloud/connections/<connection_id>/import/` will trigger the asynchronous import process for selected files and folders.
 
 ---
 
@@ -75,8 +75,8 @@ A new model is required to securely store user-specific authorization tokens for
 
 To prevent API timeouts when importing large files, the file transfer process must be handled by a background worker.
 
--   **New Celery Task (`import_from_cloud_task`)**:
-    -   The `POST /api/v1/cloud/import/` endpoint will trigger this new background task.
+-   **New Celery Task (`import_from_cloud_task` in `cloudfiles/tasks.py`)**:
+    -   The `POST /api/v1/cloud/connections/<connection_id>/import/` endpoint will trigger this new background task.
     -   **Logic**:
         -   The task receives the connection details and the ID of the file to import.
         -   It determines the destination folder for the import based on the provider (e.g., "Dropbox Imports"), creating it if it does not exist.
