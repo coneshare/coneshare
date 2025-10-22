@@ -32,25 +32,20 @@ The backend will manage secure connections to external providers and handle the 
 
 ### 1. System Administrator Configuration
 
-To allow administrators to control which services are available, new settings will be added to `backend/settings.py`. These settings will parse environment variables to configure enabled providers and their destination folders.
+To allow administrators to control which services are available, new settings will be added to `backend/settings.py`. These settings are configured directly in the Python settings file.
 
 **File**: `backend/backend/settings.py`
 ```python
 # Cloud Services Configuration
-# A comma-separated list of enabled cloud providers (e.g., "dropbox,google_drive")
-ENABLED_CLOUD_PROVIDERS_STR = os.environ.get('ENABLED_CLOUD_PROVIDERS', '')
-ENABLED_CLOUD_PROVIDERS = [
-    provider.strip() for provider in ENABLED_CLOUD_PROVIDERS_STR.split(',') if provider.strip()
-]
+# A list of enabled cloud providers.
+# Example: ENABLED_CLOUD_PROVIDERS = ["dropbox", "google_drive"]
+ENABLED_CLOUD_PROVIDERS = ["dropbox"]
 
-# A JSON string mapping cloud providers to their default import folder names.
-# e.g., '{"dropbox": "Dropbox Imports", "google_drive": "Google Drive"}'
-CLOUD_IMPORT_FOLDER_MAPPING_JSON = os.environ.get('CLOUD_IMPORT_FOLDER_MAPPING', '{}')
-try:
-    CLOUD_IMPORT_FOLDER_MAPPING = json.loads(CLOUD_IMPORT_FOLDER_MAPPING_JSON)
-except json.JSONDecodeError:
-    print("Warning: Invalid JSON in CLOUD_IMPORT_FOLDER_MAPPING. Using empty mapping.")
-    CLOUD_IMPORT_FOLDER_MAPPING = {}
+# A dictionary mapping cloud providers to their default import folder names.
+CLOUD_IMPORT_FOLDER_MAPPING = {
+    "dropbox": "Dropbox Imports",
+    "google_drive": "Google Drive Imports",
+}
 ```
 
 ### 2. New `CloudConnection` Model
