@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Star } from 'lucide-react';
+import { Star, Cloud } from 'lucide-react';
 import { DocumentsList } from "../components/documents/DocumentsList";
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
@@ -12,17 +12,22 @@ import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl } from '../services/api';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
 import { MoveItemsDialog } from '../components/dialogs/MoveItemsDialog';
+import { CloudImportDialog } from '../components/dialogs/CloudImportDialog';
 
 function DocumentsPage() {
   const { folderId } = useParams();
   const { setBreadcrumbData } = useBreadcrumb();
   const [documents, setDocuments] = useState([]);
   const [folders, setFolders] = useState([]);
+  const [cloudProviders, setCloudProviders] = useState([]);
+  const [cloudConnections, setCloudConnections] = useState([]);
+  const [isCloudImportOpen, setIsCloudImportOpen] = useState(false);
+  const [activeCloudImport, setActiveCloudImport] = useState(null);
   const [currentFolder, setCurrentFolder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState({ documents: [], folders: [] });
@@ -114,6 +119,52 @@ function DocumentsPage() {
       setBreadcrumbData(null);
     };
   }, [fetchData]);
+
+  useEffect(() => {
+    const fetchProviders = async () => {
+      try {
+        const [providersRes, connectionsRes] = await Promise.all([
+          getCloudProviders(),
+          getCloudConnections(),
+        ]);
+        setCloudProviders(providersRes.data);
+        setCloudConnections(connectionsRes.data);
+      } catch (error) {
+        console.error("Failed to fetch cloud providers or connections:", error);
+        // Toast will be shown by interceptor
+      }
+    };
+    fetchProviders();
+  }, []);
+
+  const handleCloudProviderClick = async (provider) => {
+    if (provider.is_connected) {
+      const connection = cloudConnections.find(c => c.provider === provider.name);
+      if (connection) {
+        setActiveCloudImport({ provider, connection });
+        setIsCloudImportOpen(true);
+      } else {
+        toast.error(`Could not find connection details for ${provider.display_name}. Please try again or reconnect.`);
+      }
+    } else {
+      try {
+        let response;
+        if (provider.name === 'dropbox') {
+          response = await getDropboxConnectUrl();
+        } else if (provider.name === 'google_drive') {
+          response = await getGoogleDriveConnectUrl();
+        } else {
+          toast.error(`Connecting to ${provider.display_name} is not supported yet.`);
+          return;
+        }
+        // Redirect user to provider for authorization
+        window.location.href = response.data.authorization_url;
+      } catch (error) {
+        console.error(`Failed to get ${provider.display_name} connect URL:`, error);
+        // Toast is shown by interceptor
+      }
+    }
+  };
 
   const handleItemSelect = useCallback((id, type, event) => {
     const currentIndex = allItems.findIndex(
@@ -422,6 +473,13 @@ function DocumentsPage() {
         onConfirm={handleMoveItems}
         selectedFolderIds={selection.folders}
       />
+      <CloudImportDialog
+        isOpen={isCloudImportOpen}
+        onOpenChange={setIsCloudImportOpen}
+        provider={activeCloudImport?.provider}
+        connection={activeCloudImport?.connection}
+        onImportSuccess={fetchData}
+      />
       <AddFolderDialog
         isOpen={isAddFolderOpen}
         onOpenChange={setIsAddFolderOpen}
@@ -483,6 +541,17 @@ function DocumentsPage() {
                 <FolderPlusIcon className="h-5 w-5" aria-hidden="true" />
                 <span>Folder</span>
               </DropdownMenu.Item>
+              {cloudProviders.length > 0 && <DropdownMenu.Separator className="my-1 h-px bg-gray-200 dark:bg-gray-700" />}
+              {cloudProviders.map((provider) => (
+                <DropdownMenu.Item
+                  key={provider.name}
+                  onSelect={() => handleCloudProviderClick(provider)}
+                  className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
+                >
+                  <Cloud className="h-5 w-5" aria-hidden="true" />
+                  <span>{provider.display_name}</span>
+                </DropdownMenu.Item>
+              ))}
             </DropdownMenu.Content>
           </DropdownMenu.Root>
         </div>

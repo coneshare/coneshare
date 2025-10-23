@@ -8,18 +8,7 @@ import { PreviewViewer } from '../components/documents/PreviewViewer';
 import { Skeleton } from '../components/ui/Skeleton';
 import { getShareLinkViewData, createViewSession } from '../services/api';
 import { Button } from '../components/ui/Button';
-
-function formatBytes(bytes, decimals = 2) {
-  if (!+bytes) return '0 Bytes';
-
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-}
+import { formatBytes } from '../lib/formatters';
 
 export function ShareLinkViewerPage() {
   const { slug } = useParams();

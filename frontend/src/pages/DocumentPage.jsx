@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import { getDocumentDetails, getDocumentViews, getDocumentStats, deleteShareLink, uploadNewVersion } from '../services/api';
 import { DocumentHeader } from '../components/documents/DocumentHeader';
 import { LinksTable } from '../components/documents/LinksTable';
@@ -201,8 +202,29 @@ export function DocumentPage() {
     );
   }
 
+  const isProcessing = document.status === 'processing' || document.status === 'uploading';
+  const isError = document.status === 'error';
+
   return (
     <div className="container mx-auto p-4 sm:p-6">
+      {(isProcessing || isError) && (
+        <div className={`mb-6 rounded-md p-4 ${isError ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' : 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'}`}>
+          <div className="flex">
+            <div className="flex-shrink-0">
+              {isProcessing ? (
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+              ) : (
+                <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+              )}
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium">
+                {document.status_message || (isProcessing ? 'Your document is being processed. This may take a few moments.' : 'An error occurred while processing this document.')}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       <input
         type="file"
         ref={fileInputRef}

@@ -266,4 +266,29 @@ export const getDailyVisits = () => api.get('/analytics/daily-visits/');
 export const getAllActiveLinks = (page = 1) => api.get(`/analytics/links/?page=${page}`);
 export const getAllViewSessions = (page = 1) => api.get(`/analytics/view-sessions/?page=${page}`);
 
+// Cloud Imports
+export const getCloudProviders = () => api.get('/cloud/providers/');
+
+export const getCloudConnections = () => api.get('/cloud/connections/');
+
+export const getDropboxConnectUrl = () => api.get('/cloud/connect/dropbox/');
+
+export const getGoogleDriveConnectUrl = () => api.get('/cloud/connect/google_drive/');
+
+export const completeDropboxConnect = ({ code, state }) =>
+  api.post('/cloud/callback/dropbox/', { code, state });
+
+export const completeGoogleDriveConnect = ({ code, state }) =>
+  api.post('/cloud/callback/google_drive/', { code, state });
+
+export const listCloudFiles = (connectionId, path = '/') =>
+  api.get(`/cloud/connections/${connectionId}/list/`, { params: { path } });
+
+export const importCloudFile = (connectionId, { fileId, fileName, fileSize }) =>
+  api.post(`/cloud/connections/${connectionId}/import/`, {
+    file_id: fileId,
+    file_name: fileName,
+    file_size: fileSize,
+  });
+
 export default api;
