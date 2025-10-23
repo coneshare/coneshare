@@ -12,7 +12,7 @@ class BaseCloudProvider:
         """Returns the URL to redirect the user for OAuth2 authorization."""
         raise NotImplementedError
 
-    def handle_callback(self, request):
+    def handle_callback(self, code):
         """Handles the OAuth2 callback, exchanges code for tokens, and saves them."""
         raise NotImplementedError
 
