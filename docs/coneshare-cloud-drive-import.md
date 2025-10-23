@@ -86,6 +86,50 @@ A new model is required to securely store user-specific authorization tokens for
     -   **File Listing Endpoint**: `GET /api/v1/cloud/connections/<connection_id>/list/` will allow the frontend to browse files and folders in a connected drive.
     -   **Import Endpoint**: `POST /api/v1/cloud/connections/<connection_id>/import/` will trigger the asynchronous import process for selected files and folders.
 
+### 4. Token Encryption (Security Implementation)
+
+To protect user credentials, all OAuth2 tokens (`access_token`, `refresh_token`) stored in the `CloudConnection` model must be encrypted at rest in the database. This provides a critical layer of defense if the database is ever compromised. The recommended implementation uses the `django-cryptography` library.
+
+**Implementation Steps:**
+
+1.  **Install the Library**: Add `django-cryptography` to the project's dependencies.
+    ```bash
+    docker compose exec backend pip install django-cryptography
+    ```
+
+2.  **Generate and Store an Encryption Key**: A strong encryption key is required. Generate one and store it securely as an environment variable (e.g., in `.env`).
+    ```bash
+    # Command to generate a new key:
+    docker compose exec backend python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+    # Example .env entry:
+    FIELD_ENCRYPTION_KEY=your-generated-key-here
+    ```
+
+3.  **Configure Django Settings**: Update `backend/settings.py` to load the key into the required `FERNET_KEYS` setting.
+    ```python
+    # Field Encryption Key
+    FIELD_ENCRYPTION_KEY = os.environ.get('FIELD_ENCRYPTION_KEY')
+    FERNET_KEYS = [FIELD_ENCRYPTION_KEY] if FIELD_ENCRYPTION_KEY else []
+    ```
+
+4.  **Update the `CloudConnection` Model**: In `cloudfiles/models.py`, change the token fields from `models.TextField` to `EncryptedTextField`.
+    ```python
+    from django_cryptography.fields import EncryptedTextField
+
+    class CloudConnection(BaseModel):
+        # ...
+        access_token = EncryptedTextField()
+        refresh_token = EncryptedTextField(blank=True, null=True)
+        # ...
+    ```
+
+5.  **Create and Apply Migrations**: The final step is to apply these changes to the database schema. `django-cryptography` will automatically handle the encryption of any existing, unencrypted data during the migration process.
+    ```bash
+    docker compose exec backend python manage.py makemigrations cloudfiles
+    docker compose exec backend python manage.py migrate
+    ```
+
 ---
 
 ## Part 2: Backend - Asynchronous Import (Celery)
