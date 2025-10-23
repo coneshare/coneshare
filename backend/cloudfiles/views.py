@@ -249,8 +249,9 @@ class CloudImportView(APIView):
         file_name = validated_data['file_name']
         file_size = validated_data['file_size']
 
-        if file_size > 100 * 1024 * 1024:
-            return Response({"detail": "File size cannot exceed 100MB for import."}, status=status.HTTP_400_BAD_REQUEST)
+        max_size_bytes = settings.CLOUD_IMPORT_MAX_SIZE_MB * 1024 * 1024
+        if file_size > max_size_bytes:
+            return Response({"detail": f"File size cannot exceed {settings.CLOUD_IMPORT_MAX_SIZE_MB}MB for import."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             connection = CloudConnection.objects.get(id=connection_id, user=request.user)

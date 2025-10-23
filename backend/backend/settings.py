@@ -250,6 +250,9 @@ CLOUD_IMPORT_FOLDER_MAPPING = {
     "google_drive": "Google Drive Imports",
 }
 
+# Maximum file size in megabytes for cloud imports.
+CLOUD_IMPORT_MAX_SIZE_MB = int(os.environ.get('CLOUD_IMPORT_MAX_SIZE_MB', 100))
+
 # Dropbox API Credentials
 # Get these from your Dropbox App Console.
 DROPBOX_APP_KEY = ''

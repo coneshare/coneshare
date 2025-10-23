@@ -67,10 +67,6 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
   };
 
   const handleImportClick = async (file) => {
-    if (file.size > 100 * 1024 * 1024) {
-      toast.error("File size cannot exceed 100MB for import.");
-      return;
-    }
     setImportingFileId(file.id);
     try {
       await importCloudFile(connection.id, {

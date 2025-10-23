@@ -1,5 +1,6 @@
 import logging
 from celery import shared_task
+from django.conf import settings
 
 from documents.models import Document
 from .models import CloudConnection
@@ -26,9 +27,9 @@ def import_from_cloud_task(document_id, connection_id, file_id_or_path):
         file_data = provider.download_file(file_id_or_path)
 
         # V1 Limitation check
-        max_size_bytes = 100 * 1024 * 1024
+        max_size_bytes = settings.CLOUD_IMPORT_MAX_SIZE_MB * 1024 * 1024
         if file_data['size'] > max_size_bytes:
-            raise CloudProviderError("File size exceeds the 100MB limit for imports.")
+            raise CloudProviderError(f"File size exceeds the {settings.CLOUD_IMPORT_MAX_SIZE_MB}MB limit for imports.")
 
         process_imported_file(document, file_data)
 
