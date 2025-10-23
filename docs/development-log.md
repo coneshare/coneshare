@@ -1090,3 +1090,24 @@ when used on the dashboard, controlled by a new `isDashboardWidget` prop.
 component.
 
 ---
+
+## Session 46: Import files from Cloud Storage  (2025-10-22)
+
+This session delivers a significant new feature: the ability for users to import files directly from their cloud storage accounts, starting with Dropbox and Google Drive. It encompasses a full-stack implementation, from backend infrastructure for secure OAuth2 connections and asynchronous file handling to a dynamic and intuitive frontend user interface. The changes ensure a robust, scalable, and user-friendly experience for integrating external cloud files into the application, complete with status tracking and error reporting for imports. [https://github.com/coneshare/coneshare/pull/47](https://github.com/coneshare/coneshare/pull/47)
+
+-	New Cloudfiles Application: Introduced a new Django application cloudfiles to manage integrations with external cloud storage providers like Dropbox and Google Drive.
+-	Cloud Connection Management: Implemented a CloudConnection model to securely store user-specific OAuth2 tokens (access and refresh tokens) for connected cloud accounts. This model is designed to be extended with encryption for tokens at rest.
+-	OAuth2 Flow Integration: Developed API endpoints and frontend components to handle the OAuth2 authorization flow for Dropbox and Google Drive, allowing users to securely connect their cloud accounts. This includes CSRF protection using Redis caching for state tokens.
+-	Asynchronous File Import: Integrated Celery tasks (import_from_cloud_task) to handle the asynchronous downloading and processing of files from cloud providers, preventing API timeouts for larger files. Files are saved to the application's storage backend.
+-	Dynamic Frontend UI: Updated the frontend to dynamically list available cloud providers, initiate OAuth connections, and provide a modal file browser for selecting and importing files from connected drives. The UI also displays the status of ongoing imports.
+-	Document Status Enhancements: Added a status_message field to the Document model to provide more detailed feedback to users regarding the state of file processing, especially during cloud imports or in case of errors.
+-	New Dependencies: Added several new Python packages to requirements.txt to support cloud integrations, including dropbox, django-redis, httpx, google-api-python-client, and google-auth-oauthlib.
+-	Settings Configuration: Updated settings.py to include configuration for enabled cloud providers, default import folder mappings, and API credentials. Also added Redis cache configuration and a local_settings loading mechanism.
+
+		
+		
+		
+		
+		
+
+

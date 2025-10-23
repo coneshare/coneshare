@@ -90,6 +90,7 @@ The core entity for a file. It stores metadata and points to the primary version
 -   **name**: String (Original filename)
 -   **description**: String (Nullable)
 -   **status**: String (e.g., 'uploading', 'processing', 'ready', 'error')
+-   **status_message**: String (Nullable, stores user-friendly error messages)
 -   **storage_key**: String (Path to the primary version's processed file)
 -   **original_storage_key**: String (Path to the primary version's original file)
 -   **type**: String (e.g., 'pdf', 'sheet', 'slides')
@@ -254,6 +255,26 @@ Represents an external, non-team member who has accessed a shared link and has b
 -   **created_at**: DateTime
 
 **Relations:** Belongs to an Organization, has many Views. Unique on (organization_id, email).
+
+---
+
+## Cloud Integration Models (`cloudfiles` app)
+
+### CloudConnection
+
+Stores user-specific authorization tokens for a cloud provider.
+
+-   **id**: ULID, Primary Key
+-   **user_id**: Foreign Key to `User`
+-   **provider**: String (e.g., 'dropbox', 'google_drive')
+-   **email**: String (The email associated with the cloud account, Nullable)
+-   **access_token**: String (Stores the OAuth2 access token)
+-   **refresh_token**: String (Nullable, stores the OAuth2 refresh token)
+-   **expires_at**: DateTime (Nullable, for tokens that expire)
+-   **created_at**: DateTime
+-   **updated_at**: DateTime
+
+**Relations:** Belongs to one User. Unique on (`user_id`, `provider`).
 
 ---
 

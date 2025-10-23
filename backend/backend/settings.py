@@ -13,7 +13,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import os
+import re
 import sys
+import json
 
 from django.contrib.gis.geoip2 import GeoIP2
 
@@ -28,7 +30,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-(ptz@00bnu41y5xkt51b6qi23hqv9@8our!x+14vi7r)9ga)#b'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = [
     '127.0.0.1',
@@ -55,6 +57,7 @@ INSTALLED_APPS = [
     'core',
     'documents',
     'analytics',
+    'cloudfiles',
 ]
 
 MIDDLEWARE = [
@@ -198,6 +201,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'core.User'
 
+# Cache Configuration (using Redis)
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://redis:6379/1",  # Use DB 1 to separate from Celery
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
 # Celery Configuration
 CELERY_BROKER_URL = 'redis://redis:6379/0'
 CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
@@ -223,3 +237,54 @@ except Exception as e:
 
 # Site domain (for constructing absolute URLs)
 SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'http://localhost:5173')
+
+
+# Cloud Services Configuration
+# A list of enabled cloud providers.
+# Example: ENABLED_CLOUD_PROVIDERS = ["dropbox", "google_drive"]
+ENABLED_CLOUD_PROVIDERS = ["dropbox", "google_drive"]
+
+# A dictionary mapping cloud providers to their default import folder names.
+CLOUD_IMPORT_FOLDER_MAPPING = {
+    "dropbox": "Dropbox Imports",
+    "google_drive": "Google Drive Imports",
+}
+
+# Maximum file size in megabytes for cloud imports.
+CLOUD_IMPORT_MAX_SIZE_MB = int(os.environ.get('CLOUD_IMPORT_MAX_SIZE_MB', 100))
+
+# Dropbox API Credentials
+# Get these from your Dropbox App Console.
+DROPBOX_APP_KEY = ''
+DROPBOX_APP_SECRET = ''
+
+
+# Google Drive API Credentials
+# Get these from your Google Cloud Console.
+GOOGLE_DRIVE_CLIENT_ID = ''
+GOOGLE_DRIVE_CLIENT_SECRET = ''
+
+
+def load_local_settings(module):
+    """Import any symbols that begin with A-Z. Append to lists any symbols that begin with "EXTRA_".
+    """
+    for attr in dir(module):
+        match = re.search('^EXTRA_(\w+)', attr)
+        if match:
+            name = match.group(1)
+            value = getattr(module, attr)
+            try:
+                globals()[name] += value
+            except KeyError:
+                globals()[name] = value
+        elif re.search('^[A-Z]', attr):
+            globals()[attr] = getattr(module, attr)
+
+try:
+    from . import local_settings
+    print("loading local_settings ... Done.")
+except ImportError:
+    pass
+else:
+    load_local_settings(local_settings)
+    del local_settings

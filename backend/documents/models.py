@@ -50,6 +50,7 @@ class Document(BaseModel):
         ],
         default='processing'
     )
+    status_message = models.CharField(max_length=255, blank=True, null=True)
     storage_key = models.CharField(max_length=1024, blank=True, null=True)
     original_storage_key = models.CharField(max_length=1024, blank=True, null=True)
     type = models.CharField(max_length=20)

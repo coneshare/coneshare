@@ -35,6 +35,7 @@ urlpatterns = [
     path('api/v1/', include('core.urls')),
     path('api/v1/', include('documents.urls')),
     path('api/v1/', include('analytics.urls')),
+    path('api/v1/cloud/', include('cloudfiles.urls')),
 
 ]
 
