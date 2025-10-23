@@ -4,10 +4,15 @@ import os
 from io import BytesIO
 from urllib.parse import urljoin
 
+from datetime import timedelta
+
 import dropbox
 import httpx
 from django.conf import settings
 from django.urls import reverse
+from django.utils import timezone
+from google.auth.exceptions import RefreshError
+from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
@@ -112,12 +117,13 @@ class DropboxService(BaseCloudService):
                 response.raise_for_status()
                 token_data = response.json()
 
-                # Dropbox doesn't return an expiry timestamp for offline tokens with refresh tokens.
-                # The SDK calculates it, but we can leave it null for simplicity unless needed.
+                expires_in = token_data.get('expires_in')
+                expires_at = timezone.now() + timedelta(seconds=expires_in) if expires_in else None
+
                 return {
                     'access_token': token_data['access_token'],
                     'refresh_token': token_data.get('refresh_token'),
-                    'expires_at': None,
+                    'expires_at': expires_at,
                 }
         except httpx.HTTPStatusError as e:
             logger.error(f"Dropbox token exchange failed: {e.response.status_code} - {e.response.text}")
@@ -125,10 +131,42 @@ class DropboxService(BaseCloudService):
         except Exception as e:
             raise CloudServiceError(f"Dropbox OAuth callback error: {e}")
 
+    def _refresh_token(self):
+        """Manually refreshes the Dropbox access token."""
+        if not self.connection or not self.connection.refresh_token:
+            raise CloudServiceError("Cannot refresh token without a refresh token.")
+
+        token_url = "https://api.dropboxapi.com/oauth2/token"
+        data = {
+            'grant_type': 'refresh_token',
+            'refresh_token': self.connection.refresh_token,
+        }
+        try:
+            with httpx.Client() as client:
+                response = client.post(token_url, data=data, auth=(self.app_key, self.app_secret))
+                response.raise_for_status()
+                token_data = response.json()
+
+                self.connection.access_token = token_data['access_token']
+                if 'expires_in' in token_data:
+                    self.connection.expires_at = timezone.now() + timedelta(seconds=token_data['expires_in'])
+
+                self.connection.save(update_fields=['access_token', 'expires_at'])
+                logger.info(f"Refreshed Dropbox token for connection {self.connection.id}")
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Dropbox token refresh failed: {e.response.status_code} - {e.response.text}")
+            raise CloudServiceError("Failed to refresh Dropbox token.")
+
     def _get_client(self):
         if not self.connection:
             raise CloudServiceError("No connection provided for Dropbox client.")
-        # TODO: Implement token refresh logic if access token is expired.
+
+        if self.connection.refresh_token and self.connection.expires_at:
+            # Refresh if token expires in the next 5 minutes
+            if self.connection.expires_at < timezone.now() + timedelta(minutes=5):
+                self._refresh_token()
+
         return dropbox.Dropbox(
             oauth2_access_token=self.connection.access_token,
         )
@@ -243,7 +281,28 @@ class GoogleDriveService(BaseCloudService):
             client_secret=self.client_secret,
             token_uri="https://oauth2.googleapis.com/token"
         )
-        # TODO: Handle token refresh logic here when implementing API calls
+
+        if creds.expired and creds.refresh_token:
+            try:
+                creds.refresh(Request())
+                # Persist the refreshed credentials
+                self.connection.access_token = creds.token
+                self.connection.expires_at = creds.expiry
+                update_fields = ['access_token', 'expires_at']
+
+                # A new refresh token is only issued on the initial authorization
+                # code exchange if `access_type=offline` and `prompt=consent` are used.
+                if creds.refresh_token and creds.refresh_token != self.connection.refresh_token:
+                    self.connection.refresh_token = creds.refresh_token
+                    update_fields.append('refresh_token')
+
+                self.connection.save(update_fields=update_fields)
+                logger.info(f"Refreshed Google Drive token for connection {self.connection.id}")
+            except RefreshError as e:
+                logger.error(f"Google Drive token refresh failed for connection {self.connection.id}: {e}")
+                # This often means the user has revoked access.
+                raise CloudServiceError("Failed to refresh Google Drive token. Please try disconnecting and reconnecting your account.")
+
         return build('drive', 'v3', credentials=creds)
 
     def get_user_info(self):
