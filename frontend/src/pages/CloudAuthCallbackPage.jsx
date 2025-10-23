@@ -46,7 +46,7 @@ export function CloudAuthCallbackPage() {
         // Redirect back to the documents page after a short delay
         setTimeout(() => navigate('/documents'), 2000);
       } catch (err) {
-        const errorMessage = err.response?.data?.detail || 'An unknown error occurred.';
+        const errorMessage = err.response?.data?.detail || 'Failed to complete the connection. Please try again later.';
         setError(errorMessage);
         setStatus('error');
       }
