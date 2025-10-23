@@ -4,6 +4,7 @@ import './App.css';
 import MainLayout from './components/layout/MainLayout';
 import { AllLinksPage } from './pages/AllLinksPage';
 import { AllViewSessionsPage } from './pages/AllViewSessionsPage';
+import { CloudAuthCallbackPage } from './pages/CloudAuthCallbackPage';
 import { DocumentPage } from './pages/DocumentPage';
 import DocumentsPage from './pages/DocumentsPage';
 import HomePage from './pages/HomePage';
@@ -20,6 +21,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/view/:slug" element={<ShareLinkViewerPage />} />
+        <Route path="/auth/:providerName/callback" element={<CloudAuthCallbackPage />} />
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/documents" element={<DocumentsPage />} />
