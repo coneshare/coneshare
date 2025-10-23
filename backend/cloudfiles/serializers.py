@@ -16,17 +16,9 @@ class CloudImportSerializer(serializers.Serializer):
     file_size = serializers.IntegerField()
 
 
-class DropboxCallbackSerializer(serializers.Serializer):
+class OAuthCallbackSerializer(serializers.Serializer):
     """
-    Validates the data sent from the frontend after Dropbox OAuth redirect.
-    """
-    code = serializers.CharField()
-    state = serializers.CharField()
-
-
-class GoogleDriveCallbackSerializer(serializers.Serializer):
-    """
-    Validates the data sent from the frontend after Google Drive OAuth redirect.
+    Validates the data sent from the frontend after an OAuth redirect.
     """
     code = serializers.CharField()
     state = serializers.CharField()

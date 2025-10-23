@@ -11,8 +11,7 @@ from documents.serializers import DocumentSerializer
 from .models import CloudConnection
 from .providers import CloudProviderError, get_cloud_provider
 from .serializers import (CloudConnectionSerializer, CloudImportSerializer,
-                          DropboxCallbackSerializer,
-                          GoogleDriveCallbackSerializer)
+                          OAuthCallbackSerializer)
 from .services import create_document_for_import
 
 logger = logging.getLogger(__name__)
@@ -84,7 +83,7 @@ class DropboxCallbackView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        serializer = DropboxCallbackSerializer(data=request.data)
+        serializer = OAuthCallbackSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -163,7 +162,7 @@ class GoogleDriveCallbackView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        serializer = GoogleDriveCallbackSerializer(data=request.data)
+        serializer = OAuthCallbackSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
