@@ -78,24 +78,24 @@ class TestCloudConnectionListView:
 
 @pytest.mark.django_db
 @patch('cloudfiles.views.cache')
-@patch('cloudfiles.views.get_cloud_service')
+@patch('cloudfiles.views.get_cloud_provider')
 class TestDropboxConnectView:
-    def test_connect_returns_auth_url(self, mock_get_service, mock_cache, api_client, user):
-        mock_service_instance = MagicMock()
-        mock_service_instance.get_authorization_url.return_value = ('https://dropbox.com/oauth', 'test_state')
-        mock_get_service.return_value = mock_service_instance
+    def test_connect_returns_auth_url(self, mock_get_provider, mock_cache, api_client, user):
+        mock_provider_instance = MagicMock()
+        mock_provider_instance.get_authorization_url.return_value = ('https://dropbox.com/oauth', 'test_state')
+        mock_get_provider.return_value = mock_provider_instance
 
         response = api_client.get('/api/v1/cloud/connect/dropbox/')
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data == {'authorization_url': 'https://dropbox.com/oauth'}
-        mock_get_service.assert_called_once_with('dropbox')
-        mock_service_instance.get_authorization_url.assert_called_once()
+        mock_get_provider.assert_called_once_with('dropbox')
+        mock_provider_instance.get_authorization_url.assert_called_once()
         mock_cache.set.assert_called_once_with(f"dropbox_oauth_state_{user.id}", 'test_state', timeout=600)
 
-    def test_connect_service_error(self, mock_get_service, mock_cache, api_client):
-        from cloudfiles.cloud_services import CloudServiceError
-        mock_get_service.side_effect = CloudServiceError("Test error")
+    def test_connect_service_error(self, mock_get_provider, mock_cache, api_client):
+        from cloudfiles.providers import CloudProviderError
+        mock_get_provider.side_effect = CloudProviderError("Test error")
 
         response = api_client.get('/api/v1/cloud/connect/dropbox/')
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -105,17 +105,17 @@ class TestDropboxConnectView:
 @pytest.mark.django_db
 class TestDropboxCallbackView:
     @patch('cloudfiles.views.cache')
-    @patch('cloudfiles.views.get_cloud_service')
-    def test_callback_success(self, mock_get_service, mock_cache, api_client, user):
+    @patch('cloudfiles.views.get_cloud_provider')
+    def test_callback_success(self, mock_get_provider, mock_cache, api_client, user):
         mock_cache.get.return_value = 'test_state'
-        mock_service_instance = MagicMock()
-        mock_service_instance.handle_callback.return_value = {
+        mock_provider_instance = MagicMock()
+        mock_provider_instance.handle_callback.return_value = {
             'access_token': 'new_access_token',
             'refresh_token': 'new_refresh_token',
             'expires_at': None
         }
-        mock_service_instance.get_user_info.return_value = {'email': 'user@dropbox.com'}
-        mock_get_service.return_value = mock_service_instance
+        mock_provider_instance.get_user_info.return_value = {'email': 'user@dropbox.com'}
+        mock_get_provider.return_value = mock_provider_instance
 
         data = {'code': 'test_code', 'state': 'test_state'}
         response = api_client.post('/api/v1/cloud/callback/dropbox/', data)
@@ -129,9 +129,9 @@ class TestDropboxCallbackView:
         assert connection.access_token == 'new_access_token'
         assert connection.email == 'user@dropbox.com'
 
-        mock_get_service.assert_called_once_with('dropbox')
-        mock_service_instance.handle_callback.assert_called_once_with('test_code')
-        mock_service_instance.get_user_info.assert_called_once()
+        mock_get_provider.assert_called_once_with('dropbox')
+        mock_provider_instance.handle_callback.assert_called_once_with('test_code')
+        mock_provider_instance.get_user_info.assert_called_once()
 
     @patch('cloudfiles.views.cache')
     def test_callback_invalid_state(self, mock_cache, api_client, user):
@@ -164,24 +164,24 @@ class TestDropboxCallbackView:
 
 @pytest.mark.django_db
 @patch('cloudfiles.views.cache')
-@patch('cloudfiles.views.get_cloud_service')
+@patch('cloudfiles.views.get_cloud_provider')
 class TestGoogleDriveConnectView:
-    def test_connect_returns_auth_url(self, mock_get_service, mock_cache, api_client, user):
-        mock_service_instance = MagicMock()
-        mock_service_instance.get_authorization_url.return_value = ('https://accounts.google.com/oauth', 'test_state_google')
-        mock_get_service.return_value = mock_service_instance
+    def test_connect_returns_auth_url(self, mock_get_provider, mock_cache, api_client, user):
+        mock_provider_instance = MagicMock()
+        mock_provider_instance.get_authorization_url.return_value = ('https://accounts.google.com/oauth', 'test_state_google')
+        mock_get_provider.return_value = mock_provider_instance
 
         response = api_client.get('/api/v1/cloud/connect/google_drive/')
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data == {'authorization_url': 'https://accounts.google.com/oauth'}
-        mock_get_service.assert_called_once_with('google_drive')
-        mock_service_instance.get_authorization_url.assert_called_once()
+        mock_get_provider.assert_called_once_with('google_drive')
+        mock_provider_instance.get_authorization_url.assert_called_once()
         mock_cache.set.assert_called_once_with(f"google_drive_oauth_state_{user.id}", 'test_state_google', timeout=600)
 
-    def test_connect_service_error(self, mock_get_service, mock_cache, api_client):
-        from cloudfiles.cloud_services import CloudServiceError
-        mock_get_service.side_effect = CloudServiceError("Google error")
+    def test_connect_service_error(self, mock_get_provider, mock_cache, api_client):
+        from cloudfiles.providers import CloudProviderError
+        mock_get_provider.side_effect = CloudProviderError("Google error")
 
         response = api_client.get('/api/v1/cloud/connect/google_drive/')
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -191,17 +191,17 @@ class TestGoogleDriveConnectView:
 @pytest.mark.django_db
 class TestGoogleDriveCallbackView:
     @patch('cloudfiles.views.cache')
-    @patch('cloudfiles.views.get_cloud_service')
-    def test_callback_success(self, mock_get_service, mock_cache, api_client, user):
+    @patch('cloudfiles.views.get_cloud_provider')
+    def test_callback_success(self, mock_get_provider, mock_cache, api_client, user):
         mock_cache.get.return_value = 'test_state_google'
-        mock_service_instance = MagicMock()
-        mock_service_instance.handle_callback.return_value = {
+        mock_provider_instance = MagicMock()
+        mock_provider_instance.handle_callback.return_value = {
             'access_token': 'google_access_token',
             'refresh_token': 'google_refresh_token',
             'expires_at': None
         }
-        mock_service_instance.get_user_info.return_value = {'email': 'user@google.com'}
-        mock_get_service.return_value = mock_service_instance
+        mock_provider_instance.get_user_info.return_value = {'email': 'user@google.com'}
+        mock_get_provider.return_value = mock_provider_instance
 
         data = {'code': 'google_code', 'state': 'test_state_google'}
         response = api_client.post('/api/v1/cloud/callback/google_drive/', data)
@@ -215,9 +215,9 @@ class TestGoogleDriveCallbackView:
         assert connection.access_token == 'google_access_token'
         assert connection.email == 'user@google.com'
 
-        mock_get_service.assert_called_once_with('google_drive')
-        mock_service_instance.handle_callback.assert_called_once_with('google_code')
-        mock_service_instance.get_user_info.assert_called_once()
+        mock_get_provider.assert_called_once_with('google_drive')
+        mock_provider_instance.handle_callback.assert_called_once_with('google_code')
+        mock_provider_instance.get_user_info.assert_called_once()
 
     @patch('cloudfiles.views.cache')
     def test_callback_invalid_state(self, mock_cache, api_client, user):
@@ -249,12 +249,12 @@ class TestGoogleDriveCallbackView:
 
 
 @pytest.mark.django_db
-@patch('cloudfiles.views.get_cloud_service')
+@patch('cloudfiles.views.get_cloud_provider')
 class TestCloudFileListView:
-    def test_list_files_success(self, mock_get_service, api_client, cloud_connection):
-        mock_service_instance = MagicMock()
-        mock_service_instance.list_files.return_value = [{'id': 'file1', 'name': 'test.pdf', 'type': 'file'}]
-        mock_get_service.return_value = mock_service_instance
+    def test_list_files_success(self, mock_get_provider, api_client, cloud_connection):
+        mock_provider_instance = MagicMock()
+        mock_provider_instance.list_files.return_value = [{'id': 'file1', 'name': 'test.pdf', 'type': 'file'}]
+        mock_get_provider.return_value = mock_provider_instance
 
         url = f'/api/v1/cloud/connections/{cloud_connection.id}/list/'
         response = api_client.get(url)
@@ -262,15 +262,15 @@ class TestCloudFileListView:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data) == 1
         assert response.data[0]['name'] == 'test.pdf'
-        mock_get_service.assert_called_once_with('dropbox', connection=cloud_connection)
-        mock_service_instance.list_files.assert_called_once_with('/')
+        mock_get_provider.assert_called_once_with('dropbox', connection=cloud_connection)
+        mock_provider_instance.list_files.assert_called_once_with('/')
 
-    def test_list_files_permission_denied(self, mock_get_service, api_client, user2):
+    def test_list_files_permission_denied(self, mock_get_provider, api_client, user2):
         other_user_conn = CloudConnection.objects.create(user=user2, provider='dropbox')
         url = f'/api/v1/cloud/connections/{other_user_conn.id}/list/'
         response = api_client.get(url)
         assert response.status_code == status.HTTP_404_NOT_FOUND
-        mock_get_service.assert_not_called()
+        mock_get_provider.assert_not_called()
 
 
 @pytest.mark.django_db

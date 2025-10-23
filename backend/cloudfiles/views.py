@@ -8,9 +8,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from documents.serializers import DocumentSerializer
-from .cloud_services import CloudServiceError, get_cloud_service
 from .models import CloudConnection
-from .serializers import CloudConnectionSerializer, CloudImportSerializer, DropboxCallbackSerializer, GoogleDriveCallbackSerializer
+from .providers import CloudProviderError, get_cloud_provider
+from .serializers import (CloudConnectionSerializer, CloudImportSerializer,
+                            DropboxCallbackSerializer,
+                            GoogleDriveCallbackSerializer)
 from .services import create_document_for_import
 
 logger = logging.getLogger(__name__)
@@ -61,16 +63,16 @@ class DropboxConnectView(APIView):
 
     def get(self, request, *args, **kwargs):
         try:
-            service = get_cloud_service('dropbox')
-            auth_url, state = service.get_authorization_url(request)
+            provider = get_cloud_provider('dropbox')
+            auth_url, state = provider.get_authorization_url(request)
             if not state:
-                raise CloudServiceError("Failed to generate CSRF state token.")
+                raise CloudProviderError("Failed to generate CSRF state token.")
 
             # Cache the state token for 10 minutes, keyed by user ID for security.
             cache.set(f"dropbox_oauth_state_{request.user.id}", state, timeout=600)
 
             return Response({'authorization_url': auth_url})
-        except CloudServiceError as e:
+        except CloudProviderError as e:
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -102,8 +104,8 @@ class DropboxCallbackView(APIView):
 
         try:
             # 2. Exchange code for token
-            service = get_cloud_service('dropbox')
-            token_data = service.handle_callback(code)
+            provider = get_cloud_provider('dropbox')
+            token_data = provider.handle_callback(code)
 
             # 3. Save connection
             connection, created = CloudConnection.objects.update_or_create(
@@ -117,14 +119,14 @@ class DropboxCallbackView(APIView):
             )
 
             # 4. Get user info and finalize
-            service.connection = connection
-            user_info = service.get_user_info()
+            provider.connection = connection
+            user_info = provider.get_user_info()
             connection.email = user_info.get('email', '')
             connection.save()
 
             return Response({"detail": "Successfully connected to Dropbox."})
 
-        except CloudServiceError as e:
+        except CloudProviderError as e:
             logger.error(f"Dropbox callback failed for user {user_id}: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
@@ -140,16 +142,16 @@ class GoogleDriveConnectView(APIView):
 
     def get(self, request, *args, **kwargs):
         try:
-            service = get_cloud_service('google_drive')
-            auth_url, state = service.get_authorization_url(request)
+            provider = get_cloud_provider('google_drive')
+            auth_url, state = provider.get_authorization_url(request)
             if not state:
-                raise CloudServiceError("Failed to generate CSRF state token.")
+                raise CloudProviderError("Failed to generate CSRF state token.")
 
             # Cache the state token for 10 minutes, keyed by user ID for security.
             cache.set(f"google_drive_oauth_state_{request.user.id}", state, timeout=600)
 
             return Response({'authorization_url': auth_url})
-        except CloudServiceError as e:
+        except CloudProviderError as e:
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -181,8 +183,8 @@ class GoogleDriveCallbackView(APIView):
 
         try:
             # 2. Exchange code for token
-            service = get_cloud_service('google_drive')
-            token_data = service.handle_callback(code)
+            provider = get_cloud_provider('google_drive')
+            token_data = provider.handle_callback(code)
 
             # 3. Save connection
             connection, created = CloudConnection.objects.update_or_create(
@@ -196,14 +198,14 @@ class GoogleDriveCallbackView(APIView):
             )
 
             # 4. Get user info and finalize
-            service.connection = connection
-            user_info = service.get_user_info()
+            provider.connection = connection
+            user_info = provider.get_user_info()
             connection.email = user_info.get('email', '')
             connection.save()
 
             return Response({"detail": "Successfully connected to Google Drive."})
 
-        except CloudServiceError as e:
+        except CloudProviderError as e:
             logger.error(f"Google Drive callback failed for user {user_id}: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
@@ -220,15 +222,15 @@ class CloudFileListView(APIView):
     def get(self, request, connection_id, *args, **kwargs):
         try:
             connection = CloudConnection.objects.get(id=connection_id, user=request.user)
-            service = get_cloud_service(connection.provider, connection=connection)
+            provider = get_cloud_provider(connection.provider, connection=connection)
 
             path = request.query_params.get('path', '/')
-            files = service.list_files(path)
+            files = provider.list_files(path)
 
             return Response(files)
         except CloudConnection.DoesNotExist:
             return Response({"detail": "Connection not found."}, status=status.HTTP_404_NOT_FOUND)
-        except CloudServiceError as e:
+        except CloudProviderError as e:
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
