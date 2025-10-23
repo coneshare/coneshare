@@ -37,14 +37,12 @@ def import_from_cloud_task(document_id, connection_id, file_id_or_path):
         logger.error(f"Could not find Document or CloudConnection for import task. Doc ID: {document_id}, Conn ID: {connection_id}")
         return
     except CloudProviderError as e:
-        if 'document' in locals():
-            document.status = 'error'
-            document.status_message = f"Import failed: {e}"
-            document.save()
+        document.status = 'error'
+        document.status_message = f"Import failed: {e}"
+        document.save()
         logger.error(f"Cloud provider error during import for document {document_id}: {e}")
     except Exception as e:
-        if 'document' in locals():
-            document.status = 'error'
-            document.status_message = "An unexpected error occurred during import."
-            document.save()
+        document.status = 'error'
+        document.status_message = "An unexpected error occurred during import."
+        document.save()
         logger.exception(f"Unexpected error during cloud import for document {document_id}: {e}")
