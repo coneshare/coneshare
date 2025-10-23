@@ -11,8 +11,8 @@ from documents.serializers import DocumentSerializer
 from .models import CloudConnection
 from .providers import CloudProviderError, get_cloud_provider
 from .serializers import (CloudConnectionSerializer, CloudImportSerializer,
-                            DropboxCallbackSerializer,
-                            GoogleDriveCallbackSerializer)
+                          DropboxCallbackSerializer,
+                          GoogleDriveCallbackSerializer)
 from .services import create_document_for_import
 
 logger = logging.getLogger(__name__)
