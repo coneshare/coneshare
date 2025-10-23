@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/Table';
-import { Folder as FolderIcon, File as FileIcon, ArrowLeft, Loader2 } from 'lucide-react';
+import { Folder as FolderIcon, File as FileIcon, ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { listCloudFiles, importCloudFile } from '../../services/api';
 
@@ -18,6 +18,7 @@ function formatBytes(bytes, decimals = 2) {
 export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, onImportSuccess }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [importingFileId, setImportingFileId] = useState(null);
   const [currentPath, setCurrentPath] = useState('/');
   const [pathHistory, setPathHistory] = useState([]);
@@ -25,6 +26,7 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
   const fetchFiles = useCallback(async (path) => {
     if (!connection) return;
     setLoading(true);
+    setError(null);
     try {
       const response = await listCloudFiles(connection.id, path);
       // Sort folders first, then by name
@@ -36,12 +38,12 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
       setItems(sortedItems);
     } catch (error) {
       console.error(`Failed to list files from ${provider.display_name}:`, error);
-      // Toast is shown by interceptor
-      onOpenChange(false); // Close dialog on error
+      // Toast is shown by interceptor, but we also show an error in the dialog
+      setError(error.response?.data?.detail || `Failed to load files. Please try again.`);
     } finally {
       setLoading(false);
     }
-  }, [connection, provider, onOpenChange]);
+  }, [connection, provider]);
 
   useEffect(() => {
     if (isOpen) {
@@ -49,6 +51,7 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
       setCurrentPath('/');
       setPathHistory([]);
       setItems([]);
+      setError(null);
       fetchFiles('/');
     }
   }, [isOpen, fetchFiles]);
@@ -109,6 +112,14 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
         {loading ? (
           <div className="flex h-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+          </div>
+        ) : error ? (
+          <div className="flex h-full flex-col items-center justify-center p-4 text-center">
+            <AlertTriangle className="mb-2 h-8 w-8 text-destructive" />
+            <p className="text-sm text-muted-foreground">{error}</p>
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => fetchFiles(currentPath)}>
+              Retry
+            </Button>
           </div>
         ) : (
           <Table>
