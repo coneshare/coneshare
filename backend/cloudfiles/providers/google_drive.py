@@ -52,7 +52,7 @@ class GoogleDriveProvider(BaseCloudProvider):
             redirect_uri=self._get_redirect_uri()
         )
 
-    def get_authorization_url(self, request):
+    def get_authorization_url(self):
         flow = self._get_flow()
         authorization_url, state = flow.authorization_url(
             access_type='offline',

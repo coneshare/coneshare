@@ -1,12 +1,12 @@
 import logging
+import secrets
 from datetime import timedelta
 from io import BytesIO
-from urllib.parse import urljoin
+from urllib.parse import urlencode, urljoin
 
 import dropbox
 import httpx
 from django.conf import settings
-from django.urls import reverse
 from django.utils import timezone
 
 from .base import BaseCloudProvider, CloudProviderError
@@ -33,23 +33,22 @@ class DropboxProvider(BaseCloudProvider):
             "auth/dropbox/callback"  # This is a frontend route
         )
 
-    def _get_oauth_flow(self, request):
+    def get_authorization_url(self):
+        state = secrets.token_urlsafe(16)
         redirect_uri = self._get_redirect_uri()
-        return dropbox.DropboxOAuth2Flow(
-            consumer_key=self.app_key,
-            consumer_secret=self.app_secret,
-            redirect_uri=str(redirect_uri),
-            session=request.session,
-            csrf_token_session_key="dropbox-auth-csrf-token",
-            token_access_type="offline",  # or 'online' if you don’t need refresh tokens
-            scope=["account_info.read", "files.metadata.read", "files.content.read"],
-            include_granted_scopes="user",
-        )
+        scopes = ["account_info.read", "files.metadata.read", "files.content.read"]
 
-    def get_authorization_url(self, request):
-        oauth_flow = self._get_oauth_flow(request)
-        auth_url = oauth_flow.start()
-        state = request.session.get("dropbox-auth-csrf-token")
+        params = {
+            'client_id': self.app_key,
+            'response_type': 'code',
+            'redirect_uri': redirect_uri,
+            'state': state,
+            'token_access_type': 'offline',
+            'scope': " ".join(scopes),
+            'include_granted_scopes': 'user',
+        }
+
+        auth_url = f"https://www.dropbox.com/oauth2/authorize?{urlencode(params)}"
         return auth_url, state
 
     def handle_callback(self, code):

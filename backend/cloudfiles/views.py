@@ -64,7 +64,7 @@ class DropboxConnectView(APIView):
     def get(self, request, *args, **kwargs):
         try:
             provider = get_cloud_provider('dropbox')
-            auth_url, state = provider.get_authorization_url(request)
+            auth_url, state = provider.get_authorization_url()
             if not state:
                 raise CloudProviderError("Failed to generate CSRF state token.")
 
@@ -143,7 +143,7 @@ class GoogleDriveConnectView(APIView):
     def get(self, request, *args, **kwargs):
         try:
             provider = get_cloud_provider('google_drive')
-            auth_url, state = provider.get_authorization_url(request)
+            auth_url, state = provider.get_authorization_url()
             if not state:
                 raise CloudProviderError("Failed to generate CSRF state token.")
 
