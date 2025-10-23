@@ -17,6 +17,17 @@ def cloud_connection(user):
     )
 
 
+@pytest.fixture
+def google_drive_connection(user):
+    """Fixture for a Google Drive cloud connection."""
+    return CloudConnection.objects.create(
+        user=user,
+        provider='google_drive',
+        email='test@google.com',
+        access_token='test_access_token_google',
+    )
+
+
 @pytest.mark.django_db
 class TestCloudProviderListView:
     def test_list_providers_unauthenticated(self, public_client):
@@ -152,6 +163,92 @@ class TestDropboxCallbackView:
 
 
 @pytest.mark.django_db
+@patch('cloudfiles.views.cache')
+@patch('cloudfiles.views.get_cloud_service')
+class TestGoogleDriveConnectView:
+    def test_connect_returns_auth_url(self, mock_get_service, mock_cache, api_client, user):
+        mock_service_instance = MagicMock()
+        mock_service_instance.get_authorization_url.return_value = ('https://accounts.google.com/oauth', 'test_state_google')
+        mock_get_service.return_value = mock_service_instance
+
+        response = api_client.get('/api/v1/cloud/connect/google_drive/')
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == {'authorization_url': 'https://accounts.google.com/oauth'}
+        mock_get_service.assert_called_once_with('google_drive')
+        mock_service_instance.get_authorization_url.assert_called_once()
+        mock_cache.set.assert_called_once_with(f"google_drive_oauth_state_{user.id}", 'test_state_google', timeout=600)
+
+    def test_connect_service_error(self, mock_get_service, mock_cache, api_client):
+        from cloudfiles.cloud_services import CloudServiceError
+        mock_get_service.side_effect = CloudServiceError("Google error")
+
+        response = api_client.get('/api/v1/cloud/connect/google_drive/')
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.data['detail'] == "Google error"
+
+
+@pytest.mark.django_db
+class TestGoogleDriveCallbackView:
+    @patch('cloudfiles.views.cache')
+    @patch('cloudfiles.views.get_cloud_service')
+    def test_callback_success(self, mock_get_service, mock_cache, api_client, user):
+        mock_cache.get.return_value = 'test_state_google'
+        mock_service_instance = MagicMock()
+        mock_service_instance.handle_callback.return_value = {
+            'access_token': 'google_access_token',
+            'refresh_token': 'google_refresh_token',
+            'expires_at': None
+        }
+        mock_service_instance.get_user_info.return_value = {'email': 'user@google.com'}
+        mock_get_service.return_value = mock_service_instance
+
+        data = {'code': 'google_code', 'state': 'test_state_google'}
+        response = api_client.post('/api/v1/cloud/callback/google_drive/', data)
+
+        assert response.status_code == status.HTTP_200_OK
+        mock_cache.get.assert_called_once_with(f"google_drive_oauth_state_{user.id}")
+        mock_cache.delete.assert_called_once_with(f"google_drive_oauth_state_{user.id}")
+
+        assert CloudConnection.objects.filter(user=user, provider='google_drive').exists()
+        connection = CloudConnection.objects.get(user=user, provider='google_drive')
+        assert connection.access_token == 'google_access_token'
+        assert connection.email == 'user@google.com'
+
+        mock_get_service.assert_called_once_with('google_drive')
+        mock_service_instance.handle_callback.assert_called_once_with('google_code')
+        mock_service_instance.get_user_info.assert_called_once()
+
+    @patch('cloudfiles.views.cache')
+    def test_callback_invalid_state(self, mock_cache, api_client, user):
+        mock_cache.get.return_value = 'different_state'
+        data = {'code': 'google_code', 'state': 'test_state_google'}
+        response = api_client.post('/api/v1/cloud/callback/google_drive/', data)
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'Invalid state parameter' in response.data['detail']
+        mock_cache.get.assert_called_once_with(f"google_drive_oauth_state_{user.id}")
+        assert not mock_cache.delete.called
+        assert not CloudConnection.objects.filter(user=user, provider='google_drive').exists()
+
+    @patch('cloudfiles.views.cache')
+    def test_callback_missing_state_in_cache(self, mock_cache, api_client, user):
+        mock_cache.get.return_value = None
+        data = {'code': 'google_code', 'state': 'test_state_google'}
+        response = api_client.post('/api/v1/cloud/callback/google_drive/', data)
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'Invalid state parameter' in response.data['detail']
+        mock_cache.get.assert_called_once_with(f"google_drive_oauth_state_{user.id}")
+
+    def test_callback_missing_payload(self, api_client):
+        response = api_client.post('/api/v1/cloud/callback/google_drive/', {})
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'code' in response.data
+        assert 'state' in response.data
+
+
+@pytest.mark.django_db
 @patch('cloudfiles.views.get_cloud_service')
 class TestCloudFileListView:
     def test_list_files_success(self, mock_get_service, api_client, cloud_connection):
@@ -179,8 +276,16 @@ class TestCloudFileListView:
 @pytest.mark.django_db
 @patch('cloudfiles.services.import_from_cloud_task.delay')
 class TestCloudImportView:
-    def test_import_file_success(self, mock_task_delay, api_client, cloud_connection, user):
-        url = f'/api/v1/cloud/connections/{cloud_connection.id}/import/'
+    @pytest.mark.parametrize(
+        "connection_fixture_name, expected_folder_name",
+        [
+            ('cloud_connection', 'Dropbox Imports'),
+            ('google_drive_connection', 'Google Drive Imports')
+        ]
+    )
+    def test_import_file_success(self, mock_task_delay, api_client, user, connection_fixture_name, expected_folder_name, request):
+        connection = request.getfixturevalue(connection_fixture_name)
+        url = f'/api/v1/cloud/connections/{connection.id}/import/'
         data = {
             'file_id': '/test.pdf',
             'file_name': 'test.pdf',
@@ -195,11 +300,11 @@ class TestCloudImportView:
         assert doc.status == 'uploading'
 
         # Check that the import folder was created
-        assert Folder.objects.filter(name='Dropbox Imports', created_by=user).exists()
-        import_folder = Folder.objects.get(name='Dropbox Imports')
+        assert Folder.objects.filter(name=expected_folder_name, created_by=user).exists()
+        import_folder = Folder.objects.get(name=expected_folder_name)
         assert doc.folder == import_folder
 
-        mock_task_delay.assert_called_once_with(doc.id, cloud_connection.id, '/test.pdf')
+        mock_task_delay.assert_called_once_with(doc.id, connection.id, '/test.pdf')
 
     def test_import_file_too_large(self, mock_task_delay, api_client, cloud_connection):
         url = f'/api/v1/cloud/connections/{cloud_connection.id}/import/'
