@@ -854,7 +854,7 @@ class ShareLinkViewDataView(APIView):
             auth_status = authorized_links.get(str(link.id), {})
 
             # Step 2a: Check password first
-            if link.password_hash and not auth_status.get('password_verified'):
+            if link.password and not auth_status.get('password_verified'):
                 return Response(
                     {"message": "This link is password-protected. Please enter the password to continue.", "protectionType": "password"},
                     status=status.HTTP_401_UNAUTHORIZED

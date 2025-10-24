@@ -30,7 +30,7 @@ sequenceDiagram
         API->>DB: Validate token, user, and link
         Note right of API: Bypasses security checks. Deletes token.
     else No previewToken
-        API->>DB: Fetch Link details (e.g., password_hash)
+        API->>DB: Fetch Link details (e.g., password)
         alt Link is Password Protected
             API-->>Client: 401 Unauthorized + { "protectionType": "password" }
             Client->>Client: Render Password Form
@@ -106,7 +106,7 @@ class ShareLinkViewDataView(APIView):
             return Response({"message": "Link has expired"}, status=status.HTTP_410_GONE)
 
         # 2. Check for password protection
-        if not is_preview and link.password_hash:
+        if not is_preview and link.password:
             # V1 denies access. Future versions will implement a verification flow.
             return Response(
                 {"message": "Password required", "protectionType": "password"}, 
