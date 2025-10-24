@@ -1,5 +1,7 @@
 from django.db import models
 
+from django_cryptography.fields import encrypt
+
 from core.models import BaseModel, User
 
 
@@ -16,8 +18,8 @@ class CloudConnection(BaseModel):
     email = models.EmailField(blank=True)
     # In a production environment, these tokens should be encrypted at rest
     # using a library like django-cryptography.
-    access_token = models.TextField()
-    refresh_token = models.TextField(blank=True, null=True)
+    access_token = encrypt(models.TextField())
+    refresh_token = encrypt(models.TextField(blank=True, null=True))
     expires_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
