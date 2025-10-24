@@ -958,7 +958,7 @@ class ShareLinkVerifyPasswordView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         password = serializer.validated_data['password']
-        if password == link.password:
+        if secrets.compare_digest(password, link.password):
             # Password is correct. Store granular authorization in the session.
             authorized_links = request.session.get('authorized_share_links', {})
             if str(link.id) not in authorized_links:
