@@ -219,7 +219,6 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'name': {'required': True, 'allow_blank': True},
             'password': {
-                'write_only': True,
                 'required': False,
                 'allow_blank': True,
                 'style': {'input_type': 'password'}
