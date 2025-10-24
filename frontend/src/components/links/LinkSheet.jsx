@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { unstable_PasswordToggleField as PasswordToggleField } from 'radix-ui';
+import * as PasswordToggleField from '@radix-ui/react-password-toggle-field';
 import { EyeClosedIcon, EyeOpenIcon } from '@radix-ui/react-icons';
 import {
   createShareLink,
