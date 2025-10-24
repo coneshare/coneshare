@@ -10,7 +10,6 @@ from urllib.parse import urljoin
 from django.conf import settings
 from django.core.mail import send_mail
 from django.core.files.storage import default_storage
-from django.contrib.auth.hashers import check_password
 from django.db import transaction
 from django.db.models import F, Sum, Count
 from django.shortcuts import get_object_or_404
@@ -948,7 +947,7 @@ class ShareLinkVerifyPasswordView(APIView):
         except NotFound as e:
             return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
 
-        if not link.password_hash:
+        if not link.password:
             return Response(
                 {"message": "This link is not password protected."},
                 status=status.HTTP_400_BAD_REQUEST
@@ -959,7 +958,7 @@ class ShareLinkVerifyPasswordView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         password = serializer.validated_data['password']
-        if check_password(password, link.password_hash):
+        if password == link.password:
             # Password is correct. Store granular authorization in the session.
             authorized_links = request.session.get('authorized_share_links', {})
             if str(link.id) not in authorized_links:

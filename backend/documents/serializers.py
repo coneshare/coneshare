@@ -174,9 +174,6 @@ class ViewSessionSerializer(serializers.ModelSerializer):
 
 
 class ShareLinkSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(
-        write_only=True, required=False, allow_blank=True, style={'input_type': 'password'}
-    )
     has_password = serializers.SerializerMethodField()
     view_count = serializers.SerializerMethodField()
     recent_view_sessions = serializers.SerializerMethodField()
@@ -219,14 +216,22 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'created_by', 'slug', 'created_at', 'updated_at', 'document_name'
         ]
-        extra_kwargs = {'name': {'required': True, 'allow_blank': True}}
+        extra_kwargs = {
+            'name': {'required': True, 'allow_blank': True},
+            'password': {
+                'write_only': True,
+                'required': False,
+                'allow_blank': True,
+                'style': {'input_type': 'password'}
+            }
+        }
         # Remove the default UniqueTogetherValidator.
         # We handle uniqueness manually in `validate()` for updates and `create()` for creations.
         validators = []
 
     def get_has_password(self, obj):
         """Returns True if the link is password-protected."""
-        return obj.password_hash is not None
+        return bool(obj.password)
 
     def get_view_count(self, obj):
         """Returns the number of view sessions for the link."""
@@ -263,16 +268,6 @@ class ShareLinkSerializer(serializers.ModelSerializer):
                 return latest_session.viewed_at
         return None
 
-    def _hash_password(self, validated_data):
-        """Hashes the password if it exists in the validated data."""
-        if 'password' in validated_data:
-            password = validated_data.pop('password')
-            if password:
-                validated_data['password_hash'] = make_password(password)
-            else:
-                # If password is an empty string, treat it as clearing the password
-                validated_data['password_hash'] = None
-
     def create(self, validated_data):
         request = self.context['request']
         validated_data['created_by'] = request.user
@@ -282,11 +277,9 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         original_name = validated_data.get('name') or "Untitled Link"
         validated_data['name'] = _get_unique_share_link_name(document, original_name)
 
-        self._hash_password(validated_data)
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        self._hash_password(validated_data)
         return super().update(instance, validated_data)
 
 
