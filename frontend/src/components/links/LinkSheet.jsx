@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import * as PasswordToggleField from '@radix-ui/react-password-toggle-field';
-import { EyeClosedIcon, EyeOpenIcon } from '@radix-ui/react-icons';
 import {
   createShareLink,
   updateShareLink,
@@ -18,6 +16,7 @@ import {
   SheetTitle,
 } from '../ui/Sheet';
 import { Switch } from '../ui/Switch';
+import { PasswordInput } from '../ui/PasswordInput';
 
 export function LinkSheet({
   isOpen,
@@ -214,24 +213,13 @@ export function LinkSheet({
           {isPasswordEnabled && (
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <PasswordToggleField.Root>
-                <div className="relative">
-                  <PasswordToggleField.Input
-                    id="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter a password"
-                    autoFocus
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pr-10 text-sm ring-offset-background file:border-0 file:bg-transparent placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                  <PasswordToggleField.Toggle className="absolute inset-y-0 right-0 flex cursor-pointer items-center pr-3 text-muted-foreground hover:text-foreground">
-                    <PasswordToggleField.Icon
-                      visible={<EyeOpenIcon className="h-4 w-4" />}
-                      hidden={<EyeClosedIcon className="h-4 w-4" />}
-                    />
-                  </PasswordToggleField.Toggle>
-                </div>
-              </PasswordToggleField.Root>
+              <PasswordInput
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter a password"
+                autoFocus
+              />
             </div>
           )}
           <div className="flex items-center justify-between">
