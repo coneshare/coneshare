@@ -1,5 +1,4 @@
 import pytest
-from django.contrib.auth.hashers import check_password
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, force_authenticate
 
@@ -28,10 +27,9 @@ class TestShareLinkSerializer:
         instance = serializer.save()
 
         assert instance.name == "Untitled Link"
-        assert instance.password_hash is not None
-        assert check_password("testpassword", instance.password_hash)
+        assert instance.password is not None
+        assert instance.password == "testpassword"
         assert "password" not in serializer.data
-        assert "password_hash" not in serializer.data
         assert serializer.data["has_password"] is True
 
     def test_create_without_password(self, document, serializer_context):
@@ -42,12 +40,11 @@ class TestShareLinkSerializer:
         instance = serializer.save()
 
         assert instance.name == "Untitled Link"
-        assert instance.password_hash is None
-        assert "password_hash" not in serializer.data
+        assert instance.password is None
         assert serializer.data["has_password"] is False
 
     def test_update_to_add_password(self, share_link, serializer_context):
-        assert share_link.password_hash is None
+        assert share_link.password is None
 
         serializer = ShareLinkSerializer(
             instance=share_link,
@@ -61,11 +58,11 @@ class TestShareLinkSerializer:
         assert serializer.data["has_password"] is True
 
         instance.refresh_from_db()
-        assert instance.password_hash is not None
-        assert check_password("newpassword", instance.password_hash)
+        assert instance.password is not None
+        assert instance.password == "newpassword"
 
     def test_update_to_remove_password(self, share_link_with_password, serializer_context):
-        assert share_link_with_password.password_hash is not None
+        assert share_link_with_password.password is not None
 
         serializer = ShareLinkSerializer(
             instance=share_link_with_password,
@@ -79,7 +76,7 @@ class TestShareLinkSerializer:
         assert serializer.data["has_password"] is False
 
         instance.refresh_from_db()
-        assert instance.password_hash is None
+        assert instance.password is None
 
     def test_view_count_and_sessions_serialization(self, share_link, serializer_context):
         """
