@@ -76,7 +76,7 @@ class TestShareLinkSerializer:
         assert serializer.data["has_password"] is False
 
         instance.refresh_from_db()
-        assert instance.password is None
+        assert instance.password == ''
 
     def test_view_count_and_sessions_serialization(self, share_link, serializer_context):
         """

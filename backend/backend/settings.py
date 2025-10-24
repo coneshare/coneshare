@@ -241,14 +241,6 @@ except Exception as e:
 # Site domain (for constructing absolute URLs)
 SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'http://localhost:5173')
 
-
-# Field Encryption Key derived from SECRET_KEY
-# This creates a valid 32-byte key for Fernet.
-derived_key = hashlib.sha256(SECRET_KEY.encode('utf-8')).digest()
-FIELD_ENCRYPTION_KEY = base64.urlsafe_b64encode(derived_key)
-FERNET_KEYS = [FIELD_ENCRYPTION_KEY]
-
-
 # Cloud Services Configuration
 # A list of enabled cloud providers.
 # Example: ENABLED_CLOUD_PROVIDERS = ["dropbox", "google_drive"]
