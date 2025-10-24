@@ -1,6 +1,5 @@
 import pytest
 from django.contrib.auth import get_user_model
-from django.contrib.auth.hashers import make_password
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
 
@@ -69,7 +68,7 @@ def share_link(document, user):
 @pytest.fixture
 def share_link_with_password(share_link):
     """Fixture to create a share link that has a password."""
-    share_link.password_hash = make_password("password123")
+    share_link.password = "password123"
     share_link.save()
     return share_link
 

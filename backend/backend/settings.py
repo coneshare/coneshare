@@ -16,6 +16,8 @@ import os
 import re
 import sys
 import json
+import base64
+import hashlib
 
 from django.contrib.gis.geoip2 import GeoIP2
 
@@ -237,7 +239,6 @@ except Exception as e:
 
 # Site domain (for constructing absolute URLs)
 SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'http://localhost:5173')
-
 
 # Cloud Services Configuration
 # A list of enabled cloud providers.

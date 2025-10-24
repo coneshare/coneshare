@@ -5,6 +5,8 @@ from django.db import models
 from django.utils import timezone
 from datetime import timedelta
 
+from django_cryptography.fields import encrypt
+
 from core.fields import ULIDField
 from core.models import BaseModel, Organization, User
 
@@ -139,7 +141,7 @@ class ShareLink(BaseModel):
     name = models.CharField(max_length=255, blank=True)
     slug = models.CharField(max_length=50, unique=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
-    password_hash = models.CharField(max_length=255, null=True, blank=True)
+    password = encrypt(models.CharField(max_length=255, null=True, blank=True))
     requires_email = models.BooleanField(default=False)
     requires_email_verification = models.BooleanField(default=False)
     allow_download = models.BooleanField(default=True)

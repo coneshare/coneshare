@@ -30,7 +30,7 @@ sequenceDiagram
         API->>DB: Validate token, user, and link
         Note right of API: Bypasses security checks. Deletes token.
     else No previewToken
-        API->>DB: Fetch Link details (e.g., password_hash)
+        API->>DB: Fetch Link details (e.g., password)
         alt Link is Password Protected
             API-->>Client: 401 Unauthorized + { "protectionType": "password" }
             Client->>Client: Render Password Form
@@ -106,7 +106,7 @@ class ShareLinkViewDataView(APIView):
             return Response({"message": "Link has expired"}, status=status.HTTP_410_GONE)
 
         # 2. Check for password protection
-        if not is_preview and link.password_hash:
+        if not is_preview and link.password:
             # V1 denies access. Future versions will implement a verification flow.
             return Response(
                 {"message": "Password required", "protectionType": "password"}, 
@@ -214,3 +214,54 @@ Once the frontend successfully fetches the document data, it initiates the track
     -   **Performance**: For identified viewers, storing the email directly on the `ViewSession` record avoids an extra database `JOIN` to the `Viewer` table. This significantly improves performance when fetching lists of views for analytics dashboards.
 
 4.  **Associating Views with Emails**: The backend uses the Django session to link an email to a view session. When a user successfully authenticates for a protected link (e.g., via password and/or email), their email is stored in the session. When the frontend subsequently calls the `POST /api/v1/view-sessions/` endpoint, the backend retrieves this email from the session and associates it with the new `ViewSession` record, creating a `Viewer` record if one doesn't already exist.
+
+---
+
+## Share Link Password Encryption & Key Management
+
+To enhance security and usability (e.g., allowing users to view their own passwords), the system was updated to encrypt share link passwords at rest instead of using a one-way hash. This is implemented using the `django-cryptography` library.
+
+### 1. Implementation Overview
+
+-   **Model Change**: The `password_hash` field on the `ShareLink` model was replaced with `password`, which is an `EncryptedCharField`. This allows for two-way encryption and decryption.
+-   **API Changes**: The `ShareLinkSerializer` was updated to remove password hashing logic, and the `ShareLinkVerifyPasswordView` was changed to perform a direct string comparison for password verification instead of using `check_password`.
+
+### 2. Encryption Key Management
+
+The security of the encrypted passwords depends entirely on the management of the encryption key(s).
+
+#### Recommended Approach: Dedicated Environment Key
+
+The most robust approach is to use a dedicated, separate key for field encryption, stored in an environment variable (`FIELD_ENCRYPTION_KEY`).
+
+-   **Generation**: A new key can be generated with: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
+-   **Configuration**: `settings.py` is configured to read a comma-separated list of keys from this environment variable into the `FERNET_KEYS` setting.
+
+#### Key Rotation (Handling a Key Leak)
+
+The `django-cryptography` library supports graceful key rotation. If a key is compromised:
+1.  **Generate a new key.**
+2.  **Prepend the new key** to the `FIELD_ENCRYPTION_KEY` environment variable (e.g., `FIELD_ENCRYPTION_KEY=new-key,old-compromised-key`).
+3.  **Deploy the application.** The new key will be used for all new encryptions, while the old key can still be used for decryption.
+4.  **Re-encrypt data** by running a script to re-save all `ShareLink` objects.
+5.  **Remove the old key** from the environment variable once all data is re-encrypted.
+
+#### Alternative: Deriving from `SECRET_KEY`
+
+For simplicity in some environments, the encryption key can be derived from Django's `SECRET_KEY`.
+
+```python
+# settings.py
+import hashlib
+import base64
+
+derived_key = hashlib.sha256(SECRET_KEY.encode('utf-8')).digest()
+FIELD_ENCRYPTION_KEY = base64.urlsafe_b64encode(derived_key)
+FERNET_KEYS = [FIELD_ENCRYPTION_KEY]
+```
+
+**Warning**: With this method, if you ever change the `SECRET_KEY`, a new encryption key will be derived, and you will **lose access** to all data encrypted with the old key.
+
+To handle a `SECRET_KEY` update with this approach, you would need to:
+1.  Before changing `SECRET_KEY`, calculate and store the current derived key value.
+2.  After updating `SECRET_KEY`, manually construct the `FERNET_KEYS` list in your settings file to include both the newly derived key and the old key you saved (e.g., `FERNET_KEYS = [new_derived_key, 'old-saved-key-value']`).

@@ -154,7 +154,7 @@ A secure, configurable link for sharing a `Document` or `Dataroom`.
 -   **name**: String (Optional, for internal identification)
 -   **slug**: String, Unique (The public part of the URL)
 -   **expires_at**: DateTime (Nullable)
--   **password_hash**: String (Nullable)
+-   **password**: String (Encrypted, Nullable)
 -   **requires_email**: Boolean
 -   **requires_email_verification**: Boolean
 -   **allow_download**: Boolean

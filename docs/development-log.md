@@ -1104,10 +1104,14 @@ This session delivers a significant new feature: the ability for users to import
 -	New Dependencies: Added several new Python packages to requirements.txt to support cloud integrations, including dropbox, django-redis, httpx, google-api-python-client, and google-auth-oauthlib.
 -	Settings Configuration: Updated settings.py to include configuration for enabled cloud providers, default import folder mappings, and API credentials. Also added Redis cache configuration and a local_settings loading mechanism.
 
-		
-		
-		
-		
-		
 
+## Session 47: Encrypt Share Link Password  (2025-10-24)
+
+This session significantly enhances the security and flexibility of share link passwords by transitioning from a hashed storage mechanism to an encrypted one. By adopting the django-cryptography library, passwords for share links are now encrypted at rest, allowing for features like password retrieval while maintaining data protection. The changes span across the backend, including model definitions, API serialization, and verification logic, and are complemented by frontend updates for a more user-friendly password input experience. [https://github.com/coneshare/coneshare/pull/50](https://github.com/coneshare/coneshare/pull/50)
+
+ -	Backend Password Encryption: Replaced one-way password hashing with two-way encryption for ShareLink passwords using django-cryptography, enhancing security and usability by allowing passwords to be retrieved.
+ -	Model and Migration Updates: The ShareLink model's password_hash field was replaced with an encrypted password field, accompanied by a new database migration to reflect this change.
+ -	API and Serialization Logic Refinement: Modified ShareLinkSerializer and ShareLinkVerifyPasswordView to remove manual hashing logic and use direct string comparison for encrypted passwords, simplifying the authentication flow.
+ -	Frontend Password Input Component: Integrated a new PasswordInput component in the LinkSheet to provide toggleable password visibility and streamlined password management logic for a better user experience.
+ -	Comprehensive Documentation: Updated data model and view logic documentation, including a detailed section on encryption key management, key rotation strategies, and alternative key derivation methods.
 

@@ -16,6 +16,7 @@ import {
   SheetTitle,
 } from '../ui/Sheet';
 import { Switch } from '../ui/Switch';
+import { PasswordInput } from '../ui/PasswordInput';
 
 export function LinkSheet({
   isOpen,
@@ -37,7 +38,6 @@ export function LinkSheet({
   const [isSaving, setIsSaving] = useState(false);
 
   const isEditing = !!currentLink;
-  const DUMMY_PASSWORD = '●●●●●●●●';
   const isWatermarkable = document?.type === 'pdf' || document?.type === 'document';
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export function LinkSheet({
       setRequiresEmailVerification(currentLink.requires_email_verification || false);
       setAllowDownload(currentLink.allow_download);
       setIsPasswordEnabled(currentLink.has_password);
-      setPassword(currentLink.has_password ? DUMMY_PASSWORD : '');
+      setPassword(currentLink.password || '');
       if (currentLink.expires_at) {
         const d = new Date(currentLink.expires_at);
         // Format date to YYYY-MM-DDTHH:mm for datetime-local input in user's local timezone
@@ -98,21 +98,11 @@ export function LinkSheet({
       expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
     };
 
-    if (isEditing) {
-      if (isPasswordEnabled) {
-        // Only include password in payload if it has been changed from the dummy value.
-        // This prevents accidental password changes. An empty string means removal.
-        if (password !== DUMMY_PASSWORD) {
-          linkData.password = password;
-        }
-      } else {
-        // If the switch is off, explicitly remove the password.
-        linkData.password = '';
-      }
-    } else { // Creating a new link
-      if (isPasswordEnabled) {
-        linkData.password = password;
-      }
+    if (isPasswordEnabled) {
+      linkData.password = password;
+    } else {
+      // If creating without a password, or editing to remove password, send empty string.
+      linkData.password = '';
     }
 
     try {
@@ -223,16 +213,11 @@ export function LinkSheet({
           {isPasswordEnabled && (
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder={
-                  isEditing && currentLink.has_password
-                    ? 'Enter new password (blank to remove)'
-                    : 'Enter a password'
-                }
+                placeholder="Enter a password"
                 autoFocus
               />
             </div>
