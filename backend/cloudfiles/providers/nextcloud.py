@@ -2,7 +2,7 @@ import logging
 import secrets
 import xml.etree.ElementTree as ET
 from io import BytesIO
-from urllib.parse import urlencode, urljoin
+from urllib.parse import urlencode, urljoin, unquote
 
 import httpx
 from django.conf import settings
@@ -133,7 +133,7 @@ class NextcloudProvider(BaseCloudProvider):
                     if href.rstrip('/') == base_href:
                         continue
 
-                    name = href.strip('/').split('/')[-1]
+                    name = unquote(href.strip('/').split('/')[-1])
                     is_folder = prop.find('d:resourcetype', ns).find('d:collection', ns) is not None
                     size_el = prop.find('d:getcontentlength', ns)
                     size = int(size_el.text) if size_el is not None and size_el.text else None
@@ -158,7 +158,7 @@ class NextcloudProvider(BaseCloudProvider):
             try:
                 with client.stream('GET', download_url) as response:
                     response.raise_for_status()
-                    file_name = file_id.strip('/').split('/')[-1]
+                    file_name = unquote(file_id.strip('/').split('/')[-1])
                     size = int(response.headers.get('content-length', 0))
                     content = BytesIO(response.read())
 
