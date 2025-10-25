@@ -18,6 +18,7 @@ class NextcloudProvider(BaseCloudProvider):
 
     def __init__(self, connection=None):
         super().__init__(connection)
+        self._user_info_cache = None
         self.host = getattr(settings, 'NEXT_CLOUD_HOST', None)
         self.client_id = getattr(settings, 'NEXT_CLOUD_CLIENT_ID', None)
         self.client_secret = getattr(settings, 'NEXT_CLOUD_CLIENT_SECRET', None)
@@ -82,6 +83,9 @@ class NextcloudProvider(BaseCloudProvider):
         return httpx.Client(headers=headers)
 
     def get_user_info(self):
+        if self._user_info_cache:
+            return self._user_info_cache
+
         user_info_url = f"{self.host.rstrip('/')}/ocs/v2.php/cloud/user?format=json"
         with self._get_client() as client:
             try:
@@ -89,10 +93,12 @@ class NextcloudProvider(BaseCloudProvider):
                 response.raise_for_status()
                 data = response.json()
                 user_data = data.get('ocs', {}).get('data', {})
-                return {
+                user_info = {
                     'email': user_data.get('email'),
                     'user_id': user_data.get('id'),
                 }
+                self._user_info_cache = user_info
+                return user_info
             except httpx.HTTPStatusError as e:
                 logger.error(f"Nextcloud get_user_info failed: {e}")
                 raise CloudProviderError(f"Nextcloud get_user_info failed: {e}")
