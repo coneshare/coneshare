@@ -6,6 +6,7 @@ from urllib.parse import urlencode, urljoin, unquote
 
 import httpx
 from django.conf import settings
+from django.core.cache import cache
 
 from .base import BaseCloudProvider, CloudProviderError
 
@@ -18,7 +19,6 @@ class NextcloudProvider(BaseCloudProvider):
 
     def __init__(self, connection=None):
         super().__init__(connection)
-        self._user_info_cache = None
         self.host = getattr(settings, 'NEXT_CLOUD_HOST', None)
         self.client_id = getattr(settings, 'NEXT_CLOUD_CLIENT_ID', None)
         self.client_secret = getattr(settings, 'NEXT_CLOUD_CLIENT_SECRET', None)
@@ -83,8 +83,13 @@ class NextcloudProvider(BaseCloudProvider):
         return httpx.Client(headers=headers)
 
     def get_user_info(self):
-        if self._user_info_cache:
-            return self._user_info_cache
+        if not self.connection:
+            raise CloudProviderError("Connection is required to retrieve user info.")
+
+        cache_key = f"nextcloud_user_info_{self.connection.id}"
+        cached_info = cache.get(cache_key)
+        if cached_info:
+            return cached_info
 
         user_info_url = f"{self.host.rstrip('/')}/ocs/v2.php/cloud/user?format=json"
         with self._get_client() as client:
@@ -97,7 +102,8 @@ class NextcloudProvider(BaseCloudProvider):
                     'email': user_data.get('email'),
                     'user_id': user_data.get('id'),
                 }
-                self._user_info_cache = user_info
+                # Cache user info for 1 hour to reduce API calls
+                cache.set(cache_key, user_info, timeout=3600)
                 return user_info
             except httpx.HTTPStatusError as e:
                 logger.error(f"Nextcloud get_user_info failed: {e}")
