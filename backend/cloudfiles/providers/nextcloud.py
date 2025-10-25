@@ -104,11 +104,15 @@ class NextcloudProvider(BaseCloudProvider):
         if not user_id:
             raise CloudProviderError("Could not determine Nextcloud user ID.")
 
-        if path == '/':
-            path = ''  # For root, list the base user directory
-
-        webdav_path = path.lstrip('/')
-        webdav_url = f"{self.host.rstrip('/')}/remote.php/dav/files/{user_id}/{webdav_path}"
+        # Check if the path is already a full WebDAV path from a previous API call.
+        if path.startswith(f"/remote.php/dav/files/{user_id}"):
+            webdav_url = urljoin(self.host, path)
+            base_href = path.rstrip('/')
+        else:
+            # Handle the root folder case.
+            webdav_path_segment = '' if path == '/' else path.lstrip('/')
+            webdav_url = f"{self.host.rstrip('/')}/remote.php/dav/files/{user_id}/{webdav_path_segment}"
+            base_href = f"/remote.php/dav/files/{user_id}/{webdav_path_segment}".rstrip('/')
 
         with self._get_client() as client:
             try:
@@ -119,10 +123,6 @@ class NextcloudProvider(BaseCloudProvider):
                 root = ET.fromstring(response.content)
                 items = []
                 ns = {'d': 'DAV:'}
-
-                # Construct the path of the directory we are listing to skip it in the results
-                # The hrefs are absolute paths from the domain root
-                base_href = f"/remote.php/dav/files/{user_id}/{webdav_path}".rstrip('/')
 
                 for resp in root.findall('d:response', ns):
                     href = resp.find('d:href', ns).text
