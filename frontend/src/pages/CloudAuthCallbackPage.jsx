@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, Link, useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { completeDropboxConnect, completeGoogleDriveConnect } from '../services/api';
+import { completeDropboxConnect, completeGoogleDriveConnect, completeNextcloudConnect } from '../services/api';
 
 const providerConfig = {
   dropbox: {
@@ -11,6 +11,10 @@ const providerConfig = {
   google_drive: {
     displayName: 'Google Drive',
     apiCall: completeGoogleDriveConnect,
+  },
+  nextcloud: {
+    displayName: 'Nextcloud',
+    apiCall: completeNextcloudConnect,
   },
 };
 
