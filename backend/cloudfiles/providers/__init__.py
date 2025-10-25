@@ -1,10 +1,12 @@
 from .base import CloudProviderError
 from .dropbox import DropboxProvider
 from .google_drive import GoogleDriveProvider
+from .nextcloud import NextcloudProvider
 
 PROVIDER_REGISTRY = {
     'dropbox': DropboxProvider,
     'google_drive': GoogleDriveProvider,
+    'nextcloud': NextcloudProvider,
 }
 
 

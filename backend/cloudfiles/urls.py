@@ -9,6 +9,8 @@ urlpatterns = [
     path('callback/dropbox/', views.DropboxCallbackView.as_view(), name='dropbox-oauth-callback'),
     path('connect/google_drive/', views.GoogleDriveConnectView.as_view(), name='google-drive-oauth-connect'),
     path('callback/google_drive/', views.GoogleDriveCallbackView.as_view(), name='google-drive-oauth-callback'),
+    path('connect/nextcloud/', views.NextcloudConnectView.as_view(), name='nextcloud-oauth-connect'),
+    path('callback/nextcloud/', views.NextcloudCallbackView.as_view(), name='nextcloud-oauth-callback'),
     path('connections/<str:connection_id>/list/', views.CloudFileListView.as_view(), name='cloud-file-list'),
     path('connections/<str:connection_id>/import/', views.CloudImportView.as_view(), name='cloud-import'),
 ]
