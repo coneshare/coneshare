@@ -1,5 +1,6 @@
 import logging
 import secrets
+import tempfile
 import xml.etree.ElementTree as ET
 from io import BytesIO
 from urllib.parse import urlencode, urljoin, unquote
@@ -172,7 +173,13 @@ class NextcloudProvider(BaseCloudProvider):
                     response.raise_for_status()
                     file_name = unquote(file_id.strip('/').split('/')[-1])
                     size = int(response.headers.get('content-length', 0))
-                    content = BytesIO(response.read())
+
+                    # Use a spooled temporary file to avoid loading large files into memory.
+                    # It spills to disk if the file is larger than 5MB.
+                    content = tempfile.SpooledTemporaryFile(max_size=5 * 1024 * 1024)
+                    for chunk in response.iter_bytes():
+                        content.write(chunk)
+                    content.seek(0)
 
                     return {
                         'name': file_name,
