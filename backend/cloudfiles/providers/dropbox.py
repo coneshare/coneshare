@@ -1,5 +1,6 @@
 import logging
 import secrets
+import tempfile
 from datetime import timedelta
 from io import BytesIO
 from urllib.parse import urlencode, urljoin
@@ -159,11 +160,18 @@ class DropboxProvider(BaseCloudProvider):
         client = self._get_client()
         try:
             metadata, response = client.files_download(file_path)
-            file_content = BytesIO(response.content)
+
+            # Use a spooled temporary file to avoid loading large files into memory.
+            # It spills to disk if the file is larger than 5MB.
+            content = tempfile.SpooledTemporaryFile(max_size=5 * 1024 * 1024)
+            for chunk in response.iter_content(chunk_size=4096):
+                content.write(chunk)
+            content.seek(0)
+
             return {
                 'name': metadata.name,
                 'size': metadata.size,
-                'content': file_content
+                'content': content
             }
         except dropbox.exceptions.ApiError as e:
             raise CloudProviderError(f"Dropbox download error: {e}")

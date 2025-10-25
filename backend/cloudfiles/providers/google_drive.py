@@ -1,4 +1,5 @@
 import logging
+import tempfile
 from io import BytesIO
 from urllib.parse import urljoin
 
@@ -149,7 +150,9 @@ class GoogleDriveProvider(BaseCloudProvider):
             request = service.files().get_media(fileId=file_id)
             file_metadata = service.files().get(fileId=file_id, fields='name, size').execute()
             
-            fh = BytesIO()
+            # Use a spooled temporary file to avoid loading large files into memory.
+            # It spills to disk if the file is larger than 5MB.
+            fh = tempfile.SpooledTemporaryFile(max_size=5 * 1024 * 1024)
             downloader = MediaIoBaseDownload(fh, request)
             done = False
             while not done:

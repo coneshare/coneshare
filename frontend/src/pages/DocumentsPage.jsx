@@ -12,7 +12,7 @@ import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl } from '../services/api';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
@@ -153,6 +153,8 @@ function DocumentsPage() {
           response = await getDropboxConnectUrl();
         } else if (provider.name === 'google_drive') {
           response = await getGoogleDriveConnectUrl();
+        } else if (provider.name === 'nextcloud') {
+          response = await getNextcloudConnectUrl();
         } else {
           toast.error(`Connecting to ${provider.display_name} is not supported yet.`);
           return;

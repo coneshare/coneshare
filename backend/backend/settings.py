@@ -243,12 +243,13 @@ SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'http://localhost:5173')
 # Cloud Services Configuration
 # A list of enabled cloud providers.
 # Example: ENABLED_CLOUD_PROVIDERS = ["dropbox", "google_drive"]
-ENABLED_CLOUD_PROVIDERS = ["dropbox", "google_drive"]
+ENABLED_CLOUD_PROVIDERS = ["dropbox", "google_drive", "nextcloud"]
 
 # A dictionary mapping cloud providers to their default import folder names.
 CLOUD_IMPORT_FOLDER_MAPPING = {
     "dropbox": "Dropbox Imports",
     "google_drive": "Google Drive Imports",
+    "nextcloud": "Nextcloud Imports",
 }
 
 # Maximum file size in megabytes for cloud imports.
@@ -264,6 +265,13 @@ DROPBOX_APP_SECRET = ''
 # Get these from your Google Cloud Console.
 GOOGLE_DRIVE_CLIENT_ID = ''
 GOOGLE_DRIVE_CLIENT_SECRET = ''
+
+
+# Nextcloud API Credentials
+# Get these from your Nextcloud Admin Panel.
+NEXT_CLOUD_HOST = ''  # e.g., 'https://cloud.example.com'
+NEXT_CLOUD_CLIENT_ID = ''
+NEXT_CLOUD_CLIENT_SECRET = ''
 
 
 def load_local_settings(module):

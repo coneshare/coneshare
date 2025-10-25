@@ -12,6 +12,7 @@ class CloudConnection(BaseModel):
     PROVIDER_CHOICES = [
         ('dropbox', 'Dropbox'),
         ('google_drive', 'Google Drive'),
+        ('nextcloud', 'Nextcloud'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cloud_connections')
     provider = models.CharField(max_length=50, choices=PROVIDER_CHOICES)

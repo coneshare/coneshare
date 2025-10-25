@@ -28,6 +28,17 @@ def google_drive_connection(user):
     )
 
 
+@pytest.fixture
+def nextcloud_connection(user):
+    """Fixture for a Nextcloud cloud connection."""
+    return CloudConnection.objects.create(
+        user=user,
+        provider='nextcloud',
+        email='test@nextcloud.com',
+        access_token='test_access_token_nextcloud',
+    )
+
+
 @pytest.mark.django_db
 class TestCloudProviderListView:
     def test_list_providers_unauthenticated(self, public_client):
@@ -249,6 +260,92 @@ class TestGoogleDriveCallbackView:
 
 
 @pytest.mark.django_db
+@patch('cloudfiles.views.cache')
+@patch('cloudfiles.views.get_cloud_provider')
+class TestNextcloudConnectView:
+    def test_connect_returns_auth_url(self, mock_get_provider, mock_cache, api_client, user):
+        mock_provider_instance = MagicMock()
+        mock_provider_instance.get_authorization_url.return_value = ('https://cloud.example.com/oauth', 'test_state_nextcloud')
+        mock_get_provider.return_value = mock_provider_instance
+
+        response = api_client.get('/api/v1/cloud/connect/nextcloud/')
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == {'authorization_url': 'https://cloud.example.com/oauth'}
+        mock_get_provider.assert_called_once_with('nextcloud')
+        mock_provider_instance.get_authorization_url.assert_called_once()
+        mock_cache.set.assert_called_once_with(f"nextcloud_oauth_state_{user.id}", 'test_state_nextcloud', timeout=600)
+
+    def test_connect_service_error(self, mock_get_provider, mock_cache, api_client):
+        from cloudfiles.providers import CloudProviderError
+        mock_get_provider.side_effect = CloudProviderError("Nextcloud error")
+
+        response = api_client.get('/api/v1/cloud/connect/nextcloud/')
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.data['detail'] == "Nextcloud error"
+
+
+@pytest.mark.django_db
+class TestNextcloudCallbackView:
+    @patch('cloudfiles.views.cache')
+    @patch('cloudfiles.views.get_cloud_provider')
+    def test_callback_success(self, mock_get_provider, mock_cache, api_client, user):
+        mock_cache.get.return_value = 'test_state_nextcloud'
+        mock_provider_instance = MagicMock()
+        mock_provider_instance.handle_callback.return_value = {
+            'access_token': 'nextcloud_access_token',
+            'refresh_token': 'nextcloud_refresh_token',
+            'expires_at': None
+        }
+        mock_provider_instance.get_user_info.return_value = {'email': 'user@nextcloud.com'}
+        mock_get_provider.return_value = mock_provider_instance
+
+        data = {'code': 'nextcloud_code', 'state': 'test_state_nextcloud'}
+        response = api_client.post('/api/v1/cloud/callback/nextcloud/', data)
+
+        assert response.status_code == status.HTTP_200_OK
+        mock_cache.get.assert_called_once_with(f"nextcloud_oauth_state_{user.id}")
+        mock_cache.delete.assert_called_once_with(f"nextcloud_oauth_state_{user.id}")
+
+        assert CloudConnection.objects.filter(user=user, provider='nextcloud').exists()
+        connection = CloudConnection.objects.get(user=user, provider='nextcloud')
+        assert connection.access_token == 'nextcloud_access_token'
+        assert connection.email == 'user@nextcloud.com'
+
+        mock_get_provider.assert_called_once_with('nextcloud')
+        mock_provider_instance.handle_callback.assert_called_once_with('nextcloud_code')
+        mock_provider_instance.get_user_info.assert_called_once()
+
+    @patch('cloudfiles.views.cache')
+    def test_callback_invalid_state(self, mock_cache, api_client, user):
+        mock_cache.get.return_value = 'different_state'
+        data = {'code': 'nextcloud_code', 'state': 'test_state_nextcloud'}
+        response = api_client.post('/api/v1/cloud/callback/nextcloud/', data)
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'Invalid state parameter' in response.data['detail']
+        mock_cache.get.assert_called_once_with(f"nextcloud_oauth_state_{user.id}")
+        assert not mock_cache.delete.called
+        assert not CloudConnection.objects.filter(user=user, provider='nextcloud').exists()
+
+    @patch('cloudfiles.views.cache')
+    def test_callback_missing_state_in_cache(self, mock_cache, api_client, user):
+        mock_cache.get.return_value = None
+        data = {'code': 'nextcloud_code', 'state': 'test_state_nextcloud'}
+        response = api_client.post('/api/v1/cloud/callback/nextcloud/', data)
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'Invalid state parameter' in response.data['detail']
+        mock_cache.get.assert_called_once_with(f"nextcloud_oauth_state_{user.id}")
+
+    def test_callback_missing_payload(self, api_client):
+        response = api_client.post('/api/v1/cloud/callback/nextcloud/', {})
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'code' in response.data
+        assert 'state' in response.data
+
+
+@pytest.mark.django_db
 @patch('cloudfiles.views.get_cloud_provider')
 class TestCloudFileListView:
     def test_list_files_success(self, mock_get_provider, api_client, cloud_connection):
@@ -280,7 +377,8 @@ class TestCloudImportView:
         "connection_fixture_name, expected_folder_name",
         [
             ('cloud_connection', 'Dropbox Imports'),
-            ('google_drive_connection', 'Google Drive Imports')
+            ('google_drive_connection', 'Google Drive Imports'),
+            ('nextcloud_connection', 'Nextcloud Imports')
         ]
     )
     def test_import_file_success(self, mock_task_delay, api_client, user, connection_fixture_name, expected_folder_name, request):

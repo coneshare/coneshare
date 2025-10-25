@@ -1115,3 +1115,25 @@ This session significantly enhances the security and flexibility of share link p
  -	Frontend Password Input Component: Integrated a new PasswordInput component in the LinkSheet to provide toggleable password visibility and streamlined password management logic for a better user experience.
  -	Comprehensive Documentation: Updated data model and view logic documentation, including a detailed section on encryption key management, key rotation strategies, and alternative key derivation methods.
 
+---
+
+## Session 48: Nextcloud Integration & Bug Fix (2025-10-25)
+
+This session focused on extending the cloud import functionality by adding support for self-hosted Nextcloud instances, integrating it into the frontend, and resolving a follow-up bug related to file browsing. [https://github.com/coneshare/coneshare/pull/51](https://github.com/coneshare/coneshare/pull/51)
+
+### 1. Nextcloud Provider Implementation (Backend)
+- **New Provider**: A new `NextcloudProvider` was created in `cloudfiles/providers/nextcloud.py` to handle the Nextcloud-specific OAuth2 flow and file operations. ([`06c025c`](https://github.com/coneshare/coneshare/commit/06c025c))
+- **Configuration**: Added new settings (`NEXT_CLOUD_HOST`, `NEXT_CLOUD_CLIENT_ID`, `NEXT_CLOUD_CLIENT_SECRET`) to `settings.py` to allow administrators to connect to their own Nextcloud instances.
+- **API Integration**: Implemented new API views (`NextcloudConnectView`, `NextcloudCallbackView`) and URLs to manage the OAuth2 connection flow.
+- **WebDAV for File Operations**: The provider uses the Nextcloud WebDAV API for listing and downloading files.
+
+### 2. Frontend Integration
+- **API Services**: Added `getNextcloudConnectUrl` and `completeNextcloudConnect` functions to `services/api.js`. ([`cb8c96d`](https://github.com/coneshare/coneshare/commit/cb8c96d))
+- **UI Updates**:
+  - The "Upload" dropdown in `DocumentsPage.jsx` now dynamically displays Nextcloud as an option.
+  - The `CloudAuthCallbackPage.jsx` was updated to handle the OAuth2 callback from Nextcloud.
+
+### 3. Subfolder Listing Bug Fix
+- **Problem**: A bug was identified where browsing into a subfolder in a Nextcloud drive would fail with a `404 Not Found` error. This was caused by incorrect URL construction in the `list_files` method.
+- **Solution**: The `NextcloudProvider`'s `list_files` method was refactored to correctly handle both root and subfolder paths, preventing the duplication of URL segments and resolving the error.
+
