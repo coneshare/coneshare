@@ -59,7 +59,7 @@ export function DataroomPage() {
           <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted bg-muted/20 p-12 text-center">
             <h3 className="text-xl font-semibold tracking-tight">This dataroom is empty</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Add content to start sharing.
+              A Dataroom is a place to securely organize and share documents with granular access control.
             </p>
             <Button className="mt-4" variant="outline">
               <DocumentPlusIcon className="mr-2 h-4 w-4" />

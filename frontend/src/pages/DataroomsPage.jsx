@@ -112,14 +112,14 @@ export function DataroomsPage() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <DropdownMenu.Item
-                      onSelect={() => setDataroomToRename(dataroom)}
+                      onClick={() => setDataroomToRename(dataroom)}
                       className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
                     >
                       <Pencil className="mr-2 h-4 w-4" />
                       <span>Rename</span>
                     </DropdownMenu.Item>
                     <DropdownMenu.Item
-                      onSelect={() => toast.info('Share functionality coming soon!')}
+                      onClick={() => toast.info('Share functionality coming soon!')}
                       className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
                     >
                       <Share2 className="mr-2 h-4 w-4" />
@@ -127,7 +127,7 @@ export function DataroomsPage() {
                     </DropdownMenu.Item>
                     <DropdownMenu.Separator className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
                     <DropdownMenu.Item
-                      onSelect={() => setDataroomToDelete(dataroom)}
+                      onClick={() => setDataroomToDelete(dataroom)}
                       className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 focus:bg-red-50 focus:outline-none dark:text-red-400 hover:dark:bg-red-900/50 focus:dark:bg-red-900/50"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
