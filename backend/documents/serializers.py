@@ -1,7 +1,7 @@
 from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from core.models import Organization
-from .models import Dataroom, Document, DocumentPage, DocumentVersion, Folder, PageView, ShareLink, ShareLinkPreset, ViewSession, Viewer
+from .models import Document, DocumentPage, DocumentVersion, Folder, PageView, ShareLink, ShareLinkPreset, ViewSession, Viewer
 from .services import _get_unique_folder_name, _get_unique_share_link_name
 
 
@@ -353,8 +353,3 @@ class ShareLinkPresetSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class DataroomSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Dataroom
-        fields = ['id', 'name', 'organization', 'created_at', 'updated_at', 'created_by']
-        read_only_fields = ['id', 'organization', 'created_at', 'updated_at', 'created_by']

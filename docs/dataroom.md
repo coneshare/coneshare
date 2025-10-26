@@ -8,7 +8,7 @@ The plan also incorporates foundational data models for future enhancements, inc
 
 ## Part 1: Data Model Design
 
-The data model will be updated to support datarooms, per-item link settings, and future features. The following changes will be made in `backend/documents/models.py`.
+The data model will be implemented in the new `dataroom` application. The following models will be created in `backend/dataroom/models.py`, with `ShareLink` being modified in `backend/documents/models.py` to establish the relationship.
 
 ### 1. Modified Models
 
@@ -84,8 +84,8 @@ The feature will be built in three phases.
 ### Phase 1: Backend API for Dataroom Management
 
 1.  **Create Dataroom CRUD API**:
-    -   Implement serializers for `Dataroom`, `DataroomFolder`, and `DataroomDocument`.
-    -   Create a `DataroomViewSet` to handle creating, listing, retrieving, and deleting datarooms.
+    -   Implement serializers for `Dataroom` and related models in `backend/dataroom/serializers.py`.
+    -   Create a `DataroomViewSet` in `backend/dataroom/views.py` to handle CRUD operations.
 2.  **Implement Content Management API**:
     -   Add a custom action to the `DataroomViewSet` (e.g., `POST /api/v1/datarooms/{id}/add-content/`) that accepts a list of existing `document_ids` and `folder_ids` to populate the dataroom.
     -   Implement endpoints for managing the dataroom's internal structure (creating/renaming `DataroomFolder`, removing items).
