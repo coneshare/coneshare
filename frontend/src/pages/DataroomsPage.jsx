@@ -1,14 +1,22 @@
 import { Button } from '../components/ui/Button';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { MoreVertical, Pencil, Share2, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { AddDataroomDialog } from '../components/datarooms/AddDataroomDialog';
+import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
+import { RenameItemDialog } from '../components/dialogs/RenameItemDialog';
 import { PlusIcon } from '../components/icons/PlusIcon';
-import { getDatarooms } from '../services/api';
+import { getDatarooms, updateDataroom, deleteDataroom } from '../services/api';
 
 export function DataroomsPage() {
   const [datarooms, setDatarooms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddDataroomOpen, setIsAddDataroomOpen] = useState(false);
+  const [dataroomToDelete, setDataroomToDelete] = useState(null);
+  const [dataroomToRename, setDataroomToRename] = useState(null);
+  const navigate = useNavigate();
 
   const fetchDatarooms = async () => {
     setIsLoading(true);
@@ -29,6 +37,28 @@ export function DataroomsPage() {
   const handleSuccess = () => {
     setIsAddDataroomOpen(false);
     fetchDatarooms();
+  };
+
+  const handleDeleteDataroom = async () => {
+    if (!dataroomToDelete) return;
+    try {
+      await deleteDataroom(dataroomToDelete.id);
+      toast.success(`Dataroom "${dataroomToDelete.name}" deleted successfully.`);
+      fetchDatarooms();
+    } finally {
+      setDataroomToDelete(null);
+    }
+  };
+
+  const handleRenameDataroom = async (newName) => {
+    if (!dataroomToRename) return;
+    try {
+      await updateDataroom(dataroomToRename.id, { name: newName });
+      toast.success(`Dataroom renamed to "${newName}".`);
+      fetchDatarooms();
+    } finally {
+      setDataroomToRename(null);
+    }
   };
 
   return (
@@ -57,16 +87,60 @@ export function DataroomsPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {datarooms.map((dataroom) => (
-            <Link
+            <div
               key={dataroom.id}
-              to={`/datarooms/${dataroom.id}`}
-              className="block rounded-lg border bg-card text-card-foreground shadow-sm p-4 hover:bg-muted/50"
+              className="group relative cursor-pointer rounded-lg border bg-card p-4 text-card-foreground shadow-sm hover:bg-muted/50"
+              onClick={() => navigate(`/datarooms/${dataroom.id}`)}
             >
-              <h3 className="font-semibold">{dataroom.name}</h3>
+              <div className="absolute right-1 top-1 z-10">
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                      <span className="sr-only">Actions</span>
+                    </Button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Content
+                    className="z-50 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-gray-800"
+                    sideOffset={5}
+                    align="end"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <DropdownMenu.Item
+                      onSelect={() => setDataroomToRename(dataroom)}
+                      className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
+                    >
+                      <Pencil className="mr-2 h-4 w-4" />
+                      <span>Rename</span>
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      onSelect={() => toast.info('Share functionality coming soon!')}
+                      className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
+                    >
+                      <Share2 className="mr-2 h-4 w-4" />
+                      <span>Share</span>
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Separator className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
+                    <DropdownMenu.Item
+                      onSelect={() => setDataroomToDelete(dataroom)}
+                      className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 focus:bg-red-50 focus:outline-none dark:text-red-400 hover:dark:bg-red-900/50 focus:dark:bg-red-900/50"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      <span>Delete</span>
+                    </DropdownMenu.Item>
+                  </DropdownMenu.Content>
+                </DropdownMenu.Root>
+              </div>
+              <h3 className="font-semibold pr-8">{dataroom.name}</h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Created on {new Date(datarooms.created_at).toLocaleDateString()}
+                Created on {new Date(dataroom.created_at).toLocaleDateString()}
               </p>
-            </Link>
+            </div>
           ))}
         </div>
       )}
@@ -75,6 +149,21 @@ export function DataroomsPage() {
         isOpen={isAddDataroomOpen}
         onOpenChange={setIsAddDataroomOpen}
         onSuccess={handleSuccess}
+      />
+      <ConfirmationDialog
+        isOpen={!!dataroomToDelete}
+        onOpenChange={() => setDataroomToDelete(null)}
+        title={`Delete "${dataroomToDelete?.name}"?`}
+        description="This action cannot be undone. This will permanently delete the dataroom and all its contents."
+        onConfirm={handleDeleteDataroom}
+        confirmText="Delete"
+      />
+      <RenameItemDialog
+        isOpen={!!dataroomToRename}
+        onOpenChange={() => setDataroomToRename(null)}
+        onConfirm={handleRenameDataroom}
+        itemType="Dataroom"
+        currentItem={dataroomToRename}
       />
     </div>
   );
