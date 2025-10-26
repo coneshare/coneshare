@@ -108,6 +108,17 @@ def share_link_with_watermark(share_link):
 
 
 @pytest.fixture
+def dataroom(user, organization):
+    """Fixture to create a dataroom."""
+    from datarooms.models import Dataroom
+    return Dataroom.objects.create(
+        name="Test Dataroom",
+        organization=organization,
+        created_by=user,
+    )
+
+
+@pytest.fixture
 def api_client(user):
     """Fixture to create an authenticated API client."""
     client = APIClient()
