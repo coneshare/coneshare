@@ -34,6 +34,7 @@ urlpatterns = [
     path('api/v1/users/set-password/', SetPasswordView.as_view(), name='set_password'),
     path('api/v1/', include('core.urls')),
     path('api/v1/', include('documents.urls')),
+    path('api/v1/', include('dataroom.urls')),
     path('api/v1/', include('analytics.urls')),
     path('api/v1/cloud/', include('cloudfiles.urls')),
 
