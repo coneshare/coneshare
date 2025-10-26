@@ -6,6 +6,7 @@ from . import views
 router = DefaultRouter()
 router.register(r'folders', views.FolderViewSet)
 router.register(r'documents', views.DocumentViewSet)
+router.register(r'datarooms', views.DataroomViewSet)
 router.register(r'share-link-presets', views.ShareLinkPresetViewSet)
 router.register(r'share-links', views.ShareLinkViewSet)
 router.register(r'viewers', views.ViewerViewSet)

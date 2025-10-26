@@ -44,8 +44,9 @@ except ImportError:
     canvas = None
 
 
-from .models import Document, DocumentPage, Folder, ShareLink, ShareLinkPreset, ViewSession, Viewer, PreviewSession, EmailVerificationToken
+from .models import Dataroom, Document, DocumentPage, Folder, ShareLink, ShareLinkPreset, ViewSession, Viewer, PreviewSession, EmailVerificationToken
 from .serializers import (
+    DataroomSerializer,
     DocumentSerializer,
     EnsureFolderPathsSerializer,
     FolderSerializer,
@@ -712,6 +713,28 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
             expires_at=timezone.now() + timedelta(minutes=5)
         )
         return Response({'previewToken': session.token}, status=status.HTTP_201_CREATED)
+
+
+class DataroomViewSet(viewsets.ModelViewSet):
+    queryset = Dataroom.objects.all()
+    serializer_class = DataroomSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        This queryset ensures that users can only access datarooms
+        within their organization.
+        """
+        return self.queryset.filter(organization=self.request.user.organization)
+
+    def perform_create(self, serializer):
+        """
+        Automatically assign the organization and creator from the request user.
+        """
+        serializer.save(
+            organization=self.request.user.organization,
+            created_by=self.request.user
+        )
 
 
 class ViewerViewSet(viewsets.ModelViewSet):
