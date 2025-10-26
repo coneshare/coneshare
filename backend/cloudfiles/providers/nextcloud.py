@@ -61,7 +61,8 @@ class NextcloudProvider(BaseCloudProvider):
                 )
                 response.raise_for_status()
                 token_data = response.json()
-
+                print(token_data)
+                print('aaaaaaa')
                 return {
                     'access_token': token_data['access_token'],
                     'refresh_token': token_data.get('refresh_token'),
