@@ -5,6 +5,8 @@ import MainLayout from './components/layout/MainLayout';
 import { AllLinksPage } from './pages/AllLinksPage';
 import { AllViewSessionsPage } from './pages/AllViewSessionsPage';
 import { CloudAuthCallbackPage } from './pages/CloudAuthCallbackPage';
+import { DataroomPage } from './pages/DataroomPage';
+import { DataroomsPage } from './pages/DataroomsPage';
 import { DocumentPage } from './pages/DocumentPage';
 import DocumentsPage from './pages/DocumentsPage';
 import HomePage from './pages/HomePage';
@@ -28,6 +30,8 @@ function App() {
           <Route path="/documents/folders/:folderId" element={<DocumentsPage />} />
           <Route path="/documents/:documentId" element={<DocumentPage />} />
           <Route path="/documents/:documentId/links/:linkId" element={<ShareLinkAnalyticsPage />} />
+          <Route path="/datarooms" element={<DataroomsPage />} />
+          <Route path="/datarooms/:dataroomId" element={<DataroomPage />} />
           <Route path="/analytics/links" element={<AllLinksPage />} />
           <Route path="/analytics/view-sessions" element={<AllViewSessionsPage />} />
           <Route path="/settings" element={<UserSettingsPage />} />
