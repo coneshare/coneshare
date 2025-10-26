@@ -137,7 +137,7 @@ class ShareLinkPreset(BaseModel):
 
 class ShareLink(BaseModel):
     document = models.ForeignKey(Document, on_delete=models.CASCADE, null=True, blank=True, related_name='share_links')
-    dataroom = models.ForeignKey('dataroom.Dataroom', on_delete=models.CASCADE, null=True, blank=True, related_name='share_links')
+    dataroom = models.ForeignKey('datarooms.Dataroom', on_delete=models.CASCADE, null=True, blank=True, related_name='share_links')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='share_links_created')
     name = models.CharField(max_length=255, blank=True)
     slug = models.CharField(max_length=50, unique=True, blank=True)
