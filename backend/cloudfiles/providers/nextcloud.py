@@ -2,12 +2,14 @@ import logging
 import secrets
 import tempfile
 import xml.etree.ElementTree as ET
+from datetime import timedelta
 from io import BytesIO
 from urllib.parse import urlencode, urljoin, unquote
 
 import httpx
 from django.conf import settings
 from django.core.cache import cache
+from django.utils import timezone
 
 from .base import BaseCloudProvider, CloudProviderError
 
@@ -61,12 +63,14 @@ class NextcloudProvider(BaseCloudProvider):
                 )
                 response.raise_for_status()
                 token_data = response.json()
-                print(token_data)
-                print('aaaaaaa')
+
+                expires_in = token_data.get('expires_in')
+                expires_at = timezone.now() + timedelta(seconds=expires_in) if expires_in else None
+
                 return {
                     'access_token': token_data['access_token'],
                     'refresh_token': token_data.get('refresh_token'),
-                    'expires_at': None,  # Nextcloud tokens don't expire by default
+                    'expires_at': expires_at,
                 }
         except httpx.HTTPStatusError as e:
             logger.error(f"Nextcloud token exchange failed: {e.response.status_code} - {e.response.text}")
@@ -74,9 +78,45 @@ class NextcloudProvider(BaseCloudProvider):
         except Exception as e:
             raise CloudProviderError(f"Nextcloud OAuth callback error: {e}")
 
+    def _refresh_token(self):
+        """Manually refreshes the Nextcloud access token."""
+        if not self.connection or not self.connection.refresh_token:
+            raise CloudProviderError("Cannot refresh token without a refresh token.")
+
+        token_url = f"{self.host.rstrip('/')}/apps/oauth2/api/v1/token"
+        data = {
+            'grant_type': 'refresh_token',
+            'refresh_token': self.connection.refresh_token,
+        }
+        try:
+            with httpx.Client() as client:
+                response = client.post(
+                    token_url,
+                    data=data,
+                    auth=(self.client_id, self.client_secret)
+                )
+                response.raise_for_status()
+                token_data = response.json()
+
+                self.connection.access_token = token_data['access_token']
+                if 'expires_in' in token_data:
+                    self.connection.expires_at = timezone.now() + timedelta(seconds=token_data['expires_in'])
+
+                self.connection.save(update_fields=['access_token', 'expires_at'])
+                logger.info(f"Refreshed Nextcloud token for connection {self.connection.id}")
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Nextcloud token refresh failed: {e.response.status_code} - {e.response.text}")
+            raise CloudProviderError("Failed to refresh Nextcloud token.")
+
     def _get_client(self):
         if not self.connection:
             raise CloudProviderError("No connection provided for Nextcloud client.")
+
+        if self.connection.refresh_token and self.connection.expires_at:
+            # Refresh if token expires in the next 5 minutes
+            if self.connection.expires_at < timezone.now() + timedelta(minutes=5):
+                self._refresh_token()
 
         headers = {
             'Authorization': f'Bearer {self.connection.access_token}',
