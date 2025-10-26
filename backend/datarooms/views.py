@@ -25,10 +25,10 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        This queryset ensures that users can only access datarooms
-        within their organization.
+        This queryset ensures that users can only list, retrieve, update, or
+        delete datarooms they have created.
         """
-        return self.queryset.filter(organization=self.request.user.organization)
+        return self.queryset.filter(created_by=self.request.user)
 
     def perform_create(self, serializer):
         """

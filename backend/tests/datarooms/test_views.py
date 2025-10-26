@@ -8,16 +8,17 @@ pytestmark = pytest.mark.django_db
 
 
 class TestDataroomViewSet:
-    def test_list_datarooms_scoped_to_organization(self, api_client, user, user2, organization):
+    def test_list_datarooms_scoped_to_user(self, api_client, user, user2, organization):
         """
-        Test retrieving datarooms is scoped to the organization, not the user.
+        Test retrieving datarooms is scoped to the user who created them.
         """
         Dataroom.objects.create(name="My Dataroom", organization=organization, created_by=user)
         Dataroom.objects.create(name="Other's Dataroom", organization=organization, created_by=user2)
 
         response = api_client.get('/api/v1/datarooms/')
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data) == 2
+        assert len(response.data) == 1
+        assert response.data[0]['name'] == "My Dataroom"
 
     def test_create_dataroom(self, api_client, user, organization):
         """Test creating a new dataroom."""
