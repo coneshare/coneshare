@@ -1,9 +1,9 @@
-import { Button } from '@/components/ui/Button';
+import { Button } from '../components/ui/Button';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AddDataroomDialog } from '@/components/datarooms/AddDataroomDialog';
-import { PlusIcon } from '@/components/icons/PlusIcon';
-import { getDatarooms } from '@/services/api';
+import { AddDataroomDialog } from '../components/datarooms/AddDataroomDialog';
+import { PlusIcon } from '../components/icons/PlusIcon';
+import { getDatarooms } from '../services/api';
 
 export function DataroomsPage() {
   const [datarooms, setDatarooms] = useState([]);

@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/Button';
+import { Button } from '../ui/Button';
 import {
   Dialog,
   DialogContent,
@@ -6,12 +6,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/Dialog';
-import { Input } from '@/components/ui/Input';
-import { Label } from '@/components/ui/Label';
+} from '../ui/Dialog';
+import { Input } from '../ui/Input';
+import { Label } from '../ui/Label';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { createDataroom } from '@/services/api';
+import { createDataroom } from '../../services/api';
 
 export function AddDataroomDialog({ isOpen, onOpenChange, onSuccess }) {
   const [name, setName] = useState('');

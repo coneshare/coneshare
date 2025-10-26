@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ShareIcon } from 'lucide-react';
-import { getDataroom } from '@/services/api';
-import { Button } from '@/components/ui/Button';
-import { DocumentPlusIcon } from '@/components/icons/DocumentPlusIcon';
+import { getDataroom } from '../services/api';
+import { Button } from '../components/ui/Button';
+import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 
 export function DataroomPage() {
   const { dataroomId } = useParams();
