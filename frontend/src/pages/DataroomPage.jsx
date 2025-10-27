@@ -2,10 +2,12 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ShareIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { getDataroom, addContentToDataroom } from '../services/api';
+import { getDataroom, addContentToDataroom, createDataroomFolder } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
+import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
 import { AddContentDialog } from '../components/dialogs/AddContentDialog';
+import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
 import { DocumentsList } from '../components/documents/DocumentsList';
 
 export function DataroomPage() {
@@ -14,6 +16,7 @@ export function DataroomPage() {
   const [dataroom, setDataroom] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddContentOpen, setIsAddContentOpen] = useState(false);
+  const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
 
   const fetchDataroom = useCallback(async () => {
     setIsLoading(true);
@@ -67,6 +70,22 @@ export function DataroomPage() {
     }
   };
 
+  const handleCreateFolderInDataroom = async (name) => {
+    try {
+      await createDataroomFolder({
+        name,
+        dataroom: dataroomId,
+        parent: null, // For now, only support creating root folders
+      });
+      toast.success(`Folder "${name}" created successfully.`);
+      fetchDataroom(); // Refresh
+    } catch (error) {
+      // Toast is handled by api interceptor
+    } finally {
+      setIsAddFolderOpen(false);
+    }
+  };
+
   const handleItemClick = (id, type) => {
     if (type === 'folder') {
       toast.info("Navigating dataroom folders is not yet implemented.");
@@ -85,6 +104,15 @@ export function DataroomPage() {
           {/* TODO: Add breadcrumbs here in the future */}
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-10 w-10"
+            onClick={() => setIsAddFolderOpen(true)}
+            title="Add Folder"
+          >
+            <FolderPlusIcon className="h-5 w-5" />
+          </Button>
           <Button variant="outline" onClick={() => setIsAddContentOpen(true)}>
             <DocumentPlusIcon className="mr-2 h-4 w-4" />
             Add Content
@@ -123,6 +151,11 @@ export function DataroomPage() {
         isOpen={isAddContentOpen}
         onOpenChange={setIsAddContentOpen}
         onConfirm={handleAddContent}
+      />
+      <AddFolderDialog
+        isOpen={isAddFolderOpen}
+        onOpenChange={setIsAddFolderOpen}
+        onConfirm={handleCreateFolderInDataroom}
       />
     </div>
   );
