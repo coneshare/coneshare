@@ -11,6 +11,19 @@ import { DocumentsListHeader } from "./DocumentsListHeader";
 import { DraggableItem } from "./DraggableItem";
 import { EmptyDocuments } from "./EmptyDocuments";
 
+function ReadOnlyHeader() {
+  return (
+    <div className="flex w-full items-center border-b border-gray-200 px-4 py-2 text-xs font-medium uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
+      <div className="w-8" />
+      <div className="w-[40%]">Name</div>
+      <div className="w-[20%]">Owner</div>
+      <div className="w-[20%]">Last Modified</div>
+      <div className="w-[10%]">File Size</div>
+      <div className="w-16" />
+    </div>
+  );
+}
+
 export function DocumentsList({
   allItems,
   loading,
@@ -25,6 +38,8 @@ export function DocumentsList({
   onSelectAll,
   isAllSelected,
   onToggleStar,
+  isReadOnly = false,
+  onItemClick,
 }) {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [itemToRename, setItemToRename] = useState(null);
@@ -54,6 +69,7 @@ export function DocumentsList({
     onDrop,
     noClick: true,
     noKeyboard: true,
+    disabled: isReadOnly,
   });
 
   const handleSelect = useCallback(
@@ -148,7 +164,7 @@ export function DocumentsList({
           })}
         >
           <input {...getInputProps()} />
-          {isDragActive && (
+          {isDragActive && !isReadOnly && (
             <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary/10">
               <p className="text-lg font-semibold text-primary">
                 Drop files or folders to upload
@@ -156,12 +172,16 @@ export function DocumentsList({
             </div>
           )}
 
-          <DocumentsListHeader
-            onSort={onSort}
-            sortConfig={sortConfig}
-            onSelectAll={onSelectAll}
-            isAllSelected={isAllSelected}
-          />
+          {isReadOnly ? (
+            <ReadOnlyHeader />
+          ) : (
+            <DocumentsListHeader
+              onSort={onSort}
+              sortConfig={sortConfig}
+              onSelectAll={onSelectAll}
+              isAllSelected={isAllSelected}
+            />
+          )}
           {loading ? (
             <div className="divide-y divide-gray-200 dark:divide-gray-800">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -193,6 +213,8 @@ export function DocumentsList({
                   onDelete={() => handleDelete(item, item.type)}
                   onShare={() => handleShare(item)}
                   onToggleStar={onToggleStar}
+                  isReadOnly={isReadOnly}
+                  onItemClick={onItemClick}
                 />
               ))}
             </div>

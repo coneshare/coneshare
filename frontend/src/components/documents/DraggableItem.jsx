@@ -26,10 +26,13 @@ export function DraggableItem({
   onDelete,
   onShare,
   onToggleStar,
+  isReadOnly = false,
+  onItemClick,
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id,
     data: { type },
+    disabled: isReadOnly,
   });
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
@@ -46,7 +49,12 @@ export function DraggableItem({
     // event by calling `preventDefault`, do not proceed with navigation.
     if (e.defaultPrevented) {
       return;
-    }    
+    }
+
+    if (onItemClick) {
+      onItemClick(id, type);
+      return;
+    }
 
     if (type === "folder") {
       navigate(`/documents/folders/${id}`);
@@ -71,18 +79,20 @@ export function DraggableItem({
       )}
     >
       <div className="w-8">
-        <div
-          className={cn(
-            "transition-opacity",
-            isSelected || isHovered || isMenuOpen ? "opacity-100" : "opacity-0"
-          )}
-        >
-          <Checkbox
-            checked={isSelected}
-            onClick={handleCheckboxClick}
-            aria-label={`Select ${item.name}`}
-          />
-        </div>
+        {!isReadOnly && (
+          <div
+            className={cn(
+              "transition-opacity",
+              isSelected || isHovered || isMenuOpen ? "opacity-100" : "opacity-0"
+            )}
+          >
+            <Checkbox
+              checked={isSelected}
+              onClick={handleCheckboxClick}
+              aria-label={`Select ${item.name}`}
+            />
+          </div>
+        )}
       </div>
       <div className="flex w-[40%] items-center gap-2 truncate">
         {type === "folder" ? (
@@ -91,47 +101,55 @@ export function DraggableItem({
           <FileIcon className="h-5 w-5 text-gray-500" />
         )}
         <span className="truncate font-medium">{item.name}</span>
-        <button
-          data-star-button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleStar(id, type);
-          }}
-          className={cn("ml-auto p-1 mr-1")}
-        >
-          <Star
-            className={cn(
-              "h-4 w-4 text-gray-400",
-              item.is_starred && "fill-yellow-400 text-yellow-500"
-            )}
-          />
-        </button>
+        {!isReadOnly && (
+          <button
+            data-star-button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleStar(id, type);
+            }}
+            className={cn("ml-auto p-1 mr-1")}
+          >
+            <Star
+              className={cn(
+                "h-4 w-4 text-gray-400",
+                item.is_starred && "fill-yellow-400 text-yellow-500"
+              )}
+            />
+          </button>
+        )}
       </div>
       <div className="w-[20%] truncate">{item.created_by?.name || "Me"}</div>
       <div className="w-[20%]">
-        {formatDistanceToNow(new Date(item.updated_at), { addSuffix: true })}
+        {item.updated_at
+          ? formatDistanceToNow(new Date(item.updated_at), { addSuffix: true })
+          : "—"}
       </div>
       <div className="w-[10%]">
         {type === "document"
           ? formatFileSize(item.file_size)
           : "—"}
       </div>
-      <div
-        className={cn(
-          "ml-auto flex w-16 justify-end transition-opacity",
-          isSelected || isHovered || isMenuOpen ? "opacity-100" : "opacity-0"
+      <div className="w-16">
+        {!isReadOnly && (
+          <div
+            className={cn(
+              "ml-auto flex justify-end transition-opacity",
+              isSelected || isHovered || isMenuOpen ? "opacity-100" : "opacity-0"
+            )}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <ActionsDropdown
+              item={item}
+              type={type}
+              onRename={onRename}
+              onDelete={onDelete}
+              onShare={onShare}
+              onOpenChange={setIsMenuOpen}
+            />
+          </div>
         )}
-        onClick={(e) => e.stopPropagation()}
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        <ActionsDropdown
-          item={item}
-          type={type}
-          onRename={onRename}
-          onDelete={onDelete}
-          onShare={onShare}
-          onOpenChange={setIsMenuOpen}
-        />
       </div>
     </div>
   );

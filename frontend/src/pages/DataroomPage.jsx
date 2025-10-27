@@ -1,14 +1,16 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ShareIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { getDataroom, addContentToDataroom } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { AddContentDialog } from '../components/dialogs/AddContentDialog';
+import { DocumentsList } from '../components/documents/DocumentsList';
 
 export function DataroomPage() {
   const { dataroomId } = useParams();
+  const navigate = useNavigate();
   const [dataroom, setDataroom] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddContentOpen, setIsAddContentOpen] = useState(false);
@@ -29,6 +31,22 @@ export function DataroomPage() {
     fetchDataroom();
   }, [fetchDataroom]);
 
+  const allItems = useMemo(() => {
+    if (!dataroom) return [];
+
+    const folders = (dataroom.folders || []).map(f => ({
+      ...f,
+      type: 'folder'
+    }));
+    const documents = (dataroom.documents || []).map(d => ({
+      ...d,
+      id: d.document_id,
+      name: d.document_name,
+      type: 'document'
+    }));
+    return [...folders, ...documents];
+  }, [dataroom]);
+
   if (isLoading) {
     return <div className="p-6">Loading dataroom...</div>;
   }
@@ -46,6 +64,14 @@ export function DataroomPage() {
       // Toast is handled by api interceptor
     } finally {
       setIsAddContentOpen(false);
+    }
+  };
+
+  const handleItemClick = (id, type) => {
+    if (type === 'folder') {
+      toast.info("Navigating dataroom folders is not yet implemented.");
+    } else {
+      navigate(`/documents/${id}`);
     }
   };
 
@@ -83,13 +109,12 @@ export function DataroomPage() {
             </Button>
           </div>
         ) : (
-          <div className="p-8 border-2 border-dashed border-muted rounded-lg text-center">
-            <h2 className="text-xl font-medium">Dataroom Content</h2>
-            <p className="text-muted-foreground mt-2">
-              {dataroom.folders.length} folders, {dataroom.documents.length} documents.
-            </p>
-            {/* TODO: Implement file browser UI here */}
-          </div>
+          <DocumentsList
+            allItems={allItems}
+            loading={isLoading}
+            isReadOnly={true}
+            onItemClick={handleItemClick}
+          />
         )}
       </main>
       <AddContentDialog
