@@ -50,16 +50,6 @@ export function DataroomsPage() {
     }
   };
 
-  const handleRenameDataroom = async (newName) => {
-    if (!dataroomToRename) return;
-    try {
-      await updateDataroom(dataroomToRename.id, { name: newName });
-      toast.success(`Dataroom renamed to "${newName}".`);
-      fetchDatarooms();
-    } finally {
-      setDataroomToRename(null);
-    }
-  };
 
   return (
     <div className="container mx-auto p-4 md:p-6">
@@ -161,9 +151,8 @@ export function DataroomsPage() {
       <RenameItemDialog
         isOpen={!!dataroomToRename}
         onOpenChange={() => setDataroomToRename(null)}
-        onConfirm={handleRenameDataroom}
-        itemType="Dataroom"
-        currentItem={dataroomToRename}
+        onSuccess={fetchDatarooms}
+        item={dataroomToRename ? { ...dataroomToRename, type: 'Dataroom' } : null}
       />
     </div>
   );
