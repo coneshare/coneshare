@@ -22,6 +22,10 @@ export function DataroomPage() {
   const [isMoveItemsOpen, setIsMoveItemsOpen] = useState(false);
   const [selection, setSelection] = useState({ documents: [], folders: [] });
   const [lastSelectedItem, setLastSelectedItem] = useState(null);
+  const [sortConfig, setSortConfig] = useState({
+    key: "name",
+    direction: "ascending",
+  });
 
   const fetchDataroom = useCallback(async () => {
     setIsLoading(true);
@@ -48,20 +52,52 @@ export function DataroomPage() {
   const allItems = useMemo(() => {
     if (!dataroom) return [];
 
-    const folders = (dataroom.folders || []).map(f => ({
-      ...f,
-      type: 'folder'
-    }));
-    const documents = (dataroom.documents || []).map(d => ({
-      ...d,
-      // Use dataroom_document_id for selection, document_id for navigation
-      id: d.id, 
-      document_id: d.document_id,
-      name: d.document_name,
-      type: 'document'
-    }));
-    return [...folders, ...documents];
-  }, [dataroom]);
+    let combined = [
+      ...(dataroom.folders || []).map(f => ({
+        ...f,
+        type: 'folder'
+      })),
+      ...(dataroom.documents || []).map(d => ({
+        ...d,
+        // Use dataroom_document_id for selection, document_id for navigation
+        id: d.id, 
+        document_id: d.document_id,
+        name: d.document_name,
+        type: 'document'
+      }))
+    ];
+
+    combined.sort((a, b) => {
+      // Folders always come first
+      if (a.type === "folder" && b.type === "document") return -1;
+      if (a.type === "document" && b.type === "folder") return 1;
+      
+      const dir = sortConfig.direction === "ascending" ? 1 : -1;
+      const key = sortConfig.key;
+
+      const aVal = a[key];
+      const bVal = b[key];
+
+      if (key === "updated_at") {
+        return (new Date(aVal) - new Date(bVal)) * dir;
+      }
+
+      if (key === 'file_size') {
+        return ((aVal || 0) - (bVal || 0)) * dir;
+      }
+
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return aVal.localeCompare(bVal) * dir;
+      }
+      
+      if (aVal < bVal) return -1 * dir;
+      if (aVal > bVal) return 1 * dir;
+
+      return 0;
+    });
+
+    return combined;
+  }, [dataroom, sortConfig]);
 
   const handleAddContent = async ({ document_ids, folder_ids }) => {
     try {
@@ -133,6 +169,19 @@ export function DataroomPage() {
     } finally {
       setIsMoveItemsOpen(false);
     }
+  };
+
+  const handleSort = (key) => {
+    setSortConfig((prevConfig) => {
+      if (prevConfig.key === key) {
+        return {
+          ...prevConfig,
+          direction:
+            prevConfig.direction === "ascending" ? "descending" : "ascending",
+        };
+      }
+      return { key, direction: "ascending" };
+    });
   };
 
   if (isLoading) {
@@ -207,6 +256,8 @@ export function DataroomPage() {
             onItemSelect={handleItemSelect}
             selectedDocuments={selection.documents}
             selectedFolders={selection.folders}
+            onSort={handleSort}
+            sortConfig={sortConfig}
           />
         )}
       </main>
