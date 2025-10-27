@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
@@ -48,7 +48,7 @@ describe('DataroomsPage', () => {
         // Hover to show actions button
         await user.hover(cardContainer);
 
-        const actionsButton = await screen.findByRole('button', { name: 'Actions' });
+        const actionsButton = await within(cardContainer).findByRole('button', { name: 'Actions' });
         await user.click(actionsButton);
 
         const renameMenuItem = await screen.findByText('Rename');
@@ -66,8 +66,10 @@ describe('DataroomsPage', () => {
         renderComponent();
     
         const dataroomCard = await screen.findByText('Dataroom One');
-        await user.hover(dataroomCard.closest('div.group'));
-        await user.click(await screen.findByRole('button', { name: 'Actions' }));
+        const cardContainer = dataroomCard.closest('div.group');
+        await user.hover(cardContainer);
+        const actionsButton = await within(cardContainer).findByRole('button', { name: 'Actions' });
+        await user.click(actionsButton);
         await user.click(await screen.findByText('Rename'));
     
         const dialogTitle = await screen.findByRole('heading', { name: /Rename Dataroom/i });
