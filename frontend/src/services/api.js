@@ -305,5 +305,7 @@ export const updateDataroom = (id, data) => api.patch(`/datarooms/${id}/`, data)
 export const deleteDataroom = (id) => api.delete(`/datarooms/${id}/`);
 export const addContentToDataroom = (id, data) => api.post(`/datarooms/${id}/add-content/`, data);
 export const removeContentFromDataroom = (id, data) => api.post(`/datarooms/${id}/remove-content/`, data);
+export const moveDataroomContent = (id, data) => api.post(`/datarooms/${id}/move-content/`, data);
+export const getDataroomFolderContents = (folderId) => api.get(`/dataroom-folders/${folderId}/`);
 
 export default api;

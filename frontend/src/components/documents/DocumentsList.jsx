@@ -29,8 +29,8 @@ export function DocumentsList({
   loading,
   onDataRefresh,
   onFilesDrop,
-  selectedDocuments,
-  selectedFolders,
+  selectedDocuments = [],
+  selectedFolders = [],
   onItemSelect,
   onClearSelection,
   onSort,
@@ -39,6 +39,7 @@ export function DocumentsList({
   isAllSelected,
   onToggleStar,
   isReadOnly = false,
+  showActions = true,
   onItemClick,
 }) {
   const [itemToDelete, setItemToDelete] = useState(null);
@@ -214,6 +215,7 @@ export function DocumentsList({
                   onShare={() => handleShare(item)}
                   onToggleStar={onToggleStar}
                   isReadOnly={isReadOnly}
+                  showActions={showActions}
                   onItemClick={onItemClick}
                 />
               ))}

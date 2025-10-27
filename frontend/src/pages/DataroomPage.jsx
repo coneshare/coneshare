@@ -2,13 +2,15 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ShareIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { getDataroom, addContentToDataroom, createDataroomFolder } from '../services/api';
+import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
 import { AddContentDialog } from '../components/dialogs/AddContentDialog';
 import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
+import { DataroomMoveItemsDialog } from '../components/dialogs/DataroomMoveItemsDialog';
 import { DocumentsList } from '../components/documents/DocumentsList';
+import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 
 export function DataroomPage() {
   const { dataroomId } = useParams();
@@ -17,6 +19,9 @@ export function DataroomPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAddContentOpen, setIsAddContentOpen] = useState(false);
   const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
+  const [isMoveItemsOpen, setIsMoveItemsOpen] = useState(false);
+  const [selection, setSelection] = useState({ documents: [], folders: [] });
+  const [lastSelectedItem, setLastSelectedItem] = useState(null);
 
   const fetchDataroom = useCallback(async () => {
     setIsLoading(true);
@@ -28,6 +33,11 @@ export function DataroomPage() {
     } finally {
       setIsLoading(false);
     }
+  }, [dataroomId]);
+
+    // Reset selection when data re-fetches
+    setSelection({ documents: [], folders: [] });
+    setLastSelectedItem(null);
   }, [dataroomId]);
 
   useEffect(() => {
@@ -43,7 +53,9 @@ export function DataroomPage() {
     }));
     const documents = (dataroom.documents || []).map(d => ({
       ...d,
-      id: d.document_id,
+      // Use dataroom_document_id for selection, document_id for navigation
+      id: d.id, 
+      document_id: d.document_id,
       name: d.document_name,
       type: 'document'
     }));
@@ -86,11 +98,47 @@ export function DataroomPage() {
     }
   };
 
-  const handleItemClick = (id, type) => {
+  const handleItemClick = (item, type) => {
     if (type === 'folder') {
       toast.info("Navigating dataroom folders is not yet implemented.");
     } else {
-      navigate(`/documents/${id}`);
+      // For documents, we need the actual document_id for navigation
+      navigate(`/documents/${item.document_id}`);
+    }
+  };
+
+  const handleItemSelect = useCallback((id, type, event) => {
+    setSelection((prev) => {
+      const newSelection = { ...prev };
+      const listKey = type === 'document' ? 'documents' : 'folders';
+      const currentList = newSelection[listKey];
+      
+      if (currentList.includes(id)) {
+        newSelection[listKey] = currentList.filter(itemId => itemId !== id);
+      } else {
+        newSelection[listKey] = [...currentList, id];
+      }
+      return newSelection;
+    });
+    setLastSelectedItem({ id, type });
+  }, []);
+
+  const handleClearSelection = useCallback(() => {
+    setSelection({ documents: [], folders: [] });
+    setLastSelectedItem(null);
+  }, []);
+
+  const handleMoveItems = async (destinationFolderId) => {
+    try {
+      await moveDataroomContent(dataroomId, {
+        dataroom_document_ids: selection.documents,
+        dataroom_folder_ids: selection.folders,
+        destination_folder_id: destinationFolderId,
+      });
+      toast.success("Items moved successfully.");
+      fetchDataroom();
+    } finally {
+      setIsMoveItemsOpen(false);
     }
   };
 
@@ -125,6 +173,18 @@ export function DataroomPage() {
       </header>
 
       <main>
+        {(selection.documents.length > 0 || selection.folders.length > 0) && (
+          <div className="mb-4">
+            <SelectionActionBar
+              selectedDocumentsCount={selection.documents.length}
+              selectedFoldersCount={selection.folders.length}
+              onClearSelection={handleClearSelection}
+              onMove={() => setIsMoveItemsOpen(true)}
+              // Delete is a future feature for datarooms
+              onDelete={null}
+            />
+          </div>
+        )}
         {!hasContent ? (
           <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted bg-muted/20 p-12 text-center">
             <h3 className="text-xl font-semibold tracking-tight">This dataroom is empty</h3>
@@ -140,10 +200,12 @@ export function DataroomPage() {
           <DocumentsList
             allItems={allItems}
             loading={isLoading}
-            isReadOnly={true}
-            onItemClick={handleItemClick}
-            selectedDocuments={[]}
-            selectedFolders={[]}
+            isReadOnly={false}
+            showActions={false}
+            onItemClick={(id, type) => handleItemClick(allItems.find(item => item.id === id), type)}
+            onItemSelect={handleItemSelect}
+            selectedDocuments={selection.documents}
+            selectedFolders={selection.folders}
           />
         )}
       </main>
@@ -156,6 +218,13 @@ export function DataroomPage() {
         isOpen={isAddFolderOpen}
         onOpenChange={setIsAddFolderOpen}
         onConfirm={handleCreateFolderInDataroom}
+      />
+      <DataroomMoveItemsDialog
+        isOpen={isMoveItemsOpen}
+        onOpenChange={setIsMoveItemsOpen}
+        onConfirm={handleMoveItems}
+        dataroomId={dataroomId}
+        selectedFolderIds={selection.folders}
       />
     </div>
   );

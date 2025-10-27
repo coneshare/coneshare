@@ -79,3 +79,18 @@ class RemoveContentSerializer(serializers.Serializer):
         if not data.get('dataroom_document_ids') and not data.get('dataroom_folder_ids'):
             raise serializers.ValidationError("Either 'dataroom_document_ids' or 'dataroom_folder_ids' must be provided.")
         return data
+
+
+class MoveDataroomContentSerializer(serializers.Serializer):
+    dataroom_document_ids = serializers.ListField(
+        child=serializers.CharField(), required=False, allow_empty=True
+    )
+    dataroom_folder_ids = serializers.ListField(
+        child=serializers.CharField(), required=False, allow_empty=True
+    )
+    destination_folder_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+    def validate(self, data):
+        if not data.get('dataroom_document_ids') and not data.get('dataroom_folder_ids'):
+            raise serializers.ValidationError("Either 'dataroom_document_ids' or 'dataroom_folder_ids' must be provided.")
+        return data

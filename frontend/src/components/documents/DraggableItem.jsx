@@ -27,6 +27,7 @@ export function DraggableItem({
   onShare,
   onToggleStar,
   isReadOnly = false,
+  showActions = true,
   onItemClick,
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -101,7 +102,7 @@ export function DraggableItem({
           <FileIcon className="h-5 w-5 text-gray-500" />
         )}
         <span className="truncate font-medium">{item.name}</span>
-        {!isReadOnly && (
+        {showActions && !isReadOnly && (
           <button
             data-star-button
             onClick={(e) => {
@@ -131,7 +132,7 @@ export function DraggableItem({
           : "—"}
       </div>
       <div className="w-16">
-        {!isReadOnly && (
+        {showActions && !isReadOnly && (
           <div
             className={cn(
               "ml-auto flex justify-end transition-opacity",
