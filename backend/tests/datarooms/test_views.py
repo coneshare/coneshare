@@ -132,7 +132,7 @@ class TestDataroomViewSet:
         url = f'/api/v1/datarooms/{dataroom.id}/move-content/'
         data = {
             'dataroom_folder_ids': [str(child.id)],
-            'destination_folder_id': None
+            'destination_folder_id': ''
         }
         response = api_client.post(url, data)
 
