@@ -9,8 +9,8 @@ from documents.models import Document, Folder
 
 from .models import Dataroom, DataroomDocument, DataroomFolder
 from .serializers import (AddContentSerializer, DataroomDetailSerializer,
-                          DataroomFolderSerializer, DataroomSerializer,
-                          MoveDataroomContentSerializer,
+                          DataroomDocumentSerializer, DataroomFolderSerializer,
+                          DataroomSerializer, MoveDataroomContentSerializer,
                           RemoveContentSerializer)
 
 

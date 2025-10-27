@@ -35,6 +35,7 @@ export function DataroomPage() {
     }
   }, [dataroomId]);
 
+  useEffect(() => {
     // Reset selection when data re-fetches
     setSelection({ documents: [], folders: [] });
     setLastSelectedItem(null);
