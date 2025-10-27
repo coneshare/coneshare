@@ -114,6 +114,8 @@ export function DataroomPage() {
             loading={isLoading}
             isReadOnly={true}
             onItemClick={handleItemClick}
+            selectedDocuments={[]}
+            selectedFolders={[]}
           />
         )}
       </main>
