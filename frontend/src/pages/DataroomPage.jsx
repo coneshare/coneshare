@@ -63,14 +63,6 @@ export function DataroomPage() {
     return [...folders, ...documents];
   }, [dataroom]);
 
-  if (isLoading) {
-    return <div className="p-6">Loading dataroom...</div>;
-  }
-
-  if (!dataroom) {
-    return <div className="p-6">Dataroom not found.</div>;
-  }
-
   const handleAddContent = async ({ document_ids, folder_ids }) => {
     try {
       await addContentToDataroom(dataroomId, { document_ids, folder_ids });
@@ -142,6 +134,14 @@ export function DataroomPage() {
       setIsMoveItemsOpen(false);
     }
   };
+
+  if (isLoading) {
+    return <div className="p-6">Loading dataroom...</div>;
+  }
+
+  if (!dataroom) {
+    return <div className="p-6">Dataroom not found.</div>;
+  }
 
   const hasContent = dataroom.documents.length > 0 || dataroom.folders.length > 0;
 
