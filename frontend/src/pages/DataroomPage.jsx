@@ -11,6 +11,7 @@ import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
 import { DataroomMoveItemsDialog } from '../components/dialogs/DataroomMoveItemsDialog';
 import { DocumentsList } from '../components/documents/DocumentsList';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
 
 export function DataroomPage() {
   const { dataroomId } = useParams();
@@ -222,45 +223,59 @@ export function DataroomPage() {
         </div>
       </header>
 
-      <main>
-        {(selection.documents.length > 0 || selection.folders.length > 0) && (
-          <div className="mb-4">
-            <SelectionActionBar
-              selectedDocumentsCount={selection.documents.length}
-              selectedFoldersCount={selection.folders.length}
-              onClearSelection={handleClearSelection}
-              onMove={() => setIsMoveItemsOpen(true)}
-              // Delete is a future feature for datarooms
-              onDelete={null}
+      <Tabs defaultValue="documents" className="mt-6">
+        <TabsList>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="links">Links & Permissions</TabsTrigger>
+        </TabsList>
+        <TabsContent value="documents" className="mt-6">
+          {(selection.documents.length > 0 || selection.folders.length > 0) && (
+            <div className="mb-4">
+              <SelectionActionBar
+                selectedDocumentsCount={selection.documents.length}
+                selectedFoldersCount={selection.folders.length}
+                onClearSelection={handleClearSelection}
+                onMove={() => setIsMoveItemsOpen(true)}
+                // Delete is a future feature for datarooms
+                onDelete={null}
+              />
+            </div>
+          )}
+          {!hasContent ? (
+            <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted bg-muted/20 p-12 text-center">
+              <h3 className="text-xl font-semibold tracking-tight">This dataroom is empty</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                A Dataroom is a place to securely organize and share documents with granular access control.
+              </p>
+              <Button className="mt-4" variant="outline" onClick={() => setIsAddContentOpen(true)}>
+                <DocumentPlusIcon className="mr-2 h-4 w-4" />
+                Add Content
+              </Button>
+            </div>
+          ) : (
+            <DocumentsList
+              allItems={allItems}
+              loading={isLoading}
+              isReadOnly={false}
+              showActions={false}
+              onItemClick={(id, type) => handleItemClick(allItems.find(item => item.id === id), type)}
+              onItemSelect={handleItemSelect}
+              selectedDocuments={selection.documents}
+              selectedFolders={selection.folders}
+              onSort={handleSort}
+              sortConfig={sortConfig}
             />
-          </div>
-        )}
-        {!hasContent ? (
+          )}
+        </TabsContent>
+        <TabsContent value="links" className="mt-6">
           <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted bg-muted/20 p-12 text-center">
-            <h3 className="text-xl font-semibold tracking-tight">This dataroom is empty</h3>
+            <h3 className="text-xl font-semibold tracking-tight">Coming Soon</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              A Dataroom is a place to securely organize and share documents with granular access control.
+              Manage share links and granular permissions for this dataroom.
             </p>
-            <Button className="mt-4" variant="outline" onClick={() => setIsAddContentOpen(true)}>
-              <DocumentPlusIcon className="mr-2 h-4 w-4" />
-              Add Content
-            </Button>
           </div>
-        ) : (
-          <DocumentsList
-            allItems={allItems}
-            loading={isLoading}
-            isReadOnly={false}
-            showActions={false}
-            onItemClick={(id, type) => handleItemClick(allItems.find(item => item.id === id), type)}
-            onItemSelect={handleItemSelect}
-            selectedDocuments={selection.documents}
-            selectedFolders={selection.folders}
-            onSort={handleSort}
-            sortConfig={sortConfig}
-          />
-        )}
-      </main>
+        </TabsContent>
+      </Tabs>
       <AddContentDialog
         isOpen={isAddContentOpen}
         onOpenChange={setIsAddContentOpen}
