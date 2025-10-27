@@ -29,8 +29,8 @@ class TestShareLinkSerializer:
         assert instance.name == "Untitled Link"
         assert instance.password is not None
         assert instance.password == "testpassword"
-        assert "password" not in serializer.data
         assert serializer.data["has_password"] is True
+        assert serializer.data["password"] == "testpassword"
 
     def test_create_without_password(self, document, serializer_context):
         serializer = ShareLinkSerializer(
