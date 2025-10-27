@@ -27,6 +27,7 @@ export function DataroomPage() {
     key: "name",
     direction: "ascending",
   });
+  const [activeTab, setActiveTab] = useState('documents');
 
   const fetchDataroom = useCallback(async () => {
     setIsLoading(true);
@@ -203,27 +204,33 @@ export function DataroomPage() {
           {/* TODO: Add breadcrumbs here in the future */}
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-10 w-10"
-            onClick={() => setIsAddFolderOpen(true)}
-            title="Add Folder"
-          >
-            <FolderPlusIcon className="h-5 w-5" />
-          </Button>
-          <Button variant="outline" onClick={() => setIsAddContentOpen(true)}>
-            <DocumentPlusIcon className="mr-2 h-4 w-4" />
-            Add Content
-          </Button>
-          <Button>
-            <ShareIcon className="mr-2 h-4 w-4" />
-            Create Link
-          </Button>
+          {activeTab === 'documents' && (
+            <>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-10 w-10"
+                onClick={() => setIsAddFolderOpen(true)}
+                title="Add Folder"
+              >
+                <FolderPlusIcon className="h-5 w-5" />
+              </Button>
+              <Button variant="outline" onClick={() => setIsAddContentOpen(true)}>
+                <DocumentPlusIcon className="mr-2 h-4 w-4" />
+                Add Content
+              </Button>
+            </>
+          )}
+          {activeTab === 'links' && (
+            <Button>
+              <ShareIcon className="mr-2 h-4 w-4" />
+              Create Link
+            </Button>
+          )}
         </div>
       </header>
 
-      <Tabs defaultValue="documents" className="mt-6">
+      <Tabs defaultValue="documents" onValueChange={setActiveTab} className="mt-6">
         <TabsList>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="links">Links & Permissions</TabsTrigger>
