@@ -108,6 +108,70 @@ class TestDataroomViewSet:
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert DataroomDocument.objects.count() == 0
 
+    def test_move_document_to_folder(self, api_client, dataroom, document):
+        """Test moving a document into a folder within a dataroom."""
+        dataroom_doc = DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        dataroom_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Destination")
+
+        url = f'/api/v1/datarooms/{dataroom.id}/move-content/'
+        data = {
+            'dataroom_document_ids': [str(dataroom_doc.id)],
+            'destination_folder_id': str(dataroom_folder.id)
+        }
+        response = api_client.post(url, data)
+
+        assert response.status_code == status.HTTP_200_OK
+        dataroom_doc.refresh_from_db()
+        assert dataroom_doc.folder == dataroom_folder
+
+    def test_move_folder_to_root(self, api_client, dataroom):
+        """Test moving a folder back to the dataroom root."""
+        parent = DataroomFolder.objects.create(dataroom=dataroom, name="Parent")
+        child = DataroomFolder.objects.create(dataroom=dataroom, name="Child", parent=parent)
+
+        url = f'/api/v1/datarooms/{dataroom.id}/move-content/'
+        data = {
+            'dataroom_folder_ids': [str(child.id)],
+            'destination_folder_id': None
+        }
+        response = api_client.post(url, data)
+
+        assert response.status_code == status.HTTP_200_OK
+        child.refresh_from_db()
+        assert child.parent is None
+
+    def test_move_folder_into_itself_fails(self, api_client, dataroom):
+        """Test that moving a folder into itself is not allowed."""
+        folder = DataroomFolder.objects.create(dataroom=dataroom, name="Folder")
+        url = f'/api/v1/datarooms/{dataroom.id}/move-content/'
+        data = {
+            'dataroom_folder_ids': [str(folder.id)],
+            'destination_folder_id': str(folder.id)
+        }
+        response = api_client.post(url, data)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_move_folder_with_conflict_resolves_name(self, api_client, dataroom):
+        """Test that moving a folder into a location with a name conflict results in renaming."""
+        folder_to_move = DataroomFolder.objects.create(dataroom=dataroom, name="My Folder")
+        destination_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Destination")
+        
+        # Create conflicting folders in the destination
+        DataroomFolder.objects.create(dataroom=dataroom, parent=destination_folder, name="My Folder")
+        DataroomFolder.objects.create(dataroom=dataroom, parent=destination_folder, name="My Folder (2)")
+
+        url = f'/api/v1/datarooms/{dataroom.id}/move-content/'
+        data = {
+            'dataroom_folder_ids': [str(folder_to_move.id)],
+            'destination_folder_id': str(destination_folder.id)
+        }
+        response = api_client.post(url, data)
+        
+        assert response.status_code == status.HTTP_200_OK
+        folder_to_move.refresh_from_db()
+        assert folder_to_move.parent == destination_folder
+        assert folder_to_move.name == "My Folder (3)"
+
 
 class TestDataroomFolderViewSet:
     def test_create_dataroom_folder(self, api_client, dataroom):
@@ -143,3 +207,20 @@ class TestDataroomFolderViewSet:
         response = api_client.post(url, data)
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_retrieve_folder_contents(self, api_client, dataroom, document):
+        """Test retrieving a folder's contents, including subfolders and documents."""
+        parent_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Parent")
+        DataroomFolder.objects.create(dataroom=dataroom, name="Sub", parent=parent_folder)
+        DataroomDocument.objects.create(dataroom=dataroom, document=document, folder=parent_folder)
+
+        url = f'/api/v1/dataroom-folders/{parent_folder.id}/'
+        response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data['name'] == "Parent"
+        assert len(data['sub_folders']) == 1
+        assert data['sub_folders'][0]['name'] == "Sub"
+        assert len(data['documents']) == 1
+        assert data['documents'][0]['document_name'] == document.name

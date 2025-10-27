@@ -8,6 +8,7 @@ from datarooms.serializers import (
     DataroomDetailSerializer,
     DataroomFolderSerializer,
     DataroomSerializer,
+    MoveDataroomContentSerializer,
 )
 
 pytestmark = pytest.mark.django_db
@@ -80,5 +81,39 @@ class TestAddContentSerializer:
     def test_add_content_serializer_no_ids_fails(self):
         data = {}
         serializer = AddContentSerializer(data=data)
+        assert not serializer.is_valid()
+        assert "must be provided" in str(serializer.errors)
+
+
+class TestMoveContentSerializer:
+    def test_move_content_serializer_valid(self):
+        data = {
+            "dataroom_document_ids": ["doc_id_1"],
+            "destination_folder_id": "folder_id_1"
+        }
+        serializer = MoveDataroomContentSerializer(data=data)
+        assert serializer.is_valid(), serializer.errors
+
+    def test_move_content_serializer_to_root(self):
+        data = {
+            "dataroom_folder_ids": ["folder_id_1"],
+            "destination_folder_id": None
+        }
+        serializer = MoveDataroomContentSerializer(data=data)
+        assert serializer.is_valid(), serializer.errors
+
+    def test_move_content_serializer_empty_fails(self):
+        data = {
+            "dataroom_document_ids": [],
+            "dataroom_folder_ids": [],
+            "destination_folder_id": "folder_id_1"
+        }
+        serializer = MoveDataroomContentSerializer(data=data)
+        assert not serializer.is_valid()
+        assert "must be provided" in str(serializer.errors)
+
+    def test_move_content_serializer_no_ids_fails(self):
+        data = { "destination_folder_id": "folder_id_1" }
+        serializer = MoveDataroomContentSerializer(data=data)
         assert not serializer.is_valid()
         assert "must be provided" in str(serializer.errors)
