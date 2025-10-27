@@ -20,10 +20,16 @@ class DataroomDocumentSerializer(serializers.ModelSerializer):
     document_name = serializers.CharField(source='document.name', read_only=True)
     document_type = serializers.CharField(source='document.type', read_only=True)
     document_id = serializers.CharField(source='document.id', read_only=True)
+    file_size = serializers.BigIntegerField(source='document.file_size', read_only=True)
+    updated_at = serializers.DateTimeField(source='document.updated_at', read_only=True)
+    created_by = serializers.PrimaryKeyRelatedField(source='document.created_by', read_only=True)
 
     class Meta:
         model = DataroomDocument
-        fields = ['id', 'document_id', 'document_name', 'document_type', 'created_at']
+        fields = [
+            'id', 'document_id', 'document_name', 'document_type', 'created_at',
+            'file_size', 'updated_at', 'created_by'
+        ]
 
 
 class DataroomDetailSerializer(serializers.ModelSerializer):
@@ -42,7 +48,7 @@ class DataroomDetailSerializer(serializers.ModelSerializer):
 
     def get_documents(self, obj):
         # Only list documents at the root of the dataroom
-        root_documents = obj.documents.filter(folder__isnull=True)
+        root_documents = obj.documents.filter(folder__isnull=True).select_related('document', 'document__created_by')
         return DataroomDocumentSerializer(root_documents, many=True, context=self.context).data
 
 
