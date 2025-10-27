@@ -1,29 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { ShareIcon } from 'lucide-react';
-import { getDataroom } from '../services/api';
+import { toast } from 'sonner';
+import { getDataroom, addContentToDataroom } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
+import { AddContentDialog } from '../components/dialogs/AddContentDialog';
 
 export function DataroomPage() {
   const { dataroomId } = useParams();
   const [dataroom, setDataroom] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddContentOpen, setIsAddContentOpen] = useState(false);
+
+  const fetchDataroom = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await getDataroom(dataroomId);
+      setDataroom(response.data);
+    } catch (error) {
+      // Error toast is handled by api interceptor, but might want to redirect on 404
+    } finally {
+      setIsLoading(false);
+    }
+  }, [dataroomId]);
 
   useEffect(() => {
-    const fetchDataroom = async () => {
-      setIsLoading(true);
-      try {
-        const response = await getDataroom(dataroomId);
-        setDataroom(response.data);
-      } catch (error) {
-        // Error toast is handled by api interceptor, but might want to redirect on 404
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchDataroom();
-  }, [dataroomId]);
+  }, [fetchDataroom]);
 
   if (isLoading) {
     return <div className="p-6">Loading dataroom...</div>;
@@ -32,6 +36,18 @@ export function DataroomPage() {
   if (!dataroom) {
     return <div className="p-6">Dataroom not found.</div>;
   }
+
+  const handleAddContent = async ({ document_ids, folder_ids }) => {
+    try {
+      await addContentToDataroom(dataroomId, { document_ids, folder_ids });
+      toast.success('Content added to dataroom successfully.');
+      fetchDataroom(); // Refresh
+    } catch (error) {
+      // Toast is handled by api interceptor
+    } finally {
+      setIsAddContentOpen(false);
+    }
+  };
 
   const hasContent = dataroom.documents.length > 0 || dataroom.folders.length > 0;
 
@@ -43,7 +59,7 @@ export function DataroomPage() {
           {/* TODO: Add breadcrumbs here in the future */}
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setIsAddContentOpen(true)}>
             <DocumentPlusIcon className="mr-2 h-4 w-4" />
             Add Content
           </Button>
@@ -61,7 +77,7 @@ export function DataroomPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               A Dataroom is a place to securely organize and share documents with granular access control.
             </p>
-            <Button className="mt-4" variant="outline">
+            <Button className="mt-4" variant="outline" onClick={() => setIsAddContentOpen(true)}>
               <DocumentPlusIcon className="mr-2 h-4 w-4" />
               Add Content
             </Button>
@@ -76,6 +92,11 @@ export function DataroomPage() {
           </div>
         )}
       </main>
+      <AddContentDialog
+        isOpen={isAddContentOpen}
+        onOpenChange={setIsAddContentOpen}
+        onConfirm={handleAddContent}
+      />
     </div>
   );
 }
