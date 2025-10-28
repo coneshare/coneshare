@@ -150,7 +150,7 @@ export function DataroomPage() {
     });
 
     return combined;
-  }, [folders, documents, sortConfig]);
+  }, [dataroom, folders, documents, sortConfig]);
 
   const handleAddContent = async ({ document_ids, folder_ids }) => {
     try {
@@ -252,7 +252,6 @@ export function DataroomPage() {
       <header className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold">{dataroom.name}</h1>
-          {/* TODO: Add breadcrumbs here in the future */}
         </div>
         <div className="flex items-center gap-2">
           {activeTab === 'documents' && (
