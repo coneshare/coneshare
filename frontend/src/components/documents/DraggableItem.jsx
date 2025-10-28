@@ -33,7 +33,7 @@ export function DraggableItem({
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id,
     data: { type },
-    disabled: isReadOnly,
+    disabled: isReadOnly || !!onItemClick,
   });
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
@@ -64,11 +64,13 @@ export function DraggableItem({
     }
   };
 
+  const dndListeners = isReadOnly || !!onItemClick ? {} : listeners;
+
   return (
     <div
       ref={setNodeRef}
       {...attributes}
-      {...listeners}
+      {...dndListeners}
       onClick={handleClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
