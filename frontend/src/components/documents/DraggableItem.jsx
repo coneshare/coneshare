@@ -1,4 +1,3 @@
-import { useDraggable } from "@dnd-kit/core";
 import { formatDistanceToNow } from "date-fns";
 import { FileIcon, FolderIcon, Star } from "lucide-react";
 import React, { useState } from "react";
@@ -30,11 +29,6 @@ export function DraggableItem({
   showActions = true,
   onItemClick,
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id,
-    data: { type },
-    disabled: isReadOnly || !!onItemClick,
-  });
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -64,20 +58,14 @@ export function DraggableItem({
     }
   };
 
-  const dndListeners = isReadOnly || !!onItemClick ? {} : listeners;
-
   return (
     <div
-      ref={setNodeRef}
-      {...attributes}
-      {...dndListeners}
       onClick={handleClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       data-testid={`draggable-item-${id}`}
       className={cn(
         `flex w-full cursor-pointer items-center px-4 py-2 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/50`,
-        isDragging && "opacity-50",
         isSelected && "bg-blue-50 dark:bg-blue-900/20"
       )}
     >
