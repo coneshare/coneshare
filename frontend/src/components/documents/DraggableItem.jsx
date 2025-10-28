@@ -53,7 +53,7 @@ export function DraggableItem({
     }
 
     if (onItemClick) {
-      onItemClick(id, type);
+      onItemClick(item, type);
       return;
     }
 

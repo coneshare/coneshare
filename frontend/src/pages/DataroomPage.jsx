@@ -322,7 +322,7 @@ export function DataroomPage() {
               loading={isLoading}
               isReadOnly={false}
               showActions={false}
-              onItemClick={(id, type) => handleItemClick(allItems.find(item => item.id === id), type)}
+              onItemClick={handleItemClick}
               onItemSelect={handleItemSelect}
               selectedDocuments={selection.documents}
               selectedFolders={selection.folders}
