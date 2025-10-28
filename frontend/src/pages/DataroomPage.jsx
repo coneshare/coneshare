@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronRight, ShareIcon } from 'lucide-react';
+import { ShareIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents } from '../services/api';
+import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
@@ -13,48 +14,10 @@ import { DocumentsList } from '../components/documents/DocumentsList';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
 
-function DataroomBreadcrumbs({ dataroomName, currentFolder, onNavigate }) {
-  const path = currentFolder ? [...(currentFolder.ancestors || []), currentFolder] : [];
-
-  const handleNavigate = (folderId) => {
-    // Prevent re-navigating to the current folder
-    if (folderId !== (currentFolder?.id || null)) {
-      onNavigate(folderId);
-    }
-  };
-
-  return (
-    <nav className="flex mb-4" aria-label="Breadcrumb">
-      <ol className="flex items-center space-x-2 text-sm">
-        <li>
-          <button
-            onClick={() => handleNavigate(null)}
-            className="font-medium text-gray-700 hover:text-gray-900"
-          >
-            {dataroomName}
-          </button>
-        </li>
-        {path.map((folder) => (
-          <li key={folder.id}>
-            <div className="flex items-center">
-              <ChevronRight className="h-4 w-4 flex-shrink-0 text-gray-400" />
-              <button
-                onClick={() => handleNavigate(folder.id)}
-                className="ml-2 font-medium text-gray-700 hover:text-gray-900"
-              >
-                {folder.name}
-              </button>
-            </div>
-          </li>
-        ))}
-      </ol>
-    </nav>
-  );
-}
-
 export function DataroomPage() {
   const { dataroomId } = useParams();
   const navigate = useNavigate();
+  const { setBreadcrumbData } = useBreadcrumb();
   const [dataroom, setDataroom] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddContentOpen, setIsAddContentOpen] = useState(false);
@@ -100,7 +63,25 @@ export function DataroomPage() {
     };
 
     fetchContent();
-  }, [dataroomId, currentFolderId]);
+
+    return () => {
+      setBreadcrumbData(null);
+    }
+  }, [dataroomId, currentFolderId, setBreadcrumbData]);
+
+  const handleBreadcrumbNavigate = useCallback((folderId) => {
+    setCurrentFolderId(folderId);
+  }, []);
+
+  useEffect(() => {
+    if (dataroom) {
+      setBreadcrumbData({
+        folder: currentDataroomFolder,
+        dataroomName: dataroom.name,
+        onNavigate: handleBreadcrumbNavigate,
+      });
+    }
+  }, [dataroom, currentDataroomFolder, setBreadcrumbData, handleBreadcrumbNavigate]);
 
   const allItems = useMemo(() => {
     if (!dataroom) return [];
@@ -280,13 +261,7 @@ export function DataroomPage() {
         </div>
       </header>
 
-      <DataroomBreadcrumbs
-        dataroomName={dataroom.name}
-        currentFolder={currentDataroomFolder}
-        onNavigate={setCurrentFolderId}
-      />
-
-      <Tabs defaultValue="documents" onValueChange={setActiveTab} className="mt-6">
+      <Tabs defaultValue="documents" onValueChange={setActiveTab} className="mt-4">
         <TabsList>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="links">Links & Permissions</TabsTrigger>

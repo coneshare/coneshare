@@ -2,6 +2,7 @@ import { useLocation } from "react-router-dom";
 import { Breadcrumbs } from "../documents/Breadcrumbs";
 import { useBreadcrumb } from "./BreadcrumbProvider";
 import { NAV_ITEMS } from "./SidebarContent";
+import { DataroomBreadcrumbs } from "../datarooms/DataroomBreadcrumbs";
 
 function Header() {
   const { breadcrumbData } = useBreadcrumb();
@@ -13,13 +14,29 @@ function Header() {
     .find((item) => pathname.startsWith(item.href));
   const title = currentNavItem ? currentNavItem.label : "";
 
+  const renderBreadcrumbs = () => {
+    if (!breadcrumbData) {
+      return <h1 className="text-lg font-semibold">{title}</h1>;
+    }
+
+    // Check if it's dataroom breadcrumb data
+    if (breadcrumbData.dataroomName) {
+      return (
+        <DataroomBreadcrumbs
+          dataroomName={breadcrumbData.dataroomName}
+          currentFolder={breadcrumbData.folder}
+          onNavigate={breadcrumbData.onNavigate}
+        />
+      );
+    }
+
+    // Default to documents breadcrumbs
+    return <Breadcrumbs currentFolder={breadcrumbData} />;
+  };
+
   return (
     <header className="flex h-14 items-center gap-4 border-b bg-gray-100/40 px-6 dark:bg-gray-800/40">
-      {breadcrumbData ? (
-        <Breadcrumbs currentFolder={breadcrumbData} />
-      ) : (
-        <h1 className="text-lg font-semibold">{title}</h1>
-      )}
+      {renderBreadcrumbs()}
     </header>
   );
 }
