@@ -35,39 +35,39 @@ export function DataroomPage() {
   });
   const [activeTab, setActiveTab] = useState('documents');
 
-  useEffect(() => {
-    const fetchContent = async () => {
-      setIsLoading(true);
-      // Reset selection before fetching new content
-      setSelection({ documents: [], folders: [] });
-      setLastSelectedItem(null);
-      try {
-        let response;
-        if (currentFolderId) {
-          response = await getDataroomFolderContents(currentFolderId);
-          setCurrentDataroomFolder(response.data);
-          setFolders(response.data.sub_folders || []);
-          setDocuments(response.data.documents || []);
-        } else {
-          response = await getDataroom(dataroomId);
-          setDataroom(response.data); // This holds the dataroom's own metadata
-          setCurrentDataroomFolder(null);
-          setFolders(response.data.folders || []);
-          setDocuments(response.data.documents || []);
-        }
-      } catch (error) {
-        // Error toast is handled by api interceptor, but might want to redirect on 404
-      } finally {
-        setIsLoading(false);
+  const fetchContent = useCallback(async () => {
+    setIsLoading(true);
+    // Reset selection before fetching new content
+    setSelection({ documents: [], folders: [] });
+    setLastSelectedItem(null);
+    try {
+      let response;
+      if (currentFolderId) {
+        response = await getDataroomFolderContents(currentFolderId);
+        setCurrentDataroomFolder(response.data);
+        setFolders(response.data.sub_folders || []);
+        setDocuments(response.data.documents || []);
+      } else {
+        response = await getDataroom(dataroomId);
+        setDataroom(response.data); // This holds the dataroom's own metadata
+        setCurrentDataroomFolder(null);
+        setFolders(response.data.folders || []);
+        setDocuments(response.data.documents || []);
       }
-    };
+    } catch (error) {
+      // Error toast is handled by api interceptor, but might want to redirect on 404
+    } finally {
+      setIsLoading(false);
+    }
+  }, [dataroomId, currentFolderId]);
 
+  useEffect(() => {
     fetchContent();
 
     return () => {
       setBreadcrumbData(null);
-    }
-  }, [dataroomId, currentFolderId, setBreadcrumbData]);
+    };
+  }, [fetchContent, setBreadcrumbData]);
 
   const handleBreadcrumbNavigate = useCallback((folderId) => {
     setCurrentFolderId(folderId);

@@ -51,6 +51,7 @@ describe('DataroomPage', () => {
         vi.resetAllMocks();
         api.getDataroom.mockResolvedValue({ data: mockDataroomRoot });
         api.getDataroomFolderContents.mockResolvedValue({ data: mockSubFolderContent });
+        api.createDataroomFolder.mockResolvedValue({ data: {} });
     });
 
     const renderComponent = () => {
@@ -146,7 +147,55 @@ describe('DataroomPage', () => {
         //         expect(screen.getByText('This folder is empty')).toBeInTheDocument();
         //     });
         // });
+    });
 
+    describe('Content Management', () => {
+        it('should create a new folder and refresh the list', async () => {
+            const user = userEvent.setup();
 
+            const updatedMockDataroomRoot = {
+                ...mockDataroomRoot,
+                folders: [
+                    ...mockDataroomRoot.folders,
+                    { id: 'newFolder1', name: 'New Test Folder', updated_at: '2023-01-03T12:00:00Z', ancestors: [] }
+                ]
+            };
+            // Reset and configure mocks for this specific test's sequence
+            api.getDataroom.mockReset()
+                .mockResolvedValueOnce({ data: mockDataroomRoot })
+                .mockResolvedValueOnce({ data: updatedMockDataroomRoot });
+
+            renderComponent();
+
+            // Check initial state
+            expect(await screen.findByText('Sub Folder')).toBeInTheDocument();
+            expect(screen.queryByText('New Test Folder')).not.toBeInTheDocument();
+
+            // Open the dialog
+            const addFolderButton = screen.getByTitle('Add Folder');
+            await user.click(addFolderButton);
+
+            // Interact with the dialog
+            expect(await screen.findByRole('heading', { name: /Add New Folder/i })).toBeInTheDocument();
+            await user.type(screen.getByLabelText('Name'), 'New Test Folder');
+            await user.click(screen.getByRole('button', { name: 'Create Folder' }));
+
+            // Assert API call
+            await waitFor(() => {
+                expect(api.createDataroomFolder).toHaveBeenCalledWith({
+                    name: 'New Test Folder',
+                    dataroom: 'dr123',
+                    parent: null,
+                });
+            });
+
+            // Assert UI update
+            await waitFor(() => {
+                expect(screen.getByText('New Test Folder')).toBeInTheDocument();
+            });
+
+            // Assert refresh happened
+            expect(api.getDataroom).toHaveBeenCalledTimes(2);
+        });
     });
 });
