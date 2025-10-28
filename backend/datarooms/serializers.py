@@ -34,7 +34,7 @@ class DataroomDocumentSerializer(serializers.ModelSerializer):
     document_name = serializers.CharField(source='document.name', read_only=True)
     document_type = serializers.CharField(source='document.type', read_only=True)
     document_id = serializers.CharField(source='document.id', read_only=True)
-    file_size = serializers.BigIntegerField(source='document.file_size', read_only=True)
+    file_size = serializers.IntegerField(source='document.file_size', read_only=True)
     updated_at = serializers.DateTimeField(source='document.updated_at', read_only=True)
     created_by = serializers.PrimaryKeyRelatedField(source='document.created_by', read_only=True)
 

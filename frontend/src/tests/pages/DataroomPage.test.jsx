@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { DataroomPage } from '../../pages/DataroomPage';
+import { BreadcrumbProvider } from '../../components/layout/BreadcrumbProvider';
 import * as api from '../../services/api';
 
 vi.mock('../../services/api');
@@ -57,9 +58,11 @@ describe('DataroomPage', () => {
     const renderComponent = () => {
         return render(
             <MemoryRouter initialEntries={['/datarooms/dr123']}>
-                <Routes>
-                    <Route path="/datarooms/:dataroomId" element={<DataroomPage />} />
-                </Routes>
+                <BreadcrumbProvider>
+                    <Routes>
+                        <Route path="/datarooms/:dataroomId" element={<DataroomPage />} />
+                    </Routes>
+                </BreadcrumbProvider>
             </MemoryRouter>
         );
     };
