@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronRight, ShareIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent } from '../services/api';
+import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
@@ -306,7 +306,9 @@ export function DataroomPage() {
           )}
           {!hasContent ? (
             <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted bg-muted/20 p-12 text-center">
-              <h3 className="text-xl font-semibold tracking-tight">This dataroom is empty</h3>
+              <h3 className="text-xl font-semibold tracking-tight">
+                {currentDataroomFolder ? 'This folder is empty' : 'This dataroom is empty'}
+              </h3>
               <p className="mt-2 text-sm text-muted-foreground">
                 A Dataroom is a place to securely organize and share documents with granular access control.
               </p>
