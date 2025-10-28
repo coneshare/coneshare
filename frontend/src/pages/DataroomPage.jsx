@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ShareIcon } from 'lucide-react';
+import { ChevronRight, ShareIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent } from '../services/api';
 import { Button } from '../components/ui/Button';
@@ -13,6 +13,45 @@ import { DocumentsList } from '../components/documents/DocumentsList';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
 
+function DataroomBreadcrumbs({ dataroomName, currentFolder, onNavigate }) {
+  const path = currentFolder ? [...(currentFolder.ancestors || []), currentFolder] : [];
+
+  const handleNavigate = (folderId) => {
+    // Prevent re-navigating to the current folder
+    if (folderId !== (currentFolder?.id || null)) {
+      onNavigate(folderId);
+    }
+  };
+
+  return (
+    <nav className="flex mb-4" aria-label="Breadcrumb">
+      <ol className="flex items-center space-x-2 text-sm">
+        <li>
+          <button
+            onClick={() => handleNavigate(null)}
+            className="font-medium text-gray-700 hover:text-gray-900"
+          >
+            {dataroomName}
+          </button>
+        </li>
+        {path.map((folder) => (
+          <li key={folder.id}>
+            <div className="flex items-center">
+              <ChevronRight className="h-4 w-4 flex-shrink-0 text-gray-400" />
+              <button
+                onClick={() => handleNavigate(folder.id)}
+                className="ml-2 font-medium text-gray-700 hover:text-gray-900"
+              >
+                {folder.name}
+              </button>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
 export function DataroomPage() {
   const { dataroomId } = useParams();
   const navigate = useNavigate();
@@ -21,6 +60,10 @@ export function DataroomPage() {
   const [isAddContentOpen, setIsAddContentOpen] = useState(false);
   const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
   const [isMoveItemsOpen, setIsMoveItemsOpen] = useState(false);
+  const [currentFolderId, setCurrentFolderId] = useState(null);
+  const [currentDataroomFolder, setCurrentDataroomFolder] = useState(null);
+  const [folders, setFolders] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [selection, setSelection] = useState({ documents: [], folders: [] });
   const [lastSelectedItem, setLastSelectedItem] = useState(null);
   const [sortConfig, setSortConfig] = useState({
@@ -29,37 +72,45 @@ export function DataroomPage() {
   });
   const [activeTab, setActiveTab] = useState('documents');
 
-  const fetchDataroom = useCallback(async () => {
+  const fetchContent = useCallback(async () => {
     setIsLoading(true);
+    // Reset selection before fetching new content
+    setSelection({ documents: [], folders: [] });
+    setLastSelectedItem(null);
     try {
-      const response = await getDataroom(dataroomId);
-      setDataroom(response.data);
+      let response;
+      if (currentFolderId) {
+        response = await getDataroomFolderContents(currentFolderId);
+        setCurrentDataroomFolder(response.data);
+        setFolders(response.data.sub_folders || []);
+        setDocuments(response.data.documents || []);
+      } else {
+        response = await getDataroom(dataroomId);
+        setDataroom(response.data); // This holds the dataroom's own metadata
+        setCurrentDataroomFolder(null);
+        setFolders(response.data.folders || []);
+        setDocuments(response.data.documents || []);
+      }
     } catch (error) {
       // Error toast is handled by api interceptor, but might want to redirect on 404
     } finally {
       setIsLoading(false);
     }
-  }, [dataroomId]);
+  }, [dataroomId, currentFolderId]);
 
   useEffect(() => {
-    // Reset selection when data re-fetches
-    setSelection({ documents: [], folders: [] });
-    setLastSelectedItem(null);
-  }, [dataroomId]);
-
-  useEffect(() => {
-    fetchDataroom();
-  }, [fetchDataroom]);
+    fetchContent();
+  }, [fetchContent]);
 
   const allItems = useMemo(() => {
     if (!dataroom) return [];
 
     let combined = [
-      ...(dataroom.folders || []).map(f => ({
+      ...(folders || []).map(f => ({
         ...f,
         type: 'folder'
       })),
-      ...(dataroom.documents || []).map(d => ({
+      ...(documents || []).map(d => ({
         ...d,
         // Use dataroom_document_id for selection, document_id for navigation
         id: d.id, 
@@ -99,7 +150,7 @@ export function DataroomPage() {
     });
 
     return combined;
-  }, [dataroom, sortConfig]);
+  }, [folders, documents, sortConfig]);
 
   const handleAddContent = async ({ document_ids, folder_ids }) => {
     try {
@@ -118,10 +169,10 @@ export function DataroomPage() {
       await createDataroomFolder({
         name,
         dataroom: dataroomId,
-        parent: null, // For now, only support creating root folders
+        parent: currentFolderId,
       });
       toast.success(`Folder "${name}" created successfully.`);
-      fetchDataroom(); // Refresh
+      fetchContent(); // Refresh
     } catch (error) {
       // Toast is handled by api interceptor
     } finally {
@@ -131,7 +182,7 @@ export function DataroomPage() {
 
   const handleItemClick = (item, type) => {
     if (type === 'folder') {
-      toast.info("Navigating dataroom folders is not yet implemented.");
+      setCurrentFolderId(item.id);
     } else {
       // For documents, we need the actual document_id for navigation
       navigate(`/documents/${item.document_id}`);
@@ -194,7 +245,7 @@ export function DataroomPage() {
     return <div className="p-6">Dataroom not found.</div>;
   }
 
-  const hasContent = dataroom.documents.length > 0 || dataroom.folders.length > 0;
+  const hasContent = documents.length > 0 || folders.length > 0;
 
   return (
     <div className="container mx-auto p-4 md:p-6">
@@ -229,6 +280,12 @@ export function DataroomPage() {
           )}
         </div>
       </header>
+
+      <DataroomBreadcrumbs
+        dataroomName={dataroom.name}
+        currentFolder={currentDataroomFolder}
+        onNavigate={setCurrentFolderId}
+      />
 
       <Tabs defaultValue="documents" onValueChange={setActiveTab} className="mt-6">
         <TabsList>

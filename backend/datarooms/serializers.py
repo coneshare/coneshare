@@ -10,10 +10,24 @@ class DataroomSerializer(serializers.ModelSerializer):
 
 
 class DataroomFolderSerializer(serializers.ModelSerializer):
+    ancestors = serializers.SerializerMethodField()
+
     class Meta:
         model = DataroomFolder
-        fields = ['id', 'name', 'dataroom', 'parent', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'dataroom', 'parent', 'created_at', 'updated_at', 'ancestors']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'ancestors']
+
+    def get_ancestors(self, obj):
+        """
+        Returns a list of ancestor folders, from the root down to the
+        immediate parent.
+        """
+        ancestors = []
+        parent = obj.parent
+        while parent:
+            ancestors.append({'id': parent.id, 'name': parent.name})
+            parent = parent.parent
+        return list(reversed(ancestors))
 
 
 class DataroomDocumentSerializer(serializers.ModelSerializer):
