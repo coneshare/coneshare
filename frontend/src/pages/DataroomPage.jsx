@@ -156,7 +156,7 @@ export function DataroomPage() {
     try {
       await addContentToDataroom(dataroomId, { document_ids, folder_ids });
       toast.success('Content added to dataroom successfully.');
-      fetchDataroom(); // Refresh
+      fetchContent(); // Refresh
     } catch (error) {
       // Toast is handled by api interceptor
     } finally {
@@ -218,7 +218,7 @@ export function DataroomPage() {
         destination_folder_id: destinationFolderId,
       });
       toast.success("Items moved successfully.");
-      fetchDataroom();
+      fetchContent();
     } finally {
       setIsMoveItemsOpen(false);
     }
