@@ -181,7 +181,7 @@ describe('DataroomPage', () => {
             // Interact with the dialog
             expect(await screen.findByRole('heading', { name: /Add New Folder/i })).toBeInTheDocument();
             await user.type(screen.getByLabelText('Name'), 'New Test Folder');
-            await user.click(screen.getByRole('button', { name: 'Create' }));
+            await user.click(screen.getByRole('button', { name: 'Create Folder' }));
 
             // Assert API call
             await waitFor(() => {

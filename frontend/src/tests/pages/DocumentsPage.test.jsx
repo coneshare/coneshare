@@ -887,8 +887,7 @@ describe('DocumentsPage', () => {
       await screen.findByText('Old Folder');
 
       // Open sort menu and select "Last modified"
-      await user.click(screen.getByRole('button', { name: 'Sort' }));
-      await user.click(screen.getByRole('menuitem', { name: 'Last modified' }));
+      await user.click(screen.getByRole('button', { name: /Last Modified/i }));
 
       // Default sort is ascending, so "Old Folder" should be first.
       let listItems = screen.getAllByText(/Folder/);
@@ -896,8 +895,7 @@ describe('DocumentsPage', () => {
       expect(listItems[1]).toHaveTextContent('New Folder');
 
       // Click again to sort descending
-      await user.click(screen.getByRole('button', { name: 'Sort' }));
-      await user.click(screen.getByRole('menuitem', { name: 'Last modified' }));
+      await user.click(screen.getByRole('button', { name: /Last Modified/i }));
 
       // Now "New Folder" should be first
       listItems = screen.getAllByText(/Folder/);
@@ -919,8 +917,7 @@ describe('DocumentsPage', () => {
       await screen.findByText('Small Doc');
 
       // Open sort menu and select "File Size"
-      await user.click(screen.getByRole('button', { name: 'Sort' }));
-      await user.click(screen.getByRole('menuitem', { name: 'File Size' }));
+      await user.click(screen.getByRole('button', { name: /File Size/i }));
 
       // Default sort is ascending, so "Small Doc" should be first.
       let listItems = screen.getAllByText(/Doc/);
@@ -928,8 +925,7 @@ describe('DocumentsPage', () => {
       expect(listItems[1]).toHaveTextContent('Large Doc');
 
       // Click again to sort descending
-      await user.click(screen.getByRole('button', { name: 'Sort' }));
-      await user.click(screen.getByRole('menuitem', { name: 'File Size' }));
+      await user.click(screen.getByRole('button', { name: /File Size/i }));
 
       // Now "Large Doc" should be first
       listItems = screen.getAllByText(/Doc/);
