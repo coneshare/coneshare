@@ -1,3 +1,5 @@
+import logging
+
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status, viewsets, serializers
@@ -12,6 +14,8 @@ from .serializers import (AddContentSerializer, DataroomDetailSerializer,
                           DataroomDocumentSerializer, DataroomFolderSerializer,
                           DataroomSerializer, MoveDataroomContentSerializer,
                           RemoveContentSerializer)
+
+logger = logging.getLogger(__name__)
 
 
 class DataroomViewSet(viewsets.ModelViewSet):
@@ -99,7 +103,10 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
             return Response({"detail": "Content added successfully."}, status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(e)
+            return Response({
+                "detail": "An internal server error occurred while adding content."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['post'], url_path='remove-content')
     def remove_content(self, request, pk=None):
@@ -165,7 +172,10 @@ class DataroomViewSet(viewsets.ModelViewSet):
         except serializers.ValidationError as e:
             return Response({"detail": str(e.detail)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(e)
+            return Response({
+                "detail": "An internal server error occurred while moving content."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class DataroomFolderViewSet(viewsets.ModelViewSet):
