@@ -47,6 +47,40 @@ class TestDataroomViewSet:
         assert data['id'] == str(dataroom.id)
         assert len(data['documents']) == 1
         assert data['documents'][0]['document_name'] == document.name
+
+    def test_cannot_access_other_users_dataroom_folders(self, api_client, user2, organization):
+        """A user cannot list or retrieve folders from a dataroom created by another user."""
+        other_dataroom = Dataroom.objects.create(name="Other DR", organization=organization, created_by=user2)
+        other_folder = DataroomFolder.objects.create(name="Other Folder", dataroom=other_dataroom)
+
+        # 1. Test listing: should not appear in the general list
+        list_url = '/api/v1/dataroom-folders/'
+        response = api_client.get(list_url)
+        assert response.status_code == status.HTTP_200_OK
+        assert not any(f['id'] == str(other_folder.id) for f in response.data)
+
+        # 2. Test direct retrieval: should return 404
+        retrieve_url = f'/api/v1/dataroom-folders/{other_folder.id}/'
+        response = api_client.get(retrieve_url)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_retrieve_folder_contents_is_performant(self, api_client, dataroom, organization, user, django_assert_num_queries):
+        """Test that retrieving a folder's contents does not cause an N+1 query problem."""
+        parent_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Parent")
+
+        # Create 5 documents in the folder
+        for i in range(5):
+            doc = Document.objects.create(name=f"Doc {i}", organization=organization, created_by=user)
+            DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=parent_folder)
+
+        # The number of queries should be constant and not dependent on the number of documents.
+        # Without select_related, this would be over 10 queries (1+5 for docs, 5 for users).
+        # We expect a low, fixed number of queries (e.g., auth, main object, children, documents, ancestors).
+        with django_assert_num_queries(6):
+            url = f'/api/v1/dataroom-folders/{parent_folder.id}/'
+            response = api_client.get(url)
+            assert response.status_code == status.HTTP_200_OK
+            assert len(response.json()['documents']) == 5
         assert len(data['folders']) == 1
         assert data['folders'][0]['name'] == "Subfolder"
 

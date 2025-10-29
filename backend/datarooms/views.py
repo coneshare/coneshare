@@ -186,9 +186,9 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         This queryset ensures that users can only access dataroom folders
-        within their organization. It also allows filtering by a specific dataroom.
+        within datarooms they have created. It also allows filtering by a specific dataroom.
         """
-        queryset = self.queryset.filter(dataroom__organization=self.request.user.organization)
+        queryset = self.queryset.filter(dataroom__created_by=self.request.user)
         dataroom_id = self.request.query_params.get('dataroom_id')
         if dataroom_id:
             queryset = queryset.filter(dataroom_id=dataroom_id)
@@ -198,7 +198,7 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         # Custom logic to include sub-folders and documents
         sub_folders = instance.children.all()
-        documents = DataroomDocument.objects.filter(folder=instance)
+        documents = DataroomDocument.objects.filter(folder=instance).select_related('document', 'document__created_by')
 
         data = self.get_serializer(instance).data
         data['sub_folders'] = DataroomFolderSerializer(sub_folders, many=True).data
