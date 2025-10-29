@@ -22,6 +22,9 @@ class DataroomFolderSerializer(serializers.ModelSerializer):
         Returns a list of ancestor folders, from the root down to the
         immediate parent.
         """
+        # TODO: N+1 query problem!
+        # To optimize this, consider using a single recursive Common Table Expression (CTE) query.
+        # This would fetch all ancestors in a single database roundtrip.
         ancestors = []
         parent = obj.parent
         while parent:

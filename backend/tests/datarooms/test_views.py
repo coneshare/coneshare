@@ -78,7 +78,7 @@ class TestDataroomViewSet:
         # The number of queries should be constant and not dependent on the number of documents.
         # Without select_related, this would be over 10 queries (1+5 for docs, 5 for users).
         # We expect a low, fixed number of queries (e.g., auth, main object, children, documents, ancestors).
-        with django_assert_num_queries(6):
+        with django_assert_num_queries(3):
             url = f'/api/v1/dataroom-folders/{parent_folder.id}/'
             response = api_client.get(url)
             assert response.status_code == status.HTTP_200_OK

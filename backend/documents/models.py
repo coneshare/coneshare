@@ -2,6 +2,7 @@ import secrets
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from datetime import timedelta
 
@@ -150,6 +151,17 @@ class ShareLink(BaseModel):
     watermark_text = models.CharField(max_length=255, blank=True)
     receive_email_notification = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    Q(document__isnull=False, dataroom__isnull=True) |
+                    Q(document__isnull=True, dataroom__isnull=False)
+                ),
+                name='sharelink_exactly_one_target'
+            )
+        ]
 
     def __str__(self):
         return self.name or str(self.id)

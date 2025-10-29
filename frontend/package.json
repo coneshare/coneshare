@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
+    "test:case": "vitest -t",
     "test:ui": "vitest --ui"
   },
   "dependencies": {
