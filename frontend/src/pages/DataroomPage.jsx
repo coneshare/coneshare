@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useSortedList } from '../hooks/useSortedList';
+import { useItemSelection } from '../hooks/useItemSelection';
 import { ShareIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents } from '../services/api';
@@ -27,19 +29,10 @@ export function DataroomPage() {
   const [currentDataroomFolder, setCurrentDataroomFolder] = useState(null);
   const [folders, setFolders] = useState([]);
   const [documents, setDocuments] = useState([]);
-  const [selection, setSelection] = useState({ documents: [], folders: [] });
-  const [lastSelectedItem, setLastSelectedItem] = useState(null);
-  const [sortConfig, setSortConfig] = useState({
-    key: "name",
-    direction: "ascending",
-  });
   const [activeTab, setActiveTab] = useState('documents');
 
   const fetchContent = useCallback(async () => {
     setIsLoading(true);
-    // Reset selection before fetching new content
-    setSelection({ documents: [], folders: [] });
-    setLastSelectedItem(null);
     try {
       let response;
       if (currentFolderId) {
@@ -61,13 +54,38 @@ export function DataroomPage() {
     }
   }, [dataroomId, currentFolderId]);
 
+  const unsortedItems = useMemo(() => {
+    if (!dataroom) return [];
+
+    return [
+      ...(folders || []).map(f => ({
+        ...f,
+        type: 'folder'
+      })),
+      ...(documents || []).map(d => ({
+        ...d,
+        // Use dataroom_document_id for selection, document_id for navigation
+        id: d.id, 
+        document_id: d.document_id,
+        name: d.document_name,
+        type: 'document'
+      }))
+    ];
+  }, [dataroom, folders, documents]);
+
+  const { sortedItems: allItems, sortConfig, handleSort } = useSortedList(unsortedItems);
+  const { selection, setSelection, setLastSelectedItem, handleItemSelect, handleClearSelection } = useItemSelection(allItems);
+
   useEffect(() => {
+    // Reset selection when folder changes
+    setSelection({ documents: [], folders: [] });
+    setLastSelectedItem(null);
     fetchContent();
 
     return () => {
       setBreadcrumbData(null);
     };
-  }, [fetchContent, setBreadcrumbData]);
+  }, [fetchContent, setBreadcrumbData, setSelection, setLastSelectedItem]);
 
   const handleBreadcrumbNavigate = useCallback((folderId) => {
     setCurrentFolderId(folderId);
@@ -82,56 +100,6 @@ export function DataroomPage() {
       });
     }
   }, [dataroom, currentDataroomFolder, setBreadcrumbData, handleBreadcrumbNavigate]);
-
-  const allItems = useMemo(() => {
-    if (!dataroom) return [];
-
-    let combined = [
-      ...(folders || []).map(f => ({
-        ...f,
-        type: 'folder'
-      })),
-      ...(documents || []).map(d => ({
-        ...d,
-        // Use dataroom_document_id for selection, document_id for navigation
-        id: d.id, 
-        document_id: d.document_id,
-        name: d.document_name,
-        type: 'document'
-      }))
-    ];
-
-    combined.sort((a, b) => {
-      // Folders always come first
-      if (a.type === "folder" && b.type === "document") return -1;
-      if (a.type === "document" && b.type === "folder") return 1;
-      
-      const dir = sortConfig.direction === "ascending" ? 1 : -1;
-      const key = sortConfig.key;
-
-      const aVal = a[key];
-      const bVal = b[key];
-
-      if (key === "updated_at") {
-        return (new Date(aVal) - new Date(bVal)) * dir;
-      }
-
-      if (key === 'file_size') {
-        return ((aVal || 0) - (bVal || 0)) * dir;
-      }
-
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return aVal.localeCompare(bVal) * dir;
-      }
-      
-      if (aVal < bVal) return -1 * dir;
-      if (aVal > bVal) return 1 * dir;
-
-      return 0;
-    });
-
-    return combined;
-  }, [dataroom, folders, documents, sortConfig]);
 
   const handleAddContent = async ({ document_ids, folder_ids }) => {
     try {
@@ -170,26 +138,6 @@ export function DataroomPage() {
     }
   };
 
-  const handleItemSelect = useCallback((id, type, event) => {
-    setSelection((prev) => {
-      const newSelection = { ...prev };
-      const listKey = type === 'document' ? 'documents' : 'folders';
-      const currentList = newSelection[listKey];
-      
-      if (currentList.includes(id)) {
-        newSelection[listKey] = currentList.filter(itemId => itemId !== id);
-      } else {
-        newSelection[listKey] = [...currentList, id];
-      }
-      return newSelection;
-    });
-    setLastSelectedItem({ id, type });
-  }, []);
-
-  const handleClearSelection = useCallback(() => {
-    setSelection({ documents: [], folders: [] });
-    setLastSelectedItem(null);
-  }, []);
 
   const handleMoveItems = async (destinationFolderId) => {
     try {
@@ -205,18 +153,6 @@ export function DataroomPage() {
     }
   };
 
-  const handleSort = (key) => {
-    setSortConfig((prevConfig) => {
-      if (prevConfig.key === key) {
-        return {
-          ...prevConfig,
-          direction:
-            prevConfig.direction === "ascending" ? "descending" : "ascending",
-        };
-      }
-      return { key, direction: "ascending" };
-    });
-  };
 
   if (isLoading) {
     return <div className="p-6">Loading dataroom...</div>;
