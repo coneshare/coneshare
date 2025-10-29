@@ -448,7 +448,7 @@ describe('DocumentsPage', () => {
 
         expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
 
-        const checkboxes = screen.getAllByRole('checkbox', { name: 'Select item' });
+        const checkboxes = screen.getAllByLabelText(/Select .+/i);
         await user.click(checkboxes[0]);
 
         const actionBar = screen.getByText(/1 folder selected/);
@@ -468,13 +468,14 @@ describe('DocumentsPage', () => {
         renderComponent();
 
         const folderCard = await screen.findByText('Folder One');
+        const itemRow = folderCard.closest('[data-testid^="draggable-item-"]');
         
-        expect(folderCard.closest('div[class*="relative flex"]')).not.toHaveClass('border-primary');
+        expect(itemRow).not.toHaveClass('bg-blue-50');
 
-        const checkboxes = screen.getAllByRole('checkbox');
-        await user.click(checkboxes[0]);
+        const checkbox = screen.getByLabelText('Select Folder One');
+        await user.click(checkbox);
         
-        expect(folderCard.closest('div[class*="relative flex"]')).toHaveClass('border-primary');
+        expect(itemRow).toHaveClass('bg-blue-50');
     });
 
     it('should select a range of items with shift-click', async () => {
@@ -482,7 +483,7 @@ describe('DocumentsPage', () => {
         renderComponent();
 
         await screen.findByText('Folder One');
-        const checkboxes = screen.getAllByRole('checkbox');
+        const checkboxes = screen.getAllByLabelText(/Select .+/i);
 
         await user.click(checkboxes[0]);
 
@@ -503,7 +504,7 @@ describe('DocumentsPage', () => {
         renderComponent();
         await screen.findByText('Folder One');
 
-        const checkboxes = screen.getAllByRole('checkbox');
+        const checkboxes = screen.getAllByLabelText(/Select .+/i);
         await user.click(checkboxes[1]); // Folder Two
         await user.click(checkboxes[3]); // Document Two
 

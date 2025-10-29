@@ -181,7 +181,7 @@ describe('DataroomPage', () => {
             // Interact with the dialog
             expect(await screen.findByRole('heading', { name: /Add New Folder/i })).toBeInTheDocument();
             await user.type(screen.getByLabelText('Name'), 'New Test Folder');
-            await user.click(screen.getByRole('button', { name: 'Create Folder' }));
+            await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
             // Assert API call
             await waitFor(() => {
@@ -199,6 +199,76 @@ describe('DataroomPage', () => {
 
             // Assert refresh happened
             expect(api.getDataroom).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    describe('Selection and Sorting', () => {
+        it('should allow selecting and clearing selection', async () => {
+            const user = userEvent.setup();
+            renderComponent();
+    
+            await screen.findByText('Sub Folder');
+            await screen.findByText('Root Document');
+    
+            expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
+    
+            const folderCheckbox = screen.getByLabelText('Select Sub Folder');
+            await user.click(folderCheckbox);
+            
+            expect(await screen.findByText(/1 folder selected/)).toBeInTheDocument();
+    
+            const docCheckbox = screen.getByLabelText('Select Root Document');
+            await user.click(docCheckbox);
+    
+            expect(await screen.findByText(/1 document, 1 folder selected/)).toBeInTheDocument();
+    
+            const clearButton = screen.getByRole('button', { name: 'Clear Selection' });
+            await user.click(clearButton);
+    
+            expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
+        });
+    
+        it('should open move dialog when move is clicked', async () => {
+            const user = userEvent.setup();
+            renderComponent();
+    
+            const folderCheckbox = await screen.findByLabelText('Select Sub Folder');
+            await user.click(folderCheckbox);
+    
+            const moveButton = await screen.findByRole('button', { name: /move/i });
+            await user.click(moveButton);
+    
+            expect(await screen.findByRole('heading', { name: /move items/i })).toBeInTheDocument();
+        });
+    
+        it('should sort items by name', async () => {
+            const user = userEvent.setup();
+            const mockData = {
+                ...mockDataroomRoot,
+                folders: [
+                    { id: 'f2', name: 'B Folder', updated_at: '2023-01-01T12:00:00Z', type: 'folder' },
+                    { id: 'f1', name: 'A Folder', updated_at: '2023-01-02T12:00:00Z', type: 'folder' },
+                ],
+                documents: [],
+            };
+            api.getDataroom.mockResolvedValue({ data: mockData });
+            renderComponent();
+    
+            await screen.findByText('A Folder');
+            
+            let listItems = screen.getAllByTestId(/draggable-item-/);
+            // Default sort is name ascending, folders first
+            expect(within(listItems[0]).getByText('A Folder')).toBeInTheDocument();
+            expect(within(listItems[1]).getByText('B Folder')).toBeInTheDocument();
+    
+            const sortButton = screen.getByRole('button', { name: 'Sort' });
+            await user.click(sortButton); // Open dropdown
+            const nameSortOption = screen.getByRole('menuitem', { name: 'Name' });
+            await user.click(nameSortOption); // Click to reverse direction
+    
+            listItems = screen.getAllByTestId(/draggable-item-/);
+            expect(within(listItems[0]).getByText('B Folder')).toBeInTheDocument();
+            expect(within(listItems[1]).getByText('A Folder')).toBeInTheDocument();
         });
     });
 });
