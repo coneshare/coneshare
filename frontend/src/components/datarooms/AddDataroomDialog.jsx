@@ -48,12 +48,6 @@ export function AddDataroomDialog({ isOpen, onOpenChange, onSuccess }) {
         <form
           id="add-dataroom-form"
           onSubmit={handleSubmit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSubmit(e);
-            }
-          }}
         >
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">

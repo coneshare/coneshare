@@ -19,8 +19,8 @@ function Header() {
       return <h1 className="text-lg font-semibold">{title}</h1>;
     }
 
-    // Check if it's dataroom breadcrumb data
-    if (breadcrumbData.dataroomName) {
+    // Check for an explicit type property for more robust routing
+    if (breadcrumbData.type === 'dataroom') {
       return (
         <DataroomBreadcrumbs
           dataroomName={breadcrumbData.dataroomName}

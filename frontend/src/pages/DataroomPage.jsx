@@ -85,7 +85,7 @@ export function DataroomPage() {
     return () => {
       setBreadcrumbData(null);
     };
-  }, [fetchContent, setBreadcrumbData, setSelection, setLastSelectedItem]);
+  }, [fetchContent, setBreadcrumbData]);
 
   const handleBreadcrumbNavigate = useCallback((folderId) => {
     setCurrentFolderId(folderId);
