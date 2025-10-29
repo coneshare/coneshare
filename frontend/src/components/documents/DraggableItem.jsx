@@ -100,6 +100,7 @@ export function DraggableItem({
               onToggleStar(id, type);
             }}
             className={cn("ml-auto p-1 mr-1")}
+            aria-label={item.is_starred ? `Unstar ${item.name}` : `Star ${item.name}`}
           >
             <Star
               className={cn(

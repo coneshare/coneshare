@@ -733,13 +733,13 @@ describe('DocumentsPage', () => {
       renderComponent();
 
       const folderCard = await screen.findByText('My Folder');
-      const card = folderCard.closest('div[class*="relative flex"]');
-      const starButton = within(card).getByRole('button', { name: /star/i });
+      const card = folderCard.closest('[data-testid^="draggable-item-"]');
+      const starButton = within(card).getByRole('button', { name: 'Star My Folder' });
       
       await user.click(starButton);
 
       await waitFor(() => {
-        expect(within(card).getByRole('button', { name: /unstar/i })).toBeInTheDocument();
+        expect(within(card).getByRole('button', { name: 'Unstar My Folder' })).toBeInTheDocument();
       });
 
       expect(api.updateFolder).toHaveBeenCalledWith('folder1', { is_starred: true });
@@ -757,13 +757,13 @@ describe('DocumentsPage', () => {
       renderComponent();
 
       const docCard = await screen.findByText('My Document');
-      const card = docCard.closest('div[class*="relative flex"]');
-      const unstarButton = within(card).getByRole('button', { name: /unstar/i });
+      const card = docCard.closest('[data-testid^="draggable-item-"]');
+      const unstarButton = within(card).getByRole('button', { name: 'Unstar My Document' });
 
       await user.click(unstarButton);
 
       await waitFor(() => {
-        expect(within(card).getByRole('button', { name: /star/i })).toBeInTheDocument();
+        expect(within(card).getByRole('button', { name: 'Star My Document' })).toBeInTheDocument();
       });
 
       expect(api.updateDocument).toHaveBeenCalledWith('doc1', { is_starred: false });
@@ -775,19 +775,19 @@ describe('DocumentsPage', () => {
       renderComponent();
 
       const docCard = await screen.findByText('My Document');
-      const card = docCard.closest('div[class*="relative flex"]');
-      const starButton = within(card).getByRole('button', { name: /star/i });
+      const card = docCard.closest('[data-testid^="draggable-item-"]');
+      const starButton = within(card).getByRole('button', { name: 'Star My Document' });
 
       await user.click(starButton);
 
       await waitFor(() => {
-        expect(within(card).getByRole('button', { name: /unstar/i })).toBeInTheDocument();
+        expect(within(card).getByRole('button', { name: 'Unstar My Document' })).toBeInTheDocument();
       });
       expect(api.updateDocument).toHaveBeenCalledWith('doc1', { is_starred: true });
 
       // Revert on failure
       await waitFor(() => {
-        expect(within(card).getByRole('button', { name: /star/i })).toBeInTheDocument();
+        expect(within(card).getByRole('button', { name: 'Star My Document' })).toBeInTheDocument();
       });
 
       await waitFor(() => {
@@ -834,7 +834,7 @@ describe('DocumentsPage', () => {
         expect(screen.getByText('Starred Folder')).toBeInTheDocument();
       });
 
-      const starredButton = screen.getByRole('button', { name: /starred/i });
+      const starredButton = screen.getByRole('button', { name: 'Starred', exact: true });
       await user.click(starredButton);
 
       await waitFor(() => {
@@ -853,7 +853,7 @@ describe('DocumentsPage', () => {
         expect(screen.getByText('Starred Folder')).toBeInTheDocument();
       });
 
-      const starredButton = screen.getByRole('button', { name: /starred/i });
+      const starredButton = screen.getByRole('button', { name: 'Starred', exact: true });
 
       // Click once to filter
       await user.click(starredButton);
