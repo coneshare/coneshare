@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 
 from core.models import BaseModel, Organization, User
 
@@ -38,6 +39,16 @@ class ShareLinkDataroomSetting(BaseModel):
     allow_download = models.BooleanField(default=True)
     enable_watermark = models.BooleanField(default=False)
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    Q(dataroom_document__isnull=False, dataroom_folder__isnull=True) |
+                    Q(dataroom_document__isnull=True, dataroom_folder__isnull=False)
+                ),
+                name='sharelinkdataroomsetting_exactly_one_target'
+            )
+        ]    
 
 # # Add models for future Audit Log and Q&A features
 # class AuditLog(BaseModel):

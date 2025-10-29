@@ -56,6 +56,12 @@ class DataroomViewSet(viewsets.ModelViewSet):
             parent=parent_dataroom_folder
         )
 
+        # TODO: For folders with many documents, this will result in many individual
+        # database queries, causing a performance bottleneck. Consider refactoring
+        # this to use bulk_create and bulk_update for better performance.
+        # We could gather all documents to be created or updated into lists and
+        # perform the database operations in batches outside the loop.
+
         # Add documents from the source folder to the new dataroom folder.
         # If a document is already in the dataroom, its folder will be updated.
         for doc in source_folder.documents.all():
@@ -155,10 +161,9 @@ class DataroomViewSet(viewsets.ModelViewSet):
                         DataroomFolder, id=dest_folder_id, dataroom=dataroom
                     )
 
-                docs_to_move = DataroomDocument.objects.filter(id__in=doc_ids, dataroom=dataroom)
-                for doc in docs_to_move:
-                    doc.folder = destination_folder
-                    doc.save()
+                DataroomDocument.objects.filter(id__in=doc_ids, dataroom=dataroom).update(
+                    folder=destination_folder
+                )
 
                 folders_to_move = DataroomFolder.objects.filter(id__in=folder_ids, dataroom=dataroom)
                 for folder in folders_to_move:

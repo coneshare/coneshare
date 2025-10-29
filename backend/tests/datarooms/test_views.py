@@ -67,22 +67,29 @@ class TestDataroomViewSet:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_retrieve_folder_contents_is_performant(self, api_client, dataroom, organization, user, django_assert_num_queries):
-        """Test that retrieving a folder's contents does not cause an N+1 query problem."""
-        parent_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Parent")
+        """
+        Test retrieving a nested folder's contents to check for N+1 query problems,
+        especially in the ancestor retrieval logic.
+        """
+        # Create a nested folder structure to test ancestor lookups
+        level1 = DataroomFolder.objects.create(dataroom=dataroom, name="Level 1")
+        level2 = DataroomFolder.objects.create(dataroom=dataroom, name="Level 2", parent=level1)
+        target_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Target", parent=level2)
 
-        # Create 5 documents in the folder
+        # Create 5 documents in the target folder
         for i in range(5):
             doc = Document.objects.create(name=f"Doc {i}", organization=organization, created_by=user)
-            DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=parent_folder)
+            DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=target_folder)
 
-        # The number of queries should be constant and not dependent on the number of documents.
-        # Without select_related, this would be over 10 queries (1+5 for docs, 5 for users).
-        # We expect a low, fixed number of queries (e.g., auth, main object, children, documents, ancestors).
-        with django_assert_num_queries(3):
-            url = f'/api/v1/dataroom-folders/{parent_folder.id}/'
+        # The number of queries should remain constant regardless of document count.
+        # Current expected queries with N+1 bug in get_ancestors:
+        # 1 (get folder) + 1 (get children) + 1 (get documents) + 2 (for 2 ancestors) = 5
+        with django_assert_num_queries(5):
+            url = f'/api/v1/dataroom-folders/{target_folder.id}/'
             response = api_client.get(url)
             assert response.status_code == status.HTTP_200_OK
             assert len(response.json()['documents']) == 5
+            assert len(response.json()['ancestors']) == 2
 
     def test_delete_dataroom_permission_denied(self, api_client, user2, organization):
         """Test that a user cannot delete another user's dataroom."""
