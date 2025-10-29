@@ -1137,3 +1137,15 @@ This session focused on extending the cloud import functionality by adding suppo
 - **Problem**: A bug was identified where browsing into a subfolder in a Nextcloud drive would fail with a `404 Not Found` error. This was caused by incorrect URL construction in the `list_files` method.
 - **Solution**: The `NextcloudProvider`'s `list_files` method was refactored to correctly handle both root and subfolder paths, preventing the duplication of URL segments and resolving the error.
 
+---
+
+## Session 49: Dataroom feature (2025-10-28)
+
+This session delivers the foundational 'Dataroom' feature, a significant enhancement that allows users to organize and share collections of documents and folders. The changes span both backend and frontend, establishing new data models, robust APIs for content management, and a user-friendly interface. This lays the groundwork for future advanced sharing and collaboration capabilities. [https://github.com/coneshare/coneshare/pull/52](https://github.com/coneshare/coneshare/pull/52)
+
+-  New Dataroom Feature: Introduced a comprehensive 'Dataroom' feature, allowing users to create curated collections of documents and folders for sharing.
+-  Backend Implementation: A new Django application datarooms was added, including models for Datarooms, DataroomFolders, DataroomDocuments, and ShareLinkDataroomSettings, along with corresponding serializers, views, and URL routing.
+-  ShareLink Model Enhancement: The existing ShareLink model was modified to support a polymorphic relationship, enabling it to link to either a single Document or an entire Dataroom.
+-  Dataroom Content Management: Implemented APIs and UI for adding existing documents and folders to a dataroom, creating new folders within a dataroom, and moving content between dataroom folders, including recursive replication of folder structures.
+-  Frontend Integration: New React pages (DataroomsPage, DataroomPage) and components were developed to provide a user interface for managing datarooms, navigating their content, and performing content operations.
+
