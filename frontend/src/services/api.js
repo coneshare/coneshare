@@ -296,4 +296,16 @@ export const importCloudFile = (connectionId, { fileId, fileName, fileSize }) =>
     file_size: fileSize,
   });
 
+// Datarooms
+export const getDatarooms = () => api.get('/datarooms/');
+export const getDataroom = (id) => api.get(`/datarooms/${id}/`);
+export const createDataroom = (data) => api.post('/datarooms/', data);
+export const createDataroomFolder = (data) => api.post('/dataroom-folders/', data);
+export const updateDataroom = (id, data) => api.patch(`/datarooms/${id}/`, data);
+export const deleteDataroom = (id) => api.delete(`/datarooms/${id}/`);
+export const addContentToDataroom = (id, data) => api.post(`/datarooms/${id}/add-content/`, data);
+export const removeContentFromDataroom = (id, data) => api.post(`/datarooms/${id}/remove-content/`, data);
+export const moveDataroomContent = (id, data) => api.post(`/datarooms/${id}/move-content/`, data);
+export const getDataroomFolderContents = (folderId) => api.get(`/dataroom-folders/${folderId}/`);
+
 export default api;

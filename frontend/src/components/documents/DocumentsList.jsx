@@ -1,6 +1,4 @@
-import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core";
 import React, { useCallback, useState } from "react";
-import { createPortal } from "react-dom";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { deleteDocument, deleteFolder } from "../../services/api";
@@ -11,13 +9,26 @@ import { DocumentsListHeader } from "./DocumentsListHeader";
 import { DraggableItem } from "./DraggableItem";
 import { EmptyDocuments } from "./EmptyDocuments";
 
+function ReadOnlyHeader() {
+  return (
+    <div className="flex w-full items-center border-b border-gray-200 px-4 py-2 text-xs font-medium uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
+      <div className="w-8" />
+      <div className="w-[40%]">Name</div>
+      <div className="w-[20%]">Owner</div>
+      <div className="w-[20%]">Last Modified</div>
+      <div className="w-[10%]">File Size</div>
+      <div className="w-16" />
+    </div>
+  );
+}
+
 export function DocumentsList({
   allItems,
   loading,
   onDataRefresh,
   onFilesDrop,
-  selectedDocuments,
-  selectedFolders,
+  selectedDocuments = [],
+  selectedFolders = [],
   onItemSelect,
   onClearSelection,
   onSort,
@@ -25,21 +36,12 @@ export function DocumentsList({
   onSelectAll,
   isAllSelected,
   onToggleStar,
+  isReadOnly = false,
+  showActions = true,
+  onItemClick,
 }) {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [itemToRename, setItemToRename] = useState(null);
-  const [draggedItem, setDraggedItem] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
-
-  const totalSelectedItem = selectedDocuments.length + selectedFolders.length;
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 10,
-      },
-    })
-  );
 
   const onDrop = useCallback(
     (acceptedFiles) => {
@@ -54,6 +56,7 @@ export function DocumentsList({
     onDrop,
     noClick: true,
     noKeyboard: true,
+    disabled: isReadOnly,
   });
 
   const handleSelect = useCallback(
@@ -63,34 +66,6 @@ export function DocumentsList({
     [onItemSelect]
   );
 
-  const handleDragStart = useCallback(
-    (event) => {
-      setIsDragging(true);
-      const { id } = event.active;
-      const item = allItems.find((i) => i.id === id);
-      if (item) {
-        setDraggedItem(item);
-        if (
-          (item.type === "document" && !selectedDocuments.includes(id)) ||
-            (item.type === "folder" && !selectedFolders.includes(id))
-        ) {
-          onItemSelect(id, item.type);
-        }
-      }
-    },
-    [allItems, selectedDocuments, selectedFolders, onItemSelect]
-  );
-
-  const handleDragEnd = async (event) => {
-    setIsDragging(false);
-    setDraggedItem(null);
-    const { over } = event;
-
-    if (over) {
-      console.log(`Moved items to folder ${over.id}`);
-    }
-    onClearSelection();
-  };
 
   const handleRename = (item, type) => setItemToRename({ ...item, type });
   const handleDelete = (item, type) => setItemToDelete({ ...item, type });
@@ -136,19 +111,14 @@ export function DocumentsList({
           onSuccess={onDataRefresh}
         />
       )}
-      <DndContext
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
+      <div
+        {...getRootProps({
+          className:
+            "relative border-y border-gray-200 dark:border-gray-800",
+        })}
       >
-        <div
-          {...getRootProps({
-            className:
-              "relative border-y border-gray-200 dark:border-gray-800",
-          })}
-        >
           <input {...getInputProps()} />
-          {isDragActive && (
+          {isDragActive && !isReadOnly && (
             <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary/10">
               <p className="text-lg font-semibold text-primary">
                 Drop files or folders to upload
@@ -156,12 +126,16 @@ export function DocumentsList({
             </div>
           )}
 
-          <DocumentsListHeader
-            onSort={onSort}
-            sortConfig={sortConfig}
-            onSelectAll={onSelectAll}
-            isAllSelected={isAllSelected}
-          />
+          {isReadOnly ? (
+            <ReadOnlyHeader />
+          ) : (
+            <DocumentsListHeader
+              onSort={onSort}
+              sortConfig={sortConfig}
+              onSelectAll={onSelectAll}
+              isAllSelected={isAllSelected}
+            />
+          )}
           {loading ? (
             <div className="divide-y divide-gray-200 dark:divide-gray-800">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -193,27 +167,14 @@ export function DocumentsList({
                   onDelete={() => handleDelete(item, item.type)}
                   onShare={() => handleShare(item)}
                   onToggleStar={onToggleStar}
+                  isReadOnly={isReadOnly}
+                  showActions={showActions}
+                  onItemClick={onItemClick}
                 />
               ))}
             </div>
           )}
         </div>
-        {createPortal(
-          <DragOverlay>
-            {draggedItem && (
-              <div className="relative rounded-lg border bg-white p-2 shadow-md dark:border-gray-700 dark:bg-gray-800">
-                <span>{draggedItem.name}</span>
-                {totalSelectedItem > 1 && (
-                  <div className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border bg-primary text-xs font-semibold text-primary-foreground">
-                    {totalSelectedItem}
-                  </div>
-                )}
-              </div>
-            )}
-          </DragOverlay>,
-          document.body
-        )}
-      </DndContext>
     </>
   );
 }

@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import { useSortedList } from '../hooks/useSortedList';
+import { useItemSelection } from '../hooks/useItemSelection';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Star, Cloud } from 'lucide-react';
 import { DocumentsList } from "../components/documents/DocumentsList";
@@ -30,20 +32,14 @@ function DocumentsPage() {
   const [activeCloudImport, setActiveCloudImport] = useState(null);
   const [currentFolder, setCurrentFolder] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selection, setSelection] = useState({ documents: [], folders: [] });
-  const [lastSelectedItem, setLastSelectedItem] = useState(null);
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
   const [isMoveItemsOpen, setIsMoveItemsOpen] = useState(false);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
-  const [sortConfig, setSortConfig] = useState({
-    key: "name",
-    direction: "ascending",
-  });
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
 
-  const allItems = useMemo(() => {
+  const combinedItems = useMemo(() => {
     let combined = [
       ...folders.map((f) => ({ ...f, type: "folder" })),
       ...documents.map((d) => ({ ...d, type: "document" })),
@@ -52,44 +48,15 @@ function DocumentsPage() {
     if (showStarredOnly) {
       combined = combined.filter((item) => item.is_starred);
     }
-
-    combined.sort((a, b) => {
-      // Folders always come first and are sorted by name
-      if (a.type === "folder" && b.type === "document") return -1;
-      if (a.type === "document" && b.type === "folder") return 1;
-      
-      const dir = sortConfig.direction === "ascending" ? 1 : -1;
-      const key = sortConfig.key;
-
-      const aVal = a[key];
-      const bVal = b[key];
-
-      if (key === "updated_at") {
-        return (new Date(aVal) - new Date(bVal)) * dir;
-      }
-
-      if (key === 'file_size') {
-        return ((aVal || 0) - (bVal || 0)) * dir;
-      }
-
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return aVal.localeCompare(bVal) * dir;
-      }
-      
-      if (aVal < bVal) return -1 * dir;
-      if (aVal > bVal) return 1 * dir;
-
-      return 0;
-    });
-
     return combined;
-  }, [folders, documents, sortConfig, showStarredOnly]);
+  }, [folders, documents, showStarredOnly]);
+
+  const { sortedItems: allItems, sortConfig, handleSort } = useSortedList(combinedItems);
+  const { selection, setSelection, setLastSelectedItem, handleItemSelect, handleClearSelection } = useItemSelection(allItems);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     // Reset state before fetching
-    setSelection({ documents: [], folders: [] });
-    setLastSelectedItem(null);
     setCurrentFolder(null);
     setDocuments([]);
     setFolders([]);
@@ -113,12 +80,14 @@ function DocumentsPage() {
   }, [folderId, setBreadcrumbData]);
 
   useEffect(() => {
+    setSelection({ documents: [], folders: [] });
+    setLastSelectedItem(null);
     fetchData();
 
     return () => {
       setBreadcrumbData(null);
     };
-  }, [fetchData]);
+  }, [fetchData, setBreadcrumbData, setSelection, setLastSelectedItem]);
 
   useEffect(() => {
     const fetchProviders = async () => {
@@ -168,64 +137,6 @@ function DocumentsPage() {
     }
   };
 
-  const handleItemSelect = useCallback((id, type, event) => {
-    const currentIndex = allItems.findIndex(
-      (item) => item.id === id && item.type === type
-    );
-
-    if (event?.shiftKey && lastSelectedItem) {
-      const lastIndex = allItems.findIndex(
-        (item) =>
-          item.id === lastSelectedItem.id && item.type === lastSelectedItem.type
-      );
-      const start = Math.min(currentIndex, lastIndex);
-      const end = Math.max(currentIndex, lastIndex);
-      const itemsToSelect = allItems.slice(start, end + 1);
-
-      setSelection((prev) => {
-        const newSelection = {
-          documents: [...prev.documents],
-          folders: [...prev.folders],
-        };
-        itemsToSelect.forEach((item) => {
-          if (
-            item.type === "folder" &&
-            !newSelection.folders.includes(item.id)
-          ) {
-            newSelection.folders.push(item.id);
-          } else if (
-            item.type === "document" &&
-            !newSelection.documents.includes(item.id)
-          ) {
-            newSelection.documents.push(item.id);
-          }
-        });
-        return newSelection;
-      });
-    } else {
-      setSelection((prevSelection) => {
-        const newSelection = { ...prevSelection };
-        if (type === "folder") {
-          const current = newSelection.folders;
-          newSelection.folders = current.includes(id)
-            ? current.filter((folderId) => folderId !== id)
-            : [...current, id];
-        } else {
-          const current = newSelection.documents;
-          newSelection.documents = current.includes(id)
-            ? current.filter((docId) => docId !== id)
-            : [...current, id];
-        }
-        return newSelection;
-      });
-      setLastSelectedItem({ id, type });
-    }
-  }, [allItems, lastSelectedItem]);
-
-  const handleClearSelection = useCallback(() => {
-    setSelection({ documents: [], folders: [] });
-    setLastSelectedItem(null);
-  }, []);
 
   const handleToggleStar = useCallback(async (id, type) => {
     const isFolder = type === 'folder';
@@ -262,18 +173,6 @@ function DocumentsPage() {
     }
   }, [documents, folders]);  
 
-  const handleSort = (key) => {
-    setSortConfig((prevConfig) => {
-      if (prevConfig.key === key) {
-        return {
-          ...prevConfig,
-          direction:
-            prevConfig.direction === "ascending" ? "descending" : "ascending",
-        };
-      }
-      return { key, direction: "ascending" };
-    });
-  };
 
   const handleSelectAll = (checked) => {
     if (checked) {

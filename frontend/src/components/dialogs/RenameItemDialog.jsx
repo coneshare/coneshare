@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { renameDocument, renameFolder } from "../../services/api";
+import { renameDocument, renameFolder, updateDataroom } from "../../services/api";
 import { Button } from "../ui/Button";
 import {
   Dialog,
@@ -35,10 +35,12 @@ export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess }) {
     try {
       if (item.type === "document") {
         await renameDocument(item.id, newName);
+      } else if (item.type === 'Dataroom') {
+        await updateDataroom(item.id, { name: newName });
       } else {
         await renameFolder(item.id, newName);
       }
-      toast.success(`"${item.name}" was renamed to "${newName}".`);
+      toast.success(`${item.type} "${item.name}" was renamed to "${newName}".`);
       onSuccess(); // This will trigger a data refresh
       onOpenChange(false); // Close the dialog
     } catch (err) {
