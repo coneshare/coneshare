@@ -47,6 +47,8 @@ class TestDataroomViewSet:
         assert data['id'] == str(dataroom.id)
         assert len(data['documents']) == 1
         assert data['documents'][0]['document_name'] == document.name
+        assert len(data['folders']) == 1
+        assert data['folders'][0]['name'] == "Subfolder"
 
     def test_cannot_access_other_users_dataroom_folders(self, api_client, user2, organization):
         """A user cannot list or retrieve folders from a dataroom created by another user."""
@@ -81,8 +83,6 @@ class TestDataroomViewSet:
             response = api_client.get(url)
             assert response.status_code == status.HTTP_200_OK
             assert len(response.json()['documents']) == 5
-        assert len(data['folders']) == 1
-        assert data['folders'][0]['name'] == "Subfolder"
 
     def test_delete_dataroom_permission_denied(self, api_client, user2, organization):
         """Test that a user cannot delete another user's dataroom."""
