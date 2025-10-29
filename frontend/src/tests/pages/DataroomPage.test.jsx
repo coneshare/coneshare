@@ -181,7 +181,7 @@ describe('DataroomPage', () => {
             // Interact with the dialog
             expect(await screen.findByRole('heading', { name: /Add New Folder/i })).toBeInTheDocument();
             await user.type(screen.getByLabelText('Name'), 'New Test Folder');
-            await user.click(screen.getByRole('button', { name: 'Confirm' }));
+            await user.click(screen.getByRole('button', { name: 'Create' }));
 
             // Assert API call
             await waitFor(() => {
@@ -260,12 +260,11 @@ describe('DataroomPage', () => {
             // Default sort is name ascending, folders first
             expect(within(listItems[0]).getByText('A Folder')).toBeInTheDocument();
             expect(within(listItems[1]).getByText('B Folder')).toBeInTheDocument();
-    
-            const sortButton = screen.getByRole('button', { name: 'Sort' });
-            await user.click(sortButton); // Open dropdown
-            const nameSortOption = screen.getByRole('menuitem', { name: 'Name' });
-            await user.click(nameSortOption); // Click to reverse direction
-    
+
+            // Find the "Name" column header, which is a button, and click it to reverse the sort
+            const nameHeaderButton = screen.getByRole('button', { name: /Name/i });
+            await user.click(nameHeaderButton);
+
             listItems = screen.getAllByTestId(/draggable-item-/);
             expect(within(listItems[0]).getByText('B Folder')).toBeInTheDocument();
             expect(within(listItems[1]).getByText('A Folder')).toBeInTheDocument();
