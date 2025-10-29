@@ -2,6 +2,7 @@ import secrets
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from datetime import timedelta
 
@@ -136,7 +137,8 @@ class ShareLinkPreset(BaseModel):
 
 
 class ShareLink(BaseModel):
-    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='share_links')
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, null=True, blank=True, related_name='share_links')
+    dataroom = models.ForeignKey('datarooms.Dataroom', on_delete=models.CASCADE, null=True, blank=True, related_name='share_links')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='share_links_created')
     name = models.CharField(max_length=255, blank=True)
     slug = models.CharField(max_length=50, unique=True, blank=True)
@@ -151,7 +153,15 @@ class ShareLink(BaseModel):
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        unique_together = ('document', 'name')
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    Q(document__isnull=False, dataroom__isnull=True) |
+                    Q(document__isnull=True, dataroom__isnull=False)
+                ),
+                name='sharelink_exactly_one_target'
+            )
+        ]
 
     def __str__(self):
         return self.name or str(self.id)

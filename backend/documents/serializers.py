@@ -351,3 +351,5 @@ class ShareLinkPresetSerializer(serializers.ModelSerializer):
         # Automatically assign the user's organization
         validated_data['organization'] = request.user.organization
         return super().create(validated_data)
+
+
