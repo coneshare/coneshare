@@ -17,7 +17,7 @@ import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
 import { LinkSheet } from '../components/links/LinkSheet';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
-import { DataroomLinksTable } from '../components/datarooms/DataroomLinksTable';
+import { LinksTable } from '../components/documents/LinksTable';
 import { ManagePermissionsDialog } from '../components/datarooms/ManagePermissionsDialog';
 
 export function DataroomPage() {
@@ -196,8 +196,16 @@ export function DataroomPage() {
     }
   };
     
-  const handleLinkUpdate = useCallback(() => {
-    fetchLinks();
+  const handleLinkUpdate = useCallback((updatedLink) => {
+    if (updatedLink) {
+      // Granular update for status toggle
+      setLinks(prevLinks =>
+        prevLinks.map(link => (link.id === updatedLink.id ? updatedLink : link))
+      );
+    } else {
+      // Full refresh for create/edit from LinkSheet
+      fetchLinks();
+    }
   }, [fetchLinks]);
     
     
@@ -306,11 +314,13 @@ export function DataroomPage() {
           )}
         </TabsContent>
         <TabsContent value="links" className="mt-6">
-          <DataroomLinksTable
+          <LinksTable
             links={links}
             onEditLink={handleEditLink}
             onDeleteLink={handleDeleteLink}
             onManagePermissions={handleManagePermissions}
+            onLinkUpdate={handleLinkUpdate}
+            contextType="dataroom"
           />
         </TabsContent>
       </Tabs>
