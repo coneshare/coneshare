@@ -2,6 +2,7 @@ import pytest
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, force_authenticate
 
+from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
 from documents.models import Document, Folder, ShareLink, ViewSession
 from documents.serializers import FolderSerializer, ShareLinkSerializer
 
@@ -192,6 +193,32 @@ class TestShareLinkSerializer:
         )
         assert not serializer.is_valid()
         assert 'name' in serializer.errors
+
+    def test_create_for_dataroom_generates_settings(self, dataroom, document, serializer_context):
+        """
+        Test that creating a share link for a dataroom automatically creates
+        the default visibility and permission settings for all items.
+        """
+        # Add content to the dataroom
+        DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        folder = DataroomFolder.objects.create(dataroom=dataroom, name="Test Folder")
+
+        serializer = ShareLinkSerializer(
+            data={"dataroom": dataroom.id, "name": "Dataroom Link", "allow_download": False},
+            context=serializer_context,
+        )
+        assert serializer.is_valid(), serializer.errors
+        instance = serializer.save()
+
+        assert instance.dataroom == dataroom
+        assert instance.document is None
+        assert instance.dataroom_settings.count() == 2  # one for doc, one for folder
+
+        doc_setting = instance.dataroom_settings.get(dataroom_document__document=document)
+        assert doc_setting.allow_download is False  # Inherited from link
+
+        folder_setting = instance.dataroom_settings.get(dataroom_folder=folder)
+        assert folder_setting.allow_download is False
 
 
 class TestFolderSerializer:

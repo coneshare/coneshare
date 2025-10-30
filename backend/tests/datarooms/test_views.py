@@ -2,7 +2,7 @@ import pytest
 from rest_framework import status
 
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
-from documents.models import Document, Folder
+from documents.models import Document, Folder, ShareLink
 
 pytestmark = pytest.mark.django_db
 
@@ -265,3 +265,49 @@ class TestDataroomFolderViewSet:
         assert data['sub_folders'][0]['name'] == "Sub"
         assert len(data['documents']) == 1
         assert data['documents'][0]['document_name'] == document.name
+
+
+class TestPublicDataroomDataView:
+    def test_get_valid_dataroom_data(self, public_client, dataroom, document, user):
+        """
+        Test that the public endpoint returns correctly filtered data based
+        on visibility settings.
+        """
+        # Setup dataroom with content
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        dfolder = DataroomFolder.objects.create(dataroom=dataroom, name="Folder")
+
+        # Create share link for dataroom, which auto-creates settings
+        link = ShareLink.objects.create(dataroom=dataroom, name="Public DR Link", created_by=user)
+
+        # Make one item invisible
+        folder_setting = link.dataroom_settings.get(dataroom_folder=dfolder)
+        folder_setting.is_visible = False
+        folder_setting.save()
+
+        url = f"/api/v1/public/datarooms/view/{link.slug}/"
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data['id'] == str(dataroom.id)
+        assert len(data['documents']) == 1
+        assert data['documents'][0]['id'] == str(ddoc.id)
+        # The folder should not be in the list
+        assert len(data['folders']) == 0
+
+    def test_get_dataroom_data_for_document_link_fails(self, public_client, share_link):
+        """Test that the endpoint rejects a slug that points to a document link."""
+        url = f"/api/v1/public/datarooms/view/{share_link.slug}/"
+        response = public_client.get(url)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "does not point to a dataroom" in response.json()['detail']
+
+    def test_get_password_protected_dataroom_returns_401(self, public_client, dataroom, user):
+        """Test that a password-protected dataroom link requires auth."""
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user, password="testpassword")
+        url = f"/api/v1/public/datarooms/view/{link.slug}/"
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.json()['protectionType'] == 'password'

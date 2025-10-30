@@ -10,6 +10,7 @@ from django.utils import timezone
 from rest_framework import status
 
 from core.models import Organization
+from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, ShareLinkDataroomSetting
 from documents.models import Document, Folder, ShareLink, DocumentVersion, DocumentPage, PreviewSession, ViewSession, PageView, EmailVerificationToken
 from io import BytesIO
 try:
@@ -1152,6 +1153,76 @@ class TestShareLinkPasswordProtection:
         # The 11th attempt should be rate-limited.
         response = public_client.post(url, data)
         assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+
+
+class TestShareLinkViewSet:
+    def test_bulk_update_dataroom_settings(self, api_client, dataroom, document, user):
+        """
+        Test bulk updating visibility and permissions for items in a dataroom
+        share link.
+        """
+        # Setup dataroom with content
+        ddoc1 = DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        other_doc = Document.objects.create(name="Other.pdf", organization=user.organization, created_by=user)
+        ddoc2 = DataroomDocument.objects.create(dataroom=dataroom, document=other_doc)
+
+        # Create share link for dataroom
+        link = ShareLink.objects.create(dataroom=dataroom, name="DR Link", created_by=user)
+        assert link.dataroom_settings.count() == 2
+
+        setting1 = link.dataroom_settings.get(dataroom_document=ddoc1)
+        setting2 = link.dataroom_settings.get(dataroom_document=ddoc2)
+
+        # Initial state
+        assert setting1.is_visible is True
+        assert setting1.allow_download is True
+        assert setting2.is_visible is True
+        assert setting2.allow_download is True
+
+        # Update settings: make ddoc1 not visible, and ddoc2 not downloadable
+        update_data = [
+            {'id': str(setting1.id), 'is_visible': False},
+            {'id': str(setting2.id), 'allow_download': False}
+        ]
+
+        url = f'/api/v1/share-links/{link.id}/dataroom-settings/'
+        response = api_client.patch(url, update_data, format='json')
+
+        assert response.status_code == status.HTTP_200_OK
+
+        setting1.refresh_from_db()
+        setting2.refresh_from_db()
+
+        assert setting1.is_visible is False
+        assert setting1.allow_download is True  # Unchanged
+        assert setting2.is_visible is True  # Unchanged
+        assert setting2.allow_download is False
+
+    def test_bulk_update_dataroom_settings_for_document_link_fails(self, api_client, share_link):
+        """
+        Test that the endpoint rejects attempts to update settings on a link
+        that is not for a dataroom.
+        """
+        url = f'/api/v1/share-links/{share_link.id}/dataroom-settings/'
+        response = api_client.patch(url, [{'id': 'any', 'is_visible': False}], format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_bulk_update_dataroom_settings_for_other_user_link_fails(self, api_client, user, user2, dataroom, document):
+        """
+        Test that a user cannot update settings for a share link they do not own.
+        """
+        # user2 creates a link
+        DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link_by_user2 = ShareLink.objects.create(dataroom=dataroom, created_by=user2)
+        setting = link_by_user2.dataroom_settings.first()
+        assert setting is not None
+
+        # api_client (logged in as user) tries to update it
+        url = f'/api/v1/share-links/{link_by_user2.id}/dataroom-settings/'
+        response = api_client.patch(url, [{'id': str(setting.id), 'is_visible': False}], format='json')
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
