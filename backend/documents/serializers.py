@@ -295,45 +295,19 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         document = validated_data.get('document')
         dataroom = validated_data.get('dataroom')
 
-        with transaction.atomic():
-            if document:
-                # Default to "Untitled Link" if name is not provided or is empty.
-                original_name = validated_data.get('name') or "Untitled Link"
-                validated_data['name'] = _get_unique_share_link_name(document, original_name)
-            
-            # For datarooms, we'll just use the provided name for now. A future
-            # task could be to implement unique name generation for dataroom links.
-            elif dataroom and not validated_data.get('name'):
-                 validated_data['name'] = "Untitled Link"
+        if document:
+            # Default to "Untitled Link" if name is not provided or is empty.
+            original_name = validated_data.get('name') or "Untitled Link"
+            validated_data['name'] = _get_unique_share_link_name(document, original_name)
 
+        # For datarooms, we'll just use the provided name for now. A future
+        # task could be to implement unique name generation for dataroom links.
+        elif dataroom and not validated_data.get('name'):
+             validated_data['name'] = "Untitled Link"
 
-            share_link = super().create(validated_data)
+        # The post_save signal will now handle creating settings for dataroom links.
+        share_link = super().create(validated_data)
 
-            # If the link is for a dataroom, create default settings for all items.
-            if dataroom:
-                dataroom_docs = DataroomDocument.objects.filter(dataroom=dataroom)
-                dataroom_folders = DataroomFolder.objects.filter(dataroom=dataroom)
-
-                doc_settings = [
-                    ShareLinkDataroomSetting(
-                        share_link=share_link,
-                        dataroom_document=doc,
-                        allow_download=share_link.allow_download,
-                        enable_watermark=share_link.enable_watermark
-                    ) for doc in dataroom_docs
-                ]
-                ShareLinkDataroomSetting.objects.bulk_create(doc_settings)
-
-                folder_settings = [
-                    ShareLinkDataroomSetting(
-                        share_link=share_link,
-                        dataroom_folder=folder,
-                        allow_download=share_link.allow_download,
-                        enable_watermark=share_link.enable_watermark
-                    ) for folder in dataroom_folders
-                ]
-                ShareLinkDataroomSetting.objects.bulk_create(folder_settings)
-        
         return share_link
 
     def update(self, instance, validated_data):
