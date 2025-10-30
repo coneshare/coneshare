@@ -3,6 +3,7 @@ from django.db import transaction
 from rest_framework import serializers
 from core.models import Organization
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, ShareLinkDataroomSetting
+from datarooms.serializers import ShareLinkDataroomSettingSerializer
 from .models import Document, DocumentPage, DocumentVersion, Folder, PageView, ShareLink, ShareLinkPreset, ViewSession, Viewer
 from .services import _get_unique_folder_name, _get_unique_share_link_name
 
@@ -179,6 +180,7 @@ class ShareLinkSerializer(serializers.ModelSerializer):
     dataroom = serializers.PrimaryKeyRelatedField(
         queryset=Dataroom.objects.all(), write_only=True, required=False, allow_null=True
     )
+    dataroom_settings = ShareLinkDataroomSettingSerializer(many=True, read_only=True)
     has_password = serializers.SerializerMethodField()
     view_count = serializers.SerializerMethodField()
     recent_view_sessions = serializers.SerializerMethodField()
@@ -229,7 +231,7 @@ class ShareLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShareLink
         fields = [
-            'id', 'document', 'dataroom', 'document_name', 'dataroom_name', 'created_by', 'name', 'slug', 'expires_at',
+            'id', 'document', 'dataroom', 'document_name', 'dataroom_name', 'dataroom_settings', 'created_by', 'name', 'slug', 'expires_at',
             'has_password', 'password', 'requires_email', 'requires_email_verification', 'allow_download',
             'enable_watermark', 'watermark_text', 'receive_email_notification', 'is_active', 'created_at', 'updated_at',
             'view_count', 'recent_view_sessions', 'last_viewed_at'

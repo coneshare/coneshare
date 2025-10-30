@@ -220,6 +220,15 @@ class TestShareLinkSerializer:
         folder_setting = instance.dataroom_settings.get(dataroom_folder=folder)
         assert folder_setting.allow_download is False
 
+        # The serializer should include the settings data in its output.
+        # Refetch with prefetch to simulate what the view does
+        instance_with_prefetch = ShareLink.objects.prefetch_related('dataroom_settings').get(id=instance.id)
+        reserializer = ShareLinkSerializer(instance=instance_with_prefetch)
+        data = reserializer.data
+        assert 'dataroom_settings' in data
+        assert len(data['dataroom_settings']) == 2
+        assert 'is_visible' in data['dataroom_settings'][0]
+
 
 class TestFolderSerializer:
     def test_create_with_duplicate_name_is_renamed(self, user, organization, serializer_context):

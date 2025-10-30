@@ -1156,6 +1156,28 @@ class TestShareLinkPasswordProtection:
 
 
 class TestShareLinkViewSet:
+    def test_list_share_links_can_be_filtered_by_dataroom(self, api_client, dataroom, document, user):
+        """
+        Test that the share link list endpoint can be filtered by a dataroom_id.
+        """
+        # A link for the dataroom
+        ShareLink.objects.create(dataroom=dataroom, name="Dataroom Link", created_by=user)
+        # A link for a regular document
+        ShareLink.objects.create(document=document, name="Document Link", created_by=user)
+
+        # 1. No filter: should return both links
+        url = '/api/v1/share-links/'
+        response_all = api_client.get(url)
+        assert response_all.status_code == status.HTTP_200_OK
+        assert len(response_all.data) == 2
+
+        # 2. Filter by dataroom_id: should return only the dataroom link
+        url_filtered = f'/api/v1/share-links/?dataroom_id={dataroom.id}'
+        response_filtered = api_client.get(url_filtered)
+        assert response_filtered.status_code == status.HTTP_200_OK
+        assert len(response_filtered.data) == 1
+        assert response_filtered.data[0]['name'] == "Dataroom Link"
+
     def test_bulk_update_dataroom_settings(self, api_client, dataroom, document, user):
         """
         Test bulk updating visibility and permissions for items in a dataroom

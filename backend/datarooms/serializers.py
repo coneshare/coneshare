@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 # from documents.models import ShareLinkDataroomSetting
-from .models import Dataroom, DataroomDocument, DataroomFolder
+from .models import Dataroom, DataroomDocument, DataroomFolder, ShareLinkDataroomSetting
 
 
 class DataroomSerializer(serializers.ModelSerializer):
@@ -113,6 +113,12 @@ class MoveDataroomContentSerializer(serializers.Serializer):
         if not data.get('dataroom_document_ids') and not data.get('dataroom_folder_ids'):
             raise serializers.ValidationError("Either 'dataroom_document_ids' or 'dataroom_folder_ids' must be provided.")
         return data
+
+
+class ShareLinkDataroomSettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShareLinkDataroomSetting
+        fields = ['id', 'dataroom_document', 'dataroom_folder', 'is_visible', 'allow_download', 'enable_watermark']
 
 
 class ShareLinkDataroomSettingUpdateSerializer(serializers.Serializer):

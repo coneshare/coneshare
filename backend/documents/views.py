@@ -682,7 +682,11 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return ShareLink.objects.filter(created_by=self.request.user)
+        queryset = ShareLink.objects.filter(created_by=self.request.user).prefetch_related('dataroom_settings')
+        dataroom_id = self.request.query_params.get('dataroom_id')
+        if dataroom_id:
+            queryset = queryset.filter(dataroom_id=dataroom_id)
+        return queryset
 
     @action(detail=True, methods=['get'], url_path='view-sessions')
     def view_sessions(self, request, pk=None):
