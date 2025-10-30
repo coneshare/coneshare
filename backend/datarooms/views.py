@@ -2,18 +2,21 @@ import logging
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from rest_framework import permissions, status, viewsets, serializers
+from django.utils import timezone
+from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from documents.models import Document, Folder
-
+from documents.views import _get_active_share_link
 from .models import Dataroom, DataroomDocument, DataroomFolder
-from .serializers import (AddContentSerializer, DataroomDetailSerializer,
-                          DataroomDocumentSerializer, DataroomFolderSerializer,
-                          DataroomSerializer, MoveDataroomContentSerializer,
-                          RemoveContentSerializer)
+from .serializers import (
+    AddContentSerializer, DataroomDetailSerializer,
+    DataroomDocumentSerializer, DataroomFolderSerializer, DataroomSerializer,
+    MoveDataroomContentSerializer, PublicDataroomDocumentSerializer,
+    PublicDataroomFolderSerializer, RemoveContentSerializer)
 
 logger = logging.getLogger(__name__)
 
@@ -181,6 +184,87 @@ class DataroomViewSet(viewsets.ModelViewSet):
             return Response({
                 "detail": "An internal server error occurred while moving content."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PublicDataroomDataView(APIView):
+    """
+    Provides the public data for a shared dataroom, including a hierarchical
+    structure of folders and documents, filtered by visibility settings.
+    """
+    # No permission_classes, as this is a public endpoint with internal security checks.
+
+    def get(self, request, slug, *args, **kwargs):
+        try:
+            link = _get_active_share_link(slug)
+        except NotFound as e:
+            return Response({"detail": e.detail}, status=status.HTTP_404_NOT_FOUND)
+
+        if not link.dataroom:
+            return Response(
+                {"detail": "This link does not point to a dataroom."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # --- SERVER-SIDE ACCESS CONTROL ---
+        # 1. Check for expiration
+        if link.expires_at and link.expires_at < timezone.now():
+            return Response({"detail": "This link has expired."}, status=status.HTTP_410_GONE)
+
+        # 2. Sequential Protection Checks (Password, then Email)
+        authorized_links = request.session.get('authorized_share_links', {})
+        auth_status = authorized_links.get(str(link.id), {})
+
+        if link.password and not auth_status.get('password_verified'):
+            return Response(
+                {"detail": "This link is password-protected.", "protectionType": "password"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        if link.requires_email and not auth_status.get('email_verified'):
+            return Response(
+                {"detail": "This link requires an email address to view.", "protectionType": "email"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # --- Data Fetching and Shaping ---
+        dataroom = link.dataroom
+        settings = link.dataroom_settings.filter(is_visible=True)
+
+        # Create a map for quick lookup of settings in serializers
+        settings_map = {
+            s.dataroom_document_id: {'allow_download': s.allow_download, 'enable_watermark': s.enable_watermark}
+            for s in settings if s.dataroom_document_id
+        }
+        settings_map.update({
+            s.dataroom_folder_id: {'allow_download': s.allow_download, 'enable_watermark': s.enable_watermark}
+            for s in settings if s.dataroom_folder_id
+        })
+
+        visible_doc_ids = [s.dataroom_document_id for s in settings if s.dataroom_document_id]
+        visible_folder_ids = [s.dataroom_folder_id for s in settings if s.dataroom_folder_id]
+
+        # Fetch all visible documents and folders, used to construct the hierarchy
+        all_docs = DataroomDocument.objects.filter(id__in=visible_doc_ids).select_related('document')
+        all_folders = DataroomFolder.objects.filter(id__in=visible_folder_ids)
+
+        # Use context to pass settings to serializers
+        serializer_context = {'request': request, 'settings_map': settings_map}
+
+        # The response provides flat lists of all visible items.
+        # The client is responsible for reconstructing the hierarchy from parent IDs.
+        response_data = {
+            'id': dataroom.id,
+            'name': dataroom.name,
+            'documents': PublicDataroomDocumentSerializer(all_docs, many=True, context=serializer_context).data,
+            'folders': PublicDataroomFolderSerializer(all_folders, many=True, context=serializer_context).data,
+            'link_settings': {
+                'id': link.id,
+                'allow_download': link.allow_download,  # The global default
+                'enable_watermark': link.enable_watermark,
+                'watermark_text': link.watermark_text,
+            }
+        }
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class DataroomFolderViewSet(viewsets.ModelViewSet):

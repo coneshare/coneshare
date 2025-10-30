@@ -44,6 +44,8 @@ except ImportError:
     canvas = None
 
 
+from datarooms.models import ShareLinkDataroomSetting
+from datarooms.serializers import ShareLinkDataroomSettingUpdateSerializer
 from .models import Document, DocumentPage, Folder, ShareLink, ShareLinkPreset, ViewSession, Viewer, PreviewSession, EmailVerificationToken
 from .serializers import (
     DocumentSerializer,
@@ -184,8 +186,8 @@ def _get_active_share_link(slug: str) -> ShareLink:
     DRF exception if it's not found or inactive.
     """
     try:
-        # select_related is an optimization for views that access link.document
-        link = ShareLink.objects.select_related('document').get(slug=slug)
+        # select_related is an optimization for views that access link targets
+        link = ShareLink.objects.select_related('document', 'dataroom').get(slug=slug)
     except ShareLink.DoesNotExist:
         raise NotFound(detail="Link not found.")
 
@@ -712,6 +714,43 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
             expires_at=timezone.now() + timedelta(minutes=5)
         )
         return Response({'previewToken': session.token}, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['patch'], url_path='dataroom-settings')
+    def dataroom_settings(self, request, pk=None):
+        """
+        Bulk updates settings for items within a dataroom share link.
+        """
+        share_link = self.get_object()
+        if not share_link.dataroom:
+            return Response(
+                {"detail": "This share link is not for a dataroom."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = ShareLinkDataroomSettingUpdateSerializer(data=request.data, many=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        settings_to_update = serializer.validated_data
+        setting_ids = [item['id'] for item in settings_to_update]
+
+        # Ensure all provided setting IDs belong to the share link being modified
+        if ShareLinkDataroomSetting.objects.filter(id__in=setting_ids).exclude(share_link=share_link).exists():
+            raise PermissionDenied("You can only modify settings for this share link.")
+
+        try:
+            with transaction.atomic():
+                for item in settings_to_update:
+                    setting_id = item.pop('id')
+                    ShareLinkDataroomSetting.objects.filter(id=setting_id, share_link=share_link).update(**item)
+
+            return Response({"detail": "Settings updated successfully."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Failed to bulk update dataroom settings for link {pk}: {e}")
+            return Response(
+                {"detail": "An internal server error occurred."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class ViewerViewSet(viewsets.ModelViewSet):

@@ -1,6 +1,8 @@
 from django.contrib.auth.hashers import make_password
+from django.db import transaction
 from rest_framework import serializers
 from core.models import Organization
+from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, ShareLinkDataroomSetting
 from .models import Document, DocumentPage, DocumentVersion, Folder, PageView, ShareLink, ShareLinkPreset, ViewSession, Viewer
 from .services import _get_unique_folder_name, _get_unique_share_link_name
 
@@ -174,20 +176,39 @@ class ViewSessionSerializer(serializers.ModelSerializer):
 
 
 class ShareLinkSerializer(serializers.ModelSerializer):
+    dataroom = serializers.PrimaryKeyRelatedField(
+        queryset=Dataroom.objects.all(), write_only=True, required=False, allow_null=True
+    )
     has_password = serializers.SerializerMethodField()
     view_count = serializers.SerializerMethodField()
     recent_view_sessions = serializers.SerializerMethodField()
-    document_name = serializers.CharField(source='document.name', read_only=True)
+    document_name = serializers.CharField(source='document.name', read_only=True, allow_null=True)
+    dataroom_name = serializers.CharField(source='dataroom.name', read_only=True, allow_null=True)
     last_viewed_at = serializers.SerializerMethodField()
 
     def validate(self, data):
         """
         Enforce business rules:
+        - A link must point to either a document or a dataroom, but not both.
         - If the associated document is download-only, force allow_download to be true.
         - On update, check for name uniqueness manually.
         """
-        # On update, 'document' may not be in the payload. We get it from the instance.
-        document = data.get('document') or getattr(self.instance, 'document', None)
+        document = data.get('document')
+        dataroom = data.get('dataroom')
+
+        # On update, we need to consider the instance's state
+        if self.instance:
+            document = document or self.instance.document
+            dataroom = dataroom or self.instance.dataroom
+            if 'document' in data and data['document'] is None:  # Explicitly setting to null
+                document = None
+            if 'dataroom' in data and data['dataroom'] is None:
+                dataroom = None
+
+        if not document and not dataroom:
+            raise serializers.ValidationError("A share link must be associated with either a document or a dataroom.")
+        if document and dataroom:
+            raise serializers.ValidationError("A share link cannot be associated with both a document and a dataroom.")
 
         if document and document.download_only:
             data['allow_download'] = True
@@ -208,7 +229,7 @@ class ShareLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShareLink
         fields = [
-            'id', 'document', 'document_name', 'created_by', 'name', 'slug', 'expires_at',
+            'id', 'document', 'dataroom', 'document_name', 'dataroom_name', 'created_by', 'name', 'slug', 'expires_at',
             'has_password', 'password', 'requires_email', 'requires_email_verification', 'allow_download',
             'enable_watermark', 'watermark_text', 'receive_email_notification', 'is_active', 'created_at', 'updated_at',
             'view_count', 'recent_view_sessions', 'last_viewed_at'
@@ -271,12 +292,49 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         request = self.context['request']
         validated_data['created_by'] = request.user
 
-        document = validated_data['document']
-        # Default to "Untitled Link" if name is not provided or is empty.
-        original_name = validated_data.get('name') or "Untitled Link"
-        validated_data['name'] = _get_unique_share_link_name(document, original_name)
+        document = validated_data.get('document')
+        dataroom = validated_data.get('dataroom')
 
-        return super().create(validated_data)
+        with transaction.atomic():
+            if document:
+                # Default to "Untitled Link" if name is not provided or is empty.
+                original_name = validated_data.get('name') or "Untitled Link"
+                validated_data['name'] = _get_unique_share_link_name(document, original_name)
+            
+            # For datarooms, we'll just use the provided name for now. A future
+            # task could be to implement unique name generation for dataroom links.
+            elif dataroom and not validated_data.get('name'):
+                 validated_data['name'] = "Untitled Link"
+
+
+            share_link = super().create(validated_data)
+
+            # If the link is for a dataroom, create default settings for all items.
+            if dataroom:
+                dataroom_docs = DataroomDocument.objects.filter(dataroom=dataroom)
+                dataroom_folders = DataroomFolder.objects.filter(dataroom=dataroom)
+
+                doc_settings = [
+                    ShareLinkDataroomSetting(
+                        share_link=share_link,
+                        dataroom_document=doc,
+                        allow_download=share_link.allow_download,
+                        enable_watermark=share_link.enable_watermark
+                    ) for doc in dataroom_docs
+                ]
+                ShareLinkDataroomSetting.objects.bulk_create(doc_settings)
+
+                folder_settings = [
+                    ShareLinkDataroomSetting(
+                        share_link=share_link,
+                        dataroom_folder=folder,
+                        allow_download=share_link.allow_download,
+                        enable_watermark=share_link.enable_watermark
+                    ) for folder in dataroom_folders
+                ]
+                ShareLinkDataroomSetting.objects.bulk_create(folder_settings)
+        
+        return share_link
 
     def update(self, instance, validated_data):
         return super().update(instance, validated_data)
