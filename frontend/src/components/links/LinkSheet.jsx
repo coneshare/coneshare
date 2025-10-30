@@ -22,6 +22,7 @@ export function LinkSheet({
   isOpen,
   onOpenChange,
   document,
+  dataroom,
   currentLink,
   onSuccess,
 }) {
@@ -38,8 +39,8 @@ export function LinkSheet({
   const [isSaving, setIsSaving] = useState(false);
 
   const isEditing = !!currentLink;
-  const isWatermarkable = document?.type === 'pdf' || document?.type === 'document';
-
+  const isWatermarkable = (document?.type === 'pdf' || document?.type === 'document') || !!dataroom;
+    
   useEffect(() => {
     if (isEditing) {
       setName(currentLink.name || '');
@@ -80,14 +81,13 @@ export function LinkSheet({
     if (document?.download_only) {
       setAllowDownload(true);
     }
-  }, [currentLink, document, isEditing, isOpen]);
-
+  }, [currentLink, document, dataroom, isEditing, isOpen]);
+    
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
-
+    
     const linkData = {
-      document: document.id,
       name,
       requires_email: requiresEmail,
       requires_email_verification: requiresEmail && requiresEmailVerification,
@@ -97,7 +97,13 @@ export function LinkSheet({
       watermark_text: isWatermarkable && enableWatermark ? watermarkText : '',
       expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
     };
-
+    
+    if (dataroom) {
+      linkData.dataroom = dataroom.id;
+    } else {
+      linkData.document = document.id;
+    }
+    
     if (isPasswordEnabled) {
       linkData.password = password;
     } else {
