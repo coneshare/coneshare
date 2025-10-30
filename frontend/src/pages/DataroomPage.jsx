@@ -262,7 +262,7 @@ export function DataroomPage() {
       <Tabs defaultValue="documents" onValueChange={setActiveTab} className="mt-4">
         <TabsList>
           <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="links">Links & Permissions</TabsTrigger>
+          <TabsTrigger value="links">Links and Permissions</TabsTrigger>
         </TabsList>
         <TabsContent value="documents" className="mt-6">
           {(selection.documents.length > 0 || selection.folders.length > 0) && (
