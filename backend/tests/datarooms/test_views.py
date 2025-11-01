@@ -325,3 +325,38 @@ class TestPublicDataroomDataView:
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
         assert response.json()['protectionType'] == 'password'
+
+    def test_get_document_from_dataroom_link_success(self, public_client, dataroom, document, user):
+        """
+        Test that a specific document can be fetched from a dataroom link
+        when the correct document_id is provided.
+        """
+        DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link = ShareLink.objects.create(dataroom=dataroom, name="DR Link", created_by=user)
+
+        url = f"/api/v1/links/{link.slug}/view-data/?document_id={document.id}"
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data['link_type'] == 'document'
+        assert data['id'] == str(document.id)
+        assert data['name'] == document.name
+
+    def test_get_document_from_dataroom_link_permission_denied(self, public_client, dataroom, document, user):
+        """
+        Test that fetching a document from a dataroom link fails if the item
+        is marked as not visible.
+        """
+        DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link = ShareLink.objects.create(dataroom=dataroom, name="DR Link", created_by=user)
+
+        # Make the document invisible in this link's settings
+        setting = link.dataroom_settings.get(dataroom_document__document=document)
+        setting.is_visible = False
+        setting.save()
+
+        url = f"/api/v1/links/{link.slug}/view-data/?document_id={document.id}"
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
