@@ -913,7 +913,26 @@ class ShareLinkViewDataView(APIView):
                 )
 
         # If all checks pass, proceed to fetch and return data based on link type.
-        if link.document:
+        dataroom_document_id = request.query_params.get('document_id')
+
+        # Case 1: Fetching a specific document from within a dataroom link.
+        if link.dataroom and dataroom_document_id:
+            try:
+                # Security check: ensure the requested document is part of this dataroom
+                # and is visible according to the link's settings.
+                setting = link.dataroom_settings.get(
+                    dataroom_document__document_id=dataroom_document_id,
+                    is_visible=True
+                )
+                document = setting.dataroom_document.document
+            except ShareLinkDataroomSetting.DoesNotExist:
+                return Response({"detail": "You do not have permission to view this document through this link."}, status=status.HTTP_403_FORBIDDEN)
+            
+            # Now that we have a valid document, we can treat it like a normal document view.
+            primary_version = document.versions.filter(is_primary=True).first()
+
+        # Case 2: Fetching a direct document link.
+        elif link.document:
             document = link.document
             primary_version = document.versions.filter(is_primary=True).first()
 
@@ -955,8 +974,8 @@ class ShareLinkViewDataView(APIView):
             }
             return Response(response_data, status=status.HTTP_200_OK)
 
+        # Case 3: Fetching the content list for a dataroom link.
         elif link.dataroom:
-            # --- Data Fetching and Shaping for Dataroom ---
             dataroom = link.dataroom
             dataroom_link_settings = link.dataroom_settings.filter(is_visible=True)
 

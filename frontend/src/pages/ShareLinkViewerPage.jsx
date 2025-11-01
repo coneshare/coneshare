@@ -5,6 +5,7 @@ import { PasswordForm } from '../components/viewer/PasswordForm';
 import { EmailForm } from '../components/viewer/EmailForm';
 import { ViewerToolbar } from '../components/viewer/ViewerToolbar';
 import { PreviewViewer } from '../components/documents/PreviewViewer';
+import { DataroomViewer } from '../components/viewer/DataroomViewer';
 import { Skeleton } from '../components/ui/Skeleton';
 import { getShareLinkViewData, createViewSession } from '../services/api';
 import { Button } from '../components/ui/Button';
@@ -16,7 +17,7 @@ export function ShareLinkViewerPage() {
   const previewToken = searchParams.get('previewToken');
   const accessToken = searchParams.get('accessToken');
 
-  const [documentData, setDocumentData] = useState(null);
+  const [viewData, setViewData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [protectionType, setProtectionType] = useState(null);
@@ -49,9 +50,9 @@ export function ShareLinkViewerPage() {
       setViewId(null); // Reset viewId on fetch
 
       try {
-        const response = await getShareLinkViewData(slug, previewToken, accessToken);
+        const response = await getShareLinkViewData(slug, { previewToken, accessToken });
         if (!isCancelled) {
-          setDocumentData(response.data);
+          setViewData(response.data);
           // Create a view session as soon as we have the link ID
           try {
             const viewResponse = await createViewSession({ share_link: response.data.link_settings.id });
@@ -125,10 +126,14 @@ export function ShareLinkViewerPage() {
     );
   }
 
-  const PREVIEWABLE_TYPES = ['image', 'pdf', 'document'];
-  const isPreviewable = documentData && PREVIEWABLE_TYPES.includes(documentData.type);
+  if (viewData?.link_type === 'dataroom') {
+    return <DataroomViewer data={viewData} slug={slug} />;
+  }
 
-  if (documentData && (documentData.download_only || !isPreviewable)) {
+  const PREVIEWABLE_TYPES = ['image', 'pdf', 'document'];
+  const isPreviewable = viewData && PREVIEWABLE_TYPES.includes(viewData.type);
+
+  if (viewData && (viewData.download_only || !isPreviewable)) {
     return (
       <div className="relative h-screen w-screen bg-gray-50">
         <div className="absolute left-6 top-4 z-10">
@@ -145,18 +150,18 @@ export function ShareLinkViewerPage() {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
               <FileDown className="h-6 w-6 text-gray-600" />
             </div>
-            <h1 className="mb-1 text-xl font-bold text-gray-900" title={documentData.name}>
-              {documentData.name}
+            <h1 className="mb-1 text-xl font-bold text-gray-900" title={viewData.name}>
+              {viewData.name}
             </h1>
-            {documentData.file_size ? (
-              <p className="mb-6 text-sm text-gray-500">{formatBytes(documentData.file_size)}</p>
+            {viewData.file_size ? (
+              <p className="mb-6 text-sm text-gray-500">{formatBytes(viewData.file_size)}</p>
             ) : null}
             <p className="mb-6 text-gray-700">
               This type of file is not available for online preview. Download the file and open it
               on your device.
             </p>
             <Button asChild size="lg" className="w-full">
-              <a href={documentData.download_url} download>
+              <a href={viewData.download_url} download>
                 Download
               </a>
             </Button>
@@ -177,20 +182,20 @@ export function ShareLinkViewerPage() {
           <span>ConeShare</span>
         </a>
       </div>
-      {documentData && (
+      {viewData && (
         <>
           <ViewerToolbar
-            allowDownload={documentData.link_settings.allow_download}
-            downloadUrl={documentData.download_url}
+            allowDownload={viewData.link_settings.allow_download}
+            downloadUrl={viewData.download_url}
             onFullScreen={handleFullScreen}
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
             currentPage={currentPage}
-            totalPages={documentData.num_pages}
+            totalPages={viewData.num_pages}
             viewId={viewId}
           />
           <PreviewViewer
-            documentData={documentData}
+            documentData={viewData}
             zoomLevel={zoomLevel}
             onPageChange={setCurrentPage}
             viewId={viewId}
