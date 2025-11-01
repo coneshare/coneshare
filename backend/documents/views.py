@@ -958,20 +958,20 @@ class ShareLinkViewDataView(APIView):
         elif link.dataroom:
             # --- Data Fetching and Shaping for Dataroom ---
             dataroom = link.dataroom
-            settings = link.dataroom_settings.filter(is_visible=True)
+            dataroom_link_settings = link.dataroom_settings.filter(is_visible=True)
 
             # Create a map for quick lookup of settings in serializers
             settings_map = {
                 s.dataroom_document_id: {'allow_download': s.allow_download, 'enable_watermark': s.enable_watermark}
-                for s in settings if s.dataroom_document_id
+                for s in dataroom_link_settings if s.dataroom_document_id
             }
             settings_map.update({
                 s.dataroom_folder_id: {'allow_download': s.allow_download, 'enable_watermark': s.enable_watermark}
-                for s in settings if s.dataroom_folder_id
+                for s in dataroom_link_settings if s.dataroom_folder_id
             })
 
-            visible_doc_ids = [s.dataroom_document_id for s in settings if s.dataroom_document_id]
-            visible_folder_ids = [s.dataroom_folder_id for s in settings if s.dataroom_folder_id]
+            visible_doc_ids = [s.dataroom_document_id for s in dataroom_link_settings if s.dataroom_document_id]
+            visible_folder_ids = [s.dataroom_folder_id for s in dataroom_link_settings if s.dataroom_folder_id]
 
             # Fetch all visible documents and folders to construct the hierarchy
             all_docs = DataroomDocument.objects.filter(id__in=visible_doc_ids).select_related('document')
