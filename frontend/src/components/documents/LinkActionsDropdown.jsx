@@ -33,22 +33,22 @@ export function LinkActionsDropdown({
       <DropdownMenuContent align="end">
         {contextType === 'document' && (
           <DropdownMenuItem onClick={() => onPreview(link.id, link.slug)}>
-            <Eye className="mr-2 h-4 w-4" /> Preview
+            <Eye className="mr-2 h-4 w-4" /> <span>Preview</span>
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onClick={() => onEdit(link)}>
-          <Pencil className="mr-2 h-4 w-4" /> Edit
+          <Pencil className="mr-2 h-4 w-4" /> <span>Edit</span>
         </DropdownMenuItem>
         {contextType === 'dataroom' && (
           <DropdownMenuItem onClick={() => onManagePermissions(link)}>
-            <ShieldCheck className="mr-2 h-4 w-4" /> Manage Permissions
+            <ShieldCheck className="mr-2 h-4 w-4" /> <span>Manage Permissions</span>
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onClick={() => copyLinkToClipboard(link.slug)}>
-          <Copy className="mr-2 h-4 w-4" /> Copy Link
+          <Copy className="mr-2 h-4 w-4" /> <span>Copy Link</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onDelete(link)} className="text-red-600 focus:text-red-600">
-          <Trash2 className="mr-2 h-4 w-4" /> Delete
+          <Trash2 className="mr-2 h-4 w-4" /> <span>Delete</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
