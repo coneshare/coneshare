@@ -15,9 +15,6 @@ vi.mock('../../components/documents/DocumentHeader', () => ({
     </div>
   ),
 }));
-vi.mock('../../components/documents/LinksTable', () => ({
-  LinksTable: () => <div>Links Table</div>,
-}));
 // We don't mock VisitorsTable so we can test its integration with the page
 vi.mock('../../components/documents/Stats', () => ({
   Stats: () => <div>Stats</div>,
@@ -201,6 +198,49 @@ describe('DocumentPage', () => {
       await new Promise(resolve => setTimeout(resolve, 50));
 
       expect(api.uploadNewVersion).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('LinksTable integration', () => {
+    it('renders links table with actions for a document with share links', async () => {
+      const mockDocumentWithLinks = {
+        id: 'doc123',
+        name: 'Test Doc with Links',
+        share_links: [
+          {
+            id: 'link1',
+            name: 'Test Link 1',
+            slug: 'test-slug-1',
+            is_active: true,
+            view_count: 0,
+            created_at: new Date().toISOString(),
+            last_viewed_at: null,
+            recent_view_sessions: [],
+          },
+        ],
+      };
+
+      api.getDocumentDetails.mockResolvedValue({ data: mockDocumentWithLinks });
+      api.getDocumentStats.mockResolvedValue({ data: { total_views: 0 } });
+      api.getDocumentViews.mockResolvedValue({ data: { results: [], count: 0 } });
+
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Link 1')).toBeInTheDocument();
+      });
+
+      // The action button is a dropdown menu trigger with an sr-only label "Open actions menu".
+      const actionButton = screen.getByRole('button', { name: /open actions menu/i });
+      expect(actionButton).toBeInTheDocument();
+
+      fireEvent.click(actionButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Edit')).toBeInTheDocument();
+        expect(screen.getByText('Delete')).toBeInTheDocument();
+        expect(screen.getByText('Preview')).toBeInTheDocument();
+      });
     });
   });
 });
