@@ -4,7 +4,7 @@ import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
 import { ShareIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink } from '../services/api';
+import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs'
 import { LinkSheet } from '../components/links/LinkSheet';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { LinksTable } from '../components/documents/LinksTable';
+import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
 import { ManagePermissionsDialog } from '../components/datarooms/ManagePermissionsDialog';
 
 export function DataroomPage() {
@@ -41,6 +42,9 @@ export function DataroomPage() {
   const [linkToDelete, setLinkToDelete] = useState(null);
   const [isManagePermissionsOpen, setIsManagePermissionsOpen] = useState(false);
   const [selectedLinkForPermissions, setSelectedLinkForPermissions] = useState(null);
+  const [viewsData, setViewsData] = useState(null);
+  const [viewsLoading, setViewsLoading] = useState(true);
+  const [viewsCurrentPage, setViewsCurrentPage] = useState(1);
     
   const fetchContent = useCallback(async () => {
     setIsLoading(true);
@@ -74,6 +78,18 @@ export function DataroomPage() {
     }
   }, [dataroomId]);
     
+  const fetchViews = useCallback(async () => {
+    try {
+      setViewsLoading(true);
+      const response = await getDataroomViewSessions(dataroomId, viewsCurrentPage);
+      setViewsData(response.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setViewsLoading(false);
+    }
+  }, [dataroomId, viewsCurrentPage]);
+    
   const unsortedItems = useMemo(() => {
     if (!dataroom) return [];
 
@@ -101,6 +117,12 @@ export function DataroomPage() {
       fetchLinks();
     }
   }, [activeTab, fetchLinks]);
+    
+  useEffect(() => {
+    if (activeTab === 'links') {
+      fetchViews();
+    }
+  }, [activeTab, fetchViews]);
     
   useEffect(() => {
     // Reset selection when folder changes
@@ -190,6 +212,7 @@ export function DataroomPage() {
       await deleteShareLink(linkToDelete.id);
       toast.success(`Link "${linkToDelete.name || 'Untitled Link'}" deleted successfully.`);
       fetchLinks();
+      fetchViews();
     } finally {
       setIsDeleteDialogOpen(false);
       setLinkToDelete(null);
@@ -205,8 +228,9 @@ export function DataroomPage() {
     } else {
       // Full refresh for create/edit from LinkSheet
       fetchLinks();
+      fetchViews();
     }
-  }, [fetchLinks]);
+  }, [fetchLinks, fetchViews]);
     
     
   const handleMoveItems = async (destinationFolderId) => {
@@ -322,6 +346,16 @@ export function DataroomPage() {
             onLinkUpdate={handleLinkUpdate}
             contextType="dataroom"
           />
+          <div className="mt-8">
+            <ViewSessionsTable
+              views={viewsData?.results || []}
+              totalCount={viewsData?.count || 0}
+              loading={viewsLoading}
+              currentPage={viewsCurrentPage}
+              onPageChange={setViewsCurrentPage}
+              pageSize={10}
+            />
+          </div>
         </TabsContent>
       </Tabs>
       <LinkSheet

@@ -53,6 +53,8 @@ describe('DataroomPage', () => {
         api.getDataroom.mockResolvedValue({ data: mockDataroomRoot });
         api.getDataroomFolderContents.mockResolvedValue({ data: mockSubFolderContent });
         api.createDataroomFolder.mockResolvedValue({ data: {} });
+        api.getShareLinksForDataroom.mockResolvedValue({ data: [] });
+        api.getDataroomViewSessions.mockResolvedValue({ data: { results: [], count: 0 } });
     });
 
     const renderComponent = () => {
@@ -268,6 +270,40 @@ describe('DataroomPage', () => {
             listItems = screen.getAllByTestId(/draggable-item-/);
             expect(within(listItems[0]).getByText('B Folder')).toBeInTheDocument();
             expect(within(listItems[1]).getByText('A Folder')).toBeInTheDocument();
+        });
+    });
+
+    describe('Links and Permissions Tab', () => {
+        it('fetches and displays links and view sessions when tab is clicked', async () => {
+            const user = userEvent.setup();
+            const mockLinks = [
+                { id: 'link1', name: 'Test Link', slug: 'slug1', is_active: true, view_count: 5, created_at: '2023-01-01T12:00:00Z', last_viewed_at: null, recent_view_sessions: [] },
+            ];
+            const mockViewSessions = {
+                count: 1,
+                next: null,
+                previous: null,
+                results: [
+                    { id: 'view1', viewer_email: 'test@example.com', viewed_at: '2023-01-02T12:00:00Z', duration_seconds: 60, share_link_name: 'Test Link' },
+                ],
+            };
+            api.getShareLinksForDataroom.mockResolvedValue({ data: mockLinks });
+            api.getDataroomViewSessions.mockResolvedValue({ data: mockViewSessions });
+
+            renderComponent();
+
+            const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
+            await user.click(linksTab);
+
+            // Verify links are displayed
+            expect(await screen.findByText('Test Link')).toBeInTheDocument();
+            
+            // Verify view sessions are displayed
+            expect(await screen.findByText('test@example.com')).toBeInTheDocument();
+
+            // Verify API calls
+            expect(api.getShareLinksForDataroom).toHaveBeenCalledWith('dr123');
+            expect(api.getDataroomViewSessions).toHaveBeenCalledWith('dr123', 1);
         });
     });
 });
