@@ -9,7 +9,9 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from documents.models import Document, Folder
+from documents.models import Document, Folder, ViewSession
+from documents.serializers import ViewSessionSerializer
+from documents.views import StandardResultsSetPagination
 from .models import Dataroom, DataroomDocument, DataroomFolder
 from .serializers import (
     AddContentSerializer, DataroomDetailSerializer,
@@ -183,6 +185,22 @@ class DataroomViewSet(viewsets.ModelViewSet):
             return Response({
                 "detail": "An internal server error occurred while moving content."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['get'], url_path='view-sessions')
+    def view_sessions(self, request, pk=None):
+        dataroom = self.get_object()
+        view_queryset = ViewSession.objects.filter(
+            share_link__dataroom=dataroom
+        ).order_by('-viewed_at').select_related('share_link')
+
+        paginator = StandardResultsSetPagination()
+        page = paginator.paginate_queryset(view_queryset, request, view=self)
+        if page is not None:
+            serializer = ViewSessionSerializer(page, many=True, context=self.get_serializer_context())
+            return paginator.get_paginated_response(serializer.data)
+
+        serializer = ViewSessionSerializer(view_queryset, many=True, context=self.get_serializer_context())
+        return Response(serializer.data)
 
 
 class DataroomFolderViewSet(viewsets.ModelViewSet):

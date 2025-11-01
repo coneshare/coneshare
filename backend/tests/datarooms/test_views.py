@@ -2,7 +2,7 @@ import pytest
 from rest_framework import status
 
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
-from documents.models import Document, Folder, ShareLink
+from documents.models import Document, Folder, ShareLink, ViewSession
 
 pytestmark = pytest.mark.django_db
 
@@ -233,6 +233,30 @@ class TestDataroomViewSet:
         folder_to_move.refresh_from_db()
         assert folder_to_move.parent == destination_folder
         assert folder_to_move.name == "My Folder (3)"
+
+    def test_list_view_sessions_for_dataroom(self, api_client, user, dataroom, organization):
+        """
+        Test that the view-sessions endpoint returns paginated view sessions
+        scoped to the correct dataroom.
+        """
+        # Dataroom and link we are testing
+        link1 = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+        ViewSession.objects.create(share_link=link1, viewer_email="viewer1@test.com")
+
+        # Other dataroom and link to ensure isolation
+        other_dataroom = Dataroom.objects.create(name="Other Dataroom", organization=organization, created_by=user)
+        other_link = ShareLink.objects.create(dataroom=other_dataroom, created_by=user)
+        ViewSession.objects.create(share_link=other_link, viewer_email="other_viewer@test.com")
+
+        url = f'/api/v1/datarooms/{dataroom.id}/view-sessions/'
+        response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        assert data['count'] == 1
+        assert len(data['results']) == 1
+        assert data['results'][0]['viewer_email'] == 'viewer1@test.com'
 
 
 class TestDataroomFolderViewSet:
