@@ -295,11 +295,17 @@ describe('DataroomPage', () => {
             const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
             await user.click(linksTab);
 
-            // Verify links are displayed
-            expect(await screen.findByText('Test Link')).toBeInTheDocument();
-            
-            // Verify view sessions are displayed
-            expect(await screen.findByText('test@example.com')).toBeInTheDocument();
+            // Verify links are displayed in the correct table
+            // Find the table with a "Settings" column, which is unique to LinksTable
+            const linksTable = (await screen.findByRole('columnheader', { name: /settings/i })).closest('table');
+            expect(within(linksTable).getByText('Test Link')).toBeInTheDocument();          
+
+            // Verify view sessions are displayed in their table
+            // Find the table with a "Visitor" column, unique to ViewSessionsTable
+            const viewsTable = (await screen.findByRole('columnheader', { name: /visitor/i })).closest('table');
+            expect(within(viewsTable).getByText('test@example.com')).toBeInTheDocument();
+            // Also confirm the link name is in this table, which is the source of the ambiguity
+            expect(within(viewsTable).getByText('Test Link')).toBeInTheDocument();          
 
             // Verify API calls
             expect(api.getShareLinksForDataroom).toHaveBeenCalledWith('dr123');
