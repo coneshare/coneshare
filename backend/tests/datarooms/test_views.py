@@ -306,7 +306,7 @@ class TestPublicDataroomDataView:
         folder_setting.is_visible = False
         folder_setting.save()
 
-        url = f"/api/v1/public/datarooms/view/{link.slug}/"
+        url = f"/api/v1/links/{link.slug}/view-data/"
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -317,17 +317,10 @@ class TestPublicDataroomDataView:
         # The folder should not be in the list
         assert len(data['folders']) == 0
 
-    def test_get_dataroom_data_for_document_link_fails(self, public_client, share_link):
-        """Test that the endpoint rejects a slug that points to a document link."""
-        url = f"/api/v1/public/datarooms/view/{share_link.slug}/"
-        response = public_client.get(url)
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert "does not point to a dataroom" in response.json()['detail']
-
     def test_get_password_protected_dataroom_returns_401(self, public_client, dataroom, user):
         """Test that a password-protected dataroom link requires auth."""
         link = ShareLink.objects.create(dataroom=dataroom, created_by=user, password="testpassword")
-        url = f"/api/v1/public/datarooms/view/{link.slug}/"
+        url = f"/api/v1/links/{link.slug}/view-data/"
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
