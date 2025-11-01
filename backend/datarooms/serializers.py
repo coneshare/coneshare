@@ -141,6 +141,8 @@ class PublicDataroomDocumentSerializer(serializers.ModelSerializer):
     document_type = serializers.CharField(source='document.type', read_only=True)
     document_id = serializers.CharField(source='document.id', read_only=True)
     num_pages = serializers.IntegerField(source='document.num_pages', read_only=True)
+    updated_at = serializers.DateTimeField(source='document.updated_at', read_only=True)
+    file_size = serializers.IntegerField(source='document.file_size', read_only=True)
     # Settings are added from context
     allow_download = serializers.SerializerMethodField()
     enable_watermark = serializers.SerializerMethodField()
@@ -149,7 +151,7 @@ class PublicDataroomDocumentSerializer(serializers.ModelSerializer):
         model = DataroomDocument
         fields = [
             'id', 'document_id', 'document_name', 'document_type',
-            'num_pages', 'allow_download', 'enable_watermark'
+            'num_pages', 'allow_download', 'enable_watermark', 'updated_at', 'file_size'
         ]
 
     def get_allow_download(self, obj):
@@ -169,7 +171,7 @@ class PublicDataroomFolderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DataroomFolder
-        fields = ['id', 'name', 'parent', 'allow_download', 'enable_watermark']
+        fields = ['id', 'name', 'parent', 'allow_download', 'enable_watermark', 'updated_at']
 
     def get_allow_download(self, obj):
         settings = self.context.get('settings_map', {})

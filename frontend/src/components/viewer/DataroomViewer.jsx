@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import {
-  FileIcon,
   FolderIcon,
   HomeIcon,
   ChevronRight,
@@ -8,12 +7,14 @@ import {
   FileTextIcon,
   FileQuestion,
 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { DataroomDocumentPreview } from './DataroomDocumentPreview';
 import { Dialog, DialogContent } from '../ui/Dialog';
 import { Cone } from 'lucide-react';
+import { formatBytes } from '../../lib/formatters';
 
 function DocumentItemIcon({ type }) {
-  const commonProps = { className: "h-1/2 w-1/2 text-gray-500 transition-transform group-hover:scale-110" };
+  const commonProps = { className: "h-5 w-5 text-gray-500" };
   switch (type) {
     case 'pdf':
     case 'document':
@@ -23,6 +24,33 @@ function DocumentItemIcon({ type }) {
     default:
       return <FileQuestion {...commonProps} />;
   }
+}
+
+function ListItem({ item, onItemClick }) {
+  const isFolder = item.type === 'folder';
+  return (
+    <button
+      onClick={() => onItemClick(item)}
+      className="flex w-full items-center px-4 py-2 text-left text-sm transition-colors hover:bg-gray-100"
+    >
+      <div className="flex w-8 items-center justify-center">
+        {isFolder ? (
+          <FolderIcon className="h-5 w-5 text-blue-500" />
+        ) : (
+          <DocumentItemIcon type={item.document_type} />
+        )}
+      </div>
+      <div className="w-[60%] truncate pr-4 font-medium" title={item.name || item.document_name}>
+        {item.name || item.document_name}
+      </div>
+      <div className="w-[20%] text-sm text-gray-500">
+        {item.updated_at && formatDistanceToNow(new Date(item.updated_at), { addSuffix: true })}
+      </div>
+      <div className="w-[10%] text-sm text-gray-500">
+        {!isFolder && typeof item.file_size === 'number' ? formatBytes(item.file_size) : '—'}
+      </div>
+    </button>
+  );
 }
 
 export function DataroomViewer({ data, slug }) {
@@ -98,34 +126,20 @@ export function DataroomViewer({ data, slug }) {
         </ol>
       </nav>
 
-      <main className="flex-1 overflow-y-auto p-4 md:p-6">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+      <main className="flex-1 overflow-y-auto border-t">
+        <div className="flex w-full items-center border-b bg-gray-50 px-4 py-2 text-xs font-medium uppercase text-gray-500">
+          <div className="w-8" />
+          <div className="w-[60%] pr-4">Name</div>
+          <div className="w-[20%]">Last Modified</div>
+          <div className="w-[10%]">File Size</div>
+        </div>
+        <div className="divide-y">
           {itemsInCurrentFolder.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => handleItemClick(item)}
-              className="group flex flex-col rounded-lg border bg-white text-center shadow-sm transition-all hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-t-lg bg-gray-50">
-                {item.type === 'folder' ? (
-                  <FolderIcon className="h-1/2 w-1/2 text-blue-500 transition-transform group-hover:scale-110" />
-                ) : (
-                  <DocumentItemIcon type={item.document_type} />
-                )}
-              </div>
-              <div className="flex flex-1 items-center p-2">
-                <p
-                  className="w-full truncate text-sm font-medium text-gray-900"
-                  title={item.name || item.document_name}
-                >
-                  {item.name || item.document_name}
-                </p>
-              </div>
-            </button>
+            <ListItem key={item.id} item={item} onItemClick={handleItemClick} />
           ))}
         </div>
         {itemsInCurrentFolder.length === 0 && (
-          <div className="mt-8 text-center text-gray-500">This folder is empty.</div>
+          <div className="p-12 text-center text-gray-500">This folder is empty.</div>
         )}
       </main>
 
