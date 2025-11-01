@@ -237,9 +237,9 @@ describe('DocumentPage', () => {
       fireEvent.click(actionButton);
 
       await waitFor(() => {
-        expect(screen.getByText('Edit')).toBeInTheDocument();
-        expect(screen.getByText('Delete')).toBeInTheDocument();
-        expect(screen.getByText('Preview')).toBeInTheDocument();
+        expect(screen.getByRole('menuitem', { name: /edit/i })).toBeInTheDocument();
+        expect(screen.getByRole('menuitem', { name: /delete/i })).toBeInTheDocument();
+        expect(screen.getByRole('menuitem', { name: /preview/i })).toBeInTheDocument();
       });
     });
   });

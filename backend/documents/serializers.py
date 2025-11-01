@@ -178,7 +178,7 @@ class ViewSessionSerializer(serializers.ModelSerializer):
 
 class ShareLinkSerializer(serializers.ModelSerializer):
     dataroom = serializers.PrimaryKeyRelatedField(
-        queryset=Dataroom.objects.all(), write_only=True, required=False, allow_null=True
+        queryset=Dataroom.objects.all(), required=False, allow_null=True
     )
     dataroom_settings = ShareLinkDataroomSettingSerializer(many=True, read_only=True)
     has_password = serializers.SerializerMethodField()

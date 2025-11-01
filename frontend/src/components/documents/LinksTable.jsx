@@ -256,7 +256,7 @@ export function LinksTable({
                   </TableRow>
                   {isExpanded && hasViews && (
                     <TableRow className="bg-gray-50 hover:bg-gray-50">
-                      <TableCell colSpan={isDashboardWidget ? 8 : 10} className="p-4">
+                      <TableCell colSpan={isDashboardWidget ? 8 : 9} className="p-4">
                         <div className="p-2">
                           {/* <h4 className="mb-2 text-sm font-semibold text-gray-600"> */}
                           {/*   View Sessions */}

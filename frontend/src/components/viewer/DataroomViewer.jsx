@@ -57,21 +57,24 @@ export function DataroomViewer({ data, slug }) {
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [previewingDoc, setPreviewingDoc] = useState(null);
 
+  const allItems = useMemo(() => [
+    ...data.folders.map(f => ({ ...f, type: 'folder' })),
+    ...data.documents.map(d => ({ ...d, type: 'document' })),
+  ], [data.folders, data.documents]);
+
   const itemsById = useMemo(() => {
     const map = new Map();
-    data.folders.forEach(f => map.set(f.id, { ...f, type: 'folder' }));
-    data.documents.forEach(d => map.set(d.id, { ...d, type: 'document' }));
+    allItems.forEach(item => map.set(item.id, item));
     return map;
-  }, [data.folders, data.documents]);
+  }, [allItems]);
 
   const currentFolder = useMemo(() => {
     return currentFolderId ? itemsById.get(currentFolderId) : null;
   }, [currentFolderId, itemsById]);
 
   const itemsInCurrentFolder = useMemo(() => {
-    const allItems = [...data.folders, ...data.documents];
     return allItems.filter(item => (item.parent || null) === currentFolderId);
-  }, [data.folders, data.documents, currentFolderId]);
+  }, [allItems, currentFolderId]);
 
   const breadcrumbs = useMemo(() => {
     const crumbs = [];
