@@ -120,6 +120,27 @@ class TestDataroomViewSet:
         assert response.status_code == status.HTTP_200_OK
         assert DataroomDocument.objects.filter(dataroom=dataroom, document=document).exists()
 
+    def test_add_content_updates_existing_share_links(self, api_client, dataroom, document, user):
+        """
+        Test that adding content to a dataroom automatically updates existing
+        share links with the new item settings.
+        """
+        # 1. Create a share link for the dataroom while it's empty.
+        link = ShareLink.objects.create(dataroom=dataroom, name="Existing Link", created_by=user)
+        assert link.dataroom_settings.count() == 0
+
+        # 2. Add a document to the dataroom via the API.
+        url = f'/api/v1/datarooms/{dataroom.id}/add-content/'
+        data = {'document_ids': [str(document.id)]}
+        response = api_client.post(url, data)
+        assert response.status_code == status.HTTP_200_OK
+
+        # 3. Verify the existing share link now has a setting for the new document.
+        link.refresh_from_db()
+        assert link.dataroom_settings.count() == 1
+        setting = link.dataroom_settings.first()
+        assert setting.dataroom_document.document == document
+
     def test_add_folder_content_to_dataroom(self, api_client, dataroom, user, organization, document):
         """Test adding a folder with its contents to a dataroom."""
         root_folder = Folder.objects.get_root_for_org(organization)
