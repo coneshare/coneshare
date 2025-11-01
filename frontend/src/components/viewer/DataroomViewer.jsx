@@ -1,8 +1,29 @@
 import { useState, useMemo } from 'react';
-import { FileIcon, FolderIcon, HomeIcon, ChevronRight } from 'lucide-react';
+import {
+  FileIcon,
+  FolderIcon,
+  HomeIcon,
+  ChevronRight,
+  FileImageIcon,
+  FileTextIcon,
+  FileQuestion,
+} from 'lucide-react';
 import { DataroomDocumentPreview } from './DataroomDocumentPreview';
 import { Dialog, DialogContent } from '../ui/Dialog';
 import { Cone } from 'lucide-react';
+
+function DocumentItemIcon({ type }) {
+  const commonProps = { className: "h-1/2 w-1/2 text-gray-500 transition-transform group-hover:scale-110" };
+  switch (type) {
+    case 'pdf':
+    case 'document':
+      return <FileTextIcon {...commonProps} />;
+    case 'image':
+      return <FileImageIcon {...commonProps} />;
+    default:
+      return <FileQuestion {...commonProps} />;
+  }
+}
 
 export function DataroomViewer({ data, slug }) {
   const [currentFolderId, setCurrentFolderId] = useState(null);
@@ -77,20 +98,29 @@ export function DataroomViewer({ data, slug }) {
         </ol>
       </nav>
 
-      <main className="flex-1 overflow-y-auto p-4">
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {itemsInCurrentFolder.map(item => (
+      <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {itemsInCurrentFolder.map((item) => (
             <button
               key={item.id}
               onClick={() => handleItemClick(item)}
-              className="flex items-center gap-3 rounded-md border bg-white p-3 text-left shadow-sm transition-colors hover:bg-gray-100"
+              className="group flex flex-col rounded-lg border bg-white text-center shadow-sm transition-all hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-              {item.type === 'folder' ? (
-                <FolderIcon className="h-6 w-6 flex-shrink-0 text-blue-500" />
-              ) : (
-                <FileIcon className="h-6 w-6 flex-shrink-0 text-gray-500" />
-              )}
-              <span className="truncate font-medium">{item.name || item.document_name}</span>
+              <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-t-lg bg-gray-50">
+                {item.type === 'folder' ? (
+                  <FolderIcon className="h-1/2 w-1/2 text-blue-500 transition-transform group-hover:scale-110" />
+                ) : (
+                  <DocumentItemIcon type={item.document_type} />
+                )}
+              </div>
+              <div className="flex flex-1 items-center p-2">
+                <p
+                  className="w-full truncate text-sm font-medium text-gray-900"
+                  title={item.name || item.document_name}
+                >
+                  {item.name || item.document_name}
+                </p>
+              </div>
             </button>
           ))}
         </div>
