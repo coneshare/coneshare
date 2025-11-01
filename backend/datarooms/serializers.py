@@ -143,6 +143,7 @@ class PublicDataroomDocumentSerializer(serializers.ModelSerializer):
     num_pages = serializers.IntegerField(source='document.num_pages', read_only=True)
     updated_at = serializers.DateTimeField(source='document.updated_at', read_only=True)
     file_size = serializers.IntegerField(source='document.file_size', read_only=True)
+    parent = serializers.PrimaryKeyRelatedField(source='folder', read_only=True)
     # Settings are added from context
     allow_download = serializers.SerializerMethodField()
     enable_watermark = serializers.SerializerMethodField()
@@ -151,7 +152,8 @@ class PublicDataroomDocumentSerializer(serializers.ModelSerializer):
         model = DataroomDocument
         fields = [
             'id', 'document_id', 'document_name', 'document_type',
-            'num_pages', 'allow_download', 'enable_watermark', 'updated_at', 'file_size'
+            'num_pages', 'allow_download', 'enable_watermark', 'updated_at', 'file_size',
+            'parent'
         ]
 
     def get_allow_download(self, obj):
