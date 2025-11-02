@@ -982,14 +982,11 @@ class ShareLinkViewDataView(APIView):
             dataroom_link_settings = link.dataroom_settings.filter(is_visible=True)
 
             # Create a map for quick lookup of settings in serializers
-            settings_map = {
-                s.dataroom_document_id: {'allow_download': s.allow_download, 'enable_watermark': s.enable_watermark}
-                for s in dataroom_link_settings if s.dataroom_document_id
-            }
-            settings_map.update({
-                s.dataroom_folder_id: {'allow_download': s.allow_download, 'enable_watermark': s.enable_watermark}
-                for s in dataroom_link_settings if s.dataroom_folder_id
-            })
+            settings_map = {}
+            for s in dataroom_link_settings:
+                key = s.dataroom_document_id or s.dataroom_folder_id
+                if key:
+                    settings_map[key] = {'allow_download': s.allow_download, 'enable_watermark': s.enable_watermark}
 
             visible_doc_ids = [s.dataroom_document_id for s in dataroom_link_settings if s.dataroom_document_id]
             visible_folder_ids = [s.dataroom_folder_id for s in dataroom_link_settings if s.dataroom_folder_id]
