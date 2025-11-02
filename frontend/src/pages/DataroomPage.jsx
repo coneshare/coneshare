@@ -115,14 +115,9 @@ export function DataroomPage() {
   useEffect(() => {
     if (activeTab === 'links') {
       fetchLinks();
-    }
-  }, [activeTab, fetchLinks]);
-    
-  useEffect(() => {
-    if (activeTab === 'links') {
       fetchViews();
     }
-  }, [activeTab, fetchViews]);
+  }, [activeTab, fetchLinks, fetchViews]);  
     
   useEffect(() => {
     // Reset selection when folder changes

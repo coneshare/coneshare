@@ -8,7 +8,7 @@ import { Label } from '../ui/Label';
 import { FolderIcon, FileIcon, Loader2 } from 'lucide-react';
 
 function PermissionItem({ item, type, settings, onSettingChange }) {
-  const setting = Object.values(settings).find(s => s.dataroom_document === item.id || s.dataroom_folder === item.id);
+  const setting = settings[item.id];
 
   if (!setting) {
     return null;
@@ -74,26 +74,23 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link }) {
     }
   }, [isOpen, link]);
 
-  const handleSettingChange = (settingId, key, value) => {
-    const itemKey = Object.keys(settings).find(k => settings[k].id === settingId);
-    if (itemKey) {
-      setSettings(prev => ({
-        ...prev,
-        [itemKey]: {
-          ...prev[itemKey],
-          [key]: value,
-        },
-      }));
-    }
-  };
+  const handleSettingChange = (itemKey, key, value) => {
+    setSettings(prev => ({
+      ...prev,
+      [itemKey]: {
+        ...prev[itemKey],
+        [key]: value,
+      },
+    }));
+  };  
 
   const handleSave = async () => {
-    const changes = Object.values(settings).filter(current => {
-      const original = Object.values(originalSettings).find(o => o.id === current.id);
-      return JSON.stringify(current) !== JSON.stringify(original);
-    }).map(({ id, is_visible, allow_download, enable_watermark }) => ({
-      id, is_visible, allow_download, enable_watermark
-    }));
+    const changes = Object.keys(settings)
+      .filter(key => JSON.stringify(settings[key]) !== JSON.stringify(originalSettings[key]))
+      .map(key => {
+        const { id, is_visible, allow_download, enable_watermark } = settings[key];
+        return { id, is_visible, allow_download, enable_watermark };
+      });    
 
     if (changes.length === 0) {
       onOpenChange(false);
