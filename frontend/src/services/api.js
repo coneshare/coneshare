@@ -203,14 +203,11 @@ export const getShareLinkViewSessions = (linkId, page = 1) =>
 
 export const generateShareLinkPreview = (id) => api.post(`/share-links/${id}/preview/`);
 
-export const getShareLinkViewData = (slug, previewToken = null, accessToken = null) => {
+export const getShareLinkViewData = (slug, { previewToken = null, accessToken = null, documentId = null } = {}) => {
   const params = {};
-  if (previewToken) {
-    params.previewToken = previewToken;
-  }
-  if (accessToken) {
-    params.accessToken = accessToken;
-  }
+  if (previewToken) params.previewToken = previewToken;
+  if (accessToken) params.accessToken = accessToken;
+  if (documentId) params.document_id = documentId;
   return api.get(`/links/${slug}/view-data/`, { params });
 };
 
@@ -307,5 +304,8 @@ export const addContentToDataroom = (id, data) => api.post(`/datarooms/${id}/add
 export const removeContentFromDataroom = (id, data) => api.post(`/datarooms/${id}/remove-content/`, data);
 export const moveDataroomContent = (id, data) => api.post(`/datarooms/${id}/move-content/`, data);
 export const getDataroomFolderContents = (folderId) => api.get(`/dataroom-folders/${folderId}/`);
-
+export const getShareLinksForDataroom = (dataroomId) => api.get(`/share-links/?dataroom_id=${dataroomId}`);
+export const updateDataroomLinkSettings = (linkId, settings) => api.patch(`/share-links/${linkId}/dataroom-settings/`, settings);
+export const getDataroomViewSessions = (dataroomId, page = 1) => api.get(`/datarooms/${dataroomId}/view-sessions/?page=${page}`);
+    
 export default api;
