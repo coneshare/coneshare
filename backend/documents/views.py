@@ -746,6 +746,7 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
 
         try:
             with transaction.atomic():
+                # TODO: potential N+1 query problem!
                 for item in settings_to_update:
                     setting_id = item.pop('id')
                     ShareLinkDataroomSetting.objects.filter(id=setting_id, share_link=share_link).update(**item)

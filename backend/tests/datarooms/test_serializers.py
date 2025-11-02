@@ -2,6 +2,7 @@ import pytest
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, force_authenticate
 
+from documents.models import ShareLink
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
 from datarooms.serializers import (
     AddContentSerializer,
@@ -9,6 +10,8 @@ from datarooms.serializers import (
     DataroomFolderSerializer,
     DataroomSerializer,
     MoveDataroomContentSerializer,
+    PublicDataroomDocumentSerializer,
+    PublicDataroomFolderSerializer,
 )
 
 pytestmark = pytest.mark.django_db
@@ -117,3 +120,49 @@ class TestMoveContentSerializer:
         serializer = MoveDataroomContentSerializer(data=data)
         assert not serializer.is_valid()
         assert "must be provided" in str(serializer.errors)
+
+
+class TestPublicDataroomSerializers:
+    def test_public_document_serializer(self, dataroom, document, user):
+        """
+        Test that the public document serializer correctly includes data
+        from the model and context.
+        """
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user, allow_download=False)
+        setting = link.dataroom_settings.get(dataroom_document=ddoc)
+        setting.allow_download = False
+        setting.save()
+
+        # The settings map is built in the view. We replicate it here.
+        settings_map = {ddoc.id: {'allow_download': False, 'enable_watermark': False}}
+        context = {'settings_map': settings_map}
+
+        serializer = PublicDataroomDocumentSerializer(instance=ddoc, context=context)
+        data = serializer.data
+
+        assert data['id'] == str(ddoc.id)
+        assert data['document_name'] == document.name
+        assert data['allow_download'] is False  # From context
+        assert data['enable_watermark'] is False  # From context
+
+    def test_public_folder_serializer(self, dataroom, user):
+        """
+        Test that the public folder serializer correctly includes data
+        from the model and context.
+        """
+        dfolder = DataroomFolder.objects.create(dataroom=dataroom, name="Test Folder")
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user, allow_download=True)
+        setting = link.dataroom_settings.get(dataroom_folder=dfolder)
+        setting.allow_download = True
+        setting.save()
+
+        settings_map = {dfolder.id: {'allow_download': True, 'enable_watermark': False}}
+        context = {'settings_map': settings_map}
+
+        serializer = PublicDataroomFolderSerializer(instance=dfolder, context=context)
+        data = serializer.data
+
+        assert data['id'] == str(dfolder.id)
+        assert data['name'] == "Test Folder"
+        assert data['allow_download'] is True  # From context

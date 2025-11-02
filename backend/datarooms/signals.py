@@ -1,8 +1,6 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from documents.models import ShareLink
-
 from .models import DataroomDocument, DataroomFolder, ShareLinkDataroomSetting
 
 
@@ -14,6 +12,7 @@ def create_settings_for_new_dataroom_document(sender, instance, created, **kwarg
     """
     if created:
         dataroom = instance.dataroom
+        # TODO: potential N+1 query problem!
         for link in dataroom.share_links.all():
             ShareLinkDataroomSetting.objects.get_or_create(
                 share_link=link,
@@ -33,6 +32,7 @@ def create_settings_for_new_dataroom_folder(sender, instance, created, **kwargs)
     """
     if created:
         dataroom = instance.dataroom
+        # TODO: potential N+1 query problem!
         for link in dataroom.share_links.all():
             ShareLinkDataroomSetting.objects.get_or_create(
                 share_link=link,
