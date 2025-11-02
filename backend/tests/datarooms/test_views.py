@@ -2,7 +2,7 @@ import pytest
 from rest_framework import status
 
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
-from documents.models import Document, Folder
+from documents.models import Document, Folder, ShareLink, ViewSession
 
 pytestmark = pytest.mark.django_db
 
@@ -120,6 +120,27 @@ class TestDataroomViewSet:
         assert response.status_code == status.HTTP_200_OK
         assert DataroomDocument.objects.filter(dataroom=dataroom, document=document).exists()
 
+    def test_add_content_updates_existing_share_links(self, api_client, dataroom, document, user):
+        """
+        Test that adding content to a dataroom automatically updates existing
+        share links with the new item settings.
+        """
+        # 1. Create a share link for the dataroom while it's empty.
+        link = ShareLink.objects.create(dataroom=dataroom, name="Existing Link", created_by=user)
+        assert link.dataroom_settings.count() == 0
+
+        # 2. Add a document to the dataroom via the API.
+        url = f'/api/v1/datarooms/{dataroom.id}/add-content/'
+        data = {'document_ids': [str(document.id)]}
+        response = api_client.post(url, data)
+        assert response.status_code == status.HTTP_200_OK
+
+        # 3. Verify the existing share link now has a setting for the new document.
+        link.refresh_from_db()
+        assert link.dataroom_settings.count() == 1
+        setting = link.dataroom_settings.first()
+        assert setting.dataroom_document.document == document
+
     def test_add_folder_content_to_dataroom(self, api_client, dataroom, user, organization, document):
         """Test adding a folder with its contents to a dataroom."""
         root_folder = Folder.objects.get_root_for_org(organization)
@@ -213,6 +234,30 @@ class TestDataroomViewSet:
         assert folder_to_move.parent == destination_folder
         assert folder_to_move.name == "My Folder (3)"
 
+    def test_list_view_sessions_for_dataroom(self, api_client, user, dataroom, organization):
+        """
+        Test that the view-sessions endpoint returns paginated view sessions
+        scoped to the correct dataroom.
+        """
+        # Dataroom and link we are testing
+        link1 = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+        ViewSession.objects.create(share_link=link1, viewer_email="viewer1@test.com")
+
+        # Other dataroom and link to ensure isolation
+        other_dataroom = Dataroom.objects.create(name="Other Dataroom", organization=organization, created_by=user)
+        other_link = ShareLink.objects.create(dataroom=other_dataroom, created_by=user)
+        ViewSession.objects.create(share_link=other_link, viewer_email="other_viewer@test.com")
+
+        url = f'/api/v1/datarooms/{dataroom.id}/view-sessions/'
+        response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        assert data['count'] == 1
+        assert len(data['results']) == 1
+        assert data['results'][0]['viewer_email'] == 'viewer1@test.com'
+
 
 class TestDataroomFolderViewSet:
     def test_create_dataroom_folder(self, api_client, dataroom):
@@ -265,3 +310,77 @@ class TestDataroomFolderViewSet:
         assert data['sub_folders'][0]['name'] == "Sub"
         assert len(data['documents']) == 1
         assert data['documents'][0]['document_name'] == document.name
+
+
+class TestPublicDataroomDataView:
+    def test_get_valid_dataroom_data(self, public_client, dataroom, document, user):
+        """
+        Test that the public endpoint returns correctly filtered data based
+        on visibility settings.
+        """
+        # Setup dataroom with content
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        dfolder = DataroomFolder.objects.create(dataroom=dataroom, name="Folder")
+
+        # Create share link for dataroom, which auto-creates settings
+        link = ShareLink.objects.create(dataroom=dataroom, name="Public DR Link", created_by=user)
+
+        # Make one item invisible
+        folder_setting = link.dataroom_settings.get(dataroom_folder=dfolder)
+        folder_setting.is_visible = False
+        folder_setting.save()
+
+        url = f"/api/v1/links/{link.slug}/view-data/"
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data['id'] == str(dataroom.id)
+        assert len(data['documents']) == 1
+        assert data['documents'][0]['id'] == str(ddoc.id)
+        # The folder should not be in the list
+        assert len(data['folders']) == 0
+
+    def test_get_password_protected_dataroom_returns_401(self, public_client, dataroom, user):
+        """Test that a password-protected dataroom link requires auth."""
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user, password="testpassword")
+        url = f"/api/v1/links/{link.slug}/view-data/"
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.json()['protectionType'] == 'password'
+
+    def test_get_document_from_dataroom_link_success(self, public_client, dataroom, document, user):
+        """
+        Test that a specific document can be fetched from a dataroom link
+        when the correct document_id is provided.
+        """
+        DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link = ShareLink.objects.create(dataroom=dataroom, name="DR Link", created_by=user)
+
+        url = f"/api/v1/links/{link.slug}/view-data/?document_id={document.id}"
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data['link_type'] == 'document'
+        assert data['id'] == str(document.id)
+        assert data['name'] == document.name
+
+    def test_get_document_from_dataroom_link_permission_denied(self, public_client, dataroom, document, user):
+        """
+        Test that fetching a document from a dataroom link fails if the item
+        is marked as not visible.
+        """
+        DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link = ShareLink.objects.create(dataroom=dataroom, name="DR Link", created_by=user)
+
+        # Make the document invisible in this link's settings
+        setting = link.dataroom_settings.get(dataroom_document__document=document)
+        setting.is_visible = False
+        setting.save()
+
+        url = f"/api/v1/links/{link.slug}/view-data/?document_id={document.id}"
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
