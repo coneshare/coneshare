@@ -1149,3 +1149,14 @@ This session delivers the foundational 'Dataroom' feature, a significant enhance
 -  Dataroom Content Management: Implemented APIs and UI for adding existing documents and folders to a dataroom, creating new folders within a dataroom, and moving content between dataroom folders, including recursive replication of folder structures.
 -  Frontend Integration: New React pages (DataroomsPage, DataroomPage) and components were developed to provide a user interface for managing datarooms, navigating their content, and performing content operations.
 
+---
+
+## Session 50: Dataroom Sharing feature (2025-11-01)
+
+This session introduces a new feature: the ability to create shareable links for entire datarooms. This functionality extends the existing document sharing capabilities to collections of documents and folders, providing granular control over what content is visible, downloadable, and watermarked within a shared dataroom link. The changes span both backend (Django REST Framework) and frontend (React) to support the creation, management, and viewing of these new dataroom share links. [https://github.com/coneshare/coneshare/pull/56](https://github.com/coneshare/coneshare/pull/56)
+
+-  Dataroom Sharing Feature: Introduced the ability to create shareable links for entire datarooms, extending existing document sharing capabilities to collections of documents and folders.
+-  Granular Permissions for Dataroom Share Links: Users can now set specific visibility, download, and watermark settings for individual documents and folders within a shared dataroom link.
+-  Automatic Setting Generation: When a dataroom share link is created, default settings for all existing dataroom items are automatically generated. Similarly, when new content is added to a dataroom, settings are created for existing share links.
+-  Dataroom Viewer UI: A new frontend component (DataroomViewer.jsx) has been developed to display the contents of a shared dataroom link, allowing navigation through folders and previewing documents within the dataroom.
+-  API Endpoints for Dataroom Share Links: New API endpoints and serializers have been added to support the creation, management, and viewing of dataroom share links and their granular settings.
