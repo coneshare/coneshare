@@ -8,6 +8,12 @@ import {
   DropdownMenuTrigger,
 } from '../ui/DropdownMenu';
 
+const copyLinkToClipboard = (slug) => {
+  const url = `${window.location.origin}/view/${slug}`;
+  navigator.clipboard.writeText(url);
+  toast.success('Link copied to clipboard!');
+};
+
 export function LinkActionsDropdown({
   link,
   onPreview,
@@ -16,12 +22,6 @@ export function LinkActionsDropdown({
   onManagePermissions,
   contextType,
 }) {
-  const copyLinkToClipboard = (slug) => {
-    const url = `${window.location.origin}/view/${slug}`;
-    navigator.clipboard.writeText(url);
-    toast.success('Link copied to clipboard!');
-  };
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
