@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from .models import Dataroom, DataroomDocument, DataroomFolder
+
+# from documents.models import ShareLinkDataroomSetting
+from .models import Dataroom, DataroomDocument, DataroomFolder, ShareLinkDataroomSetting
 
 
 class DataroomSerializer(serializers.ModelSerializer):
@@ -111,3 +113,73 @@ class MoveDataroomContentSerializer(serializers.Serializer):
         if not data.get('dataroom_document_ids') and not data.get('dataroom_folder_ids'):
             raise serializers.ValidationError("Either 'dataroom_document_ids' or 'dataroom_folder_ids' must be provided.")
         return data
+
+
+class ShareLinkDataroomSettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShareLinkDataroomSetting
+        fields = ['id', 'dataroom_document', 'dataroom_folder', 'is_visible', 'allow_download', 'enable_watermark']
+
+
+class ShareLinkDataroomSettingUpdateSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    is_visible = serializers.BooleanField(required=False)
+    allow_download = serializers.BooleanField(required=False)
+    enable_watermark = serializers.BooleanField(required=False)
+
+    def validate(self, data):
+        # Ensure at least one setting is being updated
+        if not any(k in data for k in ['is_visible', 'allow_download', 'enable_watermark']):
+            raise serializers.ValidationError("At least one setting (is_visible, allow_download, enable_watermark) must be provided for an update.")
+        return data
+
+
+# --- Serializers for Public Dataroom View ---
+
+class PublicDataroomDocumentSerializer(serializers.ModelSerializer):
+    document_name = serializers.CharField(source='document.name', read_only=True)
+    document_type = serializers.CharField(source='document.type', read_only=True)
+    document_id = serializers.CharField(source='document.id', read_only=True)
+    num_pages = serializers.IntegerField(source='document.num_pages', read_only=True)
+    updated_at = serializers.DateTimeField(source='document.updated_at', read_only=True)
+    file_size = serializers.IntegerField(source='document.file_size', read_only=True)
+    parent = serializers.PrimaryKeyRelatedField(source='folder', read_only=True)
+    # Settings are added from context
+    allow_download = serializers.SerializerMethodField()
+    enable_watermark = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DataroomDocument
+        fields = [
+            'id', 'document_id', 'document_name', 'document_type',
+            'num_pages', 'allow_download', 'enable_watermark', 'updated_at', 'file_size',
+            'parent'
+        ]
+
+    def get_allow_download(self, obj):
+        settings = self.context.get('settings_map', {})
+        # obj.id here is the DataroomDocument ID
+        return settings.get(obj.id, {}).get('allow_download', True)
+
+    def get_enable_watermark(self, obj):
+        settings = self.context.get('settings_map', {})
+        return settings.get(obj.id, {}).get('enable_watermark', False)
+
+
+class PublicDataroomFolderSerializer(serializers.ModelSerializer):
+    # Settings are added from context
+    allow_download = serializers.SerializerMethodField()
+    enable_watermark = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DataroomFolder
+        fields = ['id', 'name', 'parent', 'allow_download', 'enable_watermark', 'updated_at']
+
+    def get_allow_download(self, obj):
+        settings = self.context.get('settings_map', {})
+        # obj.id here is the DataroomFolder ID
+        return settings.get(obj.id, {}).get('allow_download', True)
+
+    def get_enable_watermark(self, obj):
+        settings = self.context.get('settings_map', {})
+        return settings.get(obj.id, {}).get('enable_watermark', False)

@@ -44,6 +44,10 @@ except ImportError:
     canvas = None
 
 
+from datarooms.models import DataroomDocument, DataroomFolder, ShareLinkDataroomSetting
+from datarooms.serializers import (
+    PublicDataroomDocumentSerializer, PublicDataroomFolderSerializer, ShareLinkDataroomSettingUpdateSerializer
+)
 from .models import Document, DocumentPage, Folder, ShareLink, ShareLinkPreset, ViewSession, Viewer, PreviewSession, EmailVerificationToken
 from .serializers import (
     DocumentSerializer,
@@ -184,8 +188,8 @@ def _get_active_share_link(slug: str) -> ShareLink:
     DRF exception if it's not found or inactive.
     """
     try:
-        # select_related is an optimization for views that access link.document
-        link = ShareLink.objects.select_related('document').get(slug=slug)
+        # select_related is an optimization for views that access link targets
+        link = ShareLink.objects.select_related('document', 'dataroom').get(slug=slug)
     except ShareLink.DoesNotExist:
         raise NotFound(detail="Link not found.")
 
@@ -680,7 +684,11 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return ShareLink.objects.filter(created_by=self.request.user)
+        queryset = ShareLink.objects.filter(created_by=self.request.user).prefetch_related('dataroom_settings')
+        dataroom_id = self.request.query_params.get('dataroom_id')
+        if dataroom_id:
+            queryset = queryset.filter(dataroom_id=dataroom_id)
+        return queryset
 
     @action(detail=True, methods=['get'], url_path='view-sessions')
     def view_sessions(self, request, pk=None):
@@ -712,6 +720,44 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
             expires_at=timezone.now() + timedelta(minutes=5)
         )
         return Response({'previewToken': session.token}, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['patch'], url_path='dataroom-settings')
+    def dataroom_settings(self, request, pk=None):
+        """
+        Bulk updates settings for items within a dataroom share link.
+        """
+        share_link = self.get_object()
+        if not share_link.dataroom:
+            return Response(
+                {"detail": "This share link is not for a dataroom."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = ShareLinkDataroomSettingUpdateSerializer(data=request.data, many=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        settings_to_update = serializer.validated_data
+        setting_ids = [item['id'] for item in settings_to_update]
+
+        # Ensure all provided setting IDs belong to the share link being modified
+        if ShareLinkDataroomSetting.objects.filter(id__in=setting_ids).exclude(share_link=share_link).exists():
+            raise PermissionDenied("You can only modify settings for this share link.")
+
+        try:
+            with transaction.atomic():
+                # TODO: potential N+1 query problem!
+                for item in settings_to_update:
+                    setting_id = item.pop('id')
+                    ShareLinkDataroomSetting.objects.filter(id=setting_id, share_link=share_link).update(**item)
+
+            return Response({"detail": "Settings updated successfully."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Failed to bulk update dataroom settings for link {pk}: {e}")
+            return Response(
+                {"detail": "An internal server error occurred."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class ViewerViewSet(viewsets.ModelViewSet):
@@ -867,46 +913,107 @@ class ShareLinkViewDataView(APIView):
                     status=status.HTTP_401_UNAUTHORIZED
                 )
 
-        # If all checks pass, proceed to fetch and return data.
-        document = link.document
-        primary_version = document.versions.filter(is_primary=True).first()
+        # If all checks pass, proceed to fetch and return data based on link type.
+        dataroom_document_id = request.query_params.get('document_id')
 
-        if not primary_version or document.status != 'ready':
-            return Response(
-                {"message": "Document is not yet ready for viewing."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        document_to_return = None
+        # Case 1: Fetching a specific document from within a dataroom link.
+        if link.dataroom and dataroom_document_id:
+            try:
+                # Security check: ensure the requested document is part of this dataroom
+                # and is visible according to the link's settings.
+                setting = link.dataroom_settings.get(
+                    dataroom_document__document_id=dataroom_document_id,
+                    is_visible=True
+                )
+                document_to_return = setting.dataroom_document.document
+            except ShareLinkDataroomSetting.DoesNotExist:
+                return Response({"detail": "You do not have permission to view this document through this link."}, status=status.HTTP_403_FORBIDDEN)
 
-        pages_data = _prepare_pages_data(document, primary_version, share_link=link)
+        # Case 2: Fetching a direct document link.
+        elif link.document:
+            document_to_return = link.document
 
-        download_url = None
-        is_watermarked = link.enable_watermark and link.watermark_text
-        if is_watermarked:
-            download_url = urljoin(settings.SITE_DOMAIN, f"/api/v1/links/{link.slug}/download/")
-        elif document.type == 'image' and pages_data:
-            # For images, the download URL is the same as the single page's URL.
-            download_url = pages_data[0]['url']
-        elif primary_version and primary_version.original_storage_key:
-            file_url = default_storage.url(primary_version.original_storage_key)
-            download_url = urljoin(settings.SITE_DOMAIN, file_url)
+        if document_to_return:
+            document = document_to_return
+            primary_version = document.versions.filter(is_primary=True).first()
 
-        response_data = {
-            "id": document.id,
-            "name": document.name,
-            "type": document.type,
-            "num_pages": document.num_pages,
-            "download_only": document.download_only,
-            "file_size": primary_version.file_size if primary_version else None,
-            "pages": pages_data,
-            "download_url": download_url,
-            "link_settings": {
-                "id": link.id,
-                "allow_download": link.allow_download,
-                "enable_watermark": link.enable_watermark,
-                "watermark_text": link.watermark_text,
+            if not primary_version or document.status != 'ready':
+                return Response(
+                    {"message": "Document is not yet ready for viewing."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            pages_data = _prepare_pages_data(document, primary_version, share_link=link)
+
+            download_url = None
+            is_watermarked = link.enable_watermark and link.watermark_text
+            if is_watermarked:
+                download_url = urljoin(settings.SITE_DOMAIN, f"/api/v1/links/{link.slug}/download/")
+            elif document.type == 'image' and pages_data:
+                # For images, the download URL is the same as the single page's URL.
+                download_url = pages_data[0]['url']
+            elif primary_version and primary_version.original_storage_key:
+                file_url = default_storage.url(primary_version.original_storage_key)
+                download_url = urljoin(settings.SITE_DOMAIN, file_url)
+
+            response_data = {
+                "link_type": "document",
+                "id": document.id,
+                "name": document.name,
+                "type": document.type,
+                "num_pages": document.num_pages,
+                "download_only": document.download_only,
+                "file_size": primary_version.file_size if primary_version else None,
+                "pages": pages_data,
+                "download_url": download_url,
+                "link_settings": {
+                    "id": link.id,
+                    "allow_download": link.allow_download,
+                    "enable_watermark": link.enable_watermark,
+                    "watermark_text": link.watermark_text,
+                }
             }
-        }
-        return Response(response_data, status=status.HTTP_200_OK)
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Case 3: Fetching the content list for a dataroom link.
+        elif link.dataroom:
+            dataroom = link.dataroom
+            dataroom_link_settings = link.dataroom_settings.filter(is_visible=True)
+
+            # Create a map for quick lookup of settings in serializers
+            settings_map = {}
+            for s in dataroom_link_settings:
+                key = s.dataroom_document_id or s.dataroom_folder_id
+                if key:
+                    settings_map[key] = {'allow_download': s.allow_download, 'enable_watermark': s.enable_watermark}
+
+            visible_doc_ids = [s.dataroom_document_id for s in dataroom_link_settings if s.dataroom_document_id]
+            visible_folder_ids = [s.dataroom_folder_id for s in dataroom_link_settings if s.dataroom_folder_id]
+
+            # Fetch all visible documents and folders to construct the hierarchy
+            all_docs = DataroomDocument.objects.filter(id__in=visible_doc_ids).select_related('document', 'folder')
+            all_folders = DataroomFolder.objects.filter(id__in=visible_folder_ids)
+
+            # Use context to pass settings to serializers
+            serializer_context = {'request': request, 'settings_map': settings_map}
+
+            response_data = {
+                'link_type': 'dataroom',
+                'id': dataroom.id,
+                'name': dataroom.name,
+                'documents': PublicDataroomDocumentSerializer(all_docs, many=True, context=serializer_context).data,
+                'folders': PublicDataroomFolderSerializer(all_folders, many=True, context=serializer_context).data,
+                'link_settings': {
+                    'id': link.id,
+                    'allow_download': link.allow_download,
+                    'enable_watermark': link.enable_watermark,
+                    'watermark_text': link.watermark_text,
+                }
+            }
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        return Response({"detail": "This link does not point to a valid resource."}, status=status.HTTP_404_NOT_FOUND)
 
 
 class ShareLinkPasswordSerializer(serializers.Serializer):
