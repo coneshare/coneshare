@@ -4,7 +4,7 @@ import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
 import { ShareIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents } from '../services/api';
+import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
@@ -15,6 +15,11 @@ import { DataroomMoveItemsDialog } from '../components/dialogs/DataroomMoveItems
 import { DocumentsList } from '../components/documents/DocumentsList';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
+import { LinkSheet } from '../components/links/LinkSheet';
+import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
+import { LinksTable } from '../components/documents/LinksTable';
+import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
+import { ManagePermissionsDialog } from '../components/datarooms/ManagePermissionsDialog';
 
 export function DataroomPage() {
   const { dataroomId } = useParams();
@@ -30,7 +35,17 @@ export function DataroomPage() {
   const [folders, setFolders] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [activeTab, setActiveTab] = useState('documents');
-
+  const [links, setLinks] = useState([]);
+  const [isLinkSheetOpen, setIsLinkSheetOpen] = useState(false);
+  const [editingLink, setEditingLink] = useState(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [linkToDelete, setLinkToDelete] = useState(null);
+  const [isManagePermissionsOpen, setIsManagePermissionsOpen] = useState(false);
+  const [selectedLinkForPermissions, setSelectedLinkForPermissions] = useState(null);
+  const [viewsData, setViewsData] = useState(null);
+  const [viewsLoading, setViewsLoading] = useState(true);
+  const [viewsCurrentPage, setViewsCurrentPage] = useState(1);
+    
   const fetchContent = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -53,7 +68,28 @@ export function DataroomPage() {
       setIsLoading(false);
     }
   }, [dataroomId, currentFolderId]);
-
+    
+  const fetchLinks = useCallback(async (options = {}) => {
+    try {
+      const response = await getShareLinksForDataroom(dataroomId);
+      setLinks(response.data);
+    } catch (error) {
+      console.error('Failed to fetch links', error);
+    }
+  }, [dataroomId]);
+    
+  const fetchViews = useCallback(async () => {
+    try {
+      setViewsLoading(true);
+      const response = await getDataroomViewSessions(dataroomId, viewsCurrentPage);
+      setViewsData(response.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setViewsLoading(false);
+    }
+  }, [dataroomId, viewsCurrentPage]);
+    
   const unsortedItems = useMemo(() => {
     if (!dataroom) return [];
 
@@ -75,13 +111,20 @@ export function DataroomPage() {
 
   const { sortedItems: allItems, sortConfig, handleSort } = useSortedList(unsortedItems);
   const { selection, setSelection, setLastSelectedItem, handleItemSelect, handleClearSelection } = useItemSelection(allItems);
-
+    
+  useEffect(() => {
+    if (activeTab === 'links') {
+      fetchLinks();
+      fetchViews();
+    }
+  }, [activeTab, fetchLinks, fetchViews]);  
+    
   useEffect(() => {
     // Reset selection when folder changes
     setSelection({ documents: [], folders: [] });
     setLastSelectedItem(null);
     fetchContent();
-
+    
     return () => {
       setBreadcrumbData(null);
     };
@@ -137,8 +180,54 @@ export function DataroomPage() {
       navigate(`/documents/${item.document_id}`);
     }
   };
-
-
+    
+  const handleCreateLink = () => {
+    setEditingLink(null);
+    setIsLinkSheetOpen(true);
+  };
+    
+  const handleEditLink = (link) => {
+    setEditingLink(link);
+    setIsLinkSheetOpen(true);
+  };
+    
+  const handleDeleteLink = (link) => {
+    setLinkToDelete(link);
+    setIsDeleteDialogOpen(true);
+  };
+      
+  const handleManagePermissions = (link) => {
+    setSelectedLinkForPermissions(link);
+    setIsManagePermissionsOpen(true);
+  };
+    
+  const handleConfirmDelete = async () => {
+    if (!linkToDelete) return;
+    try {
+      await deleteShareLink(linkToDelete.id);
+      toast.success(`Link "${linkToDelete.name || 'Untitled Link'}" deleted successfully.`);
+      fetchLinks();
+      fetchViews();
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setLinkToDelete(null);
+    }
+  };
+    
+  const handleLinkUpdate = useCallback((updatedLink) => {
+    if (updatedLink) {
+      // Granular update for status toggle
+      setLinks(prevLinks =>
+        prevLinks.map(link => (link.id === updatedLink.id ? updatedLink : link))
+      );
+    } else {
+      // Full refresh for create/edit from LinkSheet
+      fetchLinks();
+      fetchViews();
+    }
+  }, [fetchLinks, fetchViews]);
+    
+    
   const handleMoveItems = async (destinationFolderId) => {
     try {
       await moveDataroomContent(dataroomId, {
@@ -189,7 +278,7 @@ export function DataroomPage() {
             </>
           )}
           {activeTab === 'links' && (
-            <Button>
+            <Button onClick={handleCreateLink}>
               <ShareIcon className="mr-2 h-4 w-4" />
               Create Link
             </Button>
@@ -200,7 +289,7 @@ export function DataroomPage() {
       <Tabs defaultValue="documents" onValueChange={setActiveTab} className="mt-4">
         <TabsList>
           <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="links">Links & Permissions</TabsTrigger>
+          <TabsTrigger value="links">Links and Permissions</TabsTrigger>
         </TabsList>
         <TabsContent value="documents" className="mt-6">
           {(selection.documents.length > 0 || selection.folders.length > 0) && (
@@ -244,14 +333,50 @@ export function DataroomPage() {
           )}
         </TabsContent>
         <TabsContent value="links" className="mt-6">
-          <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted bg-muted/20 p-12 text-center">
-            <h3 className="text-xl font-semibold tracking-tight">Coming Soon</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Manage share links and granular permissions for this dataroom.
-            </p>
+          <LinksTable
+            links={links}
+            onEditLink={handleEditLink}
+            onDeleteLink={handleDeleteLink}
+            onManagePermissions={handleManagePermissions}
+            onLinkUpdate={handleLinkUpdate}
+            contextType="dataroom"
+          />
+          <div className="mt-8">
+            <ViewSessionsTable
+              views={viewsData?.results || []}
+              totalCount={viewsData?.count || 0}
+              loading={viewsLoading}
+              currentPage={viewsCurrentPage}
+              onPageChange={setViewsCurrentPage}
+              pageSize={10}
+            />
           </div>
         </TabsContent>
       </Tabs>
+      <LinkSheet
+        isOpen={isLinkSheetOpen}
+        onOpenChange={setIsLinkSheetOpen}
+        dataroom={dataroom}
+        currentLink={editingLink}
+        onSuccess={handleLinkUpdate}
+      />
+      <ConfirmationDialog
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={handleConfirmDelete}
+        title="Delete Share Link"
+        description={`Are you sure you want to permanently delete the link "${linkToDelete?.name || 'Untitled Link'}"? This action cannot be undone.`}
+        confirmText="Delete"
+      />
+      <ManagePermissionsDialog
+        isOpen={isManagePermissionsOpen}
+        onOpenChange={setIsManagePermissionsOpen}
+        onSuccess={() => {
+          fetchLinks();
+          setIsManagePermissionsOpen(false);
+        }}
+        link={selectedLinkForPermissions}
+      />
       <AddContentDialog
         isOpen={isAddContentOpen}
         onOpenChange={setIsAddContentOpen}

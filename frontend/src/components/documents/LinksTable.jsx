@@ -93,7 +93,15 @@ function CopyableLink({ slug, isExpired, expires_at }) {
   );
 }
 
-export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLinkUpdate, isDashboardWidget }) {
+export function LinksTable({
+  links,
+  onEditLink,
+  onDeleteLink,
+  onLinkUpdate,
+  onManagePermissions,
+  isDashboardWidget,
+  contextType = 'document',
+}) {
   const [expandedRowId, setExpandedRowId] = useState(null);
 
   const handleStatusChange = async (link, newStatus) => {
@@ -239,6 +247,8 @@ export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLink
                             onPreview={handlePreview}
                             onEdit={onEditLink}
                             onDelete={onDeleteLink}
+                            onManagePermissions={onManagePermissions}
+                            contextType={contextType}
                           />
                         </TableCell>
                       </>
@@ -325,7 +335,7 @@ export function LinksTable({ links, documentId, onEditLink, onDeleteLink, onLink
                               })}
                             </TableBody>
                           </Table>
-                          {link.view_count > link.recent_view_sessions.length && (
+                          {contextType === 'document' && link.view_count > link.recent_view_sessions.length && (
                             <div className="mt-2 text-center">
                               <Link
                                 to={`/documents/${link.document}/links/${link.id}`}

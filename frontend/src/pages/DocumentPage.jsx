@@ -236,10 +236,10 @@ export function DocumentPage() {
         <Stats stats={stats} />
         <LinksTable
           links={document.share_links}
-          documentId={documentId}
           onEditLink={handleEditLink}
           onDeleteLink={handleDeleteLink}
           onLinkUpdate={handleLinkUpdate}
+          contextType="document"
         />
         <ViewSessionsTable
           views={viewsData?.results || []}
