@@ -26,24 +26,24 @@ function PermissionItem({ item, type, settings, onSettingChange }) {
         <Checkbox
           id={`visible-${item.id}`}
           checked={setting.is_visible}
-          onCheckedChange={(checked) => onSettingChange(setting.id, 'is_visible', checked)}
+          onCheckedChange={(checked) => onSettingChange(item.id, 'is_visible', checked)}
         />
         <Checkbox
           id={`download-${item.id}`}
           checked={setting.allow_download}
-          onCheckedChange={(checked) => onSettingChange(setting.id, 'allow_download', checked)}
+          onCheckedChange={(checked) => onSettingChange(item.id, 'allow_download', checked)}
         />
         <Checkbox
           id={`watermark-${item.id}`}
           checked={setting.enable_watermark}
-          onCheckedChange={(checked) => onSettingChange(setting.id, 'enable_watermark', checked)}
+          onCheckedChange={(checked) => onSettingChange(item.id, 'enable_watermark', checked)}
         />
       </div>
     </div>
   );
 }
 
-export function ManagePermissionsDialog({ isOpen, onOpenChange, link }) {
+export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess }) {
   const [dataroomContent, setDataroomContent] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [settings, setSettings] = useState({});
@@ -100,7 +100,7 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link }) {
     try {
       await updateDataroomLinkSettings(link.id, changes);
       toast.success('Permissions updated successfully.');
-      onOpenChange(false);
+      onSuccess();
     } catch (error) {
       // Error toast handled by interceptor
     }

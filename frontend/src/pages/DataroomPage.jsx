@@ -370,12 +370,10 @@ export function DataroomPage() {
       />
       <ManagePermissionsDialog
         isOpen={isManagePermissionsOpen}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            // Refetch links on close to show updated permissions info if needed in future
-            fetchLinks();
-          }
-          setIsManagePermissionsOpen(isOpen);
+        onOpenChange={setIsManagePermissionsOpen}
+        onSuccess={() => {
+          fetchLinks();
+          setIsManagePermissionsOpen(false);
         }}
         link={selectedLinkForPermissions}
       />
