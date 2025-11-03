@@ -114,3 +114,37 @@ The feature will be built in three phases.
     -   Create a new `DataroomViewerPage` component.
     -   This page will fetch data from the public dataroom data endpoint and render the folder/file hierarchy.
     -   Clicking a document will open it in the existing `PreviewViewer` component, respecting the per-item settings (e.g., applying a watermark if enabled for that specific file in that specific link).
+
+---
+
+## Part 4: Permission Logic and Corner Cases
+
+This section outlines the rules for handling potential conflicts and edge cases in the granular permission settings for dataroom share links.
+
+### 1. Core Principles
+
+#### Visibility Conflict (Invisible Folder vs. Visible Item)
+-   **Principle:** Invisibility is inherited and absolute. An item cannot be visible if its parent container is invisible. A viewer must have a visible path through the folder hierarchy to reach any content.
+-   **Implementation:** The public data endpoint must enforce this rule. If a `DataroomFolder` is set to `is_visible=False`, the API will exclude that folder and all of its descendants from the response, regardless of their individual visibility settings.
+
+#### Watermark Scope
+-   **Principle:** Watermarking is a property applied to a file, not a folder. The `enable_watermark` setting on a folder serves as a bulk-management tool for the link owner, but the final check during rendering or download happens at the document level.
+-   **Implementation:** The dynamic watermarking endpoints will only check the `enable_watermark` setting of the specific `ShareLinkDataroomSetting` associated with the requested `DataroomDocument`.
+
+#### Download Conflict (Downloadable Folder vs. Non-Downloadable Item)
+-   **Principle:** The most specific permission wins. A viewer can initiate a "download folder" action, but the resulting archive will only contain the content they are explicitly permitted to download.
+-   **Implementation:** The backend logic for a "Download Folder as ZIP" feature must:
+    1.  Deny the request if the root folder being requested has `allow_download=False`.
+    2.  Recursively iterate through all child items.
+    3.  Only include documents in the ZIP archive for which `allow_download` is `True`.
+
+### 2. Other Identified Corner Cases
+
+-   **Recursive Settings Application:** When a user changes a setting on a folder (e.g., makes it invisible), should that change cascade to all items within that folder?
+    -   **Plan:** The settings update API should support an optional `recursive=true` parameter to apply the setting change to the folder and all its descendants. By default, it should be non-recursive.
+
+-   **Empty Visible Folders:** If a folder is `is_visible=True` but all of its immediate children are `is_visible=False`, the folder should still appear in the dataroom hierarchy, but will be displayed as empty to the viewer. This is correct and expected behavior.
+
+-   **Moving Content:** When an item is moved to a different location within the dataroom, its granular permissions (`ShareLinkDataroomSetting`) are tied to the item itself, not its location. All settings will persist with the item after it is moved.
+
+-   **Deleting Content from Dataroom:** When a `DataroomDocument` or `DataroomFolder` is removed from a dataroom, the `on_delete=models.CASCADE` on the `ShareLinkDataroomSetting` model ensures that all associated granular settings are automatically deleted.
