@@ -1246,6 +1246,94 @@ class TestShareLinkViewSet:
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    def test_bulk_update_dataroom_settings_is_atomic(self, api_client, dataroom, document, user):
+        """
+        Test that a bulk update is atomic. If one update fails, none should be applied.
+        """
+        DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+        setting = link.dataroom_settings.first()
+        assert setting.is_visible is True
+
+        # Update with one valid setting and one non-existent one
+        update_data = [
+            {'id': str(setting.id), 'is_visible': False},
+            {'id': 'sds_00000000000000000000000000', 'allow_download': False}
+        ]
+
+        url = f'/api/v1/share-links/{link.id}/dataroom-settings/'
+        response = api_client.patch(url, update_data, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        
+        # Verify that the valid change was rolled back
+        setting.refresh_from_db()
+        assert setting.is_visible is True
+
+    def test_bulk_update_dataroom_settings_is_scoped_to_link(self, api_client, dataroom, document, user):
+        """
+        Test that a user cannot update a setting that does not belong to the
+        specified share link.
+        """
+        # Create two links for the same dataroom
+        DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link1 = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+        link2 = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        setting_from_link2 = link2.dataroom_settings.first()
+        assert setting_from_link2 is not None
+
+        # Try to update link2's setting via link1's endpoint
+        update_data = [{'id': str(setting_from_link2.id), 'is_visible': False}]
+        url = f'/api/v1/share-links/{link1.id}/dataroom-settings/'
+        response = api_client.patch(url, update_data, format='json')
+
+        # The server should report that the ID was not found within the scope of this link
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        setting_from_link2.refresh_from_db()
+        assert setting_from_link2.is_visible is True
+
+    def test_bulk_update_dataroom_folder_settings(self, api_client, dataroom, user):
+        """Test bulk updating settings for a dataroom folder."""
+        # Setup dataroom with a folder
+        dr_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Test DR Folder")
+        link = ShareLink.objects.create(dataroom=dataroom, name="DR Link", created_by=user)
+        assert link.dataroom_settings.count() == 1
+
+        setting = link.dataroom_settings.get(dataroom_folder=dr_folder)
+        assert setting.is_visible is True
+
+        # Update the folder setting
+        update_data = [{'id': str(setting.id), 'is_visible': False}]
+        url = f'/api/v1/share-links/{link.id}/dataroom-settings/'
+        response = api_client.patch(url, update_data, format='json')
+
+        assert response.status_code == status.HTTP_200_OK
+        setting.refresh_from_db()
+        assert setting.is_visible is False
+
+    def test_bulk_update_dataroom_settings_malformed_data(self, api_client, dataroom, document, user):
+        """Test that requests with malformed data are rejected."""
+        DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+        setting = link.dataroom_settings.first()
+        url = f'/api/v1/share-links/{link.id}/dataroom-settings/'
+
+        # Case 1: Missing 'id'
+        data_no_id = [{'is_visible': False}]
+        response_no_id = api_client.patch(url, data_no_id, format='json')
+        assert response_no_id.status_code == status.HTTP_400_BAD_REQUEST
+
+        # Case 2: No settings provided
+        data_no_settings = [{'id': str(setting.id)}]
+        response_no_settings = api_client.patch(url, data_no_settings, format='json')
+        assert response_no_settings.status_code == status.HTTP_400_BAD_REQUEST
+
+        # Case 3: Invalid boolean value
+        data_invalid_bool = [{'id': str(setting.id), 'is_visible': 'not-a-bool'}]
+        response_invalid_bool = api_client.patch(url, data_invalid_bool, format='json')
+        assert response_invalid_bool.status_code == status.HTTP_400_BAD_REQUEST
+
 
 @pytest.mark.django_db
 class TestDocumentViewSet:
