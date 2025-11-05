@@ -1,5 +1,6 @@
 import io
 import zipfile
+from unittest.mock import mock_open, patch
 
 import pytest
 from pytest_bdd import parsers, scenario, given, when, then
@@ -279,16 +280,18 @@ def access_public_dataroom_data(public_client, link_context):
     assert response.status_code == status.HTTP_200_OK
     return {'response': response}
 
-
 @when(parsers.parse('a viewer downloads the folder "{folder_name}"'), target_fixture="download_response_context")
 def download_folder(public_client, link_context, folder_name):
     link = link_context['link']
     dataroom = link.dataroom
     folder = DataroomFolder.objects.get(dataroom=dataroom, name=folder_name)
     url = f'/api/v1/links/{link.slug}/download-folder/{folder.id}/'
-    response = public_client.get(url)
+    # Mock storage so the view can "read" the test file contents.
+    # Provide minimal valid PDF content to support watermarking tests.
+    pdf_content = b'%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000010 00000 n \n0000000059 00000 n \n0000000112 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF'
+    with patch('django.core.files.storage.default_storage.open', mock_open(read_data=pdf_content)):
+        response = public_client.get(url)
     return {'response': response}
-
 
 @when(parsers.parse('a viewer attempts to download the folder "{folder_name}"'), target_fixture="download_response_context")
 def attempt_download_folder(public_client, link_context, folder_name):
