@@ -150,3 +150,39 @@ This section outlines the rules for handling potential conflicts and edge cases 
 -   **Moving Content:** When an item is moved to a different location within the dataroom, its granular permissions (`ShareLinkDataroomSetting`) are tied to the item itself, not its location. All settings will persist with the item after it is moved.
 
 -   **Deleting Content from Dataroom:** When a `DataroomDocument` or `DataroomFolder` is removed from a dataroom, the `on_delete=models.CASCADE` on the `ShareLinkDataroomSetting` model ensures that all associated granular settings are automatically deleted.
+
+---
+
+## Part 5: Permission Logic and Corner Cases
+
+This part implement the "Download Folder" feature for public dataroom views, including support for watermarking. The implementation will be divided into backend and frontend tasks.
+
+Part 1: Backend Implementation
+
+ 1 Create a New API Endpoint
+    • A new endpoint will be created to handle folder download requests: GET /api/v1/links/<slug:slug>/download-folder/<str:folder_id>/. This endpoint will generate and stream a ZIP archive.
+ 2 Refactor Watermarking Logic
+    • The PDF watermarking logic currently inside WatermarkedFileDownloadView will be refactored into a reusable service function. This function will accept a document version and watermark text, and
+      return a file-like object (BytesIO) containing the watermarked PDF. This allows both the existing single-file download view and the new folder download view to use the same logic.
+ 3 Implement the Folder Download View
+    • The new view will perform the following steps: a. Security Checks: It will reuse the existing share link validation logic to check for an active link, expiration, and session authorization
+      (password/email). b. Permission Check: It will verify that the requested DataroomFolder has its allow_download setting set to True for this specific share link. If not, it will return a 403
+      Forbidden error. c. Recursive Content Gathering: It will recursively traverse the folder structure to find all child documents. For each document, it will check its individual
+      ShareLinkDataroomSetting to ensure it is both visible and downloadable. Any non-compliant documents will be skipped. d. In-Memory ZIP Creation: Using Python's zipfile and io.BytesIO, it will create
+      a ZIP archive in memory. e. File Processing Loop: For each valid document to be included: *   If enable_watermark is True for the document, it will call the refactored watermarking service to
+      generate a watermarked PDF. *   Otherwise, it will fetch the document's original file from storage. *   The file (either original or watermarked) will be added to the ZIP archive with its correct
+      relative path. f. Streaming Response: The final in-memory ZIP archive will be streamed back to the user as an HttpResponse with the appropriate Content-Type (application/zip) and Content-Disposition
+      headers to trigger a browser download.
+
+Part 2: Frontend Implementation
+
+ 1 Update the Dataroom Viewer UI
+    • A "Download" action/button will be added to each folder item in the DataroomViewer.jsx component.
+    • This action will only be visible or enabled if the allow_download property for that folder (provided by the existing /view-data/ endpoint) is True.
+ 2 Create a New API Service Function
+    • A new function, downloadDataroomFolder(slug, folderId), will be added to frontend/src/services/api.js.
+    • This function will make a GET request to the new backend endpoint and must be configured to handle a blob response type instead of JSON.
+ 3 Implement the Download Handler
+    • The onClick handler for the new "Download" button will call the API service function.
+    • Upon receiving the blob response, it will use a standard browser technique to trigger a file download: create an object URL from the blob, assign it to a temporary <a> element with a download
+      attribute, and programmatically click the link.

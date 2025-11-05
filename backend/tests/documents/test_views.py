@@ -2064,6 +2064,50 @@ class TestWatermarkingViews:
 
         assert etag1 != etag2
 
+    @patch('django.core.files.storage.default_storage.open')
+    def test_render_watermarked_page_etag_varies_by_email(self, mock_storage_open, public_client, watermarked_link):
+        """
+        Test that the ETag for a watermarked page is different for different
+        viewers when the {{email}} variable is used.
+        """
+        watermarked_link.requires_email = True
+        watermarked_link.watermark_text = "Viewed by {{email}}"
+        watermarked_link.save()
+
+        def create_mock_image_file(*args, **kwargs):
+            img = Image.new('RGB', (100, 100), color='white')
+            buffer = BytesIO()
+            img.save(buffer, 'JPEG')
+            buffer.seek(0)
+            return buffer
+        mock_storage_open.side_effect = create_mock_image_file
+
+        # --- Viewer 1 ---
+        # Authorize viewer 1
+        request_url = f'/api/v1/links/{watermarked_link.slug}/request-access/'
+        public_client.post(request_url, {'email': 'viewer1@example.com'})
+
+        # Get ETag for viewer 1
+        render_url = f'/api/v1/links/{watermarked_link.slug}/render-page/1/'
+        response1 = public_client.get(render_url, REMOTE_ADDR='192.168.1.1')
+        assert response1.status_code == status.HTTP_200_OK
+        etag1 = response1['ETag']
+
+        # --- Viewer 2 ---
+        # Use a new client to simulate a new viewer with a clean session
+        client2 = APIClient()
+        request_url = f'/api/v1/links/{watermarked_link.slug}/request-access/'
+        client2.post(request_url, {'email': 'viewer2@example.com'})
+
+        # Get ETag for viewer 2
+        response2 = client2.get(render_url, REMOTE_ADDR='192.168.1.1')
+        assert response2.status_code == status.HTTP_200_OK
+        etag2 = response2['ETag']
+
+        assert etag1 is not None
+        assert etag2 is not None
+        assert etag1 != etag2
+
 
 @pytest.mark.django_db
 class TestDataroomFolderDownloadView:
@@ -2119,7 +2163,7 @@ class TestDataroomFolderDownloadView:
             assert 'Root_Folder/' in names
             assert 'Root_Folder/Doc_A.pdf' in names
             assert 'Root_Folder/Subfolder/' in names
-            assert 'Root_Folder/Doc_B.pdf' in names
+            assert 'Root_Folder/Subfolder/Doc_B.pdf' in names
 
     def test_download_folder_permission_denied(self, public_client, dataroom_with_content_and_link):
         link = dataroom_with_content_and_link['link']
@@ -2201,47 +2245,3 @@ class TestDataroomFolderDownloadView:
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
-
-    @patch('django.core.files.storage.default_storage.open')
-    def test_render_watermarked_page_etag_varies_by_email(self, mock_storage_open, public_client, watermarked_link):
-        """
-        Test that the ETag for a watermarked page is different for different
-        viewers when the {{email}} variable is used.
-        """
-        watermarked_link.requires_email = True
-        watermarked_link.watermark_text = "Viewed by {{email}}"
-        watermarked_link.save()
-
-        def create_mock_image_file(*args, **kwargs):
-            img = Image.new('RGB', (100, 100), color='white')
-            buffer = BytesIO()
-            img.save(buffer, 'JPEG')
-            buffer.seek(0)
-            return buffer
-        mock_storage_open.side_effect = create_mock_image_file
-
-        # --- Viewer 1 ---
-        # Authorize viewer 1
-        request_url = f'/api/v1/links/{watermarked_link.slug}/request-access/'
-        public_client.post(request_url, {'email': 'viewer1@example.com'})
-
-        # Get ETag for viewer 1
-        render_url = f'/api/v1/links/{watermarked_link.slug}/render-page/1/'
-        response1 = public_client.get(render_url, REMOTE_ADDR='192.168.1.1')
-        assert response1.status_code == status.HTTP_200_OK
-        etag1 = response1['ETag']
-
-        # --- Viewer 2 ---
-        # Use a new client to simulate a new viewer with a clean session
-        client2 = APIClient()
-        request_url = f'/api/v1/links/{watermarked_link.slug}/request-access/'
-        client2.post(request_url, {'email': 'viewer2@example.com'})
-
-        # Get ETag for viewer 2
-        response2 = client2.get(render_url, REMOTE_ADDR='192.168.1.1')
-        assert response2.status_code == status.HTTP_200_OK
-        etag2 = response2['ETag']
-        
-        assert etag1 is not None
-        assert etag2 is not None
-        assert etag1 != etag2

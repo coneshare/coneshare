@@ -741,9 +741,18 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
         settings_to_update = serializer.validated_data
         setting_ids = [item['id'] for item in settings_to_update]
 
-        # Ensure all provided setting IDs belong to the share link being modified
-        if ShareLinkDataroomSetting.objects.filter(id__in=setting_ids).exclude(share_link=share_link).exists():
-            raise PermissionDenied("You can only modify settings for this share link.")
+        # Fetch all settings that match the provided IDs AND the share link.
+        valid_settings_count = ShareLinkDataroomSetting.objects.filter(
+            id__in=setting_ids, share_link=share_link
+        ).count()
+
+        # If the number of valid settings found doesn't match the number of IDs
+        # provided, it means some IDs were invalid or didn't belong to this link.
+        if valid_settings_count != len(setting_ids):
+            return Response(
+                {"detail": "One or more setting IDs are invalid or do not belong to this share link."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             with transaction.atomic():
@@ -1461,7 +1470,7 @@ class DataroomFolderDownloadView(APIView):
         """
         # To avoid N+1 queries, fetch settings for all children at once.
         child_folders = folder.children.all()
-        child_docs = DataroomDocument.objects.filter(folder=folder).select_related('document', 'document__versions')
+        child_docs = DataroomDocument.objects.filter(folder=folder).select_related('document').prefetch_related('document__versions')
 
         settings_qs = ShareLinkDataroomSetting.objects.filter(share_link=link)
         folder_settings = {s.dataroom_folder_id: s for s in settings_qs.filter(dataroom_folder__in=child_folders)}
@@ -1490,9 +1499,8 @@ class DataroomFolderDownloadView(APIView):
                         zipf.writestr(file_path, pdf_buffer.getvalue())
                     elif primary_version.original_storage_key:
                         storage_key = primary_version.original_storage_key
-                        if default_storage.exists(storage_key):
-                            with default_storage.open(storage_key, 'rb') as f:
-                                zipf.writestr(file_path, f.read())
+                        with default_storage.open(storage_key, 'rb') as f:
+                            zipf.writestr(file_path, f.read())
                 except Exception as e:
                     logger.error(f"Failed to add file '{doc.name}' to zip for link '{link.slug}'. Error: {e}")
 

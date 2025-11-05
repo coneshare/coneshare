@@ -79,8 +79,8 @@ Feature: Dataroom Share Link Permissions
     And the folder "Mixed Permissions Folder" contains a document "Visible Not Downloadable.pdf"
     And the folder "Mixed Permissions Folder" contains a document "Invisible.pdf"
     And the link's settings make the folder "Mixed Permissions Folder" downloadable
-    And the link's settings make "Visible Not Downloadable.pdf" not downloadable
-    And the link's settings make "Invisible.pdf" not visible
+    And the link's settings make the document "Visible Not Downloadable.pdf" not downloadable
+    And its settings make "Invisible.pdf" not visible
     When a viewer downloads the folder "Mixed Permissions Folder"
     Then the response should be a ZIP file
     And the ZIP file should contain "Mixed_Permissions_Folder/Visible and Downloadable.pdf"
