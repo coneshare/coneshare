@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, mock_open
 from datetime import timedelta
 from rest_framework.test import APIClient
 
@@ -2101,7 +2101,8 @@ class TestDataroomFolderDownloadView:
             'ddoc_not_downloadable': ddoc_not_downloadable,
         }
 
-    def test_download_folder_success(self, public_client, dataroom_with_content_and_link):
+    @patch('django.core.files.storage.default_storage.open', new_callable=mock_open, read_data=b"file content")
+    def test_download_folder_success(self, mock_storage_open, public_client, dataroom_with_content_and_link):
         link = dataroom_with_content_and_link['link']
         root_folder = dataroom_with_content_and_link['root_folder']
 
@@ -2134,7 +2135,8 @@ class TestDataroomFolderDownloadView:
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_zip_archive_respects_permissions(self, public_client, dataroom_with_content_and_link):
+    @patch('django.core.files.storage.default_storage.open', new_callable=mock_open, read_data=b"file content")
+    def test_zip_archive_respects_permissions(self, mock_storage_open, public_client, dataroom_with_content_and_link):
         link = dataroom_with_content_and_link['link']
         root_folder = dataroom_with_content_and_link['root_folder']
         ddoc_invisible = dataroom_with_content_and_link['ddoc_invisible']
