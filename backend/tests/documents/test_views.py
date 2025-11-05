@@ -12,6 +12,7 @@ from rest_framework import status
 from core.models import Organization
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, ShareLinkDataroomSetting
 from documents.models import Document, Folder, ShareLink, DocumentVersion, DocumentPage, PreviewSession, ViewSession, PageView, EmailVerificationToken
+import zipfile
 from io import BytesIO
 try:
     from PIL import Image
@@ -2051,6 +2052,142 @@ class TestWatermarkingViews:
         etag2 = response2['ETag']
 
         assert etag1 != etag2
+
+
+@pytest.mark.django_db
+class TestDataroomFolderDownloadView:
+    @pytest.fixture
+    def dataroom_with_content_and_link(self, dataroom, user, document_factory):
+        """
+        Sets up a dataroom with a nested structure, documents, and a share link.
+        """
+        # Create folder structure
+        root_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Root Folder")
+        subfolder = DataroomFolder.objects.create(dataroom=dataroom, name="Subfolder", parent=root_folder)
+
+        # Create documents
+        doc_a = document_factory(name="Doc A.pdf", type='pdf')
+        doc_b = document_factory(name="Doc B.pdf", type='pdf')
+        invisible_doc = document_factory(name="Invisible.pdf", type='pdf')
+        not_downloadable_doc = document_factory(name="Not Downloadable.pdf", type='pdf')
+
+        # Add documents to dataroom
+        ddoc_a = DataroomDocument.objects.create(dataroom=dataroom, document=doc_a, folder=root_folder)
+        ddoc_b = DataroomDocument.objects.create(dataroom=dataroom, document=doc_b, folder=subfolder)
+        ddoc_invisible = DataroomDocument.objects.create(dataroom=dataroom, document=invisible_doc, folder=root_folder)
+        ddoc_not_downloadable = DataroomDocument.objects.create(dataroom=dataroom, document=not_downloadable_doc, folder=root_folder)
+        
+        # Create share link, which will auto-generate settings
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        return {
+            'link': link,
+            'root_folder': root_folder,
+            'subfolder': subfolder,
+            'ddoc_a': ddoc_a,
+            'ddoc_b': ddoc_b,
+            'ddoc_invisible': ddoc_invisible,
+            'ddoc_not_downloadable': ddoc_not_downloadable,
+        }
+
+    def test_download_folder_success(self, public_client, dataroom_with_content_and_link):
+        link = dataroom_with_content_and_link['link']
+        root_folder = dataroom_with_content_and_link['root_folder']
+
+        url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response['Content-Type'] == 'application/zip'
+        assert 'attachment; filename="Root_Folder.zip"' in response['Content-Disposition']
+
+        zip_buffer = BytesIO(response.content)
+        with zipfile.ZipFile(zip_buffer, 'r') as zf:
+            names = zf.namelist()
+            assert 'Root Folder/' in names
+            assert 'Root Folder/Doc A.pdf' in names
+            assert 'Root Folder/Subfolder/' in names
+            assert 'Root Folder/Subfolder/Doc B.pdf' in names
+
+    def test_download_folder_permission_denied(self, public_client, dataroom_with_content_and_link):
+        link = dataroom_with_content_and_link['link']
+        root_folder = dataroom_with_content_and_link['root_folder']
+
+        # Make the root folder not downloadable
+        setting = link.dataroom_settings.get(dataroom_folder=root_folder)
+        setting.allow_download = False
+        setting.save()
+
+        url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_zip_archive_respects_permissions(self, public_client, dataroom_with_content_and_link):
+        link = dataroom_with_content_and_link['link']
+        root_folder = dataroom_with_content_and_link['root_folder']
+        ddoc_invisible = dataroom_with_content_and_link['ddoc_invisible']
+        ddoc_not_downloadable = dataroom_with_content_and_link['ddoc_not_downloadable']
+
+        # Update settings for specific documents
+        setting_invisible = link.dataroom_settings.get(dataroom_document=ddoc_invisible)
+        setting_invisible.is_visible = False
+        setting_invisible.save()
+
+        setting_not_downloadable = link.dataroom_settings.get(dataroom_document=ddoc_not_downloadable)
+        setting_not_downloadable.allow_download = False
+        setting_not_downloadable.save()
+        
+        url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+
+        zip_buffer = BytesIO(response.content)
+        with zipfile.ZipFile(zip_buffer, 'r') as zf:
+            names = zf.namelist()
+            assert 'Root Folder/Doc A.pdf' in names
+            assert 'Root Folder/Invisible.pdf' not in names
+            assert 'Root Folder/Not Downloadable.pdf' not in names
+
+    @patch('documents.views._generate_watermarked_pdf')
+    def test_zip_archive_includes_watermarked_file(self, mock_generate_pdf, public_client, dataroom_with_content_and_link):
+        link = dataroom_with_content_and_link['link']
+        root_folder = dataroom_with_content_and_link['root_folder']
+        ddoc_a = dataroom_with_content_and_link['ddoc_a']
+        
+        link.enable_watermark = True
+        link.watermark_text = "TEST"
+        link.save()
+
+        setting_a = link.dataroom_settings.get(dataroom_document=ddoc_a)
+        setting_a.enable_watermark = True
+        setting_a.save()
+
+        mock_generate_pdf.return_value = BytesIO(b"watermarked pdf content")
+
+        url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        mock_generate_pdf.assert_called_once()
+
+        zip_buffer = BytesIO(response.content)
+        with zipfile.ZipFile(zip_buffer, 'r') as zf:
+            content = zf.read('Root Folder/Doc A.pdf')
+            assert content == b"watermarked pdf content"
+            
+    def test_download_folder_password_protected_fails(self, public_client, dataroom_with_content_and_link):
+        link = dataroom_with_content_and_link['link']
+        root_folder = dataroom_with_content_and_link['root_folder']
+        
+        link.password = "password123"
+        link.save()
+
+        url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
         # Ensure storage was accessed twice (once for each render)
         assert mock_storage_open.call_count == 2
 
