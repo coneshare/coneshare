@@ -44,6 +44,7 @@ except ImportError:
     canvas = None
 
 
+import zipfile
 from datarooms.models import DataroomDocument, DataroomFolder, ShareLinkDataroomSetting
 from datarooms.serializers import (
     PublicDataroomDocumentSerializer, PublicDataroomFolderSerializer, ShareLinkDataroomSettingUpdateSerializer
@@ -1313,22 +1314,108 @@ class WatermarkedPageRenderView(APIView):
             )
 
 
+def _generate_watermarked_pdf(document, primary_version, watermark_text, request, viewer_email):
+    """
+    Generates a watermarked PDF in-memory and returns it as a BytesIO buffer.
+    """
+    if not PdfReader or not canvas:
+        missing = []
+        if not PdfReader: missing.append("pypdf")
+        if not canvas: missing.append("reportlab")
+        logger.error(f"{', '.join(missing)} is not installed. PDF watermarking is not available.")
+        raise APIException(
+            "PDF watermarking service is currently unavailable.",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
+    # Get source PDF. For office docs, use the converted PDF (storage_key). For PDFs, use original.
+    if document.type == 'pdf':
+        source_pdf_key = primary_version.original_storage_key
+    elif document.type == 'document' and primary_version.storage_key:  # office doc that was converted
+        source_pdf_key = primary_version.storage_key
+    else:
+        raise APIException("A previewable PDF is not available for this document type.", status_code=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        with default_storage.open(source_pdf_key, 'rb') as f:
+            reader = PdfReader(f)
+            writer = PdfWriter()
+
+            if not reader.pages:
+                raise APIException("Cannot apply watermark to an empty PDF.", status_code=status.HTTP_400_BAD_REQUEST)
+
+            rendered_watermark_text = _render_watermark_text(watermark_text, request, viewer_email=viewer_email)
+
+            # Create a watermark page in memory
+            watermark_buffer = BytesIO()
+            first_page_box = reader.pages[0].mediabox
+            page_width, page_height = (float(first_page_box.width), float(first_page_box.height))
+
+            # --- Logic mirrored from Pillow implementation ---
+            font_size = max(12, int(page_width / 40))
+            
+            # Use a temporary canvas to get text dimensions
+            temp_canvas = canvas.Canvas(BytesIO())
+            temp_canvas.setFont("Helvetica", font_size)
+            text_width = temp_canvas.stringWidth(rendered_watermark_text, "Helvetica", font_size)
+            text_height = font_size  # Approximation
+
+            # Calculate bounding box of rotated text
+            rad_angle = 45 * (math.pi / 180)
+            cos_a = math.cos(rad_angle)
+            sin_a = math.sin(rad_angle)
+            rotated_width = text_width * cos_a + text_height * sin_a
+            rotated_height = text_width * sin_a + text_height * cos_a
+
+            grid_params = _calculate_watermark_grid_params(
+                page_width=page_width,
+                page_height=page_height,
+                rotated_tile_width=rotated_width,
+                rotated_tile_height=rotated_height
+            )
+
+            # --- Create the actual watermark page ---
+            p = canvas.Canvas(watermark_buffer, pagesize=(page_width, page_height))
+            p.setFont("Helvetica", font_size)
+            p.setFillColor(colors.black, alpha=0.1)
+
+            # Draw rotated text at each grid position
+            for x in grid_params['x_range']:
+                for y in grid_params['y_range']:
+                    p.saveState()
+                    p.translate(x, y)
+                    p.rotate(45)
+                    p.drawCentredString(0, 0, rendered_watermark_text)
+                    p.restoreState()
+            p.save()
+            watermark_buffer.seek(0)
+            
+            watermark_pdf = PdfReader(watermark_buffer)
+            watermark_page = watermark_pdf.pages[0]
+            
+            # Merge watermark onto each page
+            for page in reader.pages:
+                page.merge_page(watermark_page)
+                writer.add_page(page)
+
+            output_buffer = BytesIO()
+            writer.write(output_buffer)
+            output_buffer.seek(0)
+            return output_buffer
+    except Exception as e:
+        logger.exception(f"Failed to apply watermark to PDF: {e}")
+        raise APIException(
+            "An error occurred while generating the watermarked file.",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
 class WatermarkedFileDownloadView(APIView):
     """
     Dynamically generates and serves a watermarked PDF file for download.
     This is a public endpoint that checks for an active share link.
     """
     def get(self, request, slug, *args, **kwargs):
-        if not PdfReader or not canvas:
-            missing = []
-            if not PdfReader: missing.append("pypdf")
-            if not canvas: missing.append("reportlab")
-            logger.error(f"{', '.join(missing)} is not installed. PDF watermarking is not available.")
-            return Response(
-                {"detail": "PDF watermarking service is currently unavailable."},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE
-            )
-
         try:
             link = _get_active_share_link(slug)
         except NotFound as e:
@@ -1350,91 +1437,147 @@ class WatermarkedFileDownloadView(APIView):
         if not primary_version:
             return Response({"message": "Document version not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Get source PDF. For office docs, use the converted PDF (storage_key). For PDFs, use original.
-        if document.type == 'pdf':
-            source_pdf_key = primary_version.original_storage_key
-        elif document.type == 'document' and primary_version.storage_key:  # office doc that was converted
-            source_pdf_key = primary_version.storage_key
-        else:
-            return Response({"message": "A previewable PDF is not available for this document type."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Apply watermark to PDF
         try:
-            with default_storage.open(source_pdf_key, 'rb') as f:
-                reader = PdfReader(f)
-                writer = PdfWriter()
+            pdf_buffer = _generate_watermarked_pdf(document, primary_version, link.watermark_text, request, viewer_email)
+            response = HttpResponse(pdf_buffer, content_type='application/pdf')
+            safe_filename = get_valid_filename(document.name)
+            response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
+            return response
+        except APIException as e:
+            return Response(
+                {"message": e.detail},
+                status=e.status_code
+            )
 
-                if not reader.pages:
-                    return Response({"message": "Cannot apply watermark to an empty PDF."}, status=status.HTTP_400_BAD_REQUEST)
+
+class DataroomFolderDownloadView(APIView):
+    """
+    Handles the download of an entire dataroom folder as a ZIP archive.
+    """
+    def _add_folder_to_zip(self, zipf, folder, current_path, link, request, viewer_email):
+        """
+        Recursively adds a folder's contents to the ZIP archive, respecting
+        all visibility and permission settings.
+        """
+        # To avoid N+1 queries, fetch settings for all children at once.
+        child_folders = folder.children.all()
+        child_docs = DataroomDocument.objects.filter(folder=folder).select_related('document', 'document__versions')
+
+        settings_qs = ShareLinkDataroomSetting.objects.filter(share_link=link)
+        folder_settings = {s.dataroom_folder_id: s for s in settings_qs.filter(dataroom_folder__in=child_folders)}
+        doc_settings = {s.dataroom_document_id: s for s in settings_qs.filter(dataroom_document__in=child_docs)}
+        
+        for child_folder in child_folders:
+            setting = folder_settings.get(child_folder.id)
+            if setting and setting.is_visible:
+                new_path = os.path.join(current_path, get_valid_filename(child_folder.name))
+                zipf.writestr(new_path + '/', '')
+                self._add_folder_to_zip(zipf, child_folder, new_path, link, request, viewer_email)
+
+        for child_doc in child_docs:
+            setting = doc_settings.get(child_doc.id)
+            if setting and setting.is_visible and setting.allow_download:
+                doc = child_doc.document
+                primary_version = doc.versions.filter(is_primary=True).first()
+                if not primary_version:
+                    continue
+
+                file_path = os.path.join(current_path, get_valid_filename(doc.name))
                 
-                watermark_text = _render_watermark_text(link.watermark_text, request, viewer_email=viewer_email)
+                try:
+                    if setting.enable_watermark and link.watermark_text:
+                        pdf_buffer = _generate_watermarked_pdf(doc, primary_version, link.watermark_text, request, viewer_email)
+                        zipf.writestr(file_path, pdf_buffer.getvalue())
+                    elif primary_version.original_storage_key:
+                        storage_key = primary_version.original_storage_key
+                        if default_storage.exists(storage_key):
+                            with default_storage.open(storage_key, 'rb') as f:
+                                zipf.writestr(file_path, f.read())
+                except Exception as e:
+                    logger.error(f"Failed to add file '{doc.name}' to zip for link '{link.slug}'. Error: {e}")
 
-                # Create a watermark page in memory
-                watermark_buffer = BytesIO()
-                first_page_box = reader.pages[0].mediabox
-                page_width, page_height = (float(first_page_box.width), float(first_page_box.height))
+    def get(self, request, slug, folder_id, *args, **kwargs):
+        is_preview = False
+        preview_token = request.query_params.get('previewToken')
+        if preview_token:
+            try:
+                with transaction.atomic():
+                    session = PreviewSession.objects.select_related('user', 'share_link__created_by').select_for_update().get(token=preview_token)
+                    if not session.is_expired() and session.share_link.slug == slug:
+                        if session.user == session.share_link.created_by:
+                            is_preview = True
+                            request.session['preview_owner_email'] = session.user.email
+                            session.delete()
+            except PreviewSession.DoesNotExist:
+                pass
 
-                # --- Logic mirrored from Pillow implementation ---
-                font_size = max(12, int(page_width / 40))
-                
-                # Use a temporary canvas to get text dimensions
-                temp_canvas = canvas.Canvas(BytesIO())
-                temp_canvas.setFont("Helvetica", font_size)
-                text_width = temp_canvas.stringWidth(watermark_text, "Helvetica", font_size)
-                text_height = font_size  # Approximation
+        try:
+            link = _get_active_share_link(slug)
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
 
-                # Calculate bounding box of rotated text
-                rad_angle = 45 * (math.pi / 180)
-                cos_a = math.cos(rad_angle)
-                sin_a = math.sin(rad_angle)
-                rotated_width = text_width * cos_a + text_height * sin_a
-                rotated_height = text_width * sin_a + text_height * cos_a
+        if not is_preview:
+            if link.expires_at and link.expires_at < timezone.now():
+                return Response({"message": "This link has expired."}, status=status.HTTP_410_GONE)
 
-                grid_params = _calculate_watermark_grid_params(
-                    page_width=page_width,
-                    page_height=page_height,
-                    rotated_tile_width=rotated_width,
-                    rotated_tile_height=rotated_height
+            authorized_links = request.session.get('authorized_share_links', {})
+            auth_status = authorized_links.get(str(link.id), {})
+
+            if link.password and not auth_status.get('password_verified'):
+                return Response(
+                    {"message": "This link is password-protected."},
+                    status=status.HTTP_401_UNAUTHORIZED
                 )
 
-                # --- Create the actual watermark page ---
-                p = canvas.Canvas(watermark_buffer, pagesize=(page_width, page_height))
-                p.setFont("Helvetica", font_size)
-                p.setFillColor(colors.black, alpha=0.1)
+            if link.requires_email and not auth_status.get('email_verified'):
+                return Response(
+                    {"message": "This link requires an email address to view."},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
 
-                # Draw rotated text at each grid position
-                for x in grid_params['x_range']:
-                    for y in grid_params['y_range']:
-                        p.saveState()
-                        p.translate(x, y)
-                        p.rotate(45)
-                        p.drawCentredString(0, 0, watermark_text)
-                        p.restoreState()
-                p.save()
-                watermark_buffer.seek(0)
-                
-                watermark_pdf = PdfReader(watermark_buffer)
-                watermark_page = watermark_pdf.pages[0]
-                
-                # Merge watermark onto each page
-                for page in reader.pages:
-                    page.merge_page(watermark_page)
-                    writer.add_page(page)
+        if not link.dataroom:
+            return Response({"message": "This link is not for a dataroom."}, status=status.HTTP_400_BAD_REQUEST)
 
-                output_buffer = BytesIO()
-                writer.write(output_buffer)
-                output_buffer.seek(0)
+        try:
+            root_folder = DataroomFolder.objects.get(id=folder_id, dataroom=link.dataroom)
+        except DataroomFolder.DoesNotExist:
+            return Response({"message": "Folder not found in this dataroom."}, status=status.HTTP_404_NOT_FOUND)
 
-                response = HttpResponse(output_buffer, content_type='application/pdf')
-                safe_filename = get_valid_filename(document.name)
-                response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
-                return response
-        except Exception as e:
-            logger.exception(f"Failed to apply watermark to PDF: {e}")
-            return Response(
-                {"message": "An error occurred while generating the watermarked file."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        try:
+            root_setting = link.dataroom_settings.get(dataroom_folder=root_folder)
+            if not root_setting.allow_download:
+                return Response({"message": "You are not allowed to download this folder."}, status=status.HTTP_403_FORBIDDEN)
+        except ShareLinkDataroomSetting.DoesNotExist:
+            return Response({"message": "Download permission not configured for this folder."}, status=status.HTTP_403_FORBIDDEN)
+
+        view_session_id = request.query_params.get('view_session_id')
+        if view_session_id:
+            try:
+                view_session = ViewSession.objects.get(id=view_session_id, share_link=link)
+                if not view_session.downloaded_at:
+                    view_session.downloaded_at = timezone.now()
+                    view_session.save(update_fields=['downloaded_at'])
+            except ViewSession.DoesNotExist:
+                logger.warning(f"Could not find view session {view_session_id} for link {link.id} to record download.")
+
+        authorized_links = request.session.get('authorized_share_links', {})
+        auth_status = authorized_links.get(str(link.id), {})
+        viewer_email = auth_status.get('viewer_email', '')
+
+        zip_buffer = BytesIO()
+        # TODO: For very large folders, creating the zip in-memory can consume a lot of RAM.
+        # Consider replacing this with a streaming approach (e.g., using zipstream-ng)
+        # to improve memory efficiency.
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            root_folder_name = get_valid_filename(root_folder.name)
+            zipf.writestr(root_folder_name + '/', '')
+            self._add_folder_to_zip(zipf, root_folder, root_folder_name, link, request, viewer_email)
+
+        zip_buffer.seek(0)
+        
+        response = HttpResponse(zip_buffer, content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{get_valid_filename(root_folder.name)}.zip"'
+        return response
 
 
 class RecordPageView(APIView):
