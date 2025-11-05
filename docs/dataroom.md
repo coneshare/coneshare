@@ -135,8 +135,10 @@ This section outlines the rules for handling potential conflicts and edge cases 
 -   **Principle:** The most specific permission wins. A viewer can initiate a "download folder" action, but the resulting archive will only contain the content they are explicitly permitted to download.
 -   **Implementation:** The backend logic for a "Download Folder as ZIP" feature must:
     1.  Deny the request if the root folder being requested has `allow_download=False`.
-    2.  Recursively iterate through all child items.
-    3.  Only include documents in the ZIP archive for which `allow_download` is `True`.
+    2.  Recursively iterate through all child items (documents and subfolders).
+    3.  For each item, check its individual `allow_download` setting.
+    4.  Only include documents in the ZIP archive for which `allow_download` is `True`.
+    5.  Empty folders will be created in the ZIP structure, but the final archive will only contain the permitted files.
 
 ### 2. Other Identified Corner Cases
 
