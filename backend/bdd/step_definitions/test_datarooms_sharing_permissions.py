@@ -5,7 +5,7 @@ import pytest
 from pytest_bdd import parsers, scenario, given, when, then
 from rest_framework import status
 
-from documents.models import Document, ShareLink
+from documents.models import Document, ShareLink, DocumentVersion
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, ShareLinkDataroomSetting
 
 pytest_plugins = "bdd.step_definitions.common_steps"
@@ -88,6 +88,7 @@ def dataroom_contains_document(dataroom_context, doc_name):
         organization=user.organization,
         status='ready'
     )
+    DocumentVersion.objects.create(document=doc, version_number=1, is_primary=True, original_storage_key=f'test/{doc.name}')
     DataroomDocument.objects.create(
         dataroom=dataroom_context['dataroom'],
         document=doc
@@ -101,7 +102,9 @@ def dataroom_share_link(user_context):
     dr = Dataroom.objects.create(name="Test Dataroom", created_by=user, organization=user.organization)
     
     doc1 = Document.objects.create(name="Financials.pdf", created_by=user, organization=user.organization, status='ready')
+    DocumentVersion.objects.create(document=doc1, version_number=1, is_primary=True, original_storage_key=f'test/{doc1.name}')
     doc2 = Document.objects.create(name="Strategy.docx", created_by=user, organization=user.organization, status='ready')
+    DocumentVersion.objects.create(document=doc2, version_number=1, is_primary=True, original_storage_key=f'test/{doc2.name}')
     
     DataroomDocument.objects.create(dataroom=dr, document=doc1)
     DataroomDocument.objects.create(dataroom=dr, document=doc2)
@@ -140,6 +143,7 @@ def dataroom_has_folder_with_doc(link_context, folder_name, doc_name):
     user = dataroom.created_by
     folder = DataroomFolder.objects.create(dataroom=dataroom, name=folder_name)
     doc = Document.objects.create(name=doc_name, created_by=user, organization=user.organization, status='ready')
+    DocumentVersion.objects.create(document=doc, version_number=1, is_primary=True, original_storage_key=f'test/{doc.name}')
     DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=folder)
     # The post_save signal on DataroomFolder/DataroomDocument will have created the setting.
 
@@ -182,6 +186,7 @@ def folder_contains_document(link_context, folder_name, doc_name):
     # Assume it's a root folder for simplicity in this step
     folder = DataroomFolder.objects.get(dataroom=dataroom, name=folder_name, parent__isnull=True)
     doc = Document.objects.create(name=doc_name, created_by=user, organization=user.organization, status='ready', type='pdf')
+    DocumentVersion.objects.create(document=doc, version_number=1, is_primary=True, original_storage_key=f'test/{doc.name}')
     DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=folder)
 
 
@@ -198,6 +203,7 @@ def subfolder_contains_document(link_context, subfolder_name, doc_name):
     user = dataroom.created_by
     subfolder = DataroomFolder.objects.get(dataroom=dataroom, name=subfolder_name)
     doc = Document.objects.create(name=doc_name, created_by=user, organization=user.organization, status='ready', type='pdf')
+    DocumentVersion.objects.create(document=doc, version_number=1, is_primary=True, original_storage_key=f'test/{doc.name}')
     DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=subfolder)
 
 
