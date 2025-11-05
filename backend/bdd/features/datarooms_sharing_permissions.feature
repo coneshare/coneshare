@@ -60,8 +60,8 @@ Feature: Dataroom Share Link Permissions
     And the link's settings make the folder "Downloadable Folder" downloadable
     When a viewer downloads the folder "Downloadable Folder"
     Then the response should be a ZIP file named "Downloadable_Folder.zip"
-    And the ZIP file should contain "Downloadable_Folder/Document A.pdf"
-    And the ZIP file should contain "Downloadable_Folder/Subfolder/Document B.pdf"
+    And the ZIP file should contain "Downloadable_Folder/Document_A.pdf"
+    And the ZIP file should contain "Downloadable_Folder/Subfolder/Document_B.pdf"
 
   Scenario: Viewer cannot download a folder that is not marked as downloadable
     Given I am an authenticated user
@@ -83,8 +83,8 @@ Feature: Dataroom Share Link Permissions
     And its settings make "Invisible.pdf" not visible
     When a viewer downloads the folder "Mixed Permissions Folder"
     Then the response should be a ZIP file
-    And the ZIP file should contain "Mixed_Permissions_Folder/Visible and Downloadable.pdf"
-    And the ZIP file should not contain "Mixed_Permissions_Folder/Visible Not Downloadable.pdf"
+    And the ZIP file should contain "Mixed_Permissions_Folder/Visible_and_Downloadable.pdf"
+    And the ZIP file should not contain "Mixed_Permissions_Folder/Visible_Not_Downloadable.pdf"
     And the ZIP file should not contain "Mixed_Permissions_Folder/Invisible.pdf"
 
   Scenario: A document in a downloaded folder is watermarked
