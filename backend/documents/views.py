@@ -989,7 +989,39 @@ class ShareLinkViewDataView(APIView):
         # Case 3: Fetching the content list for a dataroom link.
         elif link.dataroom:
             dataroom = link.dataroom
-            dataroom_link_settings = link.dataroom_settings.filter(is_visible=True)
+            all_settings = link.dataroom_settings.select_related(
+                'dataroom_document__folder'
+            ).all()
+
+            # Find all folders explicitly set to be invisible.
+            invisible_folder_ids = {
+                s.dataroom_folder_id for s in all_settings if s.dataroom_folder_id and not s.is_visible
+            }
+
+            # To avoid N+1 queries during recursion, fetch the whole folder hierarchy for the dataroom.
+            all_dataroom_folders = list(DataroomFolder.objects.filter(dataroom=dataroom).values('id', 'parent_id'))
+            
+            # Recursively find all children of invisible folders.
+            # This loop continues until no new descendants of invisible folders are found.
+            while True:
+                newly_found_ids = {
+                    f['id'] for f in all_dataroom_folders
+                    if f['parent_id'] in invisible_folder_ids and f['id'] not in invisible_folder_ids
+                }
+                if not newly_found_ids:
+                    break
+                invisible_folder_ids.update(newly_found_ids)
+
+            # Filter the settings to get the final list of truly visible items.
+            dataroom_link_settings = [
+                s for s in all_settings if (
+                    s.is_visible and
+                    # A document is not visible if its parent folder is in the invisible set.
+                    not (s.dataroom_document and s.dataroom_document.folder_id in invisible_folder_ids) and
+                    # A folder is not visible if it's in the invisible set itself.
+                    not (s.dataroom_folder_id and s.dataroom_folder_id in invisible_folder_ids)
+                )
+            ]
 
             # Create a map for quick lookup of settings in serializers
             settings_map = {}
