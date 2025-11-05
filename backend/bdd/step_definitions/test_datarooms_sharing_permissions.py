@@ -310,6 +310,7 @@ def response_contains_document(public_response_context, doc_name):
 @then(parsers.parse('the response should not contain the document "{doc_name}"'))
 def response_does_not_contain_document(public_response_context, doc_name):
     data = public_response_context['response'].json()
+    print([doc['document_name'] for doc in data['documents']])
     assert not any(doc['document_name'] == doc_name for doc in data['documents'])
 
 
