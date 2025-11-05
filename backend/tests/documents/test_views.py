@@ -961,6 +961,50 @@ class TestShareLinkViewDataView:
         response = public_client.get(f'/api/v1/links/{share_link.slug}/view-data/')
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_get_dataroom_link_data_hides_content_in_invisible_folder(self, public_client, user, organization, document_factory):
+        """
+        Test that if a folder is invisible, its contents are not shown in the
+        public view data, regardless of their individual visibility settings.
+        """
+        # 1. Setup Dataroom and content
+        dataroom = Dataroom.objects.create(name="Test Dataroom", created_by=user, organization=organization)
+        parent_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Parent Folder")
+        sub_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Subfolder", parent=parent_folder)
+        doc_in_subfolder = document_factory(name="Secret.pdf")
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=doc_in_subfolder, folder=sub_folder)
+
+        # 2. Create share link (this will trigger signal to create settings)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+        
+        # 3. Update settings: make parent folder invisible, but document and subfolder visible
+        parent_folder_setting = ShareLinkDataroomSetting.objects.get(share_link=link, dataroom_folder=parent_folder)
+        parent_folder_setting.is_visible = False
+        parent_folder_setting.save()
+
+        doc_setting = ShareLinkDataroomSetting.objects.get(share_link=link, dataroom_document=ddoc)
+        doc_setting.is_visible = True
+        doc_setting.save()
+
+        sub_folder_setting = ShareLinkDataroomSetting.objects.get(share_link=link, dataroom_folder=sub_folder)
+        sub_folder_setting.is_visible = True
+        sub_folder_setting.save()
+        
+        # 4. Access public data
+        url = f'/api/v1/links/{link.slug}/view-data/'
+        response = public_client.get(url)
+        
+        # 5. Assertions
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        
+        # The parent folder and its children (subfolder and document) should not be present
+        folder_names = {f['name'] for f in data['folders']}
+        doc_names = {d['document_name'] for d in data['documents']}
+        
+        assert "Parent Folder" not in folder_names
+        assert "Subfolder" not in folder_names
+        assert "Secret.pdf" not in doc_names
+
 
 @pytest.mark.django_db
 class TestDocumentVersionUploadView:
