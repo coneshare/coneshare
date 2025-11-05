@@ -1379,10 +1379,7 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
         if not PdfReader: missing.append("pypdf")
         if not canvas: missing.append("reportlab")
         logger.error(f"{', '.join(missing)} is not installed. PDF watermarking is not available.")
-        raise APIException(
-            "PDF watermarking service is currently unavailable.",
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE
-        )
+        raise WatermarkingDependenciesMissingError("PDF watermarking service is currently unavailable.")
 
     # Get source PDF. For office docs, use the converted PDF (storage_key). For PDFs, use original.
     if document.type == 'pdf':
@@ -1390,7 +1387,7 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
     elif document.type == 'document' and primary_version.storage_key:  # office doc that was converted
         source_pdf_key = primary_version.storage_key
     else:
-        raise APIException("A previewable PDF is not available for this document type.", status_code=status.HTTP_400_BAD_REQUEST)
+        raise InvalidDocumentForWatermarkingError("A previewable PDF is not available for this document type.")
 
     try:
         with default_storage.open(source_pdf_key, 'rb') as f:
@@ -1398,7 +1395,7 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
             writer = PdfWriter()
 
             if not reader.pages:
-                raise APIException("Cannot apply watermark to an empty PDF.", status_code=status.HTTP_400_BAD_REQUEST)
+                raise InvalidDocumentForWatermarkingError("Cannot apply watermark to an empty PDF.")
 
             rendered_watermark_text = _render_watermark_text(watermark_text, request, viewer_email=viewer_email)
 
