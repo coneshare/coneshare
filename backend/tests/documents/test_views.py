@@ -2115,10 +2115,10 @@ class TestDataroomFolderDownloadView:
         zip_buffer = BytesIO(response.content)
         with zipfile.ZipFile(zip_buffer, 'r') as zf:
             names = zf.namelist()
-            assert 'Root Folder/' in names
-            assert 'Root Folder/Doc A.pdf' in names
-            assert 'Root Folder/Subfolder/' in names
-            assert 'Root Folder/Subfolder/Doc B.pdf' in names
+            assert 'Root_Folder/' in names
+            assert 'Root_Folder/Doc_A.pdf' in names
+            assert 'Root_Folder/Subfolder/' in names
+            assert 'Root_Folder/Doc_B.pdf' in names
 
     def test_download_folder_permission_denied(self, public_client, dataroom_with_content_and_link):
         link = dataroom_with_content_and_link['link']
@@ -2157,9 +2157,9 @@ class TestDataroomFolderDownloadView:
         zip_buffer = BytesIO(response.content)
         with zipfile.ZipFile(zip_buffer, 'r') as zf:
             names = zf.namelist()
-            assert 'Root Folder/Doc A.pdf' in names
-            assert 'Root Folder/Invisible.pdf' not in names
-            assert 'Root Folder/Not Downloadable.pdf' not in names
+            assert 'Root_Folder/Doc_A.pdf' in names
+            assert 'Root_Folder/Invisible.pdf' not in names
+            assert 'Root_Folder/Not_Downloadable.pdf' not in names
 
     @patch('documents.views._generate_watermarked_pdf')
     def test_zip_archive_includes_watermarked_file(self, mock_generate_pdf, public_client, dataroom_with_content_and_link):
@@ -2185,7 +2185,7 @@ class TestDataroomFolderDownloadView:
 
         zip_buffer = BytesIO(response.content)
         with zipfile.ZipFile(zip_buffer, 'r') as zf:
-            content = zf.read('Root Folder/Doc A.pdf')
+            content = zf.read('Root_Folder/Doc_A.pdf')
             assert content == b"watermarked pdf content"
             
     def test_download_folder_password_protected_fails(self, public_client, dataroom_with_content_and_link):
