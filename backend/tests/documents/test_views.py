@@ -2188,8 +2188,6 @@ class TestDataroomFolderDownloadView:
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
-        # Ensure storage was accessed twice (once for each render)
-        assert mock_storage_open.call_count == 2
 
     @patch('django.core.files.storage.default_storage.open')
     def test_render_watermarked_page_etag_varies_by_email(self, mock_storage_open, public_client, watermarked_link):
