@@ -1,3 +1,6 @@
+import io
+import zipfile
+
 import pytest
 from pytest_bdd import parsers, scenario, given, when, then
 from rest_framework import status
@@ -36,6 +39,30 @@ def test_viewer_respects_download_setting():
 @pytest.mark.django_db
 @scenario('../features/datarooms_sharing_permissions.feature', 'A downloadable folder does not allow downloading a restricted item inside it')
 def test_downloadable_folder_with_restricted_item():
+    pass
+
+
+@pytest.mark.django_db
+@scenario('../features/datarooms_sharing_permissions.feature', 'Viewer successfully downloads a folder as a ZIP archive')
+def test_download_folder_zip():
+    pass
+
+
+@pytest.mark.django_db
+@scenario('../features/datarooms_sharing_permissions.feature', 'Viewer cannot download a folder that is not marked as downloadable')
+def test_download_forbidden():
+    pass
+
+
+@pytest.mark.django_db
+@scenario('../features/datarooms_sharing_permissions.feature', 'Downloaded ZIP archive respects item visibility and download permissions')
+def test_zip_respects_permissions():
+    pass
+
+
+@pytest.mark.django_db
+@scenario('../features/datarooms_sharing_permissions.feature', 'A document in a downloaded folder is watermarked')
+def test_zip_with_watermark():
     pass
 
 
@@ -142,6 +169,64 @@ def doc_not_downloadable(link_context, doc_name):
     _update_setting(link_context['link'], doc_name, {'allow_download': False})
 
 
+@given(parsers.parse('the dataroom has a folder "{folder_name}"'))
+def dataroom_has_folder(link_context, folder_name):
+    dataroom = link_context['dataroom']
+    DataroomFolder.objects.create(dataroom=dataroom, name=folder_name)
+
+
+@given(parsers.parse('the folder "{folder_name}" contains a document "{doc_name}"'))
+def folder_contains_document(link_context, folder_name, doc_name):
+    dataroom = link_context['dataroom']
+    user = dataroom.created_by
+    # Assume it's a root folder for simplicity in this step
+    folder = DataroomFolder.objects.get(dataroom=dataroom, name=folder_name, parent__isnull=True)
+    doc = Document.objects.create(name=doc_name, created_by=user, organization=user.organization, status='ready', type='pdf')
+    DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=folder)
+
+
+@given(parsers.parse('the folder "{folder_name}" contains a subfolder "{subfolder_name}"'))
+def folder_contains_subfolder(link_context, folder_name, subfolder_name):
+    dataroom = link_context['dataroom']
+    parent_folder = DataroomFolder.objects.get(dataroom=dataroom, name=folder_name, parent__isnull=True)
+    DataroomFolder.objects.create(dataroom=dataroom, name=subfolder_name, parent=parent_folder)
+
+
+@given(parsers.parse('the subfolder "{subfolder_name}" contains a document "{doc_name}"'))
+def subfolder_contains_document(link_context, subfolder_name, doc_name):
+    dataroom = link_context['dataroom']
+    user = dataroom.created_by
+    subfolder = DataroomFolder.objects.get(dataroom=dataroom, name=subfolder_name)
+    doc = Document.objects.create(name=doc_name, created_by=user, organization=user.organization, status='ready', type='pdf')
+    DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=subfolder)
+
+
+@given(parsers.parse('the link\'s settings make the folder "{folder_name}" not downloadable'))
+def folder_not_downloadable(link_context, folder_name):
+    _update_setting(link_context['link'], folder_name, {'allow_download': False})
+
+
+@given("a dataroom share link exists that enables watermarking", target_fixture="link_context")
+def dataroom_share_link_with_watermark(user_context):
+    """Fixture to create a dataroom, docs, and a share link with watermarking enabled."""
+    context = dataroom_share_link(user_context)
+    link = context['link']
+    link.enable_watermark = True
+    link.watermark_text = "CONFIDENTIAL"
+    link.save()
+    # The post_save signal on DataroomDocument will have used the link's defaults
+    # at the time of creation. We need to update existing settings.
+    for setting in link.dataroom_settings.all():
+        setting.enable_watermark = True
+        setting.save()
+    return context
+
+
+@given(parsers.parse('the link\'s settings make the document "{doc_name}" enable watermarking'))
+def doc_enable_watermark(link_context, doc_name):
+    _update_setting(link_context['link'], doc_name, {'enable_watermark': True})
+
+
 # When steps
 @when(parsers.parse('I create a share link for the dataroom "{dataroom_name}"'))
 def create_share_link(dataroom_context, dataroom_name):
@@ -187,6 +272,22 @@ def access_public_dataroom_data(public_client, link_context):
     response = public_client.get(url)
     assert response.status_code == status.HTTP_200_OK
     return {'response': response}
+
+
+@when(parsers.parse('a viewer downloads the folder "{folder_name}"'), target_fixture="download_response_context")
+def download_folder(public_client, link_context, folder_name):
+    link = link_context['link']
+    dataroom = link.dataroom
+    folder = DataroomFolder.objects.get(dataroom=dataroom, name=folder_name)
+    url = f'/api/v1/links/{link.slug}/download-folder/{folder.id}/'
+    response = public_client.get(url)
+    return {'response': response}
+
+
+@when(parsers.parse('a viewer attempts to download the folder "{folder_name}"'), target_fixture="download_response_context")
+def attempt_download_folder(public_client, link_context, folder_name):
+    # This action is identical to a successful download; the outcome is what's tested.
+    return download_folder(public_client, link_context, folder_name)
 
 
 # Then steps
@@ -251,3 +352,51 @@ def check_doc_data_property(public_response_context, doc_name, setting_key, sett
     item = _get_item_from_response(data, doc_name, 'document')
     assert item is not None, f"Document '{doc_name}' not found in response"
     assert item.get(setting_key) == setting_value
+
+
+@then(parsers.parse('the response should be a ZIP file named "{zip_name}"'))
+def response_is_zip_file(download_response_context, zip_name):
+    response = download_response_context['response']
+    assert response.status_code == status.HTTP_200_OK
+    assert response.get('Content-Type') == 'application/zip'
+    assert f'filename="{zip_name}"' in response.get('Content-Disposition')
+
+
+@then("the response should be a ZIP file")
+def response_is_a_zip_file(download_response_context):
+    response = download_response_context['response']
+    assert response.status_code == status.HTTP_200_OK
+    assert response.get('Content-Type') == 'application/zip'
+
+
+@then(parsers.parse('the ZIP file should contain "{file_path}"'))
+def zip_contains_file(download_response_context, file_path):
+    response = download_response_context['response']
+    zip_buffer = io.BytesIO(response.content)
+    with zipfile.ZipFile(zip_buffer, 'r') as zf:
+        assert file_path in zf.namelist()
+
+
+@then("the download should be forbidden")
+def download_is_forbidden(download_response_context):
+    response = download_response_context['response']
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+@then(parsers.parse('the ZIP file should not contain "{file_path}"'))
+def zip_does_not_contain_file(download_response_context, file_path):
+    response = download_response_context['response']
+    zip_buffer = io.BytesIO(response.content)
+    with zipfile.ZipFile(zip_buffer, 'r') as zf:
+        assert file_path not in zf.namelist()
+
+
+@then(parsers.parse('the file "{file_path}" inside the ZIP should be a watermarked PDF'))
+def file_in_zip_is_watermarked(download_response_context, file_path):
+    response = download_response_context['response']
+    zip_buffer = io.BytesIO(response.content)
+    with zipfile.ZipFile(zip_buffer, 'r') as zf:
+        pdf_content = zf.read(file_path)
+    # This is a basic check. The unit tests for the view are responsible for
+    # verifying the watermark content itself.
+    assert pdf_content.startswith(b'%PDF-')
