@@ -15,7 +15,8 @@ Feature: Dataroom Share Link Permissions
     And the share link settings for "Strategy.docx" should have "allow_download" as false
 
   Scenario: Viewer sees only visible content in a dataroom share link
-    Given a dataroom share link exists
+    Given I am an authenticated user
+    And a dataroom share link exists
     And its settings make "Financials.pdf" not visible
     And its settings make "Strategy.docx" visible
     When a viewer accesses the public data for the dataroom share link
@@ -23,7 +24,8 @@ Feature: Dataroom Share Link Permissions
     And the response should not contain the document "Financials.pdf"
 
   Scenario: An item inside an invisible folder is not visible
-    Given a dataroom share link exists
+    Given I am an authenticated user
+    And a dataroom share link exists
     And the dataroom has a folder "Legal Docs" containing a document "Agreement.pdf"
     And the link's settings make the folder "Legal Docs" not visible
     And the link's settings make the document "Agreement.pdf" visible
@@ -32,13 +34,15 @@ Feature: Dataroom Share Link Permissions
     And the response should not contain the document "Agreement.pdf"
 
   Scenario: Viewer respects the allow_download setting for an individual item
-    Given a dataroom share link exists
+    Given I am an authenticated user
+    And a dataroom share link exists
     And its settings make "Strategy.docx" visible but not downloadable
     When a viewer accesses the public data for the dataroom share link
     Then the data for "Strategy.docx" should have "allow_download" as false
 
   Scenario: A downloadable folder does not allow downloading a restricted item inside it
-    Given a dataroom share link exists
+    Given I am an authenticated user
+    And a dataroom share link exists
     And the dataroom has a folder "Public Reports" containing a document "InternalNotes.pdf"
     And the link's settings make the folder "Public Reports" downloadable
     And the link's settings make the document "InternalNotes.pdf" not downloadable
