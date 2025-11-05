@@ -155,7 +155,7 @@ class ShareLink(BaseModel):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                check=(
+                condition=(
                     Q(document__isnull=False, dataroom__isnull=True) |
                     Q(document__isnull=True, dataroom__isnull=False)
                 ),
