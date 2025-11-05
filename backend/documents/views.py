@@ -19,7 +19,7 @@ from django.utils.text import get_valid_filename
 from geoip2.errors import AddressNotFoundError
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import APIException, NotFound, PermissionDenied
+from rest_framework.exceptions import APIException, NotFound, PermissionDenied, ParseError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
@@ -27,6 +27,21 @@ from rest_framework.throttling import ScopedRateThrottle
 from django.http import HttpResponse
 from io import BytesIO
 from rest_framework.views import APIView
+
+
+class WatermarkingError(Exception):
+    """Custom exception for watermarking failures."""
+    pass
+
+class WatermarkingDependenciesMissingError(WatermarkingError):
+    """Raised when required libraries for watermarking are not installed."""
+    pass
+
+class InvalidDocumentForWatermarkingError(WatermarkingError):
+    """Raised when the document type is not suitable for watermarking."""
+    pass
+
+
 try:
     from PIL import Image, ImageDraw, ImageFont
 except ImportError:
@@ -1445,10 +1460,7 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
             return output_buffer
     except Exception as e:
         logger.exception(f"Failed to apply watermark to PDF: {e}")
-        raise APIException(
-            "An error occurred while generating the watermarked file.",
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        raise WatermarkingError("An error occurred while generating the watermarked file.") from e
 
 
 class WatermarkedFileDownloadView(APIView):
@@ -1484,10 +1496,15 @@ class WatermarkedFileDownloadView(APIView):
             safe_filename = get_valid_filename(document.name)
             response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
             return response
-        except APIException as e:
+        except WatermarkingDependenciesMissingError as e:
+            return Response({"message": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except InvalidDocumentForWatermarkingError as e:
+            return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except WatermarkingError as e:
+            logger.exception(f"A watermarking error occurred for link {slug}: {e}")
             return Response(
-                {"message": e.detail},
-                status=e.status_code
+                {"message": "An error occurred while generating the watermarked file."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 

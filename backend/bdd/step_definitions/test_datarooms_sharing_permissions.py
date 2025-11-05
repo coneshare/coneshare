@@ -1,6 +1,6 @@
 import io
 import zipfile
-from unittest.mock import mock_open, patch
+from unittest.mock import patch
 
 import pytest
 from pytest_bdd import parsers, scenario, given, when, then
@@ -289,7 +289,11 @@ def download_folder(public_client, link_context, folder_name):
     # Mock storage so the view can "read" the test file contents.
     # Provide minimal valid PDF content to support watermarking tests.
     pdf_content = b'%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000010 00000 n \n0000000059 00000 n \n0000000112 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF'
-    with patch('django.core.files.storage.default_storage.open', mock_open(read_data=pdf_content)):
+    with patch('django.core.files.storage.default_storage.open') as mock_storage_open:
+        # pypdf, used for watermarking, requires a real file-like object with
+        # methods like seek() and tell(). unittest.mock.mock_open is insufficient.
+        # We use side_effect to return a new io.BytesIO object for each call to open().
+        mock_storage_open.side_effect = lambda *args, **kwargs: io.BytesIO(pdf_content)
         response = public_client.get(url)
     return {'response': response}
 
