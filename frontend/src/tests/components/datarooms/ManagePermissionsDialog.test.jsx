@@ -204,4 +204,98 @@ describe('ManagePermissionsDialog', () => {
     expect(api.updateDataroomLinkSettings).not.toHaveBeenCalled();
     expect(mockOnOpenChange).toHaveBeenCalledWith(false);
   });
+
+  it('should display correctly when dataroom is empty', async () => {
+    api.getDataroom.mockResolvedValue({ data: { folders: [], documents: [] } });
+    renderComponent();
+    await waitFor(() => expect(api.getDataroom).toHaveBeenCalledWith('dr_abc'));
+
+    // Check that no content items are rendered
+    expect(screen.queryByText('Folder A')).not.toBeInTheDocument();
+    expect(screen.queryByText('Root Doc 3')).not.toBeInTheDocument();
+
+    // Assert that the content area is empty
+    const contentHeader = screen.getByText('Content');
+    const contentArea = contentHeader.closest('.space-y-2').querySelector('.max-h-\\[50vh\\]');
+    expect(contentArea.childElementCount).toBe(0);
+  });
+
+  it('should handle bulk changes with individual overrides', async () => {
+    const user = userEvent.setup();
+    renderComponent();
+    await screen.findByText('Folder A');
+
+    // Initial state of Doc 1 (in Folder A): download is TRUE
+    const doc1CheckboxesInitial = getCheckboxesForRow('Doc 1');
+    expect(doc1CheckboxesInitial[1]).toBeChecked();
+
+    // 1. Bulk action: Uncheck "Download" for Folder A
+    const folderACheckboxes = getCheckboxesForRow('Folder A');
+    await user.click(folderACheckboxes[1]);
+
+    // Verify Doc 1's download checkbox is now unchecked due to bulk action
+    const doc1CheckboxesAfterBulk = getCheckboxesForRow('Doc 1');
+    expect(doc1CheckboxesAfterBulk[1]).not.toBeChecked();
+
+    // 2. Override: Manually re-check "Download" for Doc 1
+    await user.click(doc1CheckboxesAfterBulk[1]);
+    expect(doc1CheckboxesAfterBulk[1]).toBeChecked();
+
+    // 3. Save changes
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    // 4. Assert payload
+    await waitFor(() => {
+      expect(api.updateDataroomLinkSettings).toHaveBeenCalledWith(
+        'link_123',
+        expect.arrayContaining([
+          // Folder A itself was changed
+          expect.objectContaining({ id: 's_f1', allow_download: false }),
+          // Subfolder C was changed by bulk action
+          expect.objectContaining({ id: 's_f3', allow_download: false }),
+          // Doc 2 was changed by bulk action
+          expect.objectContaining({ id: 's_ddoc2', allow_download: false }),
+          // Doc 1 was overridden back to true
+          expect.objectContaining({ id: 's_ddoc1', allow_download: true }),
+        ])
+      );
+    });
+  });
+
+  it('should refetch data and reset state when reopened', async () => {
+    const { rerender } = renderComponent();
+
+    await waitFor(() => {
+      expect(api.getDataroom).toHaveBeenCalledTimes(1);
+    });
+    expect(await screen.findByText('Folder A')).toBeInTheDocument();
+
+    // Close the dialog
+    rerender(<ManagePermissionsDialog isOpen={false} onOpenChange={mockOnOpenChange} link={mockLink} onSuccess={mockOnSuccess} />);
+
+    // Mock new data for the second fetch
+    const newMockDataroomContent = {
+      folders: [{ id: 'f_new', name: 'New Folder', parent: null }],
+      documents: [{ id: 'ddoc_new', document_name: 'New Doc', folder: null }],
+    };
+    const newMockLink = {
+      ...mockLink,
+      dataroom_settings: [
+        { id: 's_f_new', dataroom_folder: 'f_new', is_visible: true, allow_download: false, enable_watermark: false },
+        { id: 's_ddoc_new', dataroom_document: 'ddoc_new', is_visible: true, allow_download: true, enable_watermark: false },
+      ]
+    };
+    api.getDataroom.mockResolvedValue({ data: newMockDataroomContent });
+
+    // Reopen the dialog
+    rerender(<ManagePermissionsDialog isOpen={true} onOpenChange={mockOnOpenChange} link={newMockLink} onSuccess={mockOnSuccess} />);
+
+    await waitFor(() => {
+      expect(api.getDataroom).toHaveBeenCalledTimes(2);
+    });
+
+    // Assert new content is shown and old content is gone
+    expect(await screen.findByText('New Folder')).toBeInTheDocument();
+    expect(screen.queryByText('Folder A')).not.toBeInTheDocument();
+  });
 });
