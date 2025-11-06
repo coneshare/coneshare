@@ -6,12 +6,16 @@ import {
   FileImageIcon,
   FileTextIcon,
   FileQuestion,
+  DownloadIcon,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 import { DataroomDocumentPreview } from './DataroomDocumentPreview';
 import { Dialog, DialogContent } from '../ui/Dialog';
 import { Cone } from 'lucide-react';
 import { formatBytes } from '../../lib/formatters';
+import { Button } from '../ui/Button';
+import { downloadDataroomFolder } from '../../services/api';
 
 function DocumentItemIcon({ type }) {
   const commonProps = { className: "h-5 w-5 text-gray-500" };
@@ -26,13 +30,10 @@ function DocumentItemIcon({ type }) {
   }
 }
 
-function ListItem({ item, onItemClick }) {
+function ListItem({ item, onItemClick, onDownloadClick }) {
   const isFolder = item.type === 'folder';
   return (
-    <button
-      onClick={() => onItemClick(item)}
-      className="flex w-full items-center px-4 py-2 text-left text-sm transition-colors hover:bg-gray-100"
-    >
+    <div className="group flex w-full items-center px-4 py-2 text-left text-sm transition-colors hover:bg-gray-100">
       <div className="flex w-8 items-center justify-center">
         {isFolder ? (
           <FolderIcon className="h-5 w-5 text-blue-500" />
@@ -40,22 +41,69 @@ function ListItem({ item, onItemClick }) {
           <DocumentItemIcon type={item.document_type} />
         )}
       </div>
-      <div className="w-[60%] truncate pr-4 font-medium" title={item.name || item.document_name}>
+      <button
+        onClick={() => onItemClick(item)}
+        className="w-[50%] truncate pr-4 text-left font-medium"
+        title={item.name || item.document_name}
+      >
         {item.name || item.document_name}
-      </div>
+      </button>
       <div className="w-[20%] text-sm text-gray-500">
         {item.updated_at && formatDistanceToNow(new Date(item.updated_at), { addSuffix: true })}
       </div>
       <div className="w-[10%] text-sm text-gray-500">
         {!isFolder && typeof item.file_size === 'number' ? formatBytes(item.file_size) : '—'}
       </div>
-    </button>
+      <div className="w-[10%] text-right">
+        {isFolder && item.allow_download && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 opacity-0 group-hover:opacity-100"
+            onClick={() => onDownloadClick(item)}
+            title={`Download folder "${item.name}"`}
+          >
+            <DownloadIcon className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }
 
 export function DataroomViewer({ data, slug }) {
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [previewingDoc, setPreviewingDoc] = useState(null);
+
+  const handleDownloadFolder = async (folder) => {
+    toast.info(`Preparing to download "${folder.name}"...`);
+    try {
+      const response = await downloadDataroomFolder(slug, folder.id);
+
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = `${folder.name}.zip`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch && filenameMatch.length > 1) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success(`Successfully downloaded "${filename}".`);
+    } catch (error) {
+      console.error('Failed to download folder:', error);
+      // Error toast is handled by the api interceptor
+    }
+  };
 
   const allItems = useMemo(() => [
     ...data.folders.map(f => ({ ...f, type: 'folder' })),
@@ -132,13 +180,19 @@ export function DataroomViewer({ data, slug }) {
       <main className="flex-1 overflow-y-auto border-t">
         <div className="flex w-full items-center border-b bg-gray-50 px-4 py-2 text-xs font-medium uppercase text-gray-500">
           <div className="w-8" />
-          <div className="w-[60%] pr-4">Name</div>
+          <div className="w-[50%] pr-4">Name</div>
           <div className="w-[20%]">Last Modified</div>
           <div className="w-[10%]">File Size</div>
+          <div className="w-[10%] text-right">Actions</div>
         </div>
         <div className="divide-y">
           {itemsInCurrentFolder.map((item) => (
-            <ListItem key={item.id} item={item} onItemClick={handleItemClick} />
+            <ListItem
+              key={item.id}
+              item={item}
+              onItemClick={handleItemClick}
+              onDownloadClick={handleDownloadFolder}
+            />
           ))}
         </div>
         {itemsInCurrentFolder.length === 0 && (
