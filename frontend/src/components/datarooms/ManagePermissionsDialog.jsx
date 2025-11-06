@@ -65,9 +65,9 @@ function PermissionRow({ item, level, settings, onSettingChange, onBulkSettingCh
         <div className="flex items-center gap-x-6">
           {isFolder ? (
             <>
-              <Checkbox onCheckedChange={(checked) => handleBulkChange('is_visible', checked)} />
-              <Checkbox onCheckedChange={(checked) => handleBulkChange('allow_download', checked)} />
-              <Checkbox onCheckedChange={(checked) => handleBulkChange('enable_watermark', checked)} />
+              <Checkbox checked={setting.is_visible} onCheckedChange={(checked) => handleBulkChange('is_visible', checked)} />
+              <Checkbox checked={setting.allow_download} onCheckedChange={(checked) => handleBulkChange('allow_download', checked)} />
+              <Checkbox checked={setting.enable_watermark} onCheckedChange={(checked) => handleBulkChange('enable_watermark', checked)} disabled />
             </>
           ) : (
             <>
