@@ -1,61 +1,118 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { getDataroom, updateDataroomLinkSettings } from '../../services/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { Checkbox } from '../ui/Checkbox';
 import { Label } from '../ui/Label';
-import { FolderIcon, FileIcon, Loader2 } from 'lucide-react';
+import { FolderIcon, FileIcon, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 
-function PermissionItem({ item, type, settings, onSettingChange }) {
+// --- Tree Building Utility ---
+const buildTree = (folders, documents) => {
+  const allItems = [
+    ...folders.map(f => ({ ...f, type: 'folder', children: [] })),
+    ...documents.map(d => ({ ...d, type: 'document', name: d.document_name }))
+  ];
+
+  const itemMap = new Map(allItems.map(item => [item.id, item]));
+  const tree = [];
+
+  for (const item of allItems) {
+    const parentId = item.type === 'folder' ? item.parent : item.folder;
+    if (parentId && itemMap.has(parentId)) {
+      itemMap.get(parentId).children.push(item);
+    } else {
+      tree.push(item);
+    }
+  }
+  return tree;
+};
+
+// --- Recursive Row Component ---
+function PermissionRow({ item, level, settings, onSettingChange, onBulkSettingChange, expandedFolders, toggleFolder }) {
   const setting = settings[item.id];
+  const isFolder = item.type === 'folder';
+  const isExpanded = isFolder && expandedFolders[item.id];
 
   if (!setting) {
     return null;
   }
 
-  const isFolder = type === 'folder';
+  const handleCheckboxChange = (key, checked) => {
+    onSettingChange(item.id, key, checked);
+  };
+  
+  const handleBulkChange = (key, checked) => {
+    if (isFolder) {
+      onBulkSettingChange(item, key, checked);
+    }
+  };
 
   return (
-    <div className="flex items-center justify-between rounded-md p-2 hover:bg-muted/50">
-      <div className="flex items-center gap-2">
-        {isFolder ? <FolderIcon className="h-4 w-4" /> : <FileIcon className="h-4 w-4" />}
-        <span>{item.name || item.document_name}</span>
+    <>
+      <div className="flex items-center justify-between rounded-md p-2 hover:bg-muted/50 text-sm">
+        <div className="flex items-center gap-2 flex-1 min-w-0" style={{ paddingLeft: `${level * 1.5}rem` }}>
+          {isFolder ? (
+            <button onClick={() => toggleFolder(item.id)} className="p-1 -ml-1">
+              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </button>
+          ) : (
+            <div className="w-6" /> // Spacer to align with folder icons
+          )}
+          {isFolder ? <FolderIcon className="h-4 w-4 flex-shrink-0" /> : <FileIcon className="h-4 w-4 flex-shrink-0" />}
+          <span className="truncate">{item.name}</span>
+        </div>
+        <div className="flex items-center gap-x-6">
+          {isFolder ? (
+            <>
+              <Checkbox onCheckedChange={(checked) => handleBulkChange('is_visible', checked)} />
+              <Checkbox onCheckedChange={(checked) => handleBulkChange('allow_download', checked)} />
+              <Checkbox onCheckedChange={(checked) => handleBulkChange('enable_watermark', checked)} />
+            </>
+          ) : (
+            <>
+              <Checkbox id={`visible-${item.id}`} checked={setting.is_visible} onCheckedChange={(c) => handleCheckboxChange('is_visible', c)} />
+              <Checkbox id={`download-${item.id}`} checked={setting.allow_download} onCheckedChange={(c) => handleCheckboxChange('allow_download', c)} />
+              <Checkbox id={`watermark-${item.id}`} checked={setting.enable_watermark} onCheckedChange={(c) => handleCheckboxChange('enable_watermark', c)} />
+            </>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-6">
-        <Checkbox
-          id={`visible-${item.id}`}
-          checked={setting.is_visible}
-          onCheckedChange={(checked) => onSettingChange(item.id, 'is_visible', checked)}
+      {isExpanded && item.children.map(child => (
+        <PermissionRow
+          key={child.id}
+          item={child}
+          level={level + 1}
+          settings={settings}
+          onSettingChange={onSettingChange}
+          onBulkSettingChange={onBulkSettingChange}
+          expandedFolders={expandedFolders}
+          toggleFolder={toggleFolder}
         />
-        <Checkbox
-          id={`download-${item.id}`}
-          checked={setting.allow_download}
-          onCheckedChange={(checked) => onSettingChange(item.id, 'allow_download', checked)}
-        />
-        <Checkbox
-          id={`watermark-${item.id}`}
-          checked={setting.enable_watermark}
-          onCheckedChange={(checked) => onSettingChange(item.id, 'enable_watermark', checked)}
-        />
-      </div>
-    </div>
+      ))}
+    </>
   );
 }
 
+
+// --- Main Dialog Component ---
 export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess }) {
-  const [dataroomContent, setDataroomContent] = useState(null);
+  const [dataroomTree, setDataroomTree] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [settings, setSettings] = useState({});
   const [originalSettings, setOriginalSettings] = useState({});
+  const [expandedFolders, setExpandedFolders] = useState({});
 
   useEffect(() => {
     if (isOpen && link) {
-      const fetchContent = async () => {
+      const fetchContentAndBuildTree = async () => {
         setIsLoading(true);
         try {
+          // The getDataroom endpoint will now return all folders and documents
           const response = await getDataroom(link.dataroom);
-          setDataroomContent(response.data);
+          const { folders, documents } = response.data;
+          const tree = buildTree(folders, documents);
+          setDataroomTree(tree);
 
           const settingsMap = link.dataroom_settings.reduce((acc, setting) => {
             const key = setting.dataroom_document || setting.dataroom_folder;
@@ -64,15 +121,24 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
           }, {});
           setSettings(settingsMap);
           setOriginalSettings(JSON.parse(JSON.stringify(settingsMap))); // Deep copy
+
+          // Expand all folders by default
+          const allFolderIds = folders.reduce((acc, f) => ({ ...acc, [f.id]: true }), {});
+          setExpandedFolders(allFolderIds);
+
         } catch (error) {
           toast.error('Failed to load dataroom content.');
         } finally {
           setIsLoading(false);
         }
       };
-      fetchContent();
+      fetchContentAndBuildTree();
     }
   }, [isOpen, link]);
+  
+  const toggleFolder = useCallback((folderId) => {
+    setExpandedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }));
+  }, []);
 
   const handleSettingChange = (itemKey, key, value) => {
     setSettings(prev => ({
@@ -83,6 +149,27 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
       },
     }));
   };  
+
+  const handleBulkSettingChange = useCallback((startFolder, key, value) => {
+    let newSettings = { ...settings };
+
+    const applyRecursively = (folder) => {
+      // Apply to the folder itself
+      if (newSettings[folder.id]) {
+        newSettings[folder.id] = { ...newSettings[folder.id], [key]: value };
+      }
+      // Apply to its children
+      for (const child of folder.children) {
+        if (child.type === 'folder') {
+          applyRecursively(child);
+        } else if (newSettings[child.id]) {
+          newSettings[child.id] = { ...newSettings[child.id], [key]: value };
+        }
+      }
+    };
+    applyRecursively(startFolder);
+    setSettings(newSettings);
+  }, [settings]);
 
   const handleSave = async () => {
     const changes = Object.keys(settings)
@@ -106,15 +193,6 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
     }
   };
 
-  const contentItems = useMemo(() => {
-    if (!dataroomContent) return [];
-    // API only provides root-level content.
-    return [
-      ...dataroomContent.folders.map(f => ({ ...f, type: 'folder' })),
-      ...dataroomContent.documents.map(d => ({ ...d, type: 'document' }))
-    ];
-  }, [dataroomContent]);
-
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl">
@@ -123,11 +201,19 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
         </DialogHeader>
         <div className="py-4 space-y-2">
           <div className="flex items-center justify-between px-2 text-sm font-medium text-muted-foreground">
-            <span>Content</span>
-            <div className="flex items-center gap-6">
-              <Label>Visible</Label>
-              <Label>Download</Label>
-              <Label>Watermark</Label>
+            <span className="flex-1">Content</span>
+            <div className="flex items-center gap-x-6">
+              <Label className="w-16 text-center">Visible</Label>
+              <Label className="w-16 text-center">Download</Label>
+              <Label className="w-16 text-center">Watermark</Label>
+            </div>
+          </div>
+          <div className="flex items-center justify-between px-2 text-xs font-medium text-muted-foreground bg-muted/50 rounded-md py-1">
+            <span className="flex-1 ml-8">Apply to all items in a folder:</span>
+            <div className="flex items-center gap-x-6">
+              <Label className="w-16 text-center">Visible</Label>
+              <Label className="w-16 text-center">Download</Label>
+              <Label className="w-16 text-center">Watermark</Label>
             </div>
           </div>
           <div className="max-h-[50vh] overflow-y-auto rounded-md border p-2">
@@ -136,13 +222,16 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
                 <Loader2 className="h-6 w-6 animate-spin" />
               </div>
             ) : (
-              contentItems.map(item => (
-                 <PermissionItem
+              dataroomTree.map(item => (
+                 <PermissionRow
                    key={item.id}
                    item={item}
-                   type={item.type}
+                   level={0}
                    settings={settings}
                    onSettingChange={handleSettingChange}
+                   onBulkSettingChange={handleBulkSettingChange}
+                   expandedFolders={expandedFolders}
+                   toggleFolder={toggleFolder}
                  />
               ))
             )}
