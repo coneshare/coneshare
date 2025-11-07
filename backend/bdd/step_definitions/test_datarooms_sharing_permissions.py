@@ -108,7 +108,7 @@ def dataroom_contains_document(dataroom_context, doc_name):
     )
 
 
-@given("a dataroom share link exists", target_fixture="link_context")
+@given("a dataroom share link exists", target_fixture="dataroom_context")
 def dataroom_share_link(user_context):
     """Fixture to create a dataroom with documents and a share link."""
     user = user_context['user']
@@ -123,7 +123,7 @@ def dataroom_share_link(user_context):
     DataroomDocument.objects.create(dataroom=dr, document=doc2)
     
     link = ShareLink.objects.create(dataroom=dr, created_by=user)
-    return {'link': link, 'dataroom': dr}
+    return {'link': link, 'dataroom': dr, 'user_context': user_context}
 
 
 def _update_setting(link, item_name, item_type, setting_updates):
@@ -141,18 +141,18 @@ def _update_setting(link, item_name, item_type, setting_updates):
 
 
 @given(parsers.parse('its settings make "{item_name}" not visible'))
-def setting_not_visible(link_context, item_name):
-    _update_setting(link_context['link'], item_name, 'document', {'is_visible': False})
+def setting_not_visible(dataroom_context, item_name):
+    _update_setting(dataroom_context['link'], item_name, 'document', {'is_visible': False})
 
 
 @given(parsers.parse('its settings make "{item_name}" visible'))
-def setting_visible(link_context, item_name):
-    _update_setting(link_context['link'], item_name, 'document', {'is_visible': True})
+def setting_visible(dataroom_context, item_name):
+    _update_setting(dataroom_context['link'], item_name, 'document', {'is_visible': True})
 
 
 @given(parsers.parse('the dataroom has a folder "{folder_name}" containing a document "{doc_name}"'))
-def dataroom_has_folder_with_doc(link_context, folder_name, doc_name):
-    dataroom = link_context['dataroom']
+def dataroom_has_folder_with_doc(dataroom_context, folder_name, doc_name):
+    dataroom = dataroom_context['dataroom']
     user = dataroom.created_by
     folder = DataroomFolder.objects.create(dataroom=dataroom, name=folder_name)
     doc = Document.objects.create(name=doc_name, created_by=user, organization=user.organization, status='ready')
@@ -162,39 +162,39 @@ def dataroom_has_folder_with_doc(link_context, folder_name, doc_name):
 
 
 @given(parsers.parse('the link\'s settings make the folder "{folder_name}" not visible'))
-def folder_setting_not_visible(link_context, folder_name):
-    _update_setting(link_context['link'], folder_name, 'folder', {'is_visible': False})
+def folder_setting_not_visible(dataroom_context, folder_name):
+    _update_setting(dataroom_context['link'], folder_name, 'folder', {'is_visible': False})
 
 
 @given(parsers.parse('the link\'s settings make the document "{doc_name}" visible'))
-def doc_setting_visible(link_context, doc_name):
-    _update_setting(link_context['link'], doc_name, 'document', {'is_visible': True})
+def doc_setting_visible(dataroom_context, doc_name):
+    _update_setting(dataroom_context['link'], doc_name, 'document', {'is_visible': True})
 
 
 @given(parsers.parse('its settings make "{doc_name}" visible but not downloadable'))
-def setting_not_downloadable(link_context, doc_name):
-    _update_setting(link_context['link'], doc_name, 'document', {'is_visible': True, 'allow_download': False})
+def setting_not_downloadable(dataroom_context, doc_name):
+    _update_setting(dataroom_context['link'], doc_name, 'document', {'is_visible': True, 'allow_download': False})
 
 
 @given(parsers.parse('the link\'s settings make the folder "{folder_name}" downloadable'))
-def folder_downloadable(link_context, folder_name):
-    _update_setting(link_context['link'], folder_name, 'folder', {'allow_download': True})
+def folder_downloadable(dataroom_context, folder_name):
+    _update_setting(dataroom_context['link'], folder_name, 'folder', {'allow_download': True})
 
 
 @given(parsers.parse('the link\'s settings make the document "{doc_name}" not downloadable'))
-def doc_not_downloadable(link_context, doc_name):
-    _update_setting(link_context['link'], doc_name, 'document', {'allow_download': False})
+def doc_not_downloadable(dataroom_context, doc_name):
+    _update_setting(dataroom_context['link'], doc_name, 'document', {'allow_download': False})
 
 
 @given(parsers.parse('the dataroom has a folder "{folder_name}"'))
-def dataroom_has_folder(link_context, folder_name):
-    dataroom = link_context['dataroom']
+def dataroom_has_folder(dataroom_context, folder_name):
+    dataroom = dataroom_context['dataroom']
     DataroomFolder.objects.create(dataroom=dataroom, name=folder_name)
 
 
 @given(parsers.parse('the folder "{folder_name}" contains a document "{doc_name}"'))
-def folder_contains_document(link_context, folder_name, doc_name):
-    dataroom = link_context['dataroom']
+def folder_contains_document(dataroom_context, folder_name, doc_name):
+    dataroom = dataroom_context['dataroom']
     user = dataroom.created_by
     # Assume it's a root folder for simplicity in this step
     folder = DataroomFolder.objects.get(dataroom=dataroom, name=folder_name, parent__isnull=True)
@@ -204,15 +204,15 @@ def folder_contains_document(link_context, folder_name, doc_name):
 
 
 @given(parsers.parse('the folder "{folder_name}" contains a subfolder "{subfolder_name}"'))
-def folder_contains_subfolder(link_context, folder_name, subfolder_name):
-    dataroom = link_context['dataroom']
+def folder_contains_subfolder(dataroom_context, folder_name, subfolder_name):
+    dataroom = dataroom_context['dataroom']
     parent_folder = DataroomFolder.objects.get(dataroom=dataroom, name=folder_name, parent__isnull=True)
     DataroomFolder.objects.create(dataroom=dataroom, name=subfolder_name, parent=parent_folder)
 
 
 @given(parsers.parse('the subfolder "{subfolder_name}" contains a document "{doc_name}"'))
-def subfolder_contains_document(link_context, subfolder_name, doc_name):
-    dataroom = link_context['dataroom']
+def subfolder_contains_document(dataroom_context, subfolder_name, doc_name):
+    dataroom = dataroom_context['dataroom']
     user = dataroom.created_by
     subfolder = DataroomFolder.objects.get(dataroom=dataroom, name=subfolder_name)
     doc = Document.objects.create(name=doc_name, created_by=user, organization=user.organization, status='ready', type='pdf')
@@ -221,11 +221,11 @@ def subfolder_contains_document(link_context, subfolder_name, doc_name):
 
 
 @given(parsers.parse('the link\'s settings make the folder "{folder_name}" not downloadable'))
-def folder_not_downloadable(link_context, folder_name):
-    _update_setting(link_context['link'], folder_name, 'folder', {'allow_download': False})
+def folder_not_downloadable(dataroom_context, folder_name):
+    _update_setting(dataroom_context['link'], folder_name, 'folder', {'allow_download': False})
 
 
-@given("a dataroom share link exists that enables watermarking", target_fixture="link_context")
+@given("a dataroom share link exists that enables watermarking", target_fixture="dataroom_context")
 def dataroom_share_link_with_watermark(user_context):
     """Fixture to create a dataroom, docs, and a share link with watermarking enabled."""
     context = dataroom_share_link(user_context)
@@ -242,8 +242,8 @@ def dataroom_share_link_with_watermark(user_context):
 
 
 @given(parsers.parse('the link\'s settings make the document "{doc_name}" enable watermarking'))
-def doc_enable_watermark(link_context, doc_name):
-    _update_setting(link_context['link'], doc_name, 'document', {'enable_watermark': True})
+def doc_enable_watermark(dataroom_context, doc_name):
+    _update_setting(dataroom_context['link'], doc_name, 'document', {'enable_watermark': True})
 
 
 # When steps
@@ -285,24 +285,24 @@ def update_setting_not_downloadable(dataroom_context, doc_name):
 
 
 @when(parsers.parse('I update the link to set "{setting_key}" to {setting_value_str}'))
-def update_link_setting(link_context, setting_key, setting_value_str):
+def update_link_setting(dataroom_context, setting_key, setting_value_str):
     setting_value = setting_value_str.lower() == 'true'
-    link = link_context['link']
+    link = dataroom_context['link']
     setattr(link, setting_key, setting_value)
     link.save()
 
 
 @when("a viewer accesses the public data for the dataroom share link", target_fixture="public_response_context")
-def access_public_dataroom_data(public_client, link_context):
-    link = link_context['link']
+def access_public_dataroom_data(public_client, dataroom_context):
+    link = dataroom_context['link']
     url = f'/api/v1/links/{link.slug}/view-data/'
     response = public_client.get(url)
     assert response.status_code == status.HTTP_200_OK
     return {'response': response}
 
 @when(parsers.parse('a viewer downloads the folder "{folder_name}"'), target_fixture="download_response_context")
-def download_folder(public_client, link_context, folder_name):
-    link = link_context['link']
+def download_folder(public_client, dataroom_context, folder_name):
+    link = dataroom_context['link']
     dataroom = link.dataroom
     folder = DataroomFolder.objects.get(dataroom=dataroom, name=folder_name)
     url = f'/api/v1/links/{link.slug}/download-folder/{folder.id}/'
@@ -318,9 +318,9 @@ def download_folder(public_client, link_context, folder_name):
     return {'response': response}
 
 @when(parsers.parse('a viewer attempts to download the folder "{folder_name}"'), target_fixture="download_response_context")
-def attempt_download_folder(public_client, link_context, folder_name):
+def attempt_download_folder(public_client, dataroom_context, folder_name):
     # This action is identical to a successful download; the outcome is what's tested.
-    return download_folder(public_client, link_context, folder_name)
+    return download_folder(public_client, dataroom_context, folder_name)
 
 
 # Then steps
