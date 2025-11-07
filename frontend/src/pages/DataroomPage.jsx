@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
 import { ShareIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions } from '../services/api';
+import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, removeContentFromDataroom } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
@@ -25,6 +25,8 @@ export function DataroomPage() {
   const { dataroomId } = useParams();
   const navigate = useNavigate();
   const { setBreadcrumbData } = useBreadcrumb();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'documents';
   const [dataroom, setDataroom] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddContentOpen, setIsAddContentOpen] = useState(false);
@@ -34,7 +36,6 @@ export function DataroomPage() {
   const [currentDataroomFolder, setCurrentDataroomFolder] = useState(null);
   const [folders, setFolders] = useState([]);
   const [documents, setDocuments] = useState([]);
-  const [activeTab, setActiveTab] = useState('documents');
   const [links, setLinks] = useState([]);
   const [isLinkSheetOpen, setIsLinkSheetOpen] = useState(false);
   const [editingLink, setEditingLink] = useState(null);
@@ -45,6 +46,7 @@ export function DataroomPage() {
   const [viewsData, setViewsData] = useState(null);
   const [viewsLoading, setViewsLoading] = useState(true);
   const [viewsCurrentPage, setViewsCurrentPage] = useState(1);
+  const [isRemoveContentDialogOpen, setIsRemoveContentDialogOpen] = useState(false);
     
   const fetchContent = useCallback(async () => {
     setIsLoading(true);
@@ -137,6 +139,7 @@ export function DataroomPage() {
   useEffect(() => {
     if (dataroom) {
       setBreadcrumbData({
+        type: 'dataroom',
         folder: currentDataroomFolder,
         dataroomName: dataroom.name,
         onNavigate: handleBreadcrumbNavigate,
@@ -146,7 +149,11 @@ export function DataroomPage() {
 
   const handleAddContent = async ({ document_ids, folder_ids }) => {
     try {
-      await addContentToDataroom(dataroomId, { document_ids, folder_ids });
+      await addContentToDataroom(dataroomId, {
+        document_ids,
+        folder_ids,
+        destination_folder_id: currentFolderId,
+      });
       toast.success('Content added to dataroom successfully.');
       fetchContent(); // Refresh
     } catch (error) {
@@ -237,8 +244,29 @@ export function DataroomPage() {
       });
       toast.success("Items moved successfully.");
       fetchContent();
+      handleClearSelection();
     } finally {
       setIsMoveItemsOpen(false);
+    }
+  };
+
+  const handleRemoveContent = () => {
+    setIsRemoveContentDialogOpen(true);
+  };
+
+  const handleConfirmRemoveContent = async () => {
+    try {
+      await removeContentFromDataroom(dataroomId, {
+        dataroom_document_ids: selection.documents,
+        dataroom_folder_ids: selection.folders,
+      });
+      toast.success('Items removed from dataroom successfully.');
+      fetchContent(); // Refresh
+      handleClearSelection();
+    } catch (error) {
+      // Error toast handled by interceptor
+    } finally {
+      setIsRemoveContentDialogOpen(false);
     }
   };
 
@@ -286,7 +314,7 @@ export function DataroomPage() {
         </div>
       </header>
 
-      <Tabs defaultValue="documents" onValueChange={setActiveTab} className="mt-4">
+      <Tabs value={activeTab} onValueChange={(tab) => setSearchParams({ tab })} className="mt-4">
         <TabsList>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="links">Links and Permissions</TabsTrigger>
@@ -299,8 +327,8 @@ export function DataroomPage() {
                 selectedFoldersCount={selection.folders.length}
                 onClearSelection={handleClearSelection}
                 onMove={() => setIsMoveItemsOpen(true)}
-                // Delete is a future feature for datarooms
-                onDelete={null}
+                onDelete={handleRemoveContent}
+                deleteText="Remove"
               />
             </div>
           )}
@@ -393,6 +421,14 @@ export function DataroomPage() {
         onConfirm={handleMoveItems}
         dataroomId={dataroomId}
         selectedFolderIds={selection.folders}
+      />
+      <ConfirmationDialog
+        isOpen={isRemoveContentDialogOpen}
+        onOpenChange={setIsRemoveContentDialogOpen}
+        onConfirm={handleConfirmRemoveContent}
+        title="Remove Items from Dataroom"
+        description={`Are you sure you want to remove the selected items from this dataroom? This will not delete the original files from your document library.`}
+        confirmText="Remove"
       />
     </div>
   );

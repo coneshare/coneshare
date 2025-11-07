@@ -295,7 +295,7 @@ export const importCloudFile = (connectionId, { fileId, fileName, fileSize }) =>
 
 // Datarooms
 export const getDatarooms = () => api.get('/datarooms/');
-export const getDataroom = (id) => api.get(`/datarooms/${id}/`);
+export const getDataroom = (id, params) => api.get(`/datarooms/${id}/`, { params });
 export const createDataroom = (data) => api.post('/datarooms/', data);
 export const createDataroomFolder = (data) => api.post('/dataroom-folders/', data);
 export const updateDataroom = (id, data) => api.patch(`/datarooms/${id}/`, data);
@@ -307,5 +307,11 @@ export const getDataroomFolderContents = (folderId) => api.get(`/dataroom-folder
 export const getShareLinksForDataroom = (dataroomId) => api.get(`/share-links/?dataroom_id=${dataroomId}`);
 export const updateDataroomLinkSettings = (linkId, settings) => api.patch(`/share-links/${linkId}/dataroom-settings/`, settings);
 export const getDataroomViewSessions = (dataroomId, page = 1) => api.get(`/datarooms/${dataroomId}/view-sessions/?page=${page}`);
+
+export const downloadDataroomFolder = (slug, folderId) => {
+  return api.get(`/links/${slug}/download-folder/${folderId}/`, {
+    responseType: 'blob',
+  });
+};
     
 export default api;

@@ -7,6 +7,7 @@ export function SelectionActionBar({
   onClearSelection,
   onDelete,
   onMove,
+  deleteText = "Delete",
 }) {
   const documentText = `${selectedDocumentsCount} document${selectedDocumentsCount !== 1 ? "s" : ""}`;
   const folderText = `${selectedFoldersCount} folder${selectedFoldersCount !== 1 ? "s" : ""}`;
@@ -35,7 +36,7 @@ export function SelectionActionBar({
         </Button>
         <Button variant="outline" size="sm" onClick={onDelete}>
           <Trash2 className="mr-2 h-4 w-4" />
-          Delete
+          {deleteText}
         </Button>
       </div>
     </div>

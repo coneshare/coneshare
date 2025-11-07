@@ -4,9 +4,25 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { DataroomPage } from '../../pages/DataroomPage';
 import { BreadcrumbProvider } from '../../components/layout/BreadcrumbProvider';
+import Header from '../../components/layout/Header';
 import * as api from '../../services/api';
 
 vi.mock('../../services/api');
+
+vi.mock('../../components/dialogs/AddContentDialog', () => ({
+    AddContentDialog: ({ isOpen, onOpenChange, onConfirm }) => {
+        if (!isOpen) return null;
+        return (
+            <div data-testid="mock-add-content-dialog">
+                <h1>Add Content Dialog</h1>
+                <button onClick={() => onConfirm({ document_ids: ['doc_new'], folder_ids: [] })}>
+                    Confirm
+                </button>
+                <button onClick={() => onOpenChange(false)}>Cancel</button>
+            </div>
+        );
+    },
+}));
 
 const mockedNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -61,19 +77,35 @@ describe('DataroomPage', () => {
         return render(
             <MemoryRouter initialEntries={['/datarooms/dr123']}>
                 <BreadcrumbProvider>
+                    <Header />
                     <Routes>
                         <Route path="/datarooms/:dataroomId" element={<DataroomPage />} />
                     </Routes>
                 </BreadcrumbProvider>
             </MemoryRouter>
         );
-    };
+    };  
 
     it('should fetch and display root content initially', async () => {
         renderComponent();
         expect(api.getDataroom).toHaveBeenCalledWith('dr123');
         expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
         expect(await screen.findByText('Sub Folder')).toBeInTheDocument();
+    });
+
+    describe('Error and Empty States', () => {
+        it('should display not found message if dataroom fails to load', async () => {
+            api.getDataroom.mockRejectedValue({ response: { status: 404 } });
+            renderComponent();
+            expect(await screen.findByText('Dataroom not found.')).toBeInTheDocument();
+        });
+
+        it('should display empty state for a dataroom with no content', async () => {
+            const emptyDataroom = { ...mockDataroomRoot, folders: [], documents: [] };
+            api.getDataroom.mockResolvedValue({ data: emptyDataroom });
+            renderComponent();
+            expect(await screen.findByText('This dataroom is empty')).toBeInTheDocument();
+        });
     });
 
     describe('Folder Navigation', () => {
@@ -95,63 +127,71 @@ describe('DataroomPage', () => {
             });
         });
 
-        // it('should update breadcrumbs when navigating into a folder', async () => {
-        //     const user = userEvent.setup();
-        //     renderComponent();
+        it('should navigate to the document page when a document is clicked', async () => {
+            const user = userEvent.setup();
+            renderComponent();
+            const docItem = await screen.findByText('Root Document');
+            await user.click(docItem);
+            expect(mockedNavigate).toHaveBeenCalledWith('/documents/doc1');
+        });
 
-        //     const folderItem = await screen.findByText('Sub Folder');
-        //     await user.click(folderItem);
+        it('should update breadcrumbs when navigating into a folder', async () => {
+            const user = userEvent.setup();
+            renderComponent();
 
-        //     await waitFor(() => {
-        //         expect(api.getDataroomFolderContents).toHaveBeenCalledWith('folder1');
-        //     });
+            const folderItem = await screen.findByText('Sub Folder');
+            await user.click(folderItem);
 
-        //     // Verify breadcrumb is updated
-        //     const breadcrumbNav = screen.getByRole('navigation', { name: 'Breadcrumb' });
-        //     expect(within(breadcrumbNav).getByText('Test Dataroom')).toBeInTheDocument();
-        //     expect(within(breadcrumbNav).getByText('Sub Folder')).toBeInTheDocument();
-        // });
+            await waitFor(() => {
+                expect(api.getDataroomFolderContents).toHaveBeenCalledWith('folder1');
+            });
 
-        // it('should navigate back to root when breadcrumb is clicked', async () => {
-        //     const user = userEvent.setup();
-        //     renderComponent();
+            // Verify breadcrumb is updated
+            const breadcrumbNav = screen.getByRole('navigation', { name: 'Breadcrumb' });
+            expect(within(breadcrumbNav).getByText('Test Dataroom')).toBeInTheDocument();
+            expect(within(breadcrumbNav).getByText('Sub Folder')).toBeInTheDocument();
+        });
 
-        //     // Navigate into folder first
-        //     const folderItem = await screen.findByText('Sub Folder');
-        //     await user.click(folderItem);
-        //     await waitFor(() => {
-        //         expect(screen.getByText('Nested Document')).toBeInTheDocument();
-        //     });
+        it('should navigate back to root when breadcrumb is clicked', async () => {
+            const user = userEvent.setup();
+            renderComponent();
 
-        //     // Navigate back using breadcrumb
-        //     const breadcrumbNav = screen.getByRole('navigation', { name: 'Breadcrumb' });
-        //     const rootBreadcrumb = within(breadcrumbNav).getByText('Test Dataroom');
-        //     await user.click(rootBreadcrumb);
+            // Navigate into folder first
+            const folderItem = await screen.findByText('Sub Folder');
+            await user.click(folderItem);
+            await waitFor(() => {
+                expect(screen.getByText('Nested Document')).toBeInTheDocument();
+            });
 
-        //     // Verify root API was called again and content is updated
-        //     await waitFor(() => {
-        //         // Initial call + call after breadcrumb click
-        //         expect(api.getDataroom).toHaveBeenCalledTimes(2);
-        //     });
-        //     await waitFor(() => {
-        //         expect(screen.getByText('Root Document')).toBeInTheDocument();
-        //         expect(screen.queryByText('Nested Document')).not.toBeInTheDocument();
-        //     });
-        // });
+            // Navigate back using breadcrumb
+            const breadcrumbNav = screen.getByRole('navigation', { name: 'Breadcrumb' });
+            const rootBreadcrumb = within(breadcrumbNav).getByText('Test Dataroom');
+            await user.click(rootBreadcrumb);
 
-        // it('should display empty state when navigating into an empty folder', async () => {
-        //     api.getDataroomFolderContents.mockResolvedValue({ data: mockEmptySubFolderContent });
-        //     const user = userEvent.setup();
-        //     renderComponent();
+            // Verify root API was called again and content is updated
+            await waitFor(() => {
+                // Initial call + call after breadcrumb click
+                expect(api.getDataroom).toHaveBeenCalledTimes(2);
+            });
+            await waitFor(() => {
+                expect(screen.getByText('Root Document')).toBeInTheDocument();
+                expect(screen.queryByText('Nested Document')).not.toBeInTheDocument();
+            });
+        });
 
-        //     const folderItem = await screen.findByText('Sub Folder');
-        //     await user.click(folderItem);
+        it('should display empty state when navigating into an empty folder', async () => {
+            api.getDataroomFolderContents.mockResolvedValue({ data: mockEmptySubFolderContent });
+            const user = userEvent.setup();
+            renderComponent();
 
-        //     await waitFor(() => {
-        //         // This tests that the empty state is shown for a sub-folder.
-        //         expect(screen.getByText('This folder is empty')).toBeInTheDocument();
-        //     });
-        // });
+            const folderItem = await screen.findByText('Sub Folder');
+            await user.click(folderItem);
+
+            await waitFor(() => {
+                // This tests that the empty state is shown for a sub-folder.
+                expect(screen.getByText('This folder is empty')).toBeInTheDocument();
+            });
+        });
     });
 
     describe('Content Management', () => {
@@ -201,6 +241,107 @@ describe('DataroomPage', () => {
 
             // Assert refresh happened
             expect(api.getDataroom).toHaveBeenCalledTimes(2);
+        });
+
+        it('should move selected items and refresh the list', async () => {
+            api.moveDataroomContent.mockResolvedValue({});
+            const user = userEvent.setup();
+            renderComponent();
+
+            // Select item
+            const docCheckbox = await screen.findByLabelText('Select Root Document');
+            await user.click(docCheckbox);
+            
+            // Open move dialog
+            const moveButton = await screen.findByRole('button', { name: /move/i });
+            await user.click(moveButton);
+            
+            expect(await screen.findByRole('heading', { name: /move items/i })).toBeInTheDocument();
+            
+            // The dialog's confirm button is "Move"
+            const confirmMoveButton = await screen.findByRole('button', { name: 'Move Here' });
+            await user.click(confirmMoveButton);
+
+            // Assert API call
+            await waitFor(() => {
+                expect(api.moveDataroomContent).toHaveBeenCalledWith('dr123', {
+                    dataroom_document_ids: ['ddoc1'],
+                    dataroom_folder_ids: [],
+                    destination_folder_id: null, // Moving to root
+                });
+            });
+            
+            // Assert refresh happened (getDataroom is called for root content)
+            // It's called on load, when the move dialog opens, and on refresh.
+            await waitFor(() => {
+                expect(api.getDataroom).toHaveBeenCalledTimes(3);
+            });
+        });
+
+        it('should remove selected items from the dataroom and refresh', async () => {
+            api.removeContentFromDataroom.mockResolvedValue({});
+            const user = userEvent.setup();
+            renderComponent();
+
+            // Select items
+            const docCheckbox = await screen.findByLabelText('Select Root Document');
+            await user.click(docCheckbox);
+            const folderCheckbox = screen.getByLabelText('Select Sub Folder');
+            await user.click(folderCheckbox);
+            
+            // Click delete button
+            const deleteButton = screen.getByRole('button', { name: /delete/i });
+            await user.click(deleteButton);
+            
+            // Confirm deletion
+            const confirmDialog = await screen.findByRole('dialog', { name: /remove items from dataroom/i });
+            const confirmButton = within(confirmDialog).getByRole('button', { name: 'Remove' });
+            await user.click(confirmButton);
+
+            // Assert API call
+            await waitFor(() => {
+                expect(api.removeContentFromDataroom).toHaveBeenCalledWith('dr123', {
+                    dataroom_document_ids: ['ddoc1'],
+                    dataroom_folder_ids: ['folder1'],
+                });
+            });
+            
+            // Assert refresh happened
+            await waitFor(() => {
+                // Initial call + refresh call
+                expect(api.getDataroom).toHaveBeenCalledTimes(2);
+            });
+        });
+
+        it('should pass destination folder id when adding content to a subfolder', async () => {
+            api.addContentToDataroom.mockResolvedValue({});
+            const user = userEvent.setup();
+            renderComponent();
+
+            // Navigate into a folder
+            const folderItem = await screen.findByText('Sub Folder');
+            await user.click(folderItem);
+            await waitFor(() => {
+                expect(api.getDataroomFolderContents).toHaveBeenCalledWith('folder1');
+            });
+
+            // Open "Add Content" dialog
+            const addContentButton = screen.getByRole('button', { name: /add content/i });
+            await user.click(addContentButton);
+
+            // In our mocked dialog, click confirm
+            const dialog = await screen.findByTestId('mock-add-content-dialog');
+            const confirmButton = within(dialog).getByRole('button', { name: 'Confirm' });
+            await user.click(confirmButton);
+
+            // Assert API call includes destination folder id
+            await waitFor(() => {
+                expect(api.addContentToDataroom).toHaveBeenCalledWith('dr123', {
+                    document_ids: ['doc_new'],
+                    folder_ids: [],
+                    destination_folder_id: 'folder1',
+                });
+            });
         });
     });
 
@@ -274,42 +415,121 @@ describe('DataroomPage', () => {
     });
 
     describe('Links and Permissions Tab', () => {
+        const mockLinks = [
+            { id: 'link1', name: 'Test Link', slug: 'slug1', is_active: true, view_count: 5, created_at: '2023-01-01T12:00:00Z', last_viewed_at: null, recent_view_sessions: [], dataroom_settings: [] },
+        ];
+        const mockViewSessionsPage1 = {
+            count: 12,
+            next: 'http://localhost/?page=2',
+            previous: null,
+            results: Array(10).fill(0).map((_, i) => ({ id: `v${i}`, viewer_email: `test${i}@example.com`, viewed_at: '2023-01-02T12:00:00Z', duration_seconds: 60, share_link_name: 'Test Link' })),
+        };
+        const mockViewSessionsPage2 = {
+            count: 12,
+            next: null,
+            previous: 'http://localhost/?page=1',
+            results: Array(2).fill(0).map((_, i) => ({ id: `v1${i}`, viewer_email: `test1${i}@example.com`, viewed_at: '2023-01-03T12:00:00Z', duration_seconds: 30, share_link_name: 'Test Link' })),
+        };
+
+        beforeEach(() => {
+            api.getShareLinksForDataroom.mockResolvedValue({ data: mockLinks });
+            api.getDataroomViewSessions
+                .mockResolvedValueOnce({ data: mockViewSessionsPage1 })
+                .mockResolvedValueOnce({ data: mockViewSessionsPage2 });
+            api.deleteShareLink.mockResolvedValue({});
+        });
+
         it('fetches and displays links and view sessions when tab is clicked', async () => {
             const user = userEvent.setup();
-            const mockLinks = [
-                { id: 'link1', name: 'Test Link', slug: 'slug1', is_active: true, view_count: 5, created_at: '2023-01-01T12:00:00Z', last_viewed_at: null, recent_view_sessions: [] },
-            ];
-            const mockViewSessions = {
-                count: 1,
-                next: null,
-                previous: null,
-                results: [
-                    { id: 'view1', viewer_email: 'test@example.com', viewed_at: '2023-01-02T12:00:00Z', duration_seconds: 60, share_link_name: 'Test Link' },
-                ],
-            };
-            api.getShareLinksForDataroom.mockResolvedValue({ data: mockLinks });
-            api.getDataroomViewSessions.mockResolvedValue({ data: mockViewSessions });
-
             renderComponent();
 
             const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
             await user.click(linksTab);
 
-            // Verify links are displayed in the correct table
-            // Find the table with a "Settings" column, which is unique to LinksTable
             const linksTable = (await screen.findByRole('columnheader', { name: /settings/i })).closest('table');
-            expect(within(linksTable).getByText('Test Link')).toBeInTheDocument();          
+            expect(within(linksTable).getByText('Test Link')).toBeInTheDocument();
 
-            // Verify view sessions are displayed in their table
-            // Find the table with a "Visitor" column, unique to ViewSessionsTable
             const viewsTable = (await screen.findByRole('columnheader', { name: /visitor/i })).closest('table');
-            expect(within(viewsTable).getByText('test@example.com')).toBeInTheDocument();
-            // Also confirm the link name is in this table, which is the source of the ambiguity
-            expect(within(viewsTable).getByText('Test Link')).toBeInTheDocument();          
+            expect(within(viewsTable).getByText('test0@example.com')).toBeInTheDocument();
 
-            // Verify API calls
             expect(api.getShareLinksForDataroom).toHaveBeenCalledWith('dr123');
             expect(api.getDataroomViewSessions).toHaveBeenCalledWith('dr123', 1);
+        });
+
+        it('should open the link sheet when "Create Link" is clicked', async () => {
+            const user = userEvent.setup();
+            renderComponent();
+            const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
+            await user.click(linksTab);
+
+            const createLinkButton = await screen.findByRole('button', { name: /create link/i });
+            await user.click(createLinkButton);
+
+            expect(await screen.findByText('Create New Link')).toBeInTheDocument();
+        });
+
+        it('should delete a link after confirmation and refresh the list', async () => {
+            const user = userEvent.setup();
+            renderComponent();
+            const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
+            await user.click(linksTab);
+
+            const linksTable = (await screen.findByRole('columnheader', { name: /settings/i })).closest('table');
+            const row = within(linksTable).getByText('Test Link').closest('tr');
+            const actionCell = within(row).getAllByRole('cell').pop();
+            const dropdownTrigger = within(actionCell).getByRole('button');
+            await user.click(dropdownTrigger);          
+
+            const deleteOption = await screen.findByText('Delete');
+            await user.click(deleteOption);
+
+            const confirmDialog = await screen.findByRole('dialog', { name: /delete share link/i });
+            const confirmButton = within(confirmDialog).getByRole('button', { name: 'Delete' });
+            await user.click(confirmButton);
+
+            await waitFor(() => {
+                expect(api.deleteShareLink).toHaveBeenCalledWith('link1');
+                expect(api.getShareLinksForDataroom).toHaveBeenCalledTimes(2);
+            });
+        });
+
+        it('should open the manage permissions dialog', async () => {
+            const user = userEvent.setup();
+            renderComponent();
+            const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
+            await user.click(linksTab);
+
+            const linksTable = (await screen.findByRole('columnheader', { name: /settings/i })).closest('table');
+            const row = within(linksTable).getByText('Test Link').closest('tr');
+
+            const actionCell = within(row).getAllByRole('cell').pop();
+            const dropdownTrigger = within(actionCell).getByRole('button');
+            await user.click(dropdownTrigger);          
+
+            const permissionsOption = await screen.findByText('Manage Permissions');
+            await user.click(permissionsOption);
+
+            expect(await screen.findByRole('dialog', { name: /manage permissions for/i })).toBeInTheDocument();
+        });
+
+        it('should paginate through view sessions', async () => {
+            const user = userEvent.setup();
+            renderComponent();
+            const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
+            await user.click(linksTab);
+
+            expect(await screen.findByText('test0@example.com')).toBeInTheDocument();
+            expect(screen.queryByText('test10@example.com')).not.toBeInTheDocument();
+
+            const nextPageButton = screen.getByRole('button', { name: /next page/i });
+            await user.click(nextPageButton);
+
+            await waitFor(() => {
+                expect(api.getDataroomViewSessions).toHaveBeenCalledWith('dr123', 2);
+            });
+
+            expect(await screen.findByText('test10@example.com')).toBeInTheDocument();
+            expect(screen.queryByText('test0@example.com')).not.toBeInTheDocument();
         });
     });
 });
