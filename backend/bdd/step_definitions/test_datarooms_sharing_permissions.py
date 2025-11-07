@@ -114,12 +114,12 @@ def dataroom_share_link(user_context):
     return {'link': link, 'dataroom': dr}
 
 
-def _update_setting(link, item_name, setting_updates):
+def _update_setting(link, item_name, item_type, setting_updates):
     """Helper to modify a setting for an item in a dataroom link."""
-    try:
+    if item_type == 'document':
         ddoc = DataroomDocument.objects.get(dataroom=link.dataroom, document__name=item_name)
         setting = ShareLinkDataroomSetting.objects.get(share_link=link, dataroom_document=ddoc)
-    except DataroomDocument.DoesNotExist:
+    else:  # item_type == 'folder'
         dfolder = DataroomFolder.objects.get(dataroom=link.dataroom, name=item_name)
         setting = ShareLinkDataroomSetting.objects.get(share_link=link, dataroom_folder=dfolder)
 
@@ -130,12 +130,12 @@ def _update_setting(link, item_name, setting_updates):
 
 @given(parsers.parse('its settings make "{item_name}" not visible'))
 def setting_not_visible(link_context, item_name):
-    _update_setting(link_context['link'], item_name, {'is_visible': False})
+    _update_setting(link_context['link'], item_name, 'document', {'is_visible': False})
 
 
 @given(parsers.parse('its settings make "{item_name}" visible'))
 def setting_visible(link_context, item_name):
-    _update_setting(link_context['link'], item_name, {'is_visible': True})
+    _update_setting(link_context['link'], item_name, 'document', {'is_visible': True})
 
 
 @given(parsers.parse('the dataroom has a folder "{folder_name}" containing a document "{doc_name}"'))
@@ -151,27 +151,27 @@ def dataroom_has_folder_with_doc(link_context, folder_name, doc_name):
 
 @given(parsers.parse('the link\'s settings make the folder "{folder_name}" not visible'))
 def folder_setting_not_visible(link_context, folder_name):
-    _update_setting(link_context['link'], folder_name, {'is_visible': False})
+    _update_setting(link_context['link'], folder_name, 'folder', {'is_visible': False})
 
 
 @given(parsers.parse('the link\'s settings make the document "{doc_name}" visible'))
 def doc_setting_visible(link_context, doc_name):
-    _update_setting(link_context['link'], doc_name, {'is_visible': True})
+    _update_setting(link_context['link'], doc_name, 'document', {'is_visible': True})
 
 
 @given(parsers.parse('its settings make "{doc_name}" visible but not downloadable'))
 def setting_not_downloadable(link_context, doc_name):
-    _update_setting(link_context['link'], doc_name, {'is_visible': True, 'allow_download': False})
+    _update_setting(link_context['link'], doc_name, 'document', {'is_visible': True, 'allow_download': False})
 
 
 @given(parsers.parse('the link\'s settings make the folder "{folder_name}" downloadable'))
 def folder_downloadable(link_context, folder_name):
-    _update_setting(link_context['link'], folder_name, {'allow_download': True})
+    _update_setting(link_context['link'], folder_name, 'folder', {'allow_download': True})
 
 
 @given(parsers.parse('the link\'s settings make the document "{doc_name}" not downloadable'))
 def doc_not_downloadable(link_context, doc_name):
-    _update_setting(link_context['link'], doc_name, {'allow_download': False})
+    _update_setting(link_context['link'], doc_name, 'document', {'allow_download': False})
 
 
 @given(parsers.parse('the dataroom has a folder "{folder_name}"'))
@@ -210,7 +210,7 @@ def subfolder_contains_document(link_context, subfolder_name, doc_name):
 
 @given(parsers.parse('the link\'s settings make the folder "{folder_name}" not downloadable'))
 def folder_not_downloadable(link_context, folder_name):
-    _update_setting(link_context['link'], folder_name, {'allow_download': False})
+    _update_setting(link_context['link'], folder_name, 'folder', {'allow_download': False})
 
 
 @given("a dataroom share link exists that enables watermarking", target_fixture="link_context")
@@ -231,7 +231,7 @@ def dataroom_share_link_with_watermark(user_context):
 
 @given(parsers.parse('the link\'s settings make the document "{doc_name}" enable watermarking'))
 def doc_enable_watermark(link_context, doc_name):
-    _update_setting(link_context['link'], doc_name, {'enable_watermark': True})
+    _update_setting(link_context['link'], doc_name, 'document', {'enable_watermark': True})
 
 
 # When steps
