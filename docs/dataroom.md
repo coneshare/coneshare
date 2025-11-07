@@ -153,7 +153,7 @@ This section outlines the rules for handling potential conflicts and edge cases 
 
 ---
 
-## Part 5: Permission Logic and Corner Cases
+## Part 5: Folder Download Implementation Details
 
 This part implement the "Download Folder" feature for public dataroom views, including support for watermarking. The implementation will be divided into backend and frontend tasks.
 
