@@ -149,7 +149,11 @@ export function DataroomPage() {
 
   const handleAddContent = async ({ document_ids, folder_ids }) => {
     try {
-      await addContentToDataroom(dataroomId, { document_ids, folder_ids });
+      await addContentToDataroom(dataroomId, {
+        document_ids,
+        folder_ids,
+        destination_folder_id: currentFolderId,
+      });
       toast.success('Content added to dataroom successfully.');
       fetchContent(); // Refresh
     } catch (error) {

@@ -9,6 +9,21 @@ import * as api from '../../services/api';
 
 vi.mock('../../services/api');
 
+vi.mock('../../components/dialogs/AddContentDialog', () => ({
+    AddContentDialog: ({ isOpen, onOpenChange, onConfirm }) => {
+        if (!isOpen) return null;
+        return (
+            <div data-testid="mock-add-content-dialog">
+                <h1>Add Content Dialog</h1>
+                <button onClick={() => onConfirm({ document_ids: ['doc_new'], folder_ids: [] })}>
+                    Confirm
+                </button>
+                <button onClick={() => onOpenChange(false)}>Cancel</button>
+            </div>
+        );
+    },
+}));
+
 const mockedNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
     const original = await vi.importActual('react-router-dom');
@@ -295,6 +310,37 @@ describe('DataroomPage', () => {
             await waitFor(() => {
                 // Initial call + refresh call
                 expect(api.getDataroom).toHaveBeenCalledTimes(2);
+            });
+        });
+
+        it('should pass destination folder id when adding content to a subfolder', async () => {
+            api.addContentToDataroom.mockResolvedValue({});
+            const user = userEvent.setup();
+            renderComponent();
+
+            // Navigate into a folder
+            const folderItem = await screen.findByText('Sub Folder');
+            await user.click(folderItem);
+            await waitFor(() => {
+                expect(api.getDataroomFolderContents).toHaveBeenCalledWith('folder1');
+            });
+
+            // Open "Add Content" dialog
+            const addContentButton = screen.getByRole('button', { name: /add content/i });
+            await user.click(addContentButton);
+
+            // In our mocked dialog, click confirm
+            const dialog = await screen.findByTestId('mock-add-content-dialog');
+            const confirmButton = within(dialog).getByRole('button', { name: 'Confirm' });
+            await user.click(confirmButton);
+
+            // Assert API call includes destination folder id
+            await waitFor(() => {
+                expect(api.addContentToDataroom).toHaveBeenCalledWith('dr123', {
+                    document_ids: ['doc_new'],
+                    folder_ids: [],
+                    destination_folder_id: 'folder1',
+                });
             });
         });
     });
