@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
 import { ShareIcon } from 'lucide-react';
@@ -25,6 +25,8 @@ export function DataroomPage() {
   const { dataroomId } = useParams();
   const navigate = useNavigate();
   const { setBreadcrumbData } = useBreadcrumb();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'documents';
   const [dataroom, setDataroom] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddContentOpen, setIsAddContentOpen] = useState(false);
@@ -34,7 +36,6 @@ export function DataroomPage() {
   const [currentDataroomFolder, setCurrentDataroomFolder] = useState(null);
   const [folders, setFolders] = useState([]);
   const [documents, setDocuments] = useState([]);
-  const [activeTab, setActiveTab] = useState('documents');
   const [links, setLinks] = useState([]);
   const [isLinkSheetOpen, setIsLinkSheetOpen] = useState(false);
   const [editingLink, setEditingLink] = useState(null);
@@ -286,7 +287,7 @@ export function DataroomPage() {
         </div>
       </header>
 
-      <Tabs defaultValue="documents" onValueChange={setActiveTab} className="mt-4">
+      <Tabs value={activeTab} onValueChange={(tab) => setSearchParams({ tab })} className="mt-4">
         <TabsList>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="links">Links and Permissions</TabsTrigger>
