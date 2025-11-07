@@ -328,6 +328,7 @@ export function DataroomPage() {
                 onClearSelection={handleClearSelection}
                 onMove={() => setIsMoveItemsOpen(true)}
                 onDelete={handleRemoveContent}
+                deleteText="Remove"
               />
             </div>
           )}
