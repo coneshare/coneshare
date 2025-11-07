@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { DataroomPage } from '../../pages/DataroomPage';
 import { BreadcrumbProvider } from '../../components/layout/BreadcrumbProvider';
+import Header from '../../components/layout/Header';
 import * as api from '../../services/api';
 
 vi.mock('../../services/api');
@@ -61,13 +62,14 @@ describe('DataroomPage', () => {
         return render(
             <MemoryRouter initialEntries={['/datarooms/dr123']}>
                 <BreadcrumbProvider>
+                    <Header />
                     <Routes>
                         <Route path="/datarooms/:dataroomId" element={<DataroomPage />} />
                     </Routes>
                 </BreadcrumbProvider>
             </MemoryRouter>
         );
-    };
+    };  
 
     it('should fetch and display root content initially', async () => {
         renderComponent();
@@ -242,7 +244,7 @@ describe('DataroomPage', () => {
             expect(await screen.findByRole('heading', { name: /move items/i })).toBeInTheDocument();
             
             // The dialog's confirm button is "Move"
-            const confirmMoveButton = screen.getByRole('button', { name: 'Move' });
+            const confirmMoveButton = await screen.findByRole('button', { name: 'Move Here' });
             await user.click(confirmMoveButton);
 
             // Assert API call
@@ -255,9 +257,9 @@ describe('DataroomPage', () => {
             });
             
             // Assert refresh happened (getDataroom is called for root content)
-            // It's called once on load, and once on refresh.
+            // It's called on load, when the move dialog opens, and on refresh.
             await waitFor(() => {
-                expect(api.getDataroom).toHaveBeenCalledTimes(2);
+                expect(api.getDataroom).toHaveBeenCalledTimes(3);
             });
         });
     });
@@ -391,9 +393,11 @@ describe('DataroomPage', () => {
             const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
             await user.click(linksTab);
 
-            const row = (await screen.findByText('Test Link')).closest('tr');
-            const dropdownTrigger = within(row).getByRole('button'); // This is the trigger for ActionsDropdown
-            await user.click(dropdownTrigger);
+            const linksTable = (await screen.findByRole('columnheader', { name: /settings/i })).closest('table');
+            const row = within(linksTable).getByText('Test Link').closest('tr');
+            const actionCell = within(row).getAllByRole('cell').pop();
+            const dropdownTrigger = within(actionCell).getByRole('button');
+            await user.click(dropdownTrigger);          
 
             const deleteOption = await screen.findByText('Delete');
             await user.click(deleteOption);
@@ -414,9 +418,12 @@ describe('DataroomPage', () => {
             const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
             await user.click(linksTab);
 
-            const row = (await screen.findByText('Test Link')).closest('tr');
-            const dropdownTrigger = within(row).getByRole('button');
-            await user.click(dropdownTrigger);
+            const linksTable = (await screen.findByRole('columnheader', { name: /settings/i })).closest('table');
+            const row = within(linksTable).getByText('Test Link').closest('tr');
+
+            const actionCell = within(row).getAllByRole('cell').pop();
+            const dropdownTrigger = within(actionCell).getByRole('button');
+            await user.click(dropdownTrigger);          
 
             const permissionsOption = await screen.findByText('Manage Permissions');
             await user.click(permissionsOption);
@@ -433,7 +440,7 @@ describe('DataroomPage', () => {
             expect(await screen.findByText('test0@example.com')).toBeInTheDocument();
             expect(screen.queryByText('test10@example.com')).not.toBeInTheDocument();
 
-            const nextPageButton = screen.getByRole('button', { name: /go to next page/i });
+            const nextPageButton = screen.getByRole('button', { name: /next page/i });
             await user.click(nextPageButton);
 
             await waitFor(() => {

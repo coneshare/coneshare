@@ -138,6 +138,7 @@ export function DataroomPage() {
   useEffect(() => {
     if (dataroom) {
       setBreadcrumbData({
+        type: 'dataroom',
         folder: currentDataroomFolder,
         dataroomName: dataroom.name,
         onNavigate: handleBreadcrumbNavigate,

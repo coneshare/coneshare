@@ -74,7 +74,7 @@ describe('ManagePermissionsDialog', () => {
 
   it('renders the component and displays the content tree', async () => {
     renderComponent();
-    expect(api.getDataroom).toHaveBeenCalledWith('dr_abc');
+    expect(api.getDataroom).toHaveBeenCalledWith('dr_abc', { content: 'full' });
     expect(await screen.findByText('Folder A')).toBeInTheDocument();
     expect(screen.getByText('Doc 1')).toBeInTheDocument();
     expect(screen.getByText('Subfolder C')).toBeInTheDocument();
@@ -208,7 +208,7 @@ describe('ManagePermissionsDialog', () => {
   it('should display correctly when dataroom is empty', async () => {
     api.getDataroom.mockResolvedValue({ data: { folders: [], documents: [] } });
     renderComponent();
-    await waitFor(() => expect(api.getDataroom).toHaveBeenCalledWith('dr_abc'));
+    await waitFor(() => expect(api.getDataroom).toHaveBeenCalledWith('dr_abc', { content: 'full' }));
 
     // Check that no content items are rendered
     expect(screen.queryByText('Folder A')).not.toBeInTheDocument();
@@ -246,20 +246,18 @@ describe('ManagePermissionsDialog', () => {
 
     // 4. Assert payload
     await waitFor(() => {
-      expect(api.updateDataroomLinkSettings).toHaveBeenCalledWith(
-        'link_123',
-        expect.arrayContaining([
-          // Folder A itself was changed
-          expect.objectContaining({ id: 's_f1', allow_download: false }),
-          // Subfolder C was changed by bulk action
-          expect.objectContaining({ id: 's_f3', allow_download: false }),
-          // Doc 2 was changed by bulk action
-          expect.objectContaining({ id: 's_ddoc2', allow_download: false }),
-          // Doc 1 was overridden back to true
-          expect.objectContaining({ id: 's_ddoc1', allow_download: true }),
-        ])
-      );
-    });
+      const [linkId, payload] = api.updateDataroomLinkSettings.mock.calls[0];
+
+      expect(linkId).toBe('link_123');
+      // Only items with a net change should be in the payload.
+      expect(payload).toHaveLength(3);
+      expect(payload).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: 's_f1', allow_download: false }),
+        expect.objectContaining({ id: 's_f3', allow_download: false }),
+        expect.objectContaining({ id: 's_ddoc2', allow_download: false }),
+      ]));
+    });    
+
   });
 
   it('should refetch data and reset state when reopened', async () => {
