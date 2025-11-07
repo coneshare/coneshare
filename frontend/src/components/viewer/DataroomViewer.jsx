@@ -201,7 +201,7 @@ export function DataroomViewer({ data, slug }) {
       </main>
 
       <Dialog open={!!previewingDoc} onOpenChange={isOpen => !isOpen && setPreviewingDoc(null)}>
-        <DialogContent className="h-[90vh] max-w-[90vw] p-0">
+        <DialogContent className="h-[90vh] max-w-[90vw] overflow-y-auto p-0">
           {previewingDoc && (
             <DataroomDocumentPreview
               slug={slug}
