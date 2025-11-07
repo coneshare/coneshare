@@ -42,12 +42,13 @@ class DataroomDocumentSerializer(serializers.ModelSerializer):
     file_size = serializers.IntegerField(source='document.file_size', read_only=True)
     updated_at = serializers.DateTimeField(source='document.updated_at', read_only=True)
     created_by = serializers.PrimaryKeyRelatedField(source='document.created_by', read_only=True)
+    folder = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = DataroomDocument
         fields = [
             'id', 'document_id', 'document_name', 'document_type', 'created_at',
-            'file_size', 'updated_at', 'created_by'
+            'file_size', 'updated_at', 'created_by', 'folder'
         ]
 
 
@@ -61,12 +62,22 @@ class DataroomDetailSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_folders(self, obj):
-        # Only list folders at the root of the dataroom
+        request = self.context.get('request')
+        if request and request.query_params.get('content') == 'full':
+            # Return all folders for permission management
+            all_folders = obj.folders.all()
+            return DataroomFolderSerializer(all_folders, many=True, context=self.context).data
+        # Return only root-level folders for browsing
         root_folders = obj.folders.filter(parent__isnull=True)
         return DataroomFolderSerializer(root_folders, many=True, context=self.context).data
 
     def get_documents(self, obj):
-        # Only list documents at the root of the dataroom
+        request = self.context.get('request')
+        if request and request.query_params.get('content') == 'full':
+            # Return all documents for permission management
+            all_documents = obj.documents.all().select_related('document', 'document__created_by')
+            return DataroomDocumentSerializer(all_documents, many=True, context=self.context).data
+        # Return only root-level documents for browsing
         root_documents = obj.documents.filter(folder__isnull=True).select_related('document', 'document__created_by')
         return DataroomDocumentSerializer(root_documents, many=True, context=self.context).data
 

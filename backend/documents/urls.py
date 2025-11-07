@@ -22,6 +22,7 @@ urlpatterns = [
     path('page-views/record/', views.RecordPageView.as_view(), name='record-page-view'),
     path('links/<slug:slug>/render-page/<int:page_number>/', views.WatermarkedPageRenderView.as_view(), name='watermarked-page-render'),
     path('links/<slug:slug>/download/', views.WatermarkedFileDownloadView.as_view(), name='watermarked-file-download'),
+    path('links/<slug:slug>/download-folder/<str:folder_id>/', views.DataroomFolderDownloadView.as_view(), name='dataroom-folder-download'),
     path('actions/move/', views.MoveItemsView.as_view(), name='move-items'),
 
     path('', include(router.urls)),
