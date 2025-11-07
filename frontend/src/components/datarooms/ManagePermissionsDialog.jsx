@@ -13,6 +13,12 @@ import { Button } from '../ui/Button';
 import { Checkbox } from '../ui/Checkbox';
 import { Label } from '../ui/Label';
 import { FolderIcon, FileIcon, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../ui/Tooltip';
 
 // --- Tree Building Utility ---
 const buildTree = (folders, documents) => {
@@ -74,7 +80,17 @@ function PermissionRow({ item, level, settings, onSettingChange, onBulkSettingCh
             <>
               <Checkbox checked={setting.is_visible} onCheckedChange={(checked) => handleBulkChange('is_visible', checked)} />
               <Checkbox checked={setting.allow_download} onCheckedChange={(checked) => handleBulkChange('allow_download', checked)} />
-              <Checkbox checked={setting.enable_watermark} onCheckedChange={(checked) => handleBulkChange('enable_watermark', checked)} disabled />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  {/* Disabled elements need a wrapper for the tooltip to trigger */}
+                  <span tabIndex="0">
+                    <Checkbox checked={setting.enable_watermark} onCheckedChange={(checked) => handleBulkChange('enable_watermark', checked)} disabled />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Watermark settings are applied to individual documents, not folders.</p>
+                </TooltipContent>
+              </Tooltip>
             </>
           ) : (
             <>
@@ -203,8 +219,9 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Manage Permissions for "{link?.name || 'Untitled Link'}"</DialogTitle>
+        <TooltipProvider>
+          <DialogHeader>
+            <DialogTitle>Manage Permissions for "{link?.name || 'Untitled Link'}"</DialogTitle>
           <DialogDescription>
             Set visibility, download, and watermark permissions for each item. Changes apply only to
             this link.
@@ -252,6 +269,7 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSave} disabled={isLoading}>Save Changes</Button>
         </DialogFooter>
+        </TooltipProvider>
       </DialogContent>
     </Dialog>
   );
