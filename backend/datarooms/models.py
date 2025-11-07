@@ -42,7 +42,7 @@ class ShareLinkDataroomSetting(BaseModel):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                check=(
+                condition=(
                     Q(dataroom_document__isnull=False, dataroom_folder__isnull=True) |
                     Q(dataroom_document__isnull=True, dataroom_folder__isnull=False)
                 ),

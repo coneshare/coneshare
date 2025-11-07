@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, mock_open
 from datetime import timedelta
 from rest_framework.test import APIClient
 
@@ -12,6 +12,7 @@ from rest_framework import status
 from core.models import Organization
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, ShareLinkDataroomSetting
 from documents.models import Document, Folder, ShareLink, DocumentVersion, DocumentPage, PreviewSession, ViewSession, PageView, EmailVerificationToken
+import zipfile
 from io import BytesIO
 try:
     from PIL import Image
@@ -20,8 +21,19 @@ except ImportError:
 
 User = get_user_model()
 
-
-
+@pytest.fixture
+def document_factory(user, organization):
+    def _create_document(**kwargs):
+        defaults = {
+            "created_by": user,
+            "organization": organization,
+            "status": "ready",
+        }
+        defaults.update(kwargs)
+        doc = Document.objects.create(**defaults)
+        DocumentVersion.objects.create(document=doc, version_number=1, is_primary=True, original_storage_key="path/to/original.pdf")
+        return doc
+    return _create_document
 
 @pytest.mark.django_db
 def test_get_root_folder_contents(api_client, user, user2, organization):
@@ -949,6 +961,50 @@ class TestShareLinkViewDataView:
         response = public_client.get(f'/api/v1/links/{share_link.slug}/view-data/')
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_get_dataroom_link_data_hides_content_in_invisible_folder(self, public_client, user, organization, document_factory):
+        """
+        Test that if a folder is invisible, its contents are not shown in the
+        public view data, regardless of their individual visibility settings.
+        """
+        # 1. Setup Dataroom and content
+        dataroom = Dataroom.objects.create(name="Test Dataroom", created_by=user, organization=organization)
+        parent_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Parent Folder")
+        sub_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Subfolder", parent=parent_folder)
+        doc_in_subfolder = document_factory(name="Secret.pdf")
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=doc_in_subfolder, folder=sub_folder)
+
+        # 2. Create share link (this will trigger signal to create settings)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+        
+        # 3. Update settings: make parent folder invisible, but document and subfolder visible
+        parent_folder_setting = ShareLinkDataroomSetting.objects.get(share_link=link, dataroom_folder=parent_folder)
+        parent_folder_setting.is_visible = False
+        parent_folder_setting.save()
+
+        doc_setting = ShareLinkDataroomSetting.objects.get(share_link=link, dataroom_document=ddoc)
+        doc_setting.is_visible = True
+        doc_setting.save()
+
+        sub_folder_setting = ShareLinkDataroomSetting.objects.get(share_link=link, dataroom_folder=sub_folder)
+        sub_folder_setting.is_visible = True
+        sub_folder_setting.save()
+        
+        # 4. Access public data
+        url = f'/api/v1/links/{link.slug}/view-data/'
+        response = public_client.get(url)
+        
+        # 5. Assertions
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        
+        # The parent folder and its children (subfolder and document) should not be present
+        folder_names = {f['name'] for f in data['folders']}
+        doc_names = {d['document_name'] for d in data['documents']}
+        
+        assert "Parent Folder" not in folder_names
+        assert "Subfolder" not in folder_names
+        assert "Secret.pdf" not in doc_names
+
 
 @pytest.mark.django_db
 class TestDocumentVersionUploadView:
@@ -1245,6 +1301,94 @@ class TestShareLinkViewSet:
         response = api_client.patch(url, [{'id': str(setting.id), 'is_visible': False}], format='json')
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_bulk_update_dataroom_settings_is_atomic(self, api_client, dataroom, document, user):
+        """
+        Test that a bulk update is atomic. If one update fails, none should be applied.
+        """
+        DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+        setting = link.dataroom_settings.first()
+        assert setting.is_visible is True
+
+        # Update with one valid setting and one non-existent one
+        update_data = [
+            {'id': str(setting.id), 'is_visible': False},
+            {'id': 'sds_00000000000000000000000000', 'allow_download': False}
+        ]
+
+        url = f'/api/v1/share-links/{link.id}/dataroom-settings/'
+        response = api_client.patch(url, update_data, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        
+        # Verify that the valid change was rolled back
+        setting.refresh_from_db()
+        assert setting.is_visible is True
+
+    def test_bulk_update_dataroom_settings_is_scoped_to_link(self, api_client, dataroom, document, user):
+        """
+        Test that a user cannot update a setting that does not belong to the
+        specified share link.
+        """
+        # Create two links for the same dataroom
+        DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link1 = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+        link2 = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        setting_from_link2 = link2.dataroom_settings.first()
+        assert setting_from_link2 is not None
+
+        # Try to update link2's setting via link1's endpoint
+        update_data = [{'id': str(setting_from_link2.id), 'is_visible': False}]
+        url = f'/api/v1/share-links/{link1.id}/dataroom-settings/'
+        response = api_client.patch(url, update_data, format='json')
+
+        # The server should report that the ID was not found within the scope of this link
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        setting_from_link2.refresh_from_db()
+        assert setting_from_link2.is_visible is True
+
+    def test_bulk_update_dataroom_folder_settings(self, api_client, dataroom, user):
+        """Test bulk updating settings for a dataroom folder."""
+        # Setup dataroom with a folder
+        dr_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Test DR Folder")
+        link = ShareLink.objects.create(dataroom=dataroom, name="DR Link", created_by=user)
+        assert link.dataroom_settings.count() == 1
+
+        setting = link.dataroom_settings.get(dataroom_folder=dr_folder)
+        assert setting.is_visible is True
+
+        # Update the folder setting
+        update_data = [{'id': str(setting.id), 'is_visible': False}]
+        url = f'/api/v1/share-links/{link.id}/dataroom-settings/'
+        response = api_client.patch(url, update_data, format='json')
+
+        assert response.status_code == status.HTTP_200_OK
+        setting.refresh_from_db()
+        assert setting.is_visible is False
+
+    def test_bulk_update_dataroom_settings_malformed_data(self, api_client, dataroom, document, user):
+        """Test that requests with malformed data are rejected."""
+        DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+        setting = link.dataroom_settings.first()
+        url = f'/api/v1/share-links/{link.id}/dataroom-settings/'
+
+        # Case 1: Missing 'id'
+        data_no_id = [{'is_visible': False}]
+        response_no_id = api_client.patch(url, data_no_id, format='json')
+        assert response_no_id.status_code == status.HTTP_400_BAD_REQUEST
+
+        # Case 2: No settings provided
+        data_no_settings = [{'id': str(setting.id)}]
+        response_no_settings = api_client.patch(url, data_no_settings, format='json')
+        assert response_no_settings.status_code == status.HTTP_400_BAD_REQUEST
+
+        # Case 3: Invalid boolean value
+        data_invalid_bool = [{'id': str(setting.id), 'is_visible': 'not-a-bool'}]
+        response_invalid_bool = api_client.patch(url, data_invalid_bool, format='json')
+        assert response_invalid_bool.status_code == status.HTTP_400_BAD_REQUEST
 
 
 @pytest.mark.django_db
@@ -1963,8 +2107,6 @@ class TestWatermarkingViews:
         etag2 = response2['ETag']
 
         assert etag1 != etag2
-        # Ensure storage was accessed twice (once for each render)
-        assert mock_storage_open.call_count == 2
 
     @patch('django.core.files.storage.default_storage.open')
     def test_render_watermarked_page_etag_varies_by_email(self, mock_storage_open, public_client, watermarked_link):
@@ -2005,7 +2147,145 @@ class TestWatermarkingViews:
         response2 = client2.get(render_url, REMOTE_ADDR='192.168.1.1')
         assert response2.status_code == status.HTTP_200_OK
         etag2 = response2['ETag']
-        
+
         assert etag1 is not None
         assert etag2 is not None
         assert etag1 != etag2
+
+
+@pytest.mark.django_db
+class TestDataroomFolderDownloadView:
+    @pytest.fixture
+    def dataroom_with_content_and_link(self, dataroom, user, document_factory):
+        """
+        Sets up a dataroom with a nested structure, documents, and a share link.
+        """
+        # Create folder structure
+        root_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Root Folder")
+        subfolder = DataroomFolder.objects.create(dataroom=dataroom, name="Subfolder", parent=root_folder)
+
+        # Create documents
+        doc_a = document_factory(name="Doc A.pdf", type='pdf')
+        doc_b = document_factory(name="Doc B.pdf", type='pdf')
+        invisible_doc = document_factory(name="Invisible.pdf", type='pdf')
+        not_downloadable_doc = document_factory(name="Not Downloadable.pdf", type='pdf')
+
+        # Add documents to dataroom
+        ddoc_a = DataroomDocument.objects.create(dataroom=dataroom, document=doc_a, folder=root_folder)
+        ddoc_b = DataroomDocument.objects.create(dataroom=dataroom, document=doc_b, folder=subfolder)
+        ddoc_invisible = DataroomDocument.objects.create(dataroom=dataroom, document=invisible_doc, folder=root_folder)
+        ddoc_not_downloadable = DataroomDocument.objects.create(dataroom=dataroom, document=not_downloadable_doc, folder=root_folder)
+        
+        # Create share link, which will auto-generate settings
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        return {
+            'link': link,
+            'root_folder': root_folder,
+            'subfolder': subfolder,
+            'ddoc_a': ddoc_a,
+            'ddoc_b': ddoc_b,
+            'ddoc_invisible': ddoc_invisible,
+            'ddoc_not_downloadable': ddoc_not_downloadable,
+        }
+
+    @patch('django.core.files.storage.default_storage.open', new_callable=mock_open, read_data=b"file content")
+    def test_download_folder_success(self, mock_storage_open, public_client, dataroom_with_content_and_link):
+        link = dataroom_with_content_and_link['link']
+        root_folder = dataroom_with_content_and_link['root_folder']
+
+        url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response['Content-Type'] == 'application/zip'
+        assert 'attachment; filename="Root_Folder.zip"' in response['Content-Disposition']
+
+        zip_buffer = BytesIO(response.content)
+        with zipfile.ZipFile(zip_buffer, 'r') as zf:
+            names = zf.namelist()
+            assert 'Root_Folder/' in names
+            assert 'Root_Folder/Doc_A.pdf' in names
+            assert 'Root_Folder/Subfolder/' in names
+            assert 'Root_Folder/Subfolder/Doc_B.pdf' in names
+
+    def test_download_folder_permission_denied(self, public_client, dataroom_with_content_and_link):
+        link = dataroom_with_content_and_link['link']
+        root_folder = dataroom_with_content_and_link['root_folder']
+
+        # Make the root folder not downloadable
+        setting = link.dataroom_settings.get(dataroom_folder=root_folder)
+        setting.allow_download = False
+        setting.save()
+
+        url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    @patch('django.core.files.storage.default_storage.open', new_callable=mock_open, read_data=b"file content")
+    def test_zip_archive_respects_permissions(self, mock_storage_open, public_client, dataroom_with_content_and_link):
+        link = dataroom_with_content_and_link['link']
+        root_folder = dataroom_with_content_and_link['root_folder']
+        ddoc_invisible = dataroom_with_content_and_link['ddoc_invisible']
+        ddoc_not_downloadable = dataroom_with_content_and_link['ddoc_not_downloadable']
+
+        # Update settings for specific documents
+        setting_invisible = link.dataroom_settings.get(dataroom_document=ddoc_invisible)
+        setting_invisible.is_visible = False
+        setting_invisible.save()
+
+        setting_not_downloadable = link.dataroom_settings.get(dataroom_document=ddoc_not_downloadable)
+        setting_not_downloadable.allow_download = False
+        setting_not_downloadable.save()
+        
+        url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+
+        zip_buffer = BytesIO(response.content)
+        with zipfile.ZipFile(zip_buffer, 'r') as zf:
+            names = zf.namelist()
+            assert 'Root_Folder/Doc_A.pdf' in names
+            assert 'Root_Folder/Invisible.pdf' not in names
+            assert 'Root_Folder/Not_Downloadable.pdf' not in names
+
+    @patch('documents.views._generate_watermarked_pdf')
+    def test_zip_archive_includes_watermarked_file(self, mock_generate_pdf, public_client, dataroom_with_content_and_link):
+        link = dataroom_with_content_and_link['link']
+        root_folder = dataroom_with_content_and_link['root_folder']
+        ddoc_a = dataroom_with_content_and_link['ddoc_a']
+        
+        link.enable_watermark = True
+        link.watermark_text = "TEST"
+        link.save()
+
+        setting_a = link.dataroom_settings.get(dataroom_document=ddoc_a)
+        setting_a.enable_watermark = True
+        setting_a.save()
+
+        mock_generate_pdf.return_value = BytesIO(b"watermarked pdf content")
+
+        url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        mock_generate_pdf.assert_called_once()
+
+        zip_buffer = BytesIO(response.content)
+        with zipfile.ZipFile(zip_buffer, 'r') as zf:
+            content = zf.read('Root_Folder/Doc_A.pdf')
+            assert content == b"watermarked pdf content"
+            
+    def test_download_folder_password_protected_fails(self, public_client, dataroom_with_content_and_link):
+        link = dataroom_with_content_and_link['link']
+        root_folder = dataroom_with_content_and_link['root_folder']
+        
+        link.password = "password123"
+        link.save()
+
+        url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED

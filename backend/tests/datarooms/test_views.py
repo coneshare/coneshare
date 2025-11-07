@@ -258,6 +258,48 @@ class TestDataroomViewSet:
         assert len(data['results']) == 1
         assert data['results'][0]['viewer_email'] == 'viewer1@test.com'
 
+    def test_updating_link_to_disallow_downloads_does_not_cascade(self, dataroom, document, user):
+        """
+        Test that updating a parent share link's `allow_download` setting
+        does not cascade to existing item settings.
+        """
+        # 1. Create a dataroom document and a share link.
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user, allow_download=True)
+
+        # 2. Verify the initial setting is correct.
+        setting = link.dataroom_settings.get(dataroom_document=ddoc)
+        assert setting.allow_download is True
+
+        # 3. Update the parent link.
+        link.allow_download = False
+        link.save()
+
+        # 4. Verify the item setting has not changed.
+        setting.refresh_from_db()
+        assert setting.allow_download is True
+
+    def test_updating_link_to_disable_watermarking_does_not_cascade(self, dataroom, document, user):
+        """
+        Test that updating a parent share link's `enable_watermark` setting
+        does not cascade to existing item settings.
+        """
+        # 1. Create a dataroom document and a share link with watermarking enabled.
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user, enable_watermark=True)
+
+        # 2. Verify the initial setting is correct.
+        setting = link.dataroom_settings.get(dataroom_document=ddoc)
+        assert setting.enable_watermark is True
+
+        # 3. Update the parent link.
+        link.enable_watermark = False
+        link.save()
+
+        # 4. Verify the item setting has not changed.
+        setting.refresh_from_db()
+        assert setting.enable_watermark is True
+
 
 class TestDataroomFolderViewSet:
     def test_create_dataroom_folder(self, api_client, dataroom):

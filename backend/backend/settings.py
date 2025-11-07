@@ -279,7 +279,7 @@ def load_local_settings(module):
     """Import any symbols that begin with A-Z. Append to lists any symbols that begin with "EXTRA_".
     """
     for attr in dir(module):
-        match = re.search('^EXTRA_(\w+)', attr)
+        match = re.search(r'^EXTRA_(\w+)', attr)
         if match:
             name = match.group(1)
             value = getattr(module, attr)

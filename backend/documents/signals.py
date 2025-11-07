@@ -18,41 +18,6 @@ def create_root_folder_for_new_organization(sender, instance, created, **kwargs)
         )
 
 
-@receiver(post_save, sender='documents.ShareLink')
-def create_dataroom_settings_for_new_share_link(sender, instance, created, **kwargs):
-    """
-    When a new ShareLink for a Dataroom is created, automatically generate
-    ShareLinkDataroomSetting records for all items in that Dataroom.
-    """
-    if created and instance.dataroom:
-        from datarooms.models import DataroomDocument, DataroomFolder, ShareLinkDataroomSetting
-
-        dataroom = instance.dataroom
-        dataroom_docs = DataroomDocument.objects.filter(dataroom=dataroom)
-        dataroom_folders = DataroomFolder.objects.filter(dataroom=dataroom)
-
-        with transaction.atomic():
-            doc_settings = [
-                ShareLinkDataroomSetting(
-                    share_link=instance,
-                    dataroom_document=doc,
-                    allow_download=instance.allow_download,
-                    enable_watermark=instance.enable_watermark
-                ) for doc in dataroom_docs
-            ]
-            ShareLinkDataroomSetting.objects.bulk_create(doc_settings)
-
-            folder_settings = [
-                ShareLinkDataroomSetting(
-                    share_link=instance,
-                    dataroom_folder=folder,
-                    allow_download=instance.allow_download,
-                    enable_watermark=instance.enable_watermark
-                ) for folder in dataroom_folders
-            ]
-            ShareLinkDataroomSetting.objects.bulk_create(folder_settings)
-
-
 @receiver(post_migrate)
 def setup_initial_data(sender, **kwargs):
     """
