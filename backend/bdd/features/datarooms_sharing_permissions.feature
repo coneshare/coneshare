@@ -99,11 +99,13 @@ Feature: Dataroom Share Link Permissions
     And the file "Watermarked_Content/Report.pdf" inside the ZIP should be a watermarked PDF
 
   Scenario: Updating a link to disallow downloads does not cascade to existing item settings
-    Given a dataroom share link exists
+    Given I am an authenticated user
+    And a dataroom share link exists
     When I update the link to set "allow_download" to false
     Then the share link settings for "Financials.pdf" should have "allow_download" as true
 
   Scenario: Updating a link to disable watermarking does not cascade to existing item settings
-    Given a dataroom share link exists that enables watermarking
+    Given I am an authenticated user
+    And a dataroom share link exists that enables watermarking
     When I update the link to set "enable_watermark" to false
     Then the share link settings for "Financials.pdf" should have "enable_watermark" as true

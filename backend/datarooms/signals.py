@@ -14,27 +14,30 @@ def create_settings_for_new_dataroom_share_link(sender, instance, created, **kwa
     if created and instance.dataroom:
         dataroom = instance.dataroom
 
-        # This approach can be slow for datarooms with many items.
-        # A bulk_create would be more performant.
-        for ddoc in dataroom.documents.all():
-            ShareLinkDataroomSetting.objects.get_or_create(
+        doc_settings = [
+            ShareLinkDataroomSetting(
                 share_link=instance,
                 dataroom_document=ddoc,
-                defaults={
-                    'allow_download': instance.allow_download,
-                    'enable_watermark': instance.enable_watermark,
-                }
+                allow_download=instance.allow_download,
+                enable_watermark=instance.enable_watermark
             )
+            for ddoc in dataroom.documents.all()
+        ]
 
-        for dfolder in dataroom.folders.all():
-            ShareLinkDataroomSetting.objects.get_or_create(
+        folder_settings = [
+            ShareLinkDataroomSetting(
                 share_link=instance,
                 dataroom_folder=dfolder,
-                defaults={
-                    'allow_download': instance.allow_download,
-                    'enable_watermark': instance.enable_watermark,
-                }
+                allow_download=instance.allow_download,
+                enable_watermark=instance.enable_watermark
             )
+            for dfolder in dataroom.folders.all()
+        ]
+
+        ShareLinkDataroomSetting.objects.bulk_create(
+            doc_settings + folder_settings,
+            ignore_conflicts=True
+        )
 
 
 @receiver(post_save, sender=DataroomDocument)
