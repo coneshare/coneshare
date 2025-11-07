@@ -122,7 +122,7 @@ describe('ManagePermissionsDialog', () => {
     expect(mockOnSuccess).toHaveBeenCalled();
   });
 
-  it('applies bulk settings to a folder and its direct children', async () => {
+  it('applies bulk settings to a folder and all its descendants', async () => {
     const user = userEvent.setup();
     renderComponent();
     await screen.findByText('Folder A');
@@ -130,9 +130,14 @@ describe('ManagePermissionsDialog', () => {
     const folderACheckboxes = getCheckboxesForRow('Folder A');
     await user.click(folderACheckboxes[0]); // Bulk uncheck "Visible"
 
-    // Check that direct child document is affected
-    const doc1Checkboxes = getCheckboxesForRow('Doc 1');
+    // Check that direct and nested children are affected
+    const doc1Checkboxes = getCheckboxesForRow('Doc 1'); // direct child doc
+    const subfolderCCheckboxes = getCheckboxesForRow('Subfolder C'); // direct child folder
+    const doc2Checkboxes = getCheckboxesForRow('Doc 2'); // nested child doc
+    
     expect(doc1Checkboxes[0]).not.toBeChecked();
+    expect(subfolderCCheckboxes[0]).not.toBeChecked();
+    expect(doc2Checkboxes[0]).not.toBeChecked();
 
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
@@ -140,8 +145,10 @@ describe('ManagePermissionsDialog', () => {
       expect(api.updateDataroomLinkSettings).toHaveBeenCalledWith(
         'link_123',
         expect.arrayContaining([
-          expect.objectContaining({ id: 's_f1', is_visible: false }),
-          expect.objectContaining({ id: 's_ddoc1', is_visible: false }),
+          expect.objectContaining({ id: 's_f1', is_visible: false }), // Folder A
+          expect.objectContaining({ id: 's_ddoc1', is_visible: false }), // Doc 1
+          expect.objectContaining({ id: 's_f3', is_visible: false }), // Subfolder C
+          expect.objectContaining({ id: 's_ddoc2', is_visible: false }), // Doc 2
         ])
       );
     });

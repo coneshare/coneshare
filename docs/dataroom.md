@@ -143,7 +143,7 @@ This section outlines the rules for handling potential conflicts and edge cases 
 ### 2. Other Identified Corner Cases
 
 -   **Recursive Settings Application:** When a user changes a setting on a folder (e.g., makes it invisible), should that change cascade to all items within that folder?
-    -   **Plan:** The settings update API should support an optional `recursive=true` parameter to apply the setting change to the folder and all its descendants. By default, it should be non-recursive.
+    -   **Plan:** The settings update is applied recursively by default. When a user changes a setting on a folder from the UI, the change cascades to the folder and all of its descendants. The frontend calculates the full list of affected items and sends their IDs to the backend API, which processes them in a single transaction.
 
 -   **Empty Visible Folders:** If a folder is `is_visible=True` but all of its immediate children are `is_visible=False`, the folder should still appear in the dataroom hierarchy, but will be displayed as empty to the viewer. This is correct and expected behavior.
 
