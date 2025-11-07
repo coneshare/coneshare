@@ -67,6 +67,18 @@ def test_zip_with_watermark():
     pass
 
 
+@pytest.mark.django_db
+@scenario('../features/datarooms_sharing_permissions.feature', 'Updating a link to disallow downloads does not cascade to existing item settings')
+def test_update_link_download_does_not_cascade():
+    pass
+
+
+@pytest.mark.django_db
+@scenario('../features/datarooms_sharing_permissions.feature', 'Updating a link to disable watermarking does not cascade to existing item settings')
+def test_update_link_watermark_does_not_cascade():
+    pass
+
+
 # Fixtures and Given steps
 @given(parsers.parse('I have a dataroom named "{dataroom_name}"'), target_fixture="dataroom_context")
 def dataroom(user_context, dataroom_name):
@@ -270,6 +282,14 @@ def update_setting_not_downloadable(dataroom_context, doc_name):
     api_client = dataroom_context['user_context']['api_client']
     link = dataroom_context['link']
     _update_link_setting_via_api(api_client, link, doc_name, {'allow_download': False})
+
+
+@when(parsers.parse('I update the link to set "{setting_key}" to {setting_value_str}'))
+def update_link_setting(link_context, setting_key, setting_value_str):
+    setting_value = setting_value_str.lower() == 'true'
+    link = link_context['link']
+    setattr(link, setting_key, setting_value)
+    link.save()
 
 
 @when("a viewer accesses the public data for the dataroom share link", target_fixture="public_response_context")
