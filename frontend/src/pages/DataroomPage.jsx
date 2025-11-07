@@ -4,7 +4,7 @@ import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
 import { ShareIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions } from '../services/api';
+import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, removeContentFromDataroom } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
@@ -46,6 +46,7 @@ export function DataroomPage() {
   const [viewsData, setViewsData] = useState(null);
   const [viewsLoading, setViewsLoading] = useState(true);
   const [viewsCurrentPage, setViewsCurrentPage] = useState(1);
+  const [isRemoveContentDialogOpen, setIsRemoveContentDialogOpen] = useState(false);
     
   const fetchContent = useCallback(async () => {
     setIsLoading(true);
@@ -239,8 +240,29 @@ export function DataroomPage() {
       });
       toast.success("Items moved successfully.");
       fetchContent();
+      handleClearSelection();
     } finally {
       setIsMoveItemsOpen(false);
+    }
+  };
+
+  const handleRemoveContent = () => {
+    setIsRemoveContentDialogOpen(true);
+  };
+
+  const handleConfirmRemoveContent = async () => {
+    try {
+      await removeContentFromDataroom(dataroomId, {
+        dataroom_document_ids: selection.documents,
+        dataroom_folder_ids: selection.folders,
+      });
+      toast.success('Items removed from dataroom successfully.');
+      fetchContent(); // Refresh
+      handleClearSelection();
+    } catch (error) {
+      // Error toast handled by interceptor
+    } finally {
+      setIsRemoveContentDialogOpen(false);
     }
   };
 
@@ -301,8 +323,7 @@ export function DataroomPage() {
                 selectedFoldersCount={selection.folders.length}
                 onClearSelection={handleClearSelection}
                 onMove={() => setIsMoveItemsOpen(true)}
-                // Delete is a future feature for datarooms
-                onDelete={null}
+                onDelete={handleRemoveContent}
               />
             </div>
           )}
@@ -395,6 +416,14 @@ export function DataroomPage() {
         onConfirm={handleMoveItems}
         dataroomId={dataroomId}
         selectedFolderIds={selection.folders}
+      />
+      <ConfirmationDialog
+        isOpen={isRemoveContentDialogOpen}
+        onOpenChange={setIsRemoveContentDialogOpen}
+        onConfirm={handleConfirmRemoveContent}
+        title="Remove Items from Dataroom"
+        description={`Are you sure you want to remove the selected items from this dataroom? This will not delete the original files from your document library.`}
+        confirmText="Remove"
       />
     </div>
   );

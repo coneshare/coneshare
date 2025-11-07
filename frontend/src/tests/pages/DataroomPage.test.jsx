@@ -262,6 +262,41 @@ describe('DataroomPage', () => {
                 expect(api.getDataroom).toHaveBeenCalledTimes(3);
             });
         });
+
+        it('should remove selected items from the dataroom and refresh', async () => {
+            api.removeContentFromDataroom.mockResolvedValue({});
+            const user = userEvent.setup();
+            renderComponent();
+
+            // Select items
+            const docCheckbox = await screen.findByLabelText('Select Root Document');
+            await user.click(docCheckbox);
+            const folderCheckbox = screen.getByLabelText('Select Sub Folder');
+            await user.click(folderCheckbox);
+            
+            // Click delete button
+            const deleteButton = screen.getByRole('button', { name: /delete/i });
+            await user.click(deleteButton);
+            
+            // Confirm deletion
+            const confirmDialog = await screen.findByRole('dialog', { name: /remove items from dataroom/i });
+            const confirmButton = within(confirmDialog).getByRole('button', { name: 'Remove' });
+            await user.click(confirmButton);
+
+            // Assert API call
+            await waitFor(() => {
+                expect(api.removeContentFromDataroom).toHaveBeenCalledWith('dr123', {
+                    dataroom_document_ids: ['ddoc1'],
+                    dataroom_folder_ids: ['folder1'],
+                });
+            });
+            
+            // Assert refresh happened
+            await waitFor(() => {
+                // Initial call + refresh call
+                expect(api.getDataroom).toHaveBeenCalledTimes(2);
+            });
+        });
     });
 
     describe('Selection and Sorting', () => {
