@@ -1018,6 +1018,8 @@ class ShareLinkViewDataView(APIView):
             
             # Recursively find all children of invisible folders.
             # This loop continues until no new descendants of invisible folders are found.
+            # TODO: this iterative approach can be less efficient than a database-native
+            # recursive Common Table Expression (CTE).
             while True:
                 newly_found_ids = {
                     f['id'] for f in all_dataroom_folders

@@ -43,9 +43,9 @@ describe('ManagePermissionsDialog', () => {
     dataroom_settings: [
       { id: 's_f1', dataroom_folder: 'f1', is_visible: true, allow_download: true, enable_watermark: false },
       { id: 's_f2', dataroom_folder: 'f2', is_visible: true, allow_download: false, enable_watermark: false },
-      { id: 's_f3', dataroom_folder: 'f3', is_visible: false, allow_download: true, enable_watermark: false },
+      { id: 's_f3', dataroom_folder: 'f3', is_visible: true, allow_download: true, enable_watermark: false },
       { id: 's_ddoc1', dataroom_document: 'ddoc1', is_visible: true, allow_download: true, enable_watermark: false },
-      { id: 's_ddoc2', dataroom_document: 'ddoc2', is_visible: false, allow_download: true, enable_watermark: false },
+      { id: 's_ddoc2', dataroom_document: 'ddoc2', is_visible: true, allow_download: true, enable_watermark: false },
       { id: 's_ddoc3', dataroom_document: 'ddoc3', is_visible: true, allow_download: true, enable_watermark: true },
     ],
   };
