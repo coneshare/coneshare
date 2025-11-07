@@ -1,7 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { getDataroom, updateDataroomLinkSettings } from '../../services/api';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/Dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { Checkbox } from '../ui/Checkbox';
 import { Label } from '../ui/Label';
@@ -198,6 +205,10 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Manage Permissions for "{link?.name || 'Untitled Link'}"</DialogTitle>
+          <DialogDescription>
+            Set visibility, download, and watermark permissions for each item. Changes apply only to
+            this link.
+          </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-2">
           <div className="flex items-center justify-between px-2 text-sm font-medium text-muted-foreground">
