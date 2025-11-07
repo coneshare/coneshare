@@ -62,24 +62,24 @@ class DataroomDetailSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_folders(self, obj):
-        # Return only root-level folders
+        request = self.context.get('request')
+        if request and request.query_params.get('content') == 'full':
+            # Return all folders for permission management
+            all_folders = obj.folders.all()
+            return DataroomFolderSerializer(all_folders, many=True, context=self.context).data
+        # Return only root-level folders for browsing
         root_folders = obj.folders.filter(parent__isnull=True)
         return DataroomFolderSerializer(root_folders, many=True, context=self.context).data
 
     def get_documents(self, obj):
-        # Return only root-level documents
+        request = self.context.get('request')
+        if request and request.query_params.get('content') == 'full':
+            # Return all documents for permission management
+            all_documents = obj.documents.all().select_related('document', 'document__created_by')
+            return DataroomDocumentSerializer(all_documents, many=True, context=self.context).data
+        # Return only root-level documents for browsing
         root_documents = obj.documents.filter(folder__isnull=True).select_related('document', 'document__created_by')
         return DataroomDocumentSerializer(root_documents, many=True, context=self.context).data
-
-    # def get_folders(self, obj):
-    #     # Return all folders in the dataroom
-    #     all_folders = obj.folders.all()
-    #     return DataroomFolderSerializer(all_folders, many=True, context=self.context).data
-
-    # def get_documents(self, obj):
-    #     # Return all documents in the dataroom
-    #     all_documents = obj.documents.all().select_related('document', 'document__created_by')
-    #     return DataroomDocumentSerializer(all_documents, many=True, context=self.context).data
 
 
 class AddContentSerializer(serializers.Serializer):

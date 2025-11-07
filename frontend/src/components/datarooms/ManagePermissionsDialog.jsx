@@ -109,7 +109,7 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
         setIsLoading(true);
         try {
           // The getDataroom endpoint will now return all folders and documents
-          const response = await getDataroom(link.dataroom);
+          const response = await getDataroom(link.dataroom, { content: 'full' });
           const { folders, documents } = response.data;
           const tree = buildTree(folders, documents);
           setDataroomTree(tree);
