@@ -74,3 +74,9 @@ The project employs a comprehensive testing strategy for both the backend and fr
 -   **Component Testing:** **React Testing Library** is used to test components by interacting with them as a user would, ensuring they are accessible and functional.
 -   **Fixtures & Setup:** Test setup and reusable mocks are managed within test files using `beforeEach` hooks and helper functions to render components with default or overridden props.
 -   **Mocking:** **Vitest's mocking capabilities** (`vi.mock`) are used to isolate components (e.g., child components, API services) and mock external dependencies for predictable test outcomes.
+
+### End-to-End (E2E) Testing
+-   **Framework:** **Playwright** is used for E2E tests, which run real user scenarios in a browser against the live application.
+-   **Orchestration:** Tests are run against the full application stack (backend, frontend, database, etc.), managed by Docker Compose. A root-level script (`run-e2e-tests.sh`) automates the entire process: starting services, seeding the database, running tests, and shutting down.
+-   **Data Seeding:** A custom Django management command (`create_test_data`) is used to reset and seed the database before each test run. This ensures a clean, predictable state for tests, including a test user and sample documents/folders.
+-   **Authentication:** A dedicated Playwright setup file (`auth.setup.js`) logs in as the test user once and saves the authentication state. Subsequent tests reuse this state, making them faster and more reliable by bypassing repetitive UI logins.
