@@ -53,4 +53,16 @@ class Command(BaseCommand):
             DocumentVersion.objects.create(document=doc, version_number=1, is_primary=True)
             self.stdout.write('Created document: Annual Report.pdf')
 
+        # Create another document for dataroom tests
+        doc2, doc2_created = Document.objects.get_or_create(
+            name="Marketing Presentation.pdf",
+            created_by=user,
+            folder=root_folder,
+            organization=org,
+            defaults={'status': 'ready', 'type': 'pdf'}
+        )
+        if doc2_created:
+            DocumentVersion.objects.create(document=doc2, version_number=1, is_primary=True)
+            self.stdout.write('Created document: Marketing Presentation.pdf')
+
         self.stdout.write(self.style.SUCCESS('Test data created successfully.'))
