@@ -1164,8 +1164,20 @@ class ShareLinkRequestAccessView(APIView):
         email = serializer.validated_data['email']
 
         # Ensure viewer record exists for tracking purposes
+        if link.document:
+            organization = link.document.organization
+        elif link.dataroom:
+            organization = link.dataroom.organization
+        else:
+            # This case should be prevented by model constraints but is a safeguard.
+            logger.error(f"ShareLink {link.id} has no document or dataroom associated.")
+            return Response(
+                {"message": "An unexpected error occurred: link target is missing."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
         viewer, _ = Viewer.objects.get_or_create(
-            organization=link.document.organization,
+            organization=organization,
             email=email
         )
 
@@ -1192,16 +1204,17 @@ class ShareLinkRequestAccessView(APIView):
             
             # Send email
             try:
+                target_name = link.document.name if link.document else link.dataroom.name
                 # In a real app, this would use an HTML template.
                 email_body = (
                     f"Hello,\n\n"
-                    f"Please click the link below to view the document '{link.document.name}'.\n\n"
+                    f"Please click the link below to view '{target_name}'.\n\n"
                     f"{access_url}\n\n"
                     f"This link will expire in 15 minutes.\n\n"
                     f"Thank you."
                 )
                 send_mail(
-                    subject=f"Verify your email to view '{link.document.name}'",
+                    subject=f"Verify your email to view '{target_name}'",
                     message=email_body,
                     from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@coneshare.com'),
                     recipient_list=[email],

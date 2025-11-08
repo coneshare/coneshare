@@ -940,7 +940,7 @@ class TestShareLinkViewDataView:
         share_link.save()
         response = public_client.get(f'/api/v1/links/{share_link.slug}/view-data/')
         assert response.status_code == status.HTTP_404_NOT_FOUND
-        assert response.json()["message"] == "This file is not available."
+        assert response.json()["message"] == "This link is not available."
 
     def test_get_share_link_data_expired(self, public_client, share_link):
         """Test that an expired link returns 410 Gone."""
@@ -1633,6 +1633,21 @@ class TestViewSessionViewSet:
         view_session.refresh_from_db()
         assert view_session.downloaded_at == first_download_time
 
+    def test_create_view_session_for_dataroom_link(self, public_client, dataroom, user):
+        """Test that creating a view session for a dataroom link works."""
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+        assert ViewSession.objects.count() == 0
+
+        response = public_client.post(
+            '/api/v1/view-sessions/',
+            {'share_link': link.id},
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert ViewSession.objects.count() == 1
+        vs = ViewSession.objects.first()
+        assert vs.share_link == link
+
     def test_record_download_for_non_existent_session(self, public_client):
         """Test that recording a download for a non-existent session returns 404."""
         non_existent_id = '01J4Z7YJ8ZJ4Z7YJ8ZJ4Z7YJ8Z'
@@ -1644,6 +1659,26 @@ class TestViewSessionViewSet:
 @pytest.mark.django_db
 class TestShareLinkEmailProtection:
     """Tests for email-protected share links."""
+
+    @pytest.fixture
+    def dataroom_link_requires_email(self, dataroom, user):
+        """Fixture for a dataroom share link that requires email but not verification."""
+        return ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            requires_email=True,
+            requires_email_verification=False
+        )
+
+    @pytest.fixture
+    def dataroom_link_requires_email_verification(self, dataroom, user):
+        """Fixture for a dataroom share link that requires email and verification."""
+        return ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            requires_email=True,
+            requires_email_verification=True
+        )
 
     def test_view_data_requires_email(self, public_client, share_link_requires_email):
         """Accessing data for an email-protected link should fail with 401."""
@@ -1742,6 +1777,44 @@ class TestShareLinkEmailProtection:
         assert response_view.status_code == status.HTTP_401_UNAUTHORIZED
         assert 'protectionType' in response_view.json()
         assert response_view.json()['protectionType'] == 'email'
+
+    def test_request_access_for_dataroom_no_verification_success(self, public_client, dataroom_link_requires_email):
+        """
+        Requesting access for a dataroom link that requires email should grant access.
+        """
+        # Step 1: Request access
+        request_url = f'/api/v1/links/{dataroom_link_requires_email.slug}/request-access/'
+        response_request = public_client.post(request_url, {'email': 'viewer@example.com'})
+
+        assert response_request.status_code == status.HTTP_200_OK
+        assert response_request.json()['verification_required'] is False
+
+        # Step 2: Access the data with the authorized session
+        view_data_url = f'/api/v1/links/{dataroom_link_requires_email.slug}/view-data/'
+        response_view = public_client.get(view_data_url)
+
+        assert response_view.status_code == status.HTTP_200_OK
+        assert 'id' in response_view.json()
+
+    @patch('documents.views.send_mail')
+    def test_request_access_for_dataroom_with_verification_success(self, mock_send_mail, public_client, dataroom_link_requires_email_verification):
+        """
+        Requesting access for a dataroom link that requires email verification
+        should trigger an email with the correct dataroom name.
+        """
+        request_url = f'/api/v1/links/{dataroom_link_requires_email_verification.slug}/request-access/'
+        response_request = public_client.post(request_url, {'email': 'viewer@example.com'})
+
+        assert response_request.status_code == status.HTTP_200_OK
+        assert response_request.json()['verification_required'] is True
+
+        mock_send_mail.assert_called_once()
+
+        # Check that the email subject and body contain the dataroom name
+        _, call_kwargs = mock_send_mail.call_args
+        dataroom_name = dataroom_link_requires_email_verification.dataroom.name
+        assert f"view '{dataroom_name}'" in call_kwargs['subject']
+        assert f"view '{dataroom_name}'" in call_kwargs['message']
 
 
 @pytest.mark.django_db

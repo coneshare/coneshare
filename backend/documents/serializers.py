@@ -164,8 +164,15 @@ class ViewSessionSerializer(serializers.ModelSerializer):
         share_link = validated_data.get('share_link')
 
         if email and share_link:
-            # The organization is derived from the document being shared
-            organization = share_link.document.organization
+            # The organization is derived from the document or dataroom being shared
+            if share_link.document:
+                organization = share_link.document.organization
+            elif share_link.dataroom:
+                organization = share_link.dataroom.organization
+            else:
+                # Should not happen due to model constraints
+                return super().create(validated_data)
+
             viewer, _ = Viewer.objects.get_or_create(
                 organization=organization,
                 email=email
