@@ -211,7 +211,7 @@ def _get_active_share_link(slug: str) -> ShareLink:
 
     if not link.is_active:
         # Treat inactive links as "not found" from a public perspective.
-        raise NotFound(detail="This file is not available.")
+        raise NotFound(detail="This link is not available.")
 
     return link
 
@@ -1133,7 +1133,10 @@ class ShareLinkVerifyPasswordView(APIView):
             request.session['authorized_share_links'] = authorized_links
             return Response({"message": "Password verified successfully."}, status=status.HTTP_200_OK)
         else:
-            return Response({"message": "Invalid password."}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"message": "Invalid password.", "protectionType": "password"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
 
 
 class ShareLinkRequestAccessView(APIView):
@@ -1581,13 +1584,13 @@ class DataroomFolderDownloadView(APIView):
 
             if link.password and not auth_status.get('password_verified'):
                 return Response(
-                    {"message": "This link is password-protected."},
+                    {"message": "This link is password-protected.", "protectionType": "password"},
                     status=status.HTTP_401_UNAUTHORIZED
                 )
 
             if link.requires_email and not auth_status.get('email_verified'):
                 return Response(
-                    {"message": "This link requires an email address to view."},
+                    {"message": "This link requires an email address to view.", "protectionType": "email"},
                     status=status.HTTP_401_UNAUTHORIZED
                 )
 
