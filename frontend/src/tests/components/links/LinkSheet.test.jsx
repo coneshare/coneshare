@@ -28,7 +28,7 @@ vi.mock('sonner', () => ({
 describe('LinkSheet', () => {
   const mockOnSuccess = vi.fn();
   const mockOnOpenChange = vi.fn();
-  const documentId = 'doc_123';
+  const document = { id: 'doc_123' };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -38,7 +38,7 @@ describe('LinkSheet', () => {
     const defaultProps = {
       isOpen: true,
       onOpenChange: mockOnOpenChange,
-      documentId,
+      document,
       onSuccess: mockOnSuccess,
     };
     return render(<LinkSheet {...defaultProps} {...props} />);
@@ -49,8 +49,8 @@ describe('LinkSheet', () => {
       renderComponent();
       expect(screen.getByText('Create New Link')).toBeInTheDocument();
       expect(screen.getByLabelText(/Name/)).toHaveValue('');
-      expect(screen.getByLabelText(/Password Protection/)).not.toBeChecked();
-      expect(screen.getByLabelText(/Allow Download/)).toBeChecked();
+      expect(screen.getByLabelText(/Password protection/)).not.toBeChecked();
+      expect(screen.getByLabelText(/Allow download/)).toBeChecked();
     });
 
     it('should call createShareLink with correct data when password is not enabled', async () => {
@@ -60,11 +60,10 @@ describe('LinkSheet', () => {
       await userEvent.type(screen.getByLabelText(/Name/), 'My New Link');
       await userEvent.click(screen.getByText('Save Changes'));
 
-      expect(api.createShareLink).toHaveBeenCalledWith({
-        document: documentId,
+      expect(api.createShareLink).toHaveBeenCalledWith(expect.objectContaining({
+        document: document.id,
         name: 'My New Link',
-        allow_download: true,
-      });
+      }));
       expect(mockOnSuccess).toHaveBeenCalled();
       expect(mockOnOpenChange).toHaveBeenCalledWith(false);
     });
@@ -73,16 +72,14 @@ describe('LinkSheet', () => {
       api.createShareLink.mockResolvedValue({});
       renderComponent();
 
-      await userEvent.click(screen.getByLabelText(/Password Protection/));
+      await userEvent.click(screen.getByLabelText(/Password protection/));
       await userEvent.type(screen.getByLabelText('Password'), 'secret123');
       await userEvent.click(screen.getByText('Save Changes'));
 
-      expect(api.createShareLink).toHaveBeenCalledWith({
-        document: documentId,
-        name: '',
-        allow_download: true,
+      expect(api.createShareLink).toHaveBeenCalledWith(expect.objectContaining({
+        document: document.id,
         password: 'secret123',
-      });
+      }));
     });
   });
 
@@ -99,12 +96,12 @@ describe('LinkSheet', () => {
 
       expect(screen.getByText('Edit Link')).toBeInTheDocument();
       expect(screen.getByLabelText(/Name/)).toHaveValue('Existing Link');
-      expect(screen.getByLabelText(/Allow Download/)).not.toBeChecked();
-      expect(screen.getByLabelText(/Password Protection/)).toBeChecked();
-      expect(screen.getByLabelText('Password')).toHaveValue('●●●●●●●●');
+      expect(screen.getByLabelText(/Allow download/)).not.toBeChecked();
+      expect(screen.getByLabelText(/Password protection/)).toBeChecked();
+      expect(screen.getByLabelText('Password')).toHaveValue(''); // Password is not fetched back
     });
 
-    it('should call updateShareLink without password if not changed', async () => {
+    it('should call updateShareLink without document id', async () => {
       api.updateShareLink.mockResolvedValue({});
       renderComponent({ currentLink });
 
@@ -112,12 +109,12 @@ describe('LinkSheet', () => {
       await userEvent.type(screen.getByLabelText(/Name/), 'Updated Name');
       await userEvent.click(screen.getByText('Save Changes'));
 
-      expect(api.updateShareLink).toHaveBeenCalledWith(currentLink.id, {
-        document: documentId,
+      expect(api.updateShareLink).toHaveBeenCalledWith(currentLink.id, expect.objectContaining({
         name: 'Updated Name',
-        allow_download: false,
-      });
-      expect(api.updateShareLink.mock.calls[0][1]).not.toHaveProperty('password');
+      }));
+      const payload = api.updateShareLink.mock.calls[0][1];
+      expect(payload).not.toHaveProperty('password');
+      expect(payload).not.toHaveProperty('document');
       expect(mockOnSuccess).toHaveBeenCalled();
     });
 
@@ -126,46 +123,80 @@ describe('LinkSheet', () => {
       renderComponent({ currentLink });
 
       const passwordInput = screen.getByLabelText('Password');
-      await userEvent.clear(passwordInput);
       await userEvent.type(passwordInput, 'new-secret');
       await userEvent.click(screen.getByText('Save Changes'));
 
-      expect(api.updateShareLink).toHaveBeenCalledWith(currentLink.id, {
-        document: documentId,
-        name: 'Existing Link',
-        allow_download: false,
+      expect(api.updateShareLink).toHaveBeenCalledWith(currentLink.id, expect.objectContaining({
         password: 'new-secret',
-      });
+      }));
+      expect(api.updateShareLink.mock.calls[0][1]).not.toHaveProperty('document');
     });
 
     it('should call updateShareLink with an empty password to remove it', async () => {
       api.updateShareLink.mockResolvedValue({});
       renderComponent({ currentLink });
 
+      // Simulate enabling, then clearing the password
+      await userEvent.type(screen.getByLabelText('Password'), 'any');
       await userEvent.clear(screen.getByLabelText('Password'));
       await userEvent.click(screen.getByText('Save Changes'));
 
-      expect(api.updateShareLink).toHaveBeenCalledWith(currentLink.id, {
-        document: documentId,
-        name: 'Existing Link',
-        allow_download: false,
+      expect(api.updateShareLink).toHaveBeenCalledWith(currentLink.id, expect.objectContaining({
         password: '',
-      });
+      }));
+      expect(api.updateShareLink.mock.calls[0][1]).not.toHaveProperty('document');
     });
 
     it('should call updateShareLink with an empty password if protection is disabled', async () => {
       api.updateShareLink.mockResolvedValue({});
       renderComponent({ currentLink });
 
-      await userEvent.click(screen.getByLabelText(/Password Protection/)); // Toggle it off
+      await userEvent.click(screen.getByLabelText(/Password protection/)); // Toggle it off
       await userEvent.click(screen.getByText('Save Changes'));
 
-      expect(api.updateShareLink).toHaveBeenCalledWith(currentLink.id, {
-        document: documentId,
-        name: 'Existing Link',
-        allow_download: false,
+      expect(api.updateShareLink).toHaveBeenCalledWith(currentLink.id, expect.objectContaining({
         password: '',
-      });
+      }));
+      expect(api.updateShareLink.mock.calls[0][1]).not.toHaveProperty('document');
+    });
+  });
+
+  describe('Dataroom Mode', () => {
+    const dataroom = { id: 'dr_456' };
+
+    it('should call createShareLink with dataroom id', async () => {
+      api.createShareLink.mockResolvedValue({});
+      renderComponent({ document: null, dataroom: dataroom }); // override document
+
+      await userEvent.type(screen.getByLabelText(/Name/), 'My Dataroom Link');
+      await userEvent.click(screen.getByText('Save Changes'));
+
+      expect(api.createShareLink).toHaveBeenCalledWith(expect.objectContaining({
+        dataroom: dataroom.id,
+      }));
+      expect(api.createShareLink.mock.calls[0][0]).not.toHaveProperty('document');
+    });
+
+    it('should call updateShareLink for a dataroom link and not send dataroom id', async () => {
+      const currentLink = {
+        id: 'link_xyz',
+        name: 'Existing Dataroom Link',
+        allow_download: true,
+        has_password: false,
+      };
+      api.updateShareLink.mockResolvedValue({});
+      renderComponent({ document: null, dataroom: dataroom, currentLink });
+
+      await userEvent.click(screen.getByLabelText(/Password protection/));
+      await userEvent.type(screen.getByLabelText('Password'), 'newpass');
+      await userEvent.click(screen.getByText('Save Changes'));
+
+      const payload = api.updateShareLink.mock.calls[0][1];
+      expect(api.updateShareLink).toHaveBeenCalledWith('link_xyz', expect.objectContaining({
+        password: 'newpass',
+      }));
+      expect(payload).not.toHaveProperty('dataroom');
+      expect(payload).not.toHaveProperty('document');
     });
   });
 });

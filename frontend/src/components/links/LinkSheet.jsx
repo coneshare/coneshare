@@ -98,10 +98,12 @@ export function LinkSheet({
       expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
     };
     
-    if (dataroom) {
-      linkData.dataroom = dataroom.id;
-    } else {
-      linkData.document = document.id;
+    if (!isEditing) {
+      if (dataroom) {
+        linkData.dataroom = dataroom.id;
+      } else {
+        linkData.document = document.id;
+      }
     }
     
     if (isPasswordEnabled) {
