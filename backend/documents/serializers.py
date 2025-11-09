@@ -1,6 +1,5 @@
 from rest_framework import serializers
 
-from core.models import Organization
 from .models import (Document, DocumentPage, DocumentVersion, Folder)
 from .services import _get_unique_folder_name
 
@@ -121,8 +120,6 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
             'is_primary', 'has_pages', 'pages', 'created_at'
         ]
         read_only_fields = fields
-
-
 
 
 class DocumentSerializer(serializers.ModelSerializer):

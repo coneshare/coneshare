@@ -30,14 +30,14 @@ from datarooms.serializers import (PublicDataroomDocumentSerializer,
                                    PublicDataroomFolderSerializer)
 from documents.models import DocumentPage
 from documents.views import StandardResultsSetPagination, _prepare_pages_data
-from .models import (EmailVerificationToken, PageView, PreviewSession,
+from .models import (EmailVerificationToken, PreviewSession,
                      ShareLink, ShareLinkDataroomSetting, ShareLinkPreset,
                      Viewer, ViewSession)
 from .serializers import (PageViewRecordSerializer,
-                        ShareLinkDataroomSettingUpdateSerializer,
-                        ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
-                        ShareLinkPresetSerializer, ShareLinkSerializer,
-                        ViewerSerializer, ViewSessionSerializer)
+                          ShareLinkDataroomSettingUpdateSerializer,
+                          ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
+                          ShareLinkPresetSerializer, ShareLinkSerializer,
+                          ViewerSerializer, ViewSessionSerializer)
 
 logger = logging.getLogger(__name__)
 
@@ -411,11 +411,11 @@ class PerSlugScopedRateThrottle(ScopedRateThrottle):
     def get_cache_key(self, request, view):
         # The 'slug' is retrieved from the URL kwargs.
         slug = view.kwargs.get('slug')
-        
+
         # Use a more robust identifier that combines the standard IP-based ident
         # with the slug for per-link throttling.
         ident = self.get_ident(request)
-        
+
         return self.cache_format % {
             'scope': self.scope,
             'ident': f"{ident}:{slug}"
@@ -696,7 +696,7 @@ class WatermarkedPageRenderView(APIView):
             response = HttpResponse(buffer.getvalue(), content_type="image/jpeg")
             response["Content-Length"] = str(len(buffer.getvalue()))
             response["Content-Disposition"] = f'inline; filename="{document.id}_page_{page_number}.jpg"'
-            
+
             # Set caching headers with the new ETag
             response['ETag'] = quote_etag(etag)
             response['Cache-Control'] = 'public, max-age=60, must-revalidate'
@@ -814,7 +814,7 @@ class WatermarkedFileDownloadView(APIView):
 
         if not link.enable_watermark or not link.watermark_text:
             return Response({"message": "Watermarking is not enabled for this link."}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         if not link.allow_download:
             return Response({"message": "Download is not allowed for this link."}, status=status.HTTP_403_FORBIDDEN)
 

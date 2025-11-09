@@ -1,7 +1,5 @@
 from django.db import models
-from django.utils import timezone
 
-from core.fields import ULIDField
 from core.models import BaseModel, Organization, User
 
 
@@ -110,5 +108,3 @@ class DocumentPage(BaseModel):
 
     def __str__(self):
         return f'Page {self.page_number} of {self.document_version}'
-
-

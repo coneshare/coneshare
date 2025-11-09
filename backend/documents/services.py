@@ -10,7 +10,6 @@ from core.fields import generate_ulid
 from core.models import User
 from .models import Document, DocumentVersion, Folder
 from .tasks import convert_office_to_pdf_task, generate_pdf_pages_task
-from sharelinks.models import ShareLink
 
 
 OFFICE_MIMETYPES = [

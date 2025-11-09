@@ -6,10 +6,8 @@ from urllib.parse import urljoin
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db import transaction
-from django.db.models import Count, F, Sum
+from django.db.models import Count, Sum
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
-from geoip2.errors import AddressNotFoundError
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException, PermissionDenied
@@ -560,9 +558,10 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='view-sessions')
     def view_sessions(self, request, pk=None):
-        document = self.get_object()
         from sharelinks.models import ViewSession
         from sharelinks.serializers import ViewSessionSerializer
+
+        document = self.get_object()
 
         view_queryset = ViewSession.objects.filter(
             share_link__document=document
@@ -594,6 +593,8 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def stats(self, request, pk=None):
+        from sharelinks.models import ViewSession
+
         document = self.get_object()
         aggregates = ViewSession.objects.filter(
             share_link__document=document
@@ -614,8 +615,6 @@ class DocumentViewSet(viewsets.ModelViewSet):
             'avg_duration_seconds': avg_duration,
             'total_downloads': total_downloads,
         })
-
-
 
 
 class MoveItemsView(APIView):

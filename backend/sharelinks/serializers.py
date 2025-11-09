@@ -237,7 +237,7 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         # For datarooms, we'll just use the provided name for now. A future
         # task could be to implement unique name generation for dataroom links.
         elif dataroom and not validated_data.get('name'):
-             validated_data['name'] = "Untitled Link"
+            validated_data['name'] = "Untitled Link"
 
         # The post_save signal will now handle creating settings for dataroom links.
         share_link = super().create(validated_data)
