@@ -1,8 +1,9 @@
 from rest_framework import serializers
 
+from core.models import Organization
 from datarooms.models import Dataroom
-from documents.serializers import ViewSessionSerializer
-from .models import ShareLink, ShareLinkDataroomSetting, ShareLinkPreset
+from .models import (PageView, ShareLink, ShareLinkDataroomSetting,
+                     ShareLinkPreset, Viewer, ViewSession)
 from .services import _get_unique_share_link_name
 
 

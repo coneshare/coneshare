@@ -21,19 +21,23 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
+from django.db.models import F
+from geoip2.errors import AddressNotFoundError
 from rest_framework.views import APIView
 
 from datarooms.models import (DataroomDocument, DataroomFolder)
 from datarooms.serializers import (PublicDataroomDocumentSerializer,
                                    PublicDataroomFolderSerializer)
-from documents.models import (DocumentPage,
-                              ViewSession, Viewer)
-from documents.serializers import ViewSessionSerializer
+from documents.models import DocumentPage
 from documents.views import StandardResultsSetPagination, _prepare_pages_data
-from .models import ShareLink, ShareLinkDataroomSetting, ShareLinkPreset, EmailVerificationToken, PreviewSession
-from .serializers import (ShareLinkDataroomSettingUpdateSerializer,
-                          ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
-                          ShareLinkPresetSerializer, ShareLinkSerializer)
+from .models import (EmailVerificationToken, PageView, PreviewSession,
+                     ShareLink, ShareLinkDataroomSetting, ShareLinkPreset,
+                     Viewer, ViewSession)
+from .serializers import (PageViewRecordSerializer,
+                        ShareLinkDataroomSettingUpdateSerializer,
+                        ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
+                        ShareLinkPresetSerializer, ShareLinkSerializer,
+                        ViewerSerializer, ViewSessionSerializer)
 
 logger = logging.getLogger(__name__)
 
@@ -969,3 +973,123 @@ class DataroomFolderDownloadView(APIView):
         response = HttpResponse(zip_buffer, content_type='application/zip')
         response['Content-Disposition'] = f'attachment; filename="{get_valid_filename(root_folder.name)}.zip"'
         return response
+
+
+class ViewerViewSet(viewsets.ModelViewSet):
+    queryset = Viewer.objects.all()
+    serializer_class = ViewerSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Viewer.objects.filter(organization=self.request.user.organization)
+
+
+class ViewSessionViewSet(viewsets.ModelViewSet):
+    queryset = ViewSession.objects.all()
+    serializer_class = ViewSessionSerializer
+
+    def get_permissions(self):
+        """
+        Allow anonymous users to create view sessions, but restrict
+        all other actions to authenticated users.
+        """
+        if self.action in ['create', 'record_download']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
+
+    @action(detail=True, methods=['post'], url_path='record-download')
+    def record_download(self, request, pk=None):
+        """Records that a document was downloaded during this view session."""
+        try:
+            view_session = ViewSession.objects.get(pk=pk)
+            # Only record the first download
+            if view_session.downloaded_at is None:
+                view_session.downloaded_at = timezone.now()
+                view_session.save(update_fields=['downloaded_at'])
+            return Response(status=status.HTTP_200_OK)
+        except ViewSession.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+    def get_queryset(self):
+        return ViewSession.objects.filter(share_link__document__organization=self.request.user.organization)
+
+    def perform_create(self, serializer):
+        ip_address = self.request.META.get('REMOTE_ADDR')
+        user_agent = self.request.META.get('HTTP_USER_AGENT', '')[:255]
+
+        # Check for owner preview first, which takes precedence.
+        preview_owner_email = self.request.session.pop('preview_owner_email', None)
+
+        if preview_owner_email:
+            viewer_email = preview_owner_email
+        else:
+            # Attempt to find a regular viewer's email from the session if they've been
+            # authorized via an email-required link.
+            share_link = serializer.validated_data.get('share_link')
+            viewer_email = ''
+            if share_link:
+                authorized_links = self.request.session.get('authorized_share_links', {})
+                auth_status = authorized_links.get(str(share_link.id), {})
+                if auth_status.get('email_verified'):
+                    viewer_email = auth_status.get('viewer_email')
+
+        # GeoIP lookup
+        location_data = {}
+        if ip_address and settings.GEOIP:
+            try:
+                location_data = settings.GEOIP.city(ip_address)
+            except AddressNotFoundError:
+                pass  # Expected for local/private IPs
+            except Exception as e:
+                logger.error(f"GeoIP2 lookup failed: {e}")
+
+        serializer.save(
+            ip_address=ip_address,
+            user_agent=user_agent,
+            viewer_email=viewer_email,
+            country=location_data.get('country_name', ''),
+            city=location_data.get('city', ''),
+            latitude=location_data.get('latitude'),
+            longitude=location_data.get('longitude')
+        )
+
+
+class RecordPageView(APIView):
+    """
+    Receives and records granular page view tracking data.
+    """
+    # No permission_classes, as this is a public endpoint. Security is implicit
+    # as it requires a valid, existing `view_id`.
+
+    def post(self, request, *args, **kwargs):
+        serializer = PageViewRecordSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        validated_data = serializer.validated_data
+        view_session = validated_data['view_session']
+        duration = validated_data['duration_seconds']
+
+        try:
+            with transaction.atomic():
+                # 1. Create the PageView record
+                serializer.save()
+
+                # 2. Atomically update the parent View's total duration to prevent race conditions.
+                view_session.duration_seconds = F('duration_seconds') + duration
+
+                # 3. Update completion rate
+                document = view_session.share_link.document
+                update_fields = ['duration_seconds']
+                if document and document.num_pages and document.num_pages > 0:
+                    viewed_pages_count = view_session.page_views.values('page_number').distinct().count()
+                    completion_rate = viewed_pages_count / document.num_pages
+                    view_session.completion_rate = min(completion_rate, 1.0)
+                    update_fields.append('completion_rate')
+
+                view_session.save(update_fields=update_fields)
+
+            return Response({"message": "View recorded"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error recording page view: {e}")
+            return Response({"error": "Server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
