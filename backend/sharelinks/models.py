@@ -120,3 +120,56 @@ class ShareLinkDataroomSetting(BaseModel):
                 name='sharelinkdataroomsetting_exactly_one_target'
             )
         ]
+
+
+class Viewer(models.Model):
+    id = ULIDField(primary_key=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='viewers')
+    email = models.EmailField()
+
+    class Meta:
+        unique_together = ('organization', 'email')
+
+    def __str__(self):
+        return self.email
+
+
+class ViewSession(models.Model):
+    id = ULIDField(primary_key=True, editable=False)
+    share_link = models.ForeignKey('ShareLink', on_delete=models.CASCADE, related_name='view_sessions')
+    viewer = models.ForeignKey(Viewer, on_delete=models.SET_NULL, null=True, blank=True, related_name='view_sessions')
+    viewer_email = models.EmailField(blank=True, default='')
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+    country = models.CharField(max_length=100, blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    duration_seconds = models.IntegerField(default=0)
+    completion_rate = models.FloatField(default=0.0)
+    downloaded_at = models.DateTimeField(null=True, blank=True)
+    viewed_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"ViewSession {self.id} on {self.share_link}"
+
+    class Meta:
+        ordering = ['-viewed_at']
+
+
+class PageView(models.Model):
+    """
+    Records a granular page view event within a single viewing session (ViewSession).
+    """
+    id = ULIDField(primary_key=True, editable=False)
+    view_session = models.ForeignKey('ViewSession', on_delete=models.CASCADE, related_name='page_views')
+    page_number = models.PositiveIntegerField()
+    duration_seconds = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"PageView {self.id} for ViewSession {self.view_session.id}, Page {self.page_number}"

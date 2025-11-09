@@ -25,6 +25,88 @@ class ShareLinkDataroomSettingUpdateSerializer(serializers.Serializer):
         return data
 
 
+class PageViewSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PageView
+        fields = ['page_number', 'duration_seconds', 'url']
+
+    def get_url(self, obj):
+        pages_map = self.context.get('pages_map', {})
+        return pages_map.get(obj.page_number)
+
+
+class ViewSessionSerializer(serializers.ModelSerializer):
+    share_link_name = serializers.CharField(source='share_link.name', read_only=True)
+    page_views = PageViewSerializer(many=True, read_only=True)
+    is_owner_view = serializers.SerializerMethodField()
+    document_id = serializers.CharField(source='share_link.document.id', read_only=True)
+    document_name = serializers.CharField(source='share_link.document.name', read_only=True)
+
+    class Meta:
+        model = ViewSession
+        fields = [
+            'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name', 'document_id', 'document_name', 'ip_address', 'user_agent', 'country', 'city', 'latitude', 'longitude', 'duration_seconds',
+            'completion_rate', 'viewed_at', 'page_views', 'is_owner_view', 'downloaded_at'
+        ]
+        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name', 'document_id', 'document_name', 'country', 'city', 'latitude', 'longitude', 'page_views', 'is_owner_view', 'downloaded_at']
+    
+    def get_is_owner_view(self, obj):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user') and request.user.is_authenticated:
+            return obj.viewer_email == request.user.email
+        return False
+
+    def create(self, validated_data):
+        email = validated_data.get('viewer_email')
+        share_link = validated_data.get('share_link')
+
+        if email and share_link:
+            # The organization is derived from the document or dataroom being shared
+            if share_link.document:
+                organization = share_link.document.organization
+            elif share_link.dataroom:
+                organization = share_link.dataroom.organization
+            else:
+                # Should not happen due to model constraints
+                return super().create(validated_data)
+
+            viewer, _ = Viewer.objects.get_or_create(
+                organization=organization,
+                email=email
+            )
+            # Associate the view with the identified viewer
+            validated_data['viewer'] = viewer
+
+        return super().create(validated_data)
+
+
+class ViewerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Viewer
+        fields = ['id', 'organization', 'email', 'created_at']
+        read_only_fields = ['id', 'organization', 'created_at']
+
+    def create(self, validated_data):
+        # Automatically assign the default organization
+        validated_data['organization'] = Organization.objects.first()
+        return super().create(validated_data)
+
+
+class PageViewRecordSerializer(serializers.ModelSerializer):
+    """
+    Serializer for validating and creating PageView records from tracking data.
+    """
+    view_session = serializers.PrimaryKeyRelatedField(
+        queryset=ViewSession.objects.select_related('share_link__document').all()
+    )
+
+    class Meta:
+        model = PageView
+        fields = ['view_session', 'page_number', 'duration_seconds']
+
+
 class ShareLinkSerializer(serializers.ModelSerializer):
     dataroom = serializers.PrimaryKeyRelatedField(
         queryset=Dataroom.objects.all(), required=False, allow_null=True
