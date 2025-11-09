@@ -1161,6 +1161,8 @@ This session introduces a new feature: the ability to create shareable links for
 -  Dataroom Viewer UI: A new frontend component (DataroomViewer.jsx) has been developed to display the contents of a shared dataroom link, allowing navigation through folders and previewing documents within the dataroom.
 -  API Endpoints for Dataroom Share Links: New API endpoints and serializers have been added to support the creation, management, and viewing of dataroom share links and their granular settings.
 
+---
+
 ## Session 51: Dataroom Permissions & Download (2025-11-07)
 
 This session enhances dataroom share link capabilities by introducing granular permission settings for individual documents and folders. It allows dataroom owners to precisely control who sees what, who can download, and whether content is watermarked. Additionally, a new feature enables the download of entire folders as ZIP archives, intelligently applying these new permissions and watermarking to the archived content. The user interface has been updated to provide an intuitive way to manage these settings and initiate folder downloads.
@@ -1171,4 +1173,15 @@ Highlights
 - UI Updates for Permission Management: The frontend now includes a refactored permission management dialog that displays dataroom content in a hierarchical tree structure, enabling individual and bulk setting changes for items and folders.
 - Watermarking Logic Refactoring: The PDF watermarking logic has been extracted into a reusable helper function, allowing it to be consistently applied across single-file downloads and the new folder ZIP downloads.
 - Recursive Visibility Logic: The public data endpoint for dataroom links now correctly enforces recursive visibility, meaning if a parent folder is marked as invisible, all its contents (documents and subfolders) are also hidden, regardless of their individual settings.
+
+---
+
+## Session 52: Share Link Refactoring (2025-11-09)
+
+This session undertakes a significant refactoring effort by migrating all share link related features into a new, dedicated Django application named 'sharelinks'. This change aims to enhance the modularity and organization of the codebase by centralizing share link models, business logic, API endpoints, and associated tests. The 'documents' and 'datarooms' applications have been updated to remove these components and now correctly interact with the new 'sharelinks' app for all sharing functionalities. This architectural improvement will make it easier to develop, maintain, and scale sharing features independently in the future.
+
+- New 'sharelinks' Django App: All share link functionality, including models, serializers, views, and URLs, has been extracted into a new, independent Django application named 'sharelinks'.
+- Model Relocation: Core models such as ShareLink, ViewSession, Viewer, EmailVerificationToken, PageView, PreviewSession, and ShareLinkDataroomSetting have been moved from the 'documents' and 'datarooms' apps to the new 'sharelinks' app.
+- API Endpoint Consolidation: All API endpoints related to share links, including public-facing views for password verification, access requests, view data, watermarked page rendering, and file downloads, are now managed under the 'sharelinks' app's routing.
+- Codebase Decoupling: This refactoring significantly decouples share link management from the core document and dataroom logic, improving modularity, maintainability, and future scalability.
 
