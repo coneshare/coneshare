@@ -13,11 +13,10 @@ from django.core.files.storage import default_storage
 from django.core.mail import send_mail
 from django.db import transaction
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.http import quote_etag
 from django.utils.text import get_valid_filename
-from rest_framework import permissions, serializers, status, viewsets
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
@@ -26,15 +25,15 @@ from rest_framework.views import APIView
 
 from datarooms.models import (DataroomDocument, DataroomFolder)
 from datarooms.serializers import (PublicDataroomDocumentSerializer,
-                                    PublicDataroomFolderSerializer)
+                                   PublicDataroomFolderSerializer)
 from documents.models import (DocumentPage, EmailVerificationToken,
                               PreviewSession, ViewSession, Viewer)
 from documents.serializers import ViewSessionSerializer
 from documents.views import StandardResultsSetPagination, _prepare_pages_data
 from .models import ShareLink, ShareLinkDataroomSetting, ShareLinkPreset
 from .serializers import (ShareLinkDataroomSettingUpdateSerializer,
-                        ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
-                        ShareLinkPresetSerializer, ShareLinkSerializer)
+                          ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
+                          ShareLinkPresetSerializer, ShareLinkSerializer)
 
 logger = logging.getLogger(__name__)
 

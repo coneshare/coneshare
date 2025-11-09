@@ -1,9 +1,6 @@
-from django.db import transaction
 from rest_framework import serializers
 
 from core.models import Organization
-from datarooms.models import Dataroom
-from sharelinks.serializers import ShareLinkSerializer
 from .models import (Document, DocumentPage, DocumentVersion, Folder,
                      PageView, ViewSession, Viewer)
 from .services import _get_unique_folder_name
@@ -184,8 +181,6 @@ class ViewSessionSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-
-
 class ViewerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Viewer
@@ -213,7 +208,7 @@ class PageViewRecordSerializer(serializers.ModelSerializer):
 
 class DocumentSerializer(serializers.ModelSerializer):
     versions = DocumentVersionSerializer(many=True, read_only=True)
-    share_links = ShareLinkSerializer(many=True, read_only=True)
+    share_links = serializers.SerializerMethodField()
 
     class Meta:
         model = Document
@@ -227,11 +222,16 @@ class DocumentSerializer(serializers.ModelSerializer):
             'id', 'organization', 'created_by', 'created_at', 'updated_at'
         ]
 
+    def get_share_links(self, instance):
+        from sharelinks.serializers import ShareLinkSerializer
+        # The 'share_links' related manager is often prefetched in the viewset,
+        # so this should be efficient.
+        queryset = instance.share_links.all()
+        return ShareLinkSerializer(queryset, many=True, context=self.context).data
+
     def create(self, validated_data):
         request = self.context['request']
         # Automatically assign the user's organization and the user
         validated_data['organization'] = request.user.organization
         validated_data['created_by'] = request.user
         return super().create(validated_data)
-
-

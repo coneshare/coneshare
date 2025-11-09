@@ -2,12 +2,10 @@ import logging
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from documents.models import Document, Folder, ViewSession
 from documents.serializers import ViewSessionSerializer
@@ -16,8 +14,8 @@ from .models import Dataroom, DataroomDocument, DataroomFolder
 from .serializers import (
     AddContentSerializer, DataroomDetailSerializer,
     DataroomDocumentSerializer, DataroomFolderSerializer, DataroomSerializer,
-    MoveDataroomContentSerializer, PublicDataroomDocumentSerializer,
-    PublicDataroomFolderSerializer, RemoveContentSerializer)
+    MoveDataroomContentSerializer,
+    RemoveContentSerializer)
 
 logger = logging.getLogger(__name__)
 

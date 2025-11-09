@@ -12,14 +12,14 @@ from django.utils import timezone
 from geoip2.errors import AddressNotFoundError
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import APIException, ParseError, PermissionDenied
+from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 
-from .models import (Document, DocumentPage, Folder, PageView, ViewSession,
+from .models import (Document, Folder, ViewSession,
                      Viewer)
 from .serializers import (DocumentSerializer, EnsureFolderPathsSerializer,
                           FolderSerializer, PageViewRecordSerializer,
@@ -144,8 +144,6 @@ class DocumentUploadView(APIView):
 
         serializer = DocumentSerializer(document, context={'request': request})
         return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
-
-
 
 
 class EnsureFolderPathsView(APIView):
@@ -617,8 +615,6 @@ class DocumentViewSet(viewsets.ModelViewSet):
         })
 
 
-
-
 class ViewerViewSet(viewsets.ModelViewSet):
     queryset = Viewer.objects.all()
     serializer_class = ViewerSerializer
@@ -696,8 +692,6 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
             latitude=location_data.get('latitude'),
             longitude=location_data.get('longitude')
         )
-
-
 
 
 class RecordPageView(APIView):

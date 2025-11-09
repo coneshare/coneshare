@@ -1,5 +1,4 @@
 from django.db import models
-from django.db.models import Q
 from django.utils import timezone
 
 from core.fields import ULIDField
@@ -164,5 +163,3 @@ class PageView(models.Model):
 
     def __str__(self):
         return f"PageView {self.id} for ViewSession {self.view_session.id}, Page {self.page_number}"
-
-

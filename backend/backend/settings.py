@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'core',
     'documents',
     'datarooms',
+    'sharelinks',
     'analytics',
     'cloudfiles',
 ]
