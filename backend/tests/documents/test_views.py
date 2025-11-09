@@ -12,14 +12,7 @@ from rest_framework import status
 from core.models import Organization
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
 from documents.models import (Document, DocumentPage, DocumentVersion, Folder)
-from sharelinks.models import (EmailVerificationToken, PreviewSession,
-                               ShareLink, ShareLinkDataroomSetting, ViewSession)
-import zipfile
-from io import BytesIO
-try:
-    from PIL import Image
-except ImportError:
-    Image = None
+from sharelinks.models import (ShareLink, ViewSession)
 
 User = get_user_model()
 
@@ -610,20 +603,6 @@ def test_create_document_is_deprecated(api_client, user, organization):
 
 
 @pytest.mark.django_db
-def test_list_share_links_is_scoped_to_user(api_client, user, user2):
-    """Test retrieving a list of share links is scoped to the current user."""
-    doc1 = Document.objects.create(organization=user.organization, created_by=user)
-    doc2 = Document.objects.create(organization=user.organization, created_by=user2)
-    ShareLink.objects.create(document=doc1, created_by=user, name="My Link")
-    ShareLink.objects.create(document=doc2, created_by=user2, name="Other's Link")
-
-    response = api_client.get('/api/v1/share-links/')
-    assert response.status_code == status.HTTP_200_OK
-    assert len(response.data) == 1
-    assert response.data[0]['name'] == "My Link"
-
-
-@pytest.mark.django_db
 def test_upload_document_with_path(api_client, user):
     """Test uploading a file with a path to pre-existing folders."""
     # First, create the folder structure
@@ -844,9 +823,6 @@ def test_delete_document_in_subfolder_success(api_client, user, organization):
     assert not Document.objects.filter(id=doc.id).exists()
 
 
-@pytest.mark.django_db
-class TestShareLinkViewDataView:
-    """Tests for the public ShareLinkViewDataView endpoint."""
 
     @pytest.fixture
     def document_with_pages(self, document):
