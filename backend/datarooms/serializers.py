@@ -1,6 +1,5 @@
 from rest_framework import serializers
 
-# from documents.models import ShareLinkDataroomSetting
 from .models import Dataroom, DataroomDocument, DataroomFolder, ShareLinkDataroomSetting
 
 
