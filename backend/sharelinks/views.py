@@ -26,11 +26,11 @@ from rest_framework.views import APIView
 from datarooms.models import (DataroomDocument, DataroomFolder)
 from datarooms.serializers import (PublicDataroomDocumentSerializer,
                                    PublicDataroomFolderSerializer)
-from documents.models import (DocumentPage, EmailVerificationToken,
-                              PreviewSession, ViewSession, Viewer)
+from documents.models import (DocumentPage,
+                              ViewSession, Viewer)
 from documents.serializers import ViewSessionSerializer
 from documents.views import StandardResultsSetPagination, _prepare_pages_data
-from .models import ShareLink, ShareLinkDataroomSetting, ShareLinkPreset
+from .models import ShareLink, ShareLinkDataroomSetting, ShareLinkPreset, EmailVerificationToken, PreviewSession
 from .serializers import (ShareLinkDataroomSettingUpdateSerializer,
                           ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
                           ShareLinkPresetSerializer, ShareLinkSerializer)
