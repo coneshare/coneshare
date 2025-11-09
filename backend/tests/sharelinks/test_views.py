@@ -4,14 +4,12 @@ from datetime import timedelta
 from rest_framework.test import APIClient
 
 from django.contrib.auth import get_user_model
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.utils import timezone
 from rest_framework import status
 
-from core.models import Organization
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
-from documents.models import (Document, DocumentPage, DocumentVersion, Folder)
+from documents.models import (Document, DocumentPage, DocumentVersion)
 from sharelinks.models import (EmailVerificationToken, PageView, PreviewSession,
                                ShareLink, ShareLinkDataroomSetting, ViewSession)
 import zipfile
@@ -22,6 +20,21 @@ except ImportError:
     Image = None
 
 User = get_user_model()
+
+@pytest.fixture
+def document_factory(user, organization):
+    def _create_document(**kwargs):
+        defaults = {
+            "created_by": user,
+            "organization": organization,
+            "status": "ready",
+        }
+        defaults.update(kwargs)
+        doc = Document.objects.create(**defaults)
+        DocumentVersion.objects.create(document=doc, version_number=1, is_primary=True, original_storage_key="path/to/original.pdf")
+        return doc
+    return _create_document
+
 
 pytestmark = pytest.mark.django_db
 

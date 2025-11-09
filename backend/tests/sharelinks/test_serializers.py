@@ -2,9 +2,9 @@ import pytest
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
-from documents.models import Document, ViewSession
-from sharelinks.models import ShareLink
+from datarooms.models import DataroomDocument, DataroomFolder
+from documents.models import Document
+from sharelinks.models import ShareLink, ViewSession
 from sharelinks.serializers import ShareLinkSerializer
 
 pytestmark = pytest.mark.django_db

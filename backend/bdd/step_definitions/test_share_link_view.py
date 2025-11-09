@@ -2,7 +2,8 @@ import pytest
 from pytest_bdd import parsers, scenario, given, when, then
 from rest_framework import status
 
-from documents.models import Document, ShareLink
+from documents.models import Document
+from sharelinks.models import ShareLink
 
 # Make common steps available
 pytest_plugins = "bdd.step_definitions.common_steps"

@@ -12,20 +12,6 @@ from sharelinks.models import (ShareLink, ViewSession)
 
 User = get_user_model()
 
-@pytest.fixture
-def document_factory(user, organization):
-    def _create_document(**kwargs):
-        defaults = {
-            "created_by": user,
-            "organization": organization,
-            "status": "ready",
-        }
-        defaults.update(kwargs)
-        doc = Document.objects.create(**defaults)
-        DocumentVersion.objects.create(document=doc, version_number=1, is_primary=True, original_storage_key="path/to/original.pdf")
-        return doc
-    return _create_document
-
 @pytest.mark.django_db
 def test_get_root_folder_contents(api_client, user, user2, organization):
     """Test retrieving root folder contents is scoped to the user."""

@@ -2,7 +2,8 @@ import pytest
 from pytest_bdd import scenario, given, when, then, parsers
 
 from django.contrib.auth.hashers import make_password
-from documents.models import Document, DocumentVersion, ShareLink
+from documents.models import Document, DocumentVersion
+from sharelinks.models import ShareLink
 
 pytest_plugins = "bdd.step_definitions.common_steps"
 

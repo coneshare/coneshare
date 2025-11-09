@@ -2,7 +2,8 @@ import pytest
 from pytest_bdd import given, parsers, scenario, then, when
 from rest_framework import status
 
-from documents.models import Document, ShareLink, ViewSession, Viewer
+from documents.models import Document
+from sharelinks.models import ShareLink, ViewSession, Viewer
 
 pytest_plugins = "bdd.step_definitions.common_steps"
 
