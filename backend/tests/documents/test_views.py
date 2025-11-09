@@ -11,8 +11,10 @@ from rest_framework import status
 
 from core.models import Organization
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
-from sharelinks.models import ShareLinkDataroomSetting
-from documents.models import Document, Folder, ShareLink, DocumentVersion, DocumentPage, PreviewSession, ViewSession, PageView, EmailVerificationToken
+from documents.models import (Document, DocumentPage, DocumentVersion, Folder,
+                              PageView, ViewSession)
+from sharelinks.models import (EmailVerificationToken, PreviewSession,
+                               ShareLink, ShareLinkDataroomSetting)
 import zipfile
 from io import BytesIO
 try:
