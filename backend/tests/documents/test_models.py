@@ -1,6 +1,6 @@
 import pytest
 
-from documents.models import Document, Folder, ViewSession, Viewer
+from documents.models import Document, Folder
 
 
 @pytest.mark.django_db
@@ -29,32 +29,3 @@ def test_document_creation(organization, user):
     assert document.organization == organization
     assert document.created_by == user
     assert document.status == 'processing'
-
-
-
-
-@pytest.mark.django_db
-def test_viewer_creation(organization):
-    """Test that a Viewer instance can be created."""
-    viewer = Viewer.objects.create(
-        organization=organization,
-        email="viewer@example.com"
-    )
-    assert isinstance(viewer, Viewer)
-    assert str(viewer) == "viewer@example.com"
-
-
-from sharelinks.models import ShareLink
-
-
-@pytest.mark.django_db
-def test_view_session_creation(user):
-    """Test that a ViewSession instance can be created."""
-    document = Document.objects.create(
-        name="Doc for View",
-        organization=user.organization,
-        created_by=user,
-    )
-    share_link = ShareLink.objects.create(document=document, slug="another-slug")
-    view_session = ViewSession.objects.create(share_link=share_link, duration_seconds=0, completion_rate=0)
-    assert isinstance(view_session, ViewSession)

@@ -7,8 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
-from documents.models import Document, Folder, ViewSession
-from documents.serializers import ViewSessionSerializer
+from documents.models import Document, Folder
 from documents.views import StandardResultsSetPagination
 from .models import Dataroom, DataroomDocument, DataroomFolder
 from .serializers import (
@@ -186,6 +185,9 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='view-sessions')
     def view_sessions(self, request, pk=None):
+        from sharelinks.models import ViewSession
+        from sharelinks.serializers import ViewSessionSerializer
+
         dataroom = self.get_object()
         view_queryset = ViewSession.objects.filter(
             share_link__dataroom=dataroom

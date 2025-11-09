@@ -2,8 +2,8 @@ import pytest
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from documents.models import ShareLink
-from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
+from sharelinks.models import ShareLink
+from datarooms.models import DataroomDocument, DataroomFolder
 from datarooms.serializers import (
     AddContentSerializer,
     DataroomDetailSerializer,
