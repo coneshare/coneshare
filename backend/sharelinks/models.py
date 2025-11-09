@@ -100,3 +100,23 @@ class PreviewSession(BaseModel):
 
     def is_expired(self):
         return self.expires_at < timezone.now()
+
+
+class ShareLinkDataroomSetting(BaseModel):
+    share_link = models.ForeignKey('ShareLink', on_delete=models.CASCADE, related_name='dataroom_settings')
+    dataroom_document = models.ForeignKey('datarooms.DataroomDocument', on_delete=models.CASCADE, null=True, blank=True)
+    dataroom_folder = models.ForeignKey('datarooms.DataroomFolder', on_delete=models.CASCADE, null=True, blank=True)
+    is_visible = models.BooleanField(default=True)
+    allow_download = models.BooleanField(default=True)
+    enable_watermark = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(dataroom_document__isnull=False, dataroom_folder__isnull=True) |
+                    Q(dataroom_document__isnull=True, dataroom_folder__isnull=False)
+                ),
+                name='sharelinkdataroomsetting_exactly_one_target'
+            )
+        ]

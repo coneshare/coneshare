@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Dataroom, DataroomDocument, DataroomFolder, ShareLinkDataroomSetting
+from .models import Dataroom, DataroomDocument, DataroomFolder
 
 
 class DataroomSerializer(serializers.ModelSerializer):
@@ -122,25 +122,6 @@ class MoveDataroomContentSerializer(serializers.Serializer):
     def validate(self, data):
         if not data.get('dataroom_document_ids') and not data.get('dataroom_folder_ids'):
             raise serializers.ValidationError("Either 'dataroom_document_ids' or 'dataroom_folder_ids' must be provided.")
-        return data
-
-
-class ShareLinkDataroomSettingSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ShareLinkDataroomSetting
-        fields = ['id', 'dataroom_document', 'dataroom_folder', 'is_visible', 'allow_download', 'enable_watermark']
-
-
-class ShareLinkDataroomSettingUpdateSerializer(serializers.Serializer):
-    id = serializers.CharField()
-    is_visible = serializers.BooleanField(required=False)
-    allow_download = serializers.BooleanField(required=False)
-    enable_watermark = serializers.BooleanField(required=False)
-
-    def validate(self, data):
-        # Ensure at least one setting is being updated
-        if not any(k in data for k in ['is_visible', 'allow_download', 'enable_watermark']):
-            raise serializers.ValidationError("At least one setting (is_visible, allow_download, enable_watermark) must be provided for an update.")
         return data
 
 

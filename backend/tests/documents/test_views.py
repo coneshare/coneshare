@@ -10,7 +10,8 @@ from django.utils import timezone
 from rest_framework import status
 
 from core.models import Organization
-from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, ShareLinkDataroomSetting
+from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
+from sharelinks.models import ShareLinkDataroomSetting
 from documents.models import Document, Folder, ShareLink, DocumentVersion, DocumentPage, PreviewSession, ViewSession, PageView, EmailVerificationToken
 import zipfile
 from io import BytesIO

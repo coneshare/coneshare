@@ -1,10 +1,28 @@
 from rest_framework import serializers
 
 from datarooms.models import Dataroom
-from datarooms.serializers import ShareLinkDataroomSettingSerializer
 from documents.serializers import ViewSessionSerializer
-from .models import ShareLink, ShareLinkPreset
+from .models import ShareLink, ShareLinkDataroomSetting, ShareLinkPreset
 from .services import _get_unique_share_link_name
+
+
+class ShareLinkDataroomSettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShareLinkDataroomSetting
+        fields = ['id', 'dataroom_document', 'dataroom_folder', 'is_visible', 'allow_download', 'enable_watermark']
+
+
+class ShareLinkDataroomSettingUpdateSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    is_visible = serializers.BooleanField(required=False)
+    allow_download = serializers.BooleanField(required=False)
+    enable_watermark = serializers.BooleanField(required=False)
+
+    def validate(self, data):
+        # Ensure at least one setting is being updated
+        if not any(k in data for k in ['is_visible', 'allow_download', 'enable_watermark']):
+            raise serializers.ValidationError("At least one setting (is_visible, allow_download, enable_watermark) must be provided for an update.")
+        return data
 
 
 class ShareLinkSerializer(serializers.ModelSerializer):

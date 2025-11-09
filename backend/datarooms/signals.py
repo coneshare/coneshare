@@ -1,7 +1,8 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from .models import DataroomDocument, DataroomFolder, ShareLinkDataroomSetting
+from .models import DataroomDocument, DataroomFolder
+from sharelinks.models import ShareLinkDataroomSetting
 
 
 @receiver(post_save, sender=DataroomDocument)

@@ -1,5 +1,4 @@
 from django.db import models
-from django.db.models import Q
 
 from core.models import BaseModel, Organization, User
 
@@ -31,24 +30,6 @@ class DataroomDocument(BaseModel):
         unique_together = ('dataroom', 'document')
 
 
-class ShareLinkDataroomSetting(BaseModel):
-    share_link = models.ForeignKey('sharelinks.ShareLink', on_delete=models.CASCADE, related_name='dataroom_settings')
-    dataroom_document = models.ForeignKey(DataroomDocument, on_delete=models.CASCADE, null=True, blank=True)
-    dataroom_folder = models.ForeignKey(DataroomFolder, on_delete=models.CASCADE, null=True, blank=True)
-    is_visible = models.BooleanField(default=True)
-    allow_download = models.BooleanField(default=True)
-    enable_watermark = models.BooleanField(default=False)
-
-    class Meta:
-        constraints = [
-            models.CheckConstraint(
-                condition=(
-                    Q(dataroom_document__isnull=False, dataroom_folder__isnull=True) |
-                    Q(dataroom_document__isnull=True, dataroom_folder__isnull=False)
-                ),
-                name='sharelinkdataroomsetting_exactly_one_target'
-            )
-        ]    
 
 # # Add models for future Audit Log and Q&A features
 # class AuditLog(BaseModel):

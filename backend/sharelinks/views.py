@@ -24,17 +24,16 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from datarooms.models import (DataroomDocument, DataroomFolder,
-                               ShareLinkDataroomSetting)
+from datarooms.models import (DataroomDocument, DataroomFolder)
 from datarooms.serializers import (PublicDataroomDocumentSerializer,
-                                    PublicDataroomFolderSerializer,
-                                    ShareLinkDataroomSettingUpdateSerializer)
+                                    PublicDataroomFolderSerializer)
 from documents.models import (DocumentPage, EmailVerificationToken,
                               PreviewSession, ViewSession, Viewer)
 from documents.serializers import ViewSessionSerializer
 from documents.views import StandardResultsSetPagination, _prepare_pages_data
-from .models import ShareLink, ShareLinkPreset
-from .serializers import (ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
+from .models import ShareLink, ShareLinkDataroomSetting, ShareLinkPreset
+from .serializers import (ShareLinkDataroomSettingUpdateSerializer,
+                        ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
                         ShareLinkPresetSerializer, ShareLinkSerializer)
 
 logger = logging.getLogger(__name__)
