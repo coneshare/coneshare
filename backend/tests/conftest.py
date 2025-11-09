@@ -4,7 +4,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
 
 from core.models import Organization
-from documents.models import Document, DocumentVersion, ShareLink
+from documents.models import Document, DocumentVersion
+from sharelinks.models import ShareLink
 from documents.services import create_document_from_upload
 
 User = get_user_model()

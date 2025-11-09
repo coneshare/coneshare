@@ -6,9 +6,11 @@ from rest_framework import generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from documents.models import ShareLink, ViewSession
-from documents.serializers import ShareLinkSerializer, ViewSessionSerializer
+from documents.models import ViewSession
+from documents.serializers import ViewSessionSerializer
 from documents.views import StandardResultsSetPagination
+from sharelinks.models import ShareLink
+from sharelinks.serializers import ShareLinkSerializer
 
 
 class DashboardSummaryView(APIView):

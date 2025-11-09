@@ -8,8 +8,9 @@ from django.db import transaction
 
 from core.fields import generate_ulid
 from core.models import User
-from .models import Document, DocumentVersion, Folder, ShareLink
-from .tasks import generate_pdf_pages_task, convert_office_to_pdf_task
+from .models import Document, DocumentVersion, Folder
+from .tasks import convert_office_to_pdf_task, generate_pdf_pages_task
+from sharelinks.models import ShareLink
 
 
 OFFICE_MIMETYPES = [
@@ -145,10 +146,6 @@ def _get_unique_folder_name(created_by, parent_folder, original_name: str) -> st
     return _get_unique_name(Folder, original_name, filter_kwargs, has_extension=False)
 
 
-def _get_unique_share_link_name(document: Document, original_name: str) -> str:
-    """Generates a unique name for a share link within a document to avoid duplicates."""
-    filter_kwargs = {'document': document}
-    return _get_unique_name(ShareLink, original_name, filter_kwargs, has_extension=False)
 
 
 def create_document_from_upload(

@@ -1,701 +1,192 @@
+import hashlib
 import logging
+import math
 import os
-from pathlib import Path
+import secrets
+import zipfile
+from datetime import timedelta
+from io import BytesIO
 from urllib.parse import urljoin
 
 from django.conf import settings
 from django.core.files.storage import default_storage
+from django.core.mail import send_mail
 from django.db import transaction
-from django.db.models import Count, F, Sum
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from geoip2.errors import AddressNotFoundError
+from django.utils.http import quote_etag
+from django.utils.text import get_valid_filename
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import APIException, ParseError, PermissionDenied
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.parsers import MultiPartParser
+from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-
-from .models import (Document, DocumentPage, Folder, PageView, ViewSession,
-                     Viewer)
-from .serializers import (DocumentSerializer, EnsureFolderPathsSerializer,
-                          FolderSerializer, PageViewRecordSerializer,
-                          ViewerSerializer, ViewSessionSerializer)
-from .services import (
-    _get_unique_folder_name,
-    _get_unique_document_name,
-    create_document_from_upload,
-    create_new_document_version,
-    delete_document_and_files,
-)
-
+from datarooms.models import (DataroomDocument, DataroomFolder,
+                               ShareLinkDataroomSetting)
+from datarooms.serializers import (PublicDataroomDocumentSerializer,
+                                    PublicDataroomFolderSerializer,
+                                    ShareLinkDataroomSettingUpdateSerializer)
+from documents.models import (DocumentPage, EmailVerificationToken,
+                              PreviewSession, ViewSession, Viewer)
+from documents.serializers import ViewSessionSerializer
+from documents.views import StandardResultsSetPagination, _prepare_pages_data
+from .models import ShareLink, ShareLinkPreset
+from .serializers import (ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
+                        ShareLinkPresetSerializer, ShareLinkSerializer)
 
 logger = logging.getLogger(__name__)
 
 
-class StandardResultsSetPagination(PageNumberPagination):
-    page_size = 10
-    page_size_query_param = 'page_size'
-    max_page_size = 100
+class WatermarkingError(Exception):
+    """Custom exception for watermarking failures."""
+    pass
+
+class WatermarkingDependenciesMissingError(WatermarkingError):
+    """Raised when required libraries for watermarking are not installed."""
+    pass
+
+class InvalidDocumentForWatermarkingError(WatermarkingError):
+    """Raised when the document type is not suitable for watermarking."""
+    pass
 
 
-def _get_folder_from_path(organization, folder_path: str) -> Folder | None:
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    Image = None
+try:
+    from pypdf import PdfReader, PdfWriter
+except ImportError:
+    PdfReader = None
+    PdfWriter = None
+try:
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+except ImportError:
+    canvas = None
+
+
+def _get_active_share_link(slug: str) -> ShareLink:
     """
-    Finds a folder based on a path string, starting from the organization's
-    invisible root folder. Returns the final Folder instance or None if not found.
-    """
-    try:
-        parent = Folder.objects.get(
-            organization=organization, name='__root__', parent=None
-        )
-    except Folder.DoesNotExist:
-        logger.error(f"Invisible root folder not found for organization {organization.id}")
-        return None
-
-    path = Path(folder_path)
-    target_folder = parent
-    for part in path.parts:
-        try:
-            target_folder = Folder.objects.get(
-                organization=organization,
-                name=part,
-                parent=parent
-            )
-            parent = target_folder
-        except Folder.DoesNotExist:
-            return None
-    return target_folder
-
-
-def _get_or_create_folders_from_path(requesting_user, folder_path: str) -> Folder:
-    """
-    Recursively finds or creates folders from a path string, starting from the
-    organization's invisible root folder. Returns the final Folder instance.
+    Retrieves an active ShareLink by its slug, or raises an appropriate
+    DRF exception if it's not found or inactive.
     """
     try:
-        parent = Folder.objects.get_root_for_org(requesting_user.organization)
-    except Folder.DoesNotExist:
-        logger.error(f"Invisible root folder not found for user {requesting_user.id}'s organization")
-        # This is a critical failure, as the root folder should always exist.
-        # We will let this fail hard, which will result in a 500 error.
-        raise
+        # select_related is an optimization for views that access link targets
+        link = ShareLink.objects.select_related('document', 'dataroom').get(slug=slug)
+    except ShareLink.DoesNotExist:
+        raise NotFound(detail="Link not found.")
 
-    path = Path(folder_path)
-    for part in path.parts:
-        folder, _ = Folder.objects.get_or_create(
-            organization=requesting_user.organization,
-            name=part,
-            parent=parent,
-            defaults={'created_by': requesting_user}
-        )
-        parent = folder
-    return parent
+    if not link.is_active:
+        # Treat inactive links as "not found" from a public perspective.
+        raise NotFound(detail="This link is not available.")
+
+    return link
 
 
-class DocumentUploadView(APIView):
-    """
-    A dedicated view for handling file uploads and creating Document records.
-    """
-    parser_classes = (MultiPartParser,)
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, *args, **kwargs):
-        file_obj = request.FILES.get('file')
-        if not file_obj:
-            return Response(
-                {"detail": "No file provided."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Handle folder creation and filename override from path
-        relative_path = request.POST.get('path')
-        parent_folder = None
-
-        if relative_path:
-            folder_path, file_name_from_path = os.path.split(relative_path)
-            if folder_path:
-                parent_folder = _get_folder_from_path(
-                    request.user.organization, folder_path
-                )
-                if parent_folder is None:
-                    return Response(
-                        {"detail": f"Folder path '{folder_path}' does not exist. Please ensure path is created first."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-            if file_name_from_path:
-                # Override the uploaded file's name if a name is provided in path
-                file_obj.name = file_name_from_path
-
-        try:
-            document = create_document_from_upload(
-                requesting_user=request.user,
-                uploaded_file=file_obj,
-                folder=parent_folder
-            )
-        except Exception as e:
-            # In a real app, log this exception
-            return Response(
-                {"detail": f"Failed to start document processing: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-        serializer = DocumentSerializer(document, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
-
-
-
-
-class EnsureFolderPathsView(APIView):
-    """
-    A view to ensure multiple folder paths exist, creating them if necessary.
-    This is designed to be called once before a batch of folder uploads.
-    It's atomic, ensuring that if any path fails, the whole transaction is rolled back.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, *args, **kwargs):
-        serializer = EnsureFolderPathsSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        paths = serializer.validated_data['paths']
-        parent_path = serializer.validated_data.get('parent_path')
-        requesting_user = request.user
-        organization = requesting_user.organization
-
-        # Determine the root folder for the operation. This could be the org's
-        # root or a specific subfolder defined by parent_path.
-        # TODO: N+1 query problem!
-        try:
-            if parent_path:
-                path = Path(parent_path)
-                current_folder = Folder.objects.get_root_for_org(organization)
-                for part in path.parts:
-                    current_folder = Folder.objects.get(
-                        organization=organization,
-                        name=part,
-                        parent=current_folder,
-                        created_by=requesting_user
-                    )
-                root_folder = current_folder
-            else:
-                root_folder = Folder.objects.get_root_for_org(organization)
-        except Folder.DoesNotExist:
-            return Response(
-                {"detail": f"Parent path '{parent_path}' not found or you do not have permission to access it."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            with transaction.atomic():
-                # 1. Determine unique names for all top-level folders relative to the root_folder.
-                top_level_dirs = {Path(p).parts[0] for p in paths if Path(p).parts}
-                path_mappings = {}
-                for original_name in top_level_dirs:
-                    unique_name = _get_unique_folder_name(
-                        created_by=requesting_user,
-                        parent_folder=root_folder,
-                        original_name=original_name
-                    )
-                    path_mappings[original_name] = unique_name
-
-                # 2. Reconstruct all required paths with potentially renamed top-level folders.
-                all_required_paths = set()
-                for path_str in paths:
-                    p = Path(path_str)
-                    if not p.parts:
-                        continue
-
-                    original_top_level = p.parts[0]
-                    renamed_top_level = path_mappings.get(original_top_level, original_top_level)
-
-                    new_path_parts = [renamed_top_level] + list(p.parts[1:])
-                    new_p = Path(*new_path_parts)
-
-                    all_required_paths.add(str(new_p))
-                    for parent in new_p.parents:
-                        if parent != Path('.'):
-                            all_required_paths.add(str(parent))
-
-                # 3. Sort paths to ensure parents are processed before children
-                sorted_paths = sorted(list(all_required_paths), key=lambda p: p.count(os.sep))
-
-                # Keep track of created/verified folders to avoid redundant lookups
-                path_to_folder_map = {'': root_folder}
-
-                for path_str in sorted_paths:
-                    path = Path(path_str)
-                    parent_path_str = str(path.parent) if path.parent != Path('.') else ''
-
-                    parent_folder = path_to_folder_map.get(parent_path_str)
-                    if not parent_folder:
-                        # This should not happen due to sorting, but as a safeguard.
-                        return Response(
-                            {"detail": f"An error occurred: parent folder for '{path_str}' not found."},
-                            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        )
-
-                    # Permission check on the parent
-                    if parent_folder.created_by is not None and parent_folder.created_by != requesting_user:
-                        raise PermissionDenied(
-                            {"detail": f"You do not have permission to create items in '{parent_path_str}'."},
-                            status=status.HTTP_403_FORBIDDEN
-                        )
-
-                    folder_name = path.name
-                    folder, created = Folder.objects.get_or_create(
-                        organization=organization,
-                        parent=parent_folder,
-                        name=folder_name,
-                        defaults={'created_by': requesting_user}
-                    )
-
-                    # If the folder already existed, verify ownership
-                    if not created and folder.created_by != requesting_user:
-                        raise PermissionDenied(
-                            detail=f"You do not have permission to access or create subfolders in '{path_str}'."
-                        )
-
-                    path_to_folder_map[path_str] = folder
-
-            return Response(
-                {
-                    "detail": "Folder structure ensured successfully.",
-                    "path_mappings": path_mappings,
-                },
-                status=status.HTTP_201_CREATED
-            )
-        except PermissionDenied:
-            # Re-raise to let DRF's exception handler create the 403 response.
-            # The transaction is automatically rolled back when an exception
-            # is raised from within the `atomic` block.
-            raise
-        except Folder.DoesNotExist:
-            logger.error(f"Invisible root folder not found for user {requesting_user.id}'s organization")
-            return Response(
-                {"detail": "An unexpected error occurred: root folder missing."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-        except Exception:
-            logger.exception("Failed to ensure folder paths exist for paths: %s", paths)
-            return Response(
-                {"detail": "An unexpected error occurred while creating the folder structure."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-
-class DocumentVersionUploadView(APIView):
-    """
-    A dedicated view for uploading a new version of an existing document.
-    """
-    parser_classes = (MultiPartParser,)
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, document_id, *args, **kwargs):
-        # 1. Authorize the user
-        try:
-            document = Document.objects.get(
-                id=document_id,
-                organization=request.user.organization,
-                created_by=request.user
-            )
-        except Document.DoesNotExist:
-            return Response(
-                {"detail": "Access denied or document not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        uploaded_file = request.data.get('file')
-        if not uploaded_file:
-            return Response(
-                {"detail": "No file provided"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # 2. Delegate to the service layer
-        try:
-            create_new_document_version(
-                document=document,
-                uploaded_file=uploaded_file,
-                requesting_user=request.user
-            )
-        except Exception as e:
-            # In a real app, log this exception
-            return Response(
-                {"detail": f"Failed to start document processing: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-        serializer = DocumentSerializer(document, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
-
-
-def _prepare_pages_data(document, primary_version, share_link=None):
-    """
-    Prepares a list of page data with absolute URLs for a given document version.
-    Handles both image types and paginated document types.
-    If a share_link with watermarking is provided, it generates render URLs instead.
-    """
-    pages_data = []
-    is_watermarked = share_link and share_link.enable_watermark and share_link.watermark_text
-
-    if document.type == 'image':
-        # For images, the preview is the original file itself.
-        if is_watermarked:
-            # Note: For images, there is no DocumentPage, so we render by page number (always 1).
-            page_url = f"/api/v1/links/{share_link.slug}/render-page/1/"
-        else:
-            page_url = default_storage.url(primary_version.original_storage_key)
-
-        absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
-        pages_data.append({
-            'page_number': 1,
-            'url': absolute_url,
-            'metadata': {},
-        })
-    elif primary_version.has_pages:
-        # For PDFs/Office docs, we have pre-generated page images.
-        pages = primary_version.pages.order_by('page_number')
-        for page in pages:
-            if is_watermarked:
-                page_url = f"/api/v1/links/{share_link.slug}/render-page/{page.page_number}/"
-            else:
-                page_url = default_storage.url(page.storage_key)
-
-            absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
-            pages_data.append({
-                "page_number": page.page_number,
-                "url": absolute_url,
-                "metadata": page.metadata,
-            })
-    return pages_data
-
-
-class DocumentPreviewDataView(APIView):
-    """
-    Provides data for rendering an internal document preview.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request, document_id, *args, **kwargs):
-        # Authentication & Authorization is handled by DRF + this query
-        try:
-            document = Document.objects.get(
-                id=document_id,
-                organization=request.user.organization,
-                created_by=request.user
-            )
-        except Document.DoesNotExist:
-            return Response(
-                {"detail": "Access denied or document not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        # Handle documents that are not ready for preview
-        if document.status == 'processing':
-            return Response(
-                {"detail": "Document is still processing. Please wait and try again."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        elif document.status != 'ready':
-             return Response(
-                {"detail": "Document is not ready for preview."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Data Fetching
-        primary_version = document.versions.filter(is_primary=True).first()
-        if not primary_version:
-            return Response(
-                {"detail": "Document version not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        # Content Processing and Response Shaping
-        pages_data = _prepare_pages_data(document, primary_version)
-
-        response_data = {
-            "id": document.id,
-            "name": document.name,
-            "type": document.type,
-            "num_pages": document.num_pages,
-            "pages": pages_data,
-        }
-
-        return Response(response_data, status=status.HTTP_200_OK)
-
-
-class FolderViewSet(viewsets.ModelViewSet):
-    queryset = Folder.objects.all()
-    serializer_class = FolderSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def _get_root_folder(self):
-        """Helper to get the organization's invisible root folder."""
-        try:
-            return Folder.objects.get_root_for_org(self.request.user.organization)
-        except Folder.DoesNotExist:
-            logger.error(f"Invisible root folder not found for organization {self.request.user.organization.id}")
-            raise APIException("An unexpected error occurred: root folder missing.",
-                               code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    def _get_folder_contents(self, folder, request):
-        """Helper to fetch and serialize sub-folders and documents for a given folder."""
-        sub_folders = folder.children.filter(created_by=request.user)
-        documents = folder.documents.filter(created_by=request.user).prefetch_related(
-            'versions', 'share_links', 'share_links__view_sessions'
-        )
-
-        sub_folders_serializer = self.get_serializer(sub_folders, many=True)
-        documents_serializer = DocumentSerializer(documents, many=True, context={'request': request})
-
-        return {
-            'sub_folders': sub_folders_serializer.data,
-            'documents': documents_serializer.data,
-        }
-
-    def list(self, request, *args, **kwargs):
-        """
-        Returns the contents of the user's root folder, including its
-        subfolders and documents.
-        """
-        root_folder = self._get_root_folder()
-        contents = self._get_folder_contents(root_folder, request)
-        return Response({
-            'current_folder': None,
-            **contents,
-        })
-
-    def retrieve(self, request, *args, **kwargs):
-        """
-        Returns the contents of a specific folder, including its subfolders and documents.
-        """
-        instance = self.get_object()
-        contents = self._get_folder_contents(instance, request)
-        current_folder_serializer = self.get_serializer(instance)
-        return Response({
-            'current_folder': current_folder_serializer.data,
-            **contents,
-        })
-
-    def get_queryset(self):
-        """
-        This queryset is used by get_object() to ensure users can only
-        access folders they have created within their organization.
-        """
-        return self.queryset.filter(
-            organization=self.request.user.organization,
-            created_by=self.request.user
-        )
-
-    def perform_create(self, serializer):
-        parent = serializer.validated_data.get('parent')
-        if parent and parent.created_by != self.request.user:
-            raise serializers.ValidationError(
-                {'parent': "You can only create subfolders in your own folders."}
-            )
-
-        if not parent:
-            parent = self._get_root_folder()
-        serializer.save(
-            created_by=self.request.user,
-            organization=self.request.user.organization,
-            parent=parent
-        )
-
-    def perform_update(self, serializer):
-        parent = serializer.validated_data.get('parent')
-        if parent and parent.created_by != self.request.user:
-            raise serializers.ValidationError(
-                {'parent': "You can only move folders to destinations you own."}
-            )
-        serializer.save()
-
-
-class DocumentViewSet(viewsets.ModelViewSet):
-    queryset = Document.objects.all()
-    serializer_class = DocumentSerializer
+class ShareLinkPresetViewSet(viewsets.ModelViewSet):
+    queryset = ShareLinkPreset.objects.all()
+    serializer_class = ShareLinkPresetSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        """
-        This queryset is used for all actions. It ensures that users can only
-        access documents they have created within their organization.
-        Filtering by folder is handled in the `list` action.
-        """
-        return self.queryset.filter(
-            organization=self.request.user.organization,
-            created_by=self.request.user
-        ).prefetch_related('versions', 'share_links', 'share_links__view_sessions')
+        return ShareLinkPreset.objects.filter(organization=self.request.user.organization)
 
-    def list(self, request, *args, **kwargs):
-        """
-        Returns a list of documents for the currently authenticated user,
-        optionally filtered by a parent folder.
-        """
-        queryset = self.get_queryset()
-        organization = self.request.user.organization
-        folder_id = self.request.query_params.get('folder')
 
-        if folder_id:
-            # Ensure the requested folder belongs to the user's org for security
-            target_folder = get_object_or_404(Folder, id=folder_id, organization=organization)
-        else:
-            # Default to listing documents in the root folder
-            target_folder = get_object_or_404(Folder, organization=organization, name='__root__', parent=None)
+class ShareLinkViewSet(viewsets.ModelViewSet):
+    queryset = ShareLink.objects.all()
+    serializer_class = ShareLinkSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-        queryset = queryset.filter(folder=target_folder)
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def destroy(self, request, *args, **kwargs):
-        document = self.get_object()
-        delete_document_and_files(document)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    def get_queryset(self):
+        queryset = ShareLink.objects.filter(created_by=self.request.user).prefetch_related('dataroom_settings')
+        dataroom_id = self.request.query_params.get('dataroom_id')
+        if dataroom_id:
+            queryset = queryset.filter(dataroom_id=dataroom_id)
+        return queryset
 
     @action(detail=True, methods=['get'], url_path='view-sessions')
     def view_sessions(self, request, pk=None):
-        document = self.get_object()
-        view_queryset = ViewSession.objects.filter(
-            share_link__document=document
-        ).order_by('-viewed_at').select_related('share_link').prefetch_related('page_views')
-
-        # Optimization: pre-fetch all page image URLs for this document
-        primary_version = document.versions.filter(is_primary=True).first()
-        pages_map = {}
-        if primary_version:
-            if document.type == 'image':
-                image_url = default_storage.url(primary_version.original_storage_key)
-                pages_map[1] = urljoin(settings.SITE_DOMAIN, image_url)
-            elif primary_version.has_pages:
-                for page in primary_version.pages.values('page_number', 'storage_key').order_by('page_number'):
-                    page_url = default_storage.url(page['storage_key'])
-                    pages_map[page['page_number']] = urljoin(settings.SITE_DOMAIN, page_url)
-
-        serializer_context = self.get_serializer_context()
-        serializer_context['pages_map'] = pages_map
+        share_link = self.get_object()
+        view_queryset = share_link.view_sessions.all()
 
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(view_queryset, request, view=self)
         if page is not None:
-            serializer = ViewSessionSerializer(page, many=True, context=serializer_context)
+            serializer = ViewSessionSerializer(page, many=True, context=self.get_serializer_context())
             return paginator.get_paginated_response(serializer.data)
 
-        serializer = ViewSessionSerializer(view_queryset, many=True, context=serializer_context)
+        serializer = ViewSessionSerializer(view_queryset, many=True, context=self.get_serializer_context())
         return Response(serializer.data)
 
-    @action(detail=True, methods=['get'])
-    def stats(self, request, pk=None):
-        document = self.get_object()
-        aggregates = ViewSession.objects.filter(
-            share_link__document=document
-        ).aggregate(
-            total_views=Count('id'),
-            total_duration_seconds=Sum('duration_seconds'),
-            total_downloads=Count('downloaded_at'),
+    @action(detail=True, methods=['post'], url_path='preview')
+    def create_preview_session(self, request, pk=None):
+        """
+        Creates a short-lived, single-use preview session for the share link owner.
+        """
+        share_link = self.get_object()  # This correctly uses the scoped get_queryset
+
+        # Clean up any old, expired sessions for this link to prevent clutter
+        share_link.preview_sessions.filter(expires_at__lt=timezone.now()).delete()
+
+        session = PreviewSession.objects.create(
+            share_link=share_link,
+            user=request.user,
+            token=secrets.token_urlsafe(32),
+            expires_at=timezone.now() + timedelta(minutes=5)
         )
+        return Response({'previewToken': session.token}, status=status.HTTP_201_CREATED)
 
-        total_views = aggregates['total_views']
-        total_duration = aggregates['total_duration_seconds'] or 0
-        avg_duration = total_duration / total_views if total_views > 0 else 0
-        total_downloads = aggregates['total_downloads']
-
-        return Response({
-            'total_views': total_views,
-            'total_duration_seconds': total_duration,
-            'avg_duration_seconds': avg_duration,
-            'total_downloads': total_downloads,
-        })
-
-
-
-
-class ViewerViewSet(viewsets.ModelViewSet):
-    queryset = Viewer.objects.all()
-    serializer_class = ViewerSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        return Viewer.objects.filter(organization=self.request.user.organization)
-
-
-class ViewSessionViewSet(viewsets.ModelViewSet):
-    queryset = ViewSession.objects.all()
-    serializer_class = ViewSessionSerializer
-
-    def get_permissions(self):
+    @action(detail=True, methods=['patch'], url_path='dataroom-settings')
+    def dataroom_settings(self, request, pk=None):
         """
-        Allow anonymous users to create view sessions, but restrict
-        all other actions to authenticated users.
+        Bulk updates settings for items within a dataroom share link.
         """
-        if self.action in ['create', 'record_download']:
-            return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated()]
+        share_link = self.get_object()
+        if not share_link.dataroom:
+            return Response(
+                {"detail": "This share link is not for a dataroom."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-    @action(detail=True, methods=['post'], url_path='record-download')
-    def record_download(self, request, pk=None):
-        """Records that a document was downloaded during this view session."""
+        serializer = ShareLinkDataroomSettingUpdateSerializer(data=request.data, many=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        settings_to_update = serializer.validated_data
+        setting_ids = [item['id'] for item in settings_to_update]
+
+        # Fetch all settings that match the provided IDs AND the share link.
+        valid_settings_count = ShareLinkDataroomSetting.objects.filter(
+            id__in=setting_ids, share_link=share_link
+        ).count()
+
+        # If the number of valid settings found doesn't match the number of IDs
+        # provided, it means some IDs were invalid or didn't belong to this link.
+        if valid_settings_count != len(setting_ids):
+            return Response(
+                {"detail": "One or more setting IDs are invalid or do not belong to this share link."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         try:
-            view_session = ViewSession.objects.get(pk=pk)
-            # Only record the first download
-            if view_session.downloaded_at is None:
-                view_session.downloaded_at = timezone.now()
-                view_session.save(update_fields=['downloaded_at'])
-            return Response(status=status.HTTP_200_OK)
-        except ViewSession.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            with transaction.atomic():
+                # TODO: potential N+1 query problem!
+                for item in settings_to_update:
+                    setting_id = item.pop('id')
+                    ShareLinkDataroomSetting.objects.filter(id=setting_id, share_link=share_link).update(**item)
 
-    def get_queryset(self):
-        return ViewSession.objects.filter(share_link__document__organization=self.request.user.organization)
-
-    def perform_create(self, serializer):
-        ip_address = self.request.META.get('REMOTE_ADDR')
-        user_agent = self.request.META.get('HTTP_USER_AGENT', '')[:255]
-
-        # Check for owner preview first, which takes precedence.
-        preview_owner_email = self.request.session.pop('preview_owner_email', None)
-
-        if preview_owner_email:
-            viewer_email = preview_owner_email
-        else:
-            # Attempt to find a regular viewer's email from the session if they've been
-            # authorized via an email-required link.
-            share_link = serializer.validated_data.get('share_link')
-            viewer_email = ''
-            if share_link:
-                authorized_links = self.request.session.get('authorized_share_links', {})
-                auth_status = authorized_links.get(str(share_link.id), {})
-                if auth_status.get('email_verified'):
-                    viewer_email = auth_status.get('viewer_email')
-
-        # GeoIP lookup
-        location_data = {}
-        if ip_address and settings.GEOIP:
-            try:
-                location_data = settings.GEOIP.city(ip_address)
-            except AddressNotFoundError:
-                pass  # Expected for local/private IPs
-            except Exception as e:
-                logger.error(f"GeoIP2 lookup failed: {e}")
-
-        serializer.save(
-            ip_address=ip_address,
-            user_agent=user_agent,
-            viewer_email=viewer_email,
-            country=location_data.get('country_name', ''),
-            city=location_data.get('city', ''),
-            latitude=location_data.get('latitude'),
-            longitude=location_data.get('longitude')
-        )
+            return Response({"detail": "Settings updated successfully."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Failed to bulk update dataroom settings for link {pk}: {e}")
+            return Response(
+                {"detail": "An internal server error occurred."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class ShareLinkViewDataView(APIView):
@@ -907,10 +398,6 @@ class ShareLinkViewDataView(APIView):
             return Response(response_data, status=status.HTTP_200_OK)
 
         return Response({"detail": "This link does not point to a valid resource."}, status=status.HTTP_404_NOT_FOUND)
-
-
-class ShareLinkPasswordSerializer(serializers.Serializer):
-    password = serializers.CharField(write_only=True)
 
 
 class PerSlugScopedRateThrottle(ScopedRateThrottle):
@@ -1249,7 +736,7 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
             if not reader.pages:
                 raise InvalidDocumentForWatermarkingError("Cannot apply watermark to an empty PDF.")
 
-            rendered_watermark_text = _render_watermark_text(watermark_text, request, viewer_email=viewer_email)
+            rendered_watermark_text = _render_watermark_text(watermark_text, request, viewer_email)
 
             # Create a watermark page in memory
             watermark_buffer = BytesIO()
@@ -1484,148 +971,3 @@ class DataroomFolderDownloadView(APIView):
         response = HttpResponse(zip_buffer, content_type='application/zip')
         response['Content-Disposition'] = f'attachment; filename="{get_valid_filename(root_folder.name)}.zip"'
         return response
-
-
-class RecordPageView(APIView):
-    """
-    Receives and records granular page view tracking data.
-    """
-    # No permission_classes, as this is a public endpoint. Security is implicit
-    # as it requires a valid, existing `view_id`.
-
-    def post(self, request, *args, **kwargs):
-        serializer = PageViewRecordSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        validated_data = serializer.validated_data
-        view_session = validated_data['view_session']
-        duration = validated_data['duration_seconds']
-
-        try:
-            with transaction.atomic():
-                # 1. Create the PageView record
-                serializer.save()
-
-                # 2. Atomically update the parent View's total duration to prevent race conditions.
-                view_session.duration_seconds = F('duration_seconds') + duration
-
-                # 3. Update completion rate
-                document = view_session.share_link.document
-                update_fields = ['duration_seconds']
-                if document and document.num_pages and document.num_pages > 0:
-                    viewed_pages_count = view_session.page_views.values('page_number').distinct().count()
-                    completion_rate = viewed_pages_count / document.num_pages
-                    view_session.completion_rate = min(completion_rate, 1.0)
-                    update_fields.append('completion_rate')
-
-                view_session.save(update_fields=update_fields)
-
-            return Response({"message": "View recorded"}, status=status.HTTP_200_OK)
-        except Exception as e:
-            logger.error(f"Error recording page view: {e}")
-            return Response({"error": "Server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class MoveItemsView(APIView):
-    """
-    A dedicated view for moving documents and folders to a new location.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    class MoveItemsSerializer(serializers.Serializer):
-        document_ids = serializers.ListField(
-            child=serializers.CharField(), required=False, allow_empty=True
-        )
-        folder_ids = serializers.ListField(
-            child=serializers.CharField(), required=False, allow_empty=True
-        )
-        destination_folder_id = serializers.CharField(allow_null=True)
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.MoveItemsSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        validated_data = serializer.validated_data
-        doc_ids = validated_data.get('document_ids', [])
-        folder_ids = validated_data.get('folder_ids', [])
-        dest_id = validated_data.get('destination_folder_id')
-        user = request.user
-        organization = user.organization
-
-        if not doc_ids and not folder_ids:
-            return Response(
-                {"detail": "No items selected to move."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            with transaction.atomic():
-                # 1. Get and validate destination folder
-                if dest_id:
-                    destination_folder = Folder.objects.get(id=dest_id, created_by=user)
-                else:
-                    destination_folder = Folder.objects.get_root_for_org(organization)
-
-                # 2. Get and validate source items
-                documents_to_move = Document.objects.filter(id__in=doc_ids, created_by=user)
-                if documents_to_move.count() != len(doc_ids):
-                    raise PermissionDenied("You do not have permission to move one or more of the selected documents.")
-
-                folders_to_move = Folder.objects.filter(id__in=folder_ids, created_by=user)
-                if folders_to_move.count() != len(folder_ids):
-                    raise PermissionDenied("You do not have permission to move one or more of the selected folders.")
-
-                # 3. Validation: Prevent moving a folder into itself or a descendant
-                for folder in folders_to_move:
-                    if folder.id == destination_folder.id:
-                        raise serializers.ValidationError(
-                            f"Cannot move folder '{folder.name}' into itself."
-                        )
-
-                    parent = destination_folder
-                    while parent:
-                        if parent.id == folder.id:
-                            raise serializers.ValidationError(
-                                f"Cannot move folder '{folder.name}' into one of its own subfolders."
-                            )
-                        parent = parent.parent
-
-                # 4. Perform move for documents
-                # TODO: This can lead to performance issues when moving a large number of items,
-                # as it results in N database queries for updates. To improve efficiency,
-                # you can collect the modified objects and use bulk_update to perform all updates
-                # in a single query for documents and another for folders.
-                for doc in documents_to_move:
-                    doc.name = _get_unique_document_name(
-                        requesting_user=user,
-                        folder=destination_folder,
-                        original_name=doc.name
-                    )
-                    doc.folder = destination_folder
-                    doc.save()
-
-                # 5. Perform move for folders
-                for folder in folders_to_move:
-                    folder.name = _get_unique_folder_name(
-                        created_by=user,
-                        parent_folder=destination_folder,
-                        original_name=folder.name
-                    )
-                    folder.parent = destination_folder
-                    folder.save()
-
-            return Response({"detail": "Items moved successfully."}, status=status.HTTP_200_OK)
-
-        except Folder.DoesNotExist:
-            return Response({"detail": "Destination folder not found."}, status=status.HTTP_404_NOT_FOUND)
-        except PermissionDenied as e:
-            return Response({"detail": str(e)}, status=status.HTTP_403_FORBIDDEN)
-        except serializers.ValidationError as e:
-            # e.detail is a dict, so we convert it for a clean message
-            error_message = next(iter(e.detail.values()))[0] if isinstance(e.detail, dict) else str(e.detail[0])
-            return Response({"detail": error_message}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception:
-            logger.exception("An error occurred during move operation.")
-            return Response({"detail": "An unexpected error occurred."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

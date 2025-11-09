@@ -32,7 +32,7 @@ class DataroomDocument(BaseModel):
 
 
 class ShareLinkDataroomSetting(BaseModel):
-    share_link = models.ForeignKey('documents.ShareLink', on_delete=models.CASCADE, related_name='dataroom_settings')
+    share_link = models.ForeignKey('sharelinks.ShareLink', on_delete=models.CASCADE, related_name='dataroom_settings')
     dataroom_document = models.ForeignKey(DataroomDocument, on_delete=models.CASCADE, null=True, blank=True)
     dataroom_folder = models.ForeignKey(DataroomFolder, on_delete=models.CASCADE, null=True, blank=True)
     is_visible = models.BooleanField(default=True)

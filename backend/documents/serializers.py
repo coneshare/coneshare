@@ -1,11 +1,12 @@
-from django.contrib.auth.hashers import make_password
 from django.db import transaction
 from rest_framework import serializers
+
 from core.models import Organization
-from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, ShareLinkDataroomSetting
-from datarooms.serializers import ShareLinkDataroomSettingSerializer
-from .models import Document, DocumentPage, DocumentVersion, Folder, PageView, ShareLink, ShareLinkPreset, ViewSession, Viewer
-from .services import _get_unique_folder_name, _get_unique_share_link_name
+from datarooms.models import Dataroom
+from sharelinks.serializers import ShareLinkSerializer
+from .models import (Document, DocumentPage, DocumentVersion, Folder,
+                     PageView, ViewSession, Viewer)
+from .services import _get_unique_folder_name
 
 
 class EnsureFolderPathsSerializer(serializers.Serializer):
@@ -183,149 +184,6 @@ class ViewSessionSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class ShareLinkSerializer(serializers.ModelSerializer):
-    dataroom = serializers.PrimaryKeyRelatedField(
-        queryset=Dataroom.objects.all(), required=False, allow_null=True
-    )
-    dataroom_settings = ShareLinkDataroomSettingSerializer(many=True, read_only=True)
-    has_password = serializers.SerializerMethodField()
-    view_count = serializers.SerializerMethodField()
-    recent_view_sessions = serializers.SerializerMethodField()
-    document_name = serializers.CharField(source='document.name', read_only=True, allow_null=True)
-    dataroom_name = serializers.CharField(source='dataroom.name', read_only=True, allow_null=True)
-    last_viewed_at = serializers.SerializerMethodField()
-
-    def validate(self, data):
-        """
-        Enforce business rules:
-        - A link must point to either a document or a dataroom, but not both.
-        - If the associated document is download-only, force allow_download to be true.
-        - On update, check for name uniqueness manually.
-        """
-        document = data.get('document')
-        dataroom = data.get('dataroom')
-
-        # On update, we need to consider the instance's state
-        if self.instance:
-            document = document or self.instance.document
-            dataroom = dataroom or self.instance.dataroom
-            if 'document' in data and data['document'] is None:  # Explicitly setting to null
-                document = None
-            if 'dataroom' in data and data['dataroom'] is None:
-                dataroom = None
-
-        if not document and not dataroom:
-            raise serializers.ValidationError("A share link must be associated with either a document or a dataroom.")
-        if document and dataroom:
-            raise serializers.ValidationError("A share link cannot be associated with both a document and a dataroom.")
-
-        if document and document.download_only:
-            data['allow_download'] = True
-
-        # Manually handle uniqueness validation on update only.
-        # On create, the `create` method handles finding a unique name.
-        if self.instance and 'name' in data:
-            name = data['name']
-            if name and ShareLink.objects.filter(
-                document=document, name=name
-            ).exclude(pk=self.instance.pk).exists():
-                raise serializers.ValidationError(
-                    {'name': 'A share link with this name already exists for this document.'}
-                )
-
-        return data
-
-    class Meta:
-        model = ShareLink
-        fields = [
-            'id', 'document', 'dataroom', 'document_name', 'dataroom_name', 'dataroom_settings', 'created_by', 'name', 'slug', 'expires_at',
-            'has_password', 'password', 'requires_email', 'requires_email_verification', 'allow_download',
-            'enable_watermark', 'watermark_text', 'receive_email_notification', 'is_active', 'created_at', 'updated_at',
-            'view_count', 'recent_view_sessions', 'last_viewed_at'
-        ]
-        read_only_fields = [
-            'id', 'created_by', 'slug', 'created_at', 'updated_at', 'document_name'
-        ]
-        extra_kwargs = {
-            'name': {'required': True, 'allow_blank': True},
-            'password': {
-                'required': False,
-                'allow_blank': True,
-                'style': {'input_type': 'password'}
-            }
-        }
-        # Remove the default UniqueTogetherValidator.
-        # We handle uniqueness manually in `validate()` for updates and `create()` for creations.
-        validators = []
-
-    def get_has_password(self, obj):
-        """Returns True if the link is password-protected."""
-        return bool(obj.password)
-
-    def get_view_count(self, obj):
-        """Returns the number of view sessions for the link."""
-        # This is efficient because of the prefetch_related in the view.
-        if hasattr(obj, '_prefetched_objects_cache') and 'view_sessions' in obj._prefetched_objects_cache:
-            return len(obj._prefetched_objects_cache['view_sessions'])
-        return obj.view_sessions.count()
-
-    def get_recent_view_sessions(self, obj):
-        """Returns up to 10 most recent view sessions."""
-        # This is efficient because of the prefetch_related in the view.
-        if hasattr(obj, '_prefetched_objects_cache') and 'view_sessions' in obj._prefetched_objects_cache:
-            # Slicing the prefetched list. Relies on the model's Meta ordering.
-            sessions = obj._prefetched_objects_cache['view_sessions'][:10]
-        else:
-            # Fallback to a query if not prefetched. Relies on Meta.ordering.
-            sessions = obj.view_sessions.all()[:10]
-
-        serializer = ViewSessionSerializer(sessions, many=True, context=self.context)
-        return serializer.data
-
-    def get_last_viewed_at(self, obj):
-        """Returns the timestamp of the most recent view session."""
-        # This is efficient because of the prefetch_related in the view.
-        # The ViewSession model's Meta ordering is '-viewed_at', so the first session is the latest.
-        if hasattr(obj, '_prefetched_objects_cache') and 'view_sessions' in obj._prefetched_objects_cache:
-            sessions = obj._prefetched_objects_cache['view_sessions']
-            if sessions:
-                return sessions[0].viewed_at
-        else:
-            # Fallback to a query if not prefetched.
-            latest_session = obj.view_sessions.first()
-            if latest_session:
-                return latest_session.viewed_at
-        return None
-
-    def create(self, validated_data):
-        request = self.context['request']
-        validated_data['created_by'] = request.user
-
-        document = validated_data.get('document')
-        dataroom = validated_data.get('dataroom')
-
-        if document:
-            # Default to "Untitled Link" if name is not provided or is empty.
-            original_name = validated_data.get('name') or "Untitled Link"
-            validated_data['name'] = _get_unique_share_link_name(document, original_name)
-
-        # For datarooms, we'll just use the provided name for now. A future
-        # task could be to implement unique name generation for dataroom links.
-        elif dataroom and not validated_data.get('name'):
-             validated_data['name'] = "Untitled Link"
-
-        # The post_save signal will now handle creating settings for dataroom links.
-        share_link = super().create(validated_data)
-
-        return share_link
-
-    def update(self, instance, validated_data):
-        return super().update(instance, validated_data)
-
-
-class ShareLinkEmailSerializer(serializers.Serializer):
-    """Serializer for the email submission form."""
-    email = serializers.EmailField()
 
 
 class ViewerSerializer(serializers.ModelSerializer):
@@ -374,23 +232,6 @@ class DocumentSerializer(serializers.ModelSerializer):
         # Automatically assign the user's organization and the user
         validated_data['organization'] = request.user.organization
         validated_data['created_by'] = request.user
-        return super().create(validated_data)
-
-
-class ShareLinkPresetSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ShareLinkPreset
-        fields = [
-            'id', 'organization', 'name', 'is_default', 'expires_in_days',
-            'requires_password', 'requires_email', 'requires_email_verification', 'allow_download',
-            'enable_watermark', 'watermark_text', 'receive_email_notification', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
-
-    def create(self, validated_data):
-        request = self.context['request']
-        # Automatically assign the user's organization
-        validated_data['organization'] = request.user.organization
         return super().create(validated_data)
 
 
