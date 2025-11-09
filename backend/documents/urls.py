@@ -6,23 +6,12 @@ from . import views
 router = DefaultRouter()
 router.register(r'folders', views.FolderViewSet)
 router.register(r'documents', views.DocumentViewSet)
-router.register(r'share-link-presets', views.ShareLinkPresetViewSet)
-router.register(r'share-links', views.ShareLinkViewSet)
-router.register(r'viewers', views.ViewerViewSet)
-router.register(r'view-sessions', views.ViewSessionViewSet, basename='viewsession')
 
 urlpatterns = [
     path('folders/ensure-paths/', views.EnsureFolderPathsView.as_view(), name='folder-ensure-paths'),
     path('uploads/document/', views.DocumentUploadView.as_view(), name='document-upload'),
     path('documents/<str:document_id>/versions/', views.DocumentVersionUploadView.as_view(), name='document-version-upload'),
     path('documents/<str:document_id>/preview-data/', views.DocumentPreviewDataView.as_view(), name='document-preview-data'),
-    path('links/<slug:slug>/verify-password/', views.ShareLinkVerifyPasswordView.as_view(), name='share-link-verify-password'),
-    path('links/<slug:slug>/request-access/', views.ShareLinkRequestAccessView.as_view(), name='share-link-request-access'),
-    path('links/<slug:slug>/view-data/', views.ShareLinkViewDataView.as_view(), name='share-link-view-data'),
-    path('page-views/record/', views.RecordPageView.as_view(), name='record-page-view'),
-    path('links/<slug:slug>/render-page/<int:page_number>/', views.WatermarkedPageRenderView.as_view(), name='watermarked-page-render'),
-    path('links/<slug:slug>/download/', views.WatermarkedFileDownloadView.as_view(), name='watermarked-file-download'),
-    path('links/<slug:slug>/download-folder/<str:folder_id>/', views.DataroomFolderDownloadView.as_view(), name='dataroom-folder-download'),
     path('actions/move/', views.MoveItemsView.as_view(), name='move-items'),
 
     path('', include(router.urls)),

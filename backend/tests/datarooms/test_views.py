@@ -2,7 +2,8 @@ import pytest
 from rest_framework import status
 
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
-from documents.models import Document, Folder, ShareLink, ViewSession
+from documents.models import Document, Folder
+from sharelinks.models import ShareLink, ViewSession
 
 pytestmark = pytest.mark.django_db
 

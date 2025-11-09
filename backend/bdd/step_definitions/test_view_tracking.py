@@ -2,7 +2,8 @@ import pytest
 from unittest.mock import patch
 from pytest_bdd import scenario, given, when, then, parsers
 
-from documents.models import Document, ShareLink, ViewSession, PageView
+from documents.models import Document
+from sharelinks.models import ShareLink, ViewSession, PageView
 
 pytest_plugins = "bdd.step_definitions.common_steps"
 

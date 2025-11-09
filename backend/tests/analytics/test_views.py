@@ -4,7 +4,8 @@ from datetime import timedelta
 from rest_framework import status
 
 from core.models import Organization, User
-from documents.models import Document, ViewSession, ShareLink
+from documents.models import Document
+from sharelinks.models import ShareLink, ViewSession
 
 
 @pytest.mark.django_db
