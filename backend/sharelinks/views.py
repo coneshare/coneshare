@@ -269,6 +269,7 @@ class ShareLinkViewDataView(APIView):
         dataroom_document_id = request.query_params.get('document_id')
 
         document_to_return = None
+        dataroom_setting = None  # To hold the setting if it's a dataroom link
         # Case 1: Fetching a specific document from within a dataroom link.
         if link.dataroom and dataroom_document_id:
             try:
@@ -279,6 +280,7 @@ class ShareLinkViewDataView(APIView):
                     is_visible=True
                 )
                 document_to_return = setting.dataroom_document.document
+                dataroom_setting = setting
             except ShareLinkDataroomSetting.DoesNotExist:
                 return Response({"detail": "You do not have permission to view this document through this link."}, status=status.HTTP_403_FORBIDDEN)
 
@@ -300,18 +302,9 @@ class ShareLinkViewDataView(APIView):
             allow_download = link.allow_download
             enable_watermark = link.enable_watermark
 
-            if link.dataroom:
-                try:
-                    # For a dataroom, we need the specific setting for this document
-                    setting = ShareLinkDataroomSetting.objects.get(
-                        share_link=link,
-                        dataroom_document__document=document
-                    )
-                    allow_download = setting.allow_download
-                    enable_watermark = setting.enable_watermark
-                except ShareLinkDataroomSetting.DoesNotExist:
-                    # Should not happen if data is consistent. Fallback to link defaults.
-                    pass
+            if dataroom_setting:
+                allow_download = dataroom_setting.allow_download
+                enable_watermark = dataroom_setting.enable_watermark
 
             pages_data = _prepare_pages_data(document, primary_version, share_link=link)
 
