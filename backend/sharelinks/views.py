@@ -12,7 +12,7 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.core.mail import send_mail
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.utils import timezone
 from django.utils.http import quote_etag
 from django.utils.text import get_valid_filename
@@ -597,6 +597,67 @@ def _render_watermark_text(template_string: str, request, viewer_email: str = ''
     return rendered_text
 
 
+class ShareLinkPageView(APIView):
+    """
+    Serves a single, non-watermarked page image for a document accessed
+    via a public share link. It performs all necessary security checks
+    for each page request and serves the file from storage.
+    """
+    def get(self, request, slug, page_number, *args, **kwargs):
+        try:
+            link = _get_active_share_link(slug)
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
+
+        # A simplified check; the main /view-data/ endpoint handles the full
+        # sequential auth flow. This just ensures a session is authorized.
+        authorized_links = request.session.get('authorized_share_links', {})
+        if not authorized_links.get(str(link.id)):
+             return Response(
+                {"message": "Authorization required to view this content."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        document = None
+        if link.dataroom:
+            document_id = request.query_params.get('document_id')
+            if not document_id:
+                return Response({"message": "Document ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                setting = link.dataroom_settings.get(
+                    dataroom_document__document_id=document_id, is_visible=True
+                )
+                document = setting.dataroom_document.document
+            except ShareLinkDataroomSetting.DoesNotExist:
+                return Response({"message": "You do not have permission to view this document."}, status=status.HTTP_403_FORBIDDEN)
+        elif link.document:
+            document = link.document
+        else:
+            return Response({"message": "Invalid link target."}, status=status.HTTP_400_BAD_REQUEST)
+
+        primary_version = document.versions.filter(is_primary=True).first()
+        if not primary_version:
+            return Response({"message": "Document version not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        source_image_key = None
+        if document.type == 'image' and page_number == 1:
+            source_image_key = primary_version.original_storage_key
+        elif primary_version.has_pages:
+            try:
+                page = DocumentPage.objects.get(document_version=primary_version, page_number=page_number)
+                source_image_key = page.storage_key
+            except DocumentPage.DoesNotExist:
+                return Response({"message": "Page not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not source_image_key:
+            return Response({"message": "Source image for page not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Redirect to the actual file in storage. This uses pre-signed URLs for
+        # cloud storage like MinIO, providing secure, temporary access.
+        url = default_storage.url(source_image_key)
+        return HttpResponseRedirect(url)
+
+
 class WatermarkedPageRenderView(APIView):
     """
     Dynamically renders a watermarked image for a document page.
@@ -618,7 +679,26 @@ class WatermarkedPageRenderView(APIView):
         if not link.enable_watermark or not link.watermark_text:
             return Response({"message": "Watermarking is not enabled for this link."}, status=status.HTTP_400_BAD_REQUEST)
 
-        document = link.document
+        document = None
+        if link.dataroom:
+            document_id = request.query_params.get('document_id')
+            if not document_id:
+                return Response({"message": "Document ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                # Security check: ensure the requested document is part of this dataroom
+                # and is visible according to the link's settings.
+                setting = link.dataroom_settings.get(
+                    dataroom_document__document_id=document_id,
+                    is_visible=True
+                )
+                document = setting.dataroom_document.document
+            except ShareLinkDataroomSetting.DoesNotExist:
+                return Response({"message": "You do not have permission to view this document."}, status=status.HTTP_403_FORBIDDEN)
+        elif link.document:
+            document = link.document
+        else:
+            return Response({"message": "Invalid link target."}, status=status.HTTP_400_BAD_REQUEST)
+
         primary_version = document.versions.filter(is_primary=True).first()
 
         if not primary_version:

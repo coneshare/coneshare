@@ -331,16 +331,18 @@ def _prepare_pages_data(document, primary_version, share_link=None):
     """
     Prepares a list of page data with absolute URLs for a given document version.
     Handles both image types and paginated document types.
-    If a share_link with watermarking is provided, it generates render URLs instead.
+    If a share_link is provided, it generates secure, permission-checked URLs.
     """
     pages_data = []
     is_watermarked = share_link and share_link.enable_watermark and share_link.watermark_text
 
     if document.type == 'image':
-        # For images, the preview is the original file itself.
-        if is_watermarked:
-            # Note: For images, there is no DocumentPage, so we render by page number (always 1).
-            page_url = f"/api/v1/links/{share_link.slug}/render-page/1/"
+        page_url = None
+        if share_link:
+            base_url_part = "render-page" if is_watermarked else "page"
+            page_url = f"/api/v1/links/{share_link.slug}/{base_url_part}/1/"
+            if share_link.dataroom:
+                page_url += f"?document_id={document.id}"
         else:
             page_url = default_storage.url(primary_version.original_storage_key)
 
@@ -354,8 +356,12 @@ def _prepare_pages_data(document, primary_version, share_link=None):
         # For PDFs/Office docs, we have pre-generated page images.
         pages = primary_version.pages.order_by('page_number')
         for page in pages:
-            if is_watermarked:
-                page_url = f"/api/v1/links/{share_link.slug}/render-page/{page.page_number}/"
+            page_url = None
+            if share_link:
+                base_url_part = "render-page" if is_watermarked else "page"
+                page_url = f"/api/v1/links/{share_link.slug}/{base_url_part}/{page.page_number}/"
+                if share_link.dataroom:
+                    page_url += f"?document_id={document.id}"
             else:
                 page_url = default_storage.url(page.storage_key)
 
