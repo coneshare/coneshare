@@ -61,7 +61,7 @@ function ListItem({ item, onItemClick, onDownloadClick }) {
             size="icon"
             className="h-8 w-8 opacity-0 group-hover:opacity-100"
             onClick={() => onDownloadClick(item)}
-            title={`Download folder "${item.name}"`}
+            title={`Download "${item.name || item.document_name}"`}
           >
             <DownloadIcon className="h-4 w-4" />
           </Button>
@@ -102,6 +102,27 @@ export function DataroomViewer({ data, slug }) {
     } catch (error) {
       console.error('Failed to download folder:', error);
       // Error toast is handled by the api interceptor
+    }
+  };
+
+  const handleDownloadDocument = (doc) => {
+    // This constructs a URL to the existing single-file download endpoint.
+    const downloadUrl = `/api/v1/links/${slug}/download/?document_id=${doc.document_id}`;
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    // The browser will handle the 'download' attribute for same-origin URLs.
+    // The backend should set 'Content-Disposition' header for this to work robustly.
+    link.setAttribute('download', doc.document_name);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
+  const handleDownloadClick = (item) => {
+    if (item.type === 'folder') {
+      handleDownloadFolder(item);
+    } else {
+      handleDownloadDocument(item);
     }
   };
 
@@ -191,7 +212,7 @@ export function DataroomViewer({ data, slug }) {
               key={item.id}
               item={item}
               onItemClick={handleItemClick}
-              onDownloadClick={handleDownloadFolder}
+              onDownloadClick={handleDownloadClick}
             />
           ))}
         </div>

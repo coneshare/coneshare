@@ -150,7 +150,7 @@ class PublicDataroomDocumentSerializer(serializers.ModelSerializer):
     def get_allow_download(self, obj):
         settings = self.context.get('settings_map', {})
         # obj.id here is the DataroomDocument ID
-        return settings.get(obj.id, {}).get('allow_download', True)
+        return settings.get(obj.id, {}).get('allow_download', False)
 
     def get_enable_watermark(self, obj):
         settings = self.context.get('settings_map', {})
@@ -169,7 +169,7 @@ class PublicDataroomFolderSerializer(serializers.ModelSerializer):
     def get_allow_download(self, obj):
         settings = self.context.get('settings_map', {})
         # obj.id here is the DataroomFolder ID
-        return settings.get(obj.id, {}).get('allow_download', True)
+        return settings.get(obj.id, {}).get('allow_download', False)
 
     def get_enable_watermark(self, obj):
         settings = self.context.get('settings_map', {})
