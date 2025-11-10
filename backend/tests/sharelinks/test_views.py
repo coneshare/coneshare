@@ -380,6 +380,33 @@ class TestShareLinkViewDataView:
         assert "Subfolder" not in folder_names
         assert "Secret.pdf" not in doc_names
 
+    def test_get_document_from_dataroom_link_returns_item_specific_settings(self, public_client, user, dataroom, document):
+        """
+        Test that fetching a document from a dataroom link returns the item-specific
+        settings, not the parent link's settings.
+        """
+        # 1. Setup dataroom with content and a link where settings differ.
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link = ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            allow_download=True  # Link default is TRUE
+        )
+
+        # 2. Modify the specific setting to be different from the link's default.
+        setting = link.dataroom_settings.get(dataroom_document=ddoc)
+        setting.allow_download = False  # Item-specific is FALSE
+        setting.save()
+
+        # 3. Request the document through the dataroom link.
+        url = f"/api/v1/links/{link.slug}/view-data/?document_id={document.id}"
+        response = public_client.get(url)
+
+        # 4. Assertions.
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert "link_settings" in data
+        assert data['link_settings']['allow_download'] is False  # Should reflect the specific setting
 
 @pytest.mark.django_db
 class TestShareLinkPreview:

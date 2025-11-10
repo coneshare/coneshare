@@ -296,12 +296,33 @@ class ShareLinkViewDataView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            # Determine the correct settings to use (link vs. item-specific)
+            allow_download = link.allow_download
+            enable_watermark = link.enable_watermark
+
+            if link.dataroom:
+                try:
+                    # For a dataroom, we need the specific setting for this document
+                    setting = ShareLinkDataroomSetting.objects.get(
+                        share_link=link,
+                        dataroom_document__document=document
+                    )
+                    allow_download = setting.allow_download
+                    enable_watermark = setting.enable_watermark
+                except ShareLinkDataroomSetting.DoesNotExist:
+                    # Should not happen if data is consistent. Fallback to link defaults.
+                    pass
+
             pages_data = _prepare_pages_data(document, primary_version, share_link=link)
 
             download_url = None
-            is_watermarked = link.enable_watermark and link.watermark_text
+            is_watermarked = enable_watermark and link.watermark_text
             if is_watermarked:
-                download_url = urljoin(settings.SITE_DOMAIN, f"/api/v1/links/{link.slug}/download/")
+                base_url = f"/api/v1/links/{link.slug}/download/"
+                if link.dataroom:
+                    download_url = urljoin(settings.SITE_DOMAIN, f"{base_url}?document_id={document.id}")
+                else:
+                    download_url = urljoin(settings.SITE_DOMAIN, base_url)
             elif document.type == 'image' and pages_data:
                 # For images, the download URL is the same as the single page's URL.
                 download_url = pages_data[0]['url']
@@ -321,8 +342,8 @@ class ShareLinkViewDataView(APIView):
                 "download_url": download_url,
                 "link_settings": {
                     "id": link.id,
-                    "allow_download": link.allow_download,
-                    "enable_watermark": link.enable_watermark,
+                    "allow_download": allow_download,
+                    "enable_watermark": enable_watermark,
                     "watermark_text": link.watermark_text,
                 }
             }
