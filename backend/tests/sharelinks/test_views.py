@@ -6,6 +6,7 @@ from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 from django.utils import timezone
+from django.utils.text import get_valid_filename
 from rest_framework import status
 
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
@@ -1026,6 +1027,7 @@ class TestWatermarkingViews:
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert "not allowed for this item" in response.data['message']
 
     def test_render_page_for_link_without_watermark_fails(self, public_client, share_link):
         """Test that the render endpoint fails if watermarking is not enabled."""
@@ -1149,6 +1151,79 @@ class TestWatermarkingViews:
         assert etag1 is not None
         assert etag2 is not None
         assert etag1 != etag2
+
+    @pytest.fixture
+    def dataroom_with_watermarked_link(self, dataroom, user, document_with_page):
+        """
+        Sets up a dataroom with a document and a watermarked share link.
+        """
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document_with_page)
+        link = ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            enable_watermark=True,
+            watermark_text="CONFIDENTIAL",
+            allow_download=True  # Link-level setting
+        )
+        return {
+            'link': link,
+            'document': document_with_page,
+            'ddoc': ddoc,
+        }
+
+    @patch('django.core.files.storage.default_storage.open')
+    def test_download_watermarked_file_from_dataroom_success(self, mock_storage_open, public_client, dataroom_with_watermarked_link):
+        """Test that a watermarked file can be downloaded from a dataroom link."""
+        pdf_content = b'%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000010 00000 n \n0000000059 00000 n \n0000000112 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF'
+        pdf_buffer = BytesIO(pdf_content)
+        mock_storage_open.return_value = pdf_buffer
+        
+        link = dataroom_with_watermarked_link['link']
+        document = dataroom_with_watermarked_link['document']
+        
+        url = f'/api/v1/links/{link.slug}/download/?document_id={document.id}'
+        response = public_client.get(url)
+        
+        assert response.status_code == status.HTTP_200_OK
+        assert response.get('Content-Type') == 'application/pdf'
+        assert f'attachment; filename="{get_valid_filename(document.name)}"' in response.get('Content-Disposition')
+        assert len(response.content) > len(pdf_content)
+
+    def test_download_watermarked_file_from_dataroom_permission_denied(self, public_client, dataroom_with_watermarked_link):
+        """Test download is denied if dataroom item setting is allow_download=False."""
+        link = dataroom_with_watermarked_link['link']
+        document = dataroom_with_watermarked_link['document']
+        ddoc = dataroom_with_watermarked_link['ddoc']
+        
+        # Override setting for this item
+        setting = link.dataroom_settings.get(dataroom_document=ddoc)
+        setting.allow_download = False
+        setting.save()
+        
+        url = f'/api/v1/links/{link.slug}/download/?document_id={document.id}'
+        response = public_client.get(url)
+        
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert "not allowed for this item" in response.data['message']
+
+    def test_download_watermarked_file_from_dataroom_missing_doc_id(self, public_client, dataroom_with_watermarked_link):
+        """Test that calling the download endpoint for a dataroom link without a document_id fails."""
+        link = dataroom_with_watermarked_link['link']
+        url = f'/api/v1/links/{link.slug}/download/'
+        response = public_client.get(url)
+        
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "Document ID is required" in response.data['message']
+
+    def test_download_watermarked_file_from_dataroom_invalid_doc_id(self, public_client, dataroom_with_watermarked_link):
+        """Test that downloading with a document_id not in the dataroom link fails."""
+        link = dataroom_with_watermarked_link['link']
+        invalid_doc_id = 'doc_00000000000000000000000000'
+        url = f'/api/v1/links/{link.slug}/download/?document_id={invalid_doc_id}'
+        response = public_client.get(url)
+        
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert "Document not found" in response.data['message']
 
 
 @pytest.mark.django_db

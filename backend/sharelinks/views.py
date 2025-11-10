@@ -836,14 +836,35 @@ class WatermarkedFileDownloadView(APIView):
         if not link.enable_watermark or not link.watermark_text:
             return Response({"message": "Watermarking is not enabled for this link."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not link.allow_download:
-            return Response({"message": "Download is not allowed for this link."}, status=status.HTTP_403_FORBIDDEN)
+        document = None
+        allow_download = False
+
+        if link.dataroom:
+            document_id = request.query_params.get('document_id')
+            if not document_id:
+                return Response({"message": "Document ID is required for dataroom downloads."}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                setting = link.dataroom_settings.get(dataroom_document__document_id=document_id)
+                document = setting.dataroom_document.document
+                allow_download = setting.allow_download
+            except ShareLinkDataroomSetting.DoesNotExist:
+                return Response({"message": "Document not found in this dataroom link."}, status=status.HTTP_404_NOT_FOUND)
+
+        elif link.document:
+            document = link.document
+            allow_download = link.allow_download
+        
+        else:
+            return Response({"message": "Invalid link target."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not allow_download:
+            return Response({"message": "Download is not allowed for this item."}, status=status.HTTP_403_FORBIDDEN)
 
         authorized_links = request.session.get('authorized_share_links', {})
         auth_status = authorized_links.get(str(link.id), {})
         viewer_email = auth_status.get('viewer_email', '')
 
-        document = link.document
         primary_version = document.versions.filter(is_primary=True).first()
 
         if not primary_version:
