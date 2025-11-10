@@ -409,6 +409,33 @@ class TestShareLinkViewDataView:
         assert "link_settings" in data
         assert data['link_settings']['allow_download'] is False  # Should reflect the specific setting
 
+    @override_settings(SITE_DOMAIN="http://test.coneshare.com")
+    def test_get_dataroom_document_with_watermark_returns_correct_download_url(self, public_client, user, dataroom, document):
+        """
+        Test that fetching a document from a watermarked dataroom link returns
+        a download_url with the correct document_id query parameter.
+        """
+        # 1. Setup dataroom with content and a watermarked link.
+        DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link = ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            enable_watermark=True,
+            watermark_text="CONFIDENTIAL"
+        )
+
+        # 2. Request the document through the dataroom link.
+        url = f"/api/v1/links/{link.slug}/view-data/?document_id={document.id}"
+        response = public_client.get(url)
+
+        # 3. Assertions.
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert "download_url" in data
+        
+        expected_url = f"http://test.coneshare.com/api/v1/links/{link.slug}/download/?document_id={document.id}"
+        assert data['download_url'] == expected_url
+
 @pytest.mark.django_db
 class TestShareLinkPreview:
     """Tests for the Share Link Preview functionality."""
