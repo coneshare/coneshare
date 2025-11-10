@@ -236,10 +236,12 @@ class TestShareLinkViewDataView:
         document.save()
         return document
 
-    @patch('django.core.files.storage.default_storage.url')
-    def test_get_share_link_data_success(self, mock_storage_url, public_client, share_link, document_with_pages):
-        """Test successful retrieval of public share link data."""
-        mock_storage_url.return_value = "http://test.com/shared_page.png"
+    @override_settings(SITE_DOMAIN="http://test.coneshare.com")
+    def test_get_share_link_data_success(self, public_client, share_link, document_with_pages):
+        """
+        Test successful retrieval of public share link data, ensuring it
+        returns secure, proxied page URLs instead of direct storage links.
+        """
         response = public_client.get(f'/api/v1/links/{share_link.slug}/view-data/')
 
         assert response.status_code == status.HTTP_200_OK
@@ -248,7 +250,9 @@ class TestShareLinkViewDataView:
         assert data['name'] == document_with_pages.name
         assert data['num_pages'] == 1
         assert len(data['pages']) == 1
-        assert data['pages'][0]['url'] == "http://test.com/shared_page.png"
+
+        expected_url = f"http://test.coneshare.com/api/v1/links/{share_link.slug}/page/1/"
+        assert data['pages'][0]['url'] == expected_url
         assert data['link_settings']['allow_download'] == share_link.allow_download
 
     @override_settings(SITE_DOMAIN="http://test.coneshare.com")
@@ -275,17 +279,16 @@ class TestShareLinkViewDataView:
         mock_storage_url.assert_called_once_with("path/to/original.pdf")
 
     @override_settings(SITE_DOMAIN="http://test.coneshare.com")
-    @patch('django.core.files.storage.default_storage.url')
-    def test_get_share_link_data_for_image_document(self, mock_storage_url, public_client, image_document_with_content, user):
-        """Test successful retrieval of public share link data for an image document."""
+    def test_get_share_link_data_for_image_document(self, public_client, image_document_with_content, user):
+        """
+        Test successful retrieval of share link data for an image, ensuring it
+        returns a secure, proxied page URL.
+        """
         # Setup
         image_share_link = ShareLink.objects.create(
             document=image_document_with_content,
             created_by=user
         )
-        primary_version = image_document_with_content.versions.get(is_primary=True)
-        # Mock storage url to return a relative path
-        mock_storage_url.return_value = f"/{primary_version.original_storage_key}"
 
         # Action
         response = public_client.get(f'/api/v1/links/{image_share_link.slug}/view-data/')
@@ -301,9 +304,8 @@ class TestShareLinkViewDataView:
         page_data = data['pages'][0]
         assert page_data['page_number'] == 1
 
-        expected_url = f"http://test.coneshare.com/{primary_version.original_storage_key}"
+        expected_url = f"http://test.coneshare.com/api/v1/links/{image_share_link.slug}/page/1/"
         assert page_data['url'] == expected_url
-        mock_storage_url.assert_called_once_with(primary_version.original_storage_key)
 
     def test_get_share_link_data_not_found(self, public_client):
         """Test getting a link with a non-existent slug returns 404."""
@@ -976,6 +978,112 @@ class TestOwnerPreviewFlag:
 
 
 @pytest.mark.django_db
+class TestShareLinkPageView:
+    """Tests for the new secure, non-watermarked page serving view."""
+
+    @pytest.fixture
+    def document_with_pages(self, document):
+        version = document.versions.get(is_primary=True)
+        version.has_pages = True
+        version.num_pages = 2
+        version.save()
+        DocumentPage.objects.create(
+            document_version=version, page_number=1, storage_key="pages/page_1.png"
+        )
+        DocumentPage.objects.create(
+            document_version=version, page_number=2, storage_key="pages/page_2.png"
+        )
+        document.num_pages = 2
+        document.save()
+        return document
+
+    @pytest.fixture
+    def authorized_client(self, public_client, share_link_with_password):
+        # Create a client and authorize its session by verifying a password.
+        # This simulates a viewer who has already passed the first security step.
+        verify_url = f'/api/v1/links/{share_link_with_password.slug}/verify-password/'
+        response_verify = public_client.post(verify_url, {'password': 'password123'})
+        assert response_verify.status_code == status.HTTP_200_OK
+        return public_client
+
+    @patch('django.core.files.storage.default_storage.url')
+    def test_get_page_success_redirects(self, mock_storage_url, authorized_client, share_link_with_password, document_with_pages):
+        """
+        Test that an authorized request to the page endpoint successfully
+        redirects to the file in storage.
+        """
+        share_link_with_password.document = document_with_pages
+        share_link_with_password.save()
+        mock_storage_url.return_value = "http://storage.com/pages/page_1.png"
+
+        url = f'/api/v1/links/{share_link_with_password.slug}/page/1/'
+        response = authorized_client.get(url)
+
+        assert response.status_code == status.HTTP_302_FOUND
+        assert response.url == "http://storage.com/pages/page_1.png"
+        page = DocumentPage.objects.get(page_number=1)
+        mock_storage_url.assert_called_once_with(page.storage_key)
+
+    def test_get_page_unauthorized_fails(self, public_client, share_link, document_with_pages):
+        """
+        Test that a request to the page endpoint without an authorized session
+        is rejected.
+        """
+        share_link.document = document_with_pages
+        share_link.save()
+
+        url = f'/api/v1/links/{share_link.slug}/page/1/'
+        response = public_client.get(url)
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    @patch('django.core.files.storage.default_storage.url')
+    def test_get_page_for_dataroom_success(self, mock_storage_url, dataroom, document_with_pages, user):
+        """
+        Test that a page for a document within a dataroom can be successfully retrieved.
+        """
+        client = APIClient()
+        DataroomDocument.objects.create(dataroom=dataroom, document=document_with_pages)
+        link = ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            password="password123"
+        )
+        # Authorize the client session
+        verify_url = f'/api/v1/links/{link.slug}/verify-password/'
+        response_verify = client.post(verify_url, {'password': 'password123'})
+        assert response_verify.status_code == status.HTTP_200_OK
+
+        mock_storage_url.return_value = "http://storage.com/pages/page_1.png"
+        url = f'/api/v1/links/{link.slug}/page/1/?document_id={document_with_pages.id}'
+        response = client.get(url)
+
+        assert response.status_code == status.HTTP_302_FOUND
+        assert response.url == "http://storage.com/pages/page_1.png"
+
+    def test_get_page_for_dataroom_missing_doc_id(self, authorized_client, dataroom, share_link_with_password):
+        """
+        Test that a request to a dataroom link's page endpoint without a
+        document_id fails.
+        """
+        share_link_with_password.dataroom = dataroom
+        share_link_with_password.document = None
+        share_link_with_password.save()
+        
+        url = f'/api/v1/links/{share_link_with_password.slug}/page/1/'
+        response = authorized_client.get(url)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_get_non_existent_page_fails(self, authorized_client, share_link_with_password, document_with_pages):
+        """Test that requesting a page number that does not exist returns a 404."""
+        share_link_with_password.document = document_with_pages
+        share_link_with_password.save()
+
+        url = f'/api/v1/links/{share_link_with_password.slug}/page/99/'
+        response = authorized_client.get(url)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
 class TestWatermarkingViews:
     """Tests for the dynamic watermarking endpoints."""
 
@@ -1178,6 +1286,25 @@ class TestWatermarkingViews:
         assert etag1 is not None
         assert etag2 is not None
         assert etag1 != etag2
+
+    @patch('django.core.files.storage.default_storage.open')
+    def test_render_watermarked_page_from_dataroom_success(self, mock_storage_open, public_client, dataroom_with_watermarked_link):
+        """Test that a watermarked page can be rendered from a dataroom link."""
+        # Create a dummy image in memory to be returned by storage
+        img = Image.new('RGB', (100, 100), color='white')
+        buffer = BytesIO()
+        img.save(buffer, 'JPEG')
+        buffer.seek(0)
+        mock_storage_open.return_value = buffer
+
+        link = dataroom_with_watermarked_link['link']
+        document = dataroom_with_watermarked_link['document']
+
+        url = f'/api/v1/links/{link.slug}/render-page/1/?document_id={document.id}'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.get('Content-Type') == 'image/jpeg'
 
     @pytest.fixture
     def dataroom_with_watermarked_link(self, dataroom, user, document_with_page):
