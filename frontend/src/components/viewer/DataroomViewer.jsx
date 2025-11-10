@@ -55,7 +55,7 @@ function ListItem({ item, onItemClick, onDownloadClick }) {
         {!isFolder && typeof item.file_size === 'number' ? formatBytes(item.file_size) : '—'}
       </div>
       <div className="w-[10%] text-right">
-        {isFolder && item.allow_download && (
+        {item.allow_download && (
           <Button
             variant="ghost"
             size="icon"
