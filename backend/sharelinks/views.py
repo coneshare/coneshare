@@ -269,6 +269,7 @@ class ShareLinkViewDataView(APIView):
         dataroom_document_id = request.query_params.get('document_id')
 
         document_to_return = None
+        dataroom_setting = None  # To hold the setting if it's a dataroom link
         # Case 1: Fetching a specific document from within a dataroom link.
         if link.dataroom and dataroom_document_id:
             try:
@@ -279,6 +280,7 @@ class ShareLinkViewDataView(APIView):
                     is_visible=True
                 )
                 document_to_return = setting.dataroom_document.document
+                dataroom_setting = setting
             except ShareLinkDataroomSetting.DoesNotExist:
                 return Response({"detail": "You do not have permission to view this document through this link."}, status=status.HTTP_403_FORBIDDEN)
 
@@ -296,12 +298,24 @@ class ShareLinkViewDataView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            # Determine the correct settings to use (link vs. item-specific)
+            allow_download = link.allow_download
+            enable_watermark = link.enable_watermark
+
+            if dataroom_setting:
+                allow_download = dataroom_setting.allow_download
+                enable_watermark = dataroom_setting.enable_watermark
+
             pages_data = _prepare_pages_data(document, primary_version, share_link=link)
 
             download_url = None
-            is_watermarked = link.enable_watermark and link.watermark_text
+            is_watermarked = enable_watermark and link.watermark_text
             if is_watermarked:
-                download_url = urljoin(settings.SITE_DOMAIN, f"/api/v1/links/{link.slug}/download/")
+                base_url = f"/api/v1/links/{link.slug}/download/"
+                if link.dataroom:
+                    download_url = urljoin(settings.SITE_DOMAIN, f"{base_url}?document_id={document.id}")
+                else:
+                    download_url = urljoin(settings.SITE_DOMAIN, base_url)
             elif document.type == 'image' and pages_data:
                 # For images, the download URL is the same as the single page's URL.
                 download_url = pages_data[0]['url']
@@ -321,8 +335,8 @@ class ShareLinkViewDataView(APIView):
                 "download_url": download_url,
                 "link_settings": {
                     "id": link.id,
-                    "allow_download": link.allow_download,
-                    "enable_watermark": link.enable_watermark,
+                    "allow_download": allow_download,
+                    "enable_watermark": enable_watermark,
                     "watermark_text": link.watermark_text,
                 }
             }
@@ -815,14 +829,35 @@ class WatermarkedFileDownloadView(APIView):
         if not link.enable_watermark or not link.watermark_text:
             return Response({"message": "Watermarking is not enabled for this link."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not link.allow_download:
-            return Response({"message": "Download is not allowed for this link."}, status=status.HTTP_403_FORBIDDEN)
+        document = None
+        allow_download = False
+
+        if link.dataroom:
+            document_id = request.query_params.get('document_id')
+            if not document_id:
+                return Response({"message": "Document ID is required for dataroom downloads."}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                setting = link.dataroom_settings.get(dataroom_document__document_id=document_id)
+                document = setting.dataroom_document.document
+                allow_download = setting.allow_download
+            except ShareLinkDataroomSetting.DoesNotExist:
+                return Response({"message": "Document not found in this dataroom link."}, status=status.HTTP_404_NOT_FOUND)
+
+        elif link.document:
+            document = link.document
+            allow_download = link.allow_download
+        
+        else:
+            return Response({"message": "Invalid link target."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not allow_download:
+            return Response({"message": "Download is not allowed for this item."}, status=status.HTTP_403_FORBIDDEN)
 
         authorized_links = request.session.get('authorized_share_links', {})
         auth_status = authorized_links.get(str(link.id), {})
         viewer_email = auth_status.get('viewer_email', '')
 
-        document = link.document
         primary_version = document.versions.filter(is_primary=True).first()
 
         if not primary_version:
