@@ -162,3 +162,93 @@ if STORAGE_TYPE == 'MINIO':
 else:  # Default to FileSystemStorage for development
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 ```
+
+---
+
+## 6. Environment-Specific Configurations
+
+### Production Environment (Nginx + MinIO)
+
+When using MinIO, the secure access pattern relies on **pre-signed URLs**. Django acts as the gatekeeper, and the client downloads directly from MinIO. Nginx's role is simplified.
+
+**Nginx Configuration:**
+Nginx's primary role is to act as a reverse proxy for the Django application and potentially the MinIO console. It does **not** serve the protected files itself.
+
+```nginx
+# /etc/nginx/conf.d/coneshare.conf
+
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    # Publicly accessible media like avatars
+    location /media/ {
+        # This can be proxied to a MinIO public bucket if needed,
+        # or served from a local path if avatars are stored locally.
+        # Example for proxying to a MinIO public bucket:
+        proxy_pass http://minio-ip:9000/public-media-bucket/;
+        proxy_set_header Host $host;
+    }
+
+    # Proxy all other requests to the Django application
+    location / {
+        proxy_pass http://django-backend-ip:8000;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host $host;
+        proxy_redirect off;
+    }
+
+    # No internal /protected-media/ location is needed for this pattern.
+}
+```
+
+### Development Environment (Django Dev Server + Local FS)
+
+In development, the Django development server must handle serving the protected files directly after checking permissions. This is achieved with conditional logic inside the "gatekeeper" views.
+
+**Example Django Download View:**
+A download view (like `WatermarkedFileDownloadView`) would contain conditional logic to handle both environments.
+
+```python
+# In a view like DocumentDownloadView or WatermarkedFileDownloadView
+
+from django.http import HttpResponse, HttpResponseRedirect
+from django.conf import settings
+from rest_framework.response import Response
+import os
+
+# ... inside your GET method after all permission checks have passed ...
+
+# Assuming 'document' is your validated Document object
+# and 'primary_version' is its primary version.
+storage_key = primary_version.original_storage_key
+
+if settings.DEBUG:
+    # --- DEVELOPMENT LOGIC ---
+    # Serve the file directly from Django's dev server.
+    file_path = os.path.join(settings.MEDIA_ROOT, storage_key)
+    try:
+        with open(file_path, 'rb') as f:
+            response = HttpResponse(f.read(), content_type=document.content_type)
+            # Use 'attachment' to force download
+            response['Content-Disposition'] = f'attachment; filename="{os.path.basename(document.name)}"'
+            return response
+    except FileNotFoundError:
+        return Response({"detail": "File not found on server."}, status=404)
+else:
+    # --- PRODUCTION LOGIC ---
+    # Check which storage backend is in use.
+    if hasattr(settings, 'AWS_STORAGE_BUCKET_NAME'): # Assuming django-storages for MinIO
+        # MINIO: Generate a pre-signed URL and redirect.
+        from django.core.files.storage import default_storage
+        url = default_storage.url(storage_key, expire=60) # 60 second expiry
+        return HttpResponseRedirect(url)
+    else:
+        # LOCAL FS with NGINX: Use X-Accel-Redirect.
+        response = HttpResponse(status=200)
+        # Nginx will serve the file from this internal path.
+        response['X-Accel-Redirect'] = f'/protected-media/{storage_key}'
+        response['Content-Type'] = document.content_type
+        response['Content-Disposition'] = f'attachment; filename="{os.path.basename(document.name)}"'
+        return response
+```
