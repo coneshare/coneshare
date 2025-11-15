@@ -1177,14 +1177,19 @@ class TestWatermarkingViews:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert 'Watermarking is not enabled' in response.data['message']
 
-    @patch('django.core.files.storage.default_storage.open')
-    def test_render_watermarked_page_returns_caching_headers(self, mock_storage_open, public_client, watermarked_link):
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_render_watermarked_page_returns_caching_headers(self, mock_fs_download, mock_requests_get, public_client, watermarked_link):
         """Test that the initial response for a watermarked page includes ETag and Cache-Control headers."""
+        mock_fs_download.return_value = "http://core:8080/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
         img = Image.new('RGB', (100, 100), color='white')
         buffer = BytesIO()
         img.save(buffer, 'JPEG')
         buffer.seek(0)
-        mock_storage_open.return_value = buffer
+        mock_response.content = buffer.getvalue()
+        mock_requests_get.return_value = mock_response
 
         url = f'/api/v1/links/{watermarked_link.slug}/render-page/1/'
         response = public_client.get(url, REMOTE_ADDR='192.168.1.1')
@@ -1195,14 +1200,19 @@ class TestWatermarkingViews:
         assert 'Cache-Control' in response
         assert response['Cache-Control'] == 'public, max-age=60, must-revalidate'
 
-    @patch('django.core.files.storage.default_storage.open')
-    def test_render_watermarked_page_with_etag_returns_304(self, mock_storage_open, public_client, watermarked_link):
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_render_watermarked_page_with_etag_returns_304(self, mock_fs_download, mock_requests_get, public_client, watermarked_link):
         """Test that sending a valid ETag in If-None-Match returns a 304 Not Modified."""
+        mock_fs_download.return_value = "http://core:8080/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
         img = Image.new('RGB', (100, 100), color='white')
         buffer = BytesIO()
         img.save(buffer, 'JPEG')
         buffer.seek(0)
-        mock_storage_open.return_value = buffer
+        mock_response.content = buffer.getvalue()
+        mock_requests_get.return_value = mock_response
 
         # First request to get the ETag
         url = f'/api/v1/links/{watermarked_link.slug}/render-page/1/'
@@ -1214,22 +1224,29 @@ class TestWatermarkingViews:
         response2 = public_client.get(url, REMOTE_ADDR='192.168.1.1', HTTP_IF_NONE_MATCH=etag)
         assert response2.status_code == status.HTTP_304_NOT_MODIFIED
 
-        # Ensure the storage was only accessed once
-        mock_storage_open.assert_called_once()
+        # Ensure the file was only fetched once
+        mock_fs_download.assert_called_once()
+        mock_requests_get.assert_called_once()
 
-    @patch('django.core.files.storage.default_storage.open')
-    def test_render_watermarked_page_with_changed_link_returns_200(self, mock_storage_open, public_client, watermarked_link):
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_render_watermarked_page_with_changed_link_returns_200(self, mock_fs_download, mock_requests_get, public_client, watermarked_link):
         """
         Test that ETag validation fails and returns a new 200 response if the
         link's watermark text has changed.
         """
-        def create_mock_image_file(*args, **kwargs):
+        def setup_mocks(*args, **kwargs):
+            mock_response = MagicMock()
+            mock_response.raise_for_status.return_value = None
             img = Image.new('RGB', (100, 100), color='white')
             buffer = BytesIO()
             img.save(buffer, 'JPEG')
             buffer.seek(0)
-            return buffer
-        mock_storage_open.side_effect = create_mock_image_file
+            mock_response.content = buffer.getvalue()
+            mock_requests_get.return_value = mock_response
+        
+        mock_fs_download.return_value = "http://core:8080/files/download/token"
+        setup_mocks()
 
         # First request to get the ETag
         url = f'/api/v1/links/{watermarked_link.slug}/render-page/1/'
@@ -1248,8 +1265,9 @@ class TestWatermarkingViews:
 
         assert etag1 != etag2
 
-    @patch('django.core.files.storage.default_storage.open')
-    def test_render_watermarked_page_etag_varies_by_email(self, mock_storage_open, public_client, watermarked_link):
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_render_watermarked_page_etag_varies_by_email(self, mock_fs_download, mock_requests_get, public_client, watermarked_link):
         """
         Test that the ETag for a watermarked page is different for different
         viewers when the {{email}} variable is used.
@@ -1258,13 +1276,18 @@ class TestWatermarkingViews:
         watermarked_link.watermark_text = "Viewed by {{email}}"
         watermarked_link.save()
 
-        def create_mock_image_file(*args, **kwargs):
+        def setup_mocks(*args, **kwargs):
+            mock_response = MagicMock()
+            mock_response.raise_for_status.return_value = None
             img = Image.new('RGB', (100, 100), color='white')
             buffer = BytesIO()
             img.save(buffer, 'JPEG')
             buffer.seek(0)
-            return buffer
-        mock_storage_open.side_effect = create_mock_image_file
+            mock_response.content = buffer.getvalue()
+            mock_requests_get.return_value = mock_response
+
+        mock_fs_download.return_value = "http://core:8080/files/download/token"
+        setup_mocks()
 
         # --- Viewer 1 ---
         # Authorize viewer 1
@@ -1292,15 +1315,19 @@ class TestWatermarkingViews:
         assert etag2 is not None
         assert etag1 != etag2
 
-    @patch('django.core.files.storage.default_storage.open')
-    def test_render_watermarked_page_from_dataroom_success(self, mock_storage_open, public_client, dataroom_with_watermarked_link):
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_render_watermarked_page_from_dataroom_success(self, mock_fs_download, mock_requests_get, public_client, dataroom_with_watermarked_link):
         """Test that a watermarked page can be rendered from a dataroom link."""
-        # Create a dummy image in memory to be returned by storage
+        mock_fs_download.return_value = "http://core:8080/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
         img = Image.new('RGB', (100, 100), color='white')
         buffer = BytesIO()
         img.save(buffer, 'JPEG')
         buffer.seek(0)
-        mock_storage_open.return_value = buffer
+        mock_response.content = buffer.getvalue()
+        mock_requests_get.return_value = mock_response
 
         link = dataroom_with_watermarked_link['link']
         document = dataroom_with_watermarked_link['document']
@@ -1330,12 +1357,16 @@ class TestWatermarkingViews:
             'ddoc': ddoc,
         }
 
-    @patch('django.core.files.storage.default_storage.open')
-    def test_download_watermarked_file_from_dataroom_success(self, mock_storage_open, public_client, dataroom_with_watermarked_link):
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_watermarked_file_from_dataroom_success(self, mock_fs_download, mock_requests_get, public_client, dataroom_with_watermarked_link):
         """Test that a watermarked file can be downloaded from a dataroom link."""
+        mock_fs_download.return_value = "http://core:8080/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
         pdf_content = b'%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000010 00000 n \n0000000059 00000 n \n0000000112 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF'
-        pdf_buffer = BytesIO(pdf_content)
-        mock_storage_open.return_value = pdf_buffer
+        mock_response.content = pdf_content
+        mock_requests_get.return_value = mock_response
         
         link = dataroom_with_watermarked_link['link']
         document = dataroom_with_watermarked_link['document']
@@ -1462,8 +1493,14 @@ class TestDataroomFolderDownloadView:
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    @patch('django.core.files.storage.default_storage.open', new_callable=mock_open, read_data=b"file content")
-    def test_zip_archive_respects_permissions(self, mock_storage_open, public_client, dataroom_with_content_and_link):
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_zip_archive_respects_permissions(self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link):
+        mock_fs_download.return_value = "http://core:8080/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"file content"
+        mock_requests_get.return_value = mock_response
         link = dataroom_with_content_and_link['link']
         root_folder = dataroom_with_content_and_link['root_folder']
         ddoc_invisible = dataroom_with_content_and_link['ddoc_invisible']
