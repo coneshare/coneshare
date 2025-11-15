@@ -428,16 +428,16 @@ def _prepare_pages_data(document, primary_version, share_link=None):
     is_watermarked = share_link and share_link.enable_watermark and share_link.watermark_text
 
     if document.type == 'image':
-        page_url = None
+        absolute_url = None
         if share_link:
             base_url_part = "render-page" if is_watermarked else "page"
             page_url = f"/api/v1/links/{share_link.slug}/{base_url_part}/1/"
             if share_link.dataroom:
                 page_url += f"?document_id={document.id}"
+            absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
         else:
-            page_url = fileserver_client.generate_download_url(primary_version.original_storage_key, is_internal=False)
+            absolute_url = fileserver_client.generate_download_url(primary_version.original_storage_key, is_internal=False)
 
-        absolute_url = page_url
         pages_data.append({
             'page_number': 1,
             'url': absolute_url,
@@ -447,16 +447,16 @@ def _prepare_pages_data(document, primary_version, share_link=None):
         # For PDFs/Office docs, we have pre-generated page images.
         pages = primary_version.pages.order_by('page_number')
         for page in pages:
-            page_url = None
+            absolute_url = None
             if share_link:
                 base_url_part = "render-page" if is_watermarked else "page"
                 page_url = f"/api/v1/links/{share_link.slug}/{base_url_part}/{page.page_number}/"
                 if share_link.dataroom:
                     page_url += f"?document_id={document.id}"
+                absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
             else:
-                page_url = fileserver_client.generate_download_url(page.storage_key, is_internal=False)
+                absolute_url = fileserver_client.generate_download_url(page.storage_key, is_internal=False)
 
-            absolute_url = page_url
             pages_data.append({
                 "page_number": page.page_number,
                 "url": absolute_url,
