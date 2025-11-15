@@ -225,7 +225,7 @@ else:
         # This is for inline viewing, not download
         # response['Content-Disposition'] = f'inline; filename="your_file.png"'
         return response
-
+```
 
 ---
 
@@ -288,4 +288,4 @@ The Go file server would abstract the physical storage. It could be configured t
 
 -   **A Dedicated Local Volume**: A directory like `coneshare-data`, physically separate from Django's `media` volume. This provides strong security isolation, as the Django container would not have the protected files mounted at all.
 -   **An Object Store**: An S3-compatible service like MinIO, allowing the file server to be completely stateless and highly scalable.
-```
+
