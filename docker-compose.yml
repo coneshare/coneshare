@@ -4,6 +4,8 @@ services:
       context: ./core
       dockerfile: Dockerfile-dev
     restart: unless-stopped
+    ports:
+      - "8080:8080"    
     environment:
       - PORT=8080
       - STORAGE_PATH=/storage
