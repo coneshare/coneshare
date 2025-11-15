@@ -851,62 +851,62 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
 
         rendered_watermark_text = _render_watermark_text(watermark_text, request, viewer_email)
 
-            # Create a watermark page in memory
-            watermark_buffer = BytesIO()
-            first_page_box = reader.pages[0].mediabox
-            page_width, page_height = (float(first_page_box.width), float(first_page_box.height))
+        # Create a watermark page in memory
+        watermark_buffer = BytesIO()
+        first_page_box = reader.pages[0].mediabox
+        page_width, page_height = (float(first_page_box.width), float(first_page_box.height))
 
-            # --- Logic mirrored from Pillow implementation ---
-            font_size = max(12, int(page_width / 40))
-            
-            # Use a temporary canvas to get text dimensions
-            temp_canvas = canvas.Canvas(BytesIO())
-            temp_canvas.setFont("Helvetica", font_size)
-            text_width = temp_canvas.stringWidth(rendered_watermark_text, "Helvetica", font_size)
-            text_height = font_size  # Approximation
+        # --- Logic mirrored from Pillow implementation ---
+        font_size = max(12, int(page_width / 40))
+        
+        # Use a temporary canvas to get text dimensions
+        temp_canvas = canvas.Canvas(BytesIO())
+        temp_canvas.setFont("Helvetica", font_size)
+        text_width = temp_canvas.stringWidth(rendered_watermark_text, "Helvetica", font_size)
+        text_height = font_size  # Approximation
 
-            # Calculate bounding box of rotated text
-            rad_angle = 45 * (math.pi / 180)
-            cos_a = math.cos(rad_angle)
-            sin_a = math.sin(rad_angle)
-            rotated_width = text_width * cos_a + text_height * sin_a
-            rotated_height = text_width * sin_a + text_height * cos_a
+        # Calculate bounding box of rotated text
+        rad_angle = 45 * (math.pi / 180)
+        cos_a = math.cos(rad_angle)
+        sin_a = math.sin(rad_angle)
+        rotated_width = text_width * cos_a + text_height * sin_a
+        rotated_height = text_width * sin_a + text_height * cos_a
 
-            grid_params = _calculate_watermark_grid_params(
-                page_width=page_width,
-                page_height=page_height,
-                rotated_tile_width=rotated_width,
-                rotated_tile_height=rotated_height
-            )
+        grid_params = _calculate_watermark_grid_params(
+            page_width=page_width,
+            page_height=page_height,
+            rotated_tile_width=rotated_width,
+            rotated_tile_height=rotated_height
+        )
 
-            # --- Create the actual watermark page ---
-            p = canvas.Canvas(watermark_buffer, pagesize=(page_width, page_height))
-            p.setFont("Helvetica", font_size)
-            p.setFillColor(colors.black, alpha=0.1)
+        # --- Create the actual watermark page ---
+        p = canvas.Canvas(watermark_buffer, pagesize=(page_width, page_height))
+        p.setFont("Helvetica", font_size)
+        p.setFillColor(colors.black, alpha=0.1)
 
-            # Draw rotated text at each grid position
-            for x in grid_params['x_range']:
-                for y in grid_params['y_range']:
-                    p.saveState()
-                    p.translate(x, y)
-                    p.rotate(45)
-                    p.drawCentredString(0, 0, rendered_watermark_text)
-                    p.restoreState()
-            p.save()
-            watermark_buffer.seek(0)
-            
-            watermark_pdf = PdfReader(watermark_buffer)
-            watermark_page = watermark_pdf.pages[0]
-            
-            # Merge watermark onto each page
-            for page in reader.pages:
-                page.merge_page(watermark_page)
-                writer.add_page(page)
+        # Draw rotated text at each grid position
+        for x in grid_params['x_range']:
+            for y in grid_params['y_range']:
+                p.saveState()
+                p.translate(x, y)
+                p.rotate(45)
+                p.drawCentredString(0, 0, rendered_watermark_text)
+                p.restoreState()
+        p.save()
+        watermark_buffer.seek(0)
+        
+        watermark_pdf = PdfReader(watermark_buffer)
+        watermark_page = watermark_pdf.pages[0]
+        
+        # Merge watermark onto each page
+        for page in reader.pages:
+            page.merge_page(watermark_page)
+            writer.add_page(page)
 
-            output_buffer = BytesIO()
-            writer.write(output_buffer)
-            output_buffer.seek(0)
-            return output_buffer
+        output_buffer = BytesIO()
+        writer.write(output_buffer)
+        output_buffer.seek(0)
+        return output_buffer
     except Exception as e:
         logger.exception(f"Failed to apply watermark to PDF: {e}")
         raise WatermarkingError("An error occurred while generating the watermarked file.") from e
