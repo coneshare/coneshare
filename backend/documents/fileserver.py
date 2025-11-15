@@ -1,5 +1,6 @@
 import os
 import requests
+from urllib.parse import urljoin
 from django.conf import settings
 from rest_framework.exceptions import APIException
 
@@ -35,17 +36,23 @@ class FileServerClient:
             # response to the frontend.
             raise APIException(f"File server is unavailable: {e}")
 
-    def generate_upload_url(self, storage_key: str) -> str:
+    def generate_upload_url(self, storage_key: str, is_internal: bool = True) -> str:
         """Requests a temporary URL for uploading a file."""
         data = {'storage_key': storage_key}
         response_data = self._post('/internal/v1/generate-upload-url', data)
-        return response_data.get('url')
+        relative_url = response_data.get('url')
+        if is_internal:
+            return urljoin(self.base_url, relative_url)
+        return urljoin(settings.SITE_DOMAIN, relative_url)
 
-    def generate_download_url(self, storage_key: str) -> str:
+    def generate_download_url(self, storage_key: str, is_internal: bool = True) -> str:
         """Requests a temporary URL for downloading a file."""
         data = {'storage_key': storage_key}
         response_data = self._post('/internal/v1/generate-download-url', data)
-        return response_data.get('url')
+        relative_url = response_data.get('url')
+        if is_internal:
+            return urljoin(self.base_url, relative_url)
+        return urljoin(settings.SITE_DOMAIN, relative_url)
 
     def delete_file(self, storage_key: str):
         """Requests deletion of a file from the file server."""

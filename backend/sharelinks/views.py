@@ -322,8 +322,7 @@ class ShareLinkViewDataView(APIView):
                 download_url = pages_data[0]['url']
             elif primary_version and primary_version.original_storage_key:
                 try:
-                    file_url = fileserver_client.generate_download_url(primary_version.original_storage_key)
-                    download_url = urljoin(settings.SITE_DOMAIN, file_url)
+                    download_url = fileserver_client.generate_download_url(primary_version.original_storage_key, is_internal=False)
                 except APIException:
                     # If file server is down, we can't generate a download URL.
                     download_url = None
@@ -658,11 +657,8 @@ class ShareLinkPageView(APIView):
             return Response({"message": "Source image for page not found."}, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            download_url = fileserver_client.generate_download_url(source_image_key)
-            # The URL from the fileserver is relative, so we need to make it absolute
-            # for the redirect to work correctly from the client's perspective.
-            absolute_url = urljoin(settings.SITE_DOMAIN, download_url)
-            return HttpResponseRedirect(absolute_url)
+            download_url = fileserver_client.generate_download_url(source_image_key, is_internal=False)
+            return HttpResponseRedirect(download_url)
         except APIException as e:
             logger.error(f"Failed to get download URL from file server for {source_image_key}: {e}")
             return Response(

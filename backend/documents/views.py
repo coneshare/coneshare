@@ -142,7 +142,7 @@ class DocumentUploadRequestView(APIView):
         storage_key = f"{request.user.organization.id}/{file_id}{file_ext}"
 
         try:
-            upload_url = fileserver_client.generate_upload_url(storage_key)
+            upload_url = fileserver_client.generate_upload_url(storage_key, is_internal=False)
         except APIException as e:
             logger.error(f"Failed to get upload URL from file server: {e}")
             return Response({"detail": str(e.detail)}, status=e.status_code)
@@ -367,7 +367,7 @@ class DocumentVersionUploadRequestView(APIView):
         storage_key = f"{request.user.organization.id}/{file_id}{file_ext}"
 
         try:
-            upload_url = fileserver_client.generate_upload_url(storage_key)
+            upload_url = fileserver_client.generate_upload_url(storage_key, is_internal=False)
         except APIException as e:
             logger.error(f"Failed to get upload URL from file server: {e}")
             return Response({"detail": str(e.detail)}, status=e.status_code)
@@ -435,9 +435,9 @@ def _prepare_pages_data(document, primary_version, share_link=None):
             if share_link.dataroom:
                 page_url += f"?document_id={document.id}"
         else:
-            page_url = fileserver_client.generate_download_url(primary_version.original_storage_key)
+            page_url = fileserver_client.generate_download_url(primary_version.original_storage_key, is_internal=False)
 
-        absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
+        absolute_url = page_url
         pages_data.append({
             'page_number': 1,
             'url': absolute_url,
@@ -454,9 +454,9 @@ def _prepare_pages_data(document, primary_version, share_link=None):
                 if share_link.dataroom:
                     page_url += f"?document_id={document.id}"
             else:
-                page_url = fileserver_client.generate_download_url(page.storage_key)
+                page_url = fileserver_client.generate_download_url(page.storage_key, is_internal=False)
 
-            absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
+            absolute_url = page_url
             pages_data.append({
                 "page_number": page.page_number,
                 "url": absolute_url,
@@ -669,12 +669,12 @@ class DocumentViewSet(viewsets.ModelViewSet):
         pages_map = {}
         if primary_version:
             if document.type == 'image':
-                image_url = fileserver_client.generate_download_url(primary_version.original_storage_key)
-                pages_map[1] = urljoin(settings.SITE_DOMAIN, image_url)
+                image_url = fileserver_client.generate_download_url(primary_version.original_storage_key, is_internal=False)
+                pages_map[1] = image_url
             elif primary_version.has_pages:
                 for page in primary_version.pages.values('page_number', 'storage_key').order_by('page_number'):
-                    page_url = fileserver_client.generate_download_url(page['storage_key'])
-                    pages_map[page['page_number']] = urljoin(settings.SITE_DOMAIN, page_url)
+                    page_url = fileserver_client.generate_download_url(page['storage_key'], is_internal=False)
+                    pages_map[page['page_number']] = page_url
 
         serializer_context = self.get_serializer_context()
         serializer_context['pages_map'] = pages_map
