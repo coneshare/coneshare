@@ -274,7 +274,7 @@ class TestShareLinkViewDataView:
         assert "download_url" in data
         assert data["download_url"] == "http://test.coneshare.com/files/download/some-token"
 
-        mock_fs_download_url.assert_called_once_with("path/to/original.pdf")
+        mock_fs_download_url.assert_called_once_with("path/to/original.pdf", is_internal=False)
 
     @override_settings(SITE_DOMAIN="http://test.coneshare.com")
     def test_get_share_link_data_for_image_document(self, public_client, image_document_with_content, user):
@@ -1021,7 +1021,7 @@ class TestShareLinkPageView:
         assert response.status_code == status.HTTP_302_FOUND
         assert response.url == "http://test.coneshare.com/files/download/some-token"
         page = DocumentPage.objects.get(page_number=1)
-        mock_fs_download_url.assert_called_once_with(page.storage_key)
+        mock_fs_download_url.assert_called_once_with(page.storage_key, is_internal=False)
 
     def test_get_page_unauthorized_fails(self, public_client, share_link, document_with_pages):
         """
@@ -1132,7 +1132,7 @@ class TestWatermarkingViews:
         assert response.get('Content-Type') == 'image/jpeg'
 
         page = DocumentPage.objects.get(page_number=1)
-        mock_fs_download_url.assert_called_once_with(page.storage_key)
+        mock_fs_download_url.assert_called_once_with(page.storage_key, is_internal=True)
 
     @patch('sharelinks.views.requests.get')
     @patch('sharelinks.views.fileserver_client.generate_download_url')
@@ -1156,7 +1156,7 @@ class TestWatermarkingViews:
         assert len(response.content) > len(pdf_content)
 
         version = watermarked_link.document.versions.get(is_primary=True)
-        mock_fs_download_url.assert_called_once_with(version.original_storage_key)
+        mock_fs_download_url.assert_called_once_with(version.original_storage_key, is_internal=True)
 
     def test_download_watermarked_file_not_allowed(self, public_client, watermarked_link):
         """Test that downloading is forbidden if allow_download is false."""
