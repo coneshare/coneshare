@@ -263,7 +263,7 @@ class TestShareLinkViewDataView:
         primary_version = share_link.document.versions.get(is_primary=True)
         primary_version.original_storage_key = "path/to/original.pdf"
         primary_version.save()
-        mock_fs_download_url.return_value = "/files/download/some-token"
+        mock_fs_download_url.return_value = "http://test.coneshare.com/files/download/some-token"
 
         # Action
         response = public_client.get(f'/api/v1/links/{share_link.slug}/view-data/')
@@ -1013,7 +1013,7 @@ class TestShareLinkPageView:
         """
         share_link_with_password.document = document_with_pages
         share_link_with_password.save()
-        mock_fs_download_url.return_value = "/files/download/some-token"
+        mock_fs_download_url.return_value = "http://test.coneshare.com/files/download/some-token"
 
         url = f'/api/v1/links/{share_link_with_password.slug}/page/1/'
         response = authorized_client.get(url)
@@ -1053,7 +1053,7 @@ class TestShareLinkPageView:
         response_verify = client.post(verify_url, {'password': 'password123'})
         assert response_verify.status_code == status.HTTP_200_OK
 
-        mock_fs_download_url.return_value = "/files/download/some-token"
+        mock_fs_download_url.return_value = "http://test.coneshare.com/files/download/some-token"
         url = f'/api/v1/links/{link.slug}/page/1/?document_id={document_with_pages.id}'
         response = client.get(url)
 
