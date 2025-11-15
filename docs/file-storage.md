@@ -7,36 +7,42 @@ This document outlines the architecture for handling file storage in Coneshare. 
 ## 1. Core Principles
 
 -   **Security First**: Direct, public access to sensitive documents is prohibited. All file access must be gated by the application's permission logic.
--   **Scalability**: The storage solution must support horizontal scaling of the application, a key requirement for Kubernetes deployments.
+-   **Scalability**: The storage solution must support different deployment scales, from single-machine setups to multi-server clusters.
 -   **Environment Parity**: The system should work seamlessly in a local development environment without requiring a full production stack (like Nginx).
 
 ---
 
-## 2. Storage Strategy: Local FS vs. MinIO
+## 2. Storage Strategy
 
-The application supports two storage backends, configurable via an environment variable.
+The application supports two storage backends, configurable via the `STORAGE_TYPE` environment variable.
 
-### Production: MinIO (S3-Compatible Object Storage)
+### Production (Single-Machine): Local Filesystem with Nginx
 
-For production, **MinIO is the recommended storage backend.**
+For a standard, single-machine production deployment using Docker Compose, **the local filesystem is the recommended storage backend.** This approach is simple, performant, and secure when properly configured.
+
+-   **Pros**:
+    -   **Simplicity**: No extra services are needed for storage, reducing operational complexity.
+    -   **High Performance**: Bypasses the application for file transfers, allowing Nginx to serve files directly from disk, which is highly efficient.
+    -   **Security**: File access is controlled by Django, which then instructs Nginx to serve the file via a secure internal redirect (`X-Accel-Redirect`).
+
+-   **Cons**:
+    -   **Limited Scalability**: This approach is suitable for a single host. It does not scale horizontally across multiple application servers without a network filesystem (NFS).
+
+### Alternative (Large-Scale/Kubernetes): MinIO (S3-Compatible Object Storage)
+
+For large-scale or Kubernetes deployments, **MinIO is the recommended storage backend.**
 
 -   **Pros**:
     -   **High Scalability**: Decouples storage from the application, allowing both to scale independently. This is essential for Kubernetes.
-    -   **High Data Durability**: Provides data protection through replication and erasure coding, which is not possible with a simple filesystem.
-    -   **Cloud-Native Standard**: Uses the S3 API, making it the standard choice for containerized applications and simplifying any future migration to a cloud provider like AWS S3.
-    -   **Incompatible with Orchestration**: Using a local filesystem is an anti-pattern in Kubernetes, as it ties application pods to specific nodes, defeating the purpose of orchestration. MinIO is designed for this environment.
+    -   **High Data Durability**: Provides data protection through replication and erasure coding.
+    -   **Cloud-Native Standard**: Uses the S3 API, making it the standard choice for containerized applications.
 
 -   **Cons**:
     -   **Increased Complexity**: Requires deploying and managing an additional service (MinIO).
 
 ### Development: Local Filesystem
 
-For development, a local filesystem is used for simplicity.
-
--   **Pros**:
-    -   **Simplicity**: No extra services are needed. Files are stored in a local `media` directory.
--   **Cons**:
-    -   **Not Scalable**: This approach does not scale beyond a single host and is unsuitable for production.
+For development, a local filesystem is used for simplicity. The Django development server serves files directly.
 
 ---
 
@@ -44,8 +50,8 @@ For development, a local filesystem is used for simplicity.
 
 The system must handle two distinct types of files:
 
-1.  **Public Media (`/media/`)**: Non-sensitive files like user avatars. These can be served directly by a web server (like Nginx) or from a public MinIO bucket without permission checks.
-2.  **Protected Documents (`/protected-media/` or via Pre-signed URLs)**: Sensitive user-uploaded documents. Access to these files must be strictly controlled by Django.
+1.  **Public Media (`/media/avatars/`)**: Non-sensitive files like user avatars. These can be served directly by a web server (like Nginx) without permission checks.
+2.  **Protected Documents (`/protected-media/`)**: Sensitive user-uploaded documents. Access to these files must be strictly controlled by Django.
 
 ---
 
@@ -53,83 +59,35 @@ The system must handle two distinct types of files:
 
 The primary pattern for secure file access is **Django as the Gatekeeper**. A user never receives a direct, permanent URL to a protected file.
 
-### Production Flow (MinIO + Pre-signed URLs)
+### Production Flow (Local FS + Nginx `X-Accel-Redirect`)
 
-This is the recommended production pattern.
+This is the recommended production pattern for single-machine deployments.
 
-1.  **Client Request**: A user requests to download a file from a dedicated Django API endpoint (e.g., `/api/v1/links/{slug}/download/`).
+1.  **Client Request**: A user requests to download a file from a dedicated Django API endpoint (e.g., `/api/v1/links/{slug}/page/{page_number}/`).
 2.  **Django Permission Check**: The Django view performs all business logic checks (authentication, share link status, download permissions, etc.).
-3.  **URL Generation**: If checks pass, Django communicates with the MinIO service and asks it to generate a **temporary, secure, pre-signed URL** for the requested file. This URL has a short expiry time (e.g., 60 seconds).
+3.  **Internal Redirect**: If checks pass, Django's API responds with an empty `200 OK` but includes a special header: `X-Accel-Redirect: /protected-media/path/to/file.png`. It also includes the `Content-Type` header.
+4.  **Nginx Serves File**: Nginx intercepts this response. It sees the `X-Accel-Redirect` header and serves the file from the specified internal-only path. The client receives the file as if it came directly from Django, but the application server is freed up immediately.
+
+### Alternative Production Flow (MinIO + Pre-signed URLs)
+
+For large-scale deployments, this pattern is used.
+
+1.  **Client Request**: A user requests a download from the same Django API endpoint.
+2.  **Django Permission Check**: The view performs the same permission checks.
+3.  **URL Generation**: If checks pass, Django communicates with MinIO to generate a **temporary, secure, pre-signed URL** for the requested file.
 4.  **Redirect**: Django's API responds with a `302 Found` redirect, sending the client to the pre-signed URL.
 5.  **Direct Download**: The client's browser follows the redirect and downloads the file directly and efficiently from MinIO.
-
-### Development Flow (Local FS + Django Dev Server)
-
-In development, the Django development server serves the files directly.
-
-1.  **Client Request**: The client requests a download from the same Django API endpoint.
-2.  **Django Permission Check**: The view performs the same permission checks.
-3.  **Direct File Serving**: If checks pass, the view opens the file from the local filesystem (`media` directory), creates an `HttpResponse`, and streams the file's contents back to the client.
 
 ---
 
 ## 5. Implementation Details
-
-### Docker Compose Configuration
-
-The `docker-compose.yml` is configured to run MinIO and initialize a bucket for the application.
-
-```yaml
-services:
-  backend:
-    # ...
-    environment:
-      - STORAGE_TYPE=MINIO
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
-      - MINIO_ENDPOINT=http://minio:9000
-      - MINIO_BUCKET_NAME=coneshare
-    depends_on:
-      - redis
-      - minio
-
-  # ... other services
-
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
-    environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
-    volumes:
-      - minio_data:/data
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    restart: unless-stopped
-
-  mc: # MinIO Client to initialize bucket
-    image: minio/mc
-    depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin;
-      /usr/bin/mc mb myminio/coneshare --ignore-existing;
-      /usr/bin/mc policy set public myminio/coneshare/avatars;
-      exit 0;
-      "
-
-volumes:
-  minio_data:
-```
 
 ### Django `settings.py` Configuration
 
 The settings file uses the `STORAGE_TYPE` environment variable to conditionally configure the storage backend.
 
 **Dependencies:**
-This setup requires `django-storages` and `boto3`.
+For MinIO support, `django-storages` and `boto3` are required.
 ```bash
 pip install "django-storages[s3]"
 ```
@@ -138,7 +96,7 @@ pip install "django-storages[s3]"
 ```python
 # backend/backend/settings.py
 
-# This setting is for local FS storage used in development
+# This setting is for local FS storage
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -151,104 +109,120 @@ if STORAGE_TYPE == 'MINIO':
     AWS_SECRET_ACCESS_KEY = os.environ.get('MINIO_ROOT_PASSWORD')
     AWS_STORAGE_BUCKET_NAME = os.environ.get('MINIO_BUCKET_NAME', 'coneshare')
     AWS_S3_ENDPOINT_URL = os.environ.get('MINIO_ENDPOINT')
-    AWS_S3_USE_SSL = False  # For local MinIO, which uses http
-    AWS_S3_ADDRESSING_STYLE = 'path' # Required for MinIO
-    AWS_S3_SIGNATURE_VERSION = 's3v4'
     AWS_S3_OBJECT_PARAMETERS = {
         'CacheControl': 'max-age=86400',
     }
-    # All protected files will be stored under a 'documents/' prefix in the bucket
-    AWS_LOCATION = 'documents'
-else:  # Default to FileSystemStorage for development
+    # For local MinIO, which uses http
+    AWS_S3_USE_SSL = os.environ.get('AWS_S3_USE_SSL', 'false').lower() == 'true'
+    # Required for MinIO
+    AWS_S3_ADDRESSING_STYLE = 'path'
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+
+    # Subdirectory within the bucket for all files
+    AWS_LOCATION = 'media'
+else:  # Default to FileSystemStorage for development and standard production
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 ```
 
----
+### Production Docker Compose Configuration
 
-## 6. Environment-Specific Configurations
+A `docker-compose.prod.yml` should be used for production deployments. It introduces an Nginx container to handle web traffic and serve files.
 
-### Production Environment (Nginx + MinIO)
+```yaml
+# docker-compose.prod.yml
+services:
+  backend:
+    # ... (same as dev, but without port mapping and using gunicorn)
+    volumes:
+      - ./backend:/app
+      - media_volume:/app/media
 
-When using MinIO, the secure access pattern relies on **pre-signed URLs**. Django acts as the gatekeeper, and the client downloads directly from MinIO. Nginx's role is simplified.
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    volumes:
+      - media_volume:/usr/src/app/media
 
-**Nginx Configuration:**
-Nginx's primary role is to act as a reverse proxy for the Django application and potentially the MinIO console. It does **not** serve the protected files itself.
+volumes:
+  media_volume:
+```
+
+### Nginx Configuration
+
+Nginx acts as a reverse proxy and file server.
 
 ```nginx
-# /etc/nginx/conf.d/coneshare.conf
+# nginx/nginx.conf
 
 server {
     listen 80;
-    server_name your-domain.com;
 
     # Publicly accessible media like avatars
-    location /media/ {
-        # This can be proxied to a MinIO public bucket if needed,
-        # or served from a local path if avatars are stored locally.
-        # Example for proxying to a MinIO public bucket:
-        proxy_pass http://minio-ip:9000/public-media-bucket/;
-        proxy_set_header Host $host;
+    location /media/avatars/ {
+        alias /usr/src/app/media/avatars/;
+    }
+
+    # Protected media, only accessible via X-Accel-Redirect from the backend
+    location /protected-media/ {
+        internal; # This is the key security feature
+        alias /usr/src/app/media/;
     }
 
     # Proxy all other requests to the Django application
     location / {
-        proxy_pass http://django-backend-ip:8000;
+        proxy_pass http://backend:8000;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header Host $host;
         proxy_redirect off;
     }
-
-    # No internal /protected-media/ location is needed for this pattern.
 }
 ```
 
-### Development Environment (Django Dev Server + Local FS)
+### Example Django Download View
 
-In development, the Django development server must handle serving the protected files directly after checking permissions. This is achieved with conditional logic inside the "gatekeeper" views.
-
-**Example Django Download View:**
-A download view (like `WatermarkedFileDownloadView`) would contain conditional logic to handle both environments.
+A download view (like `ShareLinkPageView`) contains conditional logic to handle both development and production environments.
 
 ```python
-# In a view like DocumentDownloadView or WatermarkedFileDownloadView
+# In a view like ShareLinkPageView
 
 from django.http import HttpResponse, HttpResponseRedirect
 from django.conf import settings
-from rest_framework.response import Response
 import os
+import mimetypes
 
 # ... inside your GET method after all permission checks have passed ...
 
-# Assuming 'document' is your validated Document object
-# and 'primary_version' is its primary version.
-storage_key = primary_version.original_storage_key
+# Assuming 'storage_key' is the path to your file within the media root.
+storage_key = "path/to/your/file.png"
 
-if settings.DEBUG:
-    # --- DEVELOPMENT LOGIC ---
-    # Serve the file directly from Django's dev server.
-    file_path = os.path.join(settings.MEDIA_ROOT, storage_key)
-    try:
-        with open(file_path, 'rb') as f:
-            response = HttpResponse(f.read(), content_type=document.content_type)
-            # Use 'attachment' to force download
-            response['Content-Disposition'] = f'attachment; filename="{os.path.basename(document.name)}"'
-            return response
-    except FileNotFoundError:
-        return Response({"detail": "File not found on server."}, status=404)
+if settings.STORAGE_TYPE == 'MINIO':
+    # MINIO: Generate a pre-signed URL and redirect.
+    from django.core.files.storage import default_storage
+    url = default_storage.url(storage_key, expire=60) # 60 second expiry
+    return HttpResponseRedirect(url)
 else:
-    # --- PRODUCTION LOGIC ---
-    # Check which storage backend is in use.
-    if hasattr(settings, 'AWS_STORAGE_BUCKET_NAME'): # Assuming django-storages for MinIO
-        # MINIO: Generate a pre-signed URL and redirect.
-        from django.core.files.storage import default_storage
-        url = default_storage.url(storage_key, expire=60) # 60 second expiry
-        return HttpResponseRedirect(url)
+    # LOCAL FS (Dev or Prod)
+    if settings.DEBUG:
+        # --- DEVELOPMENT LOGIC ---
+        # Serve the file directly from Django's dev server.
+        file_path = os.path.join(settings.MEDIA_ROOT, storage_key)
+        try:
+            with open(file_path, 'rb') as f:
+                content_type, _ = mimetypes.guess_type(storage_key)
+                return HttpResponse(f.read(), content_type=content_type)
+        except FileNotFoundError:
+            return Response({"detail": "File not found on server."}, status=404)
     else:
-        # LOCAL FS with NGINX: Use X-Accel-Redirect.
-        response = HttpResponse(status=200)
+        # --- PRODUCTION LOGIC (LOCAL FS with NGINX) ---
+        # Use X-Accel-Redirect.
+        content_type, _ = mimetypes.guess_type(storage_key)
+        response = HttpResponse(content_type=content_type)
         # Nginx will serve the file from this internal path.
         response['X-Accel-Redirect'] = f'/protected-media/{storage_key}'
-        response['Content-Type'] = document.content_type
-        response['Content-Disposition'] = f'attachment; filename="{os.path.basename(document.name)}"'
+        # This is for inline viewing, not download
+        # response['Content-Disposition'] = f'inline; filename="your_file.png"'
         return response
 ```

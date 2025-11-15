@@ -652,10 +652,18 @@ class ShareLinkPageView(APIView):
         if not source_image_key:
             return Response({"message": "Source image for page not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Redirect to the actual file in storage. This uses pre-signed URLs for
-        # cloud storage like MinIO, providing secure, temporary access.
-        url = default_storage.url(source_image_key)
-        return HttpResponseRedirect(url)
+        if settings.STORAGE_TYPE == 'FILESYSTEM' and not settings.DEBUG:
+            # Production with local filesystem: Use X-Accel-Redirect
+            import mimetypes
+            content_type, _ = mimetypes.guess_type(source_image_key)
+            response = HttpResponse(content_type=content_type or 'application/octet-stream')
+            response['X-Accel-Redirect'] = f'/protected-media/{source_image_key}'
+            return response
+        else:
+            # Dev with local filesystem OR production with MinIO.
+            # default_storage.url() handles both cases correctly.
+            url = default_storage.url(source_image_key)
+            return HttpResponseRedirect(url)
 
 
 class WatermarkedPageRenderView(APIView):

@@ -1,0 +1,49 @@
+services:
+  backend:
+    image: coneshare:dev
+    build:
+      context: ./backend
+      dockerfile: Dockerfile-dev
+    command: gunicorn backend.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - ./backend:/app
+      - media_volume:/app/media
+    restart: unless-stopped
+    depends_on:
+      - redis
+    environment:
+      - STORAGE_TYPE=FILESYSTEM
+      - DEBUG=0
+      # TODO: Set a strong, unique SECRET_KEY in a .env file for production
+      - SECRET_KEY=django-insecure-(ptz@00bnu41y5xkt51b6qi23hqv9@8our!x+14vi7r)9ga)#b
+      # TODO: Set the correct domain for your site in a .env file
+      - SITE_DOMAIN=http://localhost
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  celery_worker:
+    image: coneshare:dev
+    command: celery -A backend worker -l INFO
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - redis
+
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    volumes:
+      - media_volume:/usr/src/app/media
+    depends_on:
+      - backend
+
+volumes:
+  media_volume:
+  redis_data:
