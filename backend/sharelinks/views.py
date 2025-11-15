@@ -8,8 +8,8 @@ from datetime import timedelta
 from io import BytesIO
 from urllib.parse import urljoin
 
+import requests
 from django.conf import settings
-from django.core.files.storage import default_storage
 from django.core.mail import send_mail
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect
@@ -28,6 +28,7 @@ from rest_framework.views import APIView
 from datarooms.models import (DataroomDocument, DataroomFolder)
 from datarooms.serializers import (PublicDataroomDocumentSerializer,
                                    PublicDataroomFolderSerializer)
+from documents.fileserver import fileserver_client
 from documents.models import DocumentPage
 from documents.views import StandardResultsSetPagination, _prepare_pages_data
 from .models import (EmailVerificationToken, PreviewSession,
@@ -320,8 +321,12 @@ class ShareLinkViewDataView(APIView):
                 # For images, the download URL is the same as the single page's URL.
                 download_url = pages_data[0]['url']
             elif primary_version and primary_version.original_storage_key:
-                file_url = default_storage.url(primary_version.original_storage_key)
-                download_url = urljoin(settings.SITE_DOMAIN, file_url)
+                try:
+                    file_url = fileserver_client.generate_download_url(primary_version.original_storage_key)
+                    download_url = urljoin(settings.SITE_DOMAIN, file_url)
+                except APIException:
+                    # If file server is down, we can't generate a download URL.
+                    download_url = None
 
             response_data = {
                 "link_type": "document",
@@ -652,18 +657,18 @@ class ShareLinkPageView(APIView):
         if not source_image_key:
             return Response({"message": "Source image for page not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if settings.STORAGE_TYPE == 'FILESYSTEM' and not settings.DEBUG:
-            # Production with local filesystem: Use X-Accel-Redirect
-            import mimetypes
-            content_type, _ = mimetypes.guess_type(source_image_key)
-            response = HttpResponse(content_type=content_type or 'application/octet-stream')
-            response['X-Accel-Redirect'] = f'/protected-media/{source_image_key}'
-            return response
-        else:
-            # Dev with local filesystem OR production with MinIO.
-            # default_storage.url() handles both cases correctly.
-            url = default_storage.url(source_image_key)
-            return HttpResponseRedirect(url)
+        try:
+            download_url = fileserver_client.generate_download_url(source_image_key)
+            # The URL from the fileserver is relative, so we need to make it absolute
+            # for the redirect to work correctly from the client's perspective.
+            absolute_url = urljoin(settings.SITE_DOMAIN, download_url)
+            return HttpResponseRedirect(absolute_url)
+        except APIException as e:
+            logger.error(f"Failed to get download URL from file server for {source_image_key}: {e}")
+            return Response(
+                {"detail": "Could not retrieve file. Please try again later."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
 
 class WatermarkedPageRenderView(APIView):
@@ -742,8 +747,10 @@ class WatermarkedPageRenderView(APIView):
 
         # Render watermark
         try:
-            with default_storage.open(source_image_key, 'rb') as f:
-                image = Image.open(f).convert("RGBA")
+            download_url = fileserver_client.generate_download_url(source_image_key)
+            response = requests.get(download_url)
+            response.raise_for_status()
+            image = Image.open(BytesIO(response.content)).convert("RGBA")
 
             watermark_text = _render_watermark_text(link.watermark_text, request, viewer_email=viewer_email)
             
@@ -833,9 +840,11 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
         raise InvalidDocumentForWatermarkingError("A previewable PDF is not available for this document type.")
 
     try:
-        with default_storage.open(source_pdf_key, 'rb') as f:
-            reader = PdfReader(f)
-            writer = PdfWriter()
+        download_url = fileserver_client.generate_download_url(source_pdf_key)
+        response = requests.get(download_url)
+        response.raise_for_status()
+        reader = PdfReader(BytesIO(response.content))
+        writer = PdfWriter()
 
             if not reader.pages:
                 raise InvalidDocumentForWatermarkingError("Cannot apply watermark to an empty PDF.")
@@ -1009,8 +1018,10 @@ class DataroomFolderDownloadView(APIView):
                         zipf.writestr(file_path, pdf_buffer.getvalue())
                     elif primary_version.original_storage_key:
                         storage_key = primary_version.original_storage_key
-                        with default_storage.open(storage_key, 'rb') as f:
-                            zipf.writestr(file_path, f.read())
+                        download_url = fileserver_client.generate_download_url(storage_key)
+                        response = requests.get(download_url)
+                        response.raise_for_status()
+                        zipf.writestr(file_path, response.content)
                 except Exception as e:
                     logger.error(f"Failed to add file '{doc.name}' to zip for link '{link.slug}'. Error: {e}")
 

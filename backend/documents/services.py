@@ -2,8 +2,6 @@ import os
 import re
 import mimetypes
 from django.conf import settings
-from django.core.files.uploadedfile import UploadedFile
-from django.core.files.storage import default_storage
 from django.db import transaction
 
 from backend.utils import get_unique_name
@@ -87,12 +85,15 @@ def _get_unique_folder_name(created_by, parent_folder, original_name: str) -> st
 
 def create_document_from_upload(
     requesting_user: User,
-    uploaded_file: UploadedFile,
-    folder: Folder = None
+    folder: Folder,
+    storage_key: str,
+    unique_name: str,
+    file_size: int,
+    content_type: str,
 ) -> Document:
     """
-    Creates document records and routes the file to the correct
-    asynchronous processing task based on its content type and size.
+    Creates document records from data about a file already uploaded to the
+    file server, and routes it for processing.
     """
     if folder is None:
         folder, _ = Folder.objects.get_or_create(
@@ -102,24 +103,9 @@ def create_document_from_upload(
             defaults={'created_by': None}
         )
 
-    # 1. Get a unique name before storing the file
-    unique_name = _get_unique_document_name(
-        requesting_user=requesting_user,
-        folder=folder,
-        original_name=uploaded_file.name
-    )
-
-    # 2. Store the original file
-    file_id = generate_ulid()
-    file_ext = os.path.splitext(unique_name)[1]
-    storage_key = f"{requesting_user.organization.id}/{file_id}{file_ext}"
-
-    original_storage_key = default_storage.save(storage_key, uploaded_file)
-
-    content_type = uploaded_file.content_type
     doc_type = _get_doc_type_from_content_type(content_type)
 
-    # 3. Create database records
+    # Create database records
     document = Document.objects.create(
         organization=requesting_user.organization,
         created_by=requesting_user,
@@ -127,25 +113,26 @@ def create_document_from_upload(
         folder=folder,
         status='uploading',
         type=doc_type,
-        content_type=content_type
+        content_type=content_type,
+        original_storage_key=storage_key,
     )
 
     version = DocumentVersion.objects.create(
         document=document,
         version_number=1,
-        original_storage_key=original_storage_key,
-        storage_key=original_storage_key,
+        original_storage_key=storage_key,
+        storage_key=storage_key,
         content_type=content_type,
-        file_size=uploaded_file.size,
+        file_size=file_size,
         type=doc_type,
         is_primary=True,
     )
 
-    # 3. Route for processing
+    # Route for processing
     _route_document_for_processing(
         document=document,
         version=version,
-        file_size=uploaded_file.size,
+        file_size=file_size,
         content_type=content_type,
     )
 

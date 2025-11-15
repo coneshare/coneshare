@@ -24,6 +24,9 @@ services:
       - redis
       - core
     environment:
+      - CORE_API_URL=http://core:8080
+      # TODO: Set a strong, unique INTERNAL_API_TOKEN in a .env file for production
+      - INTERNAL_API_TOKEN=supersecrettoken
       - STORAGE_TYPE=FILESYSTEM
       - DEBUG=0
       # TODO: Set a strong, unique SECRET_KEY in a .env file for production

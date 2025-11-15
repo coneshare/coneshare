@@ -20,6 +20,11 @@ from rest_framework.views import APIView
 from .models import (Document, Folder)
 from .serializers import (DocumentSerializer, EnsureFolderPathsSerializer,
                           FolderSerializer)
+from core.fields import generate_ulid
+from .fileserver import fileserver_client
+from .models import (Document, Folder)
+from .serializers import (DocumentSerializer, EnsureFolderPathsSerializer,
+                          FolderSerializer)
 from .services import (
     _get_unique_folder_name,
     _get_unique_document_name,
@@ -91,25 +96,26 @@ def _get_or_create_folders_from_path(requesting_user, folder_path: str) -> Folde
     return parent
 
 
-class DocumentUploadView(APIView):
+class DocumentUploadRequestView(APIView):
     """
-    A dedicated view for handling file uploads and creating Document records.
+    Requests a temporary, secure URL for uploading a document from the file server.
     """
-    parser_classes = (MultiPartParser,)
     permission_classes = [permissions.IsAuthenticated]
 
+    class DocumentUploadRequestSerializer(serializers.Serializer):
+        file_name = serializers.CharField()
+        path = serializers.CharField(required=False, allow_blank=True)
+
     def post(self, request, *args, **kwargs):
-        file_obj = request.FILES.get('file')
-        if not file_obj:
-            return Response(
-                {"detail": "No file provided."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        serializer = self.DocumentUploadRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # Handle folder creation and filename override from path
-        relative_path = request.POST.get('path')
+        validated_data = serializer.validated_data
+        file_name = validated_data['file_name']
+        relative_path = validated_data.get('path')
+
         parent_folder = None
-
         if relative_path:
             folder_path, file_name_from_path = os.path.split(relative_path)
             if folder_path:
@@ -118,28 +124,85 @@ class DocumentUploadView(APIView):
                 )
                 if parent_folder is None:
                     return Response(
-                        {"detail": f"Folder path '{folder_path}' does not exist. Please ensure path is created first."},
+                        {"detail": f"Folder path '{folder_path}' does not exist."},
                         status=status.HTTP_400_BAD_REQUEST
                     )
             if file_name_from_path:
-                # Override the uploaded file's name if a name is provided in path
-                file_obj.name = file_name_from_path
+                file_name = file_name_from_path
+        else:
+            parent_folder = Folder.objects.get_root_for_org(request.user.organization)
+
+        unique_name = _get_unique_document_name(
+            requesting_user=request.user,
+            folder=parent_folder,
+            original_name=file_name
+        )
+
+        file_id = generate_ulid()
+        file_ext = os.path.splitext(unique_name)[1]
+        storage_key = f"{request.user.organization.id}/{file_id}{file_ext}"
+
+        try:
+            upload_url = fileserver_client.generate_upload_url(storage_key)
+        except APIException as e:
+            logger.error(f"Failed to get upload URL from file server: {e}")
+            return Response({"detail": str(e.detail)}, status=e.status_code)
+
+        return Response({
+            'upload_url': upload_url,
+            'storage_key': storage_key,
+            'unique_name': unique_name,
+        }, status=status.HTTP_200_OK)
+
+
+class DocumentUploadFinalizeView(APIView):
+    """
+    Finalizes a document upload after the file has been sent to the file server.
+    Creates the Document records and triggers processing.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    class DocumentUploadFinalizeSerializer(serializers.Serializer):
+        storage_key = serializers.CharField()
+        unique_name = serializers.CharField()
+        file_size = serializers.IntegerField()
+        content_type = serializers.CharField()
+        path = serializers.CharField(required=False, allow_blank=True)
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.DocumentUploadFinalizeSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        validated_data = serializer.validated_data
+        parent_folder = None
+        relative_path = validated_data.get('path')
+
+        if relative_path:
+            folder_path, _ = os.path.split(relative_path)
+            if folder_path:
+                parent_folder = _get_folder_from_path(
+                    request.user.organization, folder_path
+                )
 
         try:
             document = create_document_from_upload(
                 requesting_user=request.user,
-                uploaded_file=file_obj,
-                folder=parent_folder
+                folder=parent_folder,
+                storage_key=validated_data['storage_key'],
+                unique_name=validated_data['unique_name'],
+                file_size=validated_data['file_size'],
+                content_type=validated_data['content_type'],
             )
         except Exception as e:
-            # In a real app, log this exception
+            logger.error(f"Failed to finalize document upload: {e}")
             return Response(
-                {"detail": f"Failed to start document processing: {str(e)}"},
+                {"detail": f"Failed to finalize document processing: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        serializer = DocumentSerializer(document, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+        doc_serializer = DocumentSerializer(document, context={'request': request})
+        return Response(doc_serializer.data, status=status.HTTP_202_ACCEPTED)
 
 
 class EnsureFolderPathsView(APIView):
@@ -344,7 +407,7 @@ def _prepare_pages_data(document, primary_version, share_link=None):
             if share_link.dataroom:
                 page_url += f"?document_id={document.id}"
         else:
-            page_url = default_storage.url(primary_version.original_storage_key)
+            page_url = fileserver_client.generate_download_url(primary_version.original_storage_key)
 
         absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
         pages_data.append({
@@ -363,7 +426,7 @@ def _prepare_pages_data(document, primary_version, share_link=None):
                 if share_link.dataroom:
                     page_url += f"?document_id={document.id}"
             else:
-                page_url = default_storage.url(page.storage_key)
+                page_url = fileserver_client.generate_download_url(page.storage_key)
 
             absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
             pages_data.append({

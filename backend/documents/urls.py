@@ -9,7 +9,8 @@ router.register(r'documents', views.DocumentViewSet)
 
 urlpatterns = [
     path('folders/ensure-paths/', views.EnsureFolderPathsView.as_view(), name='folder-ensure-paths'),
-    path('uploads/document/', views.DocumentUploadView.as_view(), name='document-upload'),
+    path('uploads/document/request/', views.DocumentUploadRequestView.as_view(), name='document-upload-request'),
+    path('uploads/document/finalize/', views.DocumentUploadFinalizeView.as_view(), name='document-upload-finalize'),
     path('documents/<str:document_id>/versions/', views.DocumentVersionUploadView.as_view(), name='document-version-upload'),
     path('documents/<str:document_id>/preview-data/', views.DocumentPreviewDataView.as_view(), name='document-preview-data'),
     path('actions/move/', views.MoveItemsView.as_view(), name='move-items'),

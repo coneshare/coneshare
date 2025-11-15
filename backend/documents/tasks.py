@@ -2,13 +2,13 @@ import logging
 import os
 import tempfile
 import subprocess
+import requests
 from pathlib import Path
 from io import BytesIO
 from celery import shared_task
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile, File
 from pdf2image import convert_from_bytes
 
+from .fileserver import fileserver_client
 from .models import DocumentVersion, DocumentPage
 
 
@@ -29,9 +29,12 @@ def convert_office_to_pdf_task(version_id):
             original_file_path = temp_dir_path / original_file_name
 
             # 1. Download original file from storage
-            with default_storage.open(version.original_storage_key, 'rb') as f_in:
-                with open(original_file_path, 'wb') as f_out:
-                    f_out.write(f_in.read())
+            download_url = fileserver_client.generate_download_url(version.original_storage_key)
+            response = requests.get(download_url, stream=True)
+            response.raise_for_status()
+            with open(original_file_path, 'wb') as f_out:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f_out.write(chunk)
 
             # 2. Convert to PDF using LibreOffice
             subprocess.run(
@@ -46,11 +49,14 @@ def convert_office_to_pdf_task(version_id):
             # 3. Upload new PDF to storage
             base_path, _ = os.path.splitext(version.original_storage_key)
             new_storage_key = f"{base_path}.pdf"
-            
+
+            upload_url = fileserver_client.generate_upload_url(new_storage_key)
             with open(pdf_path, 'rb') as pdf_file:
-                version.storage_key = default_storage.save(new_storage_key, File(pdf_file))
+                upload_response = requests.put(upload_url, data=pdf_file)
+                upload_response.raise_for_status()
 
             # 4. Update the document version to point to the new PDF
+            version.storage_key = new_storage_key
             version.content_type = 'application/pdf'
             version.type = 'pdf'
             version.save()
@@ -81,8 +87,10 @@ def generate_pdf_pages_task(version_id):
 
     try:
         # 1. Fetch PDF from storage
-        with default_storage.open(version.storage_key) as pdf_file:
-            pdf_bytes = pdf_file.read()
+        download_url = fileserver_client.generate_download_url(version.storage_key)
+        response = requests.get(download_url)
+        response.raise_for_status()
+        pdf_bytes = response.content
 
         # 2. Convert PDF pages to images (PNG)
         images = convert_from_bytes(pdf_bytes, fmt='png')
@@ -95,7 +103,10 @@ def generate_pdf_pages_task(version_id):
 
             buffer = BytesIO()
             image.save(buffer, format='PNG')
-            default_storage.save(page_storage_key, ContentFile(buffer.getvalue()))
+            
+            upload_url = fileserver_client.generate_upload_url(page_storage_key)
+            upload_response = requests.put(upload_url, data=buffer.getvalue())
+            upload_response.raise_for_status()
 
             DocumentPage.objects.create(
                 document_version=version,
