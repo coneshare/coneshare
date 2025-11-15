@@ -1,6 +1,5 @@
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch, MagicMock
 import pytest
-from django.core.files.uploadedfile import SimpleUploadedFile
 
 from documents.models import Document, DocumentVersion, DocumentPage
 from documents.services import create_document_from_upload, delete_document_and_files
@@ -10,27 +9,18 @@ from documents.tasks import generate_pdf_pages_task
 @pytest.mark.django_db
 class TestCreateDocumentFromUpload:
     @patch('documents.services.generate_pdf_pages_task.delay')
-    @patch('django.core.files.storage.default_storage.save')
-    def test_service_creates_records_and_dispatches_task(self, mock_storage_save, mock_task_delay, user):
-        # Setup test-specific data
-        mock_file = SimpleUploadedFile(
-            "test.pdf", b"file_content", content_type="application/pdf"
-        )
-        # Configure mock to return a predictable path
-        mock_storage_save.return_value = f"{user.organization.id}/mock_path.pdf"
-
+    def test_service_creates_records_and_dispatches_task(self, mock_task_delay, user):
         # Call the service function
         document = create_document_from_upload(
             requesting_user=user,
-            uploaded_file=mock_file
+            folder=None,
+            storage_key=f"{user.organization.id}/mock_path.pdf",
+            unique_name="test.pdf",
+            file_size=123,
+            content_type="application/pdf"
         )
 
-        # 1. Assert that default_storage.save was called correctly
-        mock_storage_save.assert_called_once()
-        assert str(user.organization.id) in mock_storage_save.call_args[0][0]
-        assert mock_file == mock_storage_save.call_args[0][1]
-
-        # 2. Assert one Document object was created with correct fields
+        # 1. Assert one Document object was created with correct fields
         assert Document.objects.count() == 1
         created_document = Document.objects.first()
         assert created_document == document
@@ -38,22 +28,26 @@ class TestCreateDocumentFromUpload:
         assert created_document.name == 'test.pdf'
         assert created_document.created_by == user
 
-        # 3. Assert one DocumentVersion object was created correctly
+        # 2. Assert one DocumentVersion object was created correctly
         assert DocumentVersion.objects.count() == 1
         version = DocumentVersion.objects.first()
         assert version.document == created_document
         assert version.version_number == 1
+        assert version.original_storage_key == f"{user.organization.id}/mock_path.pdf"
+        assert version.file_size == 123
 
-        # 4. Assert that the Celery task was called once with the new version's ID
+        # 3. Assert that the Celery task was called once with the new version's ID
         mock_task_delay.assert_called_once_with(version.id)
 
 
 @pytest.mark.django_db
 class TestGeneratePdfPagesTask:
-    @patch('django.core.files.storage.default_storage.save')
+    @patch('documents.tasks.requests.put')
+    @patch('documents.tasks.fileserver_client.generate_upload_url')
+    @patch('documents.tasks.requests.get')
+    @patch('documents.tasks.fileserver_client.generate_download_url')
     @patch('documents.tasks.convert_from_bytes')
-    @patch('django.core.files.storage.default_storage.open', new_callable=mock_open)
-    def test_task_processes_pdf_and_updates_db(self, mock_storage_open, mock_convert, mock_storage_save, user):
+    def test_task_processes_pdf_and_updates_db(self, mock_convert, mock_fs_download_url, mock_requests_get, mock_fs_upload_url, mock_requests_put, user):
         # Setup test-specific data
         document = Document.objects.create(
             organization=user.organization,
@@ -69,22 +63,34 @@ class TestGeneratePdfPagesTask:
         )
         sample_pdf_bytes = b"dummy-pdf-content"
         mock_images = [MagicMock(), MagicMock()]
+        mock_images[0].save.side_effect = lambda buf, format: buf.write(b'img1')
+        mock_images[1].save.side_effect = lambda buf, format: buf.write(b'img2')
 
         # Configure mocks
-        mock_storage_open.return_value.read.return_value = sample_pdf_bytes
+        mock_fs_download_url.return_value = "/files/download/token"
+        mock_get_response = MagicMock()
+        mock_get_response.raise_for_status.return_value = None
+        mock_get_response.content = sample_pdf_bytes
+        mock_requests_get.return_value = mock_get_response
         mock_convert.return_value = mock_images
+        mock_fs_upload_url.side_effect = ["/upload/page1", "/upload/page2"]
+        mock_put_response = MagicMock()
+        mock_put_response.raise_for_status.return_value = None
+        mock_requests_put.return_value = mock_put_response
 
         # Call the task function directly with the version ID
         generate_pdf_pages_task(version.id)
 
-        # 1. Assert that storage.open was called with the correct key
-        mock_storage_open.assert_called_once_with(version.storage_key)
+        # 1. Assert that file server download was called
+        mock_fs_download_url.assert_called_once_with(version.storage_key)
+        mock_requests_get.assert_called_once()
 
         # 2. Assert that convert_from_bytes was called with the PDF data
         mock_convert.assert_called_once_with(sample_pdf_bytes, fmt='png')
 
-        # 3. Assert that storage.save was called for each generated page
-        assert mock_storage_save.call_count == 2
+        # 3. Assert that file server upload was called for each page
+        assert mock_fs_upload_url.call_count == 2
+        assert mock_requests_put.call_count == 2
 
         # 4. Assert that two DocumentPage objects were created
         assert DocumentPage.objects.count() == 2
@@ -105,8 +111,8 @@ class TestGeneratePdfPagesTask:
 
 @pytest.mark.django_db
 class TestDeleteDocument:
-    @patch('django.core.files.storage.default_storage.delete')
-    def test_service_deletes_db_records_and_storage_files(self, mock_storage_delete, user):
+    @patch('documents.services.fileserver_client.delete_file')
+    def test_service_deletes_db_records_and_storage_files(self, mock_fs_delete, user):
         # Setup
         doc = Document.objects.create(organization=user.organization, created_by=user)
         version = DocumentVersion.objects.create(
@@ -135,7 +141,7 @@ class TestDeleteDocument:
         assert not DocumentPage.objects.filter(id=page1_id).exists()
 
         # 2. Storage deletion was called for all files
-        assert mock_storage_delete.call_count == 3
-        mock_storage_delete.assert_any_call("original.pdf")
-        mock_storage_delete.assert_any_call("page_1.png")
-        mock_storage_delete.assert_any_call("page_2.png")
+        assert mock_fs_delete.call_count == 3
+        mock_fs_delete.assert_any_call("original.pdf")
+        mock_fs_delete.assert_any_call("page_1.png")
+        mock_fs_delete.assert_any_call("page_2.png")

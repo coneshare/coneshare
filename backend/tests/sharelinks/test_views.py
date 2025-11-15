@@ -256,16 +256,14 @@ class TestShareLinkViewDataView:
         assert data['link_settings']['allow_download'] == share_link.allow_download
 
     @override_settings(SITE_DOMAIN="http://test.coneshare.com")
-    @patch('django.core.files.storage.default_storage.url')
-    def test_get_share_link_data_includes_download_url(self, mock_storage_url, public_client, share_link):
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_get_share_link_data_includes_download_url(self, mock_fs_download_url, public_client, share_link):
         """Test that the view data includes a correctly constructed download_url."""
         # Setup
         primary_version = share_link.document.versions.get(is_primary=True)
         primary_version.original_storage_key = "path/to/original.pdf"
         primary_version.save()
-
-        # Mock storage url to return a relative path
-        mock_storage_url.return_value = "/media/path/to/original.pdf"
+        mock_fs_download_url.return_value = "/files/download/some-token"
 
         # Action
         response = public_client.get(f'/api/v1/links/{share_link.slug}/view-data/')
@@ -274,9 +272,9 @@ class TestShareLinkViewDataView:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert "download_url" in data
-        assert data["download_url"] == "http://test.coneshare.com/media/path/to/original.pdf"
+        assert data["download_url"] == "http://test.coneshare.com/files/download/some-token"
 
-        mock_storage_url.assert_called_once_with("path/to/original.pdf")
+        mock_fs_download_url.assert_called_once_with("path/to/original.pdf")
 
     @override_settings(SITE_DOMAIN="http://test.coneshare.com")
     def test_get_share_link_data_for_image_document(self, public_client, image_document_with_content, user):
@@ -1006,23 +1004,24 @@ class TestShareLinkPageView:
         assert response_verify.status_code == status.HTTP_200_OK
         return public_client
 
-    @patch('django.core.files.storage.default_storage.url')
-    def test_get_page_success_redirects(self, mock_storage_url, authorized_client, share_link_with_password, document_with_pages):
+    @override_settings(SITE_DOMAIN="http://test.coneshare.com")
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_get_page_success_redirects(self, mock_fs_download_url, authorized_client, share_link_with_password, document_with_pages):
         """
         Test that an authorized request to the page endpoint successfully
-        redirects to the file in storage.
+        redirects to a temporary URL from the file server.
         """
         share_link_with_password.document = document_with_pages
         share_link_with_password.save()
-        mock_storage_url.return_value = "http://storage.com/pages/page_1.png"
+        mock_fs_download_url.return_value = "/files/download/some-token"
 
         url = f'/api/v1/links/{share_link_with_password.slug}/page/1/'
         response = authorized_client.get(url)
 
         assert response.status_code == status.HTTP_302_FOUND
-        assert response.url == "http://storage.com/pages/page_1.png"
+        assert response.url == "http://test.coneshare.com/files/download/some-token"
         page = DocumentPage.objects.get(page_number=1)
-        mock_storage_url.assert_called_once_with(page.storage_key)
+        mock_fs_download_url.assert_called_once_with(page.storage_key)
 
     def test_get_page_unauthorized_fails(self, public_client, share_link, document_with_pages):
         """
@@ -1036,8 +1035,9 @@ class TestShareLinkPageView:
         response = public_client.get(url)
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    @patch('django.core.files.storage.default_storage.url')
-    def test_get_page_for_dataroom_success(self, mock_storage_url, dataroom, document_with_pages, user):
+    @override_settings(SITE_DOMAIN="http://test.coneshare.com")
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_get_page_for_dataroom_success(self, mock_fs_download_url, dataroom, document_with_pages, user):
         """
         Test that a page for a document within a dataroom can be successfully retrieved.
         """
@@ -1053,12 +1053,12 @@ class TestShareLinkPageView:
         response_verify = client.post(verify_url, {'password': 'password123'})
         assert response_verify.status_code == status.HTTP_200_OK
 
-        mock_storage_url.return_value = "http://storage.com/pages/page_1.png"
+        mock_fs_download_url.return_value = "/files/download/some-token"
         url = f'/api/v1/links/{link.slug}/page/1/?document_id={document_with_pages.id}'
         response = client.get(url)
 
         assert response.status_code == status.HTTP_302_FOUND
-        assert response.url == "http://storage.com/pages/page_1.png"
+        assert response.url == "http://test.coneshare.com/files/download/some-token"
 
     def test_get_page_for_dataroom_missing_doc_id(self, authorized_client, dataroom, share_link_with_password):
         """
@@ -1110,15 +1110,20 @@ class TestWatermarkingViews:
         share_link_with_watermark.save()
         return share_link_with_watermark
 
-    @patch('django.core.files.storage.default_storage.open')
-    def test_render_watermarked_page_success(self, mock_storage_open, public_client, watermarked_link):
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_render_watermarked_page_success(self, mock_fs_download_url, mock_requests_get, public_client, watermarked_link):
         """Test that a watermarked page image is rendered successfully."""
-        # Create a dummy image in memory to be returned by storage
+        mock_fs_download_url.return_value = "/files/download/token"
         img = Image.new('RGB', (100, 100), color='white')
         buffer = BytesIO()
         img.save(buffer, 'JPEG')
         buffer.seek(0)
-        mock_storage_open.return_value = buffer
+
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = buffer.getvalue()
+        mock_requests_get.return_value = mock_response
 
         url = f'/api/v1/links/{watermarked_link.slug}/render-page/1/'
         response = public_client.get(url, REMOTE_ADDR='192.168.1.1')
@@ -1126,17 +1131,19 @@ class TestWatermarkingViews:
         assert response.status_code == status.HTTP_200_OK
         assert response.get('Content-Type') == 'image/jpeg'
 
-        # Verify the mock was called correctly
         page = DocumentPage.objects.get(page_number=1)
-        mock_storage_open.assert_called_once_with(page.storage_key, 'rb')
+        mock_fs_download_url.assert_called_once_with(page.storage_key)
 
-    @patch('django.core.files.storage.default_storage.open')
-    def test_download_watermarked_file_success(self, mock_storage_open, public_client, watermarked_link):
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_watermarked_file_success(self, mock_fs_download_url, mock_requests_get, public_client, watermarked_link):
         """Test that a watermarked PDF file is generated and served for download."""
-        # Create a dummy PDF in memory. A simple bytestring is enough for pypdf to read.
+        mock_fs_download_url.return_value = "/files/download/token"
         pdf_content = b'%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000010 00000 n \n0000000059 00000 n \n0000000112 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF'
-        pdf_buffer = BytesIO(pdf_content)
-        mock_storage_open.return_value = pdf_buffer
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = pdf_content
+        mock_requests_get.return_value = mock_response
         
         url = f'/api/v1/links/{watermarked_link.slug}/download/'
         response = public_client.get(url, REMOTE_ADDR='192.168.1.1')
@@ -1145,13 +1152,11 @@ class TestWatermarkingViews:
         assert response.get('Content-Type') == 'application/pdf'
         assert 'attachment; filename=' in response.get('Content-Disposition')
         
-        # Check that the file content is a PDF and is larger than the original (due to watermark)
         assert response.content.startswith(b'%PDF-')
         assert len(response.content) > len(pdf_content)
 
-        # Verify the mock was called correctly
         version = watermarked_link.document.versions.get(is_primary=True)
-        mock_storage_open.assert_called_once_with(version.original_storage_key, 'rb')
+        mock_fs_download_url.assert_called_once_with(version.original_storage_key)
 
     def test_download_watermarked_file_not_allowed(self, public_client, watermarked_link):
         """Test that downloading is forbidden if allow_download is false."""
@@ -1416,8 +1421,15 @@ class TestDataroomFolderDownloadView:
             'ddoc_not_downloadable': ddoc_not_downloadable,
         }
 
-    @patch('django.core.files.storage.default_storage.open', new_callable=mock_open, read_data=b"file content")
-    def test_download_folder_success(self, mock_storage_open, public_client, dataroom_with_content_and_link):
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_folder_success(self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link):
+        mock_fs_download.return_value = "/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"file content"
+        mock_requests_get.return_value = mock_response
+
         link = dataroom_with_content_and_link['link']
         root_folder = dataroom_with_content_and_link['root_folder']
 
