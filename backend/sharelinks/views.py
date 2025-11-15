@@ -846,10 +846,10 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
         reader = PdfReader(BytesIO(response.content))
         writer = PdfWriter()
 
-            if not reader.pages:
-                raise InvalidDocumentForWatermarkingError("Cannot apply watermark to an empty PDF.")
+        if not reader.pages:
+            raise InvalidDocumentForWatermarkingError("Cannot apply watermark to an empty PDF.")
 
-            rendered_watermark_text = _render_watermark_text(watermark_text, request, viewer_email)
+        rendered_watermark_text = _render_watermark_text(watermark_text, request, viewer_email)
 
             # Create a watermark page in memory
             watermark_buffer = BytesIO()

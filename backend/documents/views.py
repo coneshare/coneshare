@@ -640,11 +640,11 @@ class DocumentViewSet(viewsets.ModelViewSet):
         pages_map = {}
         if primary_version:
             if document.type == 'image':
-                image_url = default_storage.url(primary_version.original_storage_key)
+                image_url = fileserver_client.generate_download_url(primary_version.original_storage_key)
                 pages_map[1] = urljoin(settings.SITE_DOMAIN, image_url)
             elif primary_version.has_pages:
                 for page in primary_version.pages.values('page_number', 'storage_key').order_by('page_number'):
-                    page_url = default_storage.url(page['storage_key'])
+                    page_url = fileserver_client.generate_download_url(page['storage_key'])
                     pages_map[page['page_number']] = urljoin(settings.SITE_DOMAIN, page_url)
 
         serializer_context = self.get_serializer_context()
