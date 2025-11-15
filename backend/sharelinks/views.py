@@ -743,7 +743,7 @@ class WatermarkedPageRenderView(APIView):
 
         # Render watermark
         try:
-            download_url = fileserver_client.generate_download_url(source_image_key)
+            download_url = fileserver_client.generate_download_url(source_image_key, is_internal=True)
             response = requests.get(download_url)
             response.raise_for_status()
             image = Image.open(BytesIO(response.content)).convert("RGBA")
@@ -836,7 +836,7 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
         raise InvalidDocumentForWatermarkingError("A previewable PDF is not available for this document type.")
 
     try:
-        download_url = fileserver_client.generate_download_url(source_pdf_key)
+        download_url = fileserver_client.generate_download_url(source_pdf_key, is_internal=True)
         response = requests.get(download_url)
         response.raise_for_status()
         reader = PdfReader(BytesIO(response.content))
@@ -1014,7 +1014,7 @@ class DataroomFolderDownloadView(APIView):
                         zipf.writestr(file_path, pdf_buffer.getvalue())
                     elif primary_version.original_storage_key:
                         storage_key = primary_version.original_storage_key
-                        download_url = fileserver_client.generate_download_url(storage_key)
+                        download_url = fileserver_client.generate_download_url(storage_key, is_internal=True)
                         response = requests.get(download_url)
                         response.raise_for_status()
                         zipf.writestr(file_path, response.content)
