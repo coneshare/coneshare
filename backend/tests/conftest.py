@@ -145,10 +145,12 @@ def image_document_with_content(user):
         b'!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01'
         b'\x00\x00\x02\x02D\x01\x00;'
     )
-    image_file = SimpleUploadedFile(
-        "test_image.gif",
-        image_content,
+    document = create_document_from_upload(
+        requesting_user=user,
+        folder=None,
+        storage_key=f"{user.organization.id}/test_image.gif",
+        unique_name="test_image.gif",
+        file_size=len(image_content),
         content_type="image/gif"
     )
-    document = create_document_from_upload(requesting_user=user, uploaded_file=image_file)
     return document
