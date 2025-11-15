@@ -343,50 +343,79 @@ class EnsureFolderPathsView(APIView):
             )
 
 
-class DocumentVersionUploadView(APIView):
+class DocumentVersionUploadRequestView(APIView):
     """
-    A dedicated view for uploading a new version of an existing document.
+    Requests a temporary, secure URL for uploading a new document version.
     """
-    parser_classes = (MultiPartParser,)
     permission_classes = [permissions.IsAuthenticated]
 
+    class RequestSerializer(serializers.Serializer):
+        file_name = serializers.CharField()
+
     def post(self, request, document_id, *args, **kwargs):
-        # 1. Authorize the user
         try:
-            document = Document.objects.get(
-                id=document_id,
-                organization=request.user.organization,
-                created_by=request.user
-            )
+            document = Document.objects.get(id=document_id, created_by=request.user)
         except Document.DoesNotExist:
-            return Response(
-                {"detail": "Access denied or document not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        uploaded_file = request.data.get('file')
-        if not uploaded_file:
-            return Response(
-                {"detail": "No file provided"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        serializer = self.RequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        file_name = serializer.validated_data['file_name']
 
-        # 2. Delegate to the service layer
+        file_id = generate_ulid()
+        file_ext = os.path.splitext(file_name)[1]
+        storage_key = f"{request.user.organization.id}/{file_id}{file_ext}"
+
+        try:
+            upload_url = fileserver_client.generate_upload_url(storage_key)
+        except APIException as e:
+            logger.error(f"Failed to get upload URL from file server: {e}")
+            return Response({"detail": str(e.detail)}, status=e.status_code)
+
+        return Response({
+            'upload_url': upload_url,
+            'storage_key': storage_key,
+        }, status=status.HTTP_200_OK)
+
+
+class DocumentVersionUploadFinalizeView(APIView):
+    """
+    Finalizes a new document version upload after the file has been sent to the file server.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    class FinalizeSerializer(serializers.Serializer):
+        storage_key = serializers.CharField()
+        file_size = serializers.IntegerField()
+        content_type = serializers.CharField()
+
+    def post(self, request, document_id, *args, **kwargs):
+        try:
+            document = Document.objects.get(id=document_id, created_by=request.user)
+        except Document.DoesNotExist:
+            return Response({"detail": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.FinalizeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+
         try:
             create_new_document_version(
                 document=document,
-                uploaded_file=uploaded_file,
-                requesting_user=request.user
+                requesting_user=request.user,
+                storage_key=validated_data['storage_key'],
+                file_size=validated_data['file_size'],
+                content_type=validated_data['content_type'],
             )
         except Exception as e:
-            # In a real app, log this exception
+            logger.error(f"Failed to finalize document version upload for doc {document_id}: {e}")
             return Response(
-                {"detail": f"Failed to start document processing: {str(e)}"},
+                {"detail": f"Failed to finalize document processing: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        serializer = DocumentSerializer(document, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+        doc_serializer = DocumentSerializer(document, context={'request': request})
+        return Response(doc_serializer.data, status=status.HTTP_202_ACCEPTED)
 
 
 def _prepare_pages_data(document, primary_version, share_link=None):

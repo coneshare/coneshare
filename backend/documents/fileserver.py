@@ -21,12 +21,14 @@ class FileServerClient:
             'Content-Type': 'application/json',
         }
 
-    def _post(self, endpoint, data):
+    def _post(self, endpoint, data, expect_json=True):
         url = f'{self.base_url}{endpoint}'
         try:
             response = requests.post(url, json=data, headers=self.headers, timeout=5)
             response.raise_for_status()
-            return response.json()
+            if expect_json:
+                return response.json()
+            return response
         except requests.exceptions.RequestException as e:
             # In production, you would have more robust logging here.
             # Raising an APIException will result in a 503 Service Unavailable
@@ -44,6 +46,11 @@ class FileServerClient:
         data = {'storage_key': storage_key}
         response_data = self._post('/internal/v1/generate-download-url', data)
         return response_data.get('url')
+
+    def delete_file(self, storage_key: str):
+        """Requests deletion of a file from the file server."""
+        data = {'storage_key': storage_key}
+        self._post('/internal/v1/delete-file', data, expect_json=False)
 
 
 # A singleton instance of the client for use throughout the application.

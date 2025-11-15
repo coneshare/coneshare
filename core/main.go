@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -60,6 +61,7 @@ func main() {
 		r.Use(AuthMiddleware(config.InternalAPIToken))
 		r.Post("/generate-upload-url", generateURLHandler("upload"))
 		r.Post("/generate-download-url", generateURLHandler("download"))
+		r.Post("/delete-file", deleteFileHandler(config))
 	})
 
 	// Public routes for file handling
@@ -148,6 +150,48 @@ func handleUpload(config Config) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func deleteFileHandler(config Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var reqBody URLRequest
+		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+		if reqBody.StorageKey == "" {
+			http.Error(w, "storage_key is required", http.StatusBadRequest)
+			return
+		}
+
+		filePath := filepath.Join(config.StoragePath, reqBody.StorageKey)
+
+		// Basic security check to prevent path traversal.
+		cleanPath, err := filepath.Abs(filePath)
+		if err != nil {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		storageRoot, _ := filepath.Abs(config.StoragePath)
+		if !strings.HasPrefix(cleanPath, storageRoot) {
+			http.Error(w, "Forbidden: path traversal attempt", http.StatusForbidden)
+			return
+		}
+
+		err = os.Remove(filePath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				// Not an error if file is already gone
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			log.Printf("Error deleting file %s: %v", filePath, err)
+			http.Error(w, "Could not delete file", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 
