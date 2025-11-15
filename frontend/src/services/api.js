@@ -122,29 +122,54 @@ api.interceptors.response.use(
   }
 );
 
-export const uploadDocument = (file, path) => {
-  const formData = new FormData();
-  formData.append('file', file);
+export const uploadDocument = async (file, path) => {
+  // Step 1: Request an upload URL from the backend
+  const requestResponse = await api.post('/uploads/document/request/', {
+    file_name: file.name,
+    path: path || null,
+  });
 
-  if (path) {
-    formData.append('path', path);
-  }
+  const { upload_url, storage_key, unique_name } = requestResponse.data;
 
-  return api.post('/uploads/document/', formData, {
+  // Step 2: Upload the file directly to the file server
+  // We use axios directly here because the URL is not relative to the API base,
+  // and we don't need the auth interceptors for this pre-signed URL.
+  await axios.put(upload_url, file, {
     headers: {
-      'Content-Type': 'multipart/form-data',
+      'Content-Type': file.type,
     },
+  });
+
+  // Step 3: Finalize the upload with the backend
+  return api.post('/uploads/document/finalize/', {
+    storage_key,
+    unique_name,
+    file_size: file.size,
+    content_type: file.type,
+    path: path || null,
   });
 };
 
-export const uploadNewVersion = (documentId, file) => {
-  const formData = new FormData();
-  formData.append('file', file);
+export const uploadNewVersion = async (documentId, file) => {
+  // Step 1: Request an upload URL
+  const requestResponse = await api.post(`/uploads/document/${documentId}/versions/request/`, {
+    file_name: file.name,
+  });
 
-  return api.post(`/documents/${documentId}/versions/`, formData, {
+  const { upload_url, storage_key } = requestResponse.data;
+
+  // Step 2: Upload the file directly to the file server
+  await axios.put(upload_url, file, {
     headers: {
-      'Content-Type': 'multipart/form-data',
+      'Content-Type': file.type,
     },
+  });
+
+  // Step 3: Finalize the upload
+  return api.post(`/uploads/document/${documentId}/versions/finalize/`, {
+    storage_key,
+    file_size: file.size,
+    content_type: file.type,
   });
 };
 
