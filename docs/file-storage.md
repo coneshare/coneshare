@@ -225,4 +225,67 @@ else:
         # This is for inline viewing, not download
         # response['Content-Disposition'] = f'inline; filename="your_file.png"'
         return response
+
+
+---
+
+## 6. Future Architecture: Dedicated File Server
+
+To further enhance scalability, security, and support advanced enterprise features, the long-term architecture will introduce a dedicated file server component, likely written in Go. This service will be simple and focused, exclusively handling file I/O operations (upload, download, delete) and replacing the direct file storage role currently managed by Django.
+
+### Rationale
+
+-   **Django Worker Efficiency**: Offloads long-running file transfer tasks from Python web workers, allowing Django to handle a much higher volume of concurrent API requests.
+-   **Security**: A compiled Go binary is harder to decompile or reverse-engineer than Python code, providing a more secure environment for handling sensitive enterprise logic (e.g., licensing, advanced watermarking).
+-   **Separation of Concerns**: Creates a clean microservice architecture where Django manages metadata and permissions, while the Go service manages file storage and streaming.
+
+### The Pre-Signed URL Pattern
+
+This architecture relies on temporary, secure URLs (pre-signed URLs) for all file operations. Django acts as the gatekeeper, and the client interacts directly with the file server for the actual data transfer.
+
+#### Download Flow
+
+1.  **Client Request**: The client asks the Django API for a file.
+2.  **Django Permission Check**: Django performs all business logic checks (authentication, share link status, etc.).
+3.  **URL Generation**: If checks pass, Django makes a fast, internal API call to the Go file server, requesting a temporary download URL for the file's storage key.
+4.  **Response**: The Go server returns a short-lived, pre-signed URL. Django sends this URL back to the client.
+5.  **Direct Download**: The client downloads the file directly from the Go file server using the pre-signed URL.
+
+#### Upload Flow
+
+1.  **Client Request**: The client informs the Django API it wants to upload a file (providing metadata like filename, size, and destination folder).
+2.  **Django Permission Check**: Django verifies that the user is allowed to upload to the specified location.
+3.  **URL Generation**: If authorized, Django asks the Go file server to generate a pre-signed URL for an upload.
+4.  **Response**: The Go server returns a URL that the client can `PUT` or `POST` to. Django sends this URL to the client.
+5.  **Direct Upload**: The client uploads the file's content directly to the Go server using the pre-signed URL.
+6.  **Finalization**: After the upload is complete, the client notifies Django, which then finalizes the creation of the `Document` record in the database.
+
+### Communication: Django to Go Server
+
+The internal communication between Django and the Go server is critical. The two primary options are HTTP/REST and gRPC.
+
+#### 1. HTTP/REST
+
+-   **Pros**:
+    -   **Simplicity**: Easy to implement and debug with standard tools (`requests` in Python, `net/http` in Go, `curl` for testing).
+    -   **Compatibility**: Works with any standard load balancer or proxy.
+-   **Cons**:
+    -   **Performance**: Text-based JSON serialization is less efficient than binary formats.
+    -   **Loose Contract**: The API contract is based on documentation, not code, which can lead to integration errors.
+
+#### 2. gRPC
+
+-   **Pros**:
+    -   **High Performance**: Uses efficient binary Protocol Buffers and HTTP/2 for low-latency communication.
+    -   **Strict Contract**: The API is defined in a `.proto` file, ensuring type safety and catching breaking changes at compile time.
+-   **Cons**:
+    -   **Complexity**: Requires managing `.proto` files and a code generation step.
+    -   **Debugging**: The binary protocol is not human-readable and requires special tools (`grpcurl`).
+
+### Storage Backend
+
+The Go file server would abstract the physical storage. It could be configured to use:
+
+-   **A Dedicated Local Volume**: A directory like `coneshare-data`, physically separate from Django's `media` volume. This provides strong security isolation, as the Django container would not have the protected files mounted at all.
+-   **An Object Store**: An S3-compatible service like MinIO, allowing the file server to be completely stateless and highly scalable.
 ```
