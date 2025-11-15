@@ -1,12 +1,15 @@
 services:
   core:
-    build: ./core
+    build:
+      context: ./core
+      dockerfile: Dockerfile-dev
     restart: unless-stopped
     environment:
       - PORT=8080
       - STORAGE_PATH=/storage
       - INTERNAL_API_TOKEN=supersecrettoken # Replace with a real secret in prod
     volumes:
+      - ./core:/app
       - media_volume:/storage
 
   backend:
