@@ -18,7 +18,7 @@ from django.utils.http import quote_etag
 from django.utils.text import get_valid_filename
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, APIException
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from django.db.models import F
