@@ -1,20 +1,4 @@
 services:
-  core:
-    build: ./core
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    depends_on:
-      - minio
-    environment:
-      - PORT=8080
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
-      - MINIO_BUCKET_NAME=coneshare
-      - MINIO_USE_SSL=false
-      - INTERNAL_API_TOKEN=supersecrettoken # Replace with a real secret in prod
-
   backend:
     image: coneshare:dev
     build:
@@ -29,7 +13,6 @@ services:
     restart: unless-stopped
     depends_on:
       - redis
-      - core
 
   redis:
     image: redis:7-alpine
@@ -49,7 +32,6 @@ services:
     depends_on:
       - backend
       - redis
-      - core
 
   frontend:
     image: coneshare:frontend
@@ -65,30 +47,5 @@ services:
     depends_on:
       - backend
 
-  minio:
-    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
-    command: server --console-address ":9001" /data
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
-    volumes:
-      - minio_data:/data
-
-  createbuckets:
-    image: minio/mc
-    depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-      /usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin;
-      /usr/bin/mc mb --ignore-existing myminio/coneshare;
-      /usr/bin/mc policy set public myminio/coneshare;
-      exit 0;
-      "
-
 volumes:
-  minio_data:
   redis_data:
