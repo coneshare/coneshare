@@ -1,4 +1,14 @@
 services:
+  core:
+    build: ./core
+    restart: unless-stopped
+    environment:
+      - PORT=8080
+      - STORAGE_PATH=/storage
+      - INTERNAL_API_TOKEN=supersecrettoken # Replace with a real secret in prod
+    volumes:
+      - media_volume:/storage
+
   backend:
     image: coneshare:dev
     build:
@@ -8,11 +18,13 @@ services:
     # command: tail -f /dev/null
     volumes:
       - ./backend:/app
+      - media_volume:/app/media
     ports:
       - "8000:8000"
     restart: unless-stopped
     depends_on:
       - redis
+      - core
 
   redis:
     image: redis:7-alpine
@@ -28,10 +40,12 @@ services:
     command: celery -A backend worker -l INFO
     volumes:
       - ./backend:/app
+      - media_volume:/app/media
     restart: unless-stopped
     depends_on:
       - backend
       - redis
+      - core
 
   frontend:
     image: coneshare:frontend
@@ -49,3 +63,4 @@ services:
 
 volumes:
   redis_data:
+  media_volume:

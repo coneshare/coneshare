@@ -1,4 +1,15 @@
 services:
+  core:
+    build: ./core
+    restart: unless-stopped
+    volumes:
+      - media_volume:/storage
+    environment:
+      - PORT=8080
+      - STORAGE_PATH=/storage
+      # TODO: Set a strong, unique INTERNAL_API_TOKEN in a .env file for production
+      - INTERNAL_API_TOKEN=supersecrettoken
+
   backend:
     image: coneshare:dev
     build:
@@ -11,6 +22,7 @@ services:
     restart: unless-stopped
     depends_on:
       - redis
+      - core
     environment:
       - STORAGE_TYPE=FILESYSTEM
       - DEBUG=0
@@ -30,10 +42,12 @@ services:
     command: celery -A backend worker -l INFO
     volumes:
       - ./backend:/app
+      - media_volume:/app/media
     restart: unless-stopped
     depends_on:
       - backend
       - redis
+      - core
 
   nginx:
     build: ./nginx
@@ -43,6 +57,7 @@ services:
       - media_volume:/usr/src/app/media
     depends_on:
       - backend
+      - core
 
 volumes:
   media_volume:
