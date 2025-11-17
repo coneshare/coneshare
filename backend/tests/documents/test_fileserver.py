@@ -21,13 +21,13 @@ def reload_fileserver_client_with_settings():
     reload(fileserver)
 
 
-@pytest.mark.override_settings(
-    CORE_API_URL="http://core-api.test",
-    INTERNAL_API_TOKEN="test-token",
-    SITE_DOMAIN="http://coneshare.test"
-)
 class TestFileServerClient:
 
+    @override_settings(
+        CORE_API_URL="http://core-api.test",
+        INTERNAL_API_TOKEN="test-token",
+        SITE_DOMAIN="http://coneshare.test"
+    )
     @patch('documents.fileserver.requests.post')
     def test_generate_upload_url_internal(self, mock_post):
         """
@@ -47,6 +47,11 @@ class TestFileServerClient:
         )
         assert result_url == "http://core-api.test/files/upload/some-token"
 
+    @override_settings(
+        CORE_API_URL="http://core-api.test",
+        INTERNAL_API_TOKEN="test-token",
+        SITE_DOMAIN="http://coneshare.test"
+    )
     @patch('documents.fileserver.requests.post')
     def test_generate_upload_url_external(self, mock_post):
         """
@@ -61,6 +66,11 @@ class TestFileServerClient:
 
         assert result_url == "http://coneshare.test/files/upload/some-token"
 
+    @override_settings(
+        CORE_API_URL="http://core-api.test",
+        INTERNAL_API_TOKEN="test-token",
+        SITE_DOMAIN="http://coneshare.test"
+    )
     @patch('documents.fileserver.requests.post')
     def test_generate_download_url_external(self, mock_post):
         """
@@ -79,6 +89,11 @@ class TestFileServerClient:
         )
         assert result_url == "http://coneshare.test/files/download/some-token"
 
+    @override_settings(
+        CORE_API_URL="http://core-api.test",
+        INTERNAL_API_TOKEN="test-token",
+        SITE_DOMAIN="http://coneshare.test"
+    )
     @patch('documents.fileserver.requests.post')
     def test_delete_file(self, mock_post):
         """
@@ -92,6 +107,11 @@ class TestFileServerClient:
             url=expected_url, json={'storage_key': 'org/to-delete.pdf'}, headers=client.headers, timeout=5
         )
 
+    @override_settings(
+        CORE_API_URL="http://core-api.test",
+        INTERNAL_API_TOKEN="test-token",
+        SITE_DOMAIN="http://coneshare.test"
+    )
     @patch('documents.fileserver.requests.post')
     def test_request_exception_raises_api_exception(self, mock_post):
         """
