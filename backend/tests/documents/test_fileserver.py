@@ -43,7 +43,7 @@ class TestFileServerClient:
         expected_url = 'http://core-api.test/internal/v1/generate-upload-url'
         expected_data = {'storage_key': 'org/key.pdf'}
         mock_post.assert_called_once_with(
-            url=expected_url, json=expected_data, headers=client.headers, timeout=5
+            expected_url, json=expected_data, headers=client.headers, timeout=5
         )
         assert result_url == "http://core-api.test/files/upload/some-token"
 
@@ -85,7 +85,7 @@ class TestFileServerClient:
 
         expected_url = 'http://core-api.test/internal/v1/generate-download-url'
         mock_post.assert_called_once_with(
-            url=expected_url, json={'storage_key': 'org/key.pdf'}, headers=client.headers, timeout=5
+            expected_url, json={'storage_key': 'org/key.pdf'}, headers=client.headers, timeout=5
         )
         assert result_url == "http://coneshare.test/files/download/some-token"
 
@@ -104,7 +104,7 @@ class TestFileServerClient:
 
         expected_url = 'http://core-api.test/internal/v1/delete-file'
         mock_post.assert_called_once_with(
-            url=expected_url, json={'storage_key': 'org/to-delete.pdf'}, headers=client.headers, timeout=5
+            expected_url, json={'storage_key': 'org/to-delete.pdf'}, headers=client.headers, timeout=5
         )
 
     @override_settings(
