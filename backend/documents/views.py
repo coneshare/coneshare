@@ -163,7 +163,7 @@ class DocumentUploadFinalizeView(APIView):
         storage_key = serializers.CharField()
         unique_name = serializers.CharField()
         file_size = serializers.IntegerField()
-        content_type = serializers.CharField()
+        content_type = serializers.CharField(allow_blank=True)
         path = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     def post(self, request, *args, **kwargs):
@@ -383,7 +383,7 @@ class DocumentVersionUploadFinalizeView(APIView):
     class FinalizeSerializer(serializers.Serializer):
         storage_key = serializers.CharField()
         file_size = serializers.IntegerField()
-        content_type = serializers.CharField()
+        content_type = serializers.CharField(allow_blank=True)
 
     def post(self, request, document_id, *args, **kwargs):
         try:

@@ -635,7 +635,7 @@ def test_get_document_preview_data_for_image_document(
     from the file server.
     """
     primary_version = image_document_with_content.versions.get(is_primary=True)
-    mock_fs_download_url.return_value = "/files/download/some-token"
+    mock_fs_download_url.return_value = "http://test.coneshare.com/files/download/some-token"
 
     url = f'/api/v1/documents/{image_document_with_content.id}/preview-data/'
     response = api_client.get(url)
@@ -649,7 +649,7 @@ def test_get_document_preview_data_for_image_document(
     expected_url = "http://test.coneshare.com/files/download/some-token"
     assert page_data['url'] == expected_url
 
-    mock_fs_download_url.assert_called_once_with(primary_version.original_storage_key)
+    mock_fs_download_url.assert_called_once_with(primary_version.original_storage_key, is_internal=False)
 
 
 @pytest.mark.django_db
@@ -658,7 +658,7 @@ def test_get_document_preview_data_for_image_document(
 def test_get_document_preview_data_success(mock_fs_download_url, api_client, user):
     """Test successfully retrieving document preview data."""
     # Setup
-    mock_fs_download_url.return_value = "/files/download/some-token"
+    mock_fs_download_url.return_value = "http://test.coneshare.com/files/download/some-token"
     doc = Document.objects.create(
         organization=user.organization,
         created_by=user,
@@ -685,7 +685,7 @@ def test_get_document_preview_data_success(mock_fs_download_url, api_client, use
     data = response.json()
     assert len(data['pages']) == 1
     assert data['pages'][0]['url'] == "http://test.coneshare.com/files/download/some-token"
-    mock_fs_download_url.assert_called_once_with(page.storage_key)
+    mock_fs_download_url.assert_called_once_with(page.storage_key, is_internal=False)
 
 
 @pytest.mark.django_db
