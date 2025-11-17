@@ -451,11 +451,17 @@ class TestShareLinkPreview:
         assert 'previewToken' in response.data
         assert PreviewSession.objects.filter(share_link=share_link).exists()
 
-    def test_preview_token_bypasses_share_link_security(self, api_client, share_link_with_password, public_client):
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_preview_token_bypasses_share_link_security(self, mock_fs_download, api_client, share_link_with_password, public_client):
         """
-        Verify that a valid preview token bypasses share link security (e.g., password)
-        and is single-use.
+        Verify that a valid preview token bypasses share link security, allows
+        page viewing, and is single-use.
         """
+        # Add a page to the document for testing
+        doc = share_link_with_password.document
+        version = doc.versions.get(is_primary=True)
+        DocumentPage.objects.create(document_version=version, page_number=1, storage_key="pages/preview_1.png")
+
         # 1. Create a preview session as the owner
         url_create = f'/api/v1/share-links/{share_link_with_password.id}/preview/'
         response_create = api_client.post(url_create)
@@ -468,10 +474,16 @@ class TestShareLinkPreview:
         response_view = public_client.get(url_view)
 
         assert response_view.status_code == status.HTTP_200_OK
-        assert response_view.data['id'] == str(share_link_with_password.document.id)
+        assert response_view.data['id'] == str(doc.id)
         assert PreviewSession.objects.count() == 0  # Token should be deleted
 
-        # 3. Try to use the token again - should fail (revert to password protection)
+        # 3. Now, try to view the page - should succeed because the session is authorized
+        mock_fs_download.return_value = "http://test.coneshare.com/files/download/some-token"
+        url_page = f'/api/v1/links/{share_link_with_password.slug}/page/1/'
+        response_page = public_client.get(url_page)
+        assert response_page.status_code == status.HTTP_302_FOUND
+
+        # 4. Try to use the token again for view-data - should fail (revert to password protection)
         response_view_2 = public_client.get(url_view)
         assert response_view_2.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -1034,6 +1046,28 @@ class TestShareLinkPageView:
         url = f'/api/v1/links/{share_link.slug}/page/1/'
         response = public_client.get(url)
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_get_page_for_public_link_succeeds_after_view_data(self, mock_fs_download_url, public_client, share_link, document_with_pages):
+        """
+        Tests that viewing a public link (no password/email) authorizes the session
+        to then successfully view pages.
+        """
+        share_link.document = document_with_pages
+        share_link.save()
+        
+        # 1. Call view-data first to authorize the session
+        view_data_url = f'/api/v1/links/{share_link.slug}/view-data/'
+        response_view = public_client.get(view_data_url)
+        assert response_view.status_code == status.HTTP_200_OK
+
+        # 2. Now request the page - it should succeed
+        mock_fs_download_url.return_value = "http://test.coneshare.com/files/download/some-token"
+        page_url = f'/api/v1/links/{share_link.slug}/page/1/'
+        response_page = public_client.get(page_url)
+
+        assert response_page.status_code == status.HTTP_302_FOUND
+        assert response_page.url == "http://test.coneshare.com/files/download/some-token"
 
     @override_settings(SITE_DOMAIN="http://test.coneshare.com")
     @patch('sharelinks.views.fileserver_client.generate_download_url')

@@ -214,6 +214,16 @@ class ShareLinkViewDataView(APIView):
                         if session.user == session.share_link.created_by:
                             is_preview = True
                             request.session['preview_owner_email'] = session.user.email
+                            
+                            # Authorize the link in the session for page requests
+                            authorized_links = request.session.get('authorized_share_links', {})
+                            authorized_links[str(session.share_link.id)] = {
+                                'password_verified': True,
+                                'email_verified': True,
+                                'viewer_email': session.user.email,
+                            }
+                            request.session['authorized_share_links'] = authorized_links
+
                             session.delete()  # Invalidate token after use
             except PreviewSession.DoesNotExist:
                 # Token is invalid, proceed with normal access checks.
@@ -265,6 +275,17 @@ class ShareLinkViewDataView(APIView):
                     {"message": "This link requires an email address to view.", "protectionType": "email"},
                     status=status.HTTP_401_UNAUTHORIZED
                 )
+
+        # If all checks passed (or there were none), authorize the session for page views.
+        auth_status = request.session.get('authorized_share_links', {}).get(str(link.id), {})
+        if not auth_status:
+            authorized_links = request.session.get('authorized_share_links', {})
+            authorized_links[str(link.id)] = {
+                'password_verified': True,  # Bypassed if not required
+                'email_verified': True,  # Bypassed if not required
+                'viewer_email': '',
+            }
+            request.session['authorized_share_links'] = authorized_links
 
         # If all checks pass, proceed to fetch and return data based on link type.
         dataroom_document_id = request.query_params.get('document_id')
