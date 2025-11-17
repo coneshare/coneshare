@@ -3,13 +3,13 @@ import re
 import mimetypes
 import logging
 import requests
+import uuid
 from django.conf import settings
 from django.db import transaction
 from django.core.files.base import ContentFile
 from rest_framework.exceptions import APIException
 
 from backend.utils import get_unique_name
-from core.fields import generate_ulid
 from core.models import User
 from .fileserver import fileserver_client
 from .models import Document, DocumentVersion, Folder
@@ -86,6 +86,16 @@ def _get_unique_folder_name(created_by, parent_folder, original_name: str) -> st
     """Generates a unique name for a folder within a parent folder to avoid duplicates."""
     filter_kwargs = {'created_by': created_by, 'parent': parent_folder}
     return get_unique_name(Folder, original_name, filter_kwargs, has_extension=False)
+
+
+def generate_storage_key(organization_id, file_name: str) -> str:
+    """
+    Generates a unique, partitioned storage key for a new file.
+    e.g., "org_.../a1/b2c3d4...xyz.pdf"
+    """
+    file_id = uuid.uuid4().hex
+    file_ext = os.path.splitext(file_name)[1]
+    return f"{organization_id}/{file_id[:2]}/{file_id[2:]}{file_ext}"
 
 
 def create_document_from_upload(
@@ -234,9 +244,7 @@ def process_imported_file(document: Document, file_data: dict):
         content_type = 'application/octet-stream'
 
     # 1. Store the file via the file server
-    file_id = generate_ulid()
-    file_ext = os.path.splitext(file_name)[1]
-    storage_key = f"{document.organization.id}/{file_id}{file_ext}"
+    storage_key = generate_storage_key(document.organization.id, file_name)
 
     try:
         upload_url = fileserver_client.generate_upload_url(storage_key)

@@ -19,7 +19,6 @@ from rest_framework.views import APIView
 from .models import (Document, Folder)
 from .serializers import (DocumentSerializer, EnsureFolderPathsSerializer,
                           FolderSerializer)
-from core.fields import generate_ulid
 from .fileserver import fileserver_client
 from .models import (Document, Folder)
 from .serializers import (DocumentSerializer, EnsureFolderPathsSerializer,
@@ -30,6 +29,7 @@ from .services import (
     create_document_from_upload,
     create_new_document_version,
     delete_document_and_files,
+    generate_storage_key,
 )
 
 
@@ -137,9 +137,7 @@ class DocumentUploadRequestView(APIView):
             original_name=file_name
         )
 
-        file_id = generate_ulid()
-        file_ext = os.path.splitext(unique_name)[1]
-        storage_key = f"{request.user.organization.id}/{file_id}{file_ext}"
+        storage_key = generate_storage_key(request.user.organization.id, unique_name)
 
         try:
             upload_url = fileserver_client.generate_upload_url(storage_key, is_internal=False)
@@ -362,9 +360,7 @@ class DocumentVersionUploadRequestView(APIView):
         serializer.is_valid(raise_exception=True)
         file_name = serializer.validated_data['file_name']
 
-        file_id = generate_ulid()
-        file_ext = os.path.splitext(file_name)[1]
-        storage_key = f"{request.user.organization.id}/{file_id}{file_ext}"
+        storage_key = generate_storage_key(request.user.organization.id, file_name)
 
         try:
             upload_url = fileserver_client.generate_upload_url(storage_key, is_internal=False)
