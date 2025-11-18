@@ -1,0 +1,23 @@
+# Use the official Golang image for development
+FROM golang:1.25-alpine
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Install Air for hot-reloading
+RUN go install github.com/air-verse/air@latest
+
+# Copy dependency files and download them to leverage Docker's layer caching.
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy the rest of the application source code.
+# The local directory will be mounted over this in docker-compose.
+COPY . .
+
+# Expose the port the application runs on
+EXPOSE 8080
+
+# The command to start the application using Air.
+# Air will watch for file changes and automatically rebuild and restart the server.
+CMD ["air"]
