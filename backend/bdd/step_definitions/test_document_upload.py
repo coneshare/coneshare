@@ -16,21 +16,36 @@ def test_user_uploads_first_document():
 @when(parsers.parse('I upload a new document named "{filename}"'))
 def upload_new_document(user_context, filename):
     api_client = user_context["api_client"]
-    dummy_file = SimpleUploadedFile(
-        filename,
-        b"workflow content",
-        content_type="application/pdf"
-    )
-    # Mock the PDF conversion to avoid dependency on poppler-utils in CI
-    with patch('documents.tasks.convert_from_bytes', return_value=[MagicMock()]):
-        response = api_client.post(
-            '/api/v1/uploads/document/',
-            {'file': dummy_file},
-            format='multipart'
-        )
-    # The async view now returns 202 ACCEPTED
-    assert response.status_code == status.HTTP_202_ACCEPTED
-    user_context["upload_response"] = response
+    file_content = b"workflow content"
+
+    # The test must follow the 2-step async upload flow.
+    # We mock the external parts: file server URL generation and the PUT to that URL.
+    with patch('documents.views.fileserver_client.generate_upload_url') as mock_fs_upload_url, \
+         patch('documents.tasks.convert_from_bytes', return_value=[MagicMock()]):
+
+        mock_fs_upload_url.return_value = "http://fileserver/files/upload/some-token"
+
+        # Step 1: Request upload URL for a root-level upload
+        request_url = '/api/v1/uploads/document/request/'
+        request_data = {'file_name': filename}
+        request_response = api_client.post(request_url, request_data)
+        assert request_response.status_code == status.HTTP_200_OK, request_response.data
+        upload_data = request_response.json()
+
+        # We can skip mocking the actual PUT to the upload_url, as it's an external call.
+
+        # Step 2: Finalize upload
+        finalize_url = '/api/v1/uploads/document/finalize/'
+        finalize_data = {
+            'storage_key': upload_data['storage_key'],
+            'unique_name': upload_data['unique_name'],
+            'file_size': len(file_content),
+            'content_type': 'application/pdf',
+        }
+        finalize_response = api_client.post(finalize_url, finalize_data)
+
+    assert finalize_response.status_code == status.HTTP_202_ACCEPTED, finalize_response.data
+    user_context["upload_response"] = finalize_response
 
 
 @then(parsers.parse("the document list should contain {count:d} document"))
