@@ -23,7 +23,7 @@ class FileServerClient:
         }
 
     def _post(self, endpoint, data, expect_json=True):
-        url = f'{self.base_url}{endpoint}'
+        url = urljoin(self.base_url, endpoint)
         try:
             response = requests.post(url, json=data, headers=self.headers, timeout=5)
             response.raise_for_status()

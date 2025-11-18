@@ -11,7 +11,6 @@ from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -20,9 +19,6 @@ from .models import (Document, Folder)
 from .serializers import (DocumentSerializer, EnsureFolderPathsSerializer,
                           FolderSerializer)
 from .fileserver import fileserver_client
-from .models import (Document, Folder)
-from .serializers import (DocumentSerializer, EnsureFolderPathsSerializer,
-                          FolderSerializer)
 from .services import (
     _get_unique_folder_name,
     _get_unique_document_name,

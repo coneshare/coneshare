@@ -637,7 +637,6 @@ class ShareLinkPageView(APIView):
         # A simplified check; the main /view-data/ endpoint handles the full
         # sequential auth flow. This just ensures a session is authorized.
         authorized_links = request.session.get('authorized_share_links', {})
-        print(authorized_links)
         if not authorized_links.get(str(link.id)):
             return Response(
                 {"message": "Authorization required to view this content."},

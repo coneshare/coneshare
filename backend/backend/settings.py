@@ -244,7 +244,7 @@ SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'http://localhost:5173')
 
 # File Server (Core Service) Configuration
 CORE_API_URL = os.environ.get('CORE_API_URL', 'http://core:8080')
-INTERNAL_API_TOKEN = os.environ.get('INTERNAL_API_TOKEN', 'supersecrettoken')
+INTERNAL_API_TOKEN = os.environ.get('INTERNAL_API_TOKEN')
 
 # Cloud Services Configuration
 # A list of enabled cloud providers.

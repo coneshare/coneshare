@@ -1,12 +1,10 @@
 import os
-import re
 import mimetypes
 import logging
 import requests
 import uuid
 from django.conf import settings
 from django.db import transaction
-from django.core.files.base import ContentFile
 from rest_framework.exceptions import APIException
 
 from backend.utils import get_unique_name
@@ -174,11 +172,18 @@ def delete_document_and_files(document: Document):
                 storage_keys_to_delete.add(page.storage_key)
 
     # Delete files from storage
+    deletion_errors = []
     for key in storage_keys_to_delete:
         try:
             fileserver_client.delete_file(key)
         except APIException as e:
             logger.error(f"Failed to delete file {key} from file server: {e}")
+            deletion_errors.append(key)
+
+    if deletion_errors:
+        # If any file failed to delete, do not delete the DB record.
+        # Re-raise an exception to be handled by the calling view.
+        raise Exception(f"Failed to delete one or more associated files: {', '.join(deletion_errors)}")
 
     # Delete the document record, which will cascade to versions, pages, share links etc.
     document.delete()
@@ -250,7 +255,7 @@ def process_imported_file(document: Document, file_data: dict):
         upload_url = fileserver_client.generate_upload_url(storage_key)
         # Ensure we read from the start of the file-like object
         file_content.seek(0)
-        upload_response = requests.put(upload_url, data=file_content.read())
+        upload_response = requests.put(upload_url, data=file_content)
         upload_response.raise_for_status()
         original_storage_key = storage_key
     except (APIException, requests.exceptions.RequestException) as e:
