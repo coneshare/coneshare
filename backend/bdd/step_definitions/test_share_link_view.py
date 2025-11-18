@@ -47,7 +47,7 @@ def create_password_protected_share_link(user_context, document):
         document=document,
         created_by=user_context['user'],
         name="Password Protected Link",
-        password_hash="a-strong-password-hash"  # The presence of a hash is what matters
+        password="a-strong-password-hash"  # The presence of a hash is what matters
     )
     user_context['share_link'] = link
     return link
