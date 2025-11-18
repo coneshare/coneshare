@@ -13,6 +13,7 @@ help:
 	@echo "  down            - Stop and remove all services"
 	@echo "  build           - Build or rebuild services"
 	@echo "  logs            - Follow logs for all services"
+	@echo "  core.sh         - Attach a shell to the core container"
 	@echo "  back.sh         - Attach a shell to the backend container"
 	@echo "  front.sh        - Attach a shell to the frontend container"
 	@echo "  clean           - Remove migrations, .pyc files, and database"
@@ -41,6 +42,10 @@ build:
 .PHONY: logs
 logs:
 	docker-compose logs -f
+
+.PHONY: core.sh
+core.sh:
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec core sh
 
 .PHONY: back.sh
 back.sh:

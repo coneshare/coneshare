@@ -1,0 +1,35 @@
+# Config file for Air - https://github.com/cosmtrek/air
+
+# The working directory for the Go application.
+root = "."
+# The directory where Air will place its temporary files.
+tmp_dir = "tmp"
+
+[build]
+# Command to build the application.
+cmd = "go build -o ./tmp/server ."
+# The path to the binary to run.
+bin = "tmp/server"
+# Watch these file extensions for changes.
+include_ext = ["go", "tpl", "tmpl", "html"]
+# Ignore these directories.
+exclude_dir = ["assets", "tmp", "vendor"]
+# Log file for build errors.
+log = "air_errors.log"
+# Delay between file change detection and build.
+delay = 1000 # ms
+
+[log]
+# Show log time.
+time = true
+
+[color]
+# Customize colors for output.
+main = "yellow"
+watcher = "cyan"
+build = "green"
+runner = "magenta"
+
+[misc]
+# Delete the temporary directory on exit.
+clean_on_exit = true
