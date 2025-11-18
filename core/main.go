@@ -231,11 +231,11 @@ func cleanupExpiredTokens() {
 func AuthMiddleware(token string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if token == "" {
-				log.Println("Warning: INTERNAL_API_TOKEN is not set. Disabling auth.")
-				next.ServeHTTP(w, r)
-				return
-			}
+if token == "" {
+	log.Println("Critical: INTERNAL_API_TOKEN is not set. Auth is required and is being enforced.")
+	http.Error(w, "Forbidden", http.StatusForbidden)
+	return
+}
 			authHeader := r.Header.Get("Authorization")
 			if authHeader != "Bearer "+token {
 				http.Error(w, "Forbidden", http.StatusForbidden)
