@@ -18,20 +18,16 @@ def upload_new_document(user_context, filename):
     api_client = user_context["api_client"]
     file_content = b"workflow content"
 
-    # The test must follow the 2-step async upload flow.
-    # We mock all external network calls and the conversion library.
-    with patch('documents.views.fileserver_client.generate_upload_url') as mock_view_upload, \
-         patch('documents.tasks.fileserver_client.generate_download_url') as mock_task_download, \
+    # We patch the client methods at their source and requests/convert in the tasks module.
+    # This is cleaner than patching at point-of-use in multiple places.
+    with patch('documents.fileserver.fileserver_client.generate_upload_url') as mock_upload_url, \
+         patch('documents.fileserver.fileserver_client.generate_download_url') as mock_download_url, \
          patch('documents.tasks.requests.get') as mock_task_get, \
-         patch('documents.tasks.fileserver_client.generate_upload_url') as mock_task_upload, \
          patch('documents.tasks.requests.put') as mock_task_put, \
          patch('documents.tasks.convert_from_bytes') as mock_convert:
 
-        # Mock for the /request view
-        mock_view_upload.return_value = "http://fileserver/files/upload/some-token"
-
         # Mocks for the Celery task's file download
-        mock_task_download.return_value = "http://fileserver/files/download/token"
+        mock_download_url.return_value = "http://fileserver/files/download/token"
         mock_get_response = MagicMock()
         mock_get_response.raise_for_status.return_value = None
         mock_get_response.content = file_content
@@ -41,10 +37,17 @@ def upload_new_document(user_context, filename):
         mock_image = MagicMock()
         mock_image.save.side_effect = lambda buf, format: buf.write(b'fake-image-bytes')
         mock_convert.return_value = [mock_image]
-        mock_task_upload.return_value = "http://fileserver/files/upload/page-token"
+        
         mock_put_response = MagicMock()
         mock_put_response.raise_for_status.return_value = None
         mock_task_put.return_value = mock_put_response
+
+        # The upload URL is called first by the view, then by the task for each page.
+        # Use side_effect to provide different return values for each call.
+        mock_upload_url.side_effect = [
+            "http://fileserver/files/upload/some-token",  # For the initial /request call
+            "http://fileserver/files/upload/page-token",  # For the page image upload in the task
+        ]
 
         # Step 1: Request upload URL for a root-level upload
         request_url = '/api/v1/uploads/document/request/'
@@ -53,7 +56,7 @@ def upload_new_document(user_context, filename):
         assert request_response.status_code == status.HTTP_200_OK, request_response.data
         upload_data = request_response.json()
 
-        # Step 2: Finalize upload
+        # Step 2: Finalize upload (which triggers the sync task)
         finalize_url = '/api/v1/uploads/document/finalize/'
         finalize_data = {
             'storage_key': upload_data['storage_key'],
