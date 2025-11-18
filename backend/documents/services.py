@@ -1,14 +1,15 @@
 import os
-import re
 import mimetypes
+import logging
+import requests
+import uuid
 from django.conf import settings
-from django.core.files.uploadedfile import UploadedFile
-from django.core.files.storage import default_storage
 from django.db import transaction
+from rest_framework.exceptions import APIException
 
 from backend.utils import get_unique_name
-from core.fields import generate_ulid
 from core.models import User
+from .fileserver import fileserver_client
 from .models import Document, DocumentVersion, Folder
 from .tasks import convert_office_to_pdf_task, generate_pdf_pages_task
 
@@ -85,14 +86,27 @@ def _get_unique_folder_name(created_by, parent_folder, original_name: str) -> st
     return get_unique_name(Folder, original_name, filter_kwargs, has_extension=False)
 
 
+def generate_storage_key(organization_id, file_name: str) -> str:
+    """
+    Generates a unique, partitioned storage key for a new file.
+    e.g., "org_.../a1/b2c3d4...xyz.pdf"
+    """
+    file_id = uuid.uuid4().hex
+    file_ext = os.path.splitext(file_name)[1]
+    return f"{organization_id}/{file_id[:2]}/{file_id[2:]}{file_ext}"
+
+
 def create_document_from_upload(
     requesting_user: User,
-    uploaded_file: UploadedFile,
-    folder: Folder = None
+    folder: Folder,
+    storage_key: str,
+    unique_name: str,
+    file_size: int,
+    content_type: str,
 ) -> Document:
     """
-    Creates document records and routes the file to the correct
-    asynchronous processing task based on its content type and size.
+    Creates document records from data about a file already uploaded to the
+    file server, and routes it for processing.
     """
     if folder is None:
         folder, _ = Folder.objects.get_or_create(
@@ -102,24 +116,9 @@ def create_document_from_upload(
             defaults={'created_by': None}
         )
 
-    # 1. Get a unique name before storing the file
-    unique_name = _get_unique_document_name(
-        requesting_user=requesting_user,
-        folder=folder,
-        original_name=uploaded_file.name
-    )
-
-    # 2. Store the original file
-    file_id = generate_ulid()
-    file_ext = os.path.splitext(unique_name)[1]
-    storage_key = f"{requesting_user.organization.id}/{file_id}{file_ext}"
-
-    original_storage_key = default_storage.save(storage_key, uploaded_file)
-
-    content_type = uploaded_file.content_type
     doc_type = _get_doc_type_from_content_type(content_type)
 
-    # 3. Create database records
+    # Create database records
     document = Document.objects.create(
         organization=requesting_user.organization,
         created_by=requesting_user,
@@ -127,48 +126,64 @@ def create_document_from_upload(
         folder=folder,
         status='uploading',
         type=doc_type,
-        content_type=content_type
+        content_type=content_type,
+        original_storage_key=storage_key,
     )
 
     version = DocumentVersion.objects.create(
         document=document,
         version_number=1,
-        original_storage_key=original_storage_key,
-        storage_key=original_storage_key,
+        original_storage_key=storage_key,
+        storage_key=storage_key,
         content_type=content_type,
-        file_size=uploaded_file.size,
+        file_size=file_size,
         type=doc_type,
         is_primary=True,
     )
 
-    # 3. Route for processing
+    # Route for processing
     _route_document_for_processing(
         document=document,
         version=version,
-        file_size=uploaded_file.size,
+        file_size=file_size,
         content_type=content_type,
     )
 
     return document
 
 
+logger = logging.getLogger(__name__)
+
+
 def delete_document_and_files(document: Document):
     """
     Deletes a document, its versions, pages, and all associated files from storage.
     """
-    storage_keys_to_delete = []
+    storage_keys_to_delete = set()
 
     for version in document.versions.all():
         if version.original_storage_key:
-            storage_keys_to_delete.append(version.original_storage_key)
+            storage_keys_to_delete.add(version.original_storage_key)
+        if version.storage_key and version.storage_key != version.original_storage_key:
+            storage_keys_to_delete.add(version.storage_key)
 
         for page in version.pages.all():
             if page.storage_key:
-                storage_keys_to_delete.append(page.storage_key)
+                storage_keys_to_delete.add(page.storage_key)
 
     # Delete files from storage
+    deletion_errors = []
     for key in storage_keys_to_delete:
-        default_storage.delete(key)
+        try:
+            fileserver_client.delete_file(key)
+        except APIException as e:
+            logger.error(f"Failed to delete file {key} from file server: {e}")
+            deletion_errors.append(key)
+
+    if deletion_errors:
+        # If any file failed to delete, do not delete the DB record.
+        # Re-raise an exception to be handled by the calling view.
+        raise Exception(f"Failed to delete one or more associated files: {', '.join(deletion_errors)}")
 
     # Delete the document record, which will cascade to versions, pages, share links etc.
     document.delete()
@@ -176,8 +191,10 @@ def delete_document_and_files(document: Document):
 
 def create_new_document_version(
     document: Document,
-    uploaded_file: UploadedFile,
-    requesting_user: User
+    requesting_user: User,
+    storage_key: str,
+    file_size: int,
+    content_type: str,
 ) -> DocumentVersion:
     """
     Handles creating a new version of a document, routing to the correct
@@ -187,38 +204,31 @@ def create_new_document_version(
     latest_version = document.versions.order_by('-version_number').first()
     new_version_number = (latest_version.version_number if latest_version else 0) + 1
 
-    # 2. Store the new file
-    file_id = generate_ulid()
-    file_ext = os.path.splitext(uploaded_file.name)[1]
-    storage_key = f"{requesting_user.organization.id}/{file_id}{file_ext}"
-    new_storage_key = default_storage.save(storage_key, uploaded_file)
-
-    content_type = uploaded_file.content_type
     doc_type = _get_doc_type_from_content_type(content_type)
 
     with transaction.atomic():
-        # 3. Set the old version to not be primary
+        # 2. Set the old version to not be primary
         if latest_version:
             latest_version.is_primary = False
             latest_version.save()
 
-        # 4. Create the new version record
+        # 3. Create the new version record
         new_version = DocumentVersion.objects.create(
             document=document,
             version_number=new_version_number,
-            original_storage_key=new_storage_key,
-            storage_key=new_storage_key,
+            original_storage_key=storage_key,
+            storage_key=storage_key,
             is_primary=True,
             content_type=content_type,
-            file_size=uploaded_file.size,
+            file_size=file_size,
             type=doc_type
         )
 
-        # 5. Route for processing
+        # 4. Route for processing
         _route_document_for_processing(
             document=document,
             version=new_version,
-            file_size=uploaded_file.size,
+            file_size=file_size,
             content_type=content_type,
         )
 
@@ -238,12 +248,22 @@ def process_imported_file(document: Document, file_data: dict):
     if not content_type:
         content_type = 'application/octet-stream'
 
-    # 1. Store the file
-    file_id = generate_ulid()
-    file_ext = os.path.splitext(file_name)[1]
-    storage_key = f"{document.organization.id}/{file_id}{file_ext}"
+    # 1. Store the file via the file server
+    storage_key = generate_storage_key(document.organization.id, file_name)
 
-    original_storage_key = default_storage.save(storage_key, file_content)
+    try:
+        upload_url = fileserver_client.generate_upload_url(storage_key)
+        # Ensure we read from the start of the file-like object
+        file_content.seek(0)
+        upload_response = requests.put(upload_url, data=file_content)
+        upload_response.raise_for_status()
+        original_storage_key = storage_key
+    except (APIException, requests.exceptions.RequestException) as e:
+        logger.error(f"Failed to upload imported file to file server for doc {document.id}: {e}")
+        document.status = 'error'
+        document.status_message = 'Failed to store imported file.'
+        document.save()
+        return
 
     # 2. Update document and version records
     version = document.versions.get(version_number=1)

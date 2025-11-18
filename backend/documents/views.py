@@ -4,7 +4,6 @@ from pathlib import Path
 from urllib.parse import urljoin
 
 from django.conf import settings
-from django.core.files.storage import default_storage
 from django.db import transaction
 from django.db.models import Count, Sum
 from django.shortcuts import get_object_or_404
@@ -12,7 +11,6 @@ from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -20,12 +18,14 @@ from rest_framework.views import APIView
 from .models import (Document, Folder)
 from .serializers import (DocumentSerializer, EnsureFolderPathsSerializer,
                           FolderSerializer)
+from .fileserver import fileserver_client
 from .services import (
     _get_unique_folder_name,
     _get_unique_document_name,
     create_document_from_upload,
     create_new_document_version,
     delete_document_and_files,
+    generate_storage_key,
 )
 
 
@@ -91,25 +91,26 @@ def _get_or_create_folders_from_path(requesting_user, folder_path: str) -> Folde
     return parent
 
 
-class DocumentUploadView(APIView):
+class DocumentUploadRequestView(APIView):
     """
-    A dedicated view for handling file uploads and creating Document records.
+    Requests a temporary, secure URL for uploading a document from the file server.
     """
-    parser_classes = (MultiPartParser,)
     permission_classes = [permissions.IsAuthenticated]
 
+    class DocumentUploadRequestSerializer(serializers.Serializer):
+        file_name = serializers.CharField()
+        path = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
     def post(self, request, *args, **kwargs):
-        file_obj = request.FILES.get('file')
-        if not file_obj:
-            return Response(
-                {"detail": "No file provided."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        serializer = self.DocumentUploadRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # Handle folder creation and filename override from path
-        relative_path = request.POST.get('path')
+        validated_data = serializer.validated_data
+        file_name = validated_data['file_name']
+        relative_path = validated_data.get('path')
+
         parent_folder = None
-
         if relative_path:
             folder_path, file_name_from_path = os.path.split(relative_path)
             if folder_path:
@@ -118,28 +119,83 @@ class DocumentUploadView(APIView):
                 )
                 if parent_folder is None:
                     return Response(
-                        {"detail": f"Folder path '{folder_path}' does not exist. Please ensure path is created first."},
+                        {"detail": f"Folder path '{folder_path}' does not exist."},
                         status=status.HTTP_400_BAD_REQUEST
                     )
             if file_name_from_path:
-                # Override the uploaded file's name if a name is provided in path
-                file_obj.name = file_name_from_path
+                file_name = file_name_from_path
+        else:
+            parent_folder = Folder.objects.get_root_for_org(request.user.organization)
+
+        unique_name = _get_unique_document_name(
+            requesting_user=request.user,
+            folder=parent_folder,
+            original_name=file_name
+        )
+
+        storage_key = generate_storage_key(request.user.organization.id, unique_name)
+
+        try:
+            upload_url = fileserver_client.generate_upload_url(storage_key, is_internal=False)
+        except APIException as e:
+            logger.error(f"Failed to get upload URL from file server: {e}")
+            return Response({"detail": str(e.detail)}, status=e.status_code)
+
+        return Response({
+            'upload_url': upload_url,
+            'storage_key': storage_key,
+            'unique_name': unique_name,
+        }, status=status.HTTP_200_OK)
+
+
+class DocumentUploadFinalizeView(APIView):
+    """
+    Finalizes a document upload after the file has been sent to the file server.
+    Creates the Document records and triggers processing.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    class DocumentUploadFinalizeSerializer(serializers.Serializer):
+        storage_key = serializers.CharField()
+        unique_name = serializers.CharField()
+        file_size = serializers.IntegerField()
+        content_type = serializers.CharField(allow_blank=True)
+        path = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.DocumentUploadFinalizeSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        validated_data = serializer.validated_data
+        parent_folder = None
+        relative_path = validated_data.get('path')
+
+        if relative_path:
+            folder_path, _ = os.path.split(relative_path)
+            if folder_path:
+                parent_folder = _get_folder_from_path(
+                    request.user.organization, folder_path
+                )
 
         try:
             document = create_document_from_upload(
                 requesting_user=request.user,
-                uploaded_file=file_obj,
-                folder=parent_folder
+                folder=parent_folder,
+                storage_key=validated_data['storage_key'],
+                unique_name=validated_data['unique_name'],
+                file_size=validated_data['file_size'],
+                content_type=validated_data['content_type'],
             )
         except Exception as e:
-            # In a real app, log this exception
+            logger.error(f"Failed to finalize document upload: {e}")
             return Response(
-                {"detail": f"Failed to start document processing: {str(e)}"},
+                {"detail": f"Failed to finalize document processing: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        serializer = DocumentSerializer(document, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+        doc_serializer = DocumentSerializer(document, context={'request': request})
+        return Response(doc_serializer.data, status=status.HTTP_202_ACCEPTED)
 
 
 class EnsureFolderPathsView(APIView):
@@ -281,70 +337,99 @@ class EnsureFolderPathsView(APIView):
             )
 
 
-class DocumentVersionUploadView(APIView):
+class DocumentVersionUploadRequestView(APIView):
     """
-    A dedicated view for uploading a new version of an existing document.
+    Requests a temporary, secure URL for uploading a new document version.
     """
-    parser_classes = (MultiPartParser,)
     permission_classes = [permissions.IsAuthenticated]
 
+    class RequestSerializer(serializers.Serializer):
+        file_name = serializers.CharField()
+
     def post(self, request, document_id, *args, **kwargs):
-        # 1. Authorize the user
         try:
-            document = Document.objects.get(
-                id=document_id,
-                organization=request.user.organization,
-                created_by=request.user
-            )
+            document = Document.objects.get(id=document_id, created_by=request.user)
         except Document.DoesNotExist:
-            return Response(
-                {"detail": "Access denied or document not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        uploaded_file = request.data.get('file')
-        if not uploaded_file:
-            return Response(
-                {"detail": "No file provided"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        serializer = self.RequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        file_name = serializer.validated_data['file_name']
 
-        # 2. Delegate to the service layer
+        storage_key = generate_storage_key(request.user.organization.id, file_name)
+
+        try:
+            upload_url = fileserver_client.generate_upload_url(storage_key, is_internal=False)
+        except APIException as e:
+            logger.error(f"Failed to get upload URL from file server: {e}")
+            return Response({"detail": str(e.detail)}, status=e.status_code)
+
+        return Response({
+            'upload_url': upload_url,
+            'storage_key': storage_key,
+        }, status=status.HTTP_200_OK)
+
+
+class DocumentVersionUploadFinalizeView(APIView):
+    """
+    Finalizes a new document version upload after the file has been sent to the file server.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    class FinalizeSerializer(serializers.Serializer):
+        storage_key = serializers.CharField()
+        file_size = serializers.IntegerField()
+        content_type = serializers.CharField(allow_blank=True)
+
+    def post(self, request, document_id, *args, **kwargs):
+        try:
+            document = Document.objects.get(id=document_id, created_by=request.user)
+        except Document.DoesNotExist:
+            return Response({"detail": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.FinalizeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+
         try:
             create_new_document_version(
                 document=document,
-                uploaded_file=uploaded_file,
-                requesting_user=request.user
+                requesting_user=request.user,
+                storage_key=validated_data['storage_key'],
+                file_size=validated_data['file_size'],
+                content_type=validated_data['content_type'],
             )
         except Exception as e:
-            # In a real app, log this exception
+            logger.error(f"Failed to finalize document version upload for doc {document_id}: {e}")
             return Response(
-                {"detail": f"Failed to start document processing: {str(e)}"},
+                {"detail": f"Failed to finalize document processing: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        serializer = DocumentSerializer(document, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+        doc_serializer = DocumentSerializer(document, context={'request': request})
+        return Response(doc_serializer.data, status=status.HTTP_202_ACCEPTED)
 
 
 def _prepare_pages_data(document, primary_version, share_link=None):
     """
     Prepares a list of page data with absolute URLs for a given document version.
     Handles both image types and paginated document types.
-    If a share_link with watermarking is provided, it generates render URLs instead.
+    If a share_link is provided, it generates secure, permission-checked URLs.
     """
     pages_data = []
     is_watermarked = share_link and share_link.enable_watermark and share_link.watermark_text
 
     if document.type == 'image':
-        # For images, the preview is the original file itself.
-        if is_watermarked:
-            # Note: For images, there is no DocumentPage, so we render by page number (always 1).
-            page_url = f"/api/v1/links/{share_link.slug}/render-page/1/"
+        absolute_url = None
+        if share_link:
+            base_url_part = "render-page" if is_watermarked else "page"
+            page_url = f"/api/v1/links/{share_link.slug}/{base_url_part}/1/"
+            if share_link.dataroom:
+                page_url += f"?document_id={document.id}"
+            absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
         else:
-            page_url = default_storage.url(primary_version.original_storage_key)
+            absolute_url = fileserver_client.generate_download_url(primary_version.original_storage_key, is_internal=False)
 
-        absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
         pages_data.append({
             'page_number': 1,
             'url': absolute_url,
@@ -354,12 +439,16 @@ def _prepare_pages_data(document, primary_version, share_link=None):
         # For PDFs/Office docs, we have pre-generated page images.
         pages = primary_version.pages.order_by('page_number')
         for page in pages:
-            if is_watermarked:
-                page_url = f"/api/v1/links/{share_link.slug}/render-page/{page.page_number}/"
+            absolute_url = None
+            if share_link:
+                base_url_part = "render-page" if is_watermarked else "page"
+                page_url = f"/api/v1/links/{share_link.slug}/{base_url_part}/{page.page_number}/"
+                if share_link.dataroom:
+                    page_url += f"?document_id={document.id}"
+                absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
             else:
-                page_url = default_storage.url(page.storage_key)
+                absolute_url = fileserver_client.generate_download_url(page.storage_key, is_internal=False)
 
-            absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
             pages_data.append({
                 "page_number": page.page_number,
                 "url": absolute_url,
@@ -572,12 +661,12 @@ class DocumentViewSet(viewsets.ModelViewSet):
         pages_map = {}
         if primary_version:
             if document.type == 'image':
-                image_url = default_storage.url(primary_version.original_storage_key)
-                pages_map[1] = urljoin(settings.SITE_DOMAIN, image_url)
+                image_url = fileserver_client.generate_download_url(primary_version.original_storage_key, is_internal=False)
+                pages_map[1] = image_url
             elif primary_version.has_pages:
                 for page in primary_version.pages.values('page_number', 'storage_key').order_by('page_number'):
-                    page_url = default_storage.url(page['storage_key'])
-                    pages_map[page['page_number']] = urljoin(settings.SITE_DOMAIN, page_url)
+                    page_url = fileserver_client.generate_download_url(page['storage_key'], is_internal=False)
+                    pages_map[page['page_number']] = page_url
 
         serializer_context = self.get_serializer_context()
         serializer_context['pages_map'] = pages_map

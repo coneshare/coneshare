@@ -36,6 +36,10 @@ type TokenInfo struct {
 	ExpiresAt  time.Time
 }
 
+// TODO: The tokenStore is a global in-memory map. This approach has two main drawbacks:
+//    Scalability: The service is stateful. If you need to run multiple instances for high availability or load balancing, they won't share the token state, causing requests to fail depending on which instance they hit.
+//    Testability: Global state makes parallel testing difficult and can lead to flaky tests.
+// Consider encapsulating the token store and its lock within a struct that can be passed to handlers. For production scalability, might eventually need to move this state to a shared store like Redis.
 var (
 	tokenStore = make(map[string]TokenInfo)
 	storeLock  = sync.RWMutex{}

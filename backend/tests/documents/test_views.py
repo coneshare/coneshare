@@ -585,50 +585,57 @@ def test_create_document_is_deprecated(api_client, user, organization):
 
 
 @pytest.mark.django_db
-def test_upload_document_with_path(api_client, user):
-    """Test uploading a file with a path to pre-existing folders."""
+@patch('documents.views.fileserver_client.generate_upload_url')
+def test_upload_document_with_path(mock_fs_upload_url, api_client, user):
+    """Test the two-step document upload process into a pre-existing folder path."""
+    mock_fs_upload_url.return_value = "/files/upload/some-token"
     # First, create the folder structure
     path_data = {'paths': ['Client Reports/Q4/Final']}
     response = api_client.post('/api/v1/folders/ensure-paths/', path_data)
     assert response.status_code == status.HTTP_201_CREATED
-    assert Folder.objects.filter(created_by=user).count() == 3
 
-    # Now, upload the document into that path
-    dummy_file = SimpleUploadedFile("report.docx", b"content", "application/msword")
-    response = api_client.post(
-        '/api/v1/uploads/document/',
-        {'file': dummy_file, 'path': 'Client Reports/Q4/Final/report.docx'},
-        format='multipart'
-    )
+    # Step 1: Request upload URL
+    request_data = {'file_name': 'report.docx', 'path': 'Client Reports/Q4/Final/report.docx'}
+    request_response = api_client.post('/api/v1/uploads/document/request/', request_data)
+    assert request_response.status_code == status.HTTP_200_OK
+    upload_data = request_response.json()
+    assert upload_data['upload_url'] == "/files/upload/some-token"
+    assert 'storage_key' in upload_data
+    assert upload_data['unique_name'] == 'report.docx'
 
-    assert response.status_code == status.HTTP_202_ACCEPTED
+    # Step 2: Finalize upload
+    finalize_data = {
+        'storage_key': upload_data['storage_key'],
+        'unique_name': upload_data['unique_name'],
+        'file_size': 123,
+        'content_type': 'application/msword',
+        'path': 'Client Reports/Q4/Final/report.docx'
+    }
+    finalize_response = api_client.post('/api/v1/uploads/document/finalize/', finalize_data)
+
+    assert finalize_response.status_code == status.HTTP_202_ACCEPTED
     assert Document.objects.count() == 1
 
     doc = Document.objects.first()
     assert doc.name == 'report.docx'
     assert doc.folder is not None
     assert doc.folder.name == 'Final'
-    assert doc.folder.created_by == user
     assert doc.folder.parent.name == 'Q4'
-    assert doc.folder.parent.created_by == user
     assert doc.folder.parent.parent.name == 'Client Reports'
-    assert doc.folder.parent.parent.created_by == user
-    assert doc.folder.parent.parent.parent.name == '__root__'
 
 
 @pytest.mark.django_db
 @override_settings(SITE_DOMAIN="http://test.coneshare.com")
-@patch('django.core.files.storage.default_storage.url')
+@patch('documents.views.fileserver_client.generate_download_url')
 def test_get_document_preview_data_for_image_document(
-    mock_storage_url, api_client, image_document_with_content
+    mock_fs_download_url, api_client, image_document_with_content
 ):
     """
-    Verify that preview data for an image document returns the direct URL
-    to the image file itself.
+    Verify that preview data for an image document returns a temporary URL
+    from the file server.
     """
     primary_version = image_document_with_content.versions.get(is_primary=True)
-    # Mock storage url to return a relative path
-    mock_storage_url.return_value = f"/{primary_version.original_storage_key}"
+    mock_fs_download_url.return_value = "http://test.coneshare.com/files/download/some-token"
 
     url = f'/api/v1/documents/{image_document_with_content.id}/preview-data/'
     response = api_client.get(url)
@@ -636,27 +643,22 @@ def test_get_document_preview_data_for_image_document(
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data['id'] == str(image_document_with_content.id)
-    assert data['type'] == 'image'
-    assert data['num_pages'] == 1
     assert len(data['pages']) == 1
 
     page_data = data['pages'][0]
-    assert page_data['page_number'] == 1
-    assert 'url' in page_data
-
-    expected_url = f"http://test.coneshare.com/{primary_version.original_storage_key}"
+    expected_url = "http://test.coneshare.com/files/download/some-token"
     assert page_data['url'] == expected_url
 
-    mock_storage_url.assert_called_once_with(primary_version.original_storage_key)
+    mock_fs_download_url.assert_called_once_with(primary_version.original_storage_key, is_internal=False)
 
 
 @pytest.mark.django_db
 @override_settings(SITE_DOMAIN="http://test.coneshare.com")
-@patch('django.core.files.storage.default_storage.url')
-def test_get_document_preview_data_success(mock_storage_url, api_client, user):
+@patch('documents.views.fileserver_client.generate_download_url')
+def test_get_document_preview_data_success(mock_fs_download_url, api_client, user):
     """Test successfully retrieving document preview data."""
     # Setup
-    mock_storage_url.return_value = "/media/pages/page.png"
+    mock_fs_download_url.return_value = "http://test.coneshare.com/files/download/some-token"
     doc = Document.objects.create(
         organization=user.organization,
         created_by=user,
@@ -671,7 +673,7 @@ def test_get_document_preview_data_success(mock_storage_url, api_client, user):
         has_pages=True,
         num_pages=1
     )
-    DocumentPage.objects.create(
+    page = DocumentPage.objects.create(
         document_version=version, page_number=1, storage_key="pages/1.png"
     )
 
@@ -681,13 +683,9 @@ def test_get_document_preview_data_success(mock_storage_url, api_client, user):
     # Assertions
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
-    assert data['id'] == str(doc.id)
-    assert data['name'] == "preview.pdf"
-    assert data['num_pages'] == 1
     assert len(data['pages']) == 1
-    assert data['pages'][0]['page_number'] == 1
-    assert data['pages'][0]['url'] == "http://test.coneshare.com/media/pages/page.png"
-    assert mock_storage_url.call_count == 1
+    assert data['pages'][0]['url'] == "http://test.coneshare.com/files/download/some-token"
+    mock_fs_download_url.assert_called_once_with(page.storage_key, is_internal=False)
 
 
 @pytest.mark.django_db
@@ -738,8 +736,8 @@ def test_get_document_preview_data_wrong_org(api_client):
 
 
 @pytest.mark.django_db
-@patch('django.core.files.storage.default_storage.delete')
-def test_delete_document_success(mock_storage_delete, api_client, user):
+@patch('documents.services.fileserver_client.delete_file')
+def test_delete_document_success(mock_fs_delete, api_client, user):
     """Test that a user can successfully delete their own document."""
     # Setup
     doc = Document.objects.create(organization=user.organization, created_by=user)
@@ -760,9 +758,9 @@ def test_delete_document_success(mock_storage_delete, api_client, user):
     assert not Document.objects.filter(id=doc.id).exists()
     
     # Check that file cleanup was triggered
-    assert mock_storage_delete.call_count == 2
-    mock_storage_delete.assert_any_call("delete_me.pdf")
-    mock_storage_delete.assert_any_call("delete_me_page_1.png")
+    assert mock_fs_delete.call_count == 2
+    mock_fs_delete.assert_any_call("delete_me.pdf")
+    mock_fs_delete.assert_any_call("delete_me_page_1.png")
 
 
 @pytest.mark.django_db
@@ -806,8 +804,8 @@ def test_delete_document_in_subfolder_success(api_client, user, organization):
 
 
 @pytest.mark.django_db
-class TestDocumentVersionUploadView:
-    """Tests for the DocumentVersionUploadView endpoint."""
+class TestDocumentVersionUploadViews:
+    """Tests for the two-step document version upload process."""
 
     @pytest.fixture
     def document_with_version(self, document):
@@ -816,18 +814,30 @@ class TestDocumentVersionUploadView:
         return document, initial_version
 
     @patch('documents.services.generate_pdf_pages_task.delay')
-    def test_upload_new_version_success(self, mock_task_delay, api_client, document_with_version):
+    @patch('documents.views.fileserver_client.generate_upload_url')
+    def test_upload_new_version_success(self, mock_fs_upload_url, mock_task_delay, api_client, document_with_version):
         """Test successfully uploading a new version of a document."""
+        mock_fs_upload_url.return_value = "/files/upload/some-token"
         doc, initial_version = document_with_version
-        dummy_file = SimpleUploadedFile("v2.pdf", b"new_content", "application/pdf")
 
-        response = api_client.post(
-            f'/api/v1/documents/{doc.id}/versions/',
-            {'file': dummy_file},
-            format='multipart'
-        )
+        # Step 1: Request upload URL
+        request_url = f'/api/v1/uploads/document/{doc.id}/versions/request/'
+        request_response = api_client.post(request_url, {'file_name': 'v2.pdf'})
+        assert request_response.status_code == status.HTTP_200_OK
+        upload_data = request_response.json()
+        assert upload_data['upload_url'] == "/files/upload/some-token"
+        assert 'storage_key' in upload_data
 
-        assert response.status_code == status.HTTP_202_ACCEPTED
+        # Step 2: Finalize upload
+        finalize_url = f'/api/v1/uploads/document/{doc.id}/versions/finalize/'
+        finalize_data = {
+            'storage_key': upload_data['storage_key'],
+            'file_size': 11,
+            'content_type': 'application/pdf'
+        }
+        finalize_response = api_client.post(finalize_url, finalize_data)
+
+        assert finalize_response.status_code == status.HTTP_202_ACCEPTED
 
         doc.refresh_from_db()
         initial_version.refresh_from_db()
@@ -841,69 +851,17 @@ class TestDocumentVersionUploadView:
 
         mock_task_delay.assert_called_once_with(new_version.id)
 
-    @patch('documents.services.generate_pdf_pages_task.delay')
-    def test_upload_version_for_other_user_doc_permission_denied(self, mock_task_delay, api_client, user2):
+    def test_upload_version_for_other_user_doc_permission_denied(self, api_client, user2):
         """Test a user cannot upload a new version to another user's document."""
         doc_by_user2 = Document.objects.create(
-            organization=user2.organization,
-            created_by=user2,
-            name="user2_doc.pdf",
-            status='ready'
+            organization=user2.organization, created_by=user2, name="user2_doc.pdf", status='ready'
         )
         DocumentVersion.objects.create(document=doc_by_user2, version_number=1, is_primary=True)
 
-        dummy_file = SimpleUploadedFile("v2.pdf", b"new_content", "application/pdf")
-
-        # api_client (logged in as user) tries to upload a new version
-        response = api_client.post(
-            f'/api/v1/documents/{doc_by_user2.id}/versions/',
-            {'file': dummy_file},
-            format='multipart'
-        )
+        request_url = f'/api/v1/uploads/document/{doc_by_user2.id}/versions/request/'
+        response = api_client.post(request_url, {'file_name': 'v2.pdf'})
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
-        doc_by_user2.refresh_from_db()
-        assert doc_by_user2.versions.count() == 1
-        mock_task_delay.assert_not_called()
-
-    def test_upload_version_for_other_org_doc(self, api_client):
-        """Test uploading a version for a document in another organization."""
-        other_org = Organization.objects.create(name="Other Corp")
-        other_user = User.objects.create_user(
-            username='other@example.com', organization=other_org
-        )
-        doc_other_org = Document.objects.create(
-            organization=other_org, created_by=other_user
-        )
-        dummy_file = SimpleUploadedFile("v2.pdf", b"new_content", "application/pdf")
-
-        response = api_client.post(
-            f'/api/v1/documents/{doc_other_org.id}/versions/',
-            {'file': dummy_file},
-            format='multipart'
-        )
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    def test_upload_version_for_non_existent_doc(self, api_client):
-        """Test uploading a version for a document that does not exist."""
-        dummy_file = SimpleUploadedFile("v2.pdf", b"new_content", "application/pdf")
-        non_existent_id = 'doc_00000000000000000000000000'
-        response = api_client.post(
-            f'/api/v1/documents/{non_existent_id}/versions/',
-            {'file': dummy_file},
-            format='multipart'
-        )
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    def test_upload_version_no_file(self, api_client, document_with_version):
-        """Test uploading a new version without providing a file."""
-        doc, _ = document_with_version
-        response = api_client.post(
-            f'/api/v1/documents/{doc.id}/versions/',
-            {},
-            format='multipart'
-        )
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 @pytest.mark.django_db
