@@ -460,6 +460,8 @@ class TestShareLinkPreview:
         # Add a page to the document for testing
         doc = share_link_with_password.document
         version = doc.versions.get(is_primary=True)
+        version.has_pages = True
+        version.save()
         DocumentPage.objects.create(document_version=version, page_number=1, storage_key="pages/preview_1.png")
 
         # 1. Create a preview session as the owner
@@ -484,9 +486,10 @@ class TestShareLinkPreview:
         assert response_page.status_code == status.HTTP_302_FOUND
 
         # 4. Try to use the token again for view-data - should fail (revert to password protection)
-        response_view_2 = public_client.get(url_view)
+        # Use a new client to ensure a completely clean session.
+        unauthorized_client = APIClient()
+        response_view_2 = unauthorized_client.get(url_view)
         assert response_view_2.status_code == status.HTTP_401_UNAUTHORIZED
-
 
 @pytest.mark.django_db
 class TestShareLinkPasswordProtection:
