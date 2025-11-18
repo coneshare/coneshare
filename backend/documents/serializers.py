@@ -12,7 +12,9 @@ class EnsureFolderPathsSerializer(serializers.Serializer):
         child=serializers.CharField(max_length=1024, allow_blank=False),
         allow_empty=False
     )
-    parent_path = serializers.CharField(max_length=1024, allow_blank=True, required=False)
+    parent_path = serializers.CharField(
+        max_length=1024, allow_blank=True, required=False, allow_null=True
+    )
 
 
 class FolderSerializer(serializers.ModelSerializer):
