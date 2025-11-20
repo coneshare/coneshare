@@ -64,7 +64,7 @@ def request_access(public_client, share_link_context, email):
     url = f'/api/v1/links/{share_link.slug}/request-access/'
     
     # Use patch context manager if the step might trigger an email
-    with patch('documents.views.send_mail') as mock_send_mail:
+    with patch('sharelinks.views.send_mail') as mock_send_mail:
         response = public_client.post(url, {'email': email})
         return {'response': response, 'mock_send_mail': mock_send_mail}
 

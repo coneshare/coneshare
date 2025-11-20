@@ -1,6 +1,6 @@
 import io
 import zipfile
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 from pytest_bdd import parsers, scenario, given, when, then
@@ -307,14 +307,23 @@ def download_folder(public_client, dataroom_context, folder_name):
     dataroom = link.dataroom
     folder = DataroomFolder.objects.get(dataroom=dataroom, name=folder_name)
     url = f'/api/v1/links/{link.slug}/download-folder/{folder.id}/'
-    # Mock storage so the view can "read" the test file contents.
     # Provide minimal valid PDF content to support watermarking tests.
     pdf_content = b'%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000010 00000 n \n0000000059 00000 n \n0000000112 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF'
-    with patch('django.core.files.storage.default_storage.open') as mock_storage_open:
-        # pypdf, used for watermarking, requires a real file-like object with
-        # methods like seek() and tell(). unittest.mock.mock_open is insufficient.
-        # We use side_effect to return a new io.BytesIO object for each call to open().
-        mock_storage_open.side_effect = lambda *args, **kwargs: io.BytesIO(pdf_content)
+
+    # The view calls the fileserver client to get a download URL, then uses `requests`
+    # to fetch the content. We need to mock both.
+    with patch('sharelinks.views.fileserver_client.generate_download_url') as mock_fs_download, \
+         patch('sharelinks.views.requests.get') as mock_requests_get:
+
+        # Mock the fileserver client to return a dummy URL
+        mock_fs_download.return_value = "http://core:8080/files/download/dummy-token"
+
+        # Mock the requests.get call to return the PDF content
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = pdf_content
+        mock_requests_get.return_value = mock_response
+
         response = public_client.get(url)
     return {'response': response}
 

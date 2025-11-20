@@ -1,7 +1,6 @@
 import pytest
 from pytest_bdd import scenario, given, when, then, parsers
 
-from django.contrib.auth.hashers import make_password
 from documents.models import Document, DocumentVersion
 from sharelinks.models import ShareLink
 
@@ -28,7 +27,7 @@ def share_link_with_password_and_email(user_context):
         document=doc,
         created_by=user,
         requires_email=True,
-        password_hash=make_password("password123")
+        password="password123"
     )
     return {'share_link': share_link}
 
