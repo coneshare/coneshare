@@ -327,5 +327,5 @@ def process_imported_file(document: Document, file_data: dict):
         )
         user = document.created_by
         if user:
-            user.total_document_size += file_size
+            user.total_document_size = F('total_document_size') + file_size
             user.save(update_fields=['total_document_size'])
