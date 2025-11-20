@@ -69,6 +69,7 @@ Provides a hierarchical structure for organizing documents, similar to a filesys
 -   **name**: String
 -   **parent_id**: Foreign Key to `Folder` (Self-referencing, Nullable for root)
 -   **created_by_id**: Foreign Key to `User`
+-   **is_starred**: Boolean
 -   **created_at**: DateTime
 -   **updated_at**: DateTime
 
@@ -88,7 +89,7 @@ The core entity for a file. It stores metadata and points to the primary version
 -   **organization_id**: Foreign Key to `Organization`
 -   **folder_id**: Foreign Key to `Folder` (Nullable, for root documents)
 -   **name**: String (Original filename)
--   **description**: String (Nullable)
+-   **description**: Text (Nullable)
 -   **status**: String (e.g., 'uploading', 'processing', 'ready', 'error')
 -   **status_message**: String (Nullable, stores user-friendly error messages)
 -   **storage_key**: String (Path to the primary version's processed file)
@@ -96,8 +97,10 @@ The core entity for a file. It stores metadata and points to the primary version
 -   **type**: String (e.g., 'pdf', 'sheet', 'slides')
 -   **content_type**: String (MIME type of the primary version's file)
 -   **num_pages**: Integer (Nullable, from the primary version)
+-   **file_size**: BigInt (in bytes)
 -   **download_only**: Boolean (If true, the file bypasses processing, e.g., ZIP files)
 -   **assistant_enabled**: Boolean (Feature flag for AI assistant)
+-   **is_starred**: Boolean
 -   **created_by_id**: Foreign Key to `User`
 -   **created_at**: DateTime
 -   **updated_at**: DateTime
@@ -159,6 +162,7 @@ A secure, configurable link for sharing a `Document` or `Dataroom`.
 -   **requires_email_verification**: Boolean
 -   **allow_download**: Boolean
 -   **enable_watermark**: Boolean
+-   **watermark_text**: String (Can be blank, supports template variables like `{{email}}`)
 -   **receive_email_notification**: Boolean
 -   **is_active**: Boolean
 -   **created_at**: DateTime
@@ -193,20 +197,21 @@ A temporary, single-use session for a user to preview a share link, bypassing it
 
 **Relations:** Belongs to one ShareLink and one User.
 
-### 11. ShareLinkPreset
+### 11. ShareLinkTemplate
 
 A reusable template for `ShareLink` configurations, allowing teams to quickly create links with consistent security settings.
 
 -   **id**: ULID, Primary Key
 -   **organization_id**: Foreign Key to `Organization`
 -   **name**: String (e.g., "Secure Investor Link", "Internal Review")
--   **is_default**: Boolean (Indicates if this is the default preset for new links)
+-   **is_default**: Boolean (Indicates if this is the default template for new links)
 -   **expires_in_days**: Integer (Nullable, e.g., 30 for a link that expires 30 days from creation)
 -   **requires_password**: Boolean
 -   **requires_email**: Boolean
 -   **requires_email_verification**: Boolean
 -   **allow_download**: Boolean
 -   **enable_watermark**: Boolean
+-   **watermark_text**: String (Can be blank, supports template variables like `{{email}}`)
 -   **receive_email_notification**: Boolean
 -   **created_at**: DateTime
 -   **updated_at**: DateTime
@@ -229,6 +234,7 @@ Records an instance of a `ShareLink` being accessed. This is the core of the ana
 -   **longitude**: Float (Longitude from GeoIP)
 -   **duration_seconds**: Integer
 -   **completion_rate**: Float (0.0 to 1.0)
+-   **downloaded_at**: DateTime (Nullable, timestamp of first download)
 -   **viewed_at**: DateTime
 
 **Relations:** Belongs to one ShareLink and one optional Viewer. Has many PageViews.
@@ -266,10 +272,10 @@ Stores user-specific authorization tokens for a cloud provider.
 
 -   **id**: ULID, Primary Key
 -   **user_id**: Foreign Key to `User`
--   **provider**: String (e.g., 'dropbox', 'google_drive')
+-   **provider**: String (e.g., 'dropbox', 'google_drive', 'nextcloud')
 -   **email**: String (The email associated with the cloud account, Nullable)
--   **access_token**: String (Stores the OAuth2 access token)
--   **refresh_token**: String (Nullable, stores the OAuth2 refresh token)
+-   **access_token**: String (Encrypted, stores the OAuth2 access token)
+-   **refresh_token**: String (Encrypted, nullable, stores the OAuth2 refresh token)
 -   **expires_at**: DateTime (Nullable, for tokens that expire)
 -   **created_at**: DateTime
 -   **updated_at**: DateTime
@@ -289,7 +295,6 @@ A container for organizing and sharing a collection of documents and folders.
 -   **id**: ULID, Primary Key
 -   **organization_id**: Foreign Key to `Organization`
 -   **name**: String
--   **description**: String (Nullable)
 -   **created_by_id**: Foreign Key to `User`
 -   **created_at**: DateTime
 -   **updated_at**: DateTime
@@ -302,10 +307,10 @@ A folder within a `Dataroom` to create a hierarchical structure.
 
 -   **id**: ULID, Primary Key
 -   **dataroom_id**: Foreign Key to `Dataroom`
--   **parent_folder_id**: Foreign Key to `DataroomFolder` (Self-referencing, Nullable for root)
+-   **parent_id**: Foreign Key to `DataroomFolder` (Self-referencing, Nullable for root)
 -   **name**: String
--   **order_index**: Integer (for custom sorting)
 -   **created_at**: DateTime
+-   **updated_at**: DateTime
 
 **Relations:** Belongs to one Dataroom.
 
@@ -317,50 +322,8 @@ A linking table to place a `Document` within a Dataroom's structure.
 -   **dataroom_id**: Foreign Key to `Dataroom`
 -   **document_id**: Foreign Key to `Document`
 -   **folder_id**: Foreign Key to `DataroomFolder` (Nullable, for items in subfolders)
--   **order_index**: Integer (for custom sorting)
-
-**Relations:** Links a Document to a Dataroom and an optional DataroomFolder.
-
-### 18. DocumentUpload
-
-A log entry created when a new document is uploaded by an external viewer via a `ShareLink`. This is critical for tracking contributions in a deal room context.
-
--   **id**: ULID, Primary Key
--   **document_id**: Foreign Key to `Document` (the newly created document)
--   **organization_id**: Foreign Key to `Organization`
--   **viewer_id**: Foreign Key to `Viewer` (Nullable)
--   **view_session_id**: Foreign Key to `ViewSession` (Nullable)
--   **share_link_id**: Foreign Key to `ShareLink`
--   **dataroom_id**: Foreign Key to `Dataroom` (Nullable)
--   **original_filename**: String
--   **file_size**: BigInt
--   **mime_type**: String
--   **uploaded_at**: DateTime
-
-**Relations:** Belongs to a Document, ShareLink, and Organization. Can optionally link to a Viewer, View, and Dataroom.
-
----
-
-## Permissions and Audit Models (V2.0/Future)
-
-### 19. DataroomPermission
-
-Assigns permissions for a `UserGroup` on a specific `DataroomDocument` or `DataroomFolder`.
-
--   **id**: ULID, Primary Key
--   **user_group_id**: Foreign Key to `UserGroup`
--   **dataroom_id**: Foreign Key to `Dataroom`
--   **document_id**: Foreign Key to `Document` (Nullable)
--   **folder_id**: Foreign Key to `DataroomFolder` (Nullable)
--   **permission_level**: String (e.g., 'view', 'download')
-
-### 20. AuditLog
-
-Records significant events in the system for administrative review.
-
--   **id**: ULID, Primary Key
--   **organization_id**: Foreign Key to `Organization`
--   **user_id**: Foreign Key to `User` (Who performed the action)
--   **action**: String (e.g., 'user.login', 'document.create', 'permission.update')
--   **details**: JSONB (Contextual data about the event)
 -   **created_at**: DateTime
+-   **updated_at**: DateTime
+
+**Relations:** Links a Document to a Dataroom and an optional DataroomFolder. Unique on (`dataroom_id`, `document_id`).
+

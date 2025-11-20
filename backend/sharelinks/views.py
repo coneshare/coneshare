@@ -32,12 +32,12 @@ from documents.fileserver import fileserver_client
 from documents.models import DocumentPage
 from documents.views import StandardResultsSetPagination, _prepare_pages_data
 from .models import (EmailVerificationToken, PreviewSession,
-                     ShareLink, ShareLinkDataroomSetting, ShareLinkPreset,
+                     ShareLink, ShareLinkDataroomSetting, ShareLinkTemplate,
                      Viewer, ViewSession)
 from .serializers import (PageViewRecordSerializer,
                           ShareLinkDataroomSettingUpdateSerializer,
                           ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
-                          ShareLinkPresetSerializer, ShareLinkSerializer,
+                          ShareLinkTemplateSerializer, ShareLinkSerializer,
                           ViewerSerializer, ViewSessionSerializer)
 
 logger = logging.getLogger(__name__)
@@ -91,13 +91,13 @@ def _get_active_share_link(slug: str) -> ShareLink:
     return link
 
 
-class ShareLinkPresetViewSet(viewsets.ModelViewSet):
-    queryset = ShareLinkPreset.objects.all()
-    serializer_class = ShareLinkPresetSerializer
+class ShareLinkTemplateViewSet(viewsets.ModelViewSet):
+    queryset = ShareLinkTemplate.objects.all()
+    serializer_class = ShareLinkTemplateSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return ShareLinkPreset.objects.filter(organization=self.request.user.organization)
+        return ShareLinkTemplate.objects.filter(organization=self.request.user.organization)
 
 
 class ShareLinkViewSet(viewsets.ModelViewSet):

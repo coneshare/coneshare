@@ -1,19 +1,19 @@
 import pytest
 
-from sharelinks.models import ShareLink, ShareLinkPreset, ViewSession, Viewer
+from sharelinks.models import ShareLink, ShareLinkTemplate, ViewSession, Viewer
 from documents.models import Document
 
 pytestmark = pytest.mark.django_db
 
 
-def test_share_link_preset_creation(organization):
-    """Test that a ShareLinkPreset instance can be created."""
-    preset = ShareLinkPreset.objects.create(
-        name="Default Preset",
+def test_share_link_template_creation(organization):
+    """Test that a ShareLinkTemplate instance can be created."""
+    template = ShareLinkTemplate.objects.create(
+        name="Default Template",
         organization=organization
     )
-    assert isinstance(preset, ShareLinkPreset)
-    assert str(preset) == "Default Preset"
+    assert isinstance(template, ShareLinkTemplate)
+    assert str(template) == "Default Template"
 
 
 def test_share_link_creation(user):

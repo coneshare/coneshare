@@ -11,8 +11,8 @@ from core.models import BaseModel, Organization, User
 from django_cryptography.fields import encrypt
 
 
-class ShareLinkPreset(BaseModel):
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='share_link_presets')
+class ShareLinkTemplate(BaseModel):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='share_link_templates')
     name = models.CharField(max_length=255)
     is_default = models.BooleanField(default=False)
     expires_in_days = models.IntegerField(null=True, blank=True)

@@ -3,7 +3,7 @@ from rest_framework import serializers
 from core.models import Organization
 from datarooms.models import Dataroom
 from .models import (PageView, ShareLink, ShareLinkDataroomSetting,
-                     ShareLinkPreset, Viewer, ViewSession)
+                     ShareLinkTemplate, Viewer, ViewSession)
 from .services import _get_unique_share_link_name
 
 
@@ -253,9 +253,9 @@ class ShareLinkEmailSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
 
-class ShareLinkPresetSerializer(serializers.ModelSerializer):
+class ShareLinkTemplateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ShareLinkPreset
+        model = ShareLinkTemplate
         fields = [
             'id', 'organization', 'name', 'is_default', 'expires_in_days',
             'requires_password', 'requires_email', 'requires_email_verification', 'allow_download',
