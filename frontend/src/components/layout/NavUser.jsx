@@ -1,7 +1,5 @@
 import { ChevronsUpDown, CircleUserRound, KeyRound, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useCallback } from "react";
-import { authService } from "../../services/authService";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import {
@@ -14,15 +12,12 @@ import {
 } from "../ui/DropdownMenu";
 import { useSidebar } from "./SidebarProvider";
 import { cn } from "../../lib/utils";
+import { useUser } from "../../contexts/UserProvider";
 
-function NavUser({ user }) {
+function NavUser() {
   const { isCollapsed } = useSidebar();
   const navigate = useNavigate();
-
-  const handleLogout = useCallback(async () => {
-    await authService.logout();
-    navigate("/login");
-  }, [navigate]);
+  const { user, handleLogout } = useUser();
 
   if (!user) {
     return null; // Or a skeleton loader

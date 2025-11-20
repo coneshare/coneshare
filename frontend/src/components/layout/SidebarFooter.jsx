@@ -1,42 +1,13 @@
-import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { jwtDecode } from "jwt-decode";
-import { getUser } from "../../services/api";
-import { authService } from "../../services/authService";
 import { cn } from "../../lib/utils";
 import { Progress } from "../ui/Progress";
 import NavUser from "./NavUser";
 import { useSidebar } from "./SidebarProvider";
 import { formatBytes } from "../../lib/formatters";
+import { useUser } from "../../contexts/UserProvider";
 
 function SidebarFooter() {
   const { isCollapsed } = useSidebar();
-  const [user, setUser] = useState(null);
-  const navigate = useNavigate();
-
-  const handleLogout = useCallback(async () => {
-    await authService.logout();
-    navigate("/login");
-  }, [navigate]);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const token = localStorage.getItem("access_token");
-      if (token) {
-        try {
-          const decoded = jwtDecode(token);
-          const response = await getUser(decoded.user_id);
-          setUser(response.data);
-        } catch (error) {
-          console.error("Failed to fetch user:", error);
-          if (error.response?.status === 401) {
-            handleLogout();
-          }
-        }
-      }
-    };
-    fetchUser();
-  }, [handleLogout]);
+  const { user } = useUser();
 
   const quotaMB = user?.file_size_quota_mb || 0;
   const usageBytes = user?.total_document_size || 0;
@@ -58,7 +29,7 @@ function SidebarFooter() {
           <Progress value={usagePercentage} className="h-2" />
         </div>
       )}      
-      <NavUser user={user} />
+      <NavUser />
     </div>
   );
 }

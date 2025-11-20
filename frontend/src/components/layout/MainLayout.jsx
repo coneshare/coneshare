@@ -4,6 +4,7 @@ import Sidebar from "./Sidebar";
 import { BreadcrumbProvider } from "./BreadcrumbProvider";
 import { SidebarProvider, useSidebar } from "./SidebarProvider";
 import { cn } from "../../lib/utils";
+import { UserProvider } from "../../contexts/UserProvider";
 
 function Layout() {
   const { isCollapsed } = useSidebar();
@@ -30,9 +31,11 @@ function Layout() {
 function MainLayout() {
   return (
     <SidebarProvider>
-      <BreadcrumbProvider>
-        <Layout />
-      </BreadcrumbProvider>
+      <UserProvider>
+        <BreadcrumbProvider>
+          <Layout />
+        </BreadcrumbProvider>
+      </UserProvider>
     </SidebarProvider>
   );
 }
