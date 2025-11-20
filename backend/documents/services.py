@@ -5,13 +5,13 @@ import requests
 import uuid
 from django.conf import settings
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Sum
 from rest_framework.exceptions import APIException
 
 from backend.utils import get_unique_name
 from core.models import User
 from .fileserver import fileserver_client
-from .models import Document, DocumentVersion, Folder
+from .models import Document, DocumentPage, DocumentVersion, Folder
 from .tasks import convert_office_to_pdf_task, generate_pdf_pages_task
 
 
@@ -188,6 +188,50 @@ def create_document_from_upload(
 
 
 logger = logging.getLogger(__name__)
+
+
+def delete_folder_and_contents(folder: Folder):
+    """
+    Deletes a folder and all its contents (subfolders and documents),
+    updates the user's total document size, and deletes associated files
+    from storage.
+    """
+    descendants = folder.get_descendants()
+    all_folders_to_delete = [folder] + descendants
+    documents_to_delete = Document.objects.filter(folder__in=all_folders_to_delete)
+
+    total_size = documents_to_delete.aggregate(total=Sum('file_size'))['total'] or 0
+
+    storage_keys_to_delete = set()
+    versions = DocumentVersion.objects.filter(document__in=documents_to_delete)
+    pages = DocumentPage.objects.filter(document_version__in=versions)
+
+    for version in versions:
+        if version.original_storage_key:
+            storage_keys_to_delete.add(version.original_storage_key)
+        if version.storage_key and version.storage_key != version.original_storage_key:
+            storage_keys_to_delete.add(version.storage_key)
+
+    for page in pages:
+        if page.storage_key:
+            storage_keys_to_delete.add(page.storage_key)
+
+    with transaction.atomic():
+        user = folder.created_by
+        if user and total_size > 0:
+            User.objects.filter(pk=user.pk).update(total_document_size=F('total_document_size') - total_size)
+        folder.delete()
+
+    deletion_errors = []
+    for key in storage_keys_to_delete:
+        try:
+            fileserver_client.delete_file(key)
+        except APIException as e:
+            logger.error(f"Failed to delete file {key} from file server: {e}")
+            deletion_errors.append(key)
+
+    if deletion_errors:
+        raise Exception(f"Failed to delete one or more associated files: {', '.join(deletion_errors)}")
 
 
 def delete_document_and_files(document: Document):

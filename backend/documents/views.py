@@ -27,6 +27,7 @@ from .services import (
     create_document_from_upload,
     create_new_document_version,
     delete_document_and_files,
+    delete_folder_and_contents,
     generate_storage_key,
 )
 
@@ -623,6 +624,18 @@ class FolderViewSet(viewsets.ModelViewSet):
                 {'parent': "You can only move folders to destinations you own."}
             )
         serializer.save()
+
+    def destroy(self, request, *args, **kwargs):
+        folder = self.get_object()
+        try:
+            delete_folder_and_contents(folder)
+        except Exception as e:
+            logger.error(f"Error deleting folder {folder.id}: {e}")
+            return Response(
+                {"detail": "An error occurred while deleting the folder."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class DocumentViewSet(viewsets.ModelViewSet):

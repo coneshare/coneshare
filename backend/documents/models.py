@@ -28,6 +28,20 @@ class Folder(BaseModel):
     def __str__(self):
         return self.name
 
+    def get_descendants(self):
+        """
+        Returns a flat list of all descendant folders.
+        """
+        descendants = []
+        # Using a queue to perform a breadth-first search is more efficient
+        # than deep recursion for fetching descendants.
+        queue = list(self.children.all())
+        while queue:
+            folder = queue.pop(0)
+            descendants.append(folder)
+            queue.extend(list(folder.children.all()))
+        return descendants
+
 
 class Document(BaseModel):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='documents')
