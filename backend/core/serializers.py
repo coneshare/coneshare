@@ -30,14 +30,19 @@ class UserGroupSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for the User model."""
     avatar_url = serializers.SerializerMethodField()
+    file_size_quota_mb = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'name', 'role', 'organization', 'password',
-            'avatar', 'avatar_url', 'date_joined', 'updated_at'
+            'avatar', 'avatar_url', 'date_joined', 'updated_at',
+            'total_document_size', 'file_size_quota_mb'
         ]
-        read_only_fields = ['id', 'organization', 'date_joined', 'updated_at', 'avatar_url']
+        read_only_fields = [
+            'id', 'organization', 'date_joined', 'updated_at', 'avatar_url',
+            'total_document_size', 'file_size_quota_mb'
+        ]
         extra_kwargs = {
             'password': {'write_only': True, 'min_length': 8, 'required': False},
             'avatar': {'write_only': True, 'required': False}
@@ -47,6 +52,9 @@ class UserSerializer(serializers.ModelSerializer):
         if obj.avatar and hasattr(obj.avatar, 'url'):
             return urljoin(settings.SITE_DOMAIN, obj.avatar.url)
         return None
+
+    def get_file_size_quota_mb(self, obj):
+        return settings.FILE_SIZE_QUOTA_MB
 
     def create(self, validated_data):
         """

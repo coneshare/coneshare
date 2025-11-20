@@ -4,10 +4,12 @@ from django.conf import settings
 from django.core.cache import cache
 from django.shortcuts import redirect
 from rest_framework import permissions, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from documents.serializers import DocumentSerializer
+from documents.services import check_user_quota_on_upload
 from .models import CloudConnection
 from .providers import CloudProviderError, get_cloud_provider
 from .serializers import (CloudConnectionSerializer, CloudImportSerializer,
@@ -173,6 +175,14 @@ class CloudImportView(APIView):
         file_id = validated_data['file_id']
         file_name = validated_data['file_name']
         file_size = validated_data['file_size']
+
+        try:
+            check_user_quota_on_upload(
+                user=request.user,
+                new_file_size=file_size
+            )
+        except ValidationError as e:
+            return Response({'detail': str(e.detail[0])}, status=status.HTTP_400_BAD_REQUEST)
 
         max_size_bytes = settings.CLOUD_IMPORT_MAX_SIZE_MB * 1024 * 1024
         if file_size > max_size_bytes:

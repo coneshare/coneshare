@@ -126,6 +126,7 @@ export const uploadDocument = async (file, path) => {
   // Step 1: Request an upload URL from the backend
   const requestResponse = await api.post('/uploads/document/request/', {
     file_name: file.name,
+    file_size: file.size,
     path: path || null,
   });
 
@@ -154,6 +155,7 @@ export const uploadNewVersion = async (documentId, file) => {
   // Step 1: Request an upload URL
   const requestResponse = await api.post(`/uploads/document/${documentId}/versions/request/`, {
     file_name: file.name,
+    file_size: file.size,
   });
 
   const { upload_url, storage_key } = requestResponse.data;

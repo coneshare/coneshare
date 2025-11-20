@@ -1,9 +1,7 @@
 import { ChevronsUpDown, CircleUserRound, KeyRound, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState, useCallback } from "react";
-import { jwtDecode } from "jwt-decode";
+import { useCallback } from "react";
 import { authService } from "../../services/authService";
-import { getUser } from "../../services/api";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import {
@@ -17,35 +15,14 @@ import {
 import { useSidebar } from "./SidebarProvider";
 import { cn } from "../../lib/utils";
 
-function NavUser() {
+function NavUser({ user }) {
   const { isCollapsed } = useSidebar();
-  const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
   const handleLogout = useCallback(async () => {
     await authService.logout();
     navigate("/login");
   }, [navigate]);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const token = localStorage.getItem("access_token");
-      if (token) {
-        try {
-          const decoded = jwtDecode(token);
-          const response = await getUser(decoded.user_id);
-          setUser(response.data);
-        } catch (error) {
-          console.error("Failed to fetch user:", error);
-          // If token is invalid, log out
-          if (error.response?.status === 401) {
-            handleLogout();
-          }
-        }
-      }
-    };
-    fetchUser();
-  }, [handleLogout]);
 
   if (!user) {
     return null; // Or a skeleton loader

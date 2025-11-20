@@ -52,6 +52,9 @@ services:
       - backend
       - redis
       - core
+    environment:
+      - CORE_API_URL=http://core:8080
+      - INTERNAL_API_TOKEN=supersecrettoken
 
   frontend:
     image: coneshare:frontend

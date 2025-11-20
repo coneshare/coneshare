@@ -5,7 +5,7 @@ import requests
 import uuid
 from django.conf import settings
 from django.db import transaction
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, ValidationError
 
 from backend.utils import get_unique_name
 from core.models import User
@@ -24,6 +24,31 @@ OFFICE_MIMETYPES = [
 ]
 IMAGE_MIMETYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 PDF_MIMETYPE = 'application/pdf'
+
+
+def check_user_quota_on_upload(user: User, new_file_size: int, document_to_update: Document = None):
+    """
+    Checks if a new upload would exceed the user's file size quota.
+    Raises a ValidationError if the quota is exceeded.
+    """
+    file_size_quota_mb = settings.FILE_SIZE_QUOTA_MB
+    if file_size_quota_mb == 0:
+        return  # 0 means unlimited quota
+
+    quota_in_bytes = file_size_quota_mb * 1024 * 1024
+    current_usage = user.total_document_size
+
+    potential_new_usage = current_usage + new_file_size
+
+    if document_to_update:
+        # For a version update, the old version's size is subtracted from the total.
+        if document_to_update.file_size:
+            potential_new_usage -= document_to_update.file_size
+
+    if potential_new_usage > quota_in_bytes:
+        raise ValidationError(
+            f"Uploading this file would exceed your storage quota of {file_size_quota_mb} MB."
+        )
 
 
 def _get_doc_type_from_content_type(content_type: str) -> str:
@@ -118,17 +143,22 @@ def create_document_from_upload(
 
     doc_type = _get_doc_type_from_content_type(content_type)
 
-    # Create database records
-    document = Document.objects.create(
-        organization=requesting_user.organization,
-        created_by=requesting_user,
-        name=unique_name,
-        folder=folder,
-        status='uploading',
-        type=doc_type,
-        content_type=content_type,
-        original_storage_key=storage_key,
-    )
+    # Create database records within a transaction to include user size update
+    with transaction.atomic():
+        document = Document.objects.create(
+            organization=requesting_user.organization,
+            created_by=requesting_user,
+            name=unique_name,
+            folder=folder,
+            status='uploading',
+            type=doc_type,
+            content_type=content_type,
+            original_storage_key=storage_key,
+        )
+
+        # Update user's total document size
+        requesting_user.total_document_size += file_size
+        requesting_user.save(update_fields=['total_document_size'])
 
     version = DocumentVersion.objects.create(
         document=document,
@@ -185,8 +215,14 @@ def delete_document_and_files(document: Document):
         # Re-raise an exception to be handled by the calling view.
         raise Exception(f"Failed to delete one or more associated files: {', '.join(deletion_errors)}")
 
-    # Delete the document record, which will cascade to versions, pages, share links etc.
-    document.delete()
+    # Atomically update user's total size and delete the document record
+    with transaction.atomic():
+        user = document.created_by
+        if user and document.file_size:
+            user.total_document_size = max(0, user.total_document_size - document.file_size)
+            user.save(update_fields=['total_document_size'])
+        # Delete the document record, which will cascade to versions, pages, share links etc.
+        document.delete()
 
 
 def create_new_document_version(
@@ -207,6 +243,11 @@ def create_new_document_version(
     doc_type = _get_doc_type_from_content_type(content_type)
 
     with transaction.atomic():
+        # 1. Update user's total document size
+        old_file_size = document.file_size or 0
+        requesting_user.total_document_size = max(0, requesting_user.total_document_size - old_file_size + file_size)
+        requesting_user.save(update_fields=['total_document_size'])
+
         # 2. Set the old version to not be primary
         if latest_version:
             latest_version.is_primary = False
@@ -276,10 +317,15 @@ def process_imported_file(document: Document, file_data: dict):
     document.status_message = 'File imported. Starting processing...'
     document.save()
 
-    # 3. Route for processing
-    _route_document_for_processing(
-        document=document,
-        version=version,
-        file_size=file_size,
-        content_type=content_type,
-    )
+    # 3. Route for processing and update user's total size atomically
+    with transaction.atomic():
+        _route_document_for_processing(
+            document=document,
+            version=version,
+            file_size=file_size,
+            content_type=content_type,
+        )
+        user = document.created_by
+        if user:
+            user.total_document_size += file_size
+            user.save(update_fields=['total_document_size'])
