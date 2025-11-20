@@ -1201,7 +1201,7 @@ This session introduces a significant architectural change by migrating file sto
 
 ## Session 54: File Size Quota & Usage Tracking (2025-11-20)
 
-This session focused on implementing a comprehensive file size quota system to manage storage usage, along with UI enhancements to display usage information to the user.
+This session focused on implementing a comprehensive file size quota system to manage storage usage, along with UI enhancements to display usage information to the user. [https://github.com/coneshare/coneshare/pull/67](https://github.com/coneshare/coneshare/pull/67)
 
 ### 1. Per-User Quota Enforcement
 - **Backend**:

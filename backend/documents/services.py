@@ -220,6 +220,8 @@ def delete_folder_and_contents(folder: Folder):
         user = folder.created_by
         if user and total_size > 0:
             User.objects.filter(pk=user.pk).update(total_document_size=F('total_document_size') - total_size)
+        # Explicitly delete the documents. This will cascade to versions and pages.
+        documents_to_delete.delete()
         folder.delete()
 
     deletion_errors = []
