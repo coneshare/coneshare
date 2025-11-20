@@ -1185,3 +1185,15 @@ This session undertakes a significant refactoring effort by migrating all share 
 - API Endpoint Consolidation: All API endpoints related to share links, including public-facing views for password verification, access requests, view data, watermarked page rendering, and file downloads, are now managed under the 'sharelinks' app's routing.
 - Codebase Decoupling: This refactoring significantly decouples share link management from the core document and dataroom logic, improving modularity, maintainability, and future scalability.
 
+---
+
+## Session 53: Share Link Refactoring (2025-11-19)
+
+This session introduces a significant architectural change by migrating file storage operations from Django's default storage to a new, dedicated Go file server. This refactoring aims to enhance security, improve performance by offloading file I/O from Python workers, and establish a clearer separation of concerns. The new system implements a two-step process for uploads and uses temporary, token-based URLs for all file access, ensuring that Django remains the gatekeeper for permissions while the Go service handles the actual data transfer. [https://github.com/coneshare/coneshare/pull/65](https://github.com/coneshare/coneshare/pull/65)
+
+- Migration to Go File Server: The core change is replacing Django's default file storage with a dedicated Go file server. This involves new Django settings, a new FileServerClient in Python, and refactoring file-related operations to interact with this new service.
+- Two-Step Upload Process: File uploads are now a two-step process: the frontend first requests a temporary upload URL from Django, then directly uploads the file to the Go server using that URL, and finally notifies Django to finalize the document creation or versioning.
+- Secure Download and Preview URLs: All file downloads and preview image requests now go through the Go file server, which generates temporary, token-based URLs. This enhances security by preventing direct access to storage and ensures Django remains the gatekeeper for permissions.
+- Updated Docker Compose Configuration: The docker-compose.yml and docker-compose.prod.yml files have been updated to include the new core service (Go file server) and configure communication between the backend, Celery workers, and the new file server.
+- New Documentation and Planning: New documentation (docs/file-storage.md) has been added to explain the new file storage architecture, along with a planning document (plans/file-server.md) outlining the implementation steps.
+
