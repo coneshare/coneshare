@@ -34,7 +34,8 @@ def create_share_link(user_context, document):
         'document': document.id,
         'name': 'Test Share Link',
         'requires_email': True,
-        'requires_email_verification': False  # For simplicity in this test
+        'requires_email_verification': False,  # For simplicity in this test
+        'is_active': True,
     })
     assert response.status_code == status.HTTP_201_CREATED, response.data
     user_context["share_link_id"] = response.data["id"]
