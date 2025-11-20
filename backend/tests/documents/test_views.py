@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from rest_framework import status
+from rest_framework.exceptions import APIException
 
 from core.models import Organization
 from documents.models import (Document, DocumentPage, DocumentVersion, Folder)
@@ -395,18 +396,89 @@ def test_delete_folder_permission_denied(api_client, user2):
 
 
 @pytest.mark.django_db
-def test_delete_folder_success(api_client, user, organization):
-    """Test a user can delete their own folder."""
-    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
-    folder = Folder.objects.create(
-        name="To Be Deleted", organization=organization, created_by=user, parent=root_folder
+@patch('documents.services.fileserver_client.delete_file')
+def test_delete_folder_updates_user_size_and_deletes_contents(mock_fs_delete, api_client, user, organization):
+    """
+    Test that deleting a folder correctly updates the user's total document
+    size and deletes all nested documents, folders, and associated files.
+    """
+    # 1. Setup folder structure and documents
+    root_folder = Folder.objects.get_root_for_org(organization)
+    folder_to_delete = Folder.objects.create(
+        name="Top Level", organization=organization, created_by=user, parent=root_folder
     )
-    folder_id = folder.id
+    subfolder = Folder.objects.create(
+        name="Subfolder", organization=organization, created_by=user, parent=folder_to_delete
+    )
+
+    doc1_size = 1 * 1024 * 1024
+    doc2_size = 2 * 1024 * 1024
+    total_size = doc1_size + doc2_size
+
+    doc1 = Document.objects.create(
+        name="Doc1.pdf", organization=organization, created_by=user, folder=folder_to_delete, file_size=doc1_size
+    )
+    doc2 = Document.objects.create(
+        name="Doc2.pdf", organization=organization, created_by=user, folder=subfolder, file_size=doc2_size
+    )
+
+    # Create versions and pages to check for file deletion
+    v1 = DocumentVersion.objects.create(document=doc1, version_number=1, original_storage_key="doc1.pdf")
+    DocumentPage.objects.create(document_version=v1, page_number=1, storage_key="doc1_page1.png")
+    v2 = DocumentVersion.objects.create(document=doc2, version_number=1, original_storage_key="doc2.pdf")
+
+    # 2. Set user's initial size
+    user.total_document_size = total_size
+    user.save()
+    assert user.total_document_size == total_size
+
+    # 3. Perform deletion
+    response = api_client.delete(f'/api/v1/folders/{folder_to_delete.id}/')
+
+    # 4. Assertions
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    # Check that everything is deleted from the DB
+    assert not Folder.objects.filter(id=folder_to_delete.id).exists()
+    assert not Folder.objects.filter(id=subfolder.id).exists()
+    assert not Document.objects.filter(id__in=[doc1.id, doc2.id]).exists()
+
+    # Check user size is updated
+    user.refresh_from_db()
+    assert user.total_document_size == 0
+
+    # Check that file deletion was called for all associated files
+    assert mock_fs_delete.call_count == 3
+    mock_fs_delete.assert_any_call("doc1.pdf")
+    mock_fs_delete.assert_any_call("doc1_page1.png")
+    mock_fs_delete.assert_any_call("doc2.pdf")
+
+
+@pytest.mark.django_db
+@patch('documents.services.fileserver_client.delete_file')
+def test_delete_folder_file_server_error_returns_500(mock_fs_delete, api_client, user, organization):
+    """
+    Test that if the file server fails during folder deletion, the view returns
+    a 500 error, but the database changes are still committed.
+    """
+    mock_fs_delete.side_effect = APIException("File server error")
+
+    root_folder = Folder.objects.get_root_for_org(organization)
+    folder = Folder.objects.create(name="Folder", organization=organization, created_by=user, parent=root_folder)
+    doc = Document.objects.create(name="Doc.pdf", organization=organization, created_by=user, folder=folder, file_size=100)
+    DocumentVersion.objects.create(document=doc, version_number=1, original_storage_key="doc.pdf")
+
+    user.total_document_size = 100
+    user.save()
 
     response = api_client.delete(f'/api/v1/folders/{folder.id}/')
 
-    assert response.status_code == status.HTTP_204_NO_CONTENT
-    assert not Folder.objects.filter(id=folder_id).exists()
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+
+    # Per current implementation, DB changes are committed before file deletion.
+    assert not Folder.objects.filter(id=folder.id).exists()
+    user.refresh_from_db()
+    assert user.total_document_size == 0
 
 
 @pytest.mark.django_db
