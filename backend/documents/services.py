@@ -320,7 +320,26 @@ def process_imported_file(document: Document, file_data: dict):
     document.status_message = 'File imported. Starting processing...'
     document.save()
 
-    # 3. Route for processing and update user's total size atomically
+    # 3. Re-check quota with actual size and route for processing.
+    user = document.created_by
+    if user:
+        try:
+            check_user_quota_on_upload(user=user, new_file_size=file_size)
+        except QuotaExceededError as e:
+            logger.warning(
+                f"Cloud import for doc {document.id} failed: quota exceeded with actual file size. "
+                f"User: {user.id}, Size: {file_size}."
+            )
+            document.status = 'error'
+            document.status_message = str(e)
+            document.save()
+            # Clean up the file that was just uploaded to our storage
+            try:
+                fileserver_client.delete_file(original_storage_key)
+            except APIException as delete_e:
+                logger.error(f"Failed to clean up file {original_storage_key} after quota error: {delete_e}")
+            return  # Stop processing
+
     with transaction.atomic():
         _route_document_for_processing(
             document=document,
@@ -328,6 +347,5 @@ def process_imported_file(document: Document, file_data: dict):
             file_size=file_size,
             content_type=content_type,
         )
-        user = document.created_by
         if user:
             User.objects.filter(pk=user.pk).update(total_document_size=F('total_document_size') + file_size)
