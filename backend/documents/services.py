@@ -157,7 +157,7 @@ def create_document_from_upload(
         )
 
         # Update user's total document size
-        requesting_user.total_document_size += file_size
+        requesting_user.total_document_size = F('total_document_size') + file_size
         requesting_user.save(update_fields=['total_document_size'])
 
     version = DocumentVersion.objects.create(
