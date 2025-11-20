@@ -38,11 +38,13 @@ class StandardResultsSetPagination(PageNumberPagination):
     max_page_size = 100
 
 
-def _get_folder_from_path(organization, folder_path: str) -> Folder | None:
+def _get_folder_from_path(requesting_user, folder_path: str) -> Folder | None:
     """
-    Finds a folder based on a path string, starting from the organization's
-    invisible root folder. Returns the final Folder instance or None if not found.
+    Finds a folder based on a path string for a specific user, starting from
+    the organization's invisible root folder. Returns the final Folder instance or
+    None if not found.
     """
+    organization = requesting_user.organization
     try:
         parent = Folder.objects.get(
             organization=organization, name='__root__', parent=None
@@ -58,7 +60,8 @@ def _get_folder_from_path(organization, folder_path: str) -> Folder | None:
             target_folder = Folder.objects.get(
                 organization=organization,
                 name=part,
-                parent=parent
+                parent=parent,
+                created_by=requesting_user
             )
             parent = target_folder
         except Folder.DoesNotExist:
@@ -115,7 +118,7 @@ class DocumentUploadRequestView(APIView):
             folder_path, file_name_from_path = os.path.split(relative_path)
             if folder_path:
                 parent_folder = _get_folder_from_path(
-                    request.user.organization, folder_path
+                    request.user, folder_path
                 )
                 if parent_folder is None:
                     return Response(
@@ -175,7 +178,7 @@ class DocumentUploadFinalizeView(APIView):
             folder_path, _ = os.path.split(relative_path)
             if folder_path:
                 parent_folder = _get_folder_from_path(
-                    request.user.organization, folder_path
+                    request.user, folder_path
                 )
 
         try:
