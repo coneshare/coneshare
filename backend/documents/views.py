@@ -22,6 +22,8 @@ from .fileserver import fileserver_client
 from .services import (
     _get_unique_folder_name,
     _get_unique_document_name,
+    QuotaExceededError,
+    check_user_quota_on_upload,
     create_document_from_upload,
     create_new_document_version,
     delete_document_and_files,
@@ -102,6 +104,7 @@ class DocumentUploadRequestView(APIView):
 
     class DocumentUploadRequestSerializer(serializers.Serializer):
         file_name = serializers.CharField()
+        file_size = serializers.IntegerField()
         path = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     def post(self, request, *args, **kwargs):
@@ -110,6 +113,15 @@ class DocumentUploadRequestView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         validated_data = serializer.validated_data
+
+        try:
+            check_user_quota_on_upload(
+                user=request.user,
+                new_file_size=validated_data['file_size']
+            )
+        except QuotaExceededError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
         file_name = validated_data['file_name']
         relative_path = validated_data.get('path')
 
@@ -348,6 +360,7 @@ class DocumentVersionUploadRequestView(APIView):
 
     class RequestSerializer(serializers.Serializer):
         file_name = serializers.CharField()
+        file_size = serializers.IntegerField()
 
     def post(self, request, document_id, *args, **kwargs):
         try:
@@ -357,7 +370,18 @@ class DocumentVersionUploadRequestView(APIView):
 
         serializer = self.RequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        file_name = serializer.validated_data['file_name']
+        validated_data = serializer.validated_data
+
+        try:
+            check_user_quota_on_upload(
+                user=request.user,
+                new_file_size=validated_data['file_size'],
+                document_to_update=document
+            )
+        except QuotaExceededError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        file_name = validated_data['file_name']
 
         storage_key = generate_storage_key(request.user.organization.id, file_name)
 

@@ -12,6 +12,28 @@ from sharelinks.models import (ShareLink, ViewSession)
 
 User = get_user_model()
 
+
+@pytest.fixture
+def document_factory(user, organization):
+    def _create_document(**kwargs):
+        defaults = {
+            "created_by": user,
+            "organization": organization,
+            "status": "ready",
+        }
+        defaults.update(kwargs)
+        doc = Document.objects.create(**defaults)
+        version_file_size = kwargs.get('file_size')
+        DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            is_primary=True,
+            original_storage_key="path/to/original.pdf",
+            file_size=version_file_size
+        )
+        return doc
+    return _create_document
+
 @pytest.mark.django_db
 def test_get_root_folder_contents(api_client, user, user2, organization):
     """Test retrieving root folder contents is scoped to the user."""
@@ -1073,3 +1095,101 @@ class TestMoveItemsView:
         response = api_client.post('/api/v1/actions/move/', data)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "No items selected to move" in response.data['detail']
+
+
+@pytest.mark.django_db
+class TestQuotaAndSizeTracking:
+    @pytest.fixture(autouse=True)
+    def setup(self, user):
+        user.total_document_size = 0
+        user.save()
+
+    @patch('documents.services.generate_pdf_pages_task.delay')
+    @patch('documents.services.convert_office_to_pdf_task.delay')
+    @patch('documents.views.fileserver_client.generate_upload_url')
+    def test_document_lifecycle_updates_user_size(self, mock_fs_upload_url, mock_convert_task, mock_pdf_task, api_client, user):
+        """
+        Test that creating, versioning, and deleting documents correctly updates
+        the user's total_document_size.
+        """
+        mock_fs_upload_url.return_value = "/files/upload/token"
+        assert user.total_document_size == 0
+
+        # 1. Create a document (1MB)
+        file_size_1 = 1 * 1024 * 1024
+        finalize_data = {
+            'storage_key': 'key1',
+            'unique_name': 'doc1.pdf',
+            'file_size': file_size_1,
+            'content_type': 'application/pdf',
+        }
+        response = api_client.post('/api/v1/uploads/document/finalize/', finalize_data)
+        assert response.status_code == status.HTTP_202_ACCEPTED
+        user.refresh_from_db()
+        assert user.total_document_size == file_size_1
+        doc = Document.objects.get(name='doc1.pdf')
+
+        # 2. Upload a new version (2MB)
+        file_size_2 = 2 * 1024 * 1024
+        finalize_version_url = f'/api/v1/uploads/document/{doc.id}/versions/finalize/'
+        finalize_version_data = {
+            'storage_key': 'key2',
+            'file_size': file_size_2,
+            'content_type': 'application/pdf'
+        }
+        api_client.post(finalize_version_url, finalize_version_data)
+        user.refresh_from_db()
+        # Size should now be 2MB, not 3MB (old was replaced)
+        assert user.total_document_size == file_size_2
+
+        # 3. Delete the document
+        api_client.delete(f'/api/v1/documents/{doc.id}/')
+        user.refresh_from_db()
+        assert user.total_document_size == 0
+
+    @override_settings(FILE_SIZE_QUOTA_MB=1)
+    @patch('documents.views.fileserver_client.generate_upload_url')
+    def test_upload_request_respects_quota(self, mock_fs_upload_url, api_client, user):
+        """Test that the document upload request endpoint rejects uploads that exceed the quota."""
+        # Quota is 1MB. User has 0 usage.
+
+        # This should fail (2MB > 1MB)
+        request_data_fail = {'file_name': 'large.pdf', 'file_size': 2 * 1024 * 1024}
+        response_fail = api_client.post('/api/v1/uploads/document/request/', request_data_fail)
+        assert response_fail.status_code == status.HTTP_400_BAD_REQUEST
+        assert "exceed your storage quota" in response_fail.data['detail']
+
+        # This should succeed (0.5MB < 1MB)
+        request_data_ok = {'file_name': 'small.pdf', 'file_size': 512 * 1024}
+        response_ok = api_client.post('/api/v1/uploads/document/request/', request_data_ok)
+        assert response_ok.status_code == status.HTTP_200_OK
+
+    @override_settings(FILE_SIZE_QUOTA_MB=2)
+    @patch('documents.views.fileserver_client.generate_upload_url')
+    def test_version_upload_request_respects_quota(self, mock_fs_upload_url, api_client, user, document_factory):
+        """
+        Test that the version upload request endpoint correctly calculates
+        potential usage against the quota.
+        """
+        # Quota is 2MB.
+        # 1. Create an initial document of 1.5MB.
+        doc_size = int(1.5 * 1024 * 1024)
+        doc = document_factory(name="doc1.pdf", file_size=doc_size)
+        user.total_document_size = doc_size
+        user.save()
+
+        # 2. Try to upload a new version of 1MB.
+        # Potential usage: 1.5MB (current) + 1MB (new) - 1.5MB (old) = 1MB.
+        # 1MB < 2MB, so this should succeed.
+        request_data_ok = {'file_name': 'v2_ok.pdf', 'file_size': 1 * 1024 * 1024}
+        request_url = f'/api/v1/uploads/document/{doc.id}/versions/request/'
+        response_ok = api_client.post(request_url, request_data_ok)
+        assert response_ok.status_code == status.HTTP_200_OK
+
+        # 3. Try to upload a new version of 3MB.
+        # Potential usage: 1.5MB (current) + 3MB (new) - 1.5MB (old) = 3MB.
+        # 3MB > 2MB, so this should fail.
+        request_data_fail = {'file_name': 'v2_fail.pdf', 'file_size': 3 * 1024 * 1024}
+        response_fail = api_client.post(request_url, request_data_fail)
+        assert response_fail.status_code == status.HTTP_400_BAD_REQUEST
+        assert "exceed your storage quota" in response_fail.data['detail']

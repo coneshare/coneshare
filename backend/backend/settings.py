@@ -184,6 +184,10 @@ STORAGE_TYPE = os.environ.get('STORAGE_TYPE', 'FILESYSTEM')
 # Files larger than this will be marked as download-only.
 MAX_PREVIEW_FILE_SIZE_MB = int(os.environ.get('MAX_PREVIEW_FILE_SIZE_MB', 100))
 
+# User-level file size quota in megabytes.
+# A value of 0 means unlimited.
+FILE_SIZE_QUOTA_MB = int(os.environ.get('FILE_SIZE_QUOTA_MB', 0))
+
 if STORAGE_TYPE == 'MINIO':
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     AWS_ACCESS_KEY_ID = os.environ.get('MINIO_ROOT_USER')

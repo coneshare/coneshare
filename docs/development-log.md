@@ -1197,3 +1197,28 @@ This session introduces a significant architectural change by migrating file sto
 - Updated Docker Compose Configuration: The docker-compose.yml and docker-compose.prod.yml files have been updated to include the new core service (Go file server) and configure communication between the backend, Celery workers, and the new file server.
 - New Documentation and Planning: New documentation (docs/file-storage.md) has been added to explain the new file storage architecture, along with a planning document (plans/file-server.md) outlining the implementation steps.
 
+---
+
+## Session 54: File Size Quota & Usage Tracking (2025-11-20)
+
+This session focused on implementing a comprehensive file size quota system to manage storage usage, along with UI enhancements to display usage information to the user.
+
+### 1. Per-User Quota Enforcement
+- **Backend**:
+    - A global `FILE_SIZE_QUOTA_MB` setting was added to `settings.py` to define the per-user storage limit.
+    - A `total_document_size` field was added to the `User` model to efficiently track each user's storage consumption in bytes, avoiding expensive on-the-fly calculations.
+    - The document lifecycle services (`create`, `update version`, `delete`) were updated to incrementally update the `total_document_size` field within atomic transactions, ensuring data consistency.
+    - All file upload entry points (direct upload, new version upload, cloud import) now call a centralized service that checks the user's current `total_document_size` against the global quota before allowing an upload to proceed.
+- **Frontend**:
+    - The `uploadDocument` and `uploadNewVersion` API service functions were updated to include the `file_size` in upload requests, enabling the backend to perform pre-flight quota checks.
+
+### 2. UI for Usage Display
+- **Backend API**: The `UserSerializer` was updated to expose the user's `total_document_size` and the global `file_size_quota_mb` setting.
+- **Frontend**:
+    - The `SidebarFooter` component was refactored to fetch user data and display current storage usage.
+    - A progress bar was added to visually represent the user's consumption relative to their quota. The display handles the "unlimited" case when the quota is set to 0.
+    - A new reusable `Progress.jsx` component was created based on Radix UI to fix a missing component import.
+
+### 3. Testing
+- **Backend**: Added a comprehensive test suite for the quota and size tracking logic, covering the entire document lifecycle (creation, versioning, deletion) and all upload endpoints (direct, new version, cloud import) to ensure the quota is respected.
+

@@ -2,6 +2,7 @@ import os
 
 from django.contrib.auth.models import AbstractUser, Group
 from django.db import models
+from django.db.models import Sum
 
 from core.fields import ULIDField
 from .managers import UserManager
@@ -51,6 +52,13 @@ class User(AbstractUser):
     role = models.CharField(max_length=20, default='member')
     name = models.CharField(max_length=255, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # TODO: add a periodic background task (e.g., a nightly Celery job) to recalculate
+    # and correct the total_document_size for all users.
+    total_document_size = models.BigIntegerField(
+        default=0,
+        help_text='Total size of all documents in bytes.'
+    )
 
     # Use a single `name` field instead of first/last name.
     first_name = None
