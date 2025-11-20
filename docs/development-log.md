@@ -1222,3 +1222,22 @@ This session focused on implementing a comprehensive file size quota system to m
 ### 3. Testing
 - **Backend**: Added a comprehensive test suite for the quota and size tracking logic, covering the entire document lifecycle (creation, versioning, deletion) and all upload endpoints (direct, new version, cloud import) to ensure the quota is respected.
 
+---
+
+## Session 55: Folder Deletion & Data Integrity (2025-11-20)
+
+This session focused on fixing a critical data integrity bug related to folder deletion and enhancing the test suite to cover this case. [https://github.com/coneshare/coneshare/pull/70](https://github.com/coneshare/coneshare/pull/70)
+
+### 1. Bug Fix: Folder Deletion Did Not Update User Usage
+- **Problem**: A failing test revealed that deleting a folder did not delete the `Document` objects within it. This was because the `Document.folder` foreign key was set to `on_delete=models.SET_NULL`. As a result, the user's `total_document_size` was not being correctly recalculated.
+- **Analysis**: A discussion was held on the pros and cons of changing the model to `on_delete=models.CASCADE`. The decision was made to stick with `SET_NULL` to prevent accidental data loss and to ensure all application-level logic (like usage recalculation) is explicitly handled.
+- **Solution**: The `delete_folder_and_contents` service function in `backend/documents/services.py` was updated to explicitly delete all `Document` objects found within the folder and its descendants before deleting the folder itself. This ensures that the user's storage usage is correctly updated.
+
+### 2. Test Suite Hardening
+- **New Tests**: Added comprehensive tests for the folder deletion logic to `backend/tests/documents/test_views.py`, which were instrumental in identifying the original bug.
+- **Test Scenarios**: The tests cover:
+    - Correctly updating the user's `total_document_size` after a folder is deleted.
+    - Ensuring all nested documents and subfolders are removed from the database.
+    - Verifying that all associated files are deleted from the file server.
+    - Handling server errors during file deletion.
+
