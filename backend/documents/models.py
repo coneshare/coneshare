@@ -28,6 +28,20 @@ class Folder(BaseModel):
     def __str__(self):
         return self.name
 
+    def get_descendants(self):
+        """
+        Returns a flat list of all descendant folders.
+        """
+        descendants = []
+        # Using a list as a stack for an iterative depth-first search is
+        # efficient and avoids deep recursion.
+        stack = list(self.children.all())
+        while stack:
+            folder = stack.pop()
+            descendants.append(folder)
+            stack.extend(list(folder.children.all()))
+        return descendants
+
 
 class Document(BaseModel):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='documents')
