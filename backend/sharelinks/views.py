@@ -1171,18 +1171,27 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
         # Check for owner preview first, which takes precedence.
         preview_owner_email = self.request.session.pop('preview_owner_email', None)
 
+        share_link = serializer.validated_data.get('share_link')
+        viewer_email = ''
         if preview_owner_email:
             viewer_email = preview_owner_email
         else:
             # Attempt to find a regular viewer's email from the session if they've been
             # authorized via an email-required link.
-            share_link = serializer.validated_data.get('share_link')
-            viewer_email = ''
             if share_link:
                 authorized_links = self.request.session.get('authorized_share_links', {})
                 auth_status = authorized_links.get(str(share_link.id), {})
                 if auth_status.get('email_verified'):
                     viewer_email = auth_status.get('viewer_email')
+
+        viewer = None
+        if viewer_email and share_link:
+            organization = share_link.document.organization if share_link.document else share_link.dataroom.organization
+            if organization:
+                viewer, _ = Viewer.objects.get_or_create(
+                    organization=organization,
+                    email=viewer_email,
+                )
 
         # GeoIP lookup
         location_data = {}
@@ -1197,6 +1206,7 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
         serializer.save(
             ip_address=ip_address,
             user_agent=user_agent,
+            viewer=viewer,
             viewer_email=viewer_email,
             country=location_data.get('country_name', ''),
             city=location_data.get('city', ''),

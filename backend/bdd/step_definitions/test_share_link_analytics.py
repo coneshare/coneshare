@@ -28,26 +28,37 @@ def document(user_context, filename):
 
 @when("I create a share link for that document")
 def create_share_link(user_context, document):
-    """Creates a share link for the document."""
+    """Creates a share link for the document that requires email."""
     api_client = user_context["api_client"]
     response = api_client.post('/api/v1/share-links/', {
         'document': document.id,
-        'name': 'Test Share Link'
+        'name': 'Test Share Link',
+        'requires_email': True,
+        'requires_email_verification': False,  # For simplicity in this test
+        'is_active': True,
     })
     assert response.status_code == status.HTTP_201_CREATED, response.data
     user_context["share_link_id"] = response.data["id"]
 
 
 @when(parsers.parse('an external viewer with email "{email}" views the document via the share link'))
-def external_viewer_accesses_link(user_context, email):
-    """Simulates a view being created for the share link."""
-    api_client = user_context["api_client"]
-    share_link_id = user_context["share_link_id"]
-    response = api_client.post('/api/v1/view-sessions/', {
-        'share_link': share_link_id,
-        'viewer_email': email,
-        'duration_seconds': 120,
-        'completion_rate': 0.95
+def external_viewer_accesses_link(public_client, user_context, email):
+    """
+    Simulates a viewer's full flow: requesting access with an email and then
+    creating a view session.
+    """
+    share_link = ShareLink.objects.get(id=user_context["share_link_id"])
+
+    # Step 1: Viewer provides email to satisfy the link's requirement, which
+    # authorizes their session.
+    request_access_url = f'/api/v1/links/{share_link.slug}/request-access/'
+    access_response = public_client.post(request_access_url, {'email': email})
+    assert access_response.status_code == status.HTTP_200_OK, access_response.json()
+
+    # Step 2: The viewer's client creates a view session. The backend will now
+    # find the email in the authorized session.
+    response = public_client.post('/api/v1/view-sessions/', {
+        'share_link': share_link.id,
     })
     assert response.status_code == status.HTTP_201_CREATED, response.data
 

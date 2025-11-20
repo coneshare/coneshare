@@ -9,4 +9,4 @@ Feature: Share Link Analytics
     When I create a share link for that document
     And an external viewer with email "viewer@example.com" views the document via the share link
     Then a "Viewer" record should exist for "viewer@example.com"
-    And a "View" record should exist, linking the viewer and the share link
+    And a "ViewSession" record should exist, linking the viewer and the share link

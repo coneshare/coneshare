@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from django.core.files.uploadedfile import SimpleUploadedFile
 from pytest_bdd import parsers, scenario, given, when, then
+from rest_framework import status
 
 from documents.models import Document, DocumentVersion
 
@@ -41,16 +42,51 @@ def document(user_context, filename):
 def upload_new_version(user_context, document, filename):
     """Upload a new version of the document."""
     api_client = user_context['api_client']
-    dummy_file = SimpleUploadedFile(filename, b"new content", "application/pdf")
+    file_content = b"new content"
 
-    # Mock the PDF conversion to avoid dependency on poppler-utils in CI
-    with patch('documents.tasks.convert_from_bytes', return_value=[MagicMock()]):
-        response = api_client.post(
-            f'/api/v1/documents/{document.id}/versions/',
-            {'file': dummy_file},
-            format='multipart'
-        )
-    user_context['response'] = response
+    # We patch the client methods at their source and requests/convert in the tasks module.
+    with patch('documents.fileserver.fileserver_client.generate_upload_url') as mock_upload_url, \
+         patch('documents.fileserver.fileserver_client.generate_download_url') as mock_download_url, \
+         patch('documents.tasks.requests.get') as mock_task_get, \
+         patch('documents.tasks.requests.put') as mock_task_put, \
+         patch('documents.tasks.convert_from_bytes') as mock_convert:
+
+        # Mocks for the Celery task's file download
+        mock_download_url.return_value = "http://fileserver/files/download/token"
+        mock_get_response = MagicMock()
+        mock_get_response.raise_for_status.return_value = None
+        mock_get_response.content = file_content
+        mock_task_get.return_value = mock_get_response
+
+        # Mocks for the conversion and subsequent page uploads
+        mock_image = MagicMock()
+        mock_image.save.side_effect = lambda buf, format: buf.write(b'fake-image-bytes')
+        mock_convert.return_value = [mock_image]
+        mock_put_response = MagicMock()
+        mock_put_response.raise_for_status.return_value = None
+        mock_task_put.return_value = mock_put_response
+        mock_upload_url.side_effect = [
+            "http://fileserver/files/upload/version-token",
+            "http://fileserver/files/upload/page-token",
+        ]
+
+        # Step 1: Request upload URL
+        request_url = f'/api/v1/uploads/document/{document.id}/versions/request/'
+        request_response = api_client.post(request_url, {'file_name': filename})
+        assert request_response.status_code == status.HTTP_200_OK
+        upload_data = request_response.json()
+
+        # Step 2: Finalize upload
+        finalize_url = f'/api/v1/uploads/document/{document.id}/versions/finalize/'
+        finalize_data = {
+            'storage_key': upload_data['storage_key'],
+            'file_size': len(file_content),
+            'content_type': 'application/pdf',
+        }
+        finalize_response = api_client.post(finalize_url, finalize_data)
+        assert finalize_response.status_code == status.HTTP_202_ACCEPTED, finalize_response.data
+
+    user_context['response'] = finalize_response
     document.refresh_from_db()
 
 
