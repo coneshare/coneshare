@@ -245,7 +245,7 @@ def create_new_document_version(
     with transaction.atomic():
         # 1. Update user's total document size
         old_file_size = document.file_size or 0
-        requesting_user.total_document_size = max(0, requesting_user.total_document_size - old_file_size + file_size)
+        requesting_user.total_document_size = F('total_document_size') - old_file_size + file_size
         requesting_user.save(update_fields=['total_document_size'])
 
         # 2. Set the old version to not be primary
