@@ -219,7 +219,7 @@ def delete_document_and_files(document: Document):
     with transaction.atomic():
         user = document.created_by
         if user and document.file_size:
-            user.total_document_size = max(0, user.total_document_size - document.file_size)
+            user.total_document_size = F('total_document_size') - document.file_size
             user.save(update_fields=['total_document_size'])
         # Delete the document record, which will cascade to versions, pages, share links etc.
         document.delete()
