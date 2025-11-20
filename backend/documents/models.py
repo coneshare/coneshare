@@ -33,13 +33,13 @@ class Folder(BaseModel):
         Returns a flat list of all descendant folders.
         """
         descendants = []
-        # Using a queue to perform a breadth-first search is more efficient
-        # than deep recursion for fetching descendants.
-        queue = list(self.children.all())
-        while queue:
-            folder = queue.pop(0)
+        # Using a list as a stack for an iterative depth-first search is
+        # efficient and avoids deep recursion.
+        stack = list(self.children.all())
+        while stack:
+            folder = stack.pop()
             descendants.append(folder)
-            queue.extend(list(folder.children.all()))
+            stack.extend(list(folder.children.all()))
         return descendants
 
 
