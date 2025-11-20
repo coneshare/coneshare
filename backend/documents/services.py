@@ -216,14 +216,6 @@ def delete_folder_and_contents(folder: Folder):
         if page.storage_key:
             storage_keys_to_delete.add(page.storage_key)
 
-    with transaction.atomic():
-        user = folder.created_by
-        if user and total_size > 0:
-            User.objects.filter(pk=user.pk).update(total_document_size=F('total_document_size') - total_size)
-        # Explicitly delete the documents. This will cascade to versions and pages.
-        documents_to_delete.delete()
-        folder.delete()
-
     deletion_errors = []
     for key in storage_keys_to_delete:
         try:
@@ -234,6 +226,14 @@ def delete_folder_and_contents(folder: Folder):
 
     if deletion_errors:
         raise Exception(f"Failed to delete one or more associated files: {', '.join(deletion_errors)}")
+
+    with transaction.atomic():
+        user = folder.created_by
+        if user and total_size > 0:
+            User.objects.filter(pk=user.pk).update(total_document_size=F('total_document_size') - total_size)
+        # Explicitly delete the documents. This will cascade to versions and pages.
+        documents_to_delete.delete()
+        folder.delete()
 
 
 def delete_document_and_files(document: Document):
