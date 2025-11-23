@@ -1,0 +1,55 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: pip install -r backend/requirements.txt
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.25'
+
+    - name: Build Go file server
+      run: go build -o file-server ./core
+
+    - name: Run Go file server in background
+      run: ./file-server &
+      env:
+        INTERNAL_API_TOKEN: "dummy-internal-api-token-for-ci"
+        STORAGE_PATH: "/tmp/storage"      
+
+    - name: Run tests
+      run: pytest backend/tests
+      env:
+        SECRET_KEY: "dummy-secret-key-for-ci-tests"
+        DATABASE_URL: "sqlite:///db.sqlite3"
+        CELERY_TASK_ALWAYS_EAGER: "True"
+        INTERNAL_API_TOKEN: "dummy-internal-api-token-for-ci"
+        FIELD_ENCRYPTION_KEY: "S-c9WBE3DEJE2R7i-b-sOmegRChW2McTDIOWcrG0-C8="
+        CORE_API_URL: "http://localhost:8080"
