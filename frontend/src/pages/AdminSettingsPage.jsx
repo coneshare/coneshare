@@ -2,8 +2,28 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { Skeleton } from '../components/ui/Skeleton';
 import { Textarea } from '../components/ui/Textarea';
 import * as api from '../services/api';
+
+function SkeletonRow() {
+  return (
+    <tr className="border-b">
+      <td className="p-4 align-top">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-1/3" />
+          <Skeleton className="h-3 w-2/3" />
+        </div>
+      </td>
+      <td className="w-1/2 p-4 align-top">
+        <Skeleton className="h-10 w-full" />
+      </td>
+      <td className="p-4 align-top">
+        <Skeleton className="h-10 w-20" />
+      </td>
+    </tr>
+  );
+}
 
 function SettingRow({ setting, onSave }) {
   const [value, setValue] = useState(setting.value);
@@ -91,10 +111,6 @@ export function AdminSettingsPage() {
     );
   };
 
-  if (isLoading) {
-    return <div>Loading settings...</div>;
-  }
-
   return (
     <div className="container mx-auto py-6">
       <h1 className="mb-6 text-2xl font-bold">
@@ -110,13 +126,15 @@ export function AdminSettingsPage() {
             </tr>
           </thead>
           <tbody>
-            {settings.map((setting) => (
-              <SettingRow
-                key={setting.key}
-                setting={setting}
-                onSave={handleSaveSetting}
-              />
-            ))}
+            {isLoading
+              ? [...Array(8)].map((_, i) => <SkeletonRow key={i} />)
+              : settings.map((setting) => (
+                  <SettingRow
+                    key={setting.key}
+                    setting={setting}
+                    onSave={handleSaveSetting}
+                  />
+                ))}
           </tbody>
         </table>
       </div>
