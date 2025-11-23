@@ -57,7 +57,7 @@ jobs:
         STORAGE_PATH: "/tmp/storage"      
 
     - name: Run tests
-      run: pytest backend/tests --maxfail=3
+      run: pytest backend/tests --maxfail=2
       env:
         SECRET_KEY: "dummy-secret-key-for-ci-tests"
         DATABASE_URL: "sqlite:///db.sqlite3"
