@@ -1,3 +1,5 @@
+[![Backend CI](https://github.com/coneshare/coneshare/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/coneshare/coneshare/actions/workflows/backend-ci.yml)
+
 # Coneshare
 
 **Coneshare** is an enterprise-grade, self-hosted document sharing and virtual data room solution designed for security, reliability, and administrator control. It provides a complete platform for businesses to manage the entire lifecycle of sensitive documents: upload, process, secure, share, and track.
