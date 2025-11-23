@@ -11,6 +11,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
 
+from core.services import get_dynamic_setting
 from .base import BaseCloudProvider, CloudProviderError
 
 logger = logging.getLogger(__name__)
@@ -22,9 +23,9 @@ class NextcloudProvider(BaseCloudProvider):
 
     def __init__(self, connection=None):
         super().__init__(connection)
-        self.host = getattr(settings, 'NEXT_CLOUD_HOST', None)
-        self.client_id = getattr(settings, 'NEXT_CLOUD_CLIENT_ID', None)
-        self.client_secret = getattr(settings, 'NEXT_CLOUD_CLIENT_SECRET', None)
+        self.host = get_dynamic_setting('NEXT_CLOUD_HOST')
+        self.client_id = get_dynamic_setting('NEXT_CLOUD_CLIENT_ID')
+        self.client_secret = get_dynamic_setting('NEXT_CLOUD_CLIENT_SECRET')
         if not all([self.host, self.client_id, self.client_secret]):
             raise CloudProviderError("Nextcloud API credentials are not configured in settings.py.")
 

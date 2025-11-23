@@ -3,13 +3,13 @@ import mimetypes
 import logging
 import requests
 import uuid
-from django.conf import settings
 from django.db import transaction
 from django.db.models import F, Sum
 from rest_framework.exceptions import APIException
 
 from backend.utils import get_unique_name
 from core.models import User
+from core.services import get_dynamic_setting
 from .fileserver import fileserver_client
 from .models import Document, DocumentPage, DocumentVersion, Folder
 from .tasks import convert_office_to_pdf_task, generate_pdf_pages_task
@@ -37,7 +37,7 @@ def check_user_quota_on_upload(user: User, new_file_size: int, document_to_updat
     Checks if a new upload would exceed the user's file size quota.
     Raises a QuotaExceededError if the quota is exceeded.
     """
-    file_size_quota_mb = settings.FILE_SIZE_QUOTA_MB
+    file_size_quota_mb = get_dynamic_setting('FILE_SIZE_QUOTA_MB')
     if file_size_quota_mb == 0:
         return  # 0 means unlimited quota
 
@@ -50,7 +50,7 @@ def check_user_quota_on_upload(user: User, new_file_size: int, document_to_updat
         # For a version update, the old version's size is subtracted from the total.
         if document_to_update.file_size:
             potential_new_usage -= document_to_update.file_size
-
+    print(file_size_quota_mb)
     if potential_new_usage > quota_in_bytes:
         raise QuotaExceededError(
             f"Uploading this file would exceed your storage quota of {file_size_quota_mb} MB."
@@ -73,7 +73,8 @@ def _route_document_for_processing(document: Document, version: DocumentVersion,
     Routes a document/version for processing based on type and size.
     Updates the parent document's state and triggers the appropriate async task.
     """
-    max_size_bytes = settings.MAX_PREVIEW_FILE_SIZE_MB * 1024 * 1024
+    max_preview_file_size_mb = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
+    max_size_bytes = max_preview_file_size_mb * 1024 * 1024
     is_too_large = file_size > max_size_bytes
 
     doc_type = _get_doc_type_from_content_type(content_type)

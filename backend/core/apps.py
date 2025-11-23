@@ -9,4 +9,5 @@ class CoreConfig(AppConfig):
         """
         Connects signals for the core app.
         """
-        pass
+        # Import signals to connect them
+        import core.signals
