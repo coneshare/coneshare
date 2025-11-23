@@ -1,7 +1,5 @@
 from urllib.parse import urljoin
 
-from urllib.parse import urljoin
-
 from django.conf import settings
 from django.contrib.auth import get_user_model, password_validation
 from django.core.exceptions import ValidationError

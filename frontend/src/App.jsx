@@ -15,6 +15,7 @@ import PasswordSettingsPage from './pages/PasswordSettingsPage';
 import { ShareLinkAnalyticsPage } from './pages/ShareLinkAnalyticsPage';
 import { ShareLinkViewerPage } from './pages/ShareLinkViewerPage';
 import UserSettingsPage from './pages/UserSettingsPage';
+import { AdminSettingsPage } from './pages/AdminSettingsPage';
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
           <Route path="/analytics/view-sessions" element={<AllViewSessionsPage />} />
           <Route path="/settings" element={<UserSettingsPage />} />
           <Route path="/settings/password" element={<PasswordSettingsPage />} />
+          <Route path="/admin/settings" element={<AdminSettingsPage />} />
         </Route>
       </Routes>
     </>
