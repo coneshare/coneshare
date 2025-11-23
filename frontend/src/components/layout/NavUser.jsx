@@ -1,4 +1,4 @@
-import { ChevronsUpDown, CircleUserRound, KeyRound, LogOut } from "lucide-react";
+import { ChevronsUpDown, CircleUserRound, KeyRound, LogOut, Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar";
 import { Button } from "../ui/Button";
@@ -61,6 +61,15 @@ function NavUser() {
             <span>Change Password</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
+        {user?.is_superuser && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => navigate("/admin/settings")}>
+              <Shield className="mr-2 h-4 w-4" />
+              <span>Admin Panel</span>
+            </DropdownMenuItem>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />

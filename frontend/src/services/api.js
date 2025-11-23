@@ -346,5 +346,9 @@ export const downloadDataroomFolder = (slug, folderId) => {
     responseType: 'blob',
   });
 };
+
+// Admin
+export const getAdminSettings = () => api.get('/admin/settings/');
+export const updateAdminSetting = (key, value) => api.patch(`/admin/settings/${key}/`, { value });
     
 export default api;
