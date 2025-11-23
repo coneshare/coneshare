@@ -11,8 +11,9 @@ function SettingRow({ setting, onSave }) {
   const isTextArea =
     setting.value.length > 80 ||
     setting.value.includes('\n') ||
-    setting.key.includes('ENABLED_CLOUD_PROVIDERS') ||
-    setting.key.includes('CLOUD_IMPORT_FOLDER_MAPPING');
+    ['ENABLED_CLOUD_PROVIDERS', 'CLOUD_IMPORT_FOLDER_MAPPING'].includes(
+      setting.key
+    );
 
   const handleSave = async () => {
     setIsSaving(true);
