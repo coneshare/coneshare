@@ -644,6 +644,7 @@ This session focused on implementing a sequential, multi-step authentication flo
 
 ---
 
+
 ## Session 25: Viewer Email Tracking & Documentation (2025-10-05)
 
 This session focused on fixing a bug where viewer emails were not being correctly associated with their view sessions and documenting the underlying system logic. [https://github.com/coneshare/coneshare/pull/23](https://github.com/coneshare/coneshare/pull/23)
@@ -1241,3 +1242,31 @@ This session focused on fixing a critical data integrity bug related to folder d
     - Verifying that all associated files are deleted from the file server.
     - Handling server errors during file deletion.
 
+---
+
+## Session 56: Admin Panel & Dynamic Settings Management (2025-11-23)
+
+This session focused on implementing a new admin panel for superusers, allowing them to manage dynamic application settings through the UI. The implementation involved significant backend API work, frontend component development, and a series of refactors to improve the robustness and maintainability of the settings system. [https://github.com/coneshare/coneshare/pull/71](https://github.com/coneshare/coneshare/pull/71)
+
+### 1. Admin Panel for Dynamic Settings
+- **Backend API**:
+  - A new `AdminSettingsViewSet` was created at `/api/v1/admin/settings/`, providing secure CRUD operations for `AppConfiguration` records, restricted to superusers.
+  - The API was designed to dynamically merge settings stored in the database with default values from `settings.py`, ensuring all configurable options are always visible in the admin panel without needing a database seeding step.
+- **Frontend UI**:
+  - An "Admin Panel" link was added to the main header, visible only to users with the `is_superuser` flag (which was added to the `UserSerializer`).
+  - A new `/admin/settings` page was created, featuring a table to display all dynamic settings, their descriptions, and their current values.
+  - The page allows administrators to edit and save settings directly, with feedback provided via toast notifications.
+  - To improve user experience, a skeleton loader was implemented to provide a visual cue while the settings data is being fetched.
+
+### 2. Settings System Refactoring & Hardening
+- **Lazy Loading**: Fixed a critical `AppRegistryNotReady` error by refactoring the settings system to load dynamic settings from the database lazily, preventing database queries during application startup.
+- **Centralized Service**: The logic was further refined into a `get_dynamic_setting` service function that transparently reads a setting from the database first, with a fallback to the default value in `settings.py`. All parts of the application were updated to use this new service.
+- **Environment Configuration**:
+  - The database configuration was updated to use `dj-database-url`, allowing the connection to be configured from a single `DATABASE_URL` environment variable.
+  - All service-level environment variables were consolidated into a single `.env` file, loaded by `docker-compose.yml`, and a `.env.template` was created to document the required variables.
+
+### 3. Test Suite Maintenance
+- **Fixes for Dynamic Settings**: Several tests were failing because they relied on `@override_settings`, which was no longer effective due to the new dynamic settings system. These tests were updated to either mock the `get_dynamic_setting` service or directly manipulate the `AppConfiguration` model in the test database.
+- **General Fixes**: Addressed and fixed various other test failures related to changes in API request formats and service logic, ensuring the test suite remains robust and reliable.
+
+---
