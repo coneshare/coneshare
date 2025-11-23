@@ -86,3 +86,23 @@ class UserGroup(Group):
     class Meta:
         verbose_name = 'User Group'
         verbose_name_plural = 'User Groups'
+
+
+class AppConfiguration(models.Model):
+    """
+    Stores dynamic, admin-configurable settings as key-value pairs.
+    """
+    key = models.CharField(max_length=100, unique=True, primary_key=True)
+    value = models.TextField(blank=True)
+    description = models.TextField(
+        blank=True,
+        help_text="A description of what this setting controls."
+    )
+
+    def __str__(self):
+        return self.key
+
+    class Meta:
+        verbose_name = "Application Configuration"
+        verbose_name_plural = "Application Configurations"
+        ordering = ('key',)

@@ -15,34 +15,57 @@ from datetime import timedelta
 import os
 import re
 import sys
-import json
-import base64
-import hashlib
 
+import dj_database_url
 from django.contrib.gis.geoip2 import GeoIP2
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+# ==============================================================================
+# BOOTSTRAP SETTINGS (read from environment variables)
+# ==============================================================================
+# These settings are required for the application to start.
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-(ptz@00bnu41y5xkt51b6qi23hqv9@8our!x+14vi7r)9ga)#b'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-(ptz@00bnu41y5xkt51b6qi23hqv9@8our!x+14vi7r)9ga)#b')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 't')
 
-ALLOWED_HOSTS = [
-    '127.0.0.1',
-    'backend',
-]
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '127.0.0.1,backend').split(',')
+CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:5173').split(',')
 
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:5173',
-]
+# Site domain (for constructing absolute URLs)
+SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'http://localhost:5173')
 
+# File Server (Core Service) Configuration
+CORE_API_URL = os.environ.get('CORE_API_URL', 'http://core:8080')
+INTERNAL_API_TOKEN = os.environ.get('INTERNAL_API_TOKEN')
+
+# Email Configuration (for sending password resets, etc.)
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() in ('true', '1', 't')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
+
+# Database Configuration
+# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+DATABASES = {
+    'default': dj_database_url.config(
+        default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
+        conn_max_age=600,
+    )
+}
+
+
+# ==============================================================================
+# APPLICATION STRUCTURE (defined in code)
+# ==============================================================================
 
 # Application definition
 
@@ -56,7 +79,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
-    'core',
+    'core.apps.CoreConfig',
     'documents',
     'datarooms',
     'sharelinks',
@@ -116,17 +139,6 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
-
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -179,14 +191,6 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # Storage Configuration (for FileSystem or MinIO)
 STORAGE_TYPE = os.environ.get('STORAGE_TYPE', 'FILESYSTEM')
-
-# Maximum file size in megabytes for which a preview will be generated.
-# Files larger than this will be marked as download-only.
-MAX_PREVIEW_FILE_SIZE_MB = int(os.environ.get('MAX_PREVIEW_FILE_SIZE_MB', 100))
-
-# User-level file size quota in megabytes.
-# A value of 0 means unlimited.
-FILE_SIZE_QUOTA_MB = int(os.environ.get('FILE_SIZE_QUOTA_MB', 0))
 
 if STORAGE_TYPE == 'MINIO':
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
@@ -243,16 +247,23 @@ except Exception as e:
     print(f"Failed to initialize GeoIP2: {e}")
 
 
-# Site domain (for constructing absolute URLs)
-SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'http://localhost:5173')
+# ==============================================================================
+# DEFAULT APPLICATION SETTINGS
+# ==============================================================================
+# These settings provide default values for the application. They can be
+# overridden by an administrator via the AppConfiguration model in the admin panel.
+# The application code should use `core.services.get_dynamic_setting` to read them.
 
-# File Server (Core Service) Configuration
-CORE_API_URL = os.environ.get('CORE_API_URL', 'http://core:8080')
-INTERNAL_API_TOKEN = os.environ.get('INTERNAL_API_TOKEN')
+# Maximum file size in megabytes for which a preview will be generated.
+# Files larger than this will be marked as download-only.
+MAX_PREVIEW_FILE_SIZE_MB = 100
+
+# User-level file size quota in megabytes.
+# A value of 0 means unlimited.
+FILE_SIZE_QUOTA_MB = 0
 
 # Cloud Services Configuration
 # A list of enabled cloud providers.
-# Example: ENABLED_CLOUD_PROVIDERS = ["dropbox", "google_drive"]
 ENABLED_CLOUD_PROVIDERS = ["dropbox", "google_drive", "nextcloud"]
 
 # A dictionary mapping cloud providers to their default import folder names.
@@ -263,7 +274,7 @@ CLOUD_IMPORT_FOLDER_MAPPING = {
 }
 
 # Maximum file size in megabytes for cloud imports.
-CLOUD_IMPORT_MAX_SIZE_MB = int(os.environ.get('CLOUD_IMPORT_MAX_SIZE_MB', 100))
+CLOUD_IMPORT_MAX_SIZE_MB = 100
 
 # Dropbox API Credentials
 # Get these from your Dropbox App Console.

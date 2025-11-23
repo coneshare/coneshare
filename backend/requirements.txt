@@ -21,3 +21,4 @@ httpx==0.28.1
 google-api-python-client==2.185.0
 google-auth-oauthlib==1.2.2
 django-cryptography-5==2.0.3
+dj-database-url==3.0.1

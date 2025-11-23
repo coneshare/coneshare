@@ -5,6 +5,7 @@ from urllib.parse import urljoin
 
 from django.conf import settings
 from google.auth.exceptions import RefreshError
+from core.services import get_dynamic_setting
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
@@ -29,8 +30,8 @@ class GoogleDriveProvider(BaseCloudProvider):
 
     def __init__(self, connection=None):
         super().__init__(connection)
-        self.client_id = getattr(settings, 'GOOGLE_DRIVE_CLIENT_ID', None)
-        self.client_secret = getattr(settings, 'GOOGLE_DRIVE_CLIENT_SECRET', None)
+        self.client_id = get_dynamic_setting('GOOGLE_DRIVE_CLIENT_ID')
+        self.client_secret = get_dynamic_setting('GOOGLE_DRIVE_CLIENT_SECRET')
         if not self.client_id or not self.client_secret:
             raise CloudProviderError("Google Drive API credentials are not configured in settings.py.")
 
