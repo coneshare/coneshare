@@ -1,9 +1,9 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from rest_framework import status
-from django.test import override_settings
 
 from cloudfiles.models import CloudConnection
+from core.models import AppConfiguration
 from documents.models import Document, Folder
 
 
@@ -406,6 +406,8 @@ class TestCloudImportView:
         mock_task_delay.assert_called_once_with(doc.id, connection.id, '/test.pdf')
 
     def test_import_file_too_large(self, mock_task_delay, api_client, cloud_connection):
+        AppConfiguration.objects.update_or_create(key='FILE_SIZE_QUOTA_MB', defaults={'value': '0'})
+
         url = f'/api/v1/cloud/connections/{cloud_connection.id}/import/'
         data = {
             'file_id': '/large.pdf',
@@ -429,9 +431,9 @@ class TestCloudImportView:
         assert response.status_code == status.HTTP_404_NOT_FOUND
         mock_task_delay.assert_not_called()
 
-    @override_settings(FILE_SIZE_QUOTA_MB=1)
     def test_import_file_respects_quota(self, mock_task_delay, api_client, cloud_connection, user):
         """Test that the cloud import endpoint rejects imports that would exceed the quota."""
+        AppConfiguration.objects.update_or_create(key='FILE_SIZE_QUOTA_MB', defaults={'value': '1'})
         user.total_document_size = 0
         user.save()
 
@@ -444,6 +446,7 @@ class TestCloudImportView:
             'file_size': 2 * 1024 * 1024
         }
         response_fail = api_client.post(url, data_fail)
+
         assert response_fail.status_code == status.HTTP_400_BAD_REQUEST
         assert "exceed your storage quota" in response_fail.data['detail']
         mock_task_delay.assert_not_called()

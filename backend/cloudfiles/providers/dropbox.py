@@ -10,6 +10,7 @@ import httpx
 from django.conf import settings
 from django.utils import timezone
 
+from core.services import get_dynamic_setting
 from .base import BaseCloudProvider, CloudProviderError
 
 logger = logging.getLogger(__name__)
@@ -21,8 +22,8 @@ class DropboxProvider(BaseCloudProvider):
 
     def __init__(self, connection=None):
         super().__init__(connection)
-        self.app_key = getattr(settings, 'DROPBOX_APP_KEY', None)
-        self.app_secret = getattr(settings, 'DROPBOX_APP_SECRET', None)
+        self.app_key = get_dynamic_setting('DROPBOX_APP_KEY')
+        self.app_secret = get_dynamic_setting('DROPBOX_APP_SECRET')
         if not self.app_key or not self.app_secret:
             raise CloudProviderError("Dropbox API credentials are not configured in settings.py.")
 

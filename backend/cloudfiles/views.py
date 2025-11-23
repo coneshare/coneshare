@@ -1,12 +1,12 @@
 import logging
 
-from django.conf import settings
 from django.core.cache import cache
 from django.shortcuts import redirect
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core.services import get_dynamic_setting
 from documents.serializers import DocumentSerializer
 from documents.services import QuotaExceededError, check_user_quota_on_upload
 from .models import CloudConnection
@@ -25,7 +25,7 @@ class CloudProviderListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        providers = settings.ENABLED_CLOUD_PROVIDERS
+        providers = get_dynamic_setting('ENABLED_CLOUD_PROVIDERS')
 
         user_connections = CloudConnection.objects.filter(
             user=request.user,
@@ -183,9 +183,10 @@ class CloudImportView(APIView):
         except QuotaExceededError as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        max_size_bytes = settings.CLOUD_IMPORT_MAX_SIZE_MB * 1024 * 1024
+        max_size_mb = get_dynamic_setting('CLOUD_IMPORT_MAX_SIZE_MB')
+        max_size_bytes = max_size_mb * 1024 * 1024
         if file_size > max_size_bytes:
-            return Response({"detail": f"File size cannot exceed {settings.CLOUD_IMPORT_MAX_SIZE_MB}MB for import."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": f"File size cannot exceed {max_size_mb}MB for import."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             connection = CloudConnection.objects.get(id=connection_id, user=request.user)

@@ -1,11 +1,14 @@
 from urllib.parse import urljoin
 
+from urllib.parse import urljoin
+
 from django.conf import settings
 from django.contrib.auth import get_user_model, password_validation
 from django.core.exceptions import ValidationError
 from rest_framework import serializers
 
-from core.models import Organization, UserGroup
+from core.models import AppConfiguration, Organization, UserGroup
+from core.services import get_dynamic_setting
 
 User = get_user_model()
 
@@ -37,11 +40,11 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'name', 'role', 'organization', 'password',
             'avatar', 'avatar_url', 'date_joined', 'updated_at',
-            'total_document_size', 'file_size_quota_mb'
+            'total_document_size', 'file_size_quota_mb', 'is_superuser'
         ]
         read_only_fields = [
             'id', 'organization', 'date_joined', 'updated_at', 'avatar_url',
-            'total_document_size', 'file_size_quota_mb'
+            'total_document_size', 'file_size_quota_mb', 'is_superuser'
         ]
         extra_kwargs = {
             'password': {'write_only': True, 'min_length': 8, 'required': False},
@@ -54,7 +57,7 @@ class UserSerializer(serializers.ModelSerializer):
         return None
 
     def get_file_size_quota_mb(self, obj):
-        return settings.FILE_SIZE_QUOTA_MB
+        return get_dynamic_setting('FILE_SIZE_QUOTA_MB')
 
     def create(self, validated_data):
         """
@@ -100,3 +103,11 @@ class ChangePasswordSerializer(serializers.Serializer):
         except ValidationError as e:
             raise serializers.ValidationError(list(e.messages))
         return value
+
+
+class AppConfigurationSerializer(serializers.ModelSerializer):
+    """Serializer for the AppConfiguration model for admin use."""
+    class Meta:
+        model = AppConfiguration
+        fields = ['key', 'value', 'description']
+        read_only_fields = ['key', 'description']

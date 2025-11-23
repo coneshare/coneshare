@@ -5,11 +5,8 @@ services:
       dockerfile: Dockerfile-dev
     restart: unless-stopped
     ports:
-      - "8080:8080"    
-    environment:
-      - PORT=8080
-      - STORAGE_PATH=/storage
-      - INTERNAL_API_TOKEN=supersecrettoken # Replace with a real secret in prod
+      - "8080:8080"
+    env_file: .env
     volumes:
       - ./core:/app
       - ~/.coneshare-data:/storage
@@ -29,9 +26,7 @@ services:
     depends_on:
       - redis
       - core
-    environment:
-      - CORE_API_URL=http://core:8080
-      - INTERNAL_API_TOKEN=supersecrettoken
+    env_file: .env
 
   redis:
     image: redis:7-alpine
@@ -52,9 +47,7 @@ services:
       - backend
       - redis
       - core
-    environment:
-      - CORE_API_URL=http://core:8080
-      - INTERNAL_API_TOKEN=supersecrettoken
+    env_file: .env
 
   frontend:
     image: coneshare:frontend

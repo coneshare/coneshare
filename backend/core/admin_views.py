@@ -1,0 +1,78 @@
+import json
+
+from django.conf import settings
+from rest_framework import permissions, status, viewsets
+from rest_framework.response import Response
+
+from .models import AppConfiguration
+from .serializers import AppConfigurationSerializer
+
+# This list should be kept in sync with the defaults in settings.py
+DEFAULT_SETTINGS = {
+    'MAX_PREVIEW_FILE_SIZE_MB': {'description': 'Max file size in MB for preview generation.', 'is_json': False},
+    'FILE_SIZE_QUOTA_MB': {'description': 'Per-user file size quota in MB. 0 means unlimited.', 'is_json': False},
+    'ENABLED_CLOUD_PROVIDERS': {'description': 'JSON list of enabled cloud providers (e.g., ["dropbox"]).', 'is_json': True},
+    'CLOUD_IMPORT_FOLDER_MAPPING': {'description': 'JSON mapping of provider IDs to default folder names.', 'is_json': True},
+    'CLOUD_IMPORT_MAX_SIZE_MB': {'description': 'Max file size in MB for cloud imports.', 'is_json': False},
+    'DROPBOX_APP_KEY': {'description': 'API Key for Dropbox integration.', 'is_json': False},
+    'DROPBOX_APP_SECRET': {'description': 'API Secret for Dropbox integration.', 'is_json': False},
+    'GOOGLE_DRIVE_CLIENT_ID': {'description': 'Client ID for Google Drive integration.', 'is_json': False},
+    'GOOGLE_DRIVE_CLIENT_SECRET': {'description': 'Client Secret for Google Drive integration.', 'is_json': False},
+    'NEXT_CLOUD_HOST': {'description': 'Host URL for Nextcloud (e.g., https://cloud.example.com).', 'is_json': False},
+    'NEXT_CLOUD_CLIENT_ID': {'description': 'Client ID for Nextcloud integration.', 'is_json': False},
+    'NEXT_CLOUD_CLIENT_SECRET': {'description': 'Client Secret for Nextcloud integration.', 'is_json': False},
+}
+
+
+class AdminSettingsViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for superusers to manage application settings.
+    This view dynamically merges settings from the database with defaults from settings.py.
+    """
+    queryset = AppConfiguration.objects.all()
+    serializer_class = AppConfigurationSerializer
+    permission_classes = [permissions.IsAdminUser]
+    lookup_field = 'key'
+
+    def list(self, request, *args, **kwargs):
+        existing_settings = {s.key: s for s in self.get_queryset()}
+        
+        results = []
+        for key, config in DEFAULT_SETTINGS.items():
+            if key in existing_settings:
+                obj = existing_settings[key]
+                value = obj.value
+                description = obj.description
+            else:
+                default_value = getattr(settings, key)
+                value = json.dumps(default_value) if config.get('is_json') else str(default_value)
+                description = config['description']
+            
+            results.append({
+                'key': key,
+                'value': value,
+                'description': description
+            })
+
+        results.sort(key=lambda x: x['key'])
+        return Response(results)
+
+    def update(self, request, *args, **kwargs):
+        key = self.kwargs.get(self.lookup_field)
+        if key not in DEFAULT_SETTINGS:
+            return Response({'detail': 'Setting not found.'}, status=status.HTTP_404_NOT_FOUND)
+            
+        serializer = self.get_serializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        value = serializer.validated_data.get('value')
+        
+        config = DEFAULT_SETTINGS[key]
+        description = config['description']
+
+        obj, created = AppConfiguration.objects.update_or_create(
+            key=key,
+            defaults={'value': value, 'description': description}
+        )
+        
+        response_serializer = self.get_serializer(obj)
+        return Response(response_serializer.data)
