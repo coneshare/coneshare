@@ -10,6 +10,15 @@ jobs:
   test-backend:
     runs-on: ubuntu-latest
 
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -36,7 +45,10 @@ jobs:
         go-version: '1.25'
 
     - name: Build Go file server
-      run: go build -o file-server ./core
+      working-directory: ./core
+      run: |
+        go mod tidy
+        go build -o ../file-server .      
 
     - name: Run Go file server in background
       run: ./file-server &
@@ -45,10 +57,11 @@ jobs:
         STORAGE_PATH: "/tmp/storage"      
 
     - name: Run tests
-      run: pytest backend/tests
+      run: pytest backend/tests --maxfail=3
       env:
         SECRET_KEY: "dummy-secret-key-for-ci-tests"
         DATABASE_URL: "sqlite:///db.sqlite3"
+        REDIS_URL: "redis://localhost:6379/0"
         CELERY_TASK_ALWAYS_EAGER: "True"
         INTERNAL_API_TOKEN: "dummy-internal-api-token-for-ci"
         FIELD_ENCRYPTION_KEY: "S-c9WBE3DEJE2R7i-b-sOmegRChW2McTDIOWcrG0-C8="
