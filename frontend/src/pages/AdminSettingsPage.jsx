@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -113,9 +114,21 @@ export function AdminSettingsPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <h1 className="mb-6 text-2xl font-bold">
-        Application Settings
-      </h1>
+      <div className="mb-6 border-b pb-4">
+        <h1 className="text-2xl font-bold">Admin Panel</h1>
+        <nav className="mt-2 flex items-center gap-x-4 text-sm">
+          <Link to="/admin/settings" className="font-semibold text-primary">
+            Settings
+          </Link>
+          <Link
+            to="/admin/users"
+            className="text-muted-foreground transition-colors hover:text-primary"
+          >
+            Users
+          </Link>
+        </nav>
+      </div>
+      <h2 className="mb-4 text-2xl font-bold">Application Settings</h2>
       <div className="overflow-hidden rounded-lg border">
         <table className="min-w-full">
           <thead className="bg-muted/50">

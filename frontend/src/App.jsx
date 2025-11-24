@@ -16,6 +16,7 @@ import { ShareLinkAnalyticsPage } from './pages/ShareLinkAnalyticsPage';
 import { ShareLinkViewerPage } from './pages/ShareLinkViewerPage';
 import UserSettingsPage from './pages/UserSettingsPage';
 import { AdminSettingsPage } from './pages/AdminSettingsPage';
+import { AdminUsersPage } from './pages/AdminUsersPage';
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
           <Route path="/settings" element={<UserSettingsPage />} />
           <Route path="/settings/password" element={<PasswordSettingsPage />} />
           <Route path="/admin/settings" element={<AdminSettingsPage />} />
+          <Route path="/admin/users" element={<AdminUsersPage />} />
         </Route>
       </Routes>
     </>

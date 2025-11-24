@@ -350,5 +350,8 @@ export const downloadDataroomFolder = (slug, folderId) => {
 // Admin
 export const getAdminSettings = () => api.get('/admin/settings/');
 export const updateAdminSetting = (key, value) => api.patch(`/admin/settings/${key}/`, { value });
+export const getAdminUsers = () => api.get('/users/');
+export const createAdminUser = (data) => api.post('/users/', data);
+export const deleteAdminUser = (id) => api.delete(`/users/${id}/`);
     
 export default api;

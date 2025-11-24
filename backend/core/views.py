@@ -15,15 +15,30 @@ User = get_user_model()
 
 class IsSelfOrAdmin(permissions.BasePermission):
     """
-    Object-level permission to only allow users to view/edit their own profile,
-    or admins to view/edit any profile in their organization.
+    Permission to allow:
+    - Admins to perform any action on users within their organization.
+    - Non-admin users to view/edit their own profile.
     """
+    def has_permission(self, request, view):
+        # This check ensures the user is authenticated for any action.
+        if not request.user.is_authenticated:
+            return False
+        # Only admins can create users.
+        if view.action == 'create':
+            return request.user.role == 'admin'
+        return True
+
     def has_object_permission(self, request, view, obj):
-        # Admins can access any user in their organization.
+        # Admins can do anything to users in their org, except delete themselves.
         if request.user.role == 'admin':
+            if view.action == 'destroy' and obj == request.user:
+                return False  # Admin cannot delete self.
             return obj.organization == request.user.organization
-        # Any user can access their own profile.
-        return obj == request.user
+
+        # Non-admins can only view/edit their own profile.
+        if view.action in ['retrieve', 'update', 'partial_update']:
+            return obj == request.user
+        return False
 
 
 class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):
@@ -34,14 +49,16 @@ class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = OrganizationSerializer
 
 
-class UserViewSet(mixins.RetrieveModelMixin,
+class UserViewSet(mixins.CreateModelMixin,
+                  mixins.RetrieveModelMixin,
                   mixins.UpdateModelMixin,
                   mixins.DestroyModelMixin,
                   mixins.ListModelMixin,
                   viewsets.GenericViewSet):
     """
     API endpoint that allows users to be viewed or edited.
-    Does not include 'create' action; use the dedicated RegisterView for that.
+    - Admins can perform all CRUD operations on users in their organization.
+    - Regular users can only view and edit their own profile.
     """
     queryset = User.objects.all().order_by('-date_joined')
     serializer_class = UserSerializer
@@ -57,6 +74,12 @@ class UserViewSet(mixins.RetrieveModelMixin,
         if user.role == 'admin':
             return User.objects.filter(organization=user.organization).order_by('-date_joined')
         return User.objects.filter(pk=user.pk)
+
+    def perform_create(self, serializer):
+        """
+        When an admin creates a user, associate the user with the admin's organization.
+        """
+        serializer.save(organization=self.request.user.organization)
 
 
 class UserGroupViewSet(viewsets.ModelViewSet):
