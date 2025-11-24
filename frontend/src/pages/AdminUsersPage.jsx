@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import * as api from '../services/api';
@@ -109,76 +109,6 @@ function AddUserForm({ onAddUser, onCancel }) {
   );
 }
 
-function EditableCell({ user, field, onUpdate }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [value, setValue] = useState(user[field]);
-  const inputRef = useRef(null);
-
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isEditing]);
-
-  const handleSave = async () => {
-    if (value === user[field]) {
-      setIsEditing(false);
-      return;
-    }
-    try {
-      await onUpdate(user.id, { [field]: value });
-      toast.success(`User '${user.name}' updated successfully.`);
-    } catch {
-      setValue(user[field]); // Revert on failure
-    } finally {
-      setIsEditing(false);
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      handleSave();
-    } else if (e.key === 'Escape') {
-      setValue(user[field]);
-      setIsEditing(false);
-    }
-  };
-
-  if (isEditing) {
-    if (field === 'role') {
-      return (
-        <select
-          ref={inputRef}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={handleSave}
-          onKeyDown={handleKeyDown}
-          className="block w-full rounded-md border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 border"
-        >
-          <option value="member">Member</option>
-          <option value="admin">Admin</option>
-        </select>
-      );
-    }
-    return (
-      <Input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={handleSave}
-        onKeyDown={handleKeyDown}
-      />
-    );
-  }
-
-  return (
-    <span onClick={() => setIsEditing(true)} className="cursor-pointer">
-      {user[field]}
-    </span>
-  );
-}
-
 function SkeletonRow() {
   return (
     <tr className="border-b">
@@ -206,6 +136,8 @@ export function AdminUsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [editedUserData, setEditedUserData] = useState({});
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -223,12 +155,19 @@ export function AdminUsersPage() {
   }, []);
 
   const handleUpdateUser = async (userId, data) => {
-    const response = await api.updateAdminUser(userId, data);
-    setUsers((prevUsers) =>
-      prevUsers.map((user) =>
-        user.id === userId ? { ...user, ...response.data } : user
-      )
-    );
+    try {
+      const response = await api.updateAdminUser(userId, data);
+      setUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user.id === userId ? { ...user, ...response.data } : user
+        )
+      );
+      toast.success(`User updated successfully.`);
+      return response.data;
+    } catch (error) {
+      // Error is handled by interceptor
+      throw error;
+    }
   };
 
   const handleAddUser = async (userData) => {
@@ -252,6 +191,31 @@ export function AdminUsersPage() {
     } catch (error) {
       // Error toast is handled by the global interceptor
     }
+  };
+
+  const handleEdit = (user) => {
+    setEditingUserId(user.id);
+    setEditedUserData({ name: user.name, role: user.role });
+  };
+
+  const handleCancel = () => {
+    setEditingUserId(null);
+    setEditedUserData({});
+  };
+
+  const handleSave = async (userId) => {
+    try {
+      await handleUpdateUser(userId, editedUserData);
+      setEditingUserId(null);
+      setEditedUserData({});
+    } catch {
+      // Don't exit edit mode on failure
+    }
+  };
+
+  const handleEditDataChange = (e) => {
+    const { name, value } = e.target;
+    setEditedUserData((prev) => ({ ...prev, [name]: value }));
   };
 
   return (
@@ -309,37 +273,79 @@ export function AdminUsersPage() {
           <tbody>
             {isLoading
               ? [...Array(5)].map((_, i) => <SkeletonRow key={i} />)
-              : users.map((user) => (
-                  <tr key={user.id} className="border-b">
-                    <td className="p-4 font-medium">
-                      <EditableCell
-                        user={user}
-                        field="name"
-                        onUpdate={handleUpdateUser}
-                      />
-                    </td>
-                    <td className="p-4 text-muted-foreground">{user.email}</td>
-                    <td className="p-4 text-muted-foreground">
-                      <EditableCell
-                        user={user}
-                        field="role"
-                        onUpdate={handleUpdateUser}
-                      />
-                    </td>
-                    <td className="p-4 text-muted-foreground">
-                      {new Date(user.date_joined).toLocaleDateString()}
-                    </td>
-                    <td className="p-4">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => setUserToDelete(user)}
-                      >
-                        Delete
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+              : users.map((user) =>
+                  editingUserId === user.id ? (
+                    <tr key={user.id} className="border-b bg-muted/50">
+                      <td className="p-4 font-medium">
+                        <Input
+                          name="name"
+                          value={editedUserData.name}
+                          onChange={handleEditDataChange}
+                        />
+                      </td>
+                      <td className="p-4 text-muted-foreground">
+                        {user.email}
+                      </td>
+                      <td className="p-4 text-muted-foreground">
+                        <select
+                          name="role"
+                          value={editedUserData.role}
+                          onChange={handleEditDataChange}
+                          className="block w-full rounded-md border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 border"
+                        >
+                          <option value="member">Member</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </td>
+                      <td className="p-4 text-muted-foreground">
+                        {new Date(user.date_joined).toLocaleDateString()}
+                      </td>
+                      <td className="p-4">
+                        <div className="flex gap-x-2">
+                          <Button size="sm" onClick={() => handleSave(user.id)}>
+                            Save
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleCancel}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={user.id} className="border-b">
+                      <td className="p-4 font-medium">{user.name}</td>
+                      <td className="p-4 text-muted-foreground">
+                        {user.email}
+                      </td>
+                      <td className="p-4 text-muted-foreground">{user.role}</td>
+                      <td className="p-4 text-muted-foreground">
+                        {new Date(user.date_joined).toLocaleDateString()}
+                      </td>
+                      <td className="p-4">
+                        <div className="flex gap-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(user)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => setUserToDelete(user)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                )}
           </tbody>
         </table>
       </div>
