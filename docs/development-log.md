@@ -1270,3 +1270,32 @@ This session focused on implementing a new admin panel for superusers, allowing 
 - **General Fixes**: Addressed and fixed various other test failures related to changes in API request formats and service logic, ensuring the test suite remains robust and reliable.
 
 ---
+
+## Session 57: Admin User Management & CI Enhancements (2025-11-24)
+
+This session focused on implementing a comprehensive user management feature within the admin panel and establishing a continuous integration (CI) pipeline for the backend. The work involved
+ignificant backend API development, frontend UI implementation with a focus on reusability, and a series of iterative fixes to the CI workflow and test suite.
+[https://github.com/coneshare/coneshare/pull/74](https://github.com/coneshare/coneshare/pull/74), [https://github.com/coneshare/coneshare/pull/75](https://github.com/coneshare/coneshare/pull/75)
+
+### 1. Backend CI Pipeline with GitHub Actions
+- **CI Workflow**: A new GitHub Actions workflow was created at `.github/workflows/backend-ci.yml` to run backend tests automatically on pushes and pull requests to the `main` branch.
+- **Service Dependencies**: The workflow was configured to build and run the Go file server and start a Redis service container, ensuring all backend dependencies are available during the test
+un.
+- **Configuration as Code**: The Django settings were updated to read the Redis URL from an environment variable, allowing the CI environment to connect to the Redis service.
+
+### 2. Admin User Management Feature
+- **Backend API**:
+  - Implemented secure API endpoints under `/api/v1/admin/users/` for administrators to create, list, update, and delete users within their organization.
+  - The API was refactored to use separate, role-specific viewsets (`AdminUserViewSet` and `UserViewSet`) for improved security and clarity, moving admin views to a dedicated `admin_views.py`.
+- **Frontend UI**:
+  - A new "Users" page was added to the admin panel, featuring a table of all users in the organization.
+  - Implemented an "Add User" form and an inline, row-based editing system for updating user details like name, role, and active status.
+  - Action buttons were replaced with icons from `lucide-react` for a cleaner UI.
+- **Component Refactoring**: To improve maintainability, duplicated UI elements were extracted into reusable components, including `AdminNav` for admin page navigation and a generic `Select`
+omponent for dropdown inputs.
+
+### 3. Bug Fixes & Test Suite Hardening
+- **API Error Handling**: Fixed a bug where the frontend would not display a specific error message from the backend. The backend was updated to return a standard error object (`{"detail":
+..."}`) that the frontend can correctly parse.
+- **Test Suite Maintenance**: A series of failing tests in `tests/core/test_views.py` were fixed after the major API refactoring. The tests were updated to use the new `/admin/users/` endpoint
+and to correctly handle paginated responses.
