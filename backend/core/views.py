@@ -13,32 +13,21 @@ from core.serializers import (ChangePasswordSerializer, OrganizationSerializer,
 User = get_user_model()
 
 
-class IsSelfOrAdmin(permissions.BasePermission):
+class IsAdmin(permissions.BasePermission):
     """
-    Permission to allow:
-    - Admins to perform any action on users within their organization.
-    - Non-admin users to view/edit their own profile.
+    Allows access only to admin users.
     """
     def has_permission(self, request, view):
-        # This check ensures the user is authenticated for any action.
-        if not request.user.is_authenticated:
-            return False
-        # Only admins can create users.
-        if view.action == 'create':
-            return request.user.role == 'admin'
-        return True
+        return request.user.is_authenticated and request.user.role == 'admin'
 
+
+class IsSelf(permissions.BasePermission):
+    """
+    Object-level permission to only allow users to edit their own profile.
+    """
     def has_object_permission(self, request, view, obj):
-        # Admins can do anything to users in their org, except delete themselves.
-        if request.user.role == 'admin':
-            if view.action == 'destroy' and obj == request.user:
-                return False  # Admin cannot delete self.
-            return obj.organization == request.user.organization
-
-        # Non-admins can only view/edit their own profile.
-        if view.action in ['retrieve', 'update', 'partial_update']:
-            return obj == request.user
-        return False
+        # Any user can access their own profile.
+        return obj == request.user
 
 
 class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):
@@ -49,37 +38,52 @@ class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = OrganizationSerializer
 
 
-class UserViewSet(mixins.CreateModelMixin,
-                  mixins.RetrieveModelMixin,
-                  mixins.UpdateModelMixin,
-                  mixins.DestroyModelMixin,
-                  mixins.ListModelMixin,
-                  viewsets.GenericViewSet):
+class AdminUserViewSet(viewsets.ModelViewSet):
     """
-    API endpoint that allows users to be viewed or edited.
-    - Admins can perform all CRUD operations on users in their organization.
-    - Regular users can only view and edit their own profile.
+    API endpoint for admins to manage users in their organization.
     """
     queryset = User.objects.all().order_by('-date_joined')
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated, IsSelfOrAdmin]
+    permission_classes = [IsAuthenticated, IsAdmin]
     parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
         """
         Admins can see all users in their organization.
-        Regular users can only see themselves.
         """
         user = self.request.user
-        if user.role == 'admin':
-            return User.objects.filter(organization=user.organization).order_by('-date_joined')
-        return User.objects.filter(pk=user.pk)
+        return User.objects.filter(organization=user.organization).order_by('-date_joined')
 
     def perform_create(self, serializer):
         """
         When an admin creates a user, associate the user with the admin's organization.
         """
         serializer.save(organization=self.request.user.organization)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance == request.user:
+            return Response({"detail": "Admins cannot delete their own account."}, status=status.HTTP_400_BAD_REQUEST)
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class UserViewSet(mixins.RetrieveModelMixin,
+                  mixins.UpdateModelMixin,
+                  viewsets.GenericViewSet):
+    """
+    API endpoint that allows a user to view and edit their own profile.
+    """
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated, IsSelf]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_queryset(self):
+        """
+        Users can only see/edit themselves.
+        """
+        return User.objects.filter(pk=self.request.user.pk)
 
 
 class UserGroupViewSet(viewsets.ModelViewSet):

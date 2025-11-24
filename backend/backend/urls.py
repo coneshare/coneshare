@@ -19,10 +19,16 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path, re_path
 from django.views.generic import TemplateView
+from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import (TokenObtainPairView,
                                             TokenRefreshView)
 
-from core.views import LogoutView, RegisterView, SetPasswordView
+from core.views import (AdminUserViewSet, LogoutView, RegisterView,
+                        SetPasswordView)
+
+admin_router = DefaultRouter()
+admin_router.register(r'users', AdminUserViewSet, basename='admin-user')
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -39,7 +45,7 @@ urlpatterns = [
     path('api/v1/', include('analytics.urls')),
     path('api/v1/cloud/', include('cloudfiles.urls')),
     path('api/v1/admin/', include('core.admin_urls')),
-
+    path('api/v1/admin/', include(admin_router.urls)),
 ]
 
 if settings.DEBUG:
