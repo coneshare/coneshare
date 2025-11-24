@@ -352,6 +352,7 @@ export const getAdminSettings = () => api.get('/admin/settings/');
 export const updateAdminSetting = (key, value) => api.patch(`/admin/settings/${key}/`, { value });
 export const getAdminUsers = () => api.get('/admin/users/');
 export const createAdminUser = (data) => api.post('/admin/users/', data);
+export const updateAdminUser = (id, data) => api.patch(`/admin/users/${id}/`, data);
 export const deleteAdminUser = (id) => api.delete(`/admin/users/${id}/`);
     
 export default api;

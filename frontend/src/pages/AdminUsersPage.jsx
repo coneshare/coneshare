@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import * as api from '../services/api';
@@ -109,6 +109,76 @@ function AddUserForm({ onAddUser, onCancel }) {
   );
 }
 
+function EditableCell({ user, field, onUpdate }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [value, setValue] = useState(user[field]);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isEditing]);
+
+  const handleSave = async () => {
+    if (value === user[field]) {
+      setIsEditing(false);
+      return;
+    }
+    try {
+      await onUpdate(user.id, { [field]: value });
+      toast.success(`User '${user.name}' updated successfully.`);
+    } catch {
+      setValue(user[field]); // Revert on failure
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      setValue(user[field]);
+      setIsEditing(false);
+    }
+  };
+
+  if (isEditing) {
+    if (field === 'role') {
+      return (
+        <select
+          ref={inputRef}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={handleKeyDown}
+          className="block w-full rounded-md border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 border"
+        >
+          <option value="member">Member</option>
+          <option value="admin">Admin</option>
+        </select>
+      );
+    }
+    return (
+      <Input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={handleKeyDown}
+      />
+    );
+  }
+
+  return (
+    <span onClick={() => setIsEditing(true)} className="cursor-pointer">
+      {user[field]}
+    </span>
+  );
+}
+
 function SkeletonRow() {
   return (
     <tr className="border-b">
@@ -151,6 +221,15 @@ export function AdminUsersPage() {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  const handleUpdateUser = async (userId, data) => {
+    const response = await api.updateAdminUser(userId, data);
+    setUsers((prevUsers) =>
+      prevUsers.map((user) =>
+        user.id === userId ? { ...user, ...response.data } : user
+      )
+    );
+  };
 
   const handleAddUser = async (userData) => {
     try {
@@ -232,9 +311,21 @@ export function AdminUsersPage() {
               ? [...Array(5)].map((_, i) => <SkeletonRow key={i} />)
               : users.map((user) => (
                   <tr key={user.id} className="border-b">
-                    <td className="p-4 font-medium">{user.name}</td>
+                    <td className="p-4 font-medium">
+                      <EditableCell
+                        user={user}
+                        field="name"
+                        onUpdate={handleUpdateUser}
+                      />
+                    </td>
                     <td className="p-4 text-muted-foreground">{user.email}</td>
-                    <td className="p-4 text-muted-foreground">{user.role}</td>
+                    <td className="p-4 text-muted-foreground">
+                      <EditableCell
+                        user={user}
+                        field="role"
+                        onUpdate={handleUpdateUser}
+                      />
+                    </td>
                     <td className="p-4 text-muted-foreground">
                       {new Date(user.date_joined).toLocaleDateString()}
                     </td>
