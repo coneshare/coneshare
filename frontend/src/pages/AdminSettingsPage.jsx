@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { AdminNav } from '../components/admin/AdminNav';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -113,9 +114,8 @@ export function AdminSettingsPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <h1 className="mb-6 text-2xl font-bold">
-        Application Settings
-      </h1>
+      <AdminNav />
+      <h2 className="mb-4 text-2xl font-bold">Application Settings</h2>
       <div className="overflow-hidden rounded-lg border">
         <table className="min-w-full">
           <thead className="bg-muted/50">

@@ -12,7 +12,11 @@ function Header() {
   const currentNavItem = NAV_ITEMS.slice()
     .reverse()
     .find((item) => pathname.startsWith(item.href));
-  const title = currentNavItem ? currentNavItem.label : "";
+  let title = currentNavItem ? currentNavItem.label : "";
+
+  if (pathname.startsWith('/admin/')) {
+    title = 'Admin Panel';
+  }
 
   const renderBreadcrumbs = () => {
     if (!breadcrumbData) {

@@ -61,7 +61,7 @@ function NavUser() {
             <span>Change Password</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
-        {user?.is_superuser && (
+        {user?.role == 'admin' && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => navigate("/admin/settings")}>
