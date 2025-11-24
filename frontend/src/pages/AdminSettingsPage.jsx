@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { AdminNav } from '../components/admin/AdminNav';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -114,19 +114,7 @@ export function AdminSettingsPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <div className="mb-6 border-b pb-4">
-        <nav className="flex items-center gap-x-4 text-sm">
-          <Link to="/admin/settings" className="font-semibold text-primary">
-            Settings
-          </Link>
-          <Link
-            to="/admin/users"
-            className="text-muted-foreground transition-colors hover:text-primary"
-          >
-            Users
-          </Link>
-        </nav>
-      </div>
+      <AdminNav />
       <h2 className="mb-4 text-2xl font-bold">Application Settings</h2>
       <div className="overflow-hidden rounded-lg border">
         <table className="min-w-full">

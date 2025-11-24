@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import * as api from '../services/api';
+import { AdminNav } from '../components/admin/AdminNav';
 import { Button } from '../components/ui/Button';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { Input } from '../components/ui/Input';
@@ -235,19 +235,7 @@ export function AdminUsersPage() {
         onConfirm={handleDeleteUser}
         confirmText="Delete"
       />
-      <div className="mb-6 border-b pb-4">
-        <nav className="flex items-center gap-x-4 text-sm">
-          <Link
-            to="/admin/settings"
-            className="text-muted-foreground transition-colors hover:text-primary"
-          >
-            Settings
-          </Link>
-          <Link to="/admin/users" className="font-semibold text-primary">
-            Users
-          </Link>
-        </nav>
-      </div>
+      <AdminNav />
 
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-2xl font-bold">User Management</h2>
