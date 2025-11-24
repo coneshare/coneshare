@@ -7,10 +7,7 @@ import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { Input } from '../components/ui/Input';
 import { PlusIcon } from '../components/icons/PlusIcon';
 import { Skeleton } from '../components/ui/Skeleton';
-import { PencilIcon } from '../components/icons/PencilIcon';
-import { TrashIcon } from '../components/icons/TrashIcon';
-import { CheckIcon } from '../components/icons/CheckIcon';
-import { XMarkIcon } from '../components/icons/XMarkIcon';
+import { Pencil, Trash2, Check, X } from 'lucide-react';
 
 function AddUserForm({ onAddUser, onCancel }) {
   const [formData, setFormData] = useState({
@@ -330,14 +327,14 @@ export function AdminUsersPage() {
                             size="icon"
                             onClick={() => handleSave(user.id)}
                           >
-                            <CheckIcon className="h-5 w-5" />
+                            <Check className="h-5 w-5" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={handleCancel}
                           >
-                            <XMarkIcon className="h-5 w-5" />
+                            <X className="h-5 w-5" />
                           </Button>
                         </div>
                       </td>
@@ -370,14 +367,14 @@ export function AdminUsersPage() {
                             size="icon"
                             onClick={() => handleEdit(user)}
                           >
-                            <PencilIcon className="h-5 w-5" />
+                            <Pencil className="h-5 w-5" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => setUserToDelete(user)}
                           >
-                            <TrashIcon className="h-5 w-5" />
+                            <Trash2 className="h-5 w-5" />
                           </Button>
                         </div>
                       </td>
