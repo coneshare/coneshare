@@ -1,12 +1,17 @@
 import json
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from rest_framework import permissions, status, viewsets
+from rest_framework.parsers import JSONParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from documents.views import StandardResultsSetPagination
 from .models import AppConfiguration
-from .serializers import AppConfigurationSerializer
+from .serializers import AppConfigurationSerializer, UserSerializer
+
+User = get_user_model()
 
 
 class IsAdmin(permissions.BasePermission):
@@ -86,3 +91,34 @@ class AdminSettingsViewSet(viewsets.ModelViewSet):
         
         response_serializer = self.get_serializer(obj)
         return Response(response_serializer.data)
+
+
+class AdminUserViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for admins to manage users in their organization.
+    """
+    queryset = User.objects.all().order_by('-date_joined')
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+    # parser_classes = [JSONParser]
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        """
+        Admins can see all users in their organization.
+        """
+        user = self.request.user
+        return User.objects.filter(organization=user.organization).order_by('-date_joined')
+
+    def perform_create(self, serializer):
+        """
+        When an admin creates a user, associate the user with the admin's organization.
+        """
+        serializer.save(organization=self.request.user.organization)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance == request.user:
+            return Response({"detail": "Admins cannot delete their own account."}, status=status.HTTP_400_BAD_REQUEST)
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)

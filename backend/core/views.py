@@ -1,25 +1,16 @@
 from django.contrib.auth import get_user_model, logout
 from rest_framework import mixins, permissions, status, viewsets
-from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from documents.views import StandardResultsSetPagination
 from core.models import Organization, UserGroup
 from core.serializers import (ChangePasswordSerializer, OrganizationSerializer,
                               UserGroupSerializer, UserSerializer)
 
 User = get_user_model()
-
-
-class IsAdmin(permissions.BasePermission):
-    """
-    Allows access only to admin users.
-    """
-    def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role == 'admin'
 
 
 class IsSelf(permissions.BasePermission):
@@ -37,37 +28,6 @@ class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = Organization.objects.all().order_by('-created_at')
     serializer_class = OrganizationSerializer
-
-
-class AdminUserViewSet(viewsets.ModelViewSet):
-    """
-    API endpoint for admins to manage users in their organization.
-    """
-    queryset = User.objects.all().order_by('-date_joined')
-    serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
-    # parser_classes = [JSONParser]
-    pagination_class = StandardResultsSetPagination
-
-    def get_queryset(self):
-        """
-        Admins can see all users in their organization.
-        """
-        user = self.request.user
-        return User.objects.filter(organization=user.organization).order_by('-date_joined')
-
-    def perform_create(self, serializer):
-        """
-        When an admin creates a user, associate the user with the admin's organization.
-        """
-        serializer.save(organization=self.request.user.organization)
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if instance == request.user:
-            return Response({"detail": "Admins cannot delete their own account."}, status=status.HTTP_400_BAD_REQUEST)
-        self.perform_destroy(instance)
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class UserViewSet(mixins.RetrieveModelMixin,

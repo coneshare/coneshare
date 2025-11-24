@@ -23,11 +23,8 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import (TokenObtainPairView,
                                             TokenRefreshView)
 
-from core.views import (AdminUserViewSet, LogoutView, RegisterView,
+from core.views import (LogoutView, RegisterView,
                         SetPasswordView)
-
-admin_router = DefaultRouter()
-admin_router.register(r'users', AdminUserViewSet, basename='admin-user')
 
 
 urlpatterns = [
@@ -45,7 +42,6 @@ urlpatterns = [
     path('api/v1/', include('analytics.urls')),
     path('api/v1/cloud/', include('cloudfiles.urls')),
     path('api/v1/admin/', include('core.admin_urls')),
-    path('api/v1/admin/', include(admin_router.urls)),
 ]
 
 if settings.DEBUG:
