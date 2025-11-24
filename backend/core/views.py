@@ -32,6 +32,7 @@ class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):
 
 class UserViewSet(mixins.RetrieveModelMixin,
                   mixins.UpdateModelMixin,
+                  mixins.ListModelMixin,
                   viewsets.GenericViewSet):
     """
     API endpoint that allows a user to view and edit their own profile.

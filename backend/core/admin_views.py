@@ -2,7 +2,7 @@ import json
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from rest_framework import permissions, status, viewsets
+from rest_framework import permissions, status, viewsets, serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -96,7 +96,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
     """
     API endpoint for admins to manage users in their organization.
     """
-    queryset = User.objects.all().order_by('-date_joined')
+    queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
     pagination_class = StandardResultsSetPagination
@@ -113,6 +113,27 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         When an admin creates a user, associate the user with the admin's organization.
         """
         serializer.save(organization=self.request.user.organization)
+
+    def perform_update(self, serializer):
+        """
+        When an admin updates a user, prevent them from removing the last active admin.
+        """
+        instance = serializer.instance
+        new_role = serializer.validated_data.get('role', instance.role)
+        new_is_active = serializer.validated_data.get('is_active', instance.is_active)
+
+        # Check if an admin is demoting or deactivating themselves
+        if instance.id == self.request.user.id and (new_role != 'admin' or not new_is_active):
+            active_admins = User.objects.filter(
+                organization=self.request.user.organization,
+                role='admin',
+                is_active=True
+            )
+            if active_admins.count() <= 1 and active_admins.first() == instance:
+                raise serializers.ValidationError(
+                    "Cannot demote or deactivate the last active admin of the organization."
+                )
+        serializer.save()
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
