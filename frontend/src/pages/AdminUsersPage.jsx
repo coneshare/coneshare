@@ -7,6 +7,7 @@ import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { Input } from '../components/ui/Input';
 import { PlusIcon } from '../components/icons/PlusIcon';
 import { Skeleton } from '../components/ui/Skeleton';
+import { Select } from '../components/ui/Select';
 import { Pencil, Trash2, Check, X } from 'lucide-react';
 
 function AddUserForm({ onAddUser, onCancel }) {
@@ -282,26 +283,24 @@ export function AdminUsersPage() {
                         {user.email}
                       </td>
                       <td className="p-4 text-muted-foreground">
-                        <select
+                        <Select
                           name="role"
                           value={editedUserData.role}
                           onChange={handleEditDataChange}
-                          className="block w-full rounded-md border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 border"
                         >
                           <option value="member">Member</option>
                           <option value="admin">Admin</option>
-                        </select>
+                        </Select>
                       </td>
                       <td className="p-4 text-muted-foreground">
-                        <select
+                        <Select
                           name="is_active"
                           value={editedUserData.is_active}
                           onChange={handleEditDataChange}
-                          className="block w-full rounded-md border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 border"
                         >
                           <option value={true}>Active</option>
                           <option value={false}>Inactive</option>
-                        </select>
+                        </Select>
                       </td>
                       <td className="p-4 text-muted-foreground">
                         {new Date(user.date_joined).toLocaleDateString()}
