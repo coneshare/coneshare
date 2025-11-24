@@ -1,11 +1,12 @@
 from django.contrib.auth import get_user_model, logout
 from rest_framework import mixins, permissions, status, viewsets
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from documents.views import StandardResultsSetPagination
 from core.models import Organization, UserGroup
 from core.serializers import (ChangePasswordSerializer, OrganizationSerializer,
                               UserGroupSerializer, UserSerializer)
@@ -45,7 +46,8 @@ class AdminUserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all().order_by('-date_joined')
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
-    parser_classes = [MultiPartParser, FormParser]
+    # parser_classes = [JSONParser]
+    pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
         """

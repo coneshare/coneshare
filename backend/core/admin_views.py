@@ -2,10 +2,20 @@ import json
 
 from django.conf import settings
 from rest_framework import permissions, status, viewsets
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .models import AppConfiguration
 from .serializers import AppConfigurationSerializer
+
+
+class IsAdmin(permissions.BasePermission):
+    """
+    Allows access only to admin users.
+    """
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'admin'
+
 
 # This list should be kept in sync with the defaults in settings.py
 DEFAULT_SETTINGS = {
@@ -31,7 +41,7 @@ class AdminSettingsViewSet(viewsets.ModelViewSet):
     """
     queryset = AppConfiguration.objects.all()
     serializer_class = AppConfigurationSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdmin]
     lookup_field = 'key'
 
     def list(self, request, *args, **kwargs):
