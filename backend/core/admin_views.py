@@ -130,9 +130,9 @@ class AdminUserViewSet(viewsets.ModelViewSet):
                 is_active=True
             )
             if active_admins.count() <= 1 and active_admins.first() == instance:
-                raise serializers.ValidationError(
-                    "Cannot demote or deactivate the last active admin of the organization."
-                )
+                raise serializers.ValidationError({
+                    "detail": "Cannot demote or deactivate the last active admin of the organization."
+                })
         serializer.save()
 
     def destroy(self, request, *args, **kwargs):
