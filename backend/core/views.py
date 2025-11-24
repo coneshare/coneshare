@@ -13,15 +13,11 @@ from core.serializers import (ChangePasswordSerializer, OrganizationSerializer,
 User = get_user_model()
 
 
-class IsSelfOrAdmin(permissions.BasePermission):
+class IsSelf(permissions.BasePermission):
     """
-    Object-level permission to only allow users to view/edit their own profile,
-    or admins to view/edit any profile in their organization.
+    Object-level permission to only allow users to edit their own profile.
     """
     def has_object_permission(self, request, view, obj):
-        # Admins can access any user in their organization.
-        if request.user.role == 'admin':
-            return obj.organization == request.user.organization
         # Any user can access their own profile.
         return obj == request.user
 
@@ -36,27 +32,20 @@ class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):
 
 class UserViewSet(mixins.RetrieveModelMixin,
                   mixins.UpdateModelMixin,
-                  mixins.DestroyModelMixin,
-                  mixins.ListModelMixin,
                   viewsets.GenericViewSet):
     """
-    API endpoint that allows users to be viewed or edited.
-    Does not include 'create' action; use the dedicated RegisterView for that.
+    API endpoint that allows a user to view and edit their own profile.
     """
-    queryset = User.objects.all().order_by('-date_joined')
+    queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated, IsSelfOrAdmin]
+    permission_classes = [IsAuthenticated, IsSelf]
     parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
         """
-        Admins can see all users in their organization.
-        Regular users can only see themselves.
+        Users can only see/edit themselves.
         """
-        user = self.request.user
-        if user.role == 'admin':
-            return User.objects.filter(organization=user.organization).order_by('-date_joined')
-        return User.objects.filter(pk=user.pk)
+        return User.objects.filter(pk=self.request.user.pk)
 
 
 class UserGroupViewSet(viewsets.ModelViewSet):
