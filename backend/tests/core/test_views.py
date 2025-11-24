@@ -32,18 +32,6 @@ def admin_client(admin_user):
 
 
 @pytest.fixture
-def user2(db, organization):
-    """Fixture to create a second user in the same organization."""
-    return User.objects.create_user(
-        username='user2@example.com',
-        email='user2@example.com',
-        password='password123',
-        organization=organization,
-        role='member'
-    )
-
-
-@pytest.fixture
 def other_org_user(db):
     """Fixture to create a user in a different organization."""
     other_org = Organization.objects.create(name="Other Org")
@@ -74,11 +62,11 @@ def test_list_users(admin_client, admin_user, organization):
         email='user2@example.com',
         organization=organization
     )
-    url = reverse('user-list')
+    url = reverse('admin-user-list')
     response = admin_client.get(url, format='json')
     assert response.status_code == status.HTTP_200_OK
-    assert len(response.data) == 2
-    emails = {user['email'] for user in response.data}
+    assert response.data['count'] == 2
+    emails = {user['email'] for user in response.data['results']}
     assert admin_user.email in emails
     assert 'user2@example.com' in emails
 
@@ -151,21 +139,21 @@ class TestUserViewSetPermissions:
     def test_admin_can_retrieve_other_user_in_org(self, api_client, admin_user, user):
         """An admin can retrieve another user's profile in the same org."""
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get(f'/api/v1/users/{user.id}/')
+        response = api_client.get(f'/api/v1/admin/users/{user.id}/')
         assert response.status_code == status.HTTP_200_OK
         assert response.data['id'] == str(user.id)
 
     def test_admin_cannot_retrieve_user_in_other_org(self, api_client, admin_user, other_org_user):
         """An admin cannot retrieve a user's profile from another org."""
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get(f'/api/v1/users/{other_org_user.id}/')
+        response = api_client.get(f'/api/v1/admin/users/{other_org_user.id}/')
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_admin_can_update_other_user_in_org(self, api_client, admin_user, user):
         """An admin can update another user's profile in the same org."""
         api_client.force_authenticate(user=admin_user)
         data = {'name': 'Updated by Admin'}
-        response = api_client.patch(f'/api/v1/users/{user.id}/', data)
+        response = api_client.patch(f'/api/v1/admin/users/{user.id}/', data)
         assert response.status_code == status.HTTP_200_OK
         user.refresh_from_db()
         assert user.name == 'Updated by Admin'
@@ -174,7 +162,7 @@ class TestUserViewSetPermissions:
         """An admin cannot update a user's profile from another org."""
         api_client.force_authenticate(user=admin_user)
         data = {'name': 'Updated by Admin'}
-        response = api_client.patch(f'/api/v1/users/{other_org_user.id}/', data)
+        response = api_client.patch(f'/api/v1/admin/users/{other_org_user.id}/', data)
         assert response.status_code == status.HTTP_404_NOT_FOUND
         other_org_user.refresh_from_db()
         assert other_org_user.name != 'Updated by Admin'
@@ -192,10 +180,10 @@ class TestUserViewSetQueryset:
     def test_admin_list_shows_all_org_users(self, api_client, admin_user, user, user2, other_org_user):
         """An admin listing users sees all users in their org, but not others."""
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/api/v1/users/')
+        response = api_client.get('/api/v1/admin/users/')
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data) == 3
-        ids = {item['id'] for item in response.data}
+        assert response.data['count'] == 3
+        ids = {item['id'] for item in response.data['results']}
         assert str(admin_user.id) in ids
         assert str(user.id) in ids
         assert str(user2.id) in ids
