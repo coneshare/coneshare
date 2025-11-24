@@ -147,7 +147,6 @@ export function AdminUsersPage() {
     setIsLoading(true);
     try {
       const response = await api.getAdminUsers();
-      console.log(response)
       setUsers(response.data.results);
     } finally {
       setIsLoading(false);
