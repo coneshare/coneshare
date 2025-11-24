@@ -45,7 +45,7 @@ class UserSerializer(serializers.ModelSerializer):
             'total_document_size', 'file_size_quota_mb', 'is_superuser'
         ]
         extra_kwargs = {
-            'password': {'write_only': True, 'min_length': 8, 'required': False},
+            'password': {'write_only': True, 'required': False},
             'avatar': {'write_only': True, 'required': False}
         }
 
@@ -56,6 +56,13 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_file_size_quota_mb(self, obj):
         return get_dynamic_setting('FILE_SIZE_QUOTA_MB')
+
+    def validate_password(self, value):
+        try:
+            password_validation.validate_password(value, self.instance)
+        except ValidationError as e:
+            raise serializers.ValidationError(list(e.messages))
+        return value
 
     def create(self, validated_data):
         """
