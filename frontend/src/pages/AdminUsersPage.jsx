@@ -237,8 +237,7 @@ export function AdminUsersPage() {
         confirmText="Delete"
       />
       <div className="mb-6 border-b pb-4">
-        <h1 className="text-2xl font-bold">Admin Panel</h1>
-        <nav className="mt-2 flex items-center gap-x-4 text-sm">
+        <nav className="flex items-center gap-x-4 text-sm">
           <Link
             to="/admin/settings"
             className="text-muted-foreground transition-colors hover:text-primary"
