@@ -38,7 +38,8 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'name', 'role', 'organization', 'password',
             'avatar', 'avatar_url', 'date_joined', 'updated_at',
-            'total_document_size', 'file_size_quota_mb', 'is_superuser'
+            'total_document_size', 'file_size_quota_mb', 'is_superuser',
+            'is_active'
         ]
         read_only_fields = [
             'id', 'organization', 'date_joined', 'updated_at', 'avatar_url',

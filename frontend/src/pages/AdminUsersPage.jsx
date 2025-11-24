@@ -7,6 +7,10 @@ import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { Input } from '../components/ui/Input';
 import { PlusIcon } from '../components/icons/PlusIcon';
 import { Skeleton } from '../components/ui/Skeleton';
+import { PencilIcon } from '../components/icons/PencilIcon';
+import { TrashIcon } from '../components/icons/TrashIcon';
+import { CheckIcon } from '../components/icons/CheckIcon';
+import { XMarkIcon } from '../components/icons/XMarkIcon';
 
 function AddUserForm({ onAddUser, onCancel }) {
   const [formData, setFormData] = useState({
@@ -122,6 +126,9 @@ function SkeletonRow() {
         <Skeleton className="h-4 w-20" />
       </td>
       <td className="p-4">
+        <Skeleton className="h-4 w-20" />
+      </td>
+      <td className="p-4">
         <Skeleton className="h-4 w-24" />
       </td>
       <td className="p-4">
@@ -195,7 +202,7 @@ export function AdminUsersPage() {
 
   const handleEdit = (user) => {
     setEditingUserId(user.id);
-    setEditedUserData({ name: user.name, role: user.role });
+    setEditedUserData({ name: user.name, role: user.role, is_active: user.is_active });
   };
 
   const handleCancel = () => {
@@ -215,7 +222,11 @@ export function AdminUsersPage() {
 
   const handleEditDataChange = (e) => {
     const { name, value } = e.target;
-    setEditedUserData((prev) => ({ ...prev, [name]: value }));
+    if (name === 'is_active') {
+      setEditedUserData((prev) => ({ ...prev, [name]: value === 'true' }));
+    } else {
+      setEditedUserData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   return (
@@ -266,8 +277,9 @@ export function AdminUsersPage() {
               <th className="p-4 text-left font-semibold">Name</th>
               <th className="p-4 text-left font-semibold">Email</th>
               <th className="p-4 text-left font-semibold">Role</th>
+              <th className="p-4 text-left font-semibold">Status</th>
               <th className="p-4 text-left font-semibold">Joined</th>
-              <th className="p-4 text-left font-semibold">Action</th>
+              <th className="p-4 text-left font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -298,19 +310,34 @@ export function AdminUsersPage() {
                         </select>
                       </td>
                       <td className="p-4 text-muted-foreground">
+                        <select
+                          name="is_active"
+                          value={editedUserData.is_active}
+                          onChange={handleEditDataChange}
+                          className="block w-full rounded-md border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 border"
+                        >
+                          <option value={true}>Active</option>
+                          <option value={false}>Inactive</option>
+                        </select>
+                      </td>
+                      <td className="p-4 text-muted-foreground">
                         {new Date(user.date_joined).toLocaleDateString()}
                       </td>
                       <td className="p-4">
-                        <div className="flex gap-x-2">
-                          <Button size="sm" onClick={() => handleSave(user.id)}>
-                            Save
+                        <div className="flex items-center gap-x-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleSave(user.id)}
+                          >
+                            <CheckIcon className="h-5 w-5" />
                           </Button>
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             onClick={handleCancel}
                           >
-                            Cancel
+                            <XMarkIcon className="h-5 w-5" />
                           </Button>
                         </div>
                       </td>
@@ -322,24 +349,35 @@ export function AdminUsersPage() {
                         {user.email}
                       </td>
                       <td className="p-4 text-muted-foreground">{user.role}</td>
+                      <td className="p-4">
+                        <span
+                          className={`rounded-full px-2 py-1 text-xs font-medium ${
+                            user.is_active
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {user.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
                       <td className="p-4 text-muted-foreground">
                         {new Date(user.date_joined).toLocaleDateString()}
                       </td>
                       <td className="p-4">
-                        <div className="flex gap-x-2">
+                        <div className="flex items-center gap-x-2">
                           <Button
-                            variant="outline"
-                            size="sm"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => handleEdit(user)}
                           >
-                            Edit
+                            <PencilIcon className="h-5 w-5" />
                           </Button>
                           <Button
-                            variant="destructive"
-                            size="sm"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => setUserToDelete(user)}
                           >
-                            Delete
+                            <TrashIcon className="h-5 w-5" />
                           </Button>
                         </div>
                       </td>
