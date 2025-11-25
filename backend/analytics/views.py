@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from django.db.models import Count, OuterRef, Subquery
@@ -11,6 +12,9 @@ from sharelinks.models import ShareLink, ViewSession
 from sharelinks.serializers import ShareLinkSerializer, ViewSessionSerializer
 
 
+logger = logging.getLogger(__name__)
+
+
 class DashboardSummaryView(APIView):
     """
     Provides a summary of recent activity for the main dashboard.
@@ -18,8 +22,6 @@ class DashboardSummaryView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        organization = request.user.organization
-
         # 1. Get the 10 most recent view sessions
         recent_views = ViewSession.objects.filter(
             share_link__created_by=request.user

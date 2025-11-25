@@ -247,6 +247,97 @@ except Exception as e:
     print(f"Failed to initialize GeoIP2: {e}")
 
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s %(pathname)s:%(lineno)d: %(levelname)-5s: %(funcName)s()- %(message)s'
+        },
+        'simple': {
+            'format': '%(asctime)s [%(levelname)s] %(name)s:%(lineno)s %(funcName)s %(message)s'
+        },
+    },
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse'
+        },
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue'
+        },
+    },
+    'handlers': {
+        'mail_admins': {
+            'level': 'ERROR',
+            'filters': ['require_debug_false'],
+            'class': 'django.utils.log.AdminEmailHandler',
+            'include_html': True,
+        },
+        'coneshare_log_hdlr': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(str(BASE_DIR) + '/logs/', 'coneshare.log'),
+            'maxBytes': 1024 * 1024 * 500,  # 500 MB
+            'backupCount': 10,
+            'formatter': 'standard',
+        },
+        'coneshare_task_log_hdlr': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(str(BASE_DIR) + '/logs/', 'task.log'),
+            'maxBytes': 1024 * 1024 * 500,  # 500 MB
+            'backupCount': 10,
+            'formatter': 'standard',
+        },
+        'console': {
+            'level': 'DEBUG',
+            'filters': ['require_debug_true'],
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'scripts_handler': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(str(BASE_DIR) + '/logs/', 'script.log'),
+            'maxBytes': 1024 * 1024 * 5,  # 5 MB
+            'backupCount': 5,
+            'formatter': 'standard',
+        },
+    },
+    'loggers': {
+        # root logger — catches everything
+        '': {
+            'handlers': ['console', 'coneshare_log_hdlr'],
+            'level': 'DEBUG',
+        },
+        # Django internal logs (optional)
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True
+        },
+        'django.request': {
+            'handlers': [
+                'mail_admins', 'coneshare_log_hdlr',
+            ],
+            'level': 'DEBUG',
+            'propagate': True
+        },
+        'tasks': {
+            'handlers': [
+                'console', 'coneshare_task_log_hdlr',
+            ],
+            'level': 'DEBUG',
+            'propagate': True
+        },
+        'scripts': {
+            'handlers': ['scripts_handler'],
+            'level': 'ERROR',
+            'propagate': False
+        },
+    }
+}
+
 # ==============================================================================
 # DEFAULT APPLICATION SETTINGS
 # ==============================================================================
