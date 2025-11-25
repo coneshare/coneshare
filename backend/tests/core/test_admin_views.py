@@ -30,7 +30,7 @@ class TestAdminUserViewSetProtection:
         """An admin cannot demote another user if that would remove the last admin."""
         organization = admin_user.organization
         other_admin = User.objects.create_user(
-            username='otheradmin@example.com', organization=organization, role='admin'
+            username='otheradmin@example.com', email='otheradmin@example.com', organization=organization, role='admin'
         )
 
         # The logged in user (admin_user) deactivates themself, leaving other_admin as the last one.
@@ -39,7 +39,7 @@ class TestAdminUserViewSetProtection:
         
         # A new admin must perform the action now.
         actor_admin = User.objects.create_user(
-            username='actor@example.com', organization=organization, role='admin'
+            username='actor@example.com', email='actor@example.com', organization=organization, role='admin'
         )
         admin_api_client.force_authenticate(user=actor_admin)
         
@@ -55,7 +55,7 @@ class TestAdminUserViewSetProtection:
         organization = admin_user.organization
         # Create a second admin to be the target of deletion.
         target_admin = User.objects.create_user(
-            username='target@example.com', organization=organization, role='admin'
+            username='target@example.com', email='target@example.com', organization=organization, role='admin'
         )
 
         # At this point, there are two active admins: admin_user (the actor, authenticated
