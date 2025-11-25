@@ -12,7 +12,7 @@ from sharelinks.models import ShareLink, ViewSession
 class TestDashboardAnalyticsViews:
     """Tests for the dashboard analytics API endpoints."""
 
-    def test_dashboard_summary_view(self, api_client, user, document):
+    def test_dashboard_summary_view(self, api_client, user, user2, document):
         """
         Test that the dashboard summary returns the correct recent views and links,
         scoped to the user's data, not the whole organization.
@@ -31,9 +31,6 @@ class TestDashboardAnalyticsViews:
         ViewSession.objects.create(share_link=link2, viewed_at=timezone.now() - timedelta(hours=1))
 
         # 2. Create data for another user in the SAME organization that should NOT appear
-        user2 = User.objects.create_user(
-            username="user2@example.com", organization=user.organization
-        )
         doc2 = Document.objects.create(
             name="Doc 2", organization=user.organization, created_by=user2
         )
@@ -69,7 +66,7 @@ class TestDashboardAnalyticsViews:
         assert data['recent_links'][0]['name'] == "Link 1"  # most recent view
         assert data['recent_links'][1]['name'] == "Link 2"
 
-    def test_daily_visits_view(self, api_client, share_link):
+    def test_daily_visits_view(self, api_client, share_link, user2):
         """
         Test that daily visits are aggregated correctly for the user's links only.
         """
@@ -83,13 +80,10 @@ class TestDashboardAnalyticsViews:
         ViewSession.objects.create(share_link=share_link, viewed_at=timezone.now() - timedelta(days=35))  # Should be excluded by date
 
         # 2. Create view data for another user in the same org, which should be excluded
-        other_user = User.objects.create_user(
-            username='other@example.com', organization=user.organization
-        )
         other_doc = Document.objects.create(
-            name="Other Doc", organization=user.organization, created_by=other_user
+            name="Other Doc", organization=user.organization, created_by=user2
         )
-        other_link = ShareLink.objects.create(document=other_doc, created_by=other_user)
+        other_link = ShareLink.objects.create(document=other_doc, created_by=user2)
         ViewSession.objects.create(share_link=other_link, viewed_at=timezone.now() - timedelta(days=1))
 
         # 3. Call the API
@@ -117,7 +111,7 @@ class TestDashboardAnalyticsViews:
         assert two_days_ago_data is not None
         assert two_days_ago_data['visits'] == 0
 
-    def test_all_links_view(self, api_client, document, user):
+    def test_all_links_view(self, api_client, document, user, user2):
         """Test the paginated list of all active links for the current user only."""
         # Create 12 links for the logged-in user, but only 11 are active
         for i in range(12):
@@ -126,9 +120,8 @@ class TestDashboardAnalyticsViews:
                 ViewSession.objects.create(share_link=link, viewed_at=timezone.now() - timedelta(hours=i))
 
         # Create an active link for another user in the same org, which should not appear
-        other_user = User.objects.create_user(username="other@example.com", organization=user.organization)
-        other_doc = Document.objects.create(name="Other Doc", organization=user.organization, created_by=other_user)
-        other_link = ShareLink.objects.create(document=other_doc, created_by=other_user, name="Other User Link")
+        other_doc = Document.objects.create(name="Other Doc", organization=user.organization, created_by=user2)
+        other_link = ShareLink.objects.create(document=other_doc, created_by=user2, name="Other User Link")
         ViewSession.objects.create(share_link=other_link, viewed_at=timezone.now())
 
         # Page 1
@@ -150,16 +143,15 @@ class TestDashboardAnalyticsViews:
         assert len(data2['results']) == 1
         assert data2['results'][0]['name'] == "User 1 Link 10"
 
-    def test_all_view_sessions_view(self, api_client, share_link):
+    def test_all_view_sessions_view(self, api_client, share_link, user2):
         """Test the paginated list of all view sessions for the current user's links."""
         user = share_link.created_by
         for i in range(15):
             ViewSession.objects.create(share_link=share_link)
 
         # Create a view session for another user in the same org, which should not appear
-        other_user = User.objects.create_user(username="other@example.com", organization=user.organization)
-        other_doc = Document.objects.create(name="Other Doc", organization=user.organization, created_by=other_user)
-        other_link = ShareLink.objects.create(document=other_doc, created_by=other_user)
+        other_doc = Document.objects.create(name="Other Doc", organization=user.organization, created_by=user2)
+        other_link = ShareLink.objects.create(document=other_doc, created_by=user2)
         ViewSession.objects.create(share_link=other_link)
 
         response = api_client.get('/api/v1/analytics/view-sessions/')
