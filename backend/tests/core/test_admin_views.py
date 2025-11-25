@@ -11,7 +11,7 @@ class TestAdminUserViewSetProtection:
     """
 
     def test_update_cannot_remove_last_admin(self, admin_api_client, admin_user):
-        """An admin cannot demote or deactivate another user if that user is the last active admin."""
+        """Tests that the last active admin of an organization cannot be demoted or deactivated."""
         organization = admin_user.organization
         
         # At this point, admin_user is the only active admin.
@@ -25,6 +25,21 @@ class TestAdminUserViewSetProtection:
         response_deactivate = admin_api_client.patch(url, {'is_active': False})
         assert response_deactivate.status_code == status.HTTP_400_BAD_REQUEST
         assert 'Cannot demote or deactivate the last active admin' in response_deactivate.json()['detail']
+
+    def test_admin_cannot_demote_self_even_if_not_last(self, admin_api_client, admin_user):
+        """An admin cannot demote or deactivate their own account, even if other admins exist."""
+        organization = admin_user.organization
+        # Create a second admin
+        User.objects.create_user(
+            username='otheradmin@example.com', email='otheradmin@example.com', organization=organization, role='admin'
+        )
+
+        # The logged-in admin (admin_user) tries to demote themselves.
+        url = f'/api/v1/admin/users/{admin_user.id}/'
+        response = admin_api_client.patch(url, {'role': 'user'})
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'Admins cannot demote or deactivate their own account' in response.json()['detail']
 
     def test_admin_can_demote_another_admin_if_not_last(self, admin_api_client, admin_user):
         """An admin can demote another admin as long as they are not the last one."""
