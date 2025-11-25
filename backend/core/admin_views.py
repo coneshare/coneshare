@@ -122,23 +122,25 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         new_role = serializer.validated_data.get('role', instance.role)
         new_is_active = serializer.validated_data.get('is_active', instance.is_active)
 
-        is_demoting = new_role != 'admin'
-        is_deactivating = True if new_is_active is False else False
+        # These checks only apply when an active admin is being demoted or deactivated.
+        if instance.role == 'admin':
+            is_demoting = new_role != 'admin'
+            is_deactivating = instance.is_active and new_is_active is False
 
-        if is_demoting or is_deactivating:
-            active_admins = User.objects.filter(
-                organization=instance.organization,
-                role='admin',
-                is_active=True
-            )
-            if active_admins.count() == 1 and active_admins.first() == instance:
-                raise serializers.ValidationError({
-                    "detail": "Cannot demote or deactivate the last active admin of the organization."
-                })
-            if instance == self.request.user:
-                raise serializers.ValidationError({
-                    "detail": "Admins cannot cannot demote or deactivate their own account."
-                })
+            if is_demoting or is_deactivating:
+                active_admins = User.objects.filter(
+                    organization=instance.organization,
+                    role='admin',
+                    is_active=True
+                )
+                if active_admins.count() == 1 and active_admins.first() == instance:
+                    raise serializers.ValidationError({
+                        "detail": "Cannot demote or deactivate the last active admin of the organization."
+                    })
+                if instance == self.request.user:
+                    raise serializers.ValidationError({
+                        "detail": "Admins cannot demote or deactivate their own account."
+                    })
 
         serializer.save()
 

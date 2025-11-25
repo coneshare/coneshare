@@ -26,29 +26,30 @@ class TestAdminUserViewSetProtection:
         assert response_deactivate.status_code == status.HTTP_400_BAD_REQUEST
         assert 'Cannot demote or deactivate the last active admin' in response_deactivate.json()['detail']
 
-    def test_admin_cannot_demote_another_user_who_is_last_admin(self, admin_api_client, admin_user):
-        """An admin cannot demote another user if that would remove the last admin."""
+    def test_admin_can_demote_another_admin_if_not_last(self, admin_api_client, admin_user):
+        """An admin can demote another admin as long as they are not the last one."""
         organization = admin_user.organization
+        # Create a second admin to be the target of the demotion.
         other_admin = User.objects.create_user(
             username='otheradmin@example.com', email='otheradmin@example.com', organization=organization, role='admin'
         )
 
-        # The logged in user (admin_user) deactivates themself, leaving other_admin as the last one.
-        admin_user.is_active = False
-        admin_user.save()
-        
-        # A new admin must perform the action now.
-        actor_admin = User.objects.create_user(
-            username='actor@example.com', email='actor@example.com', organization=organization, role='admin'
-        )
-        admin_api_client.force_authenticate(user=actor_admin)
-        
-        # This actor_admin tries to demote other_admin. This should fail.
-        # This will fail with the current code.
+        # The logged-in admin (admin_user) tries to demote other_admin.
+        # This should succeed because admin_user will remain as an active admin.
         url = f'/api/v1/admin/users/{other_admin.id}/'
         response = admin_api_client.patch(url, {'role': 'user'})
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert 'Cannot demote or deactivate the last active admin' in response.json()['detail']
+
+        assert response.status_code == status.HTTP_200_OK
+        
+        other_admin.refresh_from_db()
+        assert other_admin.role == 'user'
+
+        # Verify that the actor is still the last remaining admin.
+        active_admins = User.objects.filter(
+            organization=organization, role='admin', is_active=True
+        )
+        assert active_admins.count() == 1
+        assert active_admins.first() == admin_user
 
     def test_admin_can_delete_another_admin_if_not_last(self, admin_api_client, admin_user):
         """An admin can delete another admin as long as at least one active admin remains."""
