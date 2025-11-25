@@ -103,3 +103,6 @@ e2e/playwright/
 e2e/test-results/
 
 core/tmp
+
+backend/logs/**
+!backend/logs/.gitkeep
