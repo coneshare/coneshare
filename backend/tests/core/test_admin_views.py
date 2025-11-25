@@ -62,7 +62,8 @@ class TestAdminUserViewSetProtection:
 
         # Log back in as a new, temporary admin to perform the action.
         acting_admin = User.objects.create_user(
-            username='actor@example.com', organization=organization, role='admin'
+            username='actor@example.com', email='actor@example.com',
+            organization=organization, role='admin'
         )
         admin_api_client.force_authenticate(user=acting_admin)
 
