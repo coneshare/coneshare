@@ -50,28 +50,28 @@ class TestAdminUserViewSetProtection:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert 'Cannot demote or deactivate the last active admin' in response.json()['detail']
 
-    def test_delete_cannot_remove_last_admin(self, admin_api_client, admin_user):
-        """An admin cannot delete another user if that user is the last active admin."""
+    def test_admin_can_delete_another_admin_if_not_last(self, admin_api_client, admin_user):
+        """An admin can delete another admin as long as at least one active admin remains."""
         organization = admin_user.organization
-        last_admin = User.objects.create_user(
-            username='lastadmin@example.com', organization=organization, role='admin'
+        # Create a second admin to be the target of deletion.
+        target_admin = User.objects.create_user(
+            username='target@example.com', organization=organization, role='admin'
         )
-        # Deactivate the logged-in user so `last_admin` is the only active one.
-        admin_user.is_active = False
-        admin_user.save()
 
-        # Log back in as a new, temporary admin to perform the action.
-        acting_admin = User.objects.create_user(
-            username='actor@example.com', email='actor@example.com',
-            organization=organization, role='admin'
-        )
-        admin_api_client.force_authenticate(user=acting_admin)
-
-        # Bug reproduction: Try to delete the last admin. This should fail.
-        url = f'/api/v1/admin/users/{last_admin.id}/'
+        # At this point, there are two active admins: admin_user (the actor, authenticated
+        # via admin_api_client) and target_admin. The deletion should be allowed.
+        url = f'/api/v1/admin/users/{target_admin.id}/'
         response = admin_api_client.delete(url)
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert 'Cannot delete the last active admin' in response.json()['detail']
+
+        # Assert that the deletion was successful.
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert not User.objects.filter(id=target_admin.id).exists()
+        
+        # The original actor should still exist and be the last admin.
+        assert User.objects.filter(id=admin_user.id).exists()
+        assert User.objects.filter(
+            organization=organization, role='admin', is_active=True
+        ).count() == 1
 
     def test_delete_self_is_prevented_when_last_admin(self, admin_api_client, admin_user):
         """An admin cannot delete themselves if they are the last admin."""
