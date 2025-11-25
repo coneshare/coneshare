@@ -119,6 +119,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         When an admin updates a user, prevent them from removing the last active admin.
         """
         instance = self.get_object()
+
         new_role = serializer.validated_data.get('role', instance.role)
         new_is_active = serializer.validated_data.get('is_active', instance.is_active)
 
@@ -147,19 +148,19 @@ class AdminUserViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
 
-        active_admins = User.objects.filter(
-            organization=instance.organization,
-            role='admin',
-            is_active=True
-        )
-
-        if active_admins.count() == 1 and active_admins.first() == instance:
-            return Response({"detail": "Cannot delete the last active admin of the organization."},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        if instance == request.user:
-            return Response({"detail": "Admins cannot delete their own account."},
-                            status=status.HTTP_400_BAD_REQUEST)
+        # These checks only apply when an active admin is being deleted.
+        if instance.role == 'admin':
+            active_admins = User.objects.filter(
+                organization=instance.organization,
+                role='admin',
+                is_active=True
+            )
+            if active_admins.count() == 1 and active_admins.first() == instance:
+                return Response({"detail": "Cannot delete the last active admin of the organization."},
+                                status=status.HTTP_400_BAD_REQUEST)
+            if instance == request.user:
+                return Response({"detail": "Admins cannot delete their own account."},
+                                status=status.HTTP_400_BAD_REQUEST)
 
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)

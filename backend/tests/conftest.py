@@ -40,6 +40,18 @@ def user2(organization):
 
 
 @pytest.fixture
+def admin_user(organization):
+    """Fixture to create an admin user."""
+    return User.objects.create_user(
+        username="admin@example.com",
+        email="admin@example.com",
+        password="password",
+        role='admin',
+        organization=organization
+    )
+
+
+@pytest.fixture
 def document(user, organization):
     """Fixture to create a document with a primary version."""
     doc = Document.objects.create(
@@ -116,17 +128,6 @@ def dataroom(user, organization):
         name="Test Dataroom",
         organization=organization,
         created_by=user,
-    )
-
-
-@pytest.fixture
-def admin_user(organization):
-    """Fixture to create an admin user."""
-    return User.objects.create_superuser(
-        username="admin@example.com",
-        email="admin@example.com",
-        password="password",
-        organization=organization
     )
 
 
