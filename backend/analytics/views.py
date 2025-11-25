@@ -22,7 +22,7 @@ class DashboardSummaryView(APIView):
 
         # 1. Get the 10 most recent view sessions
         recent_views = ViewSession.objects.filter(
-            share_link__document__organization=organization
+            share_link__created_by=request.user
         ).select_related('share_link', 'share_link__document').order_by('-viewed_at')[:10]
         recent_views_serializer = ViewSessionSerializer(recent_views, many=True, context={'request': request})
 
@@ -33,7 +33,7 @@ class DashboardSummaryView(APIView):
         ).order_by('-viewed_at').values('viewed_at')[:1]
 
         recent_links = ShareLink.objects.filter(
-            document__organization=organization
+            created_by=request.user
         ).select_related('document').annotate(
             last_viewed_at=Subquery(latest_view_subquery)
         ).filter(
@@ -59,7 +59,7 @@ class DailyVisitsView(APIView):
 
         # Aggregate view counts by date
         daily_counts = ViewSession.objects.filter(
-            share_link__document__organization=organization,
+            share_link__created_by=request.user,
             viewed_at__date__gte=thirty_days_ago
         ).values('viewed_at__date').annotate(
             count=Count('id')
@@ -91,14 +91,12 @@ class AllLinksView(generics.ListAPIView):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        organization = self.request.user.organization
-
         latest_view_subquery = ViewSession.objects.filter(
             share_link=OuterRef('pk')
         ).order_by('-viewed_at').values('viewed_at')[:1]
 
         return ShareLink.objects.filter(
-            document__organization=organization
+            created_by=self.request.user
         ).annotate(
             last_viewed_at=Subquery(latest_view_subquery)
         ).filter(
@@ -115,7 +113,6 @@ class AllViewSessionsView(generics.ListAPIView):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        organization = self.request.user.organization
         return ViewSession.objects.filter(
-            share_link__document__organization=organization
+            share_link__created_by=self.request.user
         ).select_related('share_link', 'share_link__document').order_by('-viewed_at')

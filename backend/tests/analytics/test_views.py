@@ -15,9 +15,9 @@ class TestDashboardAnalyticsViews:
     def test_dashboard_summary_view(self, api_client, user, document):
         """
         Test that the dashboard summary returns the correct recent views and links,
-        scoped to the user's organization.
+        scoped to the user's data, not the whole organization.
         """
-        # 1. Create data for the logged-in user's org
+        # 1. Create data for the logged-in user
         link1 = ShareLink.objects.create(document=document, created_by=user, name="Link 1")
         link2 = ShareLink.objects.create(document=document, created_by=user, name="Link 2")
 
@@ -30,7 +30,17 @@ class TestDashboardAnalyticsViews:
         # Create a view for the second link to make it "active"
         ViewSession.objects.create(share_link=link2, viewed_at=timezone.now() - timedelta(hours=1))
 
-        # 2. Create data for another user in a different org that should NOT appear
+        # 2. Create data for another user in the SAME organization that should NOT appear
+        user2 = User.objects.create_user(
+            username="user2@example.com", organization=user.organization
+        )
+        doc2 = Document.objects.create(
+            name="Doc 2", organization=user.organization, created_by=user2
+        )
+        link3 = ShareLink.objects.create(document=doc2, created_by=user2, name="Link 3")
+        ViewSession.objects.create(share_link=link3)
+
+        # 3. Create data for another user in a different org that should NOT appear
         other_org = Organization.objects.create(name="Other Org")
         other_user = User.objects.create_user(
             username="other@example.com", organization=other_org
@@ -41,16 +51,18 @@ class TestDashboardAnalyticsViews:
         other_link = ShareLink.objects.create(document=other_doc, created_by=other_user)
         ViewSession.objects.create(share_link=other_link)
 
-        # 3. Call the API
+        # 4. Call the API
         response = api_client.get('/api/v1/analytics/dashboard/')
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
 
-        # 4. Assertions
+        # 5. Assertions
         assert 'recent_views' in data
         assert 'recent_links' in data
-        assert len(data['recent_views']) == 10  # Capped at 10
-        assert len(data['recent_links']) == 2   # Both links have been viewed
+        # Should only include views from link1 and link2 (user1), not link3 (user2)
+        assert len(data['recent_views']) == 10  # Capped at 10 from link1
+        # Should only include links from user1
+        assert len(data['recent_links']) == 2
 
         # Check ordering
         assert data['recent_views'][0]['share_link_name'] == "Link 1"
@@ -59,14 +71,28 @@ class TestDashboardAnalyticsViews:
 
     def test_daily_visits_view(self, api_client, share_link):
         """
-        Test that daily visits are aggregated correctly for the last 30 days.
+        Test that daily visits are aggregated correctly for the user's links only.
         """
-        # Create some view data
+        # user is logged in via api_client fixture
+        user = share_link.created_by
+
+        # 1. Create view data for the logged-in user
         ViewSession.objects.create(share_link=share_link, viewed_at=timezone.now() - timedelta(days=1))
         ViewSession.objects.create(share_link=share_link, viewed_at=timezone.now() - timedelta(days=1))
         ViewSession.objects.create(share_link=share_link, viewed_at=timezone.now() - timedelta(days=5))
-        ViewSession.objects.create(share_link=share_link, viewed_at=timezone.now() - timedelta(days=35))  # Should be excluded
+        ViewSession.objects.create(share_link=share_link, viewed_at=timezone.now() - timedelta(days=35))  # Should be excluded by date
 
+        # 2. Create view data for another user in the same org, which should be excluded
+        other_user = User.objects.create_user(
+            username='other@example.com', organization=user.organization
+        )
+        other_doc = Document.objects.create(
+            name="Other Doc", organization=user.organization, created_by=other_user
+        )
+        other_link = ShareLink.objects.create(document=other_doc, created_by=other_user)
+        ViewSession.objects.create(share_link=other_link, viewed_at=timezone.now() - timedelta(days=1))
+
+        # 3. Call the API
         response = api_client.get('/api/v1/analytics/daily-visits/')
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -92,12 +118,18 @@ class TestDashboardAnalyticsViews:
         assert two_days_ago_data['visits'] == 0
 
     def test_all_links_view(self, api_client, document, user):
-        """Test the paginated list of all active links."""
-        # Create 12 links, but only 11 are active (have views)
+        """Test the paginated list of all active links for the current user only."""
+        # Create 12 links for the logged-in user, but only 11 are active
         for i in range(12):
-            link = ShareLink.objects.create(document=document, created_by=user, name=f"Link {i}")
+            link = ShareLink.objects.create(document=document, created_by=user, name=f"User 1 Link {i}")
             if i < 11:
                 ViewSession.objects.create(share_link=link, viewed_at=timezone.now() - timedelta(hours=i))
+
+        # Create an active link for another user in the same org, which should not appear
+        other_user = User.objects.create_user(username="other@example.com", organization=user.organization)
+        other_doc = Document.objects.create(name="Other Doc", organization=user.organization, created_by=other_user)
+        other_link = ShareLink.objects.create(document=other_doc, created_by=other_user, name="Other User Link")
+        ViewSession.objects.create(share_link=other_link, viewed_at=timezone.now())
 
         # Page 1
         response = api_client.get('/api/v1/analytics/links/')
@@ -106,7 +138,7 @@ class TestDashboardAnalyticsViews:
 
         assert data['count'] == 11
         assert len(data['results']) == 10
-        assert data['results'][0]['name'] == "Link 0"  # Most recent view
+        assert data['results'][0]['name'] == "User 1 Link 0"  # Most recent view
         assert data['next'] is not None
 
         # Page 2
@@ -116,12 +148,19 @@ class TestDashboardAnalyticsViews:
 
         assert data2['count'] == 11
         assert len(data2['results']) == 1
-        assert data2['results'][0]['name'] == "Link 10"
+        assert data2['results'][0]['name'] == "User 1 Link 10"
 
     def test_all_view_sessions_view(self, api_client, share_link):
-        """Test the paginated list of all view sessions."""
+        """Test the paginated list of all view sessions for the current user's links."""
+        user = share_link.created_by
         for i in range(15):
             ViewSession.objects.create(share_link=share_link)
+
+        # Create a view session for another user in the same org, which should not appear
+        other_user = User.objects.create_user(username="other@example.com", organization=user.organization)
+        other_doc = Document.objects.create(name="Other Doc", organization=user.organization, created_by=other_user)
+        other_link = ShareLink.objects.create(document=other_doc, created_by=other_user)
+        ViewSession.objects.create(share_link=other_link)
 
         response = api_client.get('/api/v1/analytics/view-sessions/')
         assert response.status_code == status.HTTP_200_OK
