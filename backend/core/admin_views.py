@@ -118,26 +118,49 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         """
         When an admin updates a user, prevent them from removing the last active admin.
         """
-        instance = serializer.instance
+        instance = self.get_object()
+
         new_role = serializer.validated_data.get('role', instance.role)
         new_is_active = serializer.validated_data.get('is_active', instance.is_active)
 
-        # Check if an admin is demoting or deactivating themselves
-        if instance.id == self.request.user.id and (new_role != 'admin' or not new_is_active):
-            active_admins = User.objects.filter(
-                organization=self.request.user.organization,
-                role='admin',
-                is_active=True
-            )
-            if active_admins.count() <= 1 and active_admins.first() == instance:
-                raise serializers.ValidationError({
-                    "detail": "Cannot demote or deactivate the last active admin of the organization."
-                })
+        # These checks only apply when an active admin is being demoted or deactivated.
+        if instance.role == 'admin':
+            is_demoting = new_role != 'admin'
+            is_deactivating = instance.is_active and new_is_active is False
+
+            if is_demoting or is_deactivating:
+                active_admins = User.objects.filter(
+                    organization=instance.organization,
+                    role='admin',
+                    is_active=True
+                )
+                if active_admins.count() == 1 and active_admins.first() == instance:
+                    raise serializers.ValidationError({
+                        "detail": "Cannot demote or deactivate the last active admin of the organization."
+                    })
+                if instance == self.request.user:
+                    raise serializers.ValidationError({
+                        "detail": "Admins cannot demote or deactivate their own account."
+                    })
+
         serializer.save()
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        if instance == request.user:
-            return Response({"detail": "Admins cannot delete their own account."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # These checks only apply when an active admin is being deleted.
+        if instance.role == 'admin':
+            active_admins = User.objects.filter(
+                organization=instance.organization,
+                role='admin',
+                is_active=True
+            )
+            if active_admins.count() == 1 and active_admins.first() == instance:
+                return Response({"detail": "Cannot delete the last active admin of the organization."},
+                                status=status.HTTP_400_BAD_REQUEST)
+            if instance == request.user:
+                return Response({"detail": "Admins cannot delete their own account."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)

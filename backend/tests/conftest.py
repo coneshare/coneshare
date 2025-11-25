@@ -40,6 +40,18 @@ def user2(organization):
 
 
 @pytest.fixture
+def admin_user(organization):
+    """Fixture to create an admin user."""
+    return User.objects.create_user(
+        username="admin@example.com",
+        email="admin@example.com",
+        password="password",
+        role='admin',
+        organization=organization
+    )
+
+
+@pytest.fixture
 def document(user, organization):
     """Fixture to create a document with a primary version."""
     doc = Document.objects.create(
@@ -124,6 +136,14 @@ def api_client(user):
     """Fixture to create an authenticated API client."""
     client = APIClient()
     client.force_authenticate(user=user)
+    return client
+
+
+@pytest.fixture
+def admin_api_client(admin_user):
+    """Fixture to create an authenticated API client for an admin."""
+    client = APIClient()
+    client.force_authenticate(user=admin_user)
     return client
 
 
