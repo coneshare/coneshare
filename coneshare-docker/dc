@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Determine the correct docker compose command
+dc_base="$(docker compose version &>/dev/null && echo 'docker compose' || echo 'docker-compose')"
+dc="$dc_base"
+
+# Pass all arguments to the docker command
+exec $dc "$@"
