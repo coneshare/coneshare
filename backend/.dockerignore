@@ -3,3 +3,12 @@
 __pycache__
 *.pyc
 .venv
+
+*~
+db.sqlite3
+tests
+.pytest_cache
+logs/**
+bdd
+docs
+media/**

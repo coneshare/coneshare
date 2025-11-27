@@ -41,14 +41,15 @@ def main(argv):
         check_call("supervisord -c /home/coneshare/runtime/supervisord/supervisord.conf", shell=True)
         time.sleep(5)
         check_call("tail -f /home/coneshare/logs/supervisor/*.log /home/coneshare/logs/nginx/*.log /home/coneshare/logs/coneshare/*.log | grep  -v ping", shell=True)
-    elif argv[1] == 'sudo':
-        command = ' '.join(argv[2:])  # Join all arguments after the first
-        check_call(f"{command}", shell=True)
     else:
-        # Run the command provided as the second argument
-        command = ' '.join(argv[1:])  # Join all arguments after the first
-        check_call(f"gosu coneshare bash -c '{command}'", shell=True)
+        ...
+    # elif argv[1] == 'sudo':
+    #     command = ' '.join(argv[2:])  # Join all arguments after the first
+    #     check_call(f"{command}", shell=True)
+    # else:
+    #     # Run the command provided as the second argument
+    #     command = ' '.join(argv[1:])  # Join all arguments after the first
+    #     check_call(f"gosu coneshare bash -c '{command}'", shell=True)
 
 if __name__ == "__main__":
-    # main program
     main(sys.argv)
