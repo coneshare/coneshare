@@ -18,12 +18,12 @@ ENV PYTHONUNBUFFERED 1
 ENV PYTHONDONTWRITEBYTECODE 1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    gcc \
+#    build-essential \
+#    gcc \
     htop \
     supervisor \
     nginx \
-    poppler-utils \
+#    poppler-utils \
     git \
     procps \
     wget \
@@ -38,9 +38,9 @@ RUN groupadd coneshare && useradd -m -g coneshare coneshare
 
 # grab gosu for easy step-down from root
 ARG GOSU_VERSION=1.19
-ARG GOSU_SHA256=bbc4136d03ab138b1ad66fa4fc051bafc6cc7ffae632b069a53657279a450de3
+ARG GOSU_SHA256=3a8ef022d82c0bc4a98bcb144e77da714c25fcfa64dccc57f6aba7ae47ff1a44
 
-RUN wget --quiet -O /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-amd64" \
+RUN wget --quiet -O /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-arm64" \
   && echo "$GOSU_SHA256 /usr/local/bin/gosu" | sha256sum --check --status \
   && chmod +x /usr/local/bin/gosu
 
@@ -48,38 +48,32 @@ ENV HOME_DIR="/home/coneshare"
 ENV LOG_DIR="${HOME_DIR}/logs"
 ENV BUILD_DIR="${HOME_DIR}/build"
 ENV RUNTIME_DIR="${HOME_DIR}/runtime"
-ENV INSTALL_DIR="${HOME_DIR}/app"
+ENV APP_DIR="${HOME_DIR}/app"
 
 # SET work dir
 WORKDIR ${HOME_DIR}
 RUN mkdir -p ${LOG_DIR}
 
-# Copy application code
-COPY . ${INSTALL_DIR}
-
 # Install python requirements
-#COPY docker.dist/pip.conf /etc/pip.conf
-COPY requirements.txt ${INSTALL_DIR}/requirements.txt
-RUN pip install --no-cache-dir -r ${INSTALL_DIR}/requirements.txt
+COPY requirements.txt ${APP_DIR}/requirements.txt
+RUN pip install --no-cache-dir -r ${APP_DIR}/requirements.txt
+
+# Copy application code
+COPY . ${APP_DIR}
 
 # Set up application and its running environment
-COPY docker.dist/utility/ ${BUILD_DIR}/
+COPY docker.dist/build/ ${BUILD_DIR}/
 COPY docker.dist/runtime/ ${RUNTIME_DIR}/
 
-# Update nginx/uswgi/..etc confs
-RUN cd /etc/nginx/sites-enabled/ && rm default && ln -s ${RUNTIME_DIR}/coneshare.nginx.conf default && cd -
-RUN chmod 755 ${BUILD_DIR}/django-install.sh \
-    && chmod 755 ${BUILD_DIR}/entrypoint.py \
-    && bash ${BUILD_DIR}/django-install.sh
-
 # Copy the binary to the production image from the builder stage.
-COPY --from=core-serv /app/server ${INSTALL_DIR}/core/server
-COPY --from=frontend /app/dist ${INSTALL_DIR}/frontend/dist
+COPY --from=core-serv /app/server ${APP_DIR}/core-serv
+COPY --from=frontend /app/dist ${APP_DIR}/frontend/dist
 
 RUN chown -R coneshare:coneshare ${HOME_DIR}
 RUN chmod -R 755 ${HOME_DIR}
+RUN chmod 755 ${BUILD_DIR}/entrypoint.py
 
-WORKDIR ${INSTALL_DIR}
+WORKDIR ${APP_DIR}
 
 RUN mkdir /data && chown coneshare:coneshare /data
 VOLUME /data
