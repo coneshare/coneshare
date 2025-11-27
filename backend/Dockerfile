@@ -5,7 +5,7 @@ FROM coneshare-core:latest AS core-serv
 FROM coneshare-frontend:latest AS frontend
 
 #-------------------- web app
-FROM ubuntu:22.04
+FROM python:3.12-slim-bookworm
 
 LABEL maintainer="dev@coneshare.com"
 LABEL org.opencontainers.image.title="Coneshare"
@@ -17,7 +17,7 @@ LABEL org.opencontainers.image.authors="dev@coneshare.com"
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONDONTWRITEBYTECODE 1
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
     htop \
@@ -26,8 +26,6 @@ RUN apt-get update && apt-get install -y \
     poppler-utils \
     git \
     procps \
-    python3 \
-    python3-pip \
     wget \
     nano \
 && rm -rf /var/lib/apt/lists/*
@@ -62,7 +60,7 @@ COPY . ${INSTALL_DIR}
 # Install python requirements
 #COPY docker.dist/pip.conf /etc/pip.conf
 COPY requirements.txt ${INSTALL_DIR}/requirements.txt
-RUN cd ${INSTALL_DIR} && pip3 install -r requirements.txt && cd -
+RUN pip install --no-cache-dir -r ${INSTALL_DIR}/requirements.txt
 
 # Set up application and its running environment
 COPY docker.dist/utility/ ${BUILD_DIR}/
