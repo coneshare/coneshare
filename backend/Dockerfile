@@ -4,26 +4,6 @@ FROM coneshare-core:latest AS core-serv
 #-------------------- frontend dist
 FROM coneshare-frontend:latest AS frontend
 
-#-------------------- backend
-FROM ubuntu:22.04 AS backend
-
-ENV PYTHONUNBUFFERED 1
-ENV PYTHONDONTWRITEBYTECODE 1
-
-
-RUN apt-get update && apt-get install -y \
-    python3 \
-&& rm -rf /var/lib/apt/lists/*
-
-ENV HOME_DIR="/home/coneshare"
-ENV LOG_DIR="${HOME_DIR}/logs"
-ENV BUILD_DIR="${HOME_DIR}/build"
-ENV RUNTIME_DIR="${HOME_DIR}/runtime"
-ENV INSTALL_DIR="${HOME_DIR}/app"
-
-COPY . ${INSTALL_DIR}
-COPY docker.dist/utility/ ${BUILD_DIR}/
-
 #-------------------- web app
 FROM ubuntu:22.04
 
@@ -75,6 +55,9 @@ ENV INSTALL_DIR="${HOME_DIR}/app"
 # SET work dir
 WORKDIR ${HOME_DIR}
 RUN mkdir -p ${LOG_DIR}
+
+# Copy application code
+COPY . ${INSTALL_DIR}
 
 # Install python requirements
 #COPY docker.dist/pip.conf /etc/pip.conf

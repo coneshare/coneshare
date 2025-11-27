@@ -14,3 +14,9 @@ COPY . .
 
 # Build the Go app. CGO_ENABLED=0 is important for a static binary.
 RUN CGO_ENABLED=0 GOOS=linux go build -v -o /app/server .
+
+# ---- Final Stage ----
+FROM alpine:latest
+WORKDIR /app
+COPY --from=builder /app/server .
+CMD ["./server"]
