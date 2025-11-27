@@ -1,0 +1,33 @@
+# Emacs backup file
+*~
+
+# App log files
+logs/**
+!logs/.gitkeep
+
+# Data files
+data/**
+!data/.gitkeep
+
+# Backup files
+backups/**
+!backups/.gitkeep
+
+# Installer logs
+beatsight_install_log*.txt
+
+# https://docs.docker.com/compose/extends/
+docker-compose.override.yml
+
+# https://docs.docker.com/compose/environment-variables/#using-the---env-file--option
+.env.custom
+
+# Custom config
+runtime/beatsight.nginx.conf
+runtime/beatsight_settings.py
+runtime/gunicorn.conf.py
+
+# OSX minutia
+.DS_Store
+
+license.json
