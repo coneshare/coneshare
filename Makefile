@@ -39,6 +39,15 @@ down:
 build:
 	docker-compose build
 
+.PHONY: dist
+dist:
+	@echo "--> Building core service image..."
+	docker build -t coneshare-core:latest -f core/Dockerfile ./core
+	@echo "--> Building frontend assets image..."
+	docker build -t coneshare-frontend:latest -f frontend/Dockerfile ./frontend
+	@echo "--> Building final coneshare image..."
+	docker build -t coneshare:latest -f backend/Dockerfile ./backend
+
 .PHONY: logs
 logs:
 	docker-compose logs -f
