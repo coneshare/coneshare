@@ -47,8 +47,7 @@ function ensure_file_from_example {
   fi
 }
 
-mkdir -p runtime logs
-CONESHARE_SETTINGS_PY=runtime/coneshare_settings.py
+mkdir -p logs
 
 # Increase the default 10 second SIGTERM timeout
 # to ensure celery queues are properly drained

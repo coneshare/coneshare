@@ -29,7 +29,7 @@ x-coneshare-defaults: &coneshare_defaults
     COMPOSE_PROFILES:
   volumes:
     - "coneshare-data:/data"
-    - "./runtime:/home/coneshare/runtime"
+    # - "./runtime:/home/coneshare/runtime"
     - "./logs:/home/coneshare/logs"
 
 services:
