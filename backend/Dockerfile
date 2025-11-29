@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     supervisor \
     nginx \
     wget \
+    curl \
     nano \
 && rm -rf /var/lib/apt/lists/*
 
