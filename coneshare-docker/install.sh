@@ -16,8 +16,8 @@ source install/check-minimum-requirements.sh
 
 source install/turn-things-off.sh
 source install/create-docker-volumes.sh
-# source install/ensure-files-from-examples.sh
-# source install/generate-secret-key.sh
+source install/ensure-app-env.sh
+source install/generate-secret-key.sh
 source install/update-docker-images.sh
 source install/set-up-and-migrate-database.sh
 source install/wrap-up.sh

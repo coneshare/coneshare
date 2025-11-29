@@ -47,6 +47,19 @@ function ensure_file_from_example {
   fi
 }
 
+function ensure_app_env {
+  if [[ -f "../app.env" ]]; then
+    echo "../app.env already exists, skipped creation."
+  else
+    if [[ ! -f "app.env.example" ]]; then
+      echo "Oops! Where did app.env.example go? 🤨 We need it in order to create ../app.env."
+      exit 1
+    fi
+    echo "Creating ../app.env ..."
+    cp -n "app.env.example" "../app.env"
+  fi
+}
+
 mkdir -p logs
 
 # Increase the default 10 second SIGTERM timeout

@@ -14,6 +14,7 @@ x-healthcheck-defaults: &healthcheck_defaults
 x-coneshare-defaults: &coneshare_defaults
   <<: *restart_policy
   image: ${CONESHARE_IMAGE}
+  env_file: app.env
   # Set the platform to build for linux/arm64 when needed on Apple silicon Macs.
   platform: ${DOCKER_PLATFORM:-}
   depends_on:
