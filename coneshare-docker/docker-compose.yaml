@@ -60,6 +60,9 @@ services:
       nofile:
         soft: 4096
         hard: 4096
+    healthcheck:
+      <<: *healthcheck_defaults
+      test: ["CMD", "gosu", "coneshare", "python3", "-m", "celery", "-A", "backend", "inspect", "ping"]
     networks:
       - coneshare-net
 
