@@ -22,5 +22,6 @@ google-api-python-client==2.185.0
 google-auth-oauthlib==1.2.2
 django-cryptography-5==2.0.3
 dj-database-url==3.0.1
+psycopg[binary]==3.2.13
 
 gunicorn==23.0.0
