@@ -18,6 +18,8 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    poppler-utils \
+    libreoffice \
     supervisor \
     nginx \
     wget \
