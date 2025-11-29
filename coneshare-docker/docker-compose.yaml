@@ -29,7 +29,7 @@ x-coneshare-defaults: &coneshare_defaults
   volumes:
     - "coneshare-data:/data"
     # - "./runtime:/home/coneshare/runtime"
-    - "./logs:/home/coneshare/logs"
+    - "../logs:/home/coneshare/logs"
 
 services:
   web:
