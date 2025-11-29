@@ -1,4 +1,7 @@
 from django.contrib.auth import get_user_model, logout
+from django.core.cache import cache
+from django.db import connections
+from django.db.utils import OperationalError
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -98,3 +101,36 @@ class LogoutView(APIView):
             return Response(status=status.HTTP_205_RESET_CONTENT)
         except Exception as e:
             return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+class HealthCheckView(APIView):
+    """
+    Checks the health of the database and Redis cache.
+    Used by Docker for health checks.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        db_ok = False
+        try:
+            connections['default'].cursor()
+            db_ok = True
+        except OperationalError:
+            pass
+
+        redis_ok = False
+        try:
+            cache.set('__health_check__', '1', 1)
+            redis_ok = cache.get('__health_check__') == '1'
+        except Exception:
+            pass
+
+        health_status = {
+            'database': 'ok' if db_ok else 'error',
+            'redis': 'ok' if redis_ok else 'error'
+        }
+
+        if db_ok and redis_ok:
+            return Response(health_status, status=status.HTTP_200_OK)
+
+        return Response(health_status, status=status.HTTP_503_SERVICE_UNAVAILABLE)
