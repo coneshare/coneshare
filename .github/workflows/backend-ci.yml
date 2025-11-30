@@ -86,7 +86,7 @@ jobs:
         run: make dist
 
       - name: Tag image
-        run: docker tag coneshare:latest coneshare/coneshare:rolling
+        run: docker tag coneshare:latest conesharedev/coneshare:rolling
 
       - name: Push image to Docker Hub
-        run: docker push coneshare/coneshare:rolling
+        run: docker push conesharedev/coneshare:rolling
