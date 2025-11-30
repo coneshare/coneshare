@@ -54,6 +54,6 @@ def test_view_session_creation(user):
         organization=user.organization,
         created_by=user,
     )
-    share_link = ShareLink.objects.create(document=document, slug="another-slug")
+    share_link = ShareLink.objects.create(document=document, slug="another-slug", created_by=user)
     view_session = ViewSession.objects.create(share_link=share_link, duration_seconds=0, completion_rate=0)
     assert isinstance(view_session, ViewSession)
