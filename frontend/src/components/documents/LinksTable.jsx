@@ -43,14 +43,49 @@ function formatDuration(seconds) {
 }
 
 function CopyableLink({ slug, isExpired, expires_at }) {
-  const [isHovered, setIsHovered] = useState(false);
   const url = `${window.location.origin}/view/${slug}`;
   const displayUrl = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
   const handleCopy = () => {
     if (isExpired) return;
-    navigator.clipboard.writeText(url);
-    toast.success('Link copied to clipboard!');
+
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(
+        () => toast.success('Link copied to clipboard!'),
+        () => toast.error('Failed to copy link.')
+      );
+    } else {
+      // Fallback for insecure contexts (http)
+      const textArea = document.createElement('textarea');
+      textArea.value = url;
+      textArea.style.position = 'fixed'; // Prevent scrolling to bottom
+      textArea.style.top = 0;
+      textArea.style.left = 0;
+      textArea.style.width = '2em';
+      textArea.style.height = '2em';
+      textArea.style.padding = 0;
+      textArea.style.border = 'none';
+      textArea.style.outline = 'none';
+      textArea.style.boxShadow = 'none';
+      textArea.style.background = 'transparent';
+
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          toast.success('Link copied to clipboard!');
+        } else {
+          toast.error('Failed to copy link.');
+        }
+      } catch (err) {
+        toast.error('Failed to copy link.');
+      }
+
+      document.body.removeChild(textArea);
+    }
   };
 
   if (isExpired) {
@@ -76,20 +111,20 @@ function CopyableLink({ slug, isExpired, expires_at }) {
   }
 
   return (
-    <div
-      onClick={handleCopy}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className="relative w-full cursor-pointer rounded px-1 py-0.5 text-left text-sm text-gray-600 transition-colors hover:bg-gray-100 hover:text-blue-600"
-      title={url}
-    >
-      <span className={`block truncate ${isHovered ? 'invisible' : ''}`}>{displayUrl}</span>
-      {isHovered && (
-        <span className="absolute inset-0 flex items-center justify-center rounded-md border border-blue-600">
-          Copy to Clipboard
-        </span>
-      )}
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          onClick={handleCopy}
+          className="w-full cursor-pointer rounded px-1 py-0.5 text-left text-sm text-gray-600 transition-colors hover:bg-gray-100"
+          title={url}
+        >
+          <span className="block truncate">{displayUrl}</span>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Copy to Clipboard</p>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
