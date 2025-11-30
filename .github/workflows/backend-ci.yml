@@ -66,3 +66,27 @@ jobs:
         INTERNAL_API_TOKEN: "dummy-internal-api-token-for-ci"
         FIELD_ENCRYPTION_KEY: "S-c9WBE3DEJE2R7i-b-sOmegRChW2McTDIOWcrG0-C8="
         CORE_API_URL: "http://localhost:8080"
+
+  build-and-push:
+    needs: test-backend
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Docker images
+        run: make dist
+
+      - name: Tag image
+        run: docker tag coneshare:latest coneshare/coneshare:rolling
+
+      - name: Push image to Docker Hub
+        run: docker push coneshare/coneshare:rolling
