@@ -109,6 +109,7 @@ class HealthCheckView(APIView):
     Used by Docker for health checks.
     """
     permission_classes = [permissions.AllowAny]
+    throttle_scope = 'health_check'
 
     def get(self, request, *args, **kwargs):
         db_ok = False

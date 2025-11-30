@@ -128,6 +128,7 @@ REST_FRAMEWORK = {
         'anon': '1000/day',
         'user': '10000/day',
         'password_verify': '10/min',
+        'health_check': '60/min',
     }
 }
 

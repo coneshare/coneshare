@@ -31,7 +31,7 @@ class ShareLinkTemplate(BaseModel):
 class ShareLink(BaseModel):
     document = models.ForeignKey('documents.Document', on_delete=models.CASCADE, null=True, blank=True, related_name='share_links')
     dataroom = models.ForeignKey('datarooms.Dataroom', on_delete=models.CASCADE, null=True, blank=True, related_name='share_links')
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='share_links_created')
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='share_links_created')
     name = models.CharField(max_length=255, blank=True)
     slug = models.CharField(max_length=50, unique=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
