@@ -7,6 +7,7 @@ export function cn(...inputs) {
 }
 
 export function copyTextToClipboard(text, successMessage = 'Copied to clipboard!', errorMessage = 'Failed to copy.') {
+  console.log('DEBUG: copyTextToClipboard called with text:', text);
   if (navigator.clipboard) {
     navigator.clipboard.writeText(text).then(
       () => toast.success(successMessage),
@@ -14,6 +15,7 @@ export function copyTextToClipboard(text, successMessage = 'Copied to clipboard!
     );
   } else {
     // Fallback for insecure contexts (http)
+    console.log('DEBUG: Using fallback copy logic.');
     const textArea = document.createElement('textarea');
     textArea.value = text;
     textArea.style.position = 'fixed'; // Prevent scrolling to bottom

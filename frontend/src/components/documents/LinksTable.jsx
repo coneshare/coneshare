@@ -81,6 +81,7 @@ function CopyableLink({ slug, isExpired, expires_at }) {
           onClick={handleCopy}
           className="w-full cursor-pointer rounded px-1 py-0.5 text-left text-sm text-gray-600 transition-colors hover:bg-gray-100"
           title={url}
+          data-testid={`copyable-link-div-${slug}`}
         >
           <span className="block truncate">{displayUrl}</span>
         </div>

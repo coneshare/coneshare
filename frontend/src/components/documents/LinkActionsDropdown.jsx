@@ -29,24 +29,27 @@ export function LinkActionsDropdown({
           <span className="sr-only">Open actions menu</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
         {contextType === 'document' && (
-          <DropdownMenuItem onClick={() => onPreview(link.id, link.slug)}>
+          <DropdownMenuItem onSelect={() => onPreview(link.id, link.slug)}>
             <Eye className="mr-2 h-4 w-4" /> <span>Preview</span>
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onClick={() => onEdit(link)}>
+        <DropdownMenuItem onSelect={() => onEdit(link)}>
           <Pencil className="mr-2 h-4 w-4" /> <span>Edit</span>
         </DropdownMenuItem>
         {contextType === 'dataroom' && (
-          <DropdownMenuItem onClick={() => onManagePermissions(link)}>
+          <DropdownMenuItem onSelect={() => onManagePermissions(link)}>
             <ShieldCheck className="mr-2 h-4 w-4" /> <span>Manage Permissions</span>
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onClick={() => copyLinkToClipboard(link.slug)}>
+        <DropdownMenuItem
+          onSelect={() => copyLinkToClipboard(link.slug)}
+          data-testid={`copy-link-menu-item-${link.id}`}
+        >
           <Copy className="mr-2 h-4 w-4" /> <span>Copy Link</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onDelete(link)} className="text-red-600 focus:text-red-600">
+        <DropdownMenuItem onSelect={() => onDelete(link)} className="text-red-600 focus:text-red-600">
           <Trash2 className="mr-2 h-4 w-4" /> <span>Delete</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
