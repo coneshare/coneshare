@@ -59,7 +59,8 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
-media/
+backend/media/**
+!backend/media/.gitkeep
 
 # Scrapy
 .scrapy
