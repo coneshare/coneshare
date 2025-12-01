@@ -173,6 +173,25 @@ class TestViewSessionViewSet:
         assert view_session.latitude == 37.422
         assert view_session.longitude == -122.084
 
+    @patch('sharelinks.views.settings.GEOIP')
+    def test_create_view_records_ip_from_x_forwarded_for(self, mock_geoip, public_client, share_link):
+        """Test that X-Forwarded-For header is used for IP address if present."""
+        mock_geoip.city.return_value = {}  # Mock to avoid errors, not testing location here
+        
+        real_ip = "1.2.3.4"
+        proxy_ip = "98.137.11.155"
+        
+        response = public_client.post(
+            '/api/v1/view-sessions/',
+            {'share_link': share_link.id},
+            HTTP_X_FORWARDED_FOR=f'{real_ip}, {proxy_ip}',
+            REMOTE_ADDR=proxy_ip
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        view_session = ViewSession.objects.first()
+        assert view_session.ip_address == real_ip
+
     def test_record_download(self, public_client, share_link):
         """Test that a download can be recorded for a view session."""
         # 1. Create a View session
@@ -1345,6 +1364,45 @@ class TestWatermarkingViews:
 
         # Get ETag for viewer 2
         response2 = client2.get(render_url, REMOTE_ADDR='192.168.1.1')
+        assert response2.status_code == status.HTTP_200_OK
+        etag2 = response2['ETag']
+
+        assert etag1 is not None
+        assert etag2 is not None
+        assert etag1 != etag2
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_render_watermarked_page_etag_varies_by_x_forwarded_for_ip(self, mock_fs_download, mock_requests_get, public_client, watermarked_link):
+        """
+        Test that the ETag for a watermarked page is different for different
+        viewers when the IP address is taken from X-Forwarded-For.
+        """
+        watermarked_link.watermark_text = "Viewed from {{ip-address}}"
+        watermarked_link.save()
+
+        def setup_mocks(*args, **kwargs):
+            mock_response = MagicMock()
+            mock_response.raise_for_status.return_value = None
+            img = Image.new('RGB', (100, 100), color='white')
+            buffer = BytesIO()
+            img.save(buffer, 'JPEG')
+            buffer.seek(0)
+            mock_response.content = buffer.getvalue()
+            mock_requests_get.return_value = mock_response
+
+        mock_fs_download.return_value = "http://core:8080/files/download/token"
+        setup_mocks()
+
+        # --- Viewer 1 ---
+        render_url = f'/api/v1/links/{watermarked_link.slug}/render-page/1/'
+        response1 = public_client.get(render_url, HTTP_X_FORWARDED_FOR='1.1.1.1', REMOTE_ADDR='192.168.1.1')
+        assert response1.status_code == status.HTTP_200_OK
+        etag1 = response1['ETag']
+
+        # --- Viewer 2 ---
+        # Use the same client but a different X-Forwarded-For IP
+        response2 = public_client.get(render_url, HTTP_X_FORWARDED_FOR='2.2.2.2', REMOTE_ADDR='192.168.1.1')
         assert response2.status_code == status.HTTP_200_OK
         etag2 = response2['ETag']
 
