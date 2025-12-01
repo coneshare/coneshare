@@ -25,6 +25,7 @@ from django.db.models import F
 from geoip2.errors import AddressNotFoundError
 from rest_framework.views import APIView
 
+from backend.utils import get_client_ip
 from datarooms.models import (DataroomDocument, DataroomFolder)
 from datarooms.serializers import (PublicDataroomDocumentSerializer,
                                    PublicDataroomFolderSerializer)
@@ -614,7 +615,7 @@ def _calculate_watermark_grid_params(page_width, page_height, rotated_tile_width
 
 def _render_watermark_text(template_string: str, request, viewer_email: str = '') -> str:
     """Renders a watermark template string with dynamic variables."""
-    ip_address = request.META.get('REMOTE_ADDR', 'N/A')
+    ip_address = get_client_ip(request) or 'N/A'
     email = viewer_email or 'N/A'
     # Add more variables here in the future if needed
     rendered_text = template_string.replace('{{ip-address}}', ip_address)
@@ -753,7 +754,7 @@ class WatermarkedPageRenderView(APIView):
         viewer_email = auth_status.get('viewer_email', '')
 
         # Generate an ETag based on factors that would change the output image.
-        ip_address = request.META.get('REMOTE_ADDR', '')
+        ip_address = get_client_ip(request) or ''
         etag_source = f"{source_image_key}-{link.updated_at.isoformat()}-{link.watermark_text}-{ip_address}-{viewer_email}"
         etag = hashlib.md5(etag_source.encode()).hexdigest()
 
@@ -1165,7 +1166,7 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
         return ViewSession.objects.filter(share_link__document__organization=self.request.user.organization)
 
     def perform_create(self, serializer):
-        ip_address = self.request.META.get('REMOTE_ADDR')
+        ip_address = get_client_ip(self.request)
         user_agent = self.request.META.get('HTTP_USER_AGENT', '')[:255]
 
         # Check for owner preview first, which takes precedence.

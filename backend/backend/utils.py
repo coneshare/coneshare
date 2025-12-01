@@ -1,6 +1,25 @@
 import os
 import re
 
+
+def get_client_ip(request):
+    """
+    Gets the real client IP address from a request, prioritizing a trusted
+    X-Real-IP header set by a proxy. If not present, it falls back to
+    X-Forwarded-For and then REMOTE_ADDR.
+    """
+    real_ip = request.META.get('HTTP_X_REAL_IP')
+    if real_ip:
+        return real_ip
+
+    xff = request.META.get('HTTP_X_FORWARDED_FOR')
+    if xff:
+        # The first IP in the list is the original client IP.
+        return xff.split(',')[0].strip()
+    # If X-Forwarded-For is not present, fall back to REMOTE_ADDR.
+    return request.META.get('REMOTE_ADDR')
+
+
 def get_unique_name(model_class, original_name: str, filter_kwargs: dict, has_extension: bool) -> str:
     """
     Generates a unique name for a model instance within a given scope.
