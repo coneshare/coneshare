@@ -1,5 +1,4 @@
 import { MoreVertical, Eye, Pencil, Trash2, ShieldCheck, Copy } from 'lucide-react';
-import { toast } from 'sonner';
 import { Button } from '../ui/Button';
 import {
   DropdownMenu,
@@ -7,11 +6,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/DropdownMenu';
+import { copyTextToClipboard } from '../../lib/utils';
 
 const copyLinkToClipboard = (slug) => {
   const url = `${window.location.origin}/view/${slug}`;
-  navigator.clipboard.writeText(url);
-  toast.success('Link copied to clipboard!');
+  copyTextToClipboard(url, 'Link copied to clipboard!');
 };
 
 export function LinkActionsDropdown({

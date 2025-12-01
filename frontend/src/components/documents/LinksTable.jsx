@@ -22,6 +22,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../ui/Tooltip';
+import { copyTextToClipboard } from '../../lib/utils';
 
 function parseUserAgent(uaString) {
   if (!uaString) return { browser: 'Unknown', os: 'Unknown' };
@@ -48,44 +49,7 @@ function CopyableLink({ slug, isExpired, expires_at }) {
 
   const handleCopy = () => {
     if (isExpired) return;
-
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(url).then(
-        () => toast.success('Link copied to clipboard!'),
-        () => toast.error('Failed to copy link.')
-      );
-    } else {
-      // Fallback for insecure contexts (http)
-      const textArea = document.createElement('textarea');
-      textArea.value = url;
-      textArea.style.position = 'fixed'; // Prevent scrolling to bottom
-      textArea.style.top = 0;
-      textArea.style.left = 0;
-      textArea.style.width = '2em';
-      textArea.style.height = '2em';
-      textArea.style.padding = 0;
-      textArea.style.border = 'none';
-      textArea.style.outline = 'none';
-      textArea.style.boxShadow = 'none';
-      textArea.style.background = 'transparent';
-
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-
-      try {
-        const successful = document.execCommand('copy');
-        if (successful) {
-          toast.success('Link copied to clipboard!');
-        } else {
-          toast.error('Failed to copy link.');
-        }
-      } catch (err) {
-        toast.error('Failed to copy link.');
-      }
-
-      document.body.removeChild(textArea);
-    }
+    copyTextToClipboard(url, 'Link copied to clipboard!', 'Failed to copy link.');
   };
 
   if (isExpired) {
