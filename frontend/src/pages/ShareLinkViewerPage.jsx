@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Cone, FileDown } from 'lucide-react';
+import { FileDown } from 'lucide-react';
 import { PasswordForm } from '../components/viewer/PasswordForm';
 import { EmailForm } from '../components/viewer/EmailForm';
 import { ViewerToolbar } from '../components/viewer/ViewerToolbar';
@@ -141,8 +141,8 @@ export function ShareLinkViewerPage() {
             href="/"
             className="flex items-center gap-2 rounded-md bg-white p-2 font-semibold shadow-sm"
           >
-            <Cone className="h-6 w-6" />
-            <span>ConeShare</span>
+            <img src="/logo.svg" alt="Coneshare logo" className="h-6 w-6" />
+            <span>Coneshare</span>
           </a>
         </div>
         <div className="flex h-full items-center justify-center p-4">
@@ -178,8 +178,8 @@ export function ShareLinkViewerPage() {
           href="/"
           className="flex items-center gap-2 rounded-md bg-white p-2 font-semibold shadow-sm"
         >
-          <Cone className="h-6 w-6" />
-          <span>ConeShare</span>
+          <img src="/logo.svg" alt="Coneshare logo" className="h-6 w-6" />
+          <span>Coneshare</span>
         </a>
       </div>
       {viewData && (

@@ -12,7 +12,6 @@ import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { DataroomDocumentPreview } from './DataroomDocumentPreview';
 import { Dialog, DialogContent } from '../ui/Dialog';
-import { Cone } from 'lucide-react';
 import { formatBytes } from '../../lib/formatters';
 import { Button } from '../ui/Button';
 import { downloadDataroomFolder } from '../../services/api';
@@ -168,8 +167,8 @@ export function DataroomViewer({ data, slug }) {
       <header className="flex flex-shrink-0 items-center justify-between border-b bg-white p-4">
         <h1 className="text-xl font-semibold">{data.name}</h1>
         <a href="/" className="flex items-center gap-2 rounded-md p-2 font-semibold">
-          <Cone className="h-6 w-6" />
-          <span>ConeShare</span>
+          <img src="/logo.svg" alt="Coneshare logo" className="h-6 w-6" />
+          <span>Coneshare</span>
         </a>
       </header>
 

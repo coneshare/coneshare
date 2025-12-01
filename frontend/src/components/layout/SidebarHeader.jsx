@@ -1,4 +1,4 @@
-import { Cone, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useSidebar } from "./SidebarProvider";
 import { cn } from "../../lib/utils";
@@ -19,7 +19,7 @@ function SidebarHeader() {
         className="flex flex-1 items-center gap-2 font-semibold"
         aria-label="Coneshare Home"
       >
-        <Cone className="h-6 w-6" />
+        <img src="/logo.svg" alt="Coneshare logo" className="h-6 w-6" />
         <span className={cn(isCollapsed && "hidden")}>Coneshare</span>
       </Link>
       <TooltipProvider>
