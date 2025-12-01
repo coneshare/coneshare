@@ -174,17 +174,19 @@ class TestViewSessionViewSet:
         assert view_session.longitude == -122.084
 
     @patch('sharelinks.views.settings.GEOIP')
-    def test_create_view_records_ip_from_x_forwarded_for(self, mock_geoip, public_client, share_link):
-        """Test that X-Forwarded-For header is used for IP address if present."""
+    def test_create_view_records_ip_from_x_real_ip(self, mock_geoip, public_client, share_link):
+        """Test that X-Real-IP header is prioritized for IP address if present."""
         mock_geoip.city.return_value = {}  # Mock to avoid errors, not testing location here
-        
+
         real_ip = "1.2.3.4"
         proxy_ip = "98.137.11.155"
-        
+        spoofed_xff = "5.6.7.8"
+
         response = public_client.post(
             '/api/v1/view-sessions/',
             {'share_link': share_link.id},
-            HTTP_X_FORWARDED_FOR=f'{real_ip}, {proxy_ip}',
+            HTTP_X_REAL_IP=real_ip,
+            HTTP_X_FORWARDED_FOR=f'{spoofed_xff}, {proxy_ip}',
             REMOTE_ADDR=proxy_ip
         )
 
@@ -1373,10 +1375,10 @@ class TestWatermarkingViews:
 
     @patch('sharelinks.views.requests.get')
     @patch('sharelinks.views.fileserver_client.generate_download_url')
-    def test_render_watermarked_page_etag_varies_by_x_forwarded_for_ip(self, mock_fs_download, mock_requests_get, public_client, watermarked_link):
+    def test_render_watermarked_page_etag_varies_by_x_real_ip(self, mock_fs_download, mock_requests_get, public_client, watermarked_link):
         """
         Test that the ETag for a watermarked page is different for different
-        viewers when the IP address is taken from X-Forwarded-For.
+        viewers when the IP address is taken from X-Real-IP.
         """
         watermarked_link.watermark_text = "Viewed from {{ip-address}}"
         watermarked_link.save()
@@ -1396,13 +1398,13 @@ class TestWatermarkingViews:
 
         # --- Viewer 1 ---
         render_url = f'/api/v1/links/{watermarked_link.slug}/render-page/1/'
-        response1 = public_client.get(render_url, HTTP_X_FORWARDED_FOR='1.1.1.1', REMOTE_ADDR='192.168.1.1')
+        response1 = public_client.get(render_url, HTTP_X_REAL_IP='1.1.1.1', HTTP_X_FORWARDED_FOR='5.5.5.5', REMOTE_ADDR='192.168.1.1')
         assert response1.status_code == status.HTTP_200_OK
         etag1 = response1['ETag']
 
         # --- Viewer 2 ---
-        # Use the same client but a different X-Forwarded-For IP
-        response2 = public_client.get(render_url, HTTP_X_FORWARDED_FOR='2.2.2.2', REMOTE_ADDR='192.168.1.1')
+        # Use the same client but a different X-Real-IP
+        response2 = public_client.get(render_url, HTTP_X_REAL_IP='2.2.2.2', HTTP_X_FORWARDED_FOR='5.5.5.5', REMOTE_ADDR='192.168.1.1')
         assert response2.status_code == status.HTTP_200_OK
         etag2 = response2['ETag']
 

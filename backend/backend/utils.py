@@ -4,9 +4,14 @@ import re
 
 def get_client_ip(request):
     """
-    Gets the real client IP address from a request, respecting the
-    X-Forwarded-For header set by proxies.
+    Gets the real client IP address from a request, prioritizing a trusted
+    X-Real-IP header set by a proxy. If not present, it falls back to
+    X-Forwarded-For and then REMOTE_ADDR.
     """
+    real_ip = request.META.get('HTTP_X_REAL_IP')
+    if real_ip:
+        return real_ip
+
     xff = request.META.get('HTTP_X_FORWARDED_FOR')
     if xff:
         # The first IP in the list is the original client IP.
