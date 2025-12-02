@@ -579,7 +579,7 @@ class ShareLinkRequestAccessView(APIView):
                 send_mail(
                     subject=f"Verify your email to view '{target_name}'",
                     message=email_body,
-                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@coneshare.com'),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[email],
                     fail_silently=False,
                 )
