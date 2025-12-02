@@ -41,6 +41,7 @@ from .serializers import (PageViewRecordSerializer,
                           ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
                           ShareLinkTemplateSerializer, ShareLinkSerializer,
                           ViewerSerializer, ViewSessionSerializer)
+from .tasks import send_view_notification_email_task
 
 logger = logging.getLogger(__name__)
 
@@ -1188,6 +1189,11 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
                 if auth_status.get('email_verified'):
                     viewer_email = auth_status.get('viewer_email')
 
+        # If no email is found from the above flows, check if the request is from an
+        # authenticated user and record their email.
+        if not viewer_email and self.request.user.is_authenticated:
+            viewer_email = self.request.user.email
+
         viewer = None
         if viewer_email and share_link:
             organization = share_link.document.organization if share_link.document else share_link.dataroom.organization
@@ -1207,7 +1213,7 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 logger.error(f"GeoIP2 lookup failed: {e}")
 
-        serializer.save(
+        instance = serializer.save(
             ip_address=ip_address,
             user_agent=user_agent,
             viewer=viewer,
@@ -1217,6 +1223,9 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
             latitude=location_data.get('latitude'),
             longitude=location_data.get('longitude')
         )
+
+        if instance.share_link and instance.share_link.receive_email_notification:
+            send_view_notification_email_task.delay(str(instance.id))
 
 
 class RecordPageView(APIView):
