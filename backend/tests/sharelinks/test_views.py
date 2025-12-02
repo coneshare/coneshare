@@ -238,6 +238,24 @@ class TestViewSessionViewSet:
         response = public_client.post(url)
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    def test_create_view_session_for_authenticated_user_records_email(self, api_client, share_link, user):
+        """
+        Test that creating a view session as a logged-in user records their email,
+        even if the link does not require an email.
+        """
+        assert ViewSession.objects.count() == 0
+
+        response = api_client.post(
+            '/api/v1/view-sessions/',
+            {'share_link': share_link.id},
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert ViewSession.objects.count() == 1
+        vs = ViewSession.objects.first()
+        assert vs.share_link == share_link
+        assert vs.viewer_email == user.email
+
 
 @pytest.mark.django_db
 class TestShareLinkViewDataView:

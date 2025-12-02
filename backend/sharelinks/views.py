@@ -1188,6 +1188,11 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
                 if auth_status.get('email_verified'):
                     viewer_email = auth_status.get('viewer_email')
 
+        # If no email is found from the above flows, check if the request is from an
+        # authenticated user and record their email.
+        if not viewer_email and self.request.user.is_authenticated:
+            viewer_email = self.request.user.email
+
         viewer = None
         if viewer_email and share_link:
             organization = share_link.document.organization if share_link.document else share_link.dataroom.organization
