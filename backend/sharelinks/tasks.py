@@ -26,6 +26,12 @@ def send_view_notification_email_task(view_session_id: str):
         return
 
     share_link = view_session.share_link
+
+    # Re-check if notifications are still enabled to prevent race conditions.
+    if not share_link.receive_email_notification:
+        logger.info(f"Email notification for ShareLink {share_link.id} is disabled. Aborting send.")
+        return
+
     owner = share_link.created_by
     
     if not owner or not owner.email:
