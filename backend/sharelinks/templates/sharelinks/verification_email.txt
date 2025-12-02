@@ -1,0 +1,9 @@
+Hello,
+
+Please click the link below to view '{{ target_name }}'.
+
+{{ access_url }}
+
+This link will expire in 15 minutes.
+
+Thank you.

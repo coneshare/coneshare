@@ -13,6 +13,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.http import quote_etag
 from django.utils.text import get_valid_filename
@@ -569,28 +570,13 @@ class ShareLinkRequestAccessView(APIView):
             try:
                 target_name = link.document.name if link.document else link.dataroom.name
                 
-                text_content = (
-                    f"Hello,\n\n"
-                    f"Please click the link below to view '{target_name}'.\n\n"
-                    f"{access_url}\n\n"
-                    f"This link will expire in 15 minutes.\n\n"
-                    f"Thank you."
-                )
-
-                html_content = (
-                    f'<p>Hello,</p>'
-                    f'<p>Please click the button below to view <strong>{target_name}</strong>.</p>'
-                    f'<table width="100%" cellspacing="0" cellpadding="0" style="margin-top: 20px; margin-bottom: 20px;"><tr><td>'
-                    f'<table cellspacing="0" cellpadding="0"><tr><td style="border-radius: 4px;" bgcolor="#0d6efd">'
-                    f'<a href="{access_url}" target="_blank" style="padding: 12px 24px; border: 1px solid #0d6efd; border-radius: 4px; font-family: sans-serif; font-size: 16px; line-height: 1; text-align: center; text-decoration: none; display: block; color: #ffffff;">'
-                    f'Verify and View</a>'
-                    f'</td></tr></table>'
-                    f'</td></tr></table>'
-                    f'<p>If the button does not work, you can copy and paste this link into your browser:</p>'
-                    f'<p><a href="{access_url}">{access_url}</a></p>'
-                    f'<p style="color: #6c757d; font-size: 14px;">This link will expire in 15 minutes.</p>'
-                    f'<p>Thank you.</p>'
-                )
+                context = {
+                    'target_name': target_name,
+                    'access_url': access_url,
+                }
+                
+                text_content = render_to_string('sharelinks/verification_email.txt', context)
+                html_content = render_to_string('sharelinks/verification_email.html', context)
                 
                 send_mail(
                     subject=f"Verify your email to view '{target_name}'",
