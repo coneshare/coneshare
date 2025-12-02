@@ -13,6 +13,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.http import quote_etag
 from django.utils.text import get_valid_filename
@@ -568,20 +569,22 @@ class ShareLinkRequestAccessView(APIView):
             # Send email
             try:
                 target_name = link.document.name if link.document else link.dataroom.name
-                # In a real app, this would use an HTML template.
-                email_body = (
-                    f"Hello,\n\n"
-                    f"Please click the link below to view '{target_name}'.\n\n"
-                    f"{access_url}\n\n"
-                    f"This link will expire in 15 minutes.\n\n"
-                    f"Thank you."
-                )
+                
+                context = {
+                    'target_name': target_name,
+                    'access_url': access_url,
+                }
+                
+                text_content = render_to_string('sharelinks/verification_email.txt', context)
+                html_content = render_to_string('sharelinks/verification_email.html', context)
+                
                 send_mail(
                     subject=f"Verify your email to view '{target_name}'",
-                    message=email_body,
-                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@coneshare.com'),
+                    message=text_content,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[email],
                     fail_silently=False,
+                    html_message=html_content
                 )
             except Exception as e:
                 logger.error(f"Failed to send verification email: {e}")
