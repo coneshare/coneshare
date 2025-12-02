@@ -256,6 +256,43 @@ class TestViewSessionViewSet:
         assert vs.share_link == share_link
         assert vs.viewer_email == user.email
 
+    @patch('sharelinks.views.send_view_notification_email_task.delay')
+    def test_create_view_session_triggers_email_notification(self, mock_task_delay, public_client, share_link):
+        """
+        Test that creating a view session for a link with notifications enabled
+        triggers the email notification task.
+        """
+        share_link.receive_email_notification = True
+        share_link.save()
+
+        response = public_client.post(
+            '/api/v1/view-sessions/',
+            {'share_link': share_link.id},
+        )
+        
+        assert response.status_code == status.HTTP_201_CREATED
+        vs = ViewSession.objects.first()
+        assert vs is not None
+
+        mock_task_delay.assert_called_once_with(str(vs.id))
+
+    @patch('sharelinks.views.send_view_notification_email_task.delay')
+    def test_create_view_session_does_not_trigger_email_notification(self, mock_task_delay, public_client, share_link):
+        """
+        Test that creating a view session does not trigger an email if the
+        setting is disabled.
+        """
+        share_link.receive_email_notification = False
+        share_link.save()
+
+        response = public_client.post(
+            '/api/v1/view-sessions/',
+            {'share_link': share_link.id},
+        )
+        
+        assert response.status_code == status.HTTP_201_CREATED
+        mock_task_delay.assert_not_called()
+
 
 @pytest.mark.django_db
 class TestShareLinkViewDataView:

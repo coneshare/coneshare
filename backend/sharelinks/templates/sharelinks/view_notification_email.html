@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>New View Notification</title>
+</head>
+<body>
+    <p>Hi {{ owner_name }},</p>
+    <p>Just letting you know that your shared item, <strong>{{ target_name }}</strong>, was viewed.</p>
+    
+    <h3>View Details:</h3>
+    <ul>
+        <li><strong>Viewer:</strong> {{ viewer_email }}</li>
+        <li><strong>Time:</strong> {{ viewed_at|date:"F j, Y, P" }}</li>
+        <li><strong>IP Address:</strong> {{ ip_address }}</li>
+        <li><strong>Approximate Location:</strong> {{ location }}</li>
+    </ul>
+
+    <p>Thank you,</p>
+    <p>The Coneshare Team</p>
+</body>
+</html>

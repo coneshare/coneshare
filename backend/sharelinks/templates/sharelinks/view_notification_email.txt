@@ -1,0 +1,12 @@
+Hi {{ owner_name }},
+
+Just letting you know that your shared item, '{{ target_name }}', was viewed.
+
+View Details:
+- Viewer: {{ viewer_email }}
+- Time: {{ viewed_at|date:"F j, Y, P" }}
+- IP Address: {{ ip_address }}
+- Approximate Location: {{ location }}
+
+Thank you,
+The Coneshare Team
