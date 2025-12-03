@@ -6,7 +6,7 @@ from .models import (DataroomVisit, PageView, ShareLink,
                      ShareLinkDataroomSetting, ShareLinkTemplate, Viewer,
                      ViewSession)
 from .services import (_get_unique_dataroom_share_link_name,
-                     _get_unique_share_link_name)
+                       _get_unique_share_link_name)
 
 
 class RecordVisitSerializer(serializers.Serializer):
@@ -24,7 +24,16 @@ class RecordVisitSerializer(serializers.Serializer):
         return data
 
 
+class PageViewSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
 
+    class Meta:
+        model = PageView
+        fields = ['page_number', 'duration_seconds', 'url']
+
+    def get_url(self, obj):
+        pages_map = self.context.get('pages_map', {})
+        return pages_map.get(obj.page_number)
 
 
 class DataroomVisitSerializer(serializers.ModelSerializer):
@@ -57,18 +66,6 @@ class ShareLinkDataroomSettingUpdateSerializer(serializers.Serializer):
         if not any(k in data for k in ['is_visible', 'allow_download', 'enable_watermark']):
             raise serializers.ValidationError("At least one setting (is_visible, allow_download, enable_watermark) must be provided for an update.")
         return data
-
-
-class PageViewSerializer(serializers.ModelSerializer):
-    url = serializers.SerializerMethodField()
-
-    class Meta:
-        model = PageView
-        fields = ['page_number', 'duration_seconds', 'url']
-
-    def get_url(self, obj):
-        pages_map = self.context.get('pages_map', {})
-        return pages_map.get(obj.page_number)
 
 
 class ViewSessionSerializer(serializers.ModelSerializer):

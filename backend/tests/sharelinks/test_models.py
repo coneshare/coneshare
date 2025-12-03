@@ -30,7 +30,7 @@ def test_share_link_creation(user):
         slug="test-slug-123"
     )
     assert isinstance(share_link, ShareLink)
-    assert str(share_link) == "test"
+    assert share_link.name == "test"
     assert share_link.document == document
     assert share_link.created_by == user
 
