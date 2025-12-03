@@ -11,7 +11,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { DataroomDocumentPreview } from './DataroomDocumentPreview';
-import { Dialog, DialogContent } from '../ui/Dialog';
+import { Dialog, DialogContent, DialogTitle } from '../ui/Dialog';
 import { formatBytes } from '../../lib/formatters';
 import { Button } from '../ui/Button';
 import { downloadDataroomFolder, recordDataroomVisit } from '../../services/api';
@@ -245,16 +245,19 @@ export function DataroomViewer({ data, slug, viewId }) {
       }}>
         <DialogContent className="h-[90vh] max-w-[90vw] overflow-y-auto p-0">
           {previewingDoc && (
-            <DataroomDocumentPreview
-              slug={slug}
-              document={previewingDoc}
-              onClose={() => {
-                setPreviewingDoc(null);
-                setCurrentDataroomVisitId(null);
-              }}
-              viewId={viewId}
-              dataroomVisitId={currentDataroomVisitId}
-            />
+            <>
+              <DialogTitle className="sr-only">{previewingDoc.document_name}</DialogTitle>
+              <DataroomDocumentPreview
+                slug={slug}
+                document={previewingDoc}
+                onClose={() => {
+                  setPreviewingDoc(null);
+                  setCurrentDataroomVisitId(null);
+                }}
+                viewId={viewId}
+                dataroomVisitId={currentDataroomVisitId}
+              />
+            </>
           )}
         </DialogContent>
       </Dialog>
