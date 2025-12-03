@@ -1,18 +1,17 @@
 import { useEffect, useState, useRef } from 'react';
-import { getShareLinkViewData, createViewSession } from '../../services/api';
+import { getShareLinkViewData } from '../../services/api';
 import { PreviewViewer } from '../documents/PreviewViewer';
 import { ViewerToolbar } from './ViewerToolbar';
 import { Skeleton } from '../ui/Skeleton';
 import { Button } from '../ui/Button';
 import { X } from 'lucide-react';
 
-export function DataroomDocumentPreview({ slug, document: dataroomDoc, onClose }) {
+export function DataroomDocumentPreview({ slug, document: dataroomDoc, onClose, viewId }) {
   const [documentData, setDocumentData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [viewId, setViewId] = useState(null);
   const viewerRef = useRef(null);
 
   const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 0.1, 3));
@@ -27,16 +26,6 @@ export function DataroomDocumentPreview({ slug, document: dataroomDoc, onClose }
         const response = await getShareLinkViewData(slug, { documentId: dataroomDoc.document_id });
         if (!isCancelled) {
           setDocumentData(response.data);
-          try {
-            const viewResponse = await createViewSession({
-              share_link: response.data.link_settings.id,
-            });
-            if (!isCancelled) {
-              setViewId(viewResponse.data.id);
-            }
-          } catch (viewError) {
-            console.error('Failed to create view session for dataroom document:', viewError);
-          }
         }
       } catch (err) {
         if (!isCancelled) {

@@ -127,7 +127,7 @@ export function ShareLinkViewerPage() {
   }
 
   if (viewData?.link_type === 'dataroom') {
-    return <DataroomViewer data={viewData} slug={slug} />;
+    return <DataroomViewer data={viewData} slug={slug} viewId={viewId} />;
   }
 
   const PREVIEWABLE_TYPES = ['image', 'pdf', 'document'];

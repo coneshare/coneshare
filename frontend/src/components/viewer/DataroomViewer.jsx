@@ -70,7 +70,7 @@ function ListItem({ item, onItemClick, onDownloadClick }) {
   );
 }
 
-export function DataroomViewer({ data, slug }) {
+export function DataroomViewer({ data, slug, viewId }) {
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [previewingDoc, setPreviewingDoc] = useState(null);
 
@@ -227,6 +227,7 @@ export function DataroomViewer({ data, slug }) {
               slug={slug}
               document={previewingDoc}
               onClose={() => setPreviewingDoc(null)}
+              viewId={viewId}
             />
           )}
         </DialogContent>
