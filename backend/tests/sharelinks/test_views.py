@@ -823,6 +823,27 @@ class TestShareLinkViewSet:
         response_invalid_bool = api_client.patch(url, data_invalid_bool, format='json')
         assert response_invalid_bool.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_update_dataroom_link_with_same_name_as_document_link_succeeds(self, api_client, user, document, dataroom):
+        """
+        Test that updating a dataroom link does not fail validation when a
+        document link with the same name exists.
+        """
+        # 1. Create a document link
+        ShareLink.objects.create(document=document, name="Test Link", created_by=user)
+        
+        # 2. Create a dataroom link with the same name
+        dataroom_link = ShareLink.objects.create(dataroom=dataroom, name="Test Link", created_by=user)
+        
+        # 3. Attempt to update the dataroom link. This will trigger validation.
+        # The bug would cause this to fail with a 400 error.
+        url = f'/api/v1/share-links/{dataroom_link.id}/'
+        response = api_client.patch(url, {'is_active': False}, format='json')
+        
+        # 4. Assert that the update succeeds
+        assert response.status_code == status.HTTP_200_OK
+        dataroom_link.refresh_from_db()
+        assert dataroom_link.is_active is False
+
 
 @pytest.mark.django_db
 class TestShareLinkEmailProtection:

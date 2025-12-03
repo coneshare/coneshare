@@ -151,12 +151,18 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         # On create, the `create` method handles finding a unique name.
         if self.instance and 'name' in data:
             name = data['name']
-            if name and ShareLink.objects.filter(
-                document=document, name=name
-            ).exclude(pk=self.instance.pk).exists():
-                raise serializers.ValidationError(
-                    {'name': 'A share link with this name already exists for this document.'}
-                )
+            if name:
+                queryset = ShareLink.objects.filter(name=name).exclude(pk=self.instance.pk)
+                if document:
+                    if queryset.filter(document=document).exists():
+                        raise serializers.ValidationError(
+                            {'name': 'A share link with this name already exists for this document.'}
+                        )
+                elif dataroom:
+                    if queryset.filter(dataroom=dataroom).exists():
+                        raise serializers.ValidationError(
+                            {'name': 'A share link with this name already exists for this dataroom.'}
+                        )
 
         return data
 
