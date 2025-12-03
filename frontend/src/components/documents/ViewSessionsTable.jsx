@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, FolderIcon, FileTextIcon } from 'lucide-react';
 import { UAParser } from 'ua-parser-js';
 import { PageViewsChart } from './PageViewsChart';
 import { Pagination } from '../ui/Pagination';
@@ -94,12 +94,14 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                 const hasLocation = locationParts.length > 0;
                 const isExpanded = expandedRowId === view.id;
                 const hasPageViews = view.page_views && view.page_views.length > 0;
+                const hasDataroomVisits = view.dataroom_visits && view.dataroom_visits.length > 0;
+                const isExpandable = hasPageViews || hasDataroomVisits;
 
                 return (
                   <Fragment key={view.id}>
                     <TableRow>
                       <TableCell>
-                        {hasPageViews && (
+                        {isExpandable && (
                           <button
                             onClick={() => setExpandedRowId(isExpanded ? null : view.id)}
                             className="flex items-center justify-center rounded-full p-1 hover:bg-gray-100"
@@ -171,13 +173,41 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                         {formatDuration(view.duration_seconds)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {`${(view.completion_rate * 100).toFixed(0)}%`}
+                        {hasDataroomVisits ? '—' : `${(view.completion_rate * 100).toFixed(0)}%`}
                       </TableCell>
                     </TableRow>
-                    {isExpanded && hasPageViews && (
+                    {isExpanded && isExpandable && (
                       <TableRow className="bg-gray-50 hover:bg-gray-50">
-                        <TableCell colSpan={isDashboardWidget ? 8 : 7} className="p-4">
-                          <PageViewsChart pageViews={view.page_views} />
+                        <TableCell colSpan={isDashboardWidget ? 8 : 7}>
+                          {hasPageViews && <PageViewsChart pageViews={view.page_views} />}
+                          {hasDataroomVisits && (
+                            <div className="p-4">
+                              <h4 className="mb-2 text-sm font-semibold">Activity Log</h4>
+                              <ul className="space-y-2">
+                                {view.dataroom_visits.map((visit) => (
+                                  <li key={visit.id} className="flex items-center gap-2 text-sm">
+                                    {visit.dataroom_folder_id ? (
+                                      <FolderIcon className="h-4 w-4 flex-shrink-0 text-blue-500" />
+                                    ) : (
+                                      <FileTextIcon className="h-4 w-4 flex-shrink-0 text-gray-500" />
+                                    )}
+                                    <span className="truncate">
+                                      {visit.dataroom_folder_name
+                                        ? `Viewed folder: ${visit.dataroom_folder_name}`
+                                        : `Viewed document: ${visit.dataroom_document_name}`}
+                                    </span>
+                                    <span className="ml-auto flex-shrink-0 text-xs text-muted-foreground">
+                                      {new Date(visit.visited_at).toLocaleTimeString([], {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        second: '2-digit',
+                                      })}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     )}
