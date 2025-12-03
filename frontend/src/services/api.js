@@ -254,6 +254,16 @@ export const createViewSession = (data) => api.post('/view-sessions/', data);
 
 export const recordDownload = (viewSessionId) => api.post(`/view-sessions/${viewSessionId}/record-download/`);
 
+export const recordDataroomVisit = (viewId, { dataroomDocumentId, dataroomFolderId }) => {
+  const payload = {};
+  if (dataroomDocumentId) {
+    payload.dataroom_document_id = dataroomDocumentId;
+  } else if (dataroomFolderId) {
+    payload.dataroom_folder_id = dataroomFolderId;
+  }
+  return api.post(`/view-sessions/${viewId}/record-visit/`, payload);
+};
+
 export const recordPageView = (data, useBeacon = false) => {
   const payload = JSON.stringify(data);
   const url = `${api.defaults.baseURL}/page-views/record/`;

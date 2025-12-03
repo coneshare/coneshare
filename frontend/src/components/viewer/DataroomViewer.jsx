@@ -14,7 +14,7 @@ import { DataroomDocumentPreview } from './DataroomDocumentPreview';
 import { Dialog, DialogContent } from '../ui/Dialog';
 import { formatBytes } from '../../lib/formatters';
 import { Button } from '../ui/Button';
-import { downloadDataroomFolder } from '../../services/api';
+import { downloadDataroomFolder, recordDataroomVisit } from '../../services/api';
 
 function DocumentItemIcon({ type }) {
   const commonProps = { className: "h-5 w-5 text-gray-500" };
@@ -156,8 +156,20 @@ export function DataroomViewer({ data, slug, viewId }) {
 
   const handleItemClick = (item) => {
     if (item.type === 'folder') {
+      if (viewId) {
+        // Fire-and-forget request to record the visit
+        recordDataroomVisit(viewId, { dataroomFolderId: item.id }).catch((err) => {
+          console.error('Failed to record folder visit:', err);
+        });
+      }
       setCurrentFolderId(item.id);
     } else {
+      if (viewId) {
+        // Fire-and-forget request to record the visit
+        recordDataroomVisit(viewId, { dataroomDocumentId: item.id }).catch((err) => {
+          console.error('Failed to record document visit:', err);
+        });
+      }
       setPreviewingDoc(item);
     }
   };
