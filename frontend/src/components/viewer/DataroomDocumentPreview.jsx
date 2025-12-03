@@ -13,6 +13,7 @@ export function DataroomDocumentPreview({ slug, document: dataroomDoc, onClose, 
   const [currentPage, setCurrentPage] = useState(1);
   const [zoomLevel, setZoomLevel] = useState(1);
   const viewerRef = useRef(null);
+  console.log('DataroomDocumentPreview: Rendered with viewId:', viewId);
 
   const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 0.1, 3));
   const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 0.1, 0.5));
@@ -40,9 +41,11 @@ export function DataroomDocumentPreview({ slug, document: dataroomDoc, onClose, 
 
     // Only fetch the document's page data when we have a viewId to track it.
     if (slug && dataroomDoc && viewId) {
+      console.log('DataroomDocumentPreview: useEffect triggered with viewId, fetching data...', viewId);
       fetchData();
     } else if (!viewId) {
       // If there's no viewId yet, remain in a loading state.
+      console.log('DataroomDocumentPreview: useEffect triggered WITHOUT viewId, waiting...');
       setIsLoading(true);
     }
 

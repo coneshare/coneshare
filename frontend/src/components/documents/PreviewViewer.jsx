@@ -5,6 +5,7 @@ import { recordPageView } from '../../services/api';
 export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId, dataroomVisitId }) {
   const [scrollContainer, setScrollContainer] = useState(null);
   const pageRefs = useRef(new Map());
+  console.log('PreviewViewer: Rendered with viewId:', viewId);
   const activePageRef = useRef(1);
   const timeOnPageRef = useRef(0);
   const intervalRef = useRef(null);
@@ -19,6 +20,7 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId, d
 
   const sendTrackingData = useCallback(
     (page, duration, useBeacon = false) => {
+      console.log(`PreviewViewer: sendTrackingData called. viewId: ${viewId}, duration: ${duration}`);
       if (!viewId || duration < 1) return;
       const payload = {
         view_session: viewId,

@@ -74,6 +74,7 @@ export function DataroomViewer({ data, slug, viewId }) {
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [previewingDoc, setPreviewingDoc] = useState(null);
   const [currentDataroomVisitId, setCurrentDataroomVisitId] = useState(null);
+  console.log('DataroomViewer: Rendered with viewId:', viewId);
 
   const handleDownloadFolder = async (folder) => {
     toast.info(`Preparing to download "${folder.name}"...`);
@@ -165,6 +166,7 @@ export function DataroomViewer({ data, slug, viewId }) {
       }
       setCurrentFolderId(item.id);
     } else {
+      console.log('DataroomViewer: Document clicked. Current viewId:', viewId);
       if (viewId) {
         try {
           const response = await recordDataroomVisit(viewId, { dataroomDocumentId: item.id });

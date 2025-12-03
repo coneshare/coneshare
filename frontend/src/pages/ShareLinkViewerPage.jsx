@@ -52,11 +52,13 @@ export function ShareLinkViewerPage() {
       try {
         const response = await getShareLinkViewData(slug, { previewToken, accessToken });
         if (!isCancelled) {
+          console.log('ShareLinkViewerPage: View data received', response.data);
           setViewData(response.data);
           // Create a view session as soon as we have the link ID
           try {
             const viewResponse = await createViewSession({ share_link: response.data.link_settings.id });
             if (!isCancelled) {
+              console.log('ShareLinkViewerPage: View session created, viewId:', viewResponse.data.id);
               setViewId(viewResponse.data.id);
             }
           } catch (viewError) {
@@ -127,6 +129,7 @@ export function ShareLinkViewerPage() {
   }
 
   if (viewData?.link_type === 'dataroom') {
+    console.log('ShareLinkViewerPage: Rendering DataroomViewer with viewId:', viewId);
     return <DataroomViewer data={viewData} slug={slug} viewId={viewId} />;
   }
 
