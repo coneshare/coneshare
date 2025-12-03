@@ -38,14 +38,18 @@ export function DataroomDocumentPreview({ slug, document: dataroomDoc, onClose, 
       }
     };
 
-    if (slug && dataroomDoc) {
+    // Only fetch the document's page data when we have a viewId to track it.
+    if (slug && dataroomDoc && viewId) {
       fetchData();
+    } else if (!viewId) {
+      // If there's no viewId yet, remain in a loading state.
+      setIsLoading(true);
     }
 
     return () => {
       isCancelled = true;
     };
-  }, [slug, dataroomDoc]);
+  }, [slug, dataroomDoc, viewId]);
 
   const handleFullScreen = () => {
     if (viewerRef.current) {

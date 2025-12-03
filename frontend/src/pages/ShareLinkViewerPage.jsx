@@ -127,19 +127,7 @@ export function ShareLinkViewerPage() {
   }
 
   if (viewData?.link_type === 'dataroom') {
-    // Only render the DataroomViewer when both the data and the viewId are ready.
-    if (viewData && viewId) {
-      return <DataroomViewer data={viewData} slug={slug} viewId={viewId} />;
-    }
-    // Otherwise, show the loading state until the view session is created.
-    return (
-      <div className="h-screen w-screen bg-gray-50 p-8">
-        <div className="mx-auto max-w-4xl space-y-4">
-          <Skeleton className="h-12 w-1/2" />
-          <Skeleton className="h-96 w-full" />
-        </div>
-      </div>
-    );
+    return <DataroomViewer data={viewData} slug={slug} viewId={viewId} />;
   }
 
   const PREVIEWABLE_TYPES = ['image', 'pdf', 'document'];
