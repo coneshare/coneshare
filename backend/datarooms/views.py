@@ -191,7 +191,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
         dataroom = self.get_object()
         view_queryset = ViewSession.objects.filter(
             share_link__dataroom=dataroom
-        ).order_by('-viewed_at').select_related('share_link')
+        ).order_by('-viewed_at').select_related('share_link').prefetch_related('dataroom_visits__page_views')
 
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(view_queryset, request, view=self)

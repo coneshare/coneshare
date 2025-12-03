@@ -184,6 +184,7 @@ class PageView(models.Model):
     """
     id = ULIDField(primary_key=True, editable=False)
     view_session = models.ForeignKey('ViewSession', on_delete=models.CASCADE, related_name='page_views')
+    dataroom_visit = models.ForeignKey('DataroomVisit', on_delete=models.SET_NULL, null=True, blank=True, related_name='page_views')
     page_number = models.PositiveIntegerField()
     duration_seconds = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)

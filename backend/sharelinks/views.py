@@ -119,7 +119,7 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'], url_path='view-sessions')
     def view_sessions(self, request, pk=None):
         share_link = self.get_object()
-        view_queryset = share_link.view_sessions.all()
+        view_queryset = share_link.view_sessions.prefetch_related('dataroom_visits__page_views').all()
 
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(view_queryset, request, view=self)
@@ -1206,8 +1206,9 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
             except DataroomFolder.DoesNotExist:
                 return Response({"detail": "Folder not found in this dataroom."}, status=status.HTTP_404_NOT_FOUND)
 
-        DataroomVisit.objects.create(**visit_data)
-        return Response(status=status.HTTP_201_CREATED)
+        visit = DataroomVisit.objects.create(**visit_data)
+        serializer = DataroomVisitSerializer(visit)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def get_queryset(self):
         return ViewSession.objects.filter(share_link__document__organization=self.request.user.organization)

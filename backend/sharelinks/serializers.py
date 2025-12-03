@@ -24,15 +24,17 @@ class RecordVisitSerializer(serializers.Serializer):
         return data
 
 
+
 class DataroomVisitSerializer(serializers.ModelSerializer):
     dataroom_document_name = serializers.CharField(source='dataroom_document.document.name', read_only=True, default=None)
     dataroom_folder_name = serializers.CharField(source='dataroom_folder.name', read_only=True, default=None)
+    page_views = PageViewSerializer(many=True, read_only=True)
 
     class Meta:
         model = DataroomVisit
         fields = [
             'id', 'visited_at', 'dataroom_document_id', 'dataroom_folder_id',
-            'dataroom_document_name', 'dataroom_folder_name'
+            'dataroom_document_name', 'dataroom_folder_name', 'page_views'
         ]
 
 
@@ -132,10 +134,24 @@ class PageViewRecordSerializer(serializers.ModelSerializer):
     view_session = serializers.PrimaryKeyRelatedField(
         queryset=ViewSession.objects.select_related('share_link__document').all()
     )
+    dataroom_visit = serializers.PrimaryKeyRelatedField(
+        queryset=DataroomVisit.objects.all(), required=False, allow_null=True
+    )
 
     class Meta:
         model = PageView
-        fields = ['view_session', 'page_number', 'duration_seconds']
+        fields = ['view_session', 'page_number', 'duration_seconds', 'dataroom_visit']
+
+    def validate(self, data):
+        view_session = data.get('view_session')
+        dataroom_visit = data.get('dataroom_visit')
+
+        if dataroom_visit and view_session:
+            if dataroom_visit.view_session != view_session:
+                raise serializers.ValidationError(
+                    {"dataroom_visit": "This document visit does not belong to the provided view session."}
+                )
+        return data
 
 
 class ShareLinkSerializer(serializers.ModelSerializer):

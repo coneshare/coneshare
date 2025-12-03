@@ -20,6 +20,58 @@ import {
   TooltipTrigger,
 } from '../ui/Tooltip';
 
+function DataroomVisitRow({ visit }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasPageViews = visit.page_views && visit.page_views.length > 0;
+  const isDocumentVisit = !!visit.dataroom_document_id;
+
+  return (
+    <li key={visit.id}>
+      <div className="flex items-center gap-2 text-sm">
+        <div className="flex w-6 flex-shrink-0 items-center justify-center">
+          {isDocumentVisit && hasPageViews && (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="rounded p-1 hover:bg-gray-200"
+              aria-expanded={isExpanded}
+              aria-label={isExpanded ? 'Collapse row' : 'Expand row'}
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </button>
+          )}
+        </div>
+
+        {visit.dataroom_folder_id ? (
+          <FolderIcon className="h-4 w-4 flex-shrink-0 text-blue-500" />
+        ) : (
+          <FileTextIcon className="h-4 w-4 flex-shrink-0 text-gray-500" />
+        )}
+        <span className="truncate">
+          {visit.dataroom_folder_name
+            ? `Viewed folder: ${visit.dataroom_folder_name}`
+            : `Viewed document: ${visit.dataroom_document_name}`}
+        </span>
+        <span className="ml-auto flex-shrink-0 text-xs text-muted-foreground">
+          {new Date(visit.visited_at).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          })}
+        </span>
+      </div>
+      {isExpanded && hasPageViews && (
+        <div className="ml-8 mt-2 border-l pl-4">
+          <PageViewsChart pageViews={visit.page_views} />
+        </div>
+      )}
+    </li>
+  );
+}
+
 function formatDuration(seconds) {
   if (seconds < 60) {
     return `${seconds}s`;
@@ -183,27 +235,9 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                           {hasDataroomVisits && (
                             <div className="p-4">
                               <h4 className="mb-2 text-sm font-semibold">Activity Log</h4>
-                              <ul className="space-y-2">
+                              <ul className="space-y-3">
                                 {view.dataroom_visits.map((visit) => (
-                                  <li key={visit.id} className="flex items-center gap-2 text-sm">
-                                    {visit.dataroom_folder_id ? (
-                                      <FolderIcon className="h-4 w-4 flex-shrink-0 text-blue-500" />
-                                    ) : (
-                                      <FileTextIcon className="h-4 w-4 flex-shrink-0 text-gray-500" />
-                                    )}
-                                    <span className="truncate">
-                                      {visit.dataroom_folder_name
-                                        ? `Viewed folder: ${visit.dataroom_folder_name}`
-                                        : `Viewed document: ${visit.dataroom_document_name}`}
-                                    </span>
-                                    <span className="ml-auto flex-shrink-0 text-xs text-muted-foreground">
-                                      {new Date(visit.visited_at).toLocaleTimeString([], {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        second: '2-digit',
-                                      })}
-                                    </span>
-                                  </li>
+                                  <DataroomVisitRow key={visit.id} visit={visit} />
                                 ))}
                               </ul>
                             </div>

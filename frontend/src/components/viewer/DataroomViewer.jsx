@@ -73,6 +73,7 @@ function ListItem({ item, onItemClick, onDownloadClick }) {
 export function DataroomViewer({ data, slug, viewId }) {
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [previewingDoc, setPreviewingDoc] = useState(null);
+  const [currentDataroomVisitId, setCurrentDataroomVisitId] = useState(null);
 
   const handleDownloadFolder = async (folder) => {
     toast.info(`Preparing to download "${folder.name}"...`);
@@ -154,7 +155,7 @@ export function DataroomViewer({ data, slug, viewId }) {
     return crumbs;
   }, [currentFolder, itemsById]);
 
-  const handleItemClick = (item) => {
+  const handleItemClick = async (item) => {
     if (item.type === 'folder') {
       if (viewId) {
         // Fire-and-forget request to record the visit
@@ -165,10 +166,12 @@ export function DataroomViewer({ data, slug, viewId }) {
       setCurrentFolderId(item.id);
     } else {
       if (viewId) {
-        // Fire-and-forget request to record the visit
-        recordDataroomVisit(viewId, { dataroomDocumentId: item.id }).catch((err) => {
+        try {
+          const response = await recordDataroomVisit(viewId, { dataroomDocumentId: item.id });
+          setCurrentDataroomVisitId(response.data.id);
+        } catch (err) {
           console.error('Failed to record document visit:', err);
-        });
+        }
       }
       setPreviewingDoc(item);
     }
@@ -232,14 +235,23 @@ export function DataroomViewer({ data, slug, viewId }) {
         )}
       </main>
 
-      <Dialog open={!!previewingDoc} onOpenChange={isOpen => !isOpen && setPreviewingDoc(null)}>
+      <Dialog open={!!previewingDoc} onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          setPreviewingDoc(null);
+          setCurrentDataroomVisitId(null);
+        }
+      }}>
         <DialogContent className="h-[90vh] max-w-[90vw] overflow-y-auto p-0">
           {previewingDoc && (
             <DataroomDocumentPreview
               slug={slug}
               document={previewingDoc}
-              onClose={() => setPreviewingDoc(null)}
+              onClose={() => {
+                setPreviewingDoc(null);
+                setCurrentDataroomVisitId(null);
+              }}
               viewId={viewId}
+              dataroomVisitId={currentDataroomVisitId}
             />
           )}
         </DialogContent>

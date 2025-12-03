@@ -6,7 +6,7 @@ import { Skeleton } from '../ui/Skeleton';
 import { Button } from '../ui/Button';
 import { X } from 'lucide-react';
 
-export function DataroomDocumentPreview({ slug, document: dataroomDoc, onClose, viewId }) {
+export function DataroomDocumentPreview({ slug, document: dataroomDoc, onClose, viewId, dataroomVisitId }) {
   const [documentData, setDocumentData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -99,6 +99,7 @@ export function DataroomDocumentPreview({ slug, document: dataroomDoc, onClose, 
             zoomLevel={zoomLevel}
             onPageChange={setCurrentPage}
             viewId={viewId}
+            dataroomVisitId={dataroomVisitId}
           />
         </>
       )}
