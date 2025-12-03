@@ -2,10 +2,38 @@ from rest_framework import serializers
 
 from core.models import Organization
 from datarooms.models import Dataroom
-from .models import (PageView, ShareLink, ShareLinkDataroomSetting,
-                     ShareLinkTemplate, Viewer, ViewSession)
+from .models import (DataroomVisit, PageView, ShareLink,
+                     ShareLinkDataroomSetting, ShareLinkTemplate, Viewer,
+                     ViewSession)
 from .services import (_get_unique_dataroom_share_link_name,
                      _get_unique_share_link_name)
+
+
+class RecordVisitSerializer(serializers.Serializer):
+    dataroom_document_id = serializers.CharField(required=False, allow_null=True)
+    dataroom_folder_id = serializers.CharField(required=False, allow_null=True)
+
+    def validate(self, data):
+        doc_id = data.get('dataroom_document_id')
+        folder_id = data.get('dataroom_folder_id')
+
+        if not doc_id and not folder_id:
+            raise serializers.ValidationError("Either 'dataroom_document_id' or 'dataroom_folder_id' must be provided.")
+        if doc_id and folder_id:
+            raise serializers.ValidationError("Only one of 'dataroom_document_id' or 'dataroom_folder_id' can be provided.")
+        return data
+
+
+class DataroomVisitSerializer(serializers.ModelSerializer):
+    dataroom_document_name = serializers.CharField(source='dataroom_document.document.name', read_only=True, default=None)
+    dataroom_folder_name = serializers.CharField(source='dataroom_folder.name', read_only=True, default=None)
+
+    class Meta:
+        model = DataroomVisit
+        fields = [
+            'id', 'visited_at', 'dataroom_document_id', 'dataroom_folder_id',
+            'dataroom_document_name', 'dataroom_folder_name'
+        ]
 
 
 class ShareLinkDataroomSettingSerializer(serializers.ModelSerializer):
@@ -42,6 +70,7 @@ class PageViewSerializer(serializers.ModelSerializer):
 class ViewSessionSerializer(serializers.ModelSerializer):
     share_link_name = serializers.CharField(source='share_link.name', read_only=True)
     page_views = PageViewSerializer(many=True, read_only=True)
+    dataroom_visits = DataroomVisitSerializer(many=True, read_only=True)
     is_owner_view = serializers.SerializerMethodField()
     document_id = serializers.CharField(source='share_link.document.id', read_only=True)
     document_name = serializers.CharField(source='share_link.document.name', read_only=True)
@@ -50,9 +79,9 @@ class ViewSessionSerializer(serializers.ModelSerializer):
         model = ViewSession
         fields = [
             'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name', 'document_id', 'document_name', 'ip_address', 'user_agent', 'country', 'city', 'latitude', 'longitude', 'duration_seconds',
-            'completion_rate', 'viewed_at', 'page_views', 'is_owner_view', 'downloaded_at'
+            'completion_rate', 'viewed_at', 'page_views', 'dataroom_visits', 'is_owner_view', 'downloaded_at'
         ]
-        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name', 'document_id', 'document_name', 'country', 'city', 'latitude', 'longitude', 'page_views', 'is_owner_view', 'downloaded_at']
+        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name', 'document_id', 'document_name', 'country', 'city', 'latitude', 'longitude', 'page_views', 'dataroom_visits', 'is_owner_view', 'downloaded_at']
     
     def get_is_owner_view(self, obj):
         request = self.context.get('request')

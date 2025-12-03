@@ -11,8 +11,9 @@ from rest_framework import status
 
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
 from documents.models import (Document, DocumentPage, DocumentVersion)
-from sharelinks.models import (EmailVerificationToken, PageView, PreviewSession,
-                               ShareLink, ShareLinkDataroomSetting, ViewSession)
+from sharelinks.models import (DataroomVisit, EmailVerificationToken, PageView,
+                               PreviewSession, ShareLink,
+                               ShareLinkDataroomSetting, ViewSession)
 import zipfile
 from io import BytesIO
 try:
@@ -405,6 +406,77 @@ class TestShareLinkViewDataView:
         """Test that a password-protected link returns 401 Unauthorized."""
         response = public_client.get(f'/api/v1/links/{share_link_with_password.slug}/view-data/')
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+class TestDataroomVisitTracking:
+    @pytest.fixture
+    def dataroom_link_with_content(self, user, dataroom, document_factory):
+        doc = document_factory(name="Test Doc.pdf")
+        folder = DataroomFolder.objects.create(dataroom=dataroom, name="Test Folder")
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=folder)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+        session = ViewSession.objects.create(share_link=link)
+        return {
+            "session": session,
+            "folder": folder,
+            "ddoc": ddoc,
+        }
+
+    def test_record_dataroom_document_visit(self, public_client, dataroom_link_with_content):
+        """Test that a visit to a dataroom document is recorded."""
+        session = dataroom_link_with_content['session']
+        ddoc = dataroom_link_with_content['ddoc']
+        
+        url = f'/api/v1/view-sessions/{session.id}/record-visit/'
+        data = {'dataroom_document_id': str(ddoc.id)}
+        
+        assert DataroomVisit.objects.count() == 0
+        response = public_client.post(url, data)
+        
+        assert response.status_code == status.HTTP_201_CREATED
+        assert DataroomVisit.objects.count() == 1
+        visit = DataroomVisit.objects.first()
+        assert visit.view_session == session
+        assert visit.dataroom_document == ddoc
+        assert visit.dataroom_folder is None
+
+    def test_record_dataroom_folder_visit(self, public_client, dataroom_link_with_content):
+        """Test that a visit to a dataroom folder is recorded."""
+        session = dataroom_link_with_content['session']
+        folder = dataroom_link_with_content['folder']
+        
+        url = f'/api/v1/view-sessions/{session.id}/record-visit/'
+        data = {'dataroom_folder_id': str(folder.id)}
+        
+        assert DataroomVisit.objects.count() == 0
+        response = public_client.post(url, data)
+        
+        assert response.status_code == status.HTTP_201_CREATED
+        assert DataroomVisit.objects.count() == 1
+        visit = DataroomVisit.objects.first()
+        assert visit.view_session == session
+        assert visit.dataroom_folder == folder
+        assert visit.dataroom_document is None
+
+    def test_record_visit_for_non_dataroom_link_fails(self, public_client, share_link):
+        """Test that recording a visit fails for a regular document share link."""
+        session = ViewSession.objects.create(share_link=share_link)
+        url = f'/api/v1/view-sessions/{session.id}/record-visit/'
+        data = {'dataroom_folder_id': 'some_id'}
+        response = public_client.post(url, data)
+        
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_record_visit_with_invalid_id_fails(self, public_client, dataroom_link_with_content):
+        """Test recording a visit with an ID for an item not in the dataroom fails."""
+        session = dataroom_link_with_content['session']
+        
+        url = f'/api/v1/view-sessions/{session.id}/record-visit/'
+        data = {'dataroom_document_id': 'ddoc_00000000000000000000000000'}
+        response = public_client.post(url, data)
+        
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_get_share_link_data_document_not_ready(self, public_client, share_link, document):
         """Test link for a document that isn't ready returns 400."""

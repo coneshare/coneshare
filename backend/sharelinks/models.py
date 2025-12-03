@@ -122,6 +122,26 @@ class ShareLinkDataroomSetting(BaseModel):
         ]
 
 
+class DataroomVisit(models.Model):
+    id = ULIDField(primary_key=True, editable=False)
+    view_session = models.ForeignKey('ViewSession', on_delete=models.CASCADE, related_name='dataroom_visits')
+    dataroom_document = models.ForeignKey('datarooms.DataroomDocument', on_delete=models.CASCADE, null=True, blank=True)
+    dataroom_folder = models.ForeignKey('datarooms.DataroomFolder', on_delete=models.CASCADE, null=True, blank=True)
+    visited_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['visited_at']
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(dataroom_document__isnull=False, dataroom_folder__isnull=True) |
+                    Q(dataroom_document__isnull=True, dataroom_folder__isnull=False)
+                ),
+                name='dataroomvisit_exactly_one_target'
+            )
+        ]
+
+
 class Viewer(models.Model):
     id = ULIDField(primary_key=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)

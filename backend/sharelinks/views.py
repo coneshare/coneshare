@@ -33,10 +33,11 @@ from datarooms.serializers import (PublicDataroomDocumentSerializer,
 from documents.fileserver import fileserver_client
 from documents.models import DocumentPage
 from documents.views import StandardResultsSetPagination, _prepare_pages_data
-from .models import (EmailVerificationToken, PreviewSession,
+from .models import (DataroomVisit, EmailVerificationToken, PreviewSession,
                      ShareLink, ShareLinkDataroomSetting, ShareLinkTemplate,
                      Viewer, ViewSession)
-from .serializers import (PageViewRecordSerializer,
+from .serializers import (DataroomVisitSerializer, PageViewRecordSerializer,
+                          RecordVisitSerializer,
                           ShareLinkDataroomSettingUpdateSerializer,
                           ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
                           ShareLinkTemplateSerializer, ShareLinkSerializer,
@@ -1149,7 +1150,7 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
         Allow anonymous users to create view sessions, but restrict
         all other actions to authenticated users.
         """
-        if self.action in ['create', 'record_download']:
+        if self.action in ['create', 'record_download', 'record_visit']:
             return [permissions.AllowAny()]
         return [permissions.IsAuthenticated()]
 
@@ -1165,6 +1166,48 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_200_OK)
         except ViewSession.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['post'], url_path='record-visit')
+    def record_visit(self, request, pk=None):
+        """Records a visit to a specific document or folder within a dataroom view session."""
+        try:
+            view_session = ViewSession.objects.select_related('share_link__dataroom').get(pk=pk)
+        except ViewSession.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        if not view_session.share_link.dataroom:
+            return Response(
+                {"detail": "This action is only valid for dataroom share links."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = RecordVisitSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        dataroom = view_session.share_link.dataroom
+        doc_id = serializer.validated_data.get('dataroom_document_id')
+        folder_id = serializer.validated_data.get('dataroom_folder_id')
+
+        visit_data = {'view_session': view_session}
+
+        if doc_id:
+            try:
+                # Security check: ensure the document is part of this dataroom.
+                dataroom_doc = DataroomDocument.objects.get(id=doc_id, dataroom=dataroom)
+                visit_data['dataroom_document'] = dataroom_doc
+            except DataroomDocument.DoesNotExist:
+                return Response({"detail": "Document not found in this dataroom."}, status=status.HTTP_404_NOT_FOUND)
+        elif folder_id:
+            try:
+                # Security check: ensure the folder is part of this dataroom.
+                dataroom_folder = DataroomFolder.objects.get(id=folder_id, dataroom=dataroom)
+                visit_data['dataroom_folder'] = dataroom_folder
+            except DataroomFolder.DoesNotExist:
+                return Response({"detail": "Folder not found in this dataroom."}, status=status.HTTP_404_NOT_FOUND)
+
+        DataroomVisit.objects.create(**visit_data)
+        return Response(status=status.HTTP_201_CREATED)
 
     def get_queryset(self):
         return ViewSession.objects.filter(share_link__document__organization=self.request.user.organization)
