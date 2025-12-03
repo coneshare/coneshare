@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { LazyImage } from './LazyImage';
 import { recordPageView } from '../../services/api';
 
-export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId }) {
+export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId, dataroomVisitId }) {
   const [scrollContainer, setScrollContainer] = useState(null);
   const pageRefs = useRef(new Map());
   const activePageRef = useRef(1);
@@ -20,16 +20,17 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId })
   const sendTrackingData = useCallback(
     (page, duration, useBeacon = false) => {
       if (!viewId || duration < 1) return;
-      recordPageView(
-        {
-          view_session: viewId,
-          page_number: page,
-          duration_seconds: Math.round(duration),
-        },
-        useBeacon
-      );
+      const payload = {
+        view_session: viewId,
+        page_number: page,
+        duration_seconds: Math.round(duration),
+      };
+      if (dataroomVisitId) {
+        payload.dataroom_visit = dataroomVisitId;
+      }
+      recordPageView(payload, useBeacon);
     },
-    [viewId]
+    [viewId, dataroomVisitId]
   );
 
   useEffect(() => {
