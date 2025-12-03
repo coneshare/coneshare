@@ -26,6 +26,7 @@ class RecordVisitSerializer(serializers.Serializer):
 
 
 
+
 class DataroomVisitSerializer(serializers.ModelSerializer):
     dataroom_document_name = serializers.CharField(source='dataroom_document.document.name', read_only=True, default=None)
     dataroom_folder_name = serializers.CharField(source='dataroom_folder.name', read_only=True, default=None)
