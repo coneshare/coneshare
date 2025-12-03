@@ -195,6 +195,24 @@ class TestShareLinkSerializer:
         assert not serializer.is_valid()
         assert 'name' in serializer.errors
 
+    def test_create_for_dataroom_with_duplicate_name_is_renamed(self, dataroom, user, serializer_context):
+        """
+        Test that creating a share link with a duplicate name for the same
+        dataroom results in an appended counter.
+        """
+        # Create first link
+        ShareLink.objects.create(dataroom=dataroom, name="My Dataroom Link", created_by=user)
+
+        # Create second link with the same name
+        serializer = ShareLinkSerializer(
+            data={"dataroom": dataroom.id, "name": "My Dataroom Link"},
+            context=serializer_context,
+        )
+        assert serializer.is_valid(), serializer.errors
+        instance = serializer.save()
+
+        assert instance.name == "My Dataroom Link (2)"
+
     def test_create_for_dataroom_generates_settings(self, dataroom, document, serializer_context):
         """
         Test that creating a share link for a dataroom automatically creates
