@@ -125,8 +125,8 @@ class ShareLinkDataroomSetting(BaseModel):
 class DataroomVisit(models.Model):
     id = ULIDField(primary_key=True, editable=False)
     view_session = models.ForeignKey('ViewSession', on_delete=models.CASCADE, related_name='dataroom_visits')
-    dataroom_document = models.ForeignKey('datarooms.DataroomDocument', on_delete=models.CASCADE, null=True, blank=True)
-    dataroom_folder = models.ForeignKey('datarooms.DataroomFolder', on_delete=models.CASCADE, null=True, blank=True)
+    dataroom_document = models.ForeignKey('datarooms.DataroomDocument', on_delete=models.SET_NULL, null=True, blank=True)
+    dataroom_folder = models.ForeignKey('datarooms.DataroomFolder', on_delete=models.SET_NULL, null=True, blank=True)
     visited_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
