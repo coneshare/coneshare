@@ -38,6 +38,24 @@ def document_factory(user, organization):
     return _create_document
 
 
+@pytest.fixture
+def dataroom_with_link_and_content(user, dataroom, document_factory):
+    """
+    Sets up a dataroom with a document, a folder, a dataroom document link,
+    and a share link for the dataroom.
+    """
+    doc = document_factory(name="Test Doc.pdf")
+    folder = DataroomFolder.objects.create(dataroom=dataroom, name="Test Folder")
+    ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=folder)
+    link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+    return {
+        "link": link,
+        "folder": folder,
+        "ddoc": ddoc,
+        "document": doc,
+    }
+
+
 pytestmark = pytest.mark.django_db
 
 
@@ -136,6 +154,61 @@ class TestRecordPageView:
         })
         view_session.refresh_from_db()
         assert view_session.completion_rate == 0.75  # 3 of 4 pages viewed
+
+    def test_record_page_view_with_dataroom_visit(self, public_client, dataroom_with_link_and_content):
+        """
+        Test that a page view can be correctly associated with a dataroom document visit.
+        """
+        link = dataroom_with_link_and_content['link']
+        ddoc = dataroom_with_link_and_content['ddoc']
+        session = ViewSession.objects.create(share_link=link)
+        visit = DataroomVisit.objects.create(view_session=session, dataroom_document=ddoc)
+        
+        assert PageView.objects.count() == 0
+
+        data = {
+            'view_session': session.id,
+            'page_number': 1,
+            'duration_seconds': 15,
+            'dataroom_visit': visit.id
+        }
+        response = public_client.post('/api/v1/page-views/record/', data)
+        
+        assert response.status_code == status.HTTP_200_OK
+        assert PageView.objects.count() == 1
+        page_view = PageView.objects.first()
+        assert page_view.view_session == session
+        assert page_view.dataroom_visit == visit
+        assert page_view.page_number == 1
+        assert page_view.duration_seconds == 15
+
+    def test_record_page_view_with_mismatched_dataroom_visit_fails(self, public_client, dataroom_with_link_and_content):
+        """
+        Test that associating a page view with a dataroom visit from a
+        different view session is not allowed.
+        """
+        link = dataroom_with_link_and_content['link']
+        ddoc = dataroom_with_link_and_content['ddoc']
+        
+        # Session A and its visit
+        session_a = ViewSession.objects.create(share_link=link)
+        visit_from_a = DataroomVisit.objects.create(view_session=session_a, dataroom_document=ddoc)
+        
+        # Session B (for the same link)
+        session_b = ViewSession.objects.create(share_link=link)
+
+        data = {
+            'view_session': session_b.id,  # Trying to record for session B
+            'page_number': 1,
+            'duration_seconds': 15,
+            'dataroom_visit': visit_from_a.id  # But using visit from session A
+        }
+        response = public_client.post('/api/v1/page-views/record/', data)
+        
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'dataroom_visit' in response.data
+        assert "does not belong to the provided view session" in response.data['dataroom_visit'][0]
+        assert PageView.objects.count() == 0
 
 
 @pytest.mark.django_db
@@ -424,7 +497,10 @@ class TestDataroomVisitTracking:
         }
 
     def test_record_dataroom_document_visit(self, public_client, dataroom_link_with_content):
-        """Test that a visit to a dataroom document is recorded."""
+        """
+        Test that a visit to a dataroom document is recorded and the created
+        object is returned.
+        """
         session = dataroom_link_with_content['session']
         ddoc = dataroom_link_with_content['ddoc']
         
@@ -440,6 +516,11 @@ class TestDataroomVisitTracking:
         assert visit.view_session == session
         assert visit.dataroom_document == ddoc
         assert visit.dataroom_folder is None
+
+        # Check response data
+        response_data = response.json()
+        assert response_data['id'] == str(visit.id)
+        assert response_data['dataroom_document_id'] == str(ddoc.id)
 
     def test_record_dataroom_folder_visit(self, public_client, dataroom_link_with_content):
         """Test that a visit to a dataroom folder is recorded."""
@@ -477,6 +558,44 @@ class TestDataroomVisitTracking:
         response = public_client.post(url, data)
         
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_view_sessions_for_dataroom_includes_page_views(self, api_client, dataroom_link_with_content):
+        """
+        Test that the view-sessions endpoint for a dataroom share link correctly
+        serializes nested page views within each dataroom visit.
+        """
+        session = dataroom_link_with_content['session']
+        ddoc = dataroom_link_with_content['ddoc']
+        link = dataroom_link_with_content['session'].share_link
+
+        # Create a visit and a page view for it
+        visit = DataroomVisit.objects.create(view_session=session, dataroom_document=ddoc)
+        PageView.objects.create(
+            view_session=session,
+            dataroom_visit=visit,
+            page_number=1,
+            duration_seconds=30
+        )
+        
+        # The user who created the link is fetching the sessions
+        url = f'/api/v1/share-links/{link.id}/view-sessions/'
+        response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data['count'] == 1
+        
+        session_data = data['results'][0]
+        assert 'dataroom_visits' in session_data
+        assert len(session_data['dataroom_visits']) == 1
+        
+        visit_data = session_data['dataroom_visits'][0]
+        assert 'page_views' in visit_data
+        assert len(visit_data['page_views']) == 1
+        
+        page_view_data = visit_data['page_views'][0]
+        assert page_view_data['page_number'] == 1
+        assert page_view_data['duration_seconds'] == 30
 
     def test_get_share_link_data_document_not_ready(self, public_client, share_link, document):
         """Test link for a document that isn't ready returns 400."""
