@@ -1299,3 +1299,16 @@ omponent for dropdown inputs.
 ..."}`) that the frontend can correctly parse.
 - **Test Suite Maintenance**: A series of failing tests in `tests/core/test_views.py` were fixed after the major API refactoring. The tests were updated to use the new `/admin/users/` endpoint
 and to correctly handle paginated responses.
+
+
+---
+
+## Session 58: Dataroom Visits Tracking (2025-12-04)
+
+This session implements a enhancement to dataroom analytics by introducing a dedicated mechanism to track visits to individual documents and folders. This change provides a more granular understanding of user interaction within datarooms, allowing page views to be directly associated with specific content visits. The backend includes new models, migrations, and API endpoints, while the frontend has been updated to leverage this new tracking, improving the visibility of user activity and refining the document preview experience. [https://github.com/coneshare/coneshare/pull/83](https://github.com/coneshare/coneshare/pull/83)
+
+- Granular Dataroom Visit Tracking: Introduced a new DataroomVisit model to specifically track when a user views a document or folder within a dataroom, providing more detailed insights into user engagement.
+- Enhanced Page View Association: The PageView model now includes a foreign key to DataroomVisit, allowing individual page views to be directly linked to a specific document or folder visit within a dataroom session.
+- New API Endpoint for Recording Visits: Added a new API endpoint (/api/v1/view-sessions/{pk}/record-visit/) to record these dataroom visits, which returns the newly created DataroomVisit object for subsequent page view tracking.
+- Frontend Integration for Dataroom Activity: The frontend has been updated to utilize the new visit tracking, recording document/folder visits and passing the dataroomVisitId to the PreviewViewer for accurate page view attribution. The ViewSessionsTable now displays these dataroom visits with nested page view charts.
+- Refactored Document Preview in Dataroom: The way dataroom documents are previewed has been refactored; documents are now opened in a new tab, allowing for independent tracking and a cleaner user experience within the dataroom viewer.
