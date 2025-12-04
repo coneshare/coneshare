@@ -231,7 +231,7 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                     {isExpanded && isExpandable && (
                       <TableRow className="bg-gray-50 hover:bg-gray-50">
                         <TableCell colSpan={isDashboardWidget ? 8 : 7}>
-                          {hasPageViews && <PageViewsChart pageViews={view.page_views} />}
+                          {/* {hasPageViews && <PageViewsChart pageViews={view.page_views} />} */}
                           {hasDataroomVisits && (
                             <div className="p-4">
                               <h4 className="mb-2 text-sm font-semibold">Activity Log</h4>

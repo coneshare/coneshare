@@ -26,6 +26,10 @@ export function ShareLinkViewerPage() {
   const [dataroomVisitId, setDataroomVisitId] = useState(null);
   const viewerRef = useRef(null);
 
+  // Document-specific state must be declared at the top level, before any conditional returns.
+  const [currentPage, setCurrentPage] = useState(1);
+  const [zoomLevel, setZoomLevel] = useState(1);
+
   const handleFullScreen = () => {
     if (viewerRef.current) {
       if (document.fullscreenElement) {
@@ -145,9 +149,6 @@ export function ShareLinkViewerPage() {
   }
 
   // Document-specific state and handlers
-  const [currentPage, setCurrentPage] = useState(1);
-  const [zoomLevel, setZoomLevel] = useState(1);
-
   const PREVIEWABLE_TYPES = ['image', 'pdf', 'document'];
   const isPreviewable = viewData && PREVIEWABLE_TYPES.includes(viewData.type);
 
