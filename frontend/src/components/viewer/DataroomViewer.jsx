@@ -10,8 +10,6 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
-import { DataroomDocumentPreview } from './DataroomDocumentPreview';
-import { Dialog, DialogContent, DialogTitle } from '../ui/Dialog';
 import { formatBytes } from '../../lib/formatters';
 import { Button } from '../ui/Button';
 import { downloadDataroomFolder, recordDataroomVisit } from '../../services/api';
@@ -72,9 +70,6 @@ function ListItem({ item, onItemClick, onDownloadClick }) {
 
 export function DataroomViewer({ data, slug, viewId }) {
   const [currentFolderId, setCurrentFolderId] = useState(null);
-  const [previewingDoc, setPreviewingDoc] = useState(null);
-  const [currentDataroomVisitId, setCurrentDataroomVisitId] = useState(null);
-  console.log('DataroomViewer: Rendered with viewId:', viewId);
 
   const handleDownloadFolder = async (folder) => {
     toast.info(`Preparing to download "${folder.name}"...`);
@@ -159,23 +154,32 @@ export function DataroomViewer({ data, slug, viewId }) {
   const handleItemClick = async (item) => {
     if (item.type === 'folder') {
       if (viewId) {
-        // Fire-and-forget request to record the visit
+        // Fire-and-forget request to record the folder visit for the activity log.
         recordDataroomVisit(viewId, { dataroomFolderId: item.id }).catch((err) => {
           console.error('Failed to record folder visit:', err);
         });
       }
       setCurrentFolderId(item.id);
     } else {
-      console.log('DataroomViewer: Document clicked. Current viewId:', viewId);
+      // This is a document. Record the visit and then open it in a new tab.
       if (viewId) {
         try {
-          const response = await recordDataroomVisit(viewId, { dataroomDocumentId: item.id });
-          setCurrentDataroomVisitId(response.data.id);
+          // Record the visit to get a specific visit ID for page-level tracking.
+          const visitResponse = await recordDataroomVisit(viewId, { dataroomDocumentId: item.id });
+          const dataroomVisitId = visitResponse.data.id;
+
+          // Construct the URL for the new tab.
+          const url = `/view/${slug}?document_id=${item.document_id}&view_session_id=${viewId}&dataroom_visit_id=${dataroomVisitId}`;
+          window.open(url, '_blank', 'noopener,noreferrer');
         } catch (err) {
-          console.error('Failed to record document visit:', err);
+          console.error('Failed to record document visit or open document:', err);
+          toast.error('Could not open document. Please try again.');
         }
+      } else {
+        // Fallback for the case where viewId is not ready, though it should be.
+        const url = `/view/${slug}?document_id=${item.document_id}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
       }
-      setPreviewingDoc(item);
     }
   };
 
@@ -237,30 +241,6 @@ export function DataroomViewer({ data, slug, viewId }) {
         )}
       </main>
 
-      <Dialog open={!!previewingDoc} onOpenChange={(isOpen) => {
-        if (!isOpen) {
-          setPreviewingDoc(null);
-          setCurrentDataroomVisitId(null);
-        }
-      }}>
-        <DialogContent className="h-[90vh] max-w-[90vw] overflow-y-auto p-0">
-          {previewingDoc && (
-            <>
-              <DialogTitle className="sr-only">{previewingDoc.document_name}</DialogTitle>
-              <DataroomDocumentPreview
-                slug={slug}
-                document={previewingDoc}
-                onClose={() => {
-                  setPreviewingDoc(null);
-                  setCurrentDataroomVisitId(null);
-                }}
-                viewId={viewId}
-                dataroomVisitId={currentDataroomVisitId}
-              />
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
