@@ -947,6 +947,39 @@ class ShareLinkFileDownloadView(APIView):
         except NotFound as e:
             return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
 
+        is_preview = False
+        preview_token = request.query_params.get('previewToken')
+        if preview_token:
+            try:
+                with transaction.atomic():
+                    session = PreviewSession.objects.select_related('user', 'share_link__created_by').select_for_update().get(token=preview_token)
+                    if not session.is_expired() and session.share_link.slug == slug:
+                        if session.user == session.share_link.created_by:
+                            is_preview = True
+                            request.session['preview_owner_email'] = session.user.email
+                            session.delete()
+            except PreviewSession.DoesNotExist:
+                pass
+
+        if not is_preview:
+            if link.expires_at and link.expires_at < timezone.now():
+                return Response({"message": "This link has expired."}, status=status.HTTP_410_GONE)
+
+            authorized_links = request.session.get('authorized_share_links', {})
+            auth_status = authorized_links.get(str(link.id), {})
+
+            if link.password and not auth_status.get('password_verified'):
+                return Response(
+                    {"message": "This link is password-protected.", "protectionType": "password"},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+            if link.requires_email and not auth_status.get('email_verified'):
+                return Response(
+                    {"message": "This link requires an email address to view.", "protectionType": "email"},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
         document = None
         allow_download = False
         enable_watermark = False

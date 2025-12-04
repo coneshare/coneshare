@@ -1816,6 +1816,58 @@ class TestWatermarkingViews:
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert "Document not found" in response.data['message']
 
+    def test_download_file_password_protected_fails_without_auth(self, public_client, watermarked_link):
+        """Test that downloading from a password-protected link without an authorized session fails."""
+        watermarked_link.password = 'password123'
+        watermarked_link.save()
+
+        url = f'/api/v1/links/{watermarked_link.slug}/download-file/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.data['protectionType'] == 'password'
+
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_non_watermarked_file_succeeds_with_auth(self, mock_fs_download_url, public_client, document_with_page, user):
+        """Test that downloading from a password-protected link succeeds after session authorization."""
+        link = ShareLink.objects.create(
+            document=document_with_page,
+            created_by=user,
+            password="password123",
+            allow_download=True
+        )
+        version = document_with_page.versions.get(is_primary=True)
+        mock_fs_download_url.return_value = "http://fileserver.test/download/some-token"
+
+        # 1. First, try to download without auth - should fail
+        download_url = f'/api/v1/links/{link.slug}/download-file/'
+        response_fail = public_client.get(download_url)
+        assert response_fail.status_code == status.HTTP_401_UNAUTHORIZED
+
+        # 2. Now, authorize the session
+        verify_url = f'/api/v1/links/{link.slug}/verify-password/'
+        public_client.post(verify_url, {'password': 'password123'})
+
+        # 3. Try to download again - should succeed
+        response_success = public_client.get(download_url)
+        assert response_success.status_code == status.HTTP_302_FOUND
+        mock_fs_download_url.assert_called_once_with(version.original_storage_key, is_internal=False)
+
+    def test_download_file_email_protected_fails_without_auth(self, public_client, document_with_page, user):
+        """Test that downloading from an email-protected link without an authorized session fails."""
+        link = ShareLink.objects.create(
+            document=document_with_page,
+            created_by=user,
+            requires_email=True,
+            allow_download=True
+        )
+
+        url = f'/api/v1/links/{link.slug}/download-file/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.data['protectionType'] == 'email'
+
 
 @pytest.mark.django_db
 class TestDataroomFolderDownloadView:
