@@ -22,10 +22,13 @@ export function ShareLinkViewerPage() {
   const [error, setError] = useState(null);
   const [protectionType, setProtectionType] = useState(null);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
+  const [viewId, setViewId] = useState(null);
+  const [dataroomVisitId, setDataroomVisitId] = useState(null);
+  const viewerRef = useRef(null);
+
+  // Document-specific state must be declared at the top level, before any conditional returns.
   const [currentPage, setCurrentPage] = useState(1);
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [viewId, setViewId] = useState(null);
-  const viewerRef = useRef(null);
 
   const handleFullScreen = () => {
     if (viewerRef.current) {
@@ -41,26 +44,41 @@ export function ShareLinkViewerPage() {
   const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
 
   useEffect(() => {
+    const viewSessionIdFromUrl = searchParams.get('view_session_id');
+    const dataroomVisitIdFromUrl = searchParams.get('dataroom_visit_id');
+    const documentIdFromUrl = searchParams.get('document_id');
+
     let isCancelled = false;
     const fetchData = async () => {
-      // Reset state before fetching
       setIsLoading(true);
       setError(null);
       setProtectionType(null);
-      setViewId(null); // Reset viewId on fetch
+
+      if (dataroomVisitIdFromUrl) {
+        setDataroomVisitId(dataroomVisitIdFromUrl);
+      }
 
       try {
-        const response = await getShareLinkViewData(slug, { previewToken, accessToken });
+        const response = await getShareLinkViewData(slug, {
+          previewToken,
+          accessToken,
+          documentId: documentIdFromUrl,
+        });
         if (!isCancelled) {
           setViewData(response.data);
-          // Create a view session as soon as we have the link ID
-          try {
-            const viewResponse = await createViewSession({ share_link: response.data.link_settings.id });
-            if (!isCancelled) {
-              setViewId(viewResponse.data.id);
+          if (viewSessionIdFromUrl) {
+            // If a session ID is passed from the parent dataroom, use it.
+            setViewId(viewSessionIdFromUrl);
+          } else {
+            // Otherwise, create a new session for this link.
+            try {
+              const viewResponse = await createViewSession({ share_link: response.data.link_settings.id });
+              if (!isCancelled) {
+                setViewId(viewResponse.data.id);
+              }
+            } catch (viewError) {
+              console.error('Failed to create view session:', viewError);
             }
-          } catch (viewError) {
-            console.error('Failed to create view session:', viewError);
           }
         }
       } catch (err) {
@@ -84,7 +102,7 @@ export function ShareLinkViewerPage() {
     return () => {
       isCancelled = true;
     };
-  }, [slug, previewToken, accessToken, refetchTrigger]);
+  }, [slug, searchParams, previewToken, accessToken, refetchTrigger]);
 
   if (isLoading) {
     return (
@@ -127,9 +145,10 @@ export function ShareLinkViewerPage() {
   }
 
   if (viewData?.link_type === 'dataroom') {
-    return <DataroomViewer data={viewData} slug={slug} />;
+    return <DataroomViewer data={viewData} slug={slug} viewId={viewId} />;
   }
 
+  // Document-specific state and handlers
   const PREVIEWABLE_TYPES = ['image', 'pdf', 'document'];
   const isPreviewable = viewData && PREVIEWABLE_TYPES.includes(viewData.type);
 
@@ -199,6 +218,7 @@ export function ShareLinkViewerPage() {
             zoomLevel={zoomLevel}
             onPageChange={setCurrentPage}
             viewId={viewId}
+            dataroomVisitId={dataroomVisitId}
           />
         </>
       )}

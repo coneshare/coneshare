@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, FolderIcon, FileTextIcon } from 'lucide-react';
 import { UAParser } from 'ua-parser-js';
 import { PageViewsChart } from './PageViewsChart';
 import { Pagination } from '../ui/Pagination';
@@ -19,6 +19,58 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../ui/Tooltip';
+
+function DataroomVisitRow({ visit }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasPageViews = visit.page_views && visit.page_views.length > 0;
+  const isDocumentVisit = !!visit.dataroom_document_id;
+
+  return (
+    <li key={visit.id}>
+      <div className="flex items-center gap-2 text-sm">
+        <div className="flex w-6 flex-shrink-0 items-center justify-center">
+          {isDocumentVisit && hasPageViews && (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="rounded p-1 hover:bg-gray-200"
+              aria-expanded={isExpanded}
+              aria-label={isExpanded ? 'Collapse row' : 'Expand row'}
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </button>
+          )}
+        </div>
+
+        {visit.dataroom_folder_id ? (
+          <FolderIcon className="h-4 w-4 flex-shrink-0 text-blue-500" />
+        ) : (
+          <FileTextIcon className="h-4 w-4 flex-shrink-0 text-gray-500" />
+        )}
+        <span className="truncate">
+          {visit.dataroom_folder_name
+            ? `Viewed folder: ${visit.dataroom_folder_name}`
+            : `Viewed document: ${visit.dataroom_document_name}`}
+        </span>
+        <span className="ml-auto flex-shrink-0 text-xs text-muted-foreground">
+          {new Date(visit.visited_at).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          })}
+        </span>
+      </div>
+      {isExpanded && hasPageViews && (
+        <div className="ml-8 mt-2 border-l pl-4">
+          <PageViewsChart pageViews={visit.page_views} />
+        </div>
+      )}
+    </li>
+  );
+}
 
 function formatDuration(seconds) {
   if (seconds < 60) {
@@ -94,12 +146,14 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                 const hasLocation = locationParts.length > 0;
                 const isExpanded = expandedRowId === view.id;
                 const hasPageViews = view.page_views && view.page_views.length > 0;
+                const hasDataroomVisits = view.dataroom_visits && view.dataroom_visits.length > 0;
+                const isExpandable = hasPageViews || hasDataroomVisits;
 
                 return (
                   <Fragment key={view.id}>
                     <TableRow>
                       <TableCell>
-                        {hasPageViews && (
+                        {isExpandable && (
                           <button
                             onClick={() => setExpandedRowId(isExpanded ? null : view.id)}
                             className="flex items-center justify-center rounded-full p-1 hover:bg-gray-100"
@@ -171,13 +225,23 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                         {formatDuration(view.duration_seconds)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {`${(view.completion_rate * 100).toFixed(0)}%`}
+                        {hasDataroomVisits ? '—' : `${(view.completion_rate * 100).toFixed(0)}%`}
                       </TableCell>
                     </TableRow>
-                    {isExpanded && hasPageViews && (
+                    {isExpanded && isExpandable && (
                       <TableRow className="bg-gray-50 hover:bg-gray-50">
-                        <TableCell colSpan={isDashboardWidget ? 8 : 7} className="p-4">
-                          <PageViewsChart pageViews={view.page_views} />
+                        <TableCell colSpan={isDashboardWidget ? 8 : 7}>
+                          {/* {hasPageViews && <PageViewsChart pageViews={view.page_views} />} */}
+                          {hasDataroomVisits && (
+                            <div className="p-4">
+                              <h4 className="mb-2 text-sm font-semibold">Activity Log</h4>
+                              <ul className="space-y-3">
+                                {view.dataroom_visits.map((visit) => (
+                                  <DataroomVisitRow key={visit.id} visit={visit} />
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     )}
