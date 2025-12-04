@@ -337,7 +337,7 @@ class ShareLinkViewDataView(APIView):
             download_url = None
             is_watermarked = enable_watermark and link.watermark_text
             if is_watermarked:
-                base_url = f"/api/v1/links/{link.slug}/download/"
+                base_url = f"/api/v1/links/{link.slug}/download-file/"
                 if link.dataroom:
                     download_url = urljoin(settings.SITE_DOMAIN, f"{base_url}?document_id={document.id}")
                 else:
@@ -935,10 +935,11 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
         raise WatermarkingError("An error occurred while generating the watermarked file.") from e
 
 
-class WatermarkedFileDownloadView(APIView):
+class ShareLinkFileDownloadView(APIView):
     """
-    Dynamically generates and serves a watermarked PDF file for download.
-    This is a public endpoint that checks for an active share link.
+    Handles the download of a single file from a share link. If watermarking
+    is enabled for the item, it generates a watermarked PDF; otherwise, it
+    serves the original file.
     """
     def get(self, request, slug, *args, **kwargs):
         try:
@@ -946,11 +947,42 @@ class WatermarkedFileDownloadView(APIView):
         except NotFound as e:
             return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
 
-        if not link.enable_watermark or not link.watermark_text:
-            return Response({"message": "Watermarking is not enabled for this link."}, status=status.HTTP_400_BAD_REQUEST)
+        is_preview = False
+        preview_token = request.query_params.get('previewToken')
+        if preview_token:
+            try:
+                with transaction.atomic():
+                    session = PreviewSession.objects.select_related('user', 'share_link__created_by').select_for_update().get(token=preview_token)
+                    if not session.is_expired() and session.share_link.slug == slug:
+                        if session.user == session.share_link.created_by:
+                            is_preview = True
+                            request.session['preview_owner_email'] = session.user.email
+                            session.delete()
+            except PreviewSession.DoesNotExist:
+                pass
+
+        if not is_preview:
+            if link.expires_at and link.expires_at < timezone.now():
+                return Response({"message": "This link has expired."}, status=status.HTTP_410_GONE)
+
+            authorized_links = request.session.get('authorized_share_links', {})
+            auth_status = authorized_links.get(str(link.id), {})
+
+            if link.password and not auth_status.get('password_verified'):
+                return Response(
+                    {"message": "This link is password-protected.", "protectionType": "password"},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+            if link.requires_email and not auth_status.get('email_verified'):
+                return Response(
+                    {"message": "This link requires an email address to view.", "protectionType": "email"},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
 
         document = None
         allow_download = False
+        enable_watermark = False
 
         if link.dataroom:
             document_id = request.query_params.get('document_id')
@@ -961,12 +993,14 @@ class WatermarkedFileDownloadView(APIView):
                 setting = link.dataroom_settings.get(dataroom_document__document_id=document_id)
                 document = setting.dataroom_document.document
                 allow_download = setting.allow_download
+                enable_watermark = setting.enable_watermark
             except ShareLinkDataroomSetting.DoesNotExist:
                 return Response({"message": "Document not found in this dataroom link."}, status=status.HTTP_404_NOT_FOUND)
 
         elif link.document:
             document = link.document
             allow_download = link.allow_download
+            enable_watermark = link.enable_watermark
         
         else:
             return Response({"message": "Invalid link target."}, status=status.HTTP_400_BAD_REQUEST)
@@ -974,31 +1008,42 @@ class WatermarkedFileDownloadView(APIView):
         if not allow_download:
             return Response({"message": "Download is not allowed for this item."}, status=status.HTTP_403_FORBIDDEN)
 
-        authorized_links = request.session.get('authorized_share_links', {})
-        auth_status = authorized_links.get(str(link.id), {})
-        viewer_email = auth_status.get('viewer_email', '')
-
         primary_version = document.versions.filter(is_primary=True).first()
 
         if not primary_version:
             return Response({"message": "Document version not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            pdf_buffer = _generate_watermarked_pdf(document, primary_version, link.watermark_text, request, viewer_email)
-            response = HttpResponse(pdf_buffer, content_type='application/pdf')
-            safe_filename = get_valid_filename(document.name)
-            response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
-            return response
-        except WatermarkingDependenciesMissingError as e:
-            return Response({"message": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-        except InvalidDocumentForWatermarkingError as e:
-            return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except WatermarkingError as e:
-            logger.exception(f"A watermarking error occurred for link {slug}: {e}")
-            return Response(
-                {"message": "An error occurred while generating the watermarked file."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        if enable_watermark and link.watermark_text:
+            authorized_links = request.session.get('authorized_share_links', {})
+            auth_status = authorized_links.get(str(link.id), {})
+            viewer_email = auth_status.get('viewer_email', '')
+            try:
+                pdf_buffer = _generate_watermarked_pdf(document, primary_version, link.watermark_text, request, viewer_email)
+                response = HttpResponse(pdf_buffer, content_type='application/pdf')
+                safe_filename = get_valid_filename(document.name)
+                response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
+                return response
+            except WatermarkingDependenciesMissingError as e:
+                return Response({"message": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            except InvalidDocumentForWatermarkingError as e:
+                return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            except WatermarkingError as e:
+                logger.exception(f"A watermarking error occurred for link {slug}: {e}")
+                return Response(
+                    {"message": "An error occurred while generating the watermarked file."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+        else:
+            # Serve the original, non-watermarked file by redirecting to a secure download URL.
+            if not primary_version.original_storage_key:
+                return Response({"message": "Original file not found for download."}, status=status.HTTP_404_NOT_FOUND)
+            
+            try:
+                download_url = fileserver_client.generate_download_url(primary_version.original_storage_key, is_internal=False)
+                return HttpResponseRedirect(download_url)
+            except APIException as e:
+                logger.error(f"Failed to get non-watermarked download URL from file server: {e}")
+                return Response({"detail": "Could not retrieve file."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 class DataroomFolderDownloadView(APIView):

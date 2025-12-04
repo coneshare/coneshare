@@ -152,6 +152,12 @@ export function ShareLinkViewerPage() {
   const PREVIEWABLE_TYPES = ['image', 'pdf', 'document'];
   const isPreviewable = viewData && PREVIEWABLE_TYPES.includes(viewData.type);
 
+  const documentIdFromUrl = searchParams.get('document_id');
+  let downloadUrl = `/api/v1/links/${slug}/download-file/`;
+  if (documentIdFromUrl) {
+    downloadUrl += `?document_id=${documentIdFromUrl}`;
+  }
+
   if (viewData && (viewData.download_only || !isPreviewable)) {
     return (
       <div className="relative h-screen w-screen bg-gray-50">
@@ -180,7 +186,7 @@ export function ShareLinkViewerPage() {
               on your device.
             </p>
             <Button asChild size="lg" className="w-full">
-              <a href={viewData.download_url} download>
+              <a href={downloadUrl} download={viewData.name}>
                 Download
               </a>
             </Button>
@@ -205,7 +211,8 @@ export function ShareLinkViewerPage() {
         <>
           <ViewerToolbar
             allowDownload={viewData.link_settings.allow_download}
-            downloadUrl={viewData.download_url}
+            downloadUrl={downloadUrl}
+            downloadFileName={viewData.name}
             onFullScreen={handleFullScreen}
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}

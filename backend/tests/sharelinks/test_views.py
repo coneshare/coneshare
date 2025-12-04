@@ -700,7 +700,7 @@ class TestDataroomVisitTracking:
         data = response.json()
         assert "download_url" in data
         
-        expected_url = f"http://test.coneshare.com/api/v1/links/{link.slug}/download/?document_id={document.id}"
+        expected_url = f"http://test.coneshare.com/api/v1/links/{link.slug}/download-file/?document_id={document.id}"
         assert data['download_url'] == expected_url
 
 @pytest.mark.django_db
@@ -1133,7 +1133,7 @@ class TestShareLinkEmailProtection:
 
         assert response_view.status_code == status.HTTP_200_OK
         assert 'id' in response_view.json()
-        
+
         # Step 3: Verify the token was single-use and deleted
         assert EmailVerificationToken.objects.count() == 0
 
@@ -1346,7 +1346,7 @@ class TestShareLinkPageView:
         """
         share_link.document = document_with_pages
         share_link.save()
-        
+
         # 1. Call view-data first to authorize the session
         view_data_url = f'/api/v1/links/{share_link.slug}/view-data/'
         response_view = public_client.get(view_data_url)
@@ -1393,7 +1393,7 @@ class TestShareLinkPageView:
         share_link_with_password.dataroom = dataroom
         share_link_with_password.document = None
         share_link_with_password.save()
-        
+
         url = f'/api/v1/links/{share_link_with_password.slug}/page/1/'
         response = authorized_client.get(url)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -1469,14 +1469,14 @@ class TestWatermarkingViews:
         mock_response.raise_for_status.return_value = None
         mock_response.content = pdf_content
         mock_requests_get.return_value = mock_response
-        
-        url = f'/api/v1/links/{watermarked_link.slug}/download/'
+
+        url = f'/api/v1/links/{watermarked_link.slug}/download-file/'
         response = public_client.get(url, REMOTE_ADDR='192.168.1.1')
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.get('Content-Type') == 'application/pdf'
         assert 'attachment; filename=' in response.get('Content-Disposition')
-        
+
         assert response.content.startswith(b'%PDF-')
         assert len(response.content) > len(pdf_content)
 
@@ -1488,7 +1488,44 @@ class TestWatermarkingViews:
         watermarked_link.allow_download = False
         watermarked_link.save()
 
-        url = f'/api/v1/links/{watermarked_link.slug}/download/'
+        url = f'/api/v1/links/{watermarked_link.slug}/download-file/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert "not allowed for this item" in response.data['message']
+
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_non_watermarked_file_redirects(self, mock_fs_download_url, public_client, document_with_page):
+        """
+        Test that downloading a non-watermarked file redirects to a secure
+        download URL.
+        """
+        link = ShareLink.objects.create(
+            document=document_with_page,
+            created_by=document_with_page.created_by,
+            enable_watermark=False,
+            allow_download=True
+        )
+        version = document_with_page.versions.get(is_primary=True)
+
+        mock_fs_download_url.return_value = "http://fileserver.test/download/some-token"
+
+        url = f'/api/v1/links/{link.slug}/download-file/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_302_FOUND
+        assert response.url == "http://fileserver.test/download/some-token"
+        mock_fs_download_url.assert_called_once_with(version.original_storage_key, is_internal=False)
+
+    def test_download_non_watermarked_file_not_allowed(self, public_client, document_with_page):
+        """Test that downloading is forbidden if allow_download is false for a non-watermarked link."""
+        link = ShareLink.objects.create(
+            document=document_with_page,
+            created_by=document_with_page.created_by,
+            enable_watermark=False,
+            allow_download=False
+        )
+        url = f'/api/v1/links/{link.slug}/download-file/'
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
@@ -1569,7 +1606,7 @@ class TestWatermarkingViews:
             buffer.seek(0)
             mock_response.content = buffer.getvalue()
             mock_requests_get.return_value = mock_response
-        
+
         mock_fs_download.return_value = "http://core:8080/files/download/token"
         setup_mocks()
 
@@ -1731,13 +1768,13 @@ class TestWatermarkingViews:
         pdf_content = b'%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000010 00000 n \n0000000059 00000 n \n0000000112 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF'
         mock_response.content = pdf_content
         mock_requests_get.return_value = mock_response
-        
+
         link = dataroom_with_watermarked_link['link']
         document = dataroom_with_watermarked_link['document']
-        
-        url = f'/api/v1/links/{link.slug}/download/?document_id={document.id}'
+
+        url = f'/api/v1/links/{link.slug}/download-file/?document_id={document.id}'
         response = public_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.get('Content-Type') == 'application/pdf'
         assert f'attachment; filename="{get_valid_filename(document.name)}"' in response.get('Content-Disposition')
@@ -1748,24 +1785,24 @@ class TestWatermarkingViews:
         link = dataroom_with_watermarked_link['link']
         document = dataroom_with_watermarked_link['document']
         ddoc = dataroom_with_watermarked_link['ddoc']
-        
+
         # Override setting for this item
         setting = link.dataroom_settings.get(dataroom_document=ddoc)
         setting.allow_download = False
         setting.save()
-        
-        url = f'/api/v1/links/{link.slug}/download/?document_id={document.id}'
+
+        url = f'/api/v1/links/{link.slug}/download-file/?document_id={document.id}'
         response = public_client.get(url)
-        
+
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert "not allowed for this item" in response.data['message']
 
     def test_download_watermarked_file_from_dataroom_missing_doc_id(self, public_client, dataroom_with_watermarked_link):
         """Test that calling the download endpoint for a dataroom link without a document_id fails."""
         link = dataroom_with_watermarked_link['link']
-        url = f'/api/v1/links/{link.slug}/download/'
+        url = f'/api/v1/links/{link.slug}/download-file/'
         response = public_client.get(url)
-        
+
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "Document ID is required" in response.data['message']
 
@@ -1773,11 +1810,63 @@ class TestWatermarkingViews:
         """Test that downloading with a document_id not in the dataroom link fails."""
         link = dataroom_with_watermarked_link['link']
         invalid_doc_id = 'doc_00000000000000000000000000'
-        url = f'/api/v1/links/{link.slug}/download/?document_id={invalid_doc_id}'
+        url = f'/api/v1/links/{link.slug}/download-file/?document_id={invalid_doc_id}'
         response = public_client.get(url)
-        
+
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert "Document not found" in response.data['message']
+
+    def test_download_file_password_protected_fails_without_auth(self, public_client, watermarked_link):
+        """Test that downloading from a password-protected link without an authorized session fails."""
+        watermarked_link.password = 'password123'
+        watermarked_link.save()
+
+        url = f'/api/v1/links/{watermarked_link.slug}/download-file/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.data['protectionType'] == 'password'
+
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_non_watermarked_file_succeeds_with_auth(self, mock_fs_download_url, public_client, document_with_page, user):
+        """Test that downloading from a password-protected link succeeds after session authorization."""
+        link = ShareLink.objects.create(
+            document=document_with_page,
+            created_by=user,
+            password="password123",
+            allow_download=True
+        )
+        version = document_with_page.versions.get(is_primary=True)
+        mock_fs_download_url.return_value = "http://fileserver.test/download/some-token"
+
+        # 1. First, try to download without auth - should fail
+        download_url = f'/api/v1/links/{link.slug}/download-file/'
+        response_fail = public_client.get(download_url)
+        assert response_fail.status_code == status.HTTP_401_UNAUTHORIZED
+
+        # 2. Now, authorize the session
+        verify_url = f'/api/v1/links/{link.slug}/verify-password/'
+        public_client.post(verify_url, {'password': 'password123'})
+
+        # 3. Try to download again - should succeed
+        response_success = public_client.get(download_url)
+        assert response_success.status_code == status.HTTP_302_FOUND
+        mock_fs_download_url.assert_called_once_with(version.original_storage_key, is_internal=False)
+
+    def test_download_file_email_protected_fails_without_auth(self, public_client, document_with_page, user):
+        """Test that downloading from an email-protected link without an authorized session fails."""
+        link = ShareLink.objects.create(
+            document=document_with_page,
+            created_by=user,
+            requires_email=True,
+            allow_download=True
+        )
+
+        url = f'/api/v1/links/{link.slug}/download-file/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.data['protectionType'] == 'email'
 
 
 @pytest.mark.django_db
@@ -1802,7 +1891,7 @@ class TestDataroomFolderDownloadView:
         ddoc_b = DataroomDocument.objects.create(dataroom=dataroom, document=doc_b, folder=subfolder)
         ddoc_invisible = DataroomDocument.objects.create(dataroom=dataroom, document=invisible_doc, folder=root_folder)
         ddoc_not_downloadable = DataroomDocument.objects.create(dataroom=dataroom, document=not_downloadable_doc, folder=root_folder)
-        
+
         # Create share link, which will auto-generate settings
         link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
 
@@ -1878,7 +1967,7 @@ class TestDataroomFolderDownloadView:
         setting_not_downloadable = link.dataroom_settings.get(dataroom_document=ddoc_not_downloadable)
         setting_not_downloadable.allow_download = False
         setting_not_downloadable.save()
-        
+
         url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/'
         response = public_client.get(url)
 
@@ -1896,7 +1985,7 @@ class TestDataroomFolderDownloadView:
         link = dataroom_with_content_and_link['link']
         root_folder = dataroom_with_content_and_link['root_folder']
         ddoc_a = dataroom_with_content_and_link['ddoc_a']
-        
+
         link.enable_watermark = True
         link.watermark_text = "TEST"
         link.save()
@@ -1917,11 +2006,11 @@ class TestDataroomFolderDownloadView:
         with zipfile.ZipFile(zip_buffer, 'r') as zf:
             content = zf.read('Root_Folder/Doc_A.pdf')
             assert content == b"watermarked pdf content"
-            
+
     def test_download_folder_password_protected_fails(self, public_client, dataroom_with_content_and_link):
         link = dataroom_with_content_and_link['link']
         root_folder = dataroom_with_content_and_link['root_folder']
-        
+
         link.password = "password123"
         link.save()
 

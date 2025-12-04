@@ -103,7 +103,7 @@ export function DataroomViewer({ data, slug, viewId }) {
 
   const handleDownloadDocument = (doc) => {
     // This constructs a URL to the existing single-file download endpoint.
-    const downloadUrl = `/api/v1/links/${slug}/download/?document_id=${doc.document_id}`;
+    const downloadUrl = `/api/v1/links/${slug}/download-file/?document_id=${doc.document_id}`;
     const link = document.createElement('a');
     link.href = downloadUrl;
     // The browser will handle the 'download' attribute for same-origin URLs.
