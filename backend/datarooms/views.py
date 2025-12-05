@@ -143,13 +143,10 @@ class DataroomViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def _get_unique_dataroom_folder_name(self, dataroom, parent_folder, original_name):
-        # Simplified version of unique name generation for datarooms
-        name = original_name
-        counter = 1
-        while DataroomFolder.objects.filter(dataroom=dataroom, parent=parent_folder, name=name).exists():
-            counter += 1
-            name = f"{original_name} ({counter})"
-        return name
+        filter_kwargs = {
+            'dataroom': dataroom, 'parent': parent_folder
+        }
+        return get_unique_name(DataroomFolder, original_name, filter_kwargs, has_extension=False)
 
     def _get_unique_dataroom_document_name(self, dataroom, parent_folder, original_name):
         filter_kwargs = {
@@ -178,6 +175,8 @@ class DataroomViewSet(viewsets.ModelViewSet):
                         DataroomFolder, id=dest_folder_id, dataroom=dataroom
                     )
 
+                # TODO: This loop executes a save() for each document being moved, which can cause performance issues
+                # (N+1 queries) when moving many documents. This should be converted to use bulk_update.
                 docs_to_move = DataroomDocument.objects.filter(id__in=doc_ids, dataroom=dataroom)
                 for doc in docs_to_move:
                     doc.name = self._get_unique_dataroom_document_name(dataroom, destination_folder, doc.name)

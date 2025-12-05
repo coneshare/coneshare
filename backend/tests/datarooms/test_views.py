@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from rest_framework import status
 
@@ -181,7 +183,8 @@ class TestDataroomViewSet:
 
         # 3. Verify there are now two DataroomDocument objects and one is renamed.
         assert DataroomDocument.objects.filter(document=document).count() == 2
-        new_name = "Test Document (2).pdf"
+        base, ext = os.path.splitext(document.name)
+        new_name = f"{base} (2){ext}"
         assert DataroomDocument.objects.filter(name=new_name).exists()
 
     def test_add_same_document_to_multiple_locations(self, api_client, dataroom, document):

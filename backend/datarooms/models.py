@@ -25,7 +25,7 @@ class DataroomDocument(BaseModel):
     dataroom = models.ForeignKey(Dataroom, on_delete=models.CASCADE, related_name='documents')
     document = models.ForeignKey('documents.Document', on_delete=models.CASCADE)
     folder = models.ForeignKey(DataroomFolder, on_delete=models.CASCADE, null=True, blank=True)
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, blank=True)
 
     class Meta:
         unique_together = ('dataroom', 'document', 'folder')
