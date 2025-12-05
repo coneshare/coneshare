@@ -42,7 +42,7 @@ describe('DataroomPage', () => {
             { id: 'folder1', name: 'Sub Folder', updated_at: '2023-01-01T12:00:00Z', ancestors: [] }
         ],
         documents: [
-            { id: 'ddoc1', document_id: 'doc1', document_name: 'Root Document', updated_at: '2023-01-01T12:00:00Z' }
+            { id: 'ddoc1', document_id: 'doc1', name: 'Root Document', updated_at: '2023-01-01T12:00:00Z' }
         ]
     };
 
@@ -52,7 +52,7 @@ describe('DataroomPage', () => {
         ancestors: [],
         sub_folders: [],
         documents: [
-            { id: 'ddoc2', document_id: 'doc2', document_name: 'Nested Document', updated_at: '2023-01-02T12:00:00Z' }
+            { id: 'ddoc2', document_id: 'doc2', name: 'Nested Document', updated_at: '2023-01-02T12:00:00Z' }
         ]
     };
 
@@ -290,7 +290,7 @@ describe('DataroomPage', () => {
             await user.click(folderCheckbox);
             
             // Click delete button
-            const deleteButton = screen.getByRole('button', { name: /delete/i });
+            const deleteButton = screen.getByRole('button', { name: /remove/i });
             await user.click(deleteButton);
             
             // Confirm deletion
@@ -342,6 +342,56 @@ describe('DataroomPage', () => {
                     destination_folder_id: 'folder1',
                 });
             });
+        });
+
+       it('should allow adding the same document to multiple locations', async () => {
+            api.addContentToDataroom.mockResolvedValue({});
+            const user = userEvent.setup();
+            renderComponent();
+
+            // 1. Add content to the root
+            const addContentButtonRoot = await screen.findByRole('button', { name: /add content/i });
+            await user.click(addContentButtonRoot);
+
+            let dialog = await screen.findByTestId('mock-add-content-dialog');
+            let confirmButton = within(dialog).getByRole('button', { name: 'Confirm' });
+            await user.click(confirmButton);
+
+            // Assert first API call to root
+            await waitFor(() => {
+                expect(api.addContentToDataroom).toHaveBeenCalledWith('dr123', {
+                    document_ids: ['doc_new'],
+                    folder_ids: [],
+                    destination_folder_id: null,
+                });
+            });
+
+            // 2. Navigate into a subfolder
+            const folderItem = await screen.findByText('Sub Folder');
+            await user.click(folderItem);
+            await waitFor(() => {
+                expect(api.getDataroomFolderContents).toHaveBeenCalledWith('folder1');
+            });
+
+            // 3. Add the same content to the subfolder
+            const addContentButtonSubfolder = screen.getByRole('button', { name: /add content/i });
+            await user.click(addContentButtonSubfolder);
+
+            dialog = await screen.findByTestId('mock-add-content-dialog');
+            confirmButton = within(dialog).getByRole('button', { name: 'Confirm' });
+            await user.click(confirmButton);
+
+            // Assert second API call to subfolder
+            await waitFor(() => {
+                expect(api.addContentToDataroom).toHaveBeenCalledWith('dr123', {
+                    document_ids: ['doc_new'],
+                    folder_ids: [],
+                    destination_folder_id: 'folder1',
+                });
+            });
+
+            // Verify two separate calls were made
+            expect(api.addContentToDataroom).toHaveBeenCalledTimes(2);
         });
     });
 
