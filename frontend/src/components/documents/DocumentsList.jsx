@@ -39,6 +39,8 @@ export function DocumentsList({
   isReadOnly = false,
   showActions = true,
   onItemClick,
+  onRename,
+  onDelete,
 }) {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [itemToRename, setItemToRename] = useState(null);
@@ -67,8 +69,8 @@ export function DocumentsList({
   );
 
 
-  const handleRename = (item, type) => setItemToRename({ ...item, type });
-  const handleDelete = (item, type) => setItemToDelete({ ...item, type });
+  const internalHandleRename = (item) => setItemToRename(item);
+  const internalHandleDelete = (item) => setItemToDelete(item);
 
   const handleConfirmDelete = async () => {
     if (!itemToDelete) return;
@@ -93,7 +95,7 @@ export function DocumentsList({
 
   return (
     <>
-      {itemToDelete && (
+      {!onDelete && itemToDelete && (
         <ConfirmationDialog
           isOpen={!!itemToDelete}
           onOpenChange={(isOpen) => !isOpen && setItemToDelete(null)}
@@ -103,7 +105,7 @@ export function DocumentsList({
           confirmText="Delete"
         />
       )}
-      {itemToRename && (
+      {!onRename && itemToRename && (
         <RenameItemDialog
           isOpen={!!itemToRename}
           onOpenChange={(isOpen) => !isOpen && setItemToRename(null)}
@@ -163,8 +165,8 @@ export function DocumentsList({
                       : selectedDocuments.includes(item.id)
                   }
                   onSelect={handleSelect}
-                  onRename={() => handleRename(item, item.type)}
-                  onDelete={() => handleDelete(item, item.type)}
+                  onRename={onRename || internalHandleRename}
+                  onDelete={onDelete || internalHandleDelete}
                   onShare={() => handleShare(item)}
                   onToggleStar={onToggleStar}
                   isReadOnly={isReadOnly}

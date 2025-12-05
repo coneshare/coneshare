@@ -20,6 +20,7 @@ import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { LinksTable } from '../components/documents/LinksTable';
 import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
 import { ManagePermissionsDialog } from '../components/datarooms/ManagePermissionsDialog';
+import { RenameItemDialog } from '../components/dialogs/RenameItemDialog';
 
 export function DataroomPage() {
   const { dataroomId } = useParams();
@@ -47,6 +48,8 @@ export function DataroomPage() {
   const [viewsLoading, setViewsLoading] = useState(true);
   const [viewsCurrentPage, setViewsCurrentPage] = useState(1);
   const [isRemoveContentDialogOpen, setIsRemoveContentDialogOpen] = useState(false);
+  const [itemToRename, setItemToRename] = useState(null);
+  const [itemToRemove, setItemToRemove] = useState(null);
     
   const fetchContent = useCallback(async () => {
     setIsLoading(true);
@@ -270,6 +273,31 @@ export function DataroomPage() {
     }
   };
 
+  const handleRenameItem = (item) => {
+    setItemToRename(item);
+  };
+
+  const handleRemoveItem = (item) => {
+    setItemToRemove(item);
+  };
+
+  const handleConfirmRemoveItem = async () => {
+    if (!itemToRemove) return;
+
+    try {
+      await removeContentFromDataroom(dataroomId, {
+        dataroom_document_ids: itemToRemove.type === 'document' ? [itemToRemove.id] : [],
+        dataroom_folder_ids: itemToRemove.type === 'folder' ? [itemToRemove.id] : [],
+      });
+      toast.success(`'${itemToRemove.name}' removed from dataroom.`);
+      fetchContent();
+    } catch (error) {
+      // Error toast handled by interceptor
+    } finally {
+      setItemToRemove(null);
+    }
+  };
+
 
   if (isLoading) {
     return <div className="p-6">Loading dataroom...</div>;
@@ -350,13 +378,15 @@ export function DataroomPage() {
               allItems={allItems}
               loading={isLoading}
               isReadOnly={false}
-              showActions={false}
+              showActions={true}
               onItemClick={handleItemClick}
               onItemSelect={handleItemSelect}
               selectedDocuments={selection.documents}
               selectedFolders={selection.folders}
               onSort={handleSort}
               sortConfig={sortConfig}
+              onRename={handleRenameItem}
+              onDelete={handleRemoveItem}
             />
           )}
         </TabsContent>
@@ -428,6 +458,23 @@ export function DataroomPage() {
         onConfirm={handleConfirmRemoveContent}
         title="Remove Items from Dataroom"
         description={`Are you sure you want to remove the selected items from this dataroom? This will not delete the original files from your document library.`}
+        confirmText="Remove"
+      />
+      {itemToRename && (
+        <RenameItemDialog
+          isOpen={!!itemToRename}
+          onOpenChange={(isOpen) => !isOpen && setItemToRename(null)}
+          item={itemToRename}
+          onSuccess={fetchContent}
+          context="dataroom"
+        />
+      )}
+      <ConfirmationDialog
+        isOpen={!!itemToRemove}
+        onOpenChange={setItemToRemove}
+        onConfirm={handleConfirmRemoveItem}
+        title={`Remove "${itemToRemove?.name}"?`}
+        description={`Are you sure you want to remove this item from the dataroom? This will not delete the original file.`}
         confirmText="Remove"
       />
     </div>
