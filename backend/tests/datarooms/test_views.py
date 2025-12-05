@@ -408,6 +408,65 @@ class TestDataroomFolderViewSet:
         assert len(data['documents']) == 1
         assert data['documents'][0]['name'] == document.name
 
+    def test_rename_folder_success(self, api_client, dataroom):
+        """Test renaming a dataroom folder successfully."""
+        folder = DataroomFolder.objects.create(dataroom=dataroom, name="Original Name")
+        url = f'/api/v1/dataroom-folders/{folder.id}/'
+        data = {'name': 'New Name'}
+        response = api_client.patch(url, data)
+        assert response.status_code == status.HTTP_200_OK
+        folder.refresh_from_db()
+        assert folder.name == 'New Name'
+
+    def test_rename_folder_with_conflict_fails(self, api_client, dataroom):
+        """Test renaming a folder to a name that already exists in the same location fails."""
+        DataroomFolder.objects.create(dataroom=dataroom, name="Existing Name")
+        folder_to_rename = DataroomFolder.objects.create(dataroom=dataroom, name="Original Name")
+
+        url = f'/api/v1/dataroom-folders/{folder_to_rename.id}/'
+        data = {'name': 'Existing Name'}
+        response = api_client.patch(url, data)
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'already exists' in str(response.json())
+
+
+class TestDataroomDocumentViewSet:
+    def test_rename_document_success(self, api_client, dataroom, document):
+        """Test successfully renaming a dataroom document."""
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name)
+        url = f'/api/v1/dataroom-documents/{ddoc.id}/'
+        data = {'name': 'Renamed Document.pdf'}
+        response = api_client.patch(url, data)
+
+        assert response.status_code == status.HTTP_200_OK
+        ddoc.refresh_from_db()
+        assert ddoc.name == 'Renamed Document.pdf'
+
+    def test_rename_document_with_conflict_fails(self, api_client, dataroom, document):
+        """Test renaming a document to a name that already exists fails."""
+        # A document that already exists with the target name
+        DataroomDocument.objects.create(dataroom=dataroom, document=document, name='existing-name.pdf')
+        # The document we are going to try to rename
+        doc2 = Document.objects.create(name="another.pdf", organization=dataroom.organization)
+        ddoc_to_rename = DataroomDocument.objects.create(dataroom=dataroom, document=doc2, name='original-name.pdf')
+
+        url = f'/api/v1/dataroom-documents/{ddoc_to_rename.id}/'
+        data = {'name': 'existing-name.pdf'}
+        response = api_client.patch(url, data)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'already exists' in str(response.json())
+
+    def test_user_cannot_rename_document_in_others_dataroom(self, api_client, dataroom, document, user2):
+        """A user cannot rename a document in a dataroom they do not own."""
+        other_dataroom = Dataroom.objects.create(created_by=user2, name="Other DR", organization=dataroom.organization)
+        ddoc = DataroomDocument.objects.create(dataroom=other_dataroom, document=document, name=document.name)
+
+        url = f'/api/v1/dataroom-documents/{ddoc.id}/'
+        data = {'name': 'New Name'}
+        response = api_client.patch(url, data)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
 
 class TestPublicDataroomDataView:
     def test_get_valid_dataroom_data(self, public_client, dataroom, document, user):
