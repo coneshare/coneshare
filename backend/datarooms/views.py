@@ -1,5 +1,4 @@
 import logging
-import os
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404
@@ -8,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
+from backend.utils import get_unique_name
 from documents.models import Document, Folder
 from documents.views import StandardResultsSetPagination
 from .models import Dataroom, DataroomDocument, DataroomFolder
@@ -152,13 +152,11 @@ class DataroomViewSet(viewsets.ModelViewSet):
         return name
 
     def _get_unique_dataroom_document_name(self, dataroom, parent_folder, original_name):
-        name = original_name
-        counter = 1
-        while DataroomDocument.objects.filter(dataroom=dataroom, folder=parent_folder, name=name).exists():
-            counter += 1
-            base, ext = os.path.splitext(original_name)
-            name = f"{base} ({counter}){ext}"
-        return name
+        filter_kwargs = {
+            'dataroom': dataroom,
+            'folder': parent_folder
+        }
+        return get_unique_name(DataroomDocument, original_name, filter_kwargs, has_extension=True)
 
     @action(detail=True, methods=['post'], url_path='move-content')
     def move_content(self, request, pk=None):
