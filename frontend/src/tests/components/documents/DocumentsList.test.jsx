@@ -6,10 +6,11 @@ import { DocumentsList } from "../../../components/documents/DocumentsList";
 
 // Mock child components and hooks to isolate the DocumentsList component
 vi.mock("../../../components/documents/DraggableItem", () => ({
-  DraggableItem: ({ item, onRename }) => (
+  DraggableItem: ({ item, onRename, onDelete }) => (
     <div>
       <span>{item.name}</span>
-      <button onClick={onRename}>Rename {item.type}</button>
+      <button onClick={() => onRename(item)}>Rename {item.type}</button>
+      <button onClick={() => onDelete(item)}>Delete {item.type}</button>
     </div>
   ),
 }));
@@ -82,5 +83,65 @@ describe("DocumentsList", () => {
     
     const nameInput = screen.getByDisplayValue("Test Folder 1");
     expect(nameInput).toBeInTheDocument();
+  });
+
+  it("should open the delete dialog when delete is clicked on a document", async () => {
+    render(
+      <DocumentsList
+        allItems={mockDocuments}
+        loading={false}
+        onDataRefresh={() => {}}
+      />
+    );
+    
+    const deleteButton = screen.getByRole("button", { name: /delete document/i });
+    await userEvent.click(deleteButton);
+
+    const dialogTitle = await screen.findByRole('heading', { name: /delete "Test Document 1"\?/i });
+    expect(dialogTitle).toBeInTheDocument();
+  });
+});
+
+describe("DocumentsList with external handlers", () => {
+  const mockDocument = { id: "doc1", name: "External Doc", type: "document" };
+
+  it("should call external onDelete handler instead of showing a dialog", async () => {
+      const mockOnDelete = vi.fn();
+      render(
+          <DocumentsList
+              allItems={[mockDocument]}
+              loading={false}
+              onDelete={mockOnDelete}
+          />
+      );
+
+      const deleteButton = screen.getByRole("button", { name: /delete document/i });
+      await userEvent.click(deleteButton);
+
+      // Assert the external handler was called
+      expect(mockOnDelete).toHaveBeenCalledWith(mockDocument);
+      
+      // Assert the internal confirmation dialog did NOT appear
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it("should call external onRename handler instead of showing a dialog", async () => {
+      const mockOnRename = vi.fn();
+      render(
+          <DocumentsList
+              allItems={[mockDocument]}
+              loading={false}
+              onRename={mockOnRename}
+          />
+      );
+
+      const renameButton = screen.getByRole("button", { name: /rename document/i });
+      await userEvent.click(renameButton);
+
+      // Assert the external handler was called
+      expect(mockOnRename).toHaveBeenCalledWith(mockDocument);
+      
+      // Assert the internal rename dialog did NOT appear
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

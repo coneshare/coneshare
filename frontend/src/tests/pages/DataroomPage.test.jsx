@@ -393,6 +393,62 @@ describe('DataroomPage', () => {
             // Verify two separate calls were made
             expect(api.addContentToDataroom).toHaveBeenCalledTimes(2);
         });
+
+        describe('Single Item Actions via Menu', () => {
+            it('should rename a document and refresh', async () => {
+                api.renameDataroomDocument.mockResolvedValue({});
+                const user = userEvent.setup();
+                renderComponent();
+        
+                const docRow = await screen.findByText('Root Document').then(el => el.closest('[data-testid^="draggable-item-"]'));
+                const menuTrigger = within(docRow).getByRole('button', { name: /actions for/i });
+                await user.click(menuTrigger);
+        
+                const renameMenuItem = await screen.findByRole('menuitem', { name: /rename/i });
+                await user.click(renameMenuItem);
+        
+                const dialog = await screen.findByRole('dialog', { name: /rename document/i });
+                const input = within(dialog).getByLabelText('Name');
+                await user.clear(input);
+                await user.type(input, 'New Document Name.pdf');
+                await user.click(within(dialog).getByRole('button', { name: 'Rename' }));
+                
+                await waitFor(() => {
+                    expect(api.renameDataroomDocument).toHaveBeenCalledWith('ddoc1', 'New Document Name.pdf');
+                });
+                
+                await waitFor(() => {
+                    expect(api.getDataroom).toHaveBeenCalledTimes(2); // Initial + refresh
+                });
+            });
+        
+            it('should remove a folder and refresh', async () => {
+                api.removeContentFromDataroom.mockResolvedValue({});
+                const user = userEvent.setup();
+                renderComponent();
+        
+                const folderRow = await screen.findByText('Sub Folder').then(el => el.closest('[data-testid^="draggable-item-"]'));
+                const menuTrigger = within(folderRow).getByRole('button', { name: /actions for/i });
+                await user.click(menuTrigger);
+        
+                const deleteMenuItem = await screen.findByRole('menuitem', { name: /delete/i });
+                await user.click(deleteMenuItem);
+        
+                const dialog = await screen.findByRole('dialog', { name: /remove "Sub Folder"\?/i });
+                await user.click(within(dialog).getByRole('button', { name: 'Remove' }));
+        
+                await waitFor(() => {
+                    expect(api.removeContentFromDataroom).toHaveBeenCalledWith('dr123', {
+                        dataroom_document_ids: [],
+                        dataroom_folder_ids: ['folder1'],
+                    });
+                });
+        
+                await waitFor(() => {
+                    expect(api.getDataroom).toHaveBeenCalledTimes(2);
+                });
+            });
+        });
     });
 
     describe('Selection and Sorting', () => {

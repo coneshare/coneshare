@@ -453,6 +453,72 @@ describe('DocumentsPage', () => {
     });
   });
 
+  describe('Single Item Actions', () => {
+    const mockFolders = [{ id: 'folder1', name: 'Folder One', type: 'folder' }];
+    const mockDocuments = [{ id: 'doc1', name: 'Document One', type: 'document' }];
+
+    beforeEach(() => {
+        api.getRootFolderContents.mockResolvedValue({
+            data: {
+                current_folder: null,
+                sub_folders: mockFolders,
+                documents: mockDocuments,
+            },
+        });
+        api.renameFolder.mockResolvedValue({});
+        api.deleteDocument.mockResolvedValue({});
+    });
+
+    it('should rename a folder via the item menu and refresh', async () => {
+        const user = userEvent.setup();
+        renderComponent();
+        
+        const folderRow = await screen.findByText('Folder One').then(el => el.closest('[data-testid^="draggable-item-"]'));
+        const menuTrigger = within(folderRow).getByRole('button', { name: /actions for/i });
+        await user.click(menuTrigger);
+
+        const renameMenuItem = await screen.findByRole('menuitem', { name: /rename/i });
+        await user.click(renameMenuItem);
+
+        const dialog = await screen.findByRole('dialog', { name: /rename folder/i });
+        const input = within(dialog).getByLabelText('Name');
+        await user.clear(input);
+        await user.type(input, 'Renamed Folder');
+        await user.click(within(dialog).getByRole('button', { name: 'Rename' }));
+
+        await waitFor(() => {
+            expect(api.renameFolder).toHaveBeenCalledWith('folder1', 'Renamed Folder');
+        });
+
+        await waitFor(() => {
+            expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    it('should delete a document via the item menu and refresh', async () => {
+        const user = userEvent.setup();
+        renderComponent();
+        
+        const docRow = await screen.findByText('Document One').then(el => el.closest('[data-testid^="draggable-item-"]'));
+        const menuTrigger = within(docRow).getByRole('button', { name: /actions for/i });
+        await user.click(menuTrigger);
+
+        const deleteMenuItem = await screen.findByRole('menuitem', { name: /delete/i });
+        await user.click(deleteMenuItem);
+
+        const dialog = await screen.findByRole('dialog', { name: /delete "Document One"\?/i });
+        await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+        await waitFor(() => {
+            expect(api.deleteDocument).toHaveBeenCalledWith('doc1');
+        });
+
+        await waitFor(() => {
+            expect(api.getRootFolderContents).toHaveBeenCalledTimes(2);
+        });
+    });
+  });
+
   describe('Selection and Bulk Actions', () => {
     const mockFolders = [
         { id: 'folder1', name: 'Folder One' },
