@@ -135,8 +135,8 @@ describe('DocumentsPage', () => {
       await waitFor(() => {
         expect(api.uploadDocument).toHaveBeenCalledTimes(2);
       });
-      expect(api.uploadDocument).toHaveBeenCalledWith(file1, null);
-      expect(api.uploadDocument).toHaveBeenCalledWith(file2, null);
+      expect(api.uploadDocument).toHaveBeenCalledWith(file1, 'file1.txt');
+      expect(api.uploadDocument).toHaveBeenCalledWith(file2, 'file2.txt');
 
       // getRootFolderContents called once initially, then again after successful upload
       await waitFor(() => {
@@ -199,6 +199,40 @@ describe('DocumentsPage', () => {
       expect(api.getRootFolderContents).toHaveBeenCalledTimes(1);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith('2 file(s) failed to upload.');
+    });
+
+    it('should upload a single file to the current subfolder', async () => {
+      const parentFolderId = 'folder123';
+      const mockCurrentFolder = {
+        id: parentFolderId,
+        name: 'Subfolder',
+        ancestors: [{ id: 'parent', name: 'Parent' }],
+      };
+      api.getFolderContents.mockResolvedValue({
+        data: { current_folder: mockCurrentFolder, sub_folders: [], documents: [] },
+      });
+
+      renderComponent(`/documents/folders/${parentFolderId}`);
+      await waitFor(() => expect(api.getFolderContents).toHaveBeenCalledWith(parentFolderId));
+
+      const file = createFile('test-file.txt');
+      api.uploadDocument.mockResolvedValue({ status: 202 });
+
+      const fileInput = findFileInput();
+      fireEvent.change(fileInput, {
+        target: { files: [file] },
+      });
+
+      await waitFor(() => {
+        expect(api.uploadDocument).toHaveBeenCalledTimes(1);
+      });
+      // The constructed path should be ancestors + current_folder + filename
+      expect(api.uploadDocument).toHaveBeenCalledWith(file, 'Parent/Subfolder/test-file.txt');
+
+      // Verify data for the current folder is refetched
+      await waitFor(() => {
+        expect(api.getFolderContents).toHaveBeenCalledTimes(2);
+      });
     });
   });
 
