@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { renameDocument, renameFolder, updateDataroom } from "../../services/api";
+import { renameDocument, renameFolder, updateDataroom, renameDataroomFolder, renameDataroomDocument } from "../../services/api";
 import { Button } from "../ui/Button";
 import {
   Dialog,
@@ -13,7 +13,7 @@ import {
 import { Input } from "../ui/Input";
 import { Label } from "../ui/Label";
 
-export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess }) {
+export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess, context = 'documents' }) {
   const [newName, setNewName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -33,12 +33,16 @@ export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess }) {
     setError(null);
 
     try {
-      if (item.type === "document") {
-        await renameDocument(item.id, newName);
-      } else if (item.type === 'Dataroom') {
+      if (item.type === 'Dataroom') {
         await updateDataroom(item.id, { name: newName });
       } else {
-        await renameFolder(item.id, newName);
+        let renameFn;
+        if (context === 'dataroom') {
+          renameFn = item.type === "document" ? renameDataroomDocument : renameDataroomFolder;
+        } else { // documents context
+          renameFn = item.type === "document" ? renameDocument : renameFolder;
+        }
+        await renameFn(item.id, newName);
       }
       toast.success(`${item.type} "${item.name}" was renamed to "${newName}".`);
       onSuccess(); // This will trigger a data refresh
