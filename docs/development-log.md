@@ -1328,3 +1328,22 @@ This session focused on significantly improving the flexibility and robustness o
     - Hardened the frontend test suite by adding coverage for sub-folder file uploads and adding a test for adding the same document to multiple dataroom locations.
     - Resolved several test failures in the dataroom management UI caused by outdated mock data and ambiguous test selectors.
 - **Legacy Data Compatibility**: Ensured backward compatibility for existing dataroom content by updating API serializers to fall back to the original document's name if the new explicit `name` field is not set.
+
+---
+
+## Session 60: Dataroom Item Management & UI Actions (2025-12-05)
+
+This session focused on adding essential item management capabilities to the Dataroom feature, allowing users to rename and remove individual documents and folders directly from the UI. The implementation involved significant backend API enhancements, a major frontend refactoring to create a reusable component architecture, and the addition of comprehensive test coverage. [https://github.com/coneshare/coneshare/pull/89](https://github.com/coneshare/coneshare/pull/89)
+
+- **Rename Functionality for Dataroom Items**:
+  - **Backend**: Implemented new, secure API endpoints (`/api/v1/dataroom-documents/{id}/` and `/api/v1/dataroom-folders/{id}/`) to handle renaming. The backend now includes robust validation to prevent creating duplicate names within the same folder.
+  - **Frontend**: A "Rename" option was added to the new action menu, which opens a dialog for users to enter a new name.
+- **Single-Item Actions Menu in Dataroom UI**:
+  - A "three dots" action menu was added to each document and folder in the dataroom list, providing "Rename" and "Remove" options.
+  - The `DataroomPage` was updated to manage the state for these actions, displaying confirmation dialogs and refreshing the UI upon success.
+- **Component Refactoring for Reusability**:
+  - The `DocumentsList` component was significantly refactored to be more generic. It now accepts optional `onRename` and `onDelete` handlers, allowing parent components to override the default behavior.
+  - This refactoring enables `DocumentsList` to be used in different contexts (like the main Documents page and the Dataroom page) while maintaining a consistent UI.
+- **Comprehensive Testing**:
+  - Added backend unit tests for the new rename APIs, covering success cases and name conflict validation.
+  - Added extensive frontend tests to verify the new action menus, dialog interactions, and the correct use of both internal and external action handlers in the `DocumentsList` component.

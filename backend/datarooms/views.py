@@ -2,7 +2,7 @@ import logging
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from rest_framework import permissions, serializers, status, viewsets
+from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -13,9 +13,9 @@ from documents.views import StandardResultsSetPagination
 from .models import Dataroom, DataroomDocument, DataroomFolder
 from .serializers import (
     AddContentSerializer, DataroomDetailSerializer,
-    DataroomDocumentSerializer, DataroomFolderSerializer, DataroomSerializer,
-    MoveDataroomContentSerializer,
-    RemoveContentSerializer)
+    DataroomDocumentSerializer, DataroomDocumentUpdateSerializer,
+    DataroomFolderSerializer, DataroomSerializer,
+    MoveDataroomContentSerializer, RemoveContentSerializer)
 
 logger = logging.getLogger(__name__)
 
@@ -220,6 +220,35 @@ class DataroomViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
+                            mixins.UpdateModelMixin,
+                            viewsets.GenericViewSet):
+    queryset = DataroomDocument.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action in ['update', 'partial_update']:
+            return DataroomDocumentUpdateSerializer
+        return DataroomDocumentSerializer
+
+    def get_queryset(self):
+        return self.queryset.filter(dataroom__created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        new_name = serializer.validated_data.get('name')
+
+        if new_name and new_name != instance.name:
+            if DataroomDocument.objects.filter(
+                dataroom=instance.dataroom,
+                folder=instance.folder,
+                name=new_name
+            ).exclude(pk=instance.pk).exists():
+                raise serializers.ValidationError({'name': 'A document with this name already exists in this location.'})
+
+        serializer.save()
+
+
 class DataroomFolderViewSet(viewsets.ModelViewSet):
     queryset = DataroomFolder.objects.all()
     serializer_class = DataroomFolderSerializer
@@ -258,5 +287,19 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
 
         if dataroom.organization != self.request.user.organization:
             raise PermissionDenied("You do not have permission to add folders to this dataroom.")
+
+        serializer.save()
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        new_name = serializer.validated_data.get('name')
+
+        if new_name and new_name != instance.name:
+            if DataroomFolder.objects.filter(
+                dataroom=instance.dataroom,
+                parent=instance.parent,
+                name=new_name
+            ).exclude(pk=instance.pk).exists():
+                raise serializers.ValidationError({'name': 'A folder with this name already exists in this location.'})
 
         serializer.save()

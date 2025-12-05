@@ -113,6 +113,15 @@ class RemoveContentSerializer(serializers.Serializer):
         return data
 
 
+class DataroomDocumentUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DataroomDocument
+        fields = ['name']
+        extra_kwargs = {
+            'name': {'required': True}
+        }
+
+
 class MoveDataroomContentSerializer(serializers.Serializer):
     dataroom_document_ids = serializers.ListField(
         child=serializers.CharField(), required=False, allow_empty=True
