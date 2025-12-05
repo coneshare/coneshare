@@ -327,7 +327,9 @@ function DocumentsPage() {
         relativePath = `${basePath}/${relativePath}`;
       }
 
-      return uploadDocument(file, relativePath);
+      const finalPath = relativePath || (basePath ? `${basePath}/${file.name}` : file.name);
+
+      return uploadDocument(file, finalPath);
     });
     const results = await Promise.allSettled(uploadPromises);
 
