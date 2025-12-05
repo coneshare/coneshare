@@ -1,4 +1,5 @@
 import logging
+import os
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404
@@ -66,10 +67,14 @@ class DataroomViewSet(viewsets.ModelViewSet):
         # Add documents from the source folder to the new dataroom folder.
         # If a document is already in the dataroom, its folder will be updated.
         for doc in source_folder.documents.all():
-            DataroomDocument.objects.update_or_create(
+            unique_name = self._get_unique_dataroom_document_name(
+                dataroom, new_dataroom_folder, doc.name
+            )
+            DataroomDocument.objects.create(
                 dataroom=dataroom,
                 document=doc,
-                defaults={'folder': new_dataroom_folder}
+                folder=new_dataroom_folder,
+                name=unique_name,
             )
 
         # Recurse for subfolders.
@@ -97,10 +102,14 @@ class DataroomViewSet(viewsets.ModelViewSet):
                 # Add individual documents.
                 docs_to_add = Document.objects.filter(id__in=doc_ids, organization=request.user.organization)
                 for doc in docs_to_add:
-                    DataroomDocument.objects.update_or_create(
+                    unique_name = self._get_unique_dataroom_document_name(
+                        dataroom, destination_folder, doc.name
+                    )
+                    DataroomDocument.objects.create(
                         dataroom=dataroom,
                         document=doc,
-                        defaults={'folder': destination_folder}
+                        folder=destination_folder,
+                        name=unique_name,
                     )
 
                 # Add folders and their contents recursively.
@@ -142,6 +151,15 @@ class DataroomViewSet(viewsets.ModelViewSet):
             name = f"{original_name} ({counter})"
         return name
 
+    def _get_unique_dataroom_document_name(self, dataroom, parent_folder, original_name):
+        name = original_name
+        counter = 1
+        while DataroomDocument.objects.filter(dataroom=dataroom, folder=parent_folder, name=name).exists():
+            counter += 1
+            base, ext = os.path.splitext(original_name)
+            name = f"{base} ({counter}){ext}"
+        return name
+
     @action(detail=True, methods=['post'], url_path='move-content')
     def move_content(self, request, pk=None):
         dataroom = self.get_object()
@@ -162,9 +180,11 @@ class DataroomViewSet(viewsets.ModelViewSet):
                         DataroomFolder, id=dest_folder_id, dataroom=dataroom
                     )
 
-                DataroomDocument.objects.filter(id__in=doc_ids, dataroom=dataroom).update(
-                    folder=destination_folder
-                )
+                docs_to_move = DataroomDocument.objects.filter(id__in=doc_ids, dataroom=dataroom)
+                for doc in docs_to_move:
+                    doc.name = self._get_unique_dataroom_document_name(dataroom, destination_folder, doc.name)
+                    doc.folder = destination_folder
+                    doc.save()
 
                 folders_to_move = DataroomFolder.objects.filter(id__in=folder_ids, dataroom=dataroom)
                 for folder in folders_to_move:

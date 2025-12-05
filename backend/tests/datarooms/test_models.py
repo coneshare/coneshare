@@ -1,7 +1,7 @@
 import pytest
 
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
-
+n
 pytestmark = pytest.mark.django_db
 
 
@@ -32,3 +32,4 @@ def test_dataroom_document_creation(dataroom, document):
     assert isinstance(dataroom_document, DataroomDocument)
     assert dataroom_document.dataroom == dataroom
     assert dataroom_document.document == document
+    assert dataroom_document.name == document.name

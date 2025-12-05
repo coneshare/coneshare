@@ -35,20 +35,23 @@ class DataroomFolderSerializer(serializers.ModelSerializer):
 
 
 class DataroomDocumentSerializer(serializers.ModelSerializer):
-    document_name = serializers.CharField(source='document.name', read_only=True)
     document_type = serializers.CharField(source='document.type', read_only=True)
     document_id = serializers.CharField(source='document.id', read_only=True)
     file_size = serializers.IntegerField(source='document.file_size', read_only=True)
     updated_at = serializers.DateTimeField(source='document.updated_at', read_only=True)
     created_by = serializers.PrimaryKeyRelatedField(source='document.created_by', read_only=True)
     folder = serializers.PrimaryKeyRelatedField(read_only=True)
+    name = serializers.SerializerMethodField()
 
     class Meta:
         model = DataroomDocument
         fields = [
-            'id', 'document_id', 'document_name', 'document_type', 'created_at',
+            'id', 'name', 'document_id', 'document_type', 'created_at',
             'file_size', 'updated_at', 'created_by', 'folder'
         ]
+
+    def get_name(self, obj):
+        return obj.name or obj.document.name
 
 
 class DataroomDetailSerializer(serializers.ModelSerializer):
@@ -128,7 +131,6 @@ class MoveDataroomContentSerializer(serializers.Serializer):
 # --- Serializers for Public Dataroom View ---
 
 class PublicDataroomDocumentSerializer(serializers.ModelSerializer):
-    document_name = serializers.CharField(source='document.name', read_only=True)
     document_type = serializers.CharField(source='document.type', read_only=True)
     document_id = serializers.CharField(source='document.id', read_only=True)
     num_pages = serializers.IntegerField(source='document.num_pages', read_only=True)
@@ -138,14 +140,18 @@ class PublicDataroomDocumentSerializer(serializers.ModelSerializer):
     # Settings are added from context
     allow_download = serializers.SerializerMethodField()
     enable_watermark = serializers.SerializerMethodField()
+    name = serializers.SerializerMethodField()
 
     class Meta:
         model = DataroomDocument
         fields = [
-            'id', 'document_id', 'document_name', 'document_type',
+            'id', 'name', 'document_id', 'document_type',
             'num_pages', 'allow_download', 'enable_watermark', 'updated_at', 'file_size',
             'parent'
         ]
+
+    def get_name(self, obj):
+        return obj.name or obj.document.name
 
     def get_allow_download(self, obj):
         settings = self.context.get('settings_map', {})
