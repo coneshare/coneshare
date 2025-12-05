@@ -38,7 +38,7 @@ class TestDataroomSerializer:
         self, dataroom, document, serializer_context
     ):
         # Add content to the dataroom
-        DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name)
         DataroomFolder.objects.create(dataroom=dataroom, name="Root Folder", parent=None)
 
         serializer = DataroomDetailSerializer(
@@ -48,7 +48,7 @@ class TestDataroomSerializer:
 
         assert data["id"] == str(dataroom.id)
         assert len(data["documents"]) == 1
-        assert data["documents"][0]["document_name"] == document.name
+        assert data["documents"][0]["name"] == document.name
         assert len(data["folders"]) == 1
         assert data["folders"][0]["name"] == "Root Folder"
 
@@ -128,7 +128,7 @@ class TestPublicDataroomSerializers:
         Test that the public document serializer correctly includes data
         from the model and context.
         """
-        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name)
         link = ShareLink.objects.create(dataroom=dataroom, created_by=user, allow_download=False)
         setting = link.dataroom_settings.get(dataroom_document=ddoc)
         setting.allow_download = False
@@ -142,7 +142,7 @@ class TestPublicDataroomSerializers:
         data = serializer.data
 
         assert data['id'] == str(ddoc.id)
-        assert data['document_name'] == document.name
+        assert data['name'] == document.name
         assert data['allow_download'] is False  # From context
         assert data['enable_watermark'] is False  # From context
 

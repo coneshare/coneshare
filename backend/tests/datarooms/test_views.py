@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from rest_framework import status
 
@@ -38,7 +40,7 @@ class TestDataroomViewSet:
     def test_retrieve_dataroom_detail(self, api_client, dataroom, document):
         """Test retrieving a specific dataroom's contents."""
         # Add a document and a folder to the dataroom root
-        DataroomDocument.objects.create(dataroom=dataroom, document=document, folder=None)
+        DataroomDocument.objects.create(dataroom=dataroom, document=document, folder=None, name=document.name)
         DataroomFolder.objects.create(dataroom=dataroom, name="Subfolder", parent=None)
 
         response = api_client.get(f'/api/v1/datarooms/{dataroom.id}/')
@@ -47,7 +49,7 @@ class TestDataroomViewSet:
         data = response.json()
         assert data['id'] == str(dataroom.id)
         assert len(data['documents']) == 1
-        assert data['documents'][0]['document_name'] == document.name
+        assert data['documents'][0]['name'] == document.name
         assert len(data['folders']) == 1
         assert data['folders'][0]['name'] == "Subfolder"
 
@@ -80,7 +82,7 @@ class TestDataroomViewSet:
         # Create 5 documents in the target folder
         for i in range(5):
             doc = Document.objects.create(name=f"Doc {i}", organization=organization, created_by=user)
-            DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=target_folder)
+            DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=target_folder, name=doc.name)
 
         # The number of queries should remain constant regardless of document count.
         # Current expected queries with N+1 bug in get_ancestors:
@@ -120,6 +122,8 @@ class TestDataroomViewSet:
 
         assert response.status_code == status.HTTP_200_OK
         assert DataroomDocument.objects.filter(dataroom=dataroom, document=document).exists()
+        ddoc = DataroomDocument.objects.get(dataroom=dataroom, document=document)
+        assert ddoc.name == document.name
 
     def test_add_content_updates_existing_share_links(self, api_client, dataroom, document, user):
         """
@@ -158,10 +162,60 @@ class TestDataroomViewSet:
         assert DataroomFolder.objects.filter(dataroom=dataroom, name="Source").exists()
         dataroom_folder = DataroomFolder.objects.get(dataroom=dataroom, name="Source")
         assert DataroomDocument.objects.filter(dataroom=dataroom, document=document, folder=dataroom_folder).exists()
+        ddoc = DataroomDocument.objects.get(dataroom=dataroom, document=document, folder=dataroom_folder)
+        assert ddoc.name == document.name
+
+    def test_add_document_with_name_conflict_is_renamed(self, api_client, dataroom, document):
+        """
+        Test adding a document to a dataroom folder where a document with the
+        same name already exists results in renaming.
+        """
+        # 1. Add the document once.
+        url = f'/api/v1/datarooms/{dataroom.id}/add-content/'
+        data = {'document_ids': [str(document.id)]}
+        response1 = api_client.post(url, data)
+        assert response1.status_code == status.HTTP_200_OK
+        assert DataroomDocument.objects.filter(name=document.name).count() == 1
+
+        # 2. Add the same document to the same location again.
+        response2 = api_client.post(url, data)
+        assert response2.status_code == status.HTTP_200_OK
+
+        # 3. Verify there are now two DataroomDocument objects and one is renamed.
+        assert DataroomDocument.objects.filter(document=document).count() == 2
+        base, ext = os.path.splitext(document.name)
+        new_name = f"{base} (2){ext}"
+        assert DataroomDocument.objects.filter(name=new_name).exists()
+
+    def test_add_same_document_to_multiple_locations(self, api_client, dataroom, document):
+        """
+        Test that the same source document can be added to multiple locations
+        (e.g., root and a subfolder) inside a dataroom.
+        """
+        # 1. Create a destination folder in the dataroom.
+        dest_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Destination")
+
+        # 2. Add the document to the root of the dataroom.
+        add_to_root_url = f'/api/v1/datarooms/{dataroom.id}/add-content/'
+        add_to_root_data = {'document_ids': [str(document.id)]}
+        api_client.post(add_to_root_url, add_to_root_data)
+
+        # 3. Add the same document to the destination folder.
+        add_to_folder_url = f'/api/v1/datarooms/{dataroom.id}/add-content/'
+        add_to_folder_data = {
+            'document_ids': [str(document.id)],
+            'destination_folder_id': str(dest_folder.id)
+        }
+        api_client.post(add_to_folder_url, add_to_folder_data)
+
+        # 4. Assert that two DataroomDocument entries now exist for the same source document.
+        assert DataroomDocument.objects.filter(dataroom=dataroom, document=document).count() == 2
+        assert DataroomDocument.objects.filter(dataroom=dataroom, document=document, folder=None).exists()
+        assert DataroomDocument.objects.filter(dataroom=dataroom, document=document, folder=dest_folder).exists()
 
     def test_remove_content_from_dataroom(self, api_client, dataroom, document):
         """Test removing content from a dataroom."""
-        dd = DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        dd = DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name)
         assert DataroomDocument.objects.count() == 1
 
         url = f'/api/v1/datarooms/{dataroom.id}/remove-content/'
@@ -173,7 +227,7 @@ class TestDataroomViewSet:
 
     def test_move_document_to_folder(self, api_client, dataroom, document):
         """Test moving a document into a folder within a dataroom."""
-        dataroom_doc = DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        dataroom_doc = DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name)
         dataroom_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Destination")
 
         url = f'/api/v1/datarooms/{dataroom.id}/move-content/'
@@ -341,7 +395,7 @@ class TestDataroomFolderViewSet:
         """Test retrieving a folder's contents, including subfolders and documents."""
         parent_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Parent")
         DataroomFolder.objects.create(dataroom=dataroom, name="Sub", parent=parent_folder)
-        DataroomDocument.objects.create(dataroom=dataroom, document=document, folder=parent_folder)
+        DataroomDocument.objects.create(dataroom=dataroom, document=document, folder=parent_folder, name=document.name)
 
         url = f'/api/v1/dataroom-folders/{parent_folder.id}/'
         response = api_client.get(url)
@@ -352,7 +406,7 @@ class TestDataroomFolderViewSet:
         assert len(data['sub_folders']) == 1
         assert data['sub_folders'][0]['name'] == "Sub"
         assert len(data['documents']) == 1
-        assert data['documents'][0]['document_name'] == document.name
+        assert data['documents'][0]['name'] == document.name
 
 
 class TestPublicDataroomDataView:

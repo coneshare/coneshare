@@ -27,8 +27,9 @@ def test_dataroom_folder_creation(dataroom):
 def test_dataroom_document_creation(dataroom, document):
     """Test that a DataroomDocument instance can be created."""
     dataroom_document = DataroomDocument.objects.create(
-        dataroom=dataroom, document=document
+        dataroom=dataroom, document=document, name=document.name
     )
     assert isinstance(dataroom_document, DataroomDocument)
     assert dataroom_document.dataroom == dataroom
     assert dataroom_document.document == document
+    assert dataroom_document.name == document.name
