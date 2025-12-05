@@ -471,7 +471,7 @@ export function DataroomPage() {
       )}
       <ConfirmationDialog
         isOpen={!!itemToRemove}
-        onOpenChange={setItemToRemove}
+        onOpenChange={(isOpen) => !isOpen && setItemToRemove(null)}
         onConfirm={handleConfirmRemoveItem}
         title={`Remove "${itemToRemove?.name}"?`}
         description={`Are you sure you want to remove this item from the dataroom? This will not delete the original file.`}
