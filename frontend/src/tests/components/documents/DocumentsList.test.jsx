@@ -91,6 +91,7 @@ describe("DocumentsList", () => {
         allItems={mockDocuments}
         loading={false}
         onDataRefresh={() => {}}
+        sortConfig={{ key: "name", direction: "ascending" }}
       />
     );
     
@@ -112,6 +113,7 @@ describe("DocumentsList with external handlers", () => {
               allItems={[mockDocument]}
               loading={false}
               onDelete={mockOnDelete}
+              sortConfig={{ key: "name", direction: "ascending" }}
           />
       );
 
@@ -132,6 +134,7 @@ describe("DocumentsList with external handlers", () => {
               allItems={[mockDocument]}
               loading={false}
               onRename={mockOnRename}
+              sortConfig={{ key: "name", direction: "ascending" }}
           />
       );
 
