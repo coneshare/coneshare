@@ -253,7 +253,7 @@ describe('DataroomPage', () => {
             await user.click(docCheckbox);
             
             // Open move dialog
-            const moveButton = await screen.findByRole('button', { name: /move/i });
+            const moveButton = await screen.findByRole('button', { name: /^move$/i });
             await user.click(moveButton);
             
             expect(await screen.findByRole('heading', { name: /move items/i })).toBeInTheDocument();
@@ -290,7 +290,7 @@ describe('DataroomPage', () => {
             await user.click(folderCheckbox);
             
             // Click delete button
-            const deleteButton = screen.getByRole('button', { name: /remove/i });
+            const deleteButton = screen.getByRole('button', { name: /^remove$/i });
             await user.click(deleteButton);
             
             // Confirm deletion
@@ -428,7 +428,7 @@ describe('DataroomPage', () => {
             const folderCheckbox = await screen.findByLabelText('Select Sub Folder');
             await user.click(folderCheckbox);
     
-            const moveButton = await screen.findByRole('button', { name: /move/i });
+            const moveButton = await screen.findByRole('button', { name: /^move$/i });
             await user.click(moveButton);
     
             expect(await screen.findByRole('heading', { name: /move items/i })).toBeInTheDocument();

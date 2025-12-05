@@ -105,7 +105,7 @@ export function DataroomPage() {
         // Use dataroom_document_id for selection, document_id for navigation
         id: d.id, 
         document_id: d.document_id,
-        name: d.document_name,
+        name: d.name,
         type: 'document'
       }))
     ];
