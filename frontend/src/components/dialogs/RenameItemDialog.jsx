@@ -35,18 +35,14 @@ export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess, contex
     try {
       if (item.type === 'Dataroom') {
         await updateDataroom(item.id, { name: newName });
-      } else if (context === 'dataroom') {
-        if (item.type === "document") {
-          await renameDataroomDocument(item.id, newName);
-        } else { // folder
-          await renameDataroomFolder(item.id, newName);
+      } else {
+        let renameFn;
+        if (context === 'dataroom') {
+          renameFn = item.type === "document" ? renameDataroomDocument : renameDataroomFolder;
+        } else { // documents context
+          renameFn = item.type === "document" ? renameDocument : renameFolder;
         }
-      } else { // documents context
-        if (item.type === "document") {
-          await renameDocument(item.id, newName);
-        } else { // folder
-          await renameFolder(item.id, newName);
-        }
+        await renameFn(item.id, newName);
       }
       toast.success(`${item.type} "${item.name}" was renamed to "${newName}".`);
       onSuccess(); // This will trigger a data refresh
