@@ -21,6 +21,8 @@ import { LinksTable } from '../components/documents/LinksTable';
 import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
 import { ManagePermissionsDialog } from '../components/datarooms/ManagePermissionsDialog';
 import { RenameItemDialog } from '../components/dialogs/RenameItemDialog';
+
+export function DataroomPage() {
   const { dataroomId } = useParams();
   const navigate = useNavigate();
   const { setBreadcrumbData } = useBreadcrumb();
