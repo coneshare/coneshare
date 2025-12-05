@@ -1312,3 +1312,19 @@ This session implements a enhancement to dataroom analytics by introducing a ded
 - New API Endpoint for Recording Visits: Added a new API endpoint (/api/v1/view-sessions/{pk}/record-visit/) to record these dataroom visits, which returns the newly created DataroomVisit object for subsequent page view tracking.
 - Frontend Integration for Dataroom Activity: The frontend has been updated to utilize the new visit tracking, recording document/folder visits and passing the dataroomVisitId to the PreviewViewer for accurate page view attribution. The ViewSessionsTable now displays these dataroom visits with nested page view charts.
 - Refactored Document Preview in Dataroom: The way dataroom documents are previewed has been refactored; documents are now opened in a new tab, allowing for independent tracking and a cleaner user experience within the dataroom viewer.
+
+---
+
+## Session 59: Dataroom Enhancements & Refactoring (2025-12-05)
+
+This session focused on significantly improving the flexibility and robustness of the Dataroom feature, alongside critical bug fixes and backend code refactoring.
+[https://github.com/coneshare/coneshare/pull/88](https://github.com/coneshare/coneshare/pull/88)
+
+- **Enhanced Dataroom Flexibility**: Reworked the dataroom data model to allow a single document to exist in multiple folders simultaneously, functioning like shortcuts or symbolic links. This involved changing the `DataroomDocument` model's unique constraint and adding a dedicated `name` field to manage display names independently of the source document.
+- **Robust Content Management**: Updated the "Add Content" and "Move Content" dataroom APIs to support the new shortcut model. The logic now handles creating new links for a document in different locations and automatically renames items with a numeric suffix (e.g., `report (2).pdf`) if a name conflict occurs in the destination folder.
+- **Backend Code Refactoring**: Improved code maintainability by refactoring the unique name generation logic for both dataroom documents and folders to use a single, generic utility function (`get_unique_name`), reducing duplication.
+- **Frontend Bug Fixes & Testing**:
+    - Fixed a critical bug that caused file uploads within a sub-folder to be incorrectly placed in the root directory.
+    - Hardened the frontend test suite by adding coverage for sub-folder file uploads and adding a test for adding the same document to multiple dataroom locations.
+    - Resolved several test failures in the dataroom management UI caused by outdated mock data and ambiguous test selectors.
+- **Legacy Data Compatibility**: Ensured backward compatibility for existing dataroom content by updating API serializers to fall back to the original document's name if the new explicit `name` field is not set.
