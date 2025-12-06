@@ -16,7 +16,7 @@ function ReadOnlyHeader() {
       <div className="w-[40%]">Name</div>
       <div className="w-[20%]">Owner</div>
       <div className="w-[20%]">Last Modified</div>
-      <div className="w-[10%]">File Size</div>
+      <div className="w-[10%]">Size</div>
       <div className="w-16" />
     </div>
   );

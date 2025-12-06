@@ -8,7 +8,7 @@ const columns = [
   { key: "name", label: "Name", className: "w-[40%]" },
   { key: "owner", label: "Owner", className: "w-[20%]" },
   { key: "updated_at", label: "Last Modified", className: "w-[20%]" },
-  { key: "file_size", label: "File Size", className: "w-[10%]" },
+  { key: "file_size", label: "Size", className: "w-[10%]" },
 ];
 
 export function DocumentsListHeader({
