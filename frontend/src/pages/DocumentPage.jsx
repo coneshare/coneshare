@@ -133,7 +133,8 @@ export function DocumentPage() {
       window.open(response.data.download_url, '_blank');
       toast.success('Download started.', { id: toastId });
     } catch (error) {
-      toast.error('Download failed.', { id: toastId });
+      // The API interceptor will show a more specific error message.
+      toast.dismiss(toastId);
     }
   };
 
