@@ -548,6 +548,28 @@ describe('DocumentsPage', () => {
       // Verify no error toast was shown for the limit
       expect(screen.queryByText('Uploads are limited to 2 files at a time.')).not.toBeInTheDocument();
     });
+
+    it('should block upload if user data is not yet loaded', async () => {
+      // Mock useUser to return null initially
+      useUser.mockReturnValue({ user: null });
+      renderComponent();
+
+      const file1 = createFile('file1.txt');
+      const fileInput = findFileInput();
+
+      fireEvent.change(fileInput, {
+        target: { files: [file1] },
+      });
+
+      // Verify that no upload API calls were made
+      await waitFor(() => {
+        expect(api.uploadDocument).not.toHaveBeenCalled();
+      });
+
+      // Verify an error toast is shown about user data loading
+      expect(await screen.findByText('User information is still loading. Please wait a moment and try again.')).toBeInTheDocument();
+    });
+
   });
 
   describe('Single Item Actions', () => {

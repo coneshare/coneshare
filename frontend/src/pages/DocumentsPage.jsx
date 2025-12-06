@@ -262,7 +262,12 @@ function DocumentsPage() {
   const handleFileUploads = async (files) => {
     if (!files || files.length === 0) return;
 
-    if (user && user.max_files_per_upload > 0 && files.length > user.max_files_per_upload) {
+    if (!user) {
+      toast.error("User information is still loading. Please wait a moment and try again.");
+      return;
+    }
+
+    if (user.max_files_per_upload > 0 && files.length > user.max_files_per_upload) {
       toast.error(`Uploads are limited to ${user.max_files_per_upload} files at a time.`);
       return;
     }
