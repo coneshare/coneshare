@@ -15,6 +15,7 @@ import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
 import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl } from '../services/api';
+import { useUser } from '../contexts/UserProvider';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
@@ -36,6 +37,7 @@ function DocumentsPage() {
   const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
   const [isMoveItemsOpen, setIsMoveItemsOpen] = useState(false);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
+  const { user } = useUser();
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
 
@@ -259,6 +261,16 @@ function DocumentsPage() {
 
   const handleFileUploads = async (files) => {
     if (!files || files.length === 0) return;
+
+    if (!user) {
+      toast.error("User information is still loading. Please wait a moment and try again.");
+      return;
+    }
+
+    if (user.max_files_per_upload > 0 && files.length > user.max_files_per_upload) {
+      toast.error(`Uploads are limited to ${user.max_files_per_upload} files at a time.`);
+      return;
+    }
 
     // Determine base path if inside a folder
     let basePath = '';

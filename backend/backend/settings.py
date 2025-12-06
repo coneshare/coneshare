@@ -355,6 +355,9 @@ MAX_PREVIEW_FILE_SIZE_MB = 100
 # A value of 0 means unlimited.
 FILE_SIZE_QUOTA_MB = 0
 
+# Maximum number of files that can be uploaded in a single upload operation.
+MAX_FILES_PER_UPLOAD = 100
+
 # Cloud Services Configuration
 # A list of enabled cloud providers.
 ENABLED_CLOUD_PROVIDERS = ["dropbox", "google_drive", "nextcloud"]

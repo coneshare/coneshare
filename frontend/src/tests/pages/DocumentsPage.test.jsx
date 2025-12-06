@@ -3,11 +3,17 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import * as BreadcrumbProvider from '../../components/layout/BreadcrumbProvider';
+import { useUser } from '../../contexts/UserProvider';
 import DocumentsPage from '../../pages/DocumentsPage';
 import * as api from '../../services/api';
 
 // Mock the api service
 vi.mock('../../services/api');
+
+// Mock the UserProvider context
+vi.mock('../../contexts/UserProvider', () => ({
+  useUser: vi.fn(),
+}));
 
 // Mock child components that are not relevant to the test
 vi.mock('../../components/documents/Pagination', () => ({
@@ -43,7 +49,17 @@ describe('DocumentsPage', () => {
     mockSetBreadcrumbData = vi.fn();
     vi.spyOn(BreadcrumbProvider, 'useBreadcrumb').mockReturnValue({
       setBreadcrumbData: mockSetBreadcrumbData,
-    });    
+    });
+
+    // Mock useUser to return a default user object
+    useUser.mockReturnValue({
+      user: {
+        id: 'user123',
+        name: 'Test User',
+        email: 'test@example.com',
+        max_files_per_upload: 100, // Default generous limit
+      },
+    });
   });
 
   afterEach(() => {
@@ -451,6 +467,109 @@ describe('DocumentsPage', () => {
         expect(api.uploadDocument).toHaveBeenCalledTimes(2);
       });
     });
+  });
+
+  describe('Upload Limits', () => {
+    beforeEach(() => {
+      // Set a strict limit for these tests
+      useUser.mockReturnValue({
+        user: { max_files_per_upload: 2 },
+      });
+    });
+
+    it('should block multi-file upload if it exceeds the limit', async () => {
+      renderComponent();
+
+      const file1 = createFile('file1.txt');
+      const file2 = createFile('file2.txt');
+      const file3 = createFile('file3.txt');
+
+      const fileInput = findFileInput();
+
+      // Simulate user selecting too many files
+      fireEvent.change(fileInput, {
+        target: { files: [file1, file2, file3] },
+      });
+
+      // Verify that no upload API calls were made
+      await waitFor(() => {
+        expect(api.uploadDocument).not.toHaveBeenCalled();
+      });
+
+      // Verify an error toast is shown
+      expect(await screen.findByText('Uploads are limited to 2 files at a time.')).toBeInTheDocument();
+    });
+
+    it('should block folder upload if it exceeds the limit', async () => {
+      const createFolderFile = (path, name) => {
+        const file = new File(['content'], name, { type: 'text/plain' });
+        Object.defineProperty(file, 'webkitRelativePath', { value: path });
+        return file;
+      };
+
+      renderComponent();
+
+      const file1 = createFolderFile('folderA/file1.txt', 'file1.txt');
+      const file2 = createFolderFile('folderA/file2.txt', 'file2.txt');
+      const file3 = createFolderFile('folderA/file3.txt', 'file3.txt');
+
+      const folderInput = findFolderInput();
+      fireEvent.change(folderInput, {
+        target: { files: [file1, file2, file3] },
+      });
+
+      // Verify no folder or file creation calls were made
+      await waitFor(() => {
+        expect(api.ensureFolderPaths).not.toHaveBeenCalled();
+        expect(api.uploadDocument).not.toHaveBeenCalled();
+      });
+
+      // Verify an error toast is shown
+      expect(await screen.findByText('Uploads are limited to 2 files at a time.')).toBeInTheDocument();
+    });
+
+    it('should allow upload if the number of files is within the limit', async () => {
+      renderComponent();
+
+      const file1 = createFile('file1.txt');
+      const file2 = createFile('file2.txt');
+      api.uploadDocument.mockResolvedValue({ status: 202 });
+
+      const fileInput = findFileInput();
+      fireEvent.change(fileInput, {
+        target: { files: [file1, file2] },
+      });
+
+      // Verify that upload API calls were made
+      await waitFor(() => {
+        expect(api.uploadDocument).toHaveBeenCalledTimes(2);
+      });
+
+      // Verify no error toast was shown for the limit
+      expect(screen.queryByText('Uploads are limited to 2 files at a time.')).not.toBeInTheDocument();
+    });
+
+    it('should block upload if user data is not yet loaded', async () => {
+      // Mock useUser to return null initially
+      useUser.mockReturnValue({ user: null });
+      renderComponent();
+
+      const file1 = createFile('file1.txt');
+      const fileInput = findFileInput();
+
+      fireEvent.change(fileInput, {
+        target: { files: [file1] },
+      });
+
+      // Verify that no upload API calls were made
+      await waitFor(() => {
+        expect(api.uploadDocument).not.toHaveBeenCalled();
+      });
+
+      // Verify an error toast is shown about user data loading
+      expect(await screen.findByText('User information is still loading. Please wait a moment and try again.')).toBeInTheDocument();
+    });
+
   });
 
   describe('Single Item Actions', () => {
