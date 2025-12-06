@@ -17,6 +17,8 @@ import { ShareLinkViewerPage } from './pages/ShareLinkViewerPage';
 import UserSettingsPage from './pages/UserSettingsPage';
 import { AdminSettingsPage } from './pages/AdminSettingsPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
+import { ErrorPage } from './pages/ErrorPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 
 function App() {
   return (
@@ -26,6 +28,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/view/:slug" element={<ShareLinkViewerPage />} />
         <Route path="/auth/:providerName/callback" element={<CloudAuthCallbackPage />} />
+        <Route path="/500" element={<ErrorPage />} />
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/documents" element={<DocumentsPage />} />
@@ -40,6 +43,7 @@ function App() {
           <Route path="/settings/password" element={<PasswordSettingsPage />} />
           <Route path="/admin/settings" element={<AdminSettingsPage />} />
           <Route path="/admin/users" element={<AdminUsersPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
     </>
