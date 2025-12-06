@@ -14,7 +14,8 @@ import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl, getCurrentUser } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl } from '../services/api';
+import { useUser } from '../contexts/UserProvider';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
@@ -36,7 +37,7 @@ function DocumentsPage() {
   const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
   const [isMoveItemsOpen, setIsMoveItemsOpen] = useState(false);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
-  const [user, setUser] = useState(null);
+  const { user } = useUser();
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
 
@@ -89,20 +90,6 @@ function DocumentsPage() {
       setBreadcrumbData(null);
     };
   }, [fetchData, setBreadcrumbData, setSelection, setLastSelectedItem]);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await getCurrentUser();
-        if (response.data && response.data.length > 0) {
-          setUser(response.data[0]);
-        }
-      } catch (error) {
-        console.error("Failed to fetch user data:", error);
-      }
-    };
-    fetchUser();
-  }, []);
 
   useEffect(() => {
     const fetchProviders = async () => {
