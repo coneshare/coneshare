@@ -14,6 +14,7 @@ urlpatterns = [
     path('uploads/document/<str:document_id>/versions/request/', views.DocumentVersionUploadRequestView.as_view(), name='document-version-upload-request'),
     path('uploads/document/<str:document_id>/versions/finalize/', views.DocumentVersionUploadFinalizeView.as_view(), name='document-version-upload-finalize'),
     path('documents/<str:document_id>/preview-data/', views.DocumentPreviewDataView.as_view(), name='document-preview-data'),
+    path('documents/<str:document_id>/download/', views.DocumentDownloadView.as_view(), name='document-download'),
     path('actions/move/', views.MoveItemsView.as_view(), name='move-items'),
 
     path('', include(router.urls)),

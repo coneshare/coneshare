@@ -15,7 +15,7 @@ import {
 import { ChevronDownIcon } from '../icons/ChevronDownIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 
-export function DocumentHeader({ document, onCreateLink, onPreview, onUploadNewVersion }) {
+export function DocumentHeader({ document, onCreateLink, onPreview, onUploadNewVersion, onDownload, onDelete }) {
   return (
     <div className="border-b border-gray-200 pb-5 sm:flex sm:items-center sm:justify-between">
       <h1 className="text-2xl font-bold leading-6 text-gray-900">{document.name}</h1>
@@ -68,8 +68,11 @@ export function DocumentHeader({ document, onCreateLink, onPreview, onUploadNewV
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>Download</DropdownMenuItem>
-            <DropdownMenuItem className="text-red-600 hover:!text-red-600 hover:!bg-red-50 focus:!text-red-600 focus:!bg-red-50">
+            <DropdownMenuItem onSelect={onDownload}>Download</DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={onDelete}
+              className="text-red-600 hover:!text-red-600 hover:!bg-red-50 focus:!text-red-600 focus:!bg-red-50"
+            >
               Delete
             </DropdownMenuItem>
           </DropdownMenuContent>

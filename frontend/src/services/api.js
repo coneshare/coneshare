@@ -216,6 +216,8 @@ export const moveItems = ({ documentIds, folderIds, destinationFolderId }) => {
 
 export const getDocumentPreviewData = (id) => api.get(`/documents/${id}/preview-data/`);
 
+export const getDocumentDownloadUrl = (id) => api.get(`/documents/${id}/download/`);
+
 export const getDocumentDetails = (id) => api.get(`/documents/${id}/`);
 
 export const getDocumentViews = (documentId, page = 1) =>

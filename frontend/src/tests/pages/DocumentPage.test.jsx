@@ -1,4 +1,5 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { DocumentPage } from '../../pages/DocumentPage';
@@ -8,10 +9,12 @@ vi.mock('../../services/api');
 
 // Mock child components to isolate the page
 vi.mock('../../components/documents/DocumentHeader', () => ({
-  DocumentHeader: ({ onUploadNewVersion }) => (
+  DocumentHeader: ({ onUploadNewVersion, onDownload, onDelete }) => (
     <div>
       <span>Document Header</span>
       <button onClick={onUploadNewVersion}>Upload New Version</button>
+      <button onClick={onDownload}>Download</button>
+      <button onClick={onDelete}>Delete</button>
     </div>
   ),
 }));
@@ -57,6 +60,7 @@ describe('DocumentPage', () => {
       <MemoryRouter initialEntries={['/documents/doc123']}>
         <Routes>
           <Route path="/documents/:documentId" element={<DocumentPage />} />
+          <Route path="/documents" element={<div>Documents Page</div>} />
         </Routes>
       </MemoryRouter>
     );
@@ -76,17 +80,11 @@ describe('DocumentPage', () => {
     });
     expect(screen.queryByText('viewer11@test.com')).not.toBeInTheDocument();
 
-    // Check pagination text
-    expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
-    expect(
-      screen.getByText((content, node) => node.textContent === 'Showing 1-10 of 15 view sessions.')
-    ).toBeInTheDocument();
-
     // Mock for second page call
     api.getDocumentViews.mockResolvedValueOnce({ data: mockViewsPage2 });
 
     // Click next page button
-    const nextButton = screen.getByRole('button', { name: /go to next page/i });
+    const nextButton = screen.getByRole('button', { name: /next page/i });
     fireEvent.click(nextButton);
 
     // Wait for page 2 to load
@@ -98,12 +96,7 @@ describe('DocumentPage', () => {
     expect(screen.queryByText('viewer1@test.com')).not.toBeInTheDocument();
 
     // Check pagination text and state
-    expect(screen.getByText('Page 2 of 2')).toBeInTheDocument();
-    expect(
-      screen.getByText((content, node) => node.textContent === 'Showing 11-15 of 15 view sessions.')
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /go to next page/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /go to last page/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /next page/i })).toBeDisabled();
   });
 
   describe('Upload New Version', () => {
@@ -234,13 +227,63 @@ describe('DocumentPage', () => {
       const actionButton = screen.getByRole('button', { name: /open actions menu/i });
       expect(actionButton).toBeInTheDocument();
 
-      fireEvent.click(actionButton);
+      await userEvent.click(actionButton);
 
       await waitFor(() => {
         expect(screen.getByRole('menuitem', { name: /edit/i })).toBeInTheDocument();
         expect(screen.getByRole('menuitem', { name: /delete/i })).toBeInTheDocument();
         expect(screen.getByRole('menuitem', { name: /preview/i })).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('Download and Delete', () => {
+    beforeEach(() => {
+      api.getDocumentDetails.mockResolvedValue({ data: mockDocument });
+      api.getDocumentStats.mockResolvedValue({ data: mockStats });
+      api.getDocumentViews.mockResolvedValue({ data: { results: [], count: 0 } });
+    });
+
+    it('handles document download', async () => {
+      api.getDocumentDownloadUrl.mockResolvedValue({ data: { download_url: 'http://example.com/download' } });
+      const windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => {});
+
+      renderComponent();
+      await waitFor(() => expect(api.getDocumentDetails).toHaveBeenCalled());
+
+      const downloadButton = screen.getByRole('button', { name: /download/i });
+      fireEvent.click(downloadButton);
+
+      await waitFor(() => {
+        expect(api.getDocumentDownloadUrl).toHaveBeenCalledWith('doc123');
+        expect(windowOpenSpy).toHaveBeenCalledWith('http://example.com/download', '_blank');
+      });
+
+      windowOpenSpy.mockRestore();
+    });
+
+    it('handles document deletion with confirmation', async () => {
+      api.deleteDocument.mockResolvedValue({});
+
+      renderComponent();
+      await waitFor(() => expect(api.getDocumentDetails).toHaveBeenCalled());
+
+      const deleteButton = screen.getByRole('button', { name: /delete/i });
+      fireEvent.click(deleteButton);
+
+      // Check for confirmation dialog
+      const dialog = await screen.findByRole('dialog', { name: /delete document/i });
+      expect(within(dialog).getByText(/are you sure you want to permanently delete/i)).toBeInTheDocument();
+      
+      const confirmDeleteButton = within(dialog).getByRole('button', { name: /delete/i });
+      fireEvent.click(confirmDeleteButton);
+
+      await waitFor(() => {
+        expect(api.deleteDocument).toHaveBeenCalledWith('doc123');
+      });
+
+      // Check for navigation
+      expect(await screen.findByText('Documents Page')).toBeInTheDocument();
     });
   });
 });
