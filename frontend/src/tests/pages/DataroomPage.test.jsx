@@ -476,6 +476,28 @@ describe('DataroomPage', () => {
     
             expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
         });
+
+        it('should select all items when header checkbox is clicked', async () => {
+            const user = userEvent.setup();
+            renderComponent();
+    
+            await screen.findByText('Sub Folder');
+    
+            // The select-all checkbox is in the header
+            const selectAllCheckbox = screen.getByLabelText('Select all items');
+    
+            // Click to select all
+            await user.click(selectAllCheckbox);
+    
+            // Verify action bar appears with correct count (1 doc, 1 folder from mockDataroomRoot)
+            const actionBar = await screen.findByText(/selected/);
+            expect(actionBar).toHaveTextContent('1 document, 1 folder selected');
+    
+            // Click again to deselect all
+            await user.click(selectAllCheckbox);
+            
+            expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
+        });
     
         it('should open move dialog when move is clicked', async () => {
             const user = userEvent.setup();
