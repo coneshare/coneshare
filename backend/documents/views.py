@@ -485,6 +485,42 @@ def _prepare_pages_data(document, primary_version, share_link=None):
     return pages_data
 
 
+class DocumentDownloadView(APIView):
+    """
+    Provides a temporary, secure URL for downloading a document's original file.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, document_id, *args, **kwargs):
+        try:
+            document = Document.objects.get(
+                id=document_id,
+                organization=request.user.organization,
+                created_by=request.user
+            )
+        except Document.DoesNotExist:
+            return Response(
+                {"detail": "Access denied or document not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        primary_version = document.versions.filter(is_primary=True).first()
+        if not primary_version:
+            return Response(
+                {"detail": "Document version not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+            download_url = fileserver_client.generate_download_url(
+                primary_version.original_storage_key, is_internal=False
+            )
+            return Response({'download_url': download_url}, status=status.HTTP_200_OK)
+        except APIException as e:
+            logger.error(f"Failed to get download URL from file server for document {document_id}: {e}")
+            return Response({"detail": str(e.detail)}, status=e.status_code)
+
+
 class DocumentPreviewDataView(APIView):
     """
     Provides data for rendering an internal document preview.

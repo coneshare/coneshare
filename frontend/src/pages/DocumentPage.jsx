@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Loader2, AlertTriangle } from 'lucide-react';
-import { getDocumentDetails, getDocumentViews, getDocumentStats, deleteShareLink, uploadNewVersion } from '../services/api';
+import { getDocumentDetails, getDocumentViews, getDocumentStats, deleteShareLink, uploadNewVersion, getDocumentDownloadUrl, deleteDocument } from '../services/api';
 import { DocumentHeader } from '../components/documents/DocumentHeader';
 import { LinksTable } from '../components/documents/LinksTable';
 import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
@@ -14,6 +14,7 @@ import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 
 export function DocumentPage() {
   const { documentId } = useParams();
+  const navigate = useNavigate();
   const [document, setDocument] = useState(null);
   const [stats, setStats] = useState(null);
   const [viewsData, setViewsData] = useState(null);
@@ -25,6 +26,7 @@ export function DocumentPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [linkToDelete, setLinkToDelete] = useState(null);
+  const [isDeleteDocDialogOpen, setIsDeleteDocDialogOpen] = useState(false);
   const fileInputRef = useRef(null);
   const [isVersionMismatchDialogOpen, setIsVersionMismatchDialogOpen] = useState(false);
   const [newVersionFile, setNewVersionFile] = useState(null);
@@ -122,6 +124,34 @@ export function DocumentPage() {
 
   const handlePreview = () => {
     setIsPreviewOpen(true);
+  };
+
+  const handleDownload = async () => {
+    const toastId = toast.loading('Preparing download...');
+    try {
+      const response = await getDocumentDownloadUrl(documentId);
+      window.open(response.data.download_url, '_blank');
+      toast.success('Download started.', { id: toastId });
+    } catch (error) {
+      toast.error('Download failed.', { id: toastId });
+    }
+  };
+
+  const handleDelete = () => {
+    setIsDeleteDocDialogOpen(true);
+  };
+
+  const handleConfirmDeleteDoc = async () => {
+    if (!document) return;
+    try {
+      await deleteDocument(documentId);
+      toast.success(`Document "${document.name}" deleted.`);
+      navigate('/documents');
+    } catch (error) {
+      // Error is handled by API interceptor
+    } finally {
+      setIsDeleteDocDialogOpen(false);
+    }
   };
 
   const performUpload = async (file) => {
@@ -231,7 +261,14 @@ export function DocumentPage() {
         onChange={handleFileSelected}
         style={{ display: 'none' }}
       />
-      <DocumentHeader document={document} onCreateLink={handleCreateLink} onPreview={handlePreview} onUploadNewVersion={handleUploadNewVersionClick} />
+      <DocumentHeader
+        document={document}
+        onCreateLink={handleCreateLink}
+        onPreview={handlePreview}
+        onUploadNewVersion={handleUploadNewVersionClick}
+        onDownload={handleDownload}
+        onDelete={handleDelete}
+      />
       <div className="mt-8 space-y-8">
         <Stats stats={stats} />
         <LinksTable
@@ -268,6 +305,14 @@ export function DocumentPage() {
         onConfirm={handleConfirmDelete}
         title="Delete Share Link"
         description={`Are you sure you want to permanently delete the link "${linkToDelete?.name || 'Untitled Link'}"? This action cannot be undone.`}
+        confirmText="Delete"
+      />
+      <ConfirmationDialog
+        isOpen={isDeleteDocDialogOpen}
+        onOpenChange={setIsDeleteDocDialogOpen}
+        onConfirm={handleConfirmDeleteDoc}
+        title="Delete Document"
+        description={`Are you sure you want to permanently delete "${document?.name}"? All associated links and data will be removed. This action cannot be undone.`}
         confirmText="Delete"
       />
       <ConfirmationDialog
