@@ -275,12 +275,9 @@ function DocumentsPage() {
   const handleFileUploads = async (files) => {
     if (!files || files.length === 0) return;
 
-    if (user && user.max_files_per_folder_upload > 0) {
-      const isFolderUpload = Array.from(files).some((file) => file.webkitRelativePath);
-      if (isFolderUpload && files.length > user.max_files_per_folder_upload) {
-        toast.error(`Folder uploads are limited to ${user.max_files_per_folder_upload} files.`);
-        return;
-      }
+    if (user && user.max_files_per_upload > 0 && files.length > user.max_files_per_upload) {
+      toast.error(`Uploads are limited to ${user.max_files_per_upload} files at a time.`);
+      return;
     }
 
     // Determine base path if inside a folder

@@ -32,19 +32,19 @@ class UserSerializer(serializers.ModelSerializer):
     """Serializer for the User model."""
     avatar_url = serializers.SerializerMethodField()
     file_size_quota_mb = serializers.SerializerMethodField()
-    max_files_per_folder_upload = serializers.SerializerMethodField()
+    max_files_per_upload = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'name', 'role', 'organization', 'password',
             'avatar', 'avatar_url', 'date_joined', 'updated_at',
-            'total_document_size', 'file_size_quota_mb', 'max_files_per_folder_upload',
+            'total_document_size', 'file_size_quota_mb', 'max_files_per_upload',
             'is_superuser', 'is_active'
         ]
         read_only_fields = [
             'id', 'organization', 'date_joined', 'updated_at', 'avatar_url',
-            'total_document_size', 'file_size_quota_mb', 'max_files_per_folder_upload',
+            'total_document_size', 'file_size_quota_mb', 'max_files_per_upload',
             'is_superuser'
         ]
         extra_kwargs = {
@@ -60,8 +60,8 @@ class UserSerializer(serializers.ModelSerializer):
     def get_file_size_quota_mb(self, obj):
         return get_dynamic_setting('FILE_SIZE_QUOTA_MB')
 
-    def get_max_files_per_folder_upload(self, obj):
-        return get_dynamic_setting('MAX_FILES_PER_FOLDER_UPLOAD')
+    def get_max_files_per_upload(self, obj):
+        return get_dynamic_setting('MAX_FILES_PER_UPLOAD')
 
     def validate_password(self, value):
         try:
