@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { DocumentPage } from '../../pages/DocumentPage';
@@ -237,7 +238,7 @@ describe('DocumentPage', () => {
       const actionButton = screen.getByRole('button', { name: /open actions menu/i });
       expect(actionButton).toBeInTheDocument();
 
-      fireEvent.click(actionButton);
+      await userEvent.click(actionButton);
 
       await waitFor(() => {
         expect(screen.getByRole('menuitem', { name: /edit/i })).toBeInTheDocument();
