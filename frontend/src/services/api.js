@@ -286,6 +286,8 @@ export const recordPageView = (data, useBeacon = false) => {
 
 export const getUser = (id) => api.get(`/users/${id}/`);
 
+export const getCurrentUser = () => api.get('/users/');
+
 export const setPassword = (data) => api.post('/users/set-password/', data);
 
 export const updateUser = (id, data) => {
