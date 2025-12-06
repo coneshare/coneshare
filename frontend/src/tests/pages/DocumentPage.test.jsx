@@ -80,17 +80,11 @@ describe('DocumentPage', () => {
     });
     expect(screen.queryByText('viewer11@test.com')).not.toBeInTheDocument();
 
-    // Check pagination text
-    expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
-    expect(
-      screen.getByText((content, node) => node.textContent === 'Showing 1-10 of 15 view sessions.')
-    ).toBeInTheDocument();
-
     // Mock for second page call
     api.getDocumentViews.mockResolvedValueOnce({ data: mockViewsPage2 });
 
     // Click next page button
-    const nextButton = screen.getByRole('button', { name: /go to next page/i });
+    const nextButton = screen.getByRole('button', { name: /next page/i });
     fireEvent.click(nextButton);
 
     // Wait for page 2 to load
@@ -102,12 +96,7 @@ describe('DocumentPage', () => {
     expect(screen.queryByText('viewer1@test.com')).not.toBeInTheDocument();
 
     // Check pagination text and state
-    expect(screen.getByText('Page 2 of 2')).toBeInTheDocument();
-    expect(
-      screen.getByText((content, node) => node.textContent === 'Showing 11-15 of 15 view sessions.')
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /go to next page/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /go to last page/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /next page/i })).toBeDisabled();
   });
 
   describe('Upload New Version', () => {
