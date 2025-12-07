@@ -6,11 +6,13 @@ const UploadContext = createContext();
 export function UploadProvider({ children }) {
   const [uploads, setUploads] = useState({});
 
+  const isUploading = useMemo(
+    () => Object.values(uploads).some((upload) => upload.status === 'uploading'),
+    [uploads]
+  );
+
   useEffect(() => {
     const handleBeforeUnload = (event) => {
-      const isUploading = Object.values(uploads).some(
-        (upload) => upload.status === 'uploading'
-      );
       if (isUploading) {
         event.preventDefault();
         event.returnValue = ''; // For legacy browsers
@@ -21,7 +23,7 @@ export function UploadProvider({ children }) {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [uploads]);
+  }, [isUploading]);
 
   const addUploads = useCallback((files) => {
     const newUploads = {};
