@@ -1351,7 +1351,7 @@ This session focused on adding essential item management capabilities to the Dat
 
 ## Session 61: Persistent Uploads & Testing (2025-12-07)
 
-This session focused on improving the user experience during file uploads by adding a persistent progress indicator and hardening the test suite for the upload functionality.
+This session focused on improving the user experience during file uploads by adding a persistent progress indicator and hardening the test suite for the upload functionality. [https://github.com/coneshare/coneshare/pull/92](https://github.com/coneshare/coneshare/pull/92)
 
 ### 1. Persistent Upload Progress Indicator
 - **Global State Management**: A new `UploadProvider` context was created to manage the global state of all file uploads, making the upload status accessible throughout the application.
