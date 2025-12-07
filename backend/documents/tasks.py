@@ -12,6 +12,9 @@ from .fileserver import fileserver_client
 from .models import DocumentVersion, DocumentPage
 
 
+logger = logging.getLogger('tasks')
+
+
 @shared_task
 def convert_office_to_pdf_task(version_id):
     """
@@ -70,7 +73,7 @@ def convert_office_to_pdf_task(version_id):
         if 'document' in locals():
             document.status = 'error'
             document.save()
-        logging.error(f"Error converting document version {version_id}: {e}")
+        logger.error(f"Error converting document version {version_id}: {e}")
 
 
 @shared_task
@@ -132,4 +135,4 @@ def generate_pdf_pages_task(version_id):
             document.status = 'error'
             document.save()
         # Consider more robust logging in a real application
-        print(f"Error processing document version {version_id}: {e}")
+        logger.error(f"Error processing document version {version_id}: {e}")

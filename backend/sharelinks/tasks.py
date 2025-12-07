@@ -7,7 +7,7 @@ from celery import shared_task
 
 from .models import ViewSession
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('tasks')
 
 
 @shared_task
