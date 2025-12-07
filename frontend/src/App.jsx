@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router';
 import { Toaster } from 'sonner';
 import './App.css';
 import MainLayout from './components/layout/MainLayout';
+import { UploadProvider } from './contexts/UploadProvider';
 import { AllLinksPage } from './pages/AllLinksPage';
 import { AllViewSessionsPage } from './pages/AllViewSessionsPage';
 import { CloudAuthCallbackPage } from './pages/CloudAuthCallbackPage';
@@ -24,28 +25,30 @@ function App() {
   return (
     <>
       <Toaster richColors />
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/view/:slug" element={<ShareLinkViewerPage />} />
-        <Route path="/auth/:providerName/callback" element={<CloudAuthCallbackPage />} />
-        <Route path="/500" element={<ErrorPage />} />
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/documents" element={<DocumentsPage />} />
-          <Route path="/documents/folders/:folderId" element={<DocumentsPage />} />
-          <Route path="/documents/:documentId" element={<DocumentPage />} />
-          <Route path="/documents/:documentId/links/:linkId" element={<ShareLinkAnalyticsPage />} />
-          <Route path="/datarooms" element={<DataroomsPage />} />
-          <Route path="/datarooms/:dataroomId" element={<DataroomPage />} />
-          <Route path="/analytics/links" element={<AllLinksPage />} />
-          <Route path="/analytics/view-sessions" element={<AllViewSessionsPage />} />
-          <Route path="/settings" element={<UserSettingsPage />} />
-          <Route path="/settings/password" element={<PasswordSettingsPage />} />
-          <Route path="/admin/settings" element={<AdminSettingsPage />} />
-          <Route path="/admin/users" element={<AdminUsersPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-      </Routes>
+      <UploadProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/view/:slug" element={<ShareLinkViewerPage />} />
+          <Route path="/auth/:providerName/callback" element={<CloudAuthCallbackPage />} />
+          <Route path="/500" element={<ErrorPage />} />
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/documents" element={<DocumentsPage />} />
+            <Route path="/documents/folders/:folderId" element={<DocumentsPage />} />
+            <Route path="/documents/:documentId" element={<DocumentPage />} />
+            <Route path="/documents/:documentId/links/:linkId" element={<ShareLinkAnalyticsPage />} />
+            <Route path="/datarooms" element={<DataroomsPage />} />
+            <Route path="/datarooms/:dataroomId" element={<DataroomPage />} />
+            <Route path="/analytics/links" element={<AllLinksPage />} />
+            <Route path="/analytics/view-sessions" element={<AllViewSessionsPage />} />
+            <Route path="/settings" element={<UserSettingsPage />} />
+            <Route path="/settings/password" element={<PasswordSettingsPage />} />
+            <Route path="/admin/settings" element={<AdminSettingsPage />} />
+            <Route path="/admin/users" element={<AdminUsersPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+        </Routes>
+      </UploadProvider>
     </>
   );
 }

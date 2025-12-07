@@ -5,6 +5,7 @@ import { BreadcrumbProvider } from "./BreadcrumbProvider";
 import { SidebarProvider, useSidebar } from "./SidebarProvider";
 import { cn } from "../../lib/utils";
 import { UserProvider } from "../../contexts/UserProvider";
+import { UploadProgressIndicator } from "../documents/UploadProgressIndicator";
 
 function Layout() {
   const { isCollapsed } = useSidebar();
@@ -23,7 +24,8 @@ function Layout() {
         <main className="overflow-auto p-4 md:p-6">
           <Outlet />
         </main>
-      </div>      
+      </div>
+      <UploadProgressIndicator />
     </div>
   );
 }
