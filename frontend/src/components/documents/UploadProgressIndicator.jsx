@@ -54,11 +54,11 @@ export function UploadProgressIndicator() {
             <span className="font-semibold text-sm">{getStatusText()}</span>
         </div>
         <div className="flex items-center">
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsExpanded(!isExpanded)}>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsExpanded(!isExpanded)} title={isExpanded ? "Collapse" : "Expand"}>
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
             </Button>
             {isComplete && (
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={clearCompleted}>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={clearCompleted} title="Close">
                     <X className="h-4 w-4" />
                 </Button>
             )}
