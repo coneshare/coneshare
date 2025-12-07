@@ -191,7 +191,12 @@ describe('DocumentsPage', () => {
       });
 
       // Should log an error for the failed upload
-      expect(consoleErrorSpy).toHaveBeenCalledWith('1 file(s) failed to upload.');
+      await waitFor(() => {
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining('File upload failed for id'),
+          expect.any(Error)
+        );
+      });      
     });
 
     it('should NOT refetch data but log an error if all files fail to upload', async () => {
@@ -217,7 +222,13 @@ describe('DocumentsPage', () => {
       await new Promise((res) => setTimeout(res, 50));
       expect(api.getRootFolderContents).toHaveBeenCalledTimes(1);
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('2 file(s) failed to upload.');
+      await waitFor(() => {
+        expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
+      });
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('File upload failed for id'),
+        expect.any(Error)
+      );      
     });
 
     it('should upload a single file to the current subfolder', async () => {
