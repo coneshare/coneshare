@@ -12,10 +12,11 @@ def initialize_logdir(app='coneshare'):
 
     log_dir = os.environ['LOG_DIR']
 
-    for dirname in ['supervisor', app, 'nginx']:
+    for dirname in ['nginx']:
         check_call('mkdir -p %s/%s' % (log_dir, dirname), shell=True)
-        check_call('chown -R coneshare:coneshare %s/%s' % (log_dir, dirname), shell=True)
-        check_call('chmod -R 0755 %s/%s' % (log_dir, dirname), shell=True)
+
+    check_call('chown -R coneshare:coneshare %s' % (log_dir), shell=True)
+    check_call('chmod -R 0755 %s' % (log_dir), shell=True)
 
     # # get around of supervisor log permission bug
     # # issue: https://github.com/Supervisor/supervisor/issues/123
@@ -40,7 +41,7 @@ def main(argv):
         # Start the container.
         check_call("supervisord -c /home/coneshare/runtime/supervisord/supervisord.conf", shell=True)
         time.sleep(5)
-        check_call("tail -f /home/coneshare/logs/supervisor/*.log /home/coneshare/logs/nginx/*.log /home/coneshare/logs/coneshare/*.log | grep  -v ping", shell=True)
+        check_call("tail -f /home/coneshare/app/logs*.log", shell=True)
     # elif argv[1] == 'sudo':
     #     command = ' '.join(argv[2:])  # Join all arguments after the first
     #     check_call(f"{command}", shell=True)
