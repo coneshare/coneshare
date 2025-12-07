@@ -16,6 +16,7 @@ import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
 import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl } from '../services/api';
 import { useUser } from '../contexts/UserProvider';
+import { useUpload } from '../contexts/UploadProvider';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
@@ -25,6 +26,7 @@ import { CloudImportDialog } from '../components/dialogs/CloudImportDialog';
 function DocumentsPage() {
   const { folderId } = useParams();
   const { setBreadcrumbData } = useBreadcrumb();
+  const { addUploads, updateUpload } = useUpload();
   const [documents, setDocuments] = useState([]);
   const [folders, setFolders] = useState([]);
   const [cloudProviders, setCloudProviders] = useState([]);
@@ -272,6 +274,9 @@ function DocumentsPage() {
       return;
     }
 
+    // Add files to global state tracker
+    const fileIdMap = addUploads(files);
+
     // Determine base path if inside a folder
     let basePath = '';
     if (currentFolder) {
@@ -282,23 +287,14 @@ function DocumentsPage() {
     }
 
     // 1. Determine unique folder paths from files that have them.
-    // We only do this for uploads from the "Upload Folder" dialog, as
-    // `webkitRelativePath` is the only reliable indicator of user intent
-    // to preserve folder structure. For drag-and-drop, we'll upload flat.
     const paths = new Set();
     Array.from(files).forEach((file) => {
-      const relativePath = file.webkitRelativePath; // Only consider webkitRelativePath
+      const relativePath = file.webkitRelativePath;
       if (relativePath) {
-        const folderPath = relativePath.substring(
-          0,
-          relativePath.lastIndexOf('/')
-        );
+        const folderPath = relativePath.substring(0, relativePath.lastIndexOf('/'));
         if (folderPath) {
-          // Normalize path: remove leading/trailing slashes before adding.
           const normalizedPath = folderPath.replace(/^\/+|\/+$/g, '');
-          if (normalizedPath) {
-            paths.add(normalizedPath);
-          }
+          if (normalizedPath) paths.add(normalizedPath);
         }
       }
     });
@@ -311,47 +307,56 @@ function DocumentsPage() {
         pathMappings = response.data.path_mappings || {};
       } catch (error) {
         console.error("Failed to create folder structure:", error);
-        // The API interceptor will show a toast, so we just log and stop.
+        // Mark all uploads as failed
+        fileIdMap.forEach(id => updateUpload(id, { status: 'error', error: 'Folder creation failed' }));
         return;
       }
     }
 
     // 3. Proceed with concurrent file uploads.
     const uploadPromises = Array.from(files).map((file) => {
-      // For uploads from the folder dialog, we preserve the path.
-      // For all other uploads (including drag-and-drop), we upload to the root.
-      let relativePath = file.webkitRelativePath || null;
+      const id = fileIdMap.get(file);
 
-      // If we received path mappings from the backend, apply them to the relative path first.
+      let relativePath = file.webkitRelativePath || null;
       if (relativePath && Object.keys(pathMappings).length > 0) {
         const pathParts = relativePath.split('/');
         const topLevelDir = pathParts[0];
         const newTopLevelDir = pathMappings[topLevelDir];
-
         if (newTopLevelDir && newTopLevelDir !== topLevelDir) {
           pathParts[0] = newTopLevelDir;
           relativePath = pathParts.join('/');
         }
       }
 
-      // After potential renaming, prepend the base path for where the upload is happening.
       if (relativePath && basePath) {
         relativePath = `${basePath}/${relativePath}`;
       }
-
       const finalPath = relativePath || (basePath ? `${basePath}/${file.name}` : file.name);
 
-      return uploadDocument(file, finalPath);
+      const onProgress = (progress) => {
+        updateUpload(id, { progress });
+      };
+
+      return uploadDocument(file, finalPath, onProgress)
+        .then(response => ({ id, status: 'fulfilled', value: response }))
+        .catch(error => ({ id, status: 'rejected', reason: error }));
     });
-    const results = await Promise.allSettled(uploadPromises);
 
-    const failedCount = results.filter((r) => r.status === 'rejected').length;
-    if (failedCount > 0) {
-      console.error(`${failedCount} file(s) failed to upload.`);
-      // Optionally show a toast for partial failures
-    }
+    const results = await Promise.all(uploadPromises);
+    let successfulUploads = 0;
 
-    if (results.some((r) => r.status === 'fulfilled')) {
+    results.forEach(result => {
+      if (result.status === 'fulfilled') {
+        updateUpload(result.id, { status: 'complete', progress: 100 });
+        successfulUploads++;
+      } else {
+        const errorMessage = result.reason?.response?.data?.detail || result.reason?.message || 'Upload failed';
+        updateUpload(result.id, { status: 'error', error: errorMessage });
+        console.error(`File upload failed for id ${result.id}:`, result.reason);
+      }
+    });
+
+    if (successfulUploads > 0) {
       fetchData(); // Refresh data if at least one upload succeeded
     }
   };

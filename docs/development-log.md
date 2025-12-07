@@ -1347,3 +1347,21 @@ This session focused on adding essential item management capabilities to the Dat
 - **Comprehensive Testing**:
   - Added backend unit tests for the new rename APIs, covering success cases and name conflict validation.
   - Added extensive frontend tests to verify the new action menus, dialog interactions, and the correct use of both internal and external action handlers in the `DocumentsList` component.
+---
+
+## Session 61: Persistent Uploads & Testing (2025-12-07)
+
+This session focused on improving the user experience during file uploads by adding a persistent progress indicator and hardening the test suite for the upload functionality. [https://github.com/coneshare/coneshare/pull/92](https://github.com/coneshare/coneshare/pull/92)
+
+### 1. Persistent Upload Progress Indicator
+- **Global State Management**: A new `UploadProvider` context was created to manage the global state of all file uploads, making the upload status accessible throughout the application.
+- **Persistent UI**: A new `UploadProgressIndicator` component was added to the main layout. It displays a persistent toast-like indicator at the bottom of the screen, showing individual file progress and an overall total.
+- **Navigation Warning**: The `UploadProvider` now uses a `beforeunload` event listener to warn users if they attempt to navigate away from the application while files are still uploading, preventing accidental cancellation.
+
+### 2. Upload Feature Test Hardening
+- **Component Tests**: Added a comprehensive test suite for the new `UploadProgressIndicator` component, verifying its logic for displaying different states (in-progress, complete, error) and its interactive elements.
+- **Context Tests**: Added unit tests for the `UploadProvider`, covering its state management logic (adding, updating, and clearing uploads) and the `beforeunload` event listener side-effect.
+- **Test Suite Fixes**:
+    - Resolved test failures in `DocumentsPage.test.jsx` by wrapping the component with the new `UploadProvider` in the test environment.
+    - Updated assertions for mocked API calls (`uploadDocument`) to account for a new `onProgress` callback parameter.
+    - Fixed error logging assertions to match more detailed, per-file error messages.

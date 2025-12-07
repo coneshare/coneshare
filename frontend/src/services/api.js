@@ -122,7 +122,7 @@ api.interceptors.response.use(
   }
 );
 
-export const uploadDocument = async (file, path) => {
+export const uploadDocument = async (file, path, onProgress) => {
   // Step 1: Request an upload URL from the backend
   const requestResponse = await api.post('/uploads/document/request/', {
     file_name: file.name,
@@ -138,6 +138,12 @@ export const uploadDocument = async (file, path) => {
   await axios.put(upload_url, file, {
     headers: {
       'Content-Type': file.type,
+    },
+    onUploadProgress: (progressEvent) => {
+      const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+      if (onProgress) {
+        onProgress(percentCompleted);
+      }
     },
   });
 

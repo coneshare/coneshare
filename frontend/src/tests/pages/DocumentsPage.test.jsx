@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import * as BreadcrumbProvider from '../../components/layout/BreadcrumbProvider';
+import { UploadProvider } from '../../contexts/UploadProvider';
 import { useUser } from '../../contexts/UserProvider';
 import DocumentsPage from '../../pages/DocumentsPage';
 import * as api from '../../services/api';
@@ -70,13 +71,15 @@ describe('DocumentsPage', () => {
   const renderComponent = (route = '/documents') => {
     return render(
       <MemoryRouter initialEntries={[route]}>
-        <Routes>
-          <Route path="/documents" element={<DocumentsPage />} />
-          <Route path="/documents/folders/:folderId" element={<DocumentsPage />} />
-        </Routes>
+        <UploadProvider>
+          <Routes>
+            <Route path="/documents" element={<DocumentsPage />} />
+            <Route path="/documents/folders/:folderId" element={<DocumentsPage />} />
+          </Routes>
+        </UploadProvider>
       </MemoryRouter>
     );
-  };
+  };  
 
   const createFile = (name, type = 'text/plain') => {
     return new File(['content'], name, { type });
@@ -151,8 +154,8 @@ describe('DocumentsPage', () => {
       await waitFor(() => {
         expect(api.uploadDocument).toHaveBeenCalledTimes(2);
       });
-      expect(api.uploadDocument).toHaveBeenCalledWith(file1, 'file1.txt');
-      expect(api.uploadDocument).toHaveBeenCalledWith(file2, 'file2.txt');
+      expect(api.uploadDocument).toHaveBeenCalledWith(file1, 'file1.txt', expect.any(Function));
+      expect(api.uploadDocument).toHaveBeenCalledWith(file2, 'file2.txt', expect.any(Function));
 
       // getRootFolderContents called once initially, then again after successful upload
       await waitFor(() => {
@@ -188,7 +191,12 @@ describe('DocumentsPage', () => {
       });
 
       // Should log an error for the failed upload
-      expect(consoleErrorSpy).toHaveBeenCalledWith('1 file(s) failed to upload.');
+      await waitFor(() => {
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining('File upload failed for id'),
+          expect.any(Error)
+        );
+      });      
     });
 
     it('should NOT refetch data but log an error if all files fail to upload', async () => {
@@ -214,7 +222,13 @@ describe('DocumentsPage', () => {
       await new Promise((res) => setTimeout(res, 50));
       expect(api.getRootFolderContents).toHaveBeenCalledTimes(1);
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('2 file(s) failed to upload.');
+      await waitFor(() => {
+        expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
+      });
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('File upload failed for id'),
+        expect.any(Error)
+      );      
     });
 
     it('should upload a single file to the current subfolder', async () => {
@@ -243,7 +257,7 @@ describe('DocumentsPage', () => {
         expect(api.uploadDocument).toHaveBeenCalledTimes(1);
       });
       // The constructed path should be ancestors + current_folder + filename
-      expect(api.uploadDocument).toHaveBeenCalledWith(file, 'Parent/Subfolder/test-file.txt');
+      expect(api.uploadDocument).toHaveBeenCalledWith(file, 'Parent/Subfolder/test-file.txt', expect.any(Function));
 
       // Verify data for the current folder is refetched
       await waitFor(() => {
@@ -288,8 +302,8 @@ describe('DocumentsPage', () => {
       await waitFor(() => {
         expect(api.uploadDocument).toHaveBeenCalledTimes(2);
       });
-      expect(api.uploadDocument).toHaveBeenCalledWith(file1, 'folderA/file1.txt');
-      expect(api.uploadDocument).toHaveBeenCalledWith(file2, 'folderA/file2.txt');
+      expect(api.uploadDocument).toHaveBeenCalledWith(file1, 'folderA/file1.txt', expect.any(Function));
+      expect(api.uploadDocument).toHaveBeenCalledWith(file2, 'folderA/file2.txt', expect.any(Function));
 
       // Verify data is refetched on success
       await waitFor(() => {
@@ -327,7 +341,7 @@ describe('DocumentsPage', () => {
       await waitFor(() => {
         expect(api.uploadDocument).toHaveBeenCalledTimes(3);
       });
-      expect(api.uploadDocument).toHaveBeenCalledWith(file1, '/folderA/sub1/file1.txt');
+      expect(api.uploadDocument).toHaveBeenCalledWith(file1, '/folderA/sub1/file1.txt', expect.any(Function));
 
       // Verify data is refetched
       await waitFor(() => {
@@ -388,7 +402,7 @@ describe('DocumentsPage', () => {
 
       // Verify document is uploaded with the RENAMED path
       await waitFor(() => {
-        expect(api.uploadDocument).toHaveBeenCalledWith(file1, 'folderA (2)/file1.txt');
+        expect(api.uploadDocument).toHaveBeenCalledWith(file1, 'folderA (2)/file1.txt', expect.any(Function));
       });
     });
 
@@ -429,7 +443,8 @@ describe('DocumentsPage', () => {
       await waitFor(() => {
         expect(api.uploadDocument).toHaveBeenCalledWith(
           file1,
-          'Grandparent/Parent/new-folder (2)/file1.txt'
+          'Grandparent/Parent/new-folder (2)/file1.txt',
+          expect.any(Function)
         );
       });
 
