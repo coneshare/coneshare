@@ -62,6 +62,9 @@ DATABASES = {
     )
 }
 
+# Log Level Configuration
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
+
 
 # ==============================================================================
 # APPLICATION STRUCTURE (defined in code)
@@ -310,7 +313,7 @@ LOGGING = {
         # root logger — catches everything
         '': {
             'handlers': ['console', 'coneshare_log_hdlr'],
-            'level': 'DEBUG',
+            'level': LOG_LEVEL,
         },
         # Django internal logs (optional)
         'django': {

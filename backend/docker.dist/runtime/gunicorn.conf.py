@@ -24,8 +24,8 @@ user = 'coneshare'
 group = 'coneshare'
 
 # Log files
-accesslog = '/home/coneshare/logs/coneshare/gunicorn-access.log'
-errorlog = '/home/coneshare/logs/coneshare/gunicorn-error.log'
+accesslog = '/home/coneshare/logs/gunicorn.access.log'
+errorlog = '/home/coneshare/logs/gunicorn.error.log'
 
 # Logging level
 loglevel = 'info'
