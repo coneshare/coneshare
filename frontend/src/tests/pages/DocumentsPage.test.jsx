@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import * as BreadcrumbProvider from '../../components/layout/BreadcrumbProvider';
+import { UploadProvider } from '../../contexts/UploadProvider';
 import { useUser } from '../../contexts/UserProvider';
 import DocumentsPage from '../../pages/DocumentsPage';
 import * as api from '../../services/api';
@@ -70,13 +71,15 @@ describe('DocumentsPage', () => {
   const renderComponent = (route = '/documents') => {
     return render(
       <MemoryRouter initialEntries={[route]}>
-        <Routes>
-          <Route path="/documents" element={<DocumentsPage />} />
-          <Route path="/documents/folders/:folderId" element={<DocumentsPage />} />
-        </Routes>
+        <UploadProvider>
+          <Routes>
+            <Route path="/documents" element={<DocumentsPage />} />
+            <Route path="/documents/folders/:folderId" element={<DocumentsPage />} />
+          </Routes>
+        </UploadProvider>
       </MemoryRouter>
     );
-  };
+  };  
 
   const createFile = (name, type = 'text/plain') => {
     return new File(['content'], name, { type });
