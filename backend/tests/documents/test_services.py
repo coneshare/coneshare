@@ -43,12 +43,13 @@ class TestCreateDocumentFromUpload:
 
 @pytest.mark.django_db
 class TestGeneratePdfPagesTask:
+    @patch('documents.tasks.pdfinfo_from_bytes')
     @patch('documents.tasks.requests.put')
     @patch('documents.tasks.fileserver_client.generate_upload_url')
     @patch('documents.tasks.requests.get')
     @patch('documents.tasks.fileserver_client.generate_download_url')
     @patch('documents.tasks.convert_from_bytes')
-    def test_task_processes_pdf_and_updates_db(self, mock_convert, mock_fs_download_url, mock_requests_get, mock_fs_upload_url, mock_requests_put, user):
+    def test_task_processes_pdf_and_updates_db(self, mock_convert, mock_fs_download_url, mock_requests_get, mock_fs_upload_url, mock_requests_put, mock_pdfinfo, user):
         # Setup test-specific data
         document = Document.objects.create(
             organization=user.organization,
@@ -74,6 +75,7 @@ class TestGeneratePdfPagesTask:
         mock_get_response.content = sample_pdf_bytes
         mock_requests_get.return_value = mock_get_response
         mock_convert.return_value = mock_images
+        mock_pdfinfo.return_value = {'Pages': 2}
         mock_fs_upload_url.side_effect = ["/upload/page1", "/upload/page2"]
         mock_put_response = MagicMock()
         mock_put_response.raise_for_status.return_value = None
