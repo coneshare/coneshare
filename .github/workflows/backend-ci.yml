@@ -61,7 +61,7 @@ jobs:
       env:
         SECRET_KEY: "dummy-secret-key-for-ci-tests"
         DATABASE_URL: "sqlite:///db.sqlite3"
-        REDIS_URL: "redis://localhost:6379/0"
+        REDIS_URL: "redis://localhost:6379"
         CELERY_TASK_ALWAYS_EAGER: "True"
         INTERNAL_API_TOKEN: "dummy-internal-api-token-for-ci"
         FIELD_ENCRYPTION_KEY: "S-c9WBE3DEJE2R7i-b-sOmegRChW2McTDIOWcrG0-C8="
