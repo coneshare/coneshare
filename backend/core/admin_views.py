@@ -23,8 +23,8 @@ class IsAdmin(permissions.BasePermission):
 
 # This list should be kept in sync with the defaults in settings.py
 DEFAULT_SETTINGS = {
-    'MAX_PREVIEW_FILE_SIZE_MB': {'description': 'Max file size in MB for preview generation.', 'is_json': False},
-    'MAX_PREVIEW_PAGES': {'description': 'Maximum number of pages for document preview.', 'is_json': False},
+    'MAX_PREVIEW_FILE_SIZE_MB': {'description': 'Max file size in MB for preview generation. Files larger than this will be marked as download-only.', 'is_json': False},
+    'MAX_PREVIEW_PAGES': {'description': 'Maximum number of pages for document preview. Documents with more pages will be available for download only.', 'is_json': False},
     'FILE_SIZE_QUOTA_MB': {'description': 'Per-user file size quota in MB. 0 means unlimited.', 'is_json': False},
     'MAX_FILES_PER_UPLOAD': {'description': 'Maximum number of files allowed in a single upload operation.', 'is_json': False},
     'ENABLED_CLOUD_PROVIDERS': {'description': 'JSON list of enabled cloud providers (e.g., ["dropbox"]).', 'is_json': True},
@@ -70,7 +70,7 @@ class AdminSettingsViewSet(viewsets.ModelViewSet):
                 'description': description
             })
 
-        results.sort(key=lambda x: x['key'])
+        # results.sort(key=lambda x: x['key'])
         return Response(results)
 
     def update(self, request, *args, **kwargs):
