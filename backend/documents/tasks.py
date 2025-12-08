@@ -6,8 +6,9 @@ import requests
 from pathlib import Path
 from io import BytesIO
 from celery import shared_task
-from pdf2image import convert_from_bytes
+from pdf2image import convert_from_bytes, pdfinfo_from_bytes
 
+from core.services import get_dynamic_setting
 from .fileserver import fileserver_client
 from .models import DocumentVersion, DocumentPage
 
@@ -94,6 +95,23 @@ def generate_pdf_pages_task(version_id):
         response = requests.get(download_url)
         response.raise_for_status()
         pdf_bytes = response.content
+
+        # Get page count before full conversion
+        info = pdfinfo_from_bytes(pdf_bytes, timeout=60)
+        page_count = info.get("Pages", 0)
+
+        max_pages = get_dynamic_setting('MAX_PREVIEW_PAGES')
+        if page_count > max_pages:
+            document.status = 'ready'
+            document.num_pages = page_count
+            document.download_only = True
+            document.status_message = "Document has too many pages to generate a preview."
+            document.save()
+
+            version.num_pages = page_count
+            version.save()
+            logger.info(f"Skipping page generation for document {document.id}, page count ({page_count}) > {max_pages}.")
+            return
 
         # 2. Convert PDF pages to images (PNG)
         images = convert_from_bytes(pdf_bytes, fmt='png')

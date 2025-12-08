@@ -1365,3 +1365,16 @@ This session focused on improving the user experience during file uploads by add
     - Resolved test failures in `DocumentsPage.test.jsx` by wrapping the component with the new `UploadProvider` in the test environment.
     - Updated assertions for mocked API calls (`uploadDocument`) to account for a new `onProgress` callback parameter.
     - Fixed error logging assertions to match more detailed, per-file error messages.
+---
+
+## Session 62: Page Limit for Previews (2025-12-08)
+
+This session implements a feature to manage resource consumption and improve user experience when handling large PDF documents. By introducing a configurable maximum page limit for in-browser previews, the system can now prevent the generation of previews for excessively long documents, marking them as download-only instead. This ensures that the application remains responsive and avoids potential performance bottlenecks associated with processing very large files, while still providing access to the full document via download. [https://github.com/coneshare/coneshare/pull/97](https://github.com/coneshare/coneshare/pull/97)
+
+- Configurable Page Limit for Previews: Introduced a new setting, "MAX_PREVIEW_PAGES", in settings.py to define the maximum number of pages allowed for in-browser document previews. Documents exceeding this limit will be marked as download-only.
+- Admin Panel Integration: The "MAX_PREVIEW_PAGES" setting is now exposed in the admin interface via admin_views.py, allowing administrators to easily configure this limit.
+- Early Page Count Check in PDF Processing: The PDF page generation task (generate_pdf_pages_task) now performs an early check of a document's page count using pdfinfo_from_bytes. If the count exceeds "MAX_PREVIEW_PAGES", the document is marked as 'download-only', and the resource-intensive image conversion is skipped.
+- Preview API Enforcement: The document preview API (documents/views.py) now enforces the "MAX_PREVIEW_PAGES" limit. Requests for previews of documents exceeding this limit will return a 400 BAD REQUEST error, preventing attempts to render overly large files.
+- Test Refactoring and Coverage: Existing PDF generation tests were refactored and moved to a new dedicated test_tasks.py file. New test cases were added to cover the behavior of skipping large PDFs and the API's enforcement of the page limit.
+
+---

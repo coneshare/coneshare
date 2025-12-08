@@ -814,6 +814,22 @@ def test_get_document_preview_data_not_ready(api_client, user):
 
 
 @pytest.mark.django_db
+@override_settings(MAX_PREVIEW_PAGES=10)
+def test_get_document_preview_data_too_many_pages(api_client, user):
+    """Test getting preview data for a document with more pages than the configured limit."""
+    doc = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="large_doc.pdf",
+        status='ready',
+        num_pages=11
+    )
+    response = api_client.get(f'/api/v1/documents/{doc.id}/preview-data/')
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json()['detail'] == "This document has too many pages for an in-browser preview."
+
+
+@pytest.mark.django_db
 def test_get_document_preview_data_wrong_org(api_client):
     """Test that a user cannot access preview data from another organization."""
     other_org = Organization.objects.create(name="Other Org")
