@@ -21,7 +21,9 @@ class IsAdmin(permissions.BasePermission):
         return request.user.is_authenticated and request.user.role == 'admin'
 
 
-# This list should be kept in sync with the defaults in settings.py
+# This dictionary defines metadata for dynamic application settings, such as
+# their description and whether they are stored as JSON. It should be kept in
+# sync with the default values defined in `backend/settings.py`.
 DEFAULT_SETTINGS = {
     'MAX_PREVIEW_FILE_SIZE_MB': {'description': 'Max file size in MB for preview generation. Files larger than this will be marked as download-only.', 'is_json': False},
     'MAX_PREVIEW_PAGES': {'description': 'Maximum number of pages for document preview. Documents with more pages will be available for download only.', 'is_json': False},
