@@ -553,6 +553,12 @@ class DocumentPreviewDataView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        if document.num_pages and document.num_pages > 100:
+            return Response(
+                {"detail": "This document has too many pages for an in-browser preview."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         # Data Fetching
         primary_version = document.versions.filter(is_primary=True).first()
         if not primary_version:
