@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 
+from core.services import get_dynamic_setting
 from .models import (Document, Folder)
 from .serializers import (DocumentSerializer, EnsureFolderPathsSerializer,
                           FolderSerializer)
@@ -553,7 +554,8 @@ class DocumentPreviewDataView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if document.num_pages and document.num_pages > 100:
+        max_pages = get_dynamic_setting('MAX_PREVIEW_PAGES')
+        if document.num_pages and document.num_pages > max_pages:
             return Response(
                 {"detail": "This document has too many pages for an in-browser preview."},
                 status=status.HTTP_400_BAD_REQUEST

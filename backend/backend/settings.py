@@ -358,6 +358,10 @@ LOGGING = {
 # Files larger than this will be marked as download-only.
 MAX_PREVIEW_FILE_SIZE_MB = 100
 
+# Maximum number of pages allowed for an in-browser preview.
+# Documents with more pages will be available for download only.
+MAX_PREVIEW_PAGES = 100
+
 # User-level file size quota in megabytes.
 # A value of 0 means unlimited.
 FILE_SIZE_QUOTA_MB = 0
