@@ -67,7 +67,7 @@ LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
 
 
 # Redis base URL from environment (should not include database number)
-REDIS_BASE_URL = os.environ.get('REDIS_URL', 'redis://redis:6379')
+REDIS_BASE_URL = os.environ.get('REDIS_URL', 'redis://redis:6379').rstrip('/')
 
 # Cache Configuration (using Redis)
 CACHES = {
