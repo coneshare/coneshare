@@ -39,7 +39,7 @@ export function LinkSheet({
   const [isSaving, setIsSaving] = useState(false);
 
   const isEditing = !!currentLink;
-  const isWatermarkable = (document?.type === 'pdf' || document?.type === 'document') || !!dataroom;
+  const isWatermarkable = ['pdf', 'document', 'image'].includes(document?.type) || !!dataroom;
     
   useEffect(() => {
     if (isEditing) {
@@ -254,7 +254,7 @@ export function LinkSheet({
                 <span className="text-sm font-normal text-muted-foreground">
                   {isWatermarkable
                     ? 'Display a watermark on the document.'
-                    : 'Watermarks are only available for PDF and Office documents.'}
+                    : 'Watermarks are available for PDF, Office, and image documents.'}
                 </span>
               </Label>
               <Switch
