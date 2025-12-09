@@ -47,6 +47,18 @@ from .tasks import send_view_notification_email_task
 logger = logging.getLogger(__name__)
 
 
+# --- Watermarking Constants ---
+WATERMARK_FONT_FILE = "DejaVuSans.ttf"
+WATERMARK_MIN_FONT_SIZE = 12
+WATERMARK_FONT_SIZE_RATIO = 40
+WATERMARK_FILL_COLOR = (0, 0, 0, 60)
+WATERMARK_ROTATION_ANGLE = 45
+WATERMARK_JPEG_QUALITY = 90
+WATERMARK_PDF_FONT = "Helvetica"
+WATERMARK_PDF_ALPHA = 0.1
+# --- End Watermarking Constants ---
+
+
 class WatermarkingError(Exception):
     """Custom exception for watermarking failures."""
     pass
@@ -777,52 +789,11 @@ class WatermarkedPageRenderView(APIView):
 
             watermark_text = _render_watermark_text(link.watermark_text, request, viewer_email=viewer_email)
             
-            # Create a transparent layer for the text
-            txt_layer = Image.new('RGBA', image.size, (255, 255, 255, 0))
-            draw = ImageDraw.Draw(txt_layer)
-            
-            try:
-                # TODO: A default font is usually available on most systems, but it's small.
-                # For production, consider including a specific .ttf font file in the container.
-                font_size = max(12, int(image.width / 40))
-                font = ImageFont.truetype("DejaVuSans.ttf", size=font_size)
-            except IOError:
-                font = ImageFont.load_default()
-
-            # --- Tiled & Rotated Watermark Logic ---
-            # Measure text size
-            text_bbox = draw.textbbox((0, 0), watermark_text, font=font)
-            # Use the right and bottom coordinates of the bounding box for the tile size
-            # to ensure the canvas is large enough for the font's internal bearings.
-            text_width = text_bbox[2] - text_bbox[0]
-            text_height = text_bbox[3] - text_bbox[1]
-
-            text_tile = Image.new('RGBA', (text_width, text_height), (255, 255, 255, 0))
-            text_tile_draw = ImageDraw.Draw(text_tile)
-
-            # Draw at (0,0) - the text's internal offsets will place it correctly on this larger canvas.
-            text_tile_draw.text((-text_bbox[0], -text_bbox[1]), watermark_text, font=font, fill=(0, 0, 0, 60))
-
-            # Rotate the text tile. 'expand=True' makes the image larger to fit the rotated text.
-            rotated_tile = text_tile.rotate(45, resample=Image.BICUBIC, expand=True)
-
-            grid_params = _calculate_watermark_grid_params(
-                page_width=image.width,
-                page_height=image.height,
-                rotated_tile_width=rotated_tile.width,
-                rotated_tile_height=rotated_tile.height
-            )
-
-            # Tile the rotated watermark across the entire image layer
-            for x in grid_params['x_range']:
-                for y in grid_params['y_range']:
-                    txt_layer.alpha_composite(rotated_tile, (x, y))  # USE alpha_composite instead of paste
-
-            watermarked_image = Image.alpha_composite(image, txt_layer)
+            watermarked_image = _apply_watermark_to_image(image, watermark_text)
 
             # Save to buffer and return as response
             buffer = BytesIO()
-            watermarked_image.convert("RGB").save(buffer, format="JPEG", quality=90)
+            watermarked_image.convert("RGB").save(buffer, format="JPEG", quality=WATERMARK_JPEG_QUALITY)
             buffer.seek(0)
 
             response = HttpResponse(buffer.getvalue(), content_type="image/jpeg")
@@ -841,6 +812,44 @@ class WatermarkedPageRenderView(APIView):
                 {"message": "An error occurred while generating the watermark."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+def _apply_watermark_to_image(image: Image, watermark_text: str) -> Image:
+    """
+    Applies a tiled, rotated watermark to a given Pillow Image object.
+    """
+    txt_layer = Image.new('RGBA', image.size, (255, 255, 255, 0))
+    draw = ImageDraw.Draw(txt_layer)
+
+    try:
+        font_size = max(WATERMARK_MIN_FONT_SIZE, int(image.width / WATERMARK_FONT_SIZE_RATIO))
+        font = ImageFont.truetype(WATERMARK_FONT_FILE, size=font_size)
+    except IOError:
+        font = ImageFont.load_default()
+
+    # --- Tiled & Rotated Watermark Logic ---
+    text_bbox = draw.textbbox((0, 0), watermark_text, font=font)
+    text_width = text_bbox[2] - text_bbox[0]
+    text_height = text_bbox[3] - text_bbox[1]
+
+    text_tile = Image.new('RGBA', (text_width, text_height), (255, 255, 255, 0))
+    text_tile_draw = ImageDraw.Draw(text_tile)
+    text_tile_draw.text((-text_bbox[0], -text_bbox[1]), watermark_text, font=font, fill=WATERMARK_FILL_COLOR)
+
+    rotated_tile = text_tile.rotate(WATERMARK_ROTATION_ANGLE, resample=Image.BICUBIC, expand=True)
+
+    grid_params = _calculate_watermark_grid_params(
+        page_width=image.width,
+        page_height=image.height,
+        rotated_tile_width=rotated_tile.width,
+        rotated_tile_height=rotated_tile.height
+    )
+
+    for x in grid_params['x_range']:
+        for y in grid_params['y_range']:
+            txt_layer.alpha_composite(rotated_tile, (x, y))
+
+    return Image.alpha_composite(image, txt_layer)
 
 
 def _generate_watermarked_image(document, primary_version, watermark_text_template, request, viewer_email):
@@ -863,41 +872,11 @@ def _generate_watermarked_image(document, primary_version, watermark_text_templa
 
         watermark_text = _render_watermark_text(watermark_text_template, request, viewer_email=viewer_email)
         
-        txt_layer = Image.new('RGBA', image.size, (255, 255, 255, 0))
-        draw = ImageDraw.Draw(txt_layer)
-        
-        try:
-            font_size = max(12, int(image.width / 40))
-            font = ImageFont.truetype("DejaVuSans.ttf", size=font_size)
-        except IOError:
-            font = ImageFont.load_default()
-
-        text_bbox = draw.textbbox((0, 0), watermark_text, font=font)
-        text_width = text_bbox[2] - text_bbox[0]
-        text_height = text_bbox[3] - text_bbox[1]
-
-        text_tile = Image.new('RGBA', (text_width, text_height), (255, 255, 255, 0))
-        text_tile_draw = ImageDraw.Draw(text_tile)
-        text_tile_draw.text((-text_bbox[0], -text_bbox[1]), watermark_text, font=font, fill=(0, 0, 0, 60))
-
-        rotated_tile = text_tile.rotate(45, resample=Image.BICUBIC, expand=True)
-
-        grid_params = _calculate_watermark_grid_params(
-            page_width=image.width,
-            page_height=image.height,
-            rotated_tile_width=rotated_tile.width,
-            rotated_tile_height=rotated_tile.height
-        )
-
-        for x in grid_params['x_range']:
-            for y in grid_params['y_range']:
-                txt_layer.alpha_composite(rotated_tile, (x, y))
-
-        watermarked_image = Image.alpha_composite(image, txt_layer)
+        watermarked_image = _apply_watermark_to_image(image, watermark_text)
 
         # Save to buffer. Using JPEG to be consistent with page rendering.
         buffer = BytesIO()
-        watermarked_image.convert("RGB").save(buffer, format="JPEG", quality=90)
+        watermarked_image.convert("RGB").save(buffer, format="JPEG", quality=WATERMARK_JPEG_QUALITY)
         content_type = 'image/jpeg'
         buffer.seek(0)
 
@@ -945,12 +924,12 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
         page_width, page_height = (float(first_page_box.width), float(first_page_box.height))
 
         # --- Logic mirrored from Pillow implementation ---
-        font_size = max(12, int(page_width / 40))
+        font_size = max(WATERMARK_MIN_FONT_SIZE, int(page_width / WATERMARK_FONT_SIZE_RATIO))
         
         # Use a temporary canvas to get text dimensions
         temp_canvas = canvas.Canvas(BytesIO())
-        temp_canvas.setFont("Helvetica", font_size)
-        text_width = temp_canvas.stringWidth(rendered_watermark_text, "Helvetica", font_size)
+        temp_canvas.setFont(WATERMARK_PDF_FONT, font_size)
+        text_width = temp_canvas.stringWidth(rendered_watermark_text, WATERMARK_PDF_FONT, font_size)
         text_height = font_size  # Approximation
 
         # Calculate bounding box of rotated text
@@ -969,15 +948,15 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
 
         # --- Create the actual watermark page ---
         p = canvas.Canvas(watermark_buffer, pagesize=(page_width, page_height))
-        p.setFont("Helvetica", font_size)
-        p.setFillColor(colors.black, alpha=0.1)
+        p.setFont(WATERMARK_PDF_FONT, font_size)
+        p.setFillColor(colors.black, alpha=WATERMARK_PDF_ALPHA)
 
         # Draw rotated text at each grid position
         for x in grid_params['x_range']:
             for y in grid_params['y_range']:
                 p.saveState()
                 p.translate(x, y)
-                p.rotate(45)
+                p.rotate(WATERMARK_ROTATION_ANGLE)
                 p.drawCentredString(0, 0, rendered_watermark_text)
                 p.restoreState()
         p.save()
