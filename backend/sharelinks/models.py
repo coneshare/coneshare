@@ -133,11 +133,11 @@ class DataroomVisit(models.Model):
         ordering = ['visited_at']
         constraints = [
             models.CheckConstraint(
-                condition=(
-                    Q(dataroom_document__isnull=False, dataroom_folder__isnull=True) |
-                    Q(dataroom_document__isnull=True, dataroom_folder__isnull=False)
-                ),
-                name='dataroomvisit_exactly_one_target'
+                # This constraint allows a visit to point to a document OR a folder,
+                # but not both. It also allows both to be NULL, which is what happens
+                # when the target item is deleted and on_delete=SET_NULL is triggered.
+                condition=~Q(dataroom_document__isnull=False, dataroom_folder__isnull=False),
+                name='dataroomvisit_not_both_targets'
             )
         ]
 
