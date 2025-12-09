@@ -1435,6 +1435,38 @@ class TestWatermarkingViews:
         share_link_with_watermark.save()
         return share_link_with_watermark
 
+    @pytest.fixture
+    def office_document(self, document_factory):
+        """Fixture for an office document."""
+        doc = document_factory(name="Test Office.docx", type='document')
+        # We need to give the version a storage_key, which for office docs is the converted PDF key
+        version = doc.versions.get(is_primary=True)
+        version.storage_key = "path/to/converted.pdf"
+        version.save()
+        return doc
+
+    @pytest.fixture
+    def watermarked_office_link(self, office_document, user):
+        """Fixture for a watermarked link to an office document."""
+        return ShareLink.objects.create(
+            document=office_document,
+            created_by=user,
+            enable_watermark=True,
+            watermark_text="Office Confidential",
+            allow_download=True
+        )
+
+    @pytest.fixture
+    def watermarked_image_link(self, image_document_with_content, user):
+        """Fixture for a watermarked link to an image document."""
+        return ShareLink.objects.create(
+            document=image_document_with_content,
+            created_by=user,
+            enable_watermark=True,
+            watermark_text="Image Confidential",
+            allow_download=True
+        )
+
     @patch('sharelinks.views.requests.get')
     @patch('sharelinks.views.fileserver_client.generate_download_url')
     def test_render_watermarked_page_success(self, mock_fs_download_url, mock_requests_get, public_client, watermarked_link):
@@ -1461,8 +1493,8 @@ class TestWatermarkingViews:
 
     @patch('sharelinks.views.requests.get')
     @patch('sharelinks.views.fileserver_client.generate_download_url')
-    def test_download_watermarked_file_success(self, mock_fs_download_url, mock_requests_get, public_client, watermarked_link):
-        """Test that a watermarked PDF file is generated and served for download."""
+    def test_download_watermarked_pdf_file_success(self, mock_fs_download_url, mock_requests_get, public_client, watermarked_link):
+        """Test that a watermarked PDF file is generated and served for download with the correct extension."""
         mock_fs_download_url.return_value = "/files/download/token"
         pdf_content = b'%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000010 00000 n \n0000000059 00000 n \n0000000112 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF'
         mock_response = MagicMock()
@@ -1475,13 +1507,69 @@ class TestWatermarkingViews:
 
         assert response.status_code == status.HTTP_200_OK
         assert response.get('Content-Type') == 'application/pdf'
-        assert 'attachment; filename=' in response.get('Content-Disposition')
+        # The document name is "Test Document.pdf". The view logic should produce "Test_Document.pdf".
+        assert 'attachment; filename="Test_Document.pdf"' in response.get('Content-Disposition')
 
         assert response.content.startswith(b'%PDF-')
         assert len(response.content) > len(pdf_content)
 
         version = watermarked_link.document.versions.get(is_primary=True)
         mock_fs_download_url.assert_called_once_with(version.original_storage_key, is_internal=True)
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_watermarked_office_file_as_pdf(self, mock_fs_download_url, mock_requests_get, public_client, watermarked_office_link):
+        """Test that a watermarked office doc is generated as a PDF for download with the correct extension."""
+        mock_fs_download_url.return_value = "/files/download/token"
+        pdf_content = b'%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000010 00000 n \n0000000059 00000 n \n0000000112 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF'
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = pdf_content
+        mock_requests_get.return_value = mock_response
+
+        document = watermarked_office_link.document
+        assert document.name.endswith('.docx')
+
+        url = f'/api/v1/links/{watermarked_office_link.slug}/download-file/'
+        response = public_client.get(url, REMOTE_ADDR='192.168.1.1')
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.get('Content-Type') == 'application/pdf'
+        assert 'attachment; filename="Test_Office.pdf"' in response.get('Content-Disposition')
+        mock_fs_download_url.assert_called_once_with(document.versions.get(is_primary=True).storage_key, is_internal=True)
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_watermarked_image_file_success(self, mock_fs_download_url, mock_requests_get, public_client, watermarked_image_link):
+        """Test that a watermarked image is generated as a JPEG for download with the correct extension."""
+        mock_fs_download_url.return_value = "/files/download/token"
+        # Simulate a 1x1 transparent GIF being downloaded from storage
+        img_content = (
+            b'GIF89a\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00'
+            b'!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01'
+            b'\x00\x00\x02\x02D\x01\x00;'
+        )
+
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = img_content
+        mock_requests_get.return_value = mock_response
+
+        document = watermarked_image_link.document
+        assert document.name.endswith('.gif')
+
+        url = f'/api/v1/links/{watermarked_image_link.slug}/download-file/'
+        response = public_client.get(url, REMOTE_ADDR='192.168.1.1')
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.get('Content-Type') == 'image/jpeg'
+        assert 'attachment; filename="test_image.jpg"' in response.get('Content-Disposition')
+        
+        # Verify the generated image is valid
+        try:
+            Image.open(BytesIO(response.content))
+        except Exception:
+            pytest.fail("The response content is not a valid image.")
 
     def test_download_watermarked_file_not_allowed(self, public_client, watermarked_link):
         """Test that downloading is forbidden if allow_download is false."""
@@ -1872,23 +1960,26 @@ class TestWatermarkingViews:
 @pytest.mark.django_db
 class TestDataroomFolderDownloadView:
     @pytest.fixture
-    def dataroom_with_content_and_link(self, dataroom, user, document_factory):
+    def dataroom_with_content_and_link(self, dataroom, user, document_factory, image_document_with_content):
         """
-        Sets up a dataroom with a nested structure, documents, and a share link.
+        Sets up a dataroom with a nested structure, documents of various types,
+        and a share link.
         """
         # Create folder structure
         root_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Root Folder")
         subfolder = DataroomFolder.objects.create(dataroom=dataroom, name="Subfolder", parent=root_folder)
 
-        # Create documents
-        doc_a = document_factory(name="Doc A.pdf", type='pdf')
-        doc_b = document_factory(name="Doc B.pdf", type='pdf')
+        # Create documents of different types
+        doc_pdf = document_factory(name="Doc A.pdf", type='pdf')
+        doc_office = document_factory(name="Doc B.docx", type='document')
+        doc_image = image_document_with_content
         invisible_doc = document_factory(name="Invisible.pdf", type='pdf')
         not_downloadable_doc = document_factory(name="Not Downloadable.pdf", type='pdf')
 
         # Add documents to dataroom
-        ddoc_a = DataroomDocument.objects.create(dataroom=dataroom, document=doc_a, folder=root_folder)
-        ddoc_b = DataroomDocument.objects.create(dataroom=dataroom, document=doc_b, folder=subfolder)
+        ddoc_pdf = DataroomDocument.objects.create(dataroom=dataroom, document=doc_pdf, folder=root_folder)
+        ddoc_office = DataroomDocument.objects.create(dataroom=dataroom, document=doc_office, folder=subfolder)
+        ddoc_image = DataroomDocument.objects.create(dataroom=dataroom, document=doc_image, folder=root_folder)
         ddoc_invisible = DataroomDocument.objects.create(dataroom=dataroom, document=invisible_doc, folder=root_folder)
         ddoc_not_downloadable = DataroomDocument.objects.create(dataroom=dataroom, document=not_downloadable_doc, folder=root_folder)
 
@@ -1899,8 +1990,9 @@ class TestDataroomFolderDownloadView:
             'link': link,
             'root_folder': root_folder,
             'subfolder': subfolder,
-            'ddoc_a': ddoc_a,
-            'ddoc_b': ddoc_b,
+            'ddoc_pdf': ddoc_pdf,
+            'ddoc_office': ddoc_office,
+            'ddoc_image': ddoc_image,
             'ddoc_invisible': ddoc_invisible,
             'ddoc_not_downloadable': ddoc_not_downloadable,
         }
@@ -1929,8 +2021,9 @@ class TestDataroomFolderDownloadView:
             names = zf.namelist()
             assert 'Root_Folder/' in names
             assert 'Root_Folder/Doc_A.pdf' in names
+            assert 'Root_Folder/test_image.gif' in names
             assert 'Root_Folder/Subfolder/' in names
-            assert 'Root_Folder/Subfolder/Doc_B.pdf' in names
+            assert 'Root_Folder/Subfolder/Doc_B.docx' in names
 
     def test_download_folder_permission_denied(self, public_client, dataroom_with_content_and_link):
         link = dataroom_with_content_and_link['link']
@@ -1981,18 +2074,19 @@ class TestDataroomFolderDownloadView:
             assert 'Root_Folder/Not_Downloadable.pdf' not in names
 
     @patch('sharelinks.views._generate_watermarked_pdf')
-    def test_zip_archive_includes_watermarked_file(self, mock_generate_pdf, public_client, dataroom_with_content_and_link):
+    def test_zip_archive_includes_watermarked_pdf(self, mock_generate_pdf, public_client, dataroom_with_content_and_link):
+        """Tests that a watermarked PDF inside a folder download has the correct .pdf extension."""
         link = dataroom_with_content_and_link['link']
         root_folder = dataroom_with_content_and_link['root_folder']
-        ddoc_a = dataroom_with_content_and_link['ddoc_a']
+        ddoc_pdf = dataroom_with_content_and_link['ddoc_pdf']
 
         link.enable_watermark = True
         link.watermark_text = "TEST"
         link.save()
 
-        setting_a = link.dataroom_settings.get(dataroom_document=ddoc_a)
-        setting_a.enable_watermark = True
-        setting_a.save()
+        setting_pdf = link.dataroom_settings.get(dataroom_document=ddoc_pdf)
+        setting_pdf.enable_watermark = True
+        setting_pdf.save()
 
         mock_generate_pdf.return_value = BytesIO(b"watermarked pdf content")
 
@@ -2006,6 +2100,72 @@ class TestDataroomFolderDownloadView:
         with zipfile.ZipFile(zip_buffer, 'r') as zf:
             content = zf.read('Root_Folder/Doc_A.pdf')
             assert content == b"watermarked pdf content"
+
+    @patch('sharelinks.views._generate_watermarked_pdf')
+    def test_zip_archive_includes_watermarked_office_file_as_pdf(self, mock_generate_pdf, public_client, dataroom_with_content_and_link):
+        """Tests that a watermarked Office doc inside a folder download has the correct .pdf extension."""
+        link = dataroom_with_content_and_link['link']
+        root_folder = dataroom_with_content_and_link['root_folder']
+        ddoc_office = dataroom_with_content_and_link['ddoc_office']
+        # Office doc needs its converted PDF key set
+        version = ddoc_office.document.versions.get(is_primary=True)
+        version.storage_key = "path/to/converted_office.pdf"
+        version.save()
+
+        link.enable_watermark = True
+        link.watermark_text = "TEST"
+        link.save()
+
+        setting_office = link.dataroom_settings.get(dataroom_document=ddoc_office)
+        setting_office.enable_watermark = True
+        setting_office.save()
+
+        mock_generate_pdf.return_value = BytesIO(b"watermarked office content")
+
+        url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        mock_generate_pdf.assert_called_once()
+
+        zip_buffer = BytesIO(response.content)
+        with zipfile.ZipFile(zip_buffer, 'r') as zf:
+            names = zf.namelist()
+            assert 'Root_Folder/Subfolder/Doc_B.pdf' in names
+            assert 'Root_Folder/Subfolder/Doc_B.docx' not in names
+            content = zf.read('Root_Folder/Subfolder/Doc_B.pdf')
+            assert content == b"watermarked office content"
+
+    @patch('sharelinks.views._generate_watermarked_image')
+    def test_zip_archive_includes_watermarked_image(self, mock_generate_image, public_client, dataroom_with_content_and_link):
+        """Tests that a watermarked image inside a folder download has the correct .jpg extension."""
+        link = dataroom_with_content_and_link['link']
+        root_folder = dataroom_with_content_and_link['root_folder']
+        ddoc_image = dataroom_with_content_and_link['ddoc_image']
+
+        link.enable_watermark = True
+        link.watermark_text = "TEST"
+        link.save()
+
+        setting_image = link.dataroom_settings.get(dataroom_document=ddoc_image)
+        setting_image.enable_watermark = True
+        setting_image.save()
+
+        mock_generate_image.return_value = (BytesIO(b"watermarked image content"), 'image/jpeg')
+
+        url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        mock_generate_image.assert_called_once()
+
+        zip_buffer = BytesIO(response.content)
+        with zipfile.ZipFile(zip_buffer, 'r') as zf:
+            names = zf.namelist()
+            assert 'Root_Folder/test_image.jpg' in names
+            assert 'Root_Folder/test_image.gif' not in names
+            content = zf.read('Root_Folder/test_image.jpg')
+            assert content == b"watermarked image content"
 
     def test_download_folder_password_protected_fails(self, public_client, dataroom_with_content_and_link):
         link = dataroom_with_content_and_link['link']
