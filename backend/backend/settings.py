@@ -15,6 +15,7 @@ from datetime import timedelta
 import os
 import re
 import sys
+from urllib.parse import urlparse
 
 import dj_database_url
 from django.contrib.gis.geoip2 import GeoIP2
@@ -34,11 +35,20 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-(ptz@00bnu41y5xkt51b6
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 't')
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '127.0.0.1,backend').split(',')
-CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:5173').split(',')
-
-# Site domain (for constructing absolute URLs)
+# Site domain is the primary source for host configuration.
 SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'http://localhost:5173')
+
+# Derive ALLOWED_HOSTS and CSRF_TRUSTED_ORIGINS from SITE_DOMAIN to simplify setup.
+# These can still be overridden by setting them directly in the environment.
+SITE_HOSTNAME = urlparse(SITE_DOMAIN).hostname
+
+# Default hosts for development and internal Docker networking.
+default_hosts = ['127.0.0.1', 'localhost', 'backend']
+if SITE_HOSTNAME and SITE_HOSTNAME not in default_hosts:
+    default_hosts.append(SITE_HOSTNAME)
+
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', ','.join(default_hosts)).split(',')
+CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', SITE_DOMAIN).split(',')
 
 # File Server (Core Service) Configuration
 CORE_API_URL = os.environ.get('CORE_API_URL', 'http://core:8080')
