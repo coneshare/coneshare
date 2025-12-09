@@ -24,7 +24,7 @@ import {
 const buildTree = (folders, documents) => {
   const allItems = [
     ...folders.map(f => ({ ...f, type: 'folder', children: [] })),
-    ...documents.map(d => ({ ...d, type: 'document', name: d.document_name }))
+    ...documents.map(d => ({ ...d, type: 'document', name: d.name }))
   ];
 
   const itemMap = new Map(allItems.map(item => [item.id, item]));
