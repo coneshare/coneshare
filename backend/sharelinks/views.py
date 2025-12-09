@@ -843,6 +843,71 @@ class WatermarkedPageRenderView(APIView):
             )
 
 
+def _generate_watermarked_image(document, primary_version, watermark_text_template, request, viewer_email):
+    """
+    Generates a watermarked image in-memory and returns it as a BytesIO buffer and content type.
+    """
+    if not Image:
+        raise WatermarkingDependenciesMissingError("Pillow is not installed. Watermarking is not available.")
+
+    # For images, the original storage key is the one we want.
+    source_image_key = primary_version.original_storage_key
+    if not source_image_key:
+        raise WatermarkingError("Source image for watermarking not found.")
+
+    try:
+        download_url = fileserver_client.generate_download_url(source_image_key, is_internal=True)
+        response = requests.get(download_url)
+        response.raise_for_status()
+        image = Image.open(BytesIO(response.content)).convert("RGBA")
+
+        watermark_text = _render_watermark_text(watermark_text_template, request, viewer_email=viewer_email)
+        
+        txt_layer = Image.new('RGBA', image.size, (255, 255, 255, 0))
+        draw = ImageDraw.Draw(txt_layer)
+        
+        try:
+            font_size = max(12, int(image.width / 40))
+            font = ImageFont.truetype("DejaVuSans.ttf", size=font_size)
+        except IOError:
+            font = ImageFont.load_default()
+
+        text_bbox = draw.textbbox((0, 0), watermark_text, font=font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
+
+        text_tile = Image.new('RGBA', (text_width, text_height), (255, 255, 255, 0))
+        text_tile_draw = ImageDraw.Draw(text_tile)
+        text_tile_draw.text((-text_bbox[0], -text_bbox[1]), watermark_text, font=font, fill=(0, 0, 0, 60))
+
+        rotated_tile = text_tile.rotate(45, resample=Image.BICUBIC, expand=True)
+
+        grid_params = _calculate_watermark_grid_params(
+            page_width=image.width,
+            page_height=image.height,
+            rotated_tile_width=rotated_tile.width,
+            rotated_tile_height=rotated_tile.height
+        )
+
+        for x in grid_params['x_range']:
+            for y in grid_params['y_range']:
+                txt_layer.alpha_composite(rotated_tile, (x, y))
+
+        watermarked_image = Image.alpha_composite(image, txt_layer)
+
+        # Save to buffer. Using JPEG to be consistent with page rendering.
+        buffer = BytesIO()
+        watermarked_image.convert("RGB").save(buffer, format="JPEG", quality=90)
+        content_type = 'image/jpeg'
+        buffer.seek(0)
+
+        return buffer, content_type
+
+    except Exception as e:
+        logger.exception(f"Failed to apply watermark to image: {e}")
+        raise WatermarkingError("An error occurred while generating the watermarked image file.") from e
+
+
 def _generate_watermarked_pdf(document, primary_version, watermark_text, request, viewer_email):
     """
     Generates a watermarked PDF in-memory and returns it as a BytesIO buffer.
@@ -1018,10 +1083,22 @@ class ShareLinkFileDownloadView(APIView):
             auth_status = authorized_links.get(str(link.id), {})
             viewer_email = auth_status.get('viewer_email', '')
             try:
+                if document.type == 'image':
+                    image_buffer, content_type = _generate_watermarked_image(
+                        document, primary_version, link.watermark_text, request, viewer_email
+                    )
+                    response = HttpResponse(image_buffer, content_type=content_type)
+                    # Ensure filename has .jpg extension since we're creating a JPEG
+                    safe_filename, _ = os.path.splitext(get_valid_filename(document.name))
+                    response['Content-Disposition'] = f'attachment; filename="{safe_filename}.jpg"'
+                    return response
+
+                # Fallback for PDF and Office documents which become PDF
                 pdf_buffer = _generate_watermarked_pdf(document, primary_version, link.watermark_text, request, viewer_email)
                 response = HttpResponse(pdf_buffer, content_type='application/pdf')
-                safe_filename = get_valid_filename(document.name)
-                response['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
+                # Ensure filename has .pdf extension
+                safe_filename, _ = os.path.splitext(get_valid_filename(document.name))
+                response['Content-Disposition'] = f'attachment; filename="{safe_filename}.pdf"'
                 return response
             except WatermarkingDependenciesMissingError as e:
                 return Response({"message": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
@@ -1082,8 +1159,18 @@ class DataroomFolderDownloadView(APIView):
                 
                 try:
                     if setting.enable_watermark and link.watermark_text:
-                        pdf_buffer = _generate_watermarked_pdf(doc, primary_version, link.watermark_text, request, viewer_email)
-                        zipf.writestr(file_path, pdf_buffer.getvalue())
+                        if doc.type == 'image':
+                            image_buffer, _ = _generate_watermarked_image(
+                                doc, primary_version, link.watermark_text, request, viewer_email
+                            )
+                            # Ensure filename has .jpg extension
+                            zipf.writestr(f"{os.path.splitext(file_path)[0]}.jpg", image_buffer.getvalue())
+                        else:
+                            pdf_buffer = _generate_watermarked_pdf(
+                                doc, primary_version, link.watermark_text, request, viewer_email
+                            )
+                            # Ensure filename has .pdf extension
+                            zipf.writestr(f"{os.path.splitext(file_path)[0]}.pdf", pdf_buffer.getvalue())
                     elif primary_version.original_storage_key:
                         storage_key = primary_version.original_storage_key
                         download_url = fileserver_client.generate_download_url(storage_key, is_internal=True)
