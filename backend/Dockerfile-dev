@@ -12,12 +12,17 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     poppler-utils \
     libreoffice \
+    fonts-noto-cjk \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Download GeoIP database
 RUN mkdir -p /geoip && \
     curl -L 'https://git.io/GeoLite2-City.mmdb' -o /geoip/GeoLite2-City.mmdb
+
+# Download watermark font
+#RUN mkdir -p /fonts && \
+#    curl -L -o /fonts/NotoSerifCJKsc-Regular.otf https://github.com/notofonts/noto-cjk/raw/refs/heads/main/Serif/OTF/SimplifiedChinese/NotoSerifCJKsc-Regular.otf
 
 # Install dependencies
 COPY requirements.txt .

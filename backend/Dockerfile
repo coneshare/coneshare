@@ -20,6 +20,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
     poppler-utils \
     libreoffice \
+    fonts-noto-cjk \
     supervisor \
     nginx \
     wget \
@@ -58,6 +59,10 @@ RUN mkdir -p ${LOG_DIR}
 # Download GeoIP database
 RUN mkdir -p /geoip && \
     curl -L 'https://git.io/GeoLite2-City.mmdb' -o /geoip/GeoLite2-City.mmdb
+
+# Download watermark font
+#RUN mkdir -p /fonts && \
+#    wget -O /fonts/NotoSerifCJKsc-Regular.otf https://github.com/notofonts/noto-cjk/raw/refs/heads/main/Serif/OTF/SimplifiedChinese/NotoSerifCJKsc-Regular.otf
 
 # Install python requirements
 COPY requirements.txt ${APP_DIR}/requirements.txt

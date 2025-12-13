@@ -412,6 +412,11 @@ NEXT_CLOUD_CLIENT_ID = ''
 NEXT_CLOUD_CLIENT_SECRET = ''
 
 
+# Path to the TTF/OTF font file to be used for watermarking.
+# This font should support the characters you intend to display (e.g., CJK for Chinese).
+# You must provide this font file at the specified path.
+WATERMARK_FONT_PATH = '/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc'
+
 def load_local_settings(module):
     """Import any symbols that begin with A-Z. Append to lists any symbols that begin with "EXTRA_".
     """
