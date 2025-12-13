@@ -48,13 +48,13 @@ logger = logging.getLogger(__name__)
 
 
 # --- Watermarking Constants ---
-WATERMARK_FONT_FILE = "DejaVuSans.ttf"
+# WATERMARK_FONT_FILE = "DejaVuSans.ttf" # This is replaced by settings.WATERMARK_FONT_PATH
 WATERMARK_MIN_FONT_SIZE = 12
 WATERMARK_FONT_SIZE_RATIO = 40
 WATERMARK_FILL_COLOR = (0, 0, 0, 60)
 WATERMARK_ROTATION_ANGLE = 45
 WATERMARK_JPEG_QUALITY = 90
-WATERMARK_PDF_FONT = "Helvetica"
+# WATERMARK_PDF_FONT = "Helvetica" # This is replaced by settings.WATERMARK_FONT_PATH
 WATERMARK_PDF_ALPHA = 0.1
 # --- End Watermarking Constants ---
 
@@ -85,8 +85,12 @@ try:
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter
     from reportlab.pdfgen import canvas
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
 except ImportError:
     canvas = None
+    pdfmetrics = None
+    TTFont = None
 
 
 def _get_active_share_link(slug: str) -> ShareLink:
@@ -822,9 +826,13 @@ def _apply_watermark_to_image(image: Image, watermark_text: str) -> Image:
     draw = ImageDraw.Draw(txt_layer)
 
     try:
+        font_path = settings.WATERMARK_FONT_PATH
+        if not os.path.exists(font_path):
+            raise IOError("Font file not found at specified WATERMARK_FONT_PATH")
         font_size = max(WATERMARK_MIN_FONT_SIZE, int(image.width / WATERMARK_FONT_SIZE_RATIO))
-        font = ImageFont.truetype(WATERMARK_FONT_FILE, size=font_size)
-    except IOError:
+        font = ImageFont.truetype(font_path, size=font_size)
+    except (IOError, AttributeError):
+        logger.warning("Watermark font not found or failed to load. Falling back to default font.")
         font = ImageFont.load_default()
 
     # --- Tiled & Rotated Watermark Logic ---
@@ -891,7 +899,7 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
     """
     Generates a watermarked PDF in-memory and returns it as a BytesIO buffer.
     """
-    if not PdfReader or not canvas:
+    if not PdfReader or not canvas or not pdfmetrics or not TTFont:
         missing = []
         if not PdfReader: missing.append("pypdf")
         if not canvas: missing.append("reportlab")
@@ -926,10 +934,21 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
         # --- Logic mirrored from Pillow implementation ---
         font_size = max(WATERMARK_MIN_FONT_SIZE, int(page_width / WATERMARK_FONT_SIZE_RATIO))
         
+        # Register the font for reportlab
+        font_name = 'WatermarkFont'
+        try:
+            font_path = settings.WATERMARK_FONT_PATH
+            if not os.path.exists(font_path):
+                raise IOError("Font file not found at specified WATERMARK_FONT_PATH")
+            pdfmetrics.registerFont(TTFont(font_name, font_path))
+        except (IOError, AttributeError, Exception) as e:
+            logger.warning(f"Could not register TTF font for PDF watermarking: {e}. Falling back to Helvetica.")
+            font_name = 'Helvetica'
+
         # Use a temporary canvas to get text dimensions
         temp_canvas = canvas.Canvas(BytesIO())
-        temp_canvas.setFont(WATERMARK_PDF_FONT, font_size)
-        text_width = temp_canvas.stringWidth(rendered_watermark_text, WATERMARK_PDF_FONT, font_size)
+        temp_canvas.setFont(font_name, font_size)
+        text_width = temp_canvas.stringWidth(rendered_watermark_text, font_name, font_size)
         text_height = font_size  # Approximation
 
         # Calculate bounding box of rotated text
@@ -948,7 +967,7 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
 
         # --- Create the actual watermark page ---
         p = canvas.Canvas(watermark_buffer, pagesize=(page_width, page_height))
-        p.setFont(WATERMARK_PDF_FONT, font_size)
+        p.setFont(font_name, font_size)
         p.setFillColor(colors.black, alpha=WATERMARK_PDF_ALPHA)
 
         # Draw rotated text at each grid position
