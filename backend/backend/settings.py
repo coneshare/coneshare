@@ -415,7 +415,7 @@ NEXT_CLOUD_CLIENT_SECRET = ''
 # Path to the TTF/OTF font file to be used for watermarking.
 # This font should support the characters you intend to display (e.g., CJK for Chinese).
 # You must provide this font file at the specified path.
-WATERMARK_FONT_PATH = os.path.join(BASE_DIR, 'fonts', 'NotoSerifCJKsc-Regular.otf')
+WATERMARK_FONT_PATH = '/fonts/NotoSerifCJKsc-Regular.otf'
 
 
 def load_local_settings(module):

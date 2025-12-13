@@ -19,6 +19,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN mkdir -p /geoip && \
     curl -L 'https://git.io/GeoLite2-City.mmdb' -o /geoip/GeoLite2-City.mmdb
 
+# Download watermark font
+RUN mkdir -p /fonts && \
+    curl -L -o /fonts/NotoSerifCJKsc-Regular.otf https://github.com/notofonts/noto-cjk/raw/refs/heads/main/Serif/OTF/SimplifiedChinese/NotoSerifCJKsc-Regular.otf
+
 # Install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
