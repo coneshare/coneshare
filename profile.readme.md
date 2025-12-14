@@ -1,10 +1,9 @@
 <h1 align="center">Welcome to Coneshare 👋🏼</h1>
 
 <p align="center"><strong>Self-Hosted DocSend Alternative</strong></p>
-<p align="center">Secure, Simple and Reliable</p>
+<p align="center">Secure, Simple, and Reliable</p>
 
-OpenCloud is an open-source project that gives you a secure and private way to manage entire lifecycle of sensitive documents: upload, process, secure, share, and track.
-
+Coneshare is an open-source platform that gives you a secure and private way to manage the entire lifecycle of your sensitive documents: upload, process, secure, share, and track.
 
 ## How To Get Started
 
@@ -12,36 +11,24 @@ OpenCloud is an open-source project that gives you a secure and private way to m
 
 ## What’s Inside?
 
-### ☁️ Server Backend
+### 🐍 Backend
 
-- **Programming Language and APIs**: Developed in _Go_; Speaks _WebDAV_, _gRPC_, Microsofts RESTful web API _Graph_ , _OCS_, _OCM_ 1.1 and _OpenID Connect_  
-- **Performance:** Runs efficiently on a Raspberry Pi for low energy costs and scales effortlessly to handle massive projects in a data center
-- **Architecture**: Built with a microservices approach
+- **Framework**: Built with Python and the robust **Django** framework, providing a powerful and secure REST API for all document operations.
+- **Asynchronous Processing**: Uses **Celery** and **Redis** to handle document conversions and other long-running tasks in the background, keeping the UI fast.
 
+### ⚛️ Frontend
 
-### 🐻 Web Frontend
-
-- **Framework**: Built using _Vue.js_ and _TypeScript_
-- **Design**: Offers a clean and intuitive interface for easy navigation and file management.
-- **Functionality**: Allows seamless file uploads, downloads, sharing, and real-time collaboration.
-- **Customization**: Enables you to personalize your Interface  with themes and extensions.
-
+- **Framework**: A modern and responsive user interface built with **React**, **Vite**, and **Tailwind CSS** for a fast and intuitive experience.
+- **Functionality**: Allows for seamless file uploads, downloads, and sharing through a clean, easy-to-navigate interface.
 
 ## Features You’ll Love
 
-- 🚀 Fast, simple, and clean user interface  
-- ⌨️ Keyboard shortcuts for quick file selection  
-- 🖱️ Drag and drop support
-- 🔍 Powerful search by name, full text, OCR, file type, date, or tag 
-- 🔄 Reliable, fault-tolerant file synchronization  
-- 🔗 Flexible sharing options  
-- 🌐 Share files with public links  
-- 🗂️ **Workspaces**: Dedicated project folders designed to simplify team collaboration
-- 🛠️ Integrations with tools like Markdown Editor (ToastUI) and Web Office (Collabora)  
-- 🕒 File history to track changes and restore previous versions  
-- 📱 Multi-device sync with offline access across all your devices  
-- and many more ...
-
+- **Secure Link Sharing**: Control access with passwords, expiration dates, and email verification.
+- **Detailed Analytics**: Track who views your documents, for how long, and at what completion rate.
+- **Dynamic Watermarking**: Protect your documents by applying watermarks with the viewer's email, IP address, or other details.
+- **Datarooms**: Organize and share collections of documents and folders through a single, secure link with granular permissions.
+- **Version History**: Keep track of document updates and access previous versions.
+- **Self-Hosted**: Full control over your data. Deploy the entire stack easily with Docker Compose.
 
 ## Contact Us
 
