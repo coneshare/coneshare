@@ -265,7 +265,12 @@ except Exception as e:
     GEOIP = None
     print(f"Failed to initialize GeoIP2: {e}")
 
-
+# Determine the log directory path for coneshare.log
+compose_root_log_dir = BASE_DIR.parent / 'logs'
+if compose_root_log_dir.is_dir():
+    coneshare_log_path = compose_root_log_dir / 'coneshare.log'
+else:
+    coneshare_log_path = BASE_DIR / 'logs' / 'coneshare.log'
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -295,15 +300,7 @@ LOGGING = {
         'coneshare_log_hdlr': {
             'level': 'DEBUG',
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(str(BASE_DIR) + '/logs/', 'coneshare.log'),
-            'maxBytes': 1024 * 1024 * 500,  # 500 MB
-            'backupCount': 10,
-            'formatter': 'standard',
-        },
-        'coneshare_task_log_hdlr': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(str(BASE_DIR) + '/logs/', 'task.log'),
+            'filename': coneshare_log_path,
             'maxBytes': 1024 * 1024 * 500,  # 500 MB
             'backupCount': 10,
             'formatter': 'standard',
@@ -339,14 +336,14 @@ LOGGING = {
             'handlers': [
                 'mail_admins', 'coneshare_log_hdlr',
             ],
-            'level': 'DEBUG',
+            'level': LOG_LEVEL,
             'propagate': True
         },
         'tasks': {
             'handlers': [
-                'console', 'coneshare_task_log_hdlr',
+                'console', 'coneshare_log_hdlr',
             ],
-            'level': 'DEBUG',
+            'level': LOG_LEVEL,
             'propagate': True
         },
         'scripts': {
