@@ -1,36 +1,24 @@
+![Coneshare logo](https://raw.githubusercontent.com/coneshare/coneshare/refs/heads/main/coneshare_logo.png)
+
 [![Backend CI](https://github.com/coneshare/coneshare/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/coneshare/coneshare/actions/workflows/backend-ci.yml)
 
 # Coneshare
 
-**Coneshare** is an enterprise-grade, self-hosted document sharing and virtual data room solution designed for security, reliability, and administrator control. It provides a complete platform for businesses to manage the entire lifecycle of sensitive documents: upload, process, secure, share, and track.
+> [!TIP]
+> For general information about Coneshare and how to install, please visit **[Coneshare on Github](https://github.com/coneshare/)**.
 
-Built on a modern Python/Django and React stack, Coneshare is delivered as a containerized application that can be deployed on any infrastructure with zero reliance on third-party cloud services.
-
-## Key Features
-
--   **File & Folder Management**: A familiar, intuitive interface for organizing documents with support for nested folders, renaming, moving, and deleting items.
--   **Bulk Uploads**: Efficiently upload multiple files or entire folder structures while preserving the directory hierarchy.
--   **Secure Link Sharing**: Create secure share links with granular access controls, including:
-    -   Password protection
-    -   Email verification (with optional magic links)
-    -   Link expiration dates
-    -   Disabling downloads
--   **Document Versioning**: Upload new versions of documents while retaining a history of previous iterations.
--   **In-Depth Analytics**: Track viewer engagement with detailed analytics, including:
-    -   **View Sessions**: See who viewed a document, from where (GeoIP), and on what device.
-    -   **Page-Level Tracking**: Monitor how long each page was viewed and calculate completion rates.
-    -   **Download Tracking**: Know when a viewer downloads a document.
--   **Asynchronous Processing**: A robust background queue handles document processing (e.g., PDF page generation), ensuring the UI remains responsive during uploads.
--   **Self-Hosted & Secure**: Runs entirely on your infrastructure using Docker. Designed with a security-first mindset, with features like rate-limiting on password-protected links.
+This is the main repository for the Coneshare server. It contains the backend services (written in Python and Go) and the frontend service (written in React).
 
 ## Technology Stack
 
 Coneshare is built with a modern, maintainable, and scalable technology stack suitable for a secure, on-premise environment.
 
--   **Backend**:
-    -   **Framework**: Python, Django, Django REST Framework
+-   **Backend (Python)**:
+    -   **Framework**: Django, Django REST Framework
     -   **Asynchronous Tasks**: Celery with Redis as the message broker
     -   **Authentication**: JSON Web Tokens (JWT) via `djangorestframework-simplejwt`
+-   **File Server (Go)**:
+    -   A dedicated service written in Go to handle all secure file I/O operations (uploads, downloads, and deletions), separating file management from the main application's business logic.
 -   **Frontend**:
     -   **Framework**: React (Vite)
     -   **Styling**: Tailwind CSS with shadcn/ui components
@@ -48,23 +36,20 @@ For more details, see the [Technology Stack Documentation](docs/coneshare-techst
 -   [Docker](https://www.docker.com/get-started)
 -   [Docker Compose](https://docs.docker.com/compose/install/)
 
-### Installation & Setup
+### Build Coneshare
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/coneshare/coneshare.git
+    git clone git@github.com:coneshare/coneshare.git
     cd coneshare
     ```
 
 2.  **Configure environment variables:**
     Copy the example environment file.
     ```bash
-    cp .env.example .env
+    cp .env.template .env
     ```
-    To ensure consistent container naming, add the following line to your new `.env` file:
-    ```
-    COMPOSE_PROJECT_NAME=coneshare
-    ```
+    *Make sure to review and update the values in `.env` as needed.*
 
 3.  **Build and run the application:**
     Use the `make` commands to build the Docker images and start all services in the background.
@@ -93,32 +78,10 @@ For more details, see the [Technology Stack Documentation](docs/coneshare-techst
 
 Log in using the superuser credentials you created.
 
-## Development
-
-The included `Makefile` provides shortcuts for common development tasks.
-
--   `make build`: Build or rebuild all services.
--   `make up`: Start all services in the background.
--   `make down`: Stop and remove all services.
--   `make logs`: Follow logs for all services.
--   `make back.sh`: Get a shell inside the backend container.
--   `make front.sh`: Get a shell inside the frontend container.
-
-## Running Tests
-
--   **Run Backend Tests**:
-    ```bash
-    make test
-    ```
-
--   **Run Frontend Tests**:
-    ```bash
-    make test.front
-    ```
-
 ## Project Structure
 
 -   `backend/`: Contains the Django application, including models, views, and services.
+-   `core/`: Contains the dedicated Go file server for handling all file I/O operations.
 -   `frontend/`: Contains the React SPA, including components, pages, and services.
 -   `docs/`: Contains project documentation, including architectural decisions, data models, and implementation plans.
 -   `docker-compose.yml`: Defines the services, networks, and volumes for the application stack.
@@ -137,3 +100,7 @@ This project was built with the assistance of [Aider](https://github.com/paul-ga
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Security
+
+If you find a security-related issue, please contact [dev@coneshare.com](mailto:dev@coneshare.com) immediately.
