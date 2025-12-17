@@ -91,7 +91,7 @@ function parseUserAgent(uaString) {
   };
 }
 
-export function ViewSessionsTable({ views, totalCount, loading, currentPage, onPageChange, pageSize, isDashboardWidget }) {
+export function ViewSessionsTable({ views, totalCount, loading, currentPage, onPageChange, pageSize, isDashboardWidget, contextType = 'document' }) {
   const [expandedRowId, setExpandedRowId] = useState(null);
 
   const totalPages = pageSize > 0 ? Math.ceil(totalCount / pageSize) : 0;
@@ -114,7 +114,11 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
       <div>
         {!isDashboardWidget && <h2 className="text-xl font-semibold">View Sessions</h2>}
         <div className="mt-4 rounded-lg border px-4 py-8 text-center">
-          <p className="text-muted-foreground">This document has not been viewed yet.</p>
+          <p className="text-muted-foreground">
+            {contextType === 'dataroom'
+              ? 'This dataroom has not been viewed yet.'
+              : 'This document has not been viewed yet.'}
+          </p>
         </div>
       </div>
     );

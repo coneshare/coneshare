@@ -130,7 +130,9 @@ export function LinksTable({
       <div>
         {!isDashboardWidget && <h2 className="text-xl font-semibold">Share Links</h2>}
         <p className="mt-2 text-sm text-gray-500">
-          No share links have been created for this document yet.
+          {contextType === 'dataroom'
+            ? 'No share links have been created for this dataroom yet.'
+            : 'No share links have been created for this document yet.'}
         </p>
       </div>
     );

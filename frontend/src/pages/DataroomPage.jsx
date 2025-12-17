@@ -425,6 +425,7 @@ export function DataroomPage() {
               currentPage={viewsCurrentPage}
               onPageChange={setViewsCurrentPage}
               pageSize={10}
+              contextType="dataroom"
             />
           </div>
         </TabsContent>
