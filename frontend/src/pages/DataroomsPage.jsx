@@ -8,6 +8,7 @@ import { AddDataroomDialog } from '../components/datarooms/AddDataroomDialog';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { RenameItemDialog } from '../components/dialogs/RenameItemDialog';
 import { PlusIcon } from '../components/icons/PlusIcon';
+import { Skeleton } from '../components/ui/Skeleton';
 import { getDatarooms, updateDataroom, deleteDataroom } from '../services/api';
 
 export function DataroomsPage() {
@@ -62,7 +63,14 @@ export function DataroomsPage() {
       </div>
 
       {isLoading ? (
-        <p>Loading datarooms...</p>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="rounded-lg border bg-card p-4 shadow-sm">
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="mt-2 h-4 w-1/2" />
+            </div>
+          ))}
+        </div>
       ) : datarooms.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted bg-muted/20 p-12 text-center">
           <h3 className="text-xl font-semibold tracking-tight">No datarooms found</h3>
