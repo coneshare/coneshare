@@ -21,6 +21,7 @@ import { LinksTable } from '../components/documents/LinksTable';
 import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
 import { ManagePermissionsDialog } from '../components/datarooms/ManagePermissionsDialog';
 import { RenameItemDialog } from '../components/dialogs/RenameItemDialog';
+import { Skeleton } from '../components/ui/Skeleton';
 
 export function DataroomPage() {
   const { dataroomId } = useParams();
@@ -315,8 +316,43 @@ export function DataroomPage() {
   };
 
 
-  if (isLoading) {
-    return <div className="p-6">Loading dataroom...</div>;
+  if (isLoading && !dataroom) {
+    return (
+      <div className="container mx-auto p-4 md:p-6">
+        <header className="flex items-center justify-between mb-6">
+          <div>
+            <Skeleton className="h-8 w-64" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-10 w-10" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+        </header>
+
+        <Tabs value={activeTab} className="mt-4">
+          <TabsList>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
+            <TabsTrigger value="links">Links and Permissions</TabsTrigger>
+          </TabsList>
+          <TabsContent value="documents" className="mt-6">
+            <div className="border-y border-gray-200 dark:border-gray-800">
+              <div className="flex h-[45px] items-center border-b border-gray-200 px-4 dark:border-gray-800">
+                <Skeleton className="h-5 w-5" />
+                <Skeleton className="ml-4 h-5 w-1/4" />
+              </div>
+              <div className="divide-y divide-gray-200 dark:divide-gray-800">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex h-[53px] items-center px-4">
+                    <Skeleton className="h-4 w-4" />
+                    <Skeleton className="ml-8 h-4 flex-1" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    );
   }
 
   if (!dataroom) {
