@@ -329,7 +329,7 @@ export function DataroomPage() {
           </div>
         </header>
 
-        <Tabs value="documents" className="mt-4">
+        <Tabs value={activeTab} className="mt-4">
           <TabsList>
             <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="links">Links and Permissions</TabsTrigger>
