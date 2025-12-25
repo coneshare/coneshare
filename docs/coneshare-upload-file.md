@@ -61,13 +61,6 @@ The goal for V1 is to implement a clean, reliable file and folder upload feature
             -   It calls the `uploadDocument(file, file.webkitRelativePath)` service for each file. This service performs the three-step request-upload-finalize process described above.
             -   Uploads are performed concurrently using `Promise.allSettled` to ensure that a failure of one file does not stop the entire batch.
         5.  **UI Refresh**: After the uploads are complete, `fetchData()` is called to refresh the document list and display the newly uploaded folder and its contents.
-    -   **Logic for Drag-and-Drop (V1 Implementation)**:
-        -   The main document view area serves as a drop zone.
-        -   To avoid ambiguity and prevent accidental folder creation from dropped files, the V1 implementation treats all drag-and-drop operations as flat file uploads. Folder structures are ignored.
-        -   **Corner Cases**:
-            -   **Dropping one or multiple files**: All files are uploaded directly to the current view (root or inside a folder).
-            -   **Dropping one or multiple folders**: All files *within* the folders (and their subfolders) are extracted and uploaded as a flat list to the current view. The original folder structure is not recreated.
-            -   **Dropping a mixture of files and folders**: Standalone files are uploaded, and all files within the dropped folders are also extracted and uploaded. Everything appears as a flat list in the current view.
 
 ---
 
