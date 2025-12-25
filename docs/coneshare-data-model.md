@@ -30,9 +30,10 @@ Represents an individual user account. Users belong to an `Organization`.
 -   **email**: String, Unique
 -   **password_hash**: String
 -   **name**: String (Nullable)
--   **avatar_url**: String (Nullable, URL to the user's profile image)
+-   **avatar**: ImageField (Nullable, path to the user's profile image)
 -   **role**: String (e.g., 'admin', 'member') - Role within the Organization.
--   **created_at**: DateTime
+-   **total_document_size**: BigInt (Total size of user's documents in bytes)
+-   **updated_at**: DateTime
 
 **Relations:** Belongs to one Organization, can be in many UserGroups.
 
@@ -41,11 +42,11 @@ This model will be implemented as a custom Django User Model by inheriting from 
 
 **Why this approach?**
 -   **Performance:** It stores all user data in a single database table, which is more efficient than the older `UserProfile` pattern that requires a `JOIN` for every query.
--   **Simplicity:** All fields are accessible directly from the user object (e.g., `request.user.avatar_url`).
+-   **Simplicity:** All fields are accessible directly from the user object (e.g., `request.user.avatar.url`).
 
 **Key Implementation Steps:**
 1.  Create a custom `User` model that inherits from `AbstractUser`.
-2.  Add custom fields like `avatar_url` and the `organization` foreign key directly to this model.
+2.  Add custom fields like `avatar` and the `organization` foreign key directly to this model.
 3.  Set `AUTH_USER_MODEL = 'your_app.User'` in `settings.py` **before running the first migration**.
 
 `AbstractUser` already provides standard fields like `password` (hashed), `email`, `first_name`, and `last_name`. The default integer primary key `id` will be overridden to use `ULIDField` as specified above.
@@ -245,6 +246,7 @@ Records a granular page view event within a single viewing session (`ViewSession
 
 -   **id**: ULID, Primary Key
 -   **view_session_id**: Foreign Key to `ViewSession`
+-   **dataroom_visit_id**: Foreign Key to `DataroomVisit` (Nullable)
 -   **page_number**: Integer
 -   **duration_seconds**: Integer
 -   **created_at**: DateTime
@@ -322,8 +324,9 @@ A linking table to place a `Document` within a Dataroom's structure.
 -   **dataroom_id**: Foreign Key to `Dataroom`
 -   **document_id**: Foreign Key to `Document`
 -   **folder_id**: Foreign Key to `DataroomFolder` (Nullable, for items in subfolders)
+-   **name**: String (blank=True)
 -   **created_at**: DateTime
 -   **updated_at**: DateTime
 
-**Relations:** Links a Document to a Dataroom and an optional DataroomFolder. Unique on (`dataroom_id`, `document_id`).
+**Relations:** Links a Document to a Dataroom and an optional DataroomFolder. Unique on (`dataroom_id`, `document_id`, `folder_id`).
 
