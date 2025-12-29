@@ -12,6 +12,7 @@ help:
 	@echo "  up              - Start all services in detached mode"
 	@echo "  down            - Stop and remove all services"
 	@echo "  build           - Build or rebuild services"
+	@echo "  portal    - Build the static portal site"
 	@echo "  logs            - Follow logs for all services"
 	@echo "  core.sh         - Attach a shell to the core container"
 	@echo "  back.sh         - Attach a shell to the backend container"
@@ -97,6 +98,11 @@ test.front:
 lint.portal:
 	@echo "Running portal linter..."
 	COMPOSE_PROJECT_NAME=coneshare docker-compose exec portal npm run lint
+
+.PHONY: portal
+portal:
+	@echo "Building static portal site..."
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec portal npm run build
 
 .PHONY: migrate
 migrate:
