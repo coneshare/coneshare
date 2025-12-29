@@ -63,5 +63,19 @@ services:
     depends_on:
       - backend
 
+  portal:
+    image: coneshare:portal
+    build:
+      context: ./portal
+      dockerfile: Dockerfile-dev
+    volumes:
+      - ./portal:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    depends_on:
+      - backend
+
 volumes:
   redis_data:
