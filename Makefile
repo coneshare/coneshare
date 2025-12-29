@@ -16,9 +16,11 @@ help:
 	@echo "  core.sh         - Attach a shell to the core container"
 	@echo "  back.sh         - Attach a shell to the backend container"
 	@echo "  front.sh        - Attach a shell to the frontend container"
+	@echo "  portal.sh       - Attach a shell to the portal container"
 	@echo "  clean           - Remove migrations, .pyc files, and database"
 	@echo "  test            - Run backend tests with pytest"
 	@echo "  test.front      - Run frontend tests with vitest"
+	@echo "  lint.portal     - Run portal linter with eslint"
 	@echo "  migrate         - Run database migrations"
 	@echo "  superuser       - Create a superuser"
 
@@ -64,6 +66,10 @@ back.sh:
 front.sh:
 	COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend sh
 
+.PHONY: portal.sh
+portal.sh:
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec portal sh
+
 
 # ====================================================================================
 # DEVELOPMENT COMMANDS
@@ -86,6 +92,11 @@ test:
 test.front:
 	@echo "Running frontend tests..."
 	COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test
+
+.PHONY: lint.portal
+lint.portal:
+	@echo "Running portal linter..."
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec portal npm run lint
 
 .PHONY: migrate
 migrate:
