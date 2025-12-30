@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { features, solutions } from '../lib/content';
+import { ChevronDown } from 'lucide-react';
 
 export function Header() {
   return (
@@ -13,13 +15,41 @@ export function Header() {
             </div>
           </div>
           <div className="flex items-center gap-x-4">
-            <Link href="#" className="text-sm font-medium text-gray-500 hover:text-gray-900">
-              Features
-            </Link>
-            <Link href="#" className="text-sm font-medium text-gray-500 hover:text-gray-900">
-              Solutions
-            </Link>
-            <Link href="#" className="text-sm font-medium text-gray-500 hover:text-gray-900">
+            <div className="relative group -my-2 py-2">
+              <Link href="/features" className="text-sm font-medium text-gray-500 hover:text-gray-900 inline-flex items-center gap-x-1">
+                <span>Features</span>
+                <ChevronDown className="h-4 w-4" />
+              </Link>
+              <div className="absolute left-1/2 -translate-x-1/2 hidden group-hover:block bg-white shadow-lg rounded-lg mt-2 py-2 w-80 z-10 ring-1 ring-black ring-opacity-5">
+                {features.map((feature) => (
+                  <Link
+                    key={feature.slug}
+                    href={`/features/${feature.slug}`}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    {feature.menuName}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div className="relative group -my-2 py-2">
+              <Link href="/solutions" className="text-sm font-medium text-gray-500 hover:text-gray-900 inline-flex items-center gap-x-1">
+                <span>Solutions</span>
+                <ChevronDown className="h-4 w-4" />
+              </Link>
+              <div className="absolute left-1/2 -translate-x-1/2 hidden group-hover:block bg-white shadow-lg rounded-lg mt-2 py-2 w-80 z-10 ring-1 ring-black ring-opacity-5">
+                {solutions.map((solution) => (
+                  <Link
+                    key={solution.slug}
+                    href={`/solutions/${solution.slug}`}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    {solution.menuName}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <Link href="https://docs.coneshare.com" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-gray-500 hover:text-gray-900">
               Pricing
             </Link>
             <Link href="/login" className="text-sm font-medium text-gray-500 hover:text-gray-900">
