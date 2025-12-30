@@ -1,5 +1,13 @@
 import Link from 'next/link';
 import { features, solutions } from '../lib/content';
+import { Carousel } from '../components/Carousel';
+
+const workflowImages = [
+  { src: '/screenshots/upload.png', alt: 'Screenshot of the document upload process' },
+  { src: '/screenshots/sharing.png', alt: 'Screenshot of creating a secure share link' },
+  { src: '/screenshots/watermark.png', alt: 'Screenshot of dynamic watermarking' },
+  { src: '/screenshots/analytics.png', alt: 'Screenshot of document analytics and viewer insights' },
+];
 
 export default function HomePage() {
   return (
@@ -31,6 +39,24 @@ export default function HomePage() {
                 </Link>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Workflow Carousel Section */}
+      <div className="bg-white py-24 sm:py-32">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl lg:text-center">
+            <h2 className="text-base font-semibold leading-7 text-gray-900">Simple & Powerful Workflow</h2>
+            <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+              From Upload to Analysis in Three Steps
+            </p>
+            <p className="mt-6 text-lg leading-8 text-gray-600">
+              Coneshare streamlines secure document sharing. See how easy it is to upload your files, create protected links, and track engagement with detailed analytics.
+            </p>
+          </div>
+          <div className="mt-16 sm:mt-20">
+            <Carousel images={workflowImages} />
           </div>
         </div>
       </div>
