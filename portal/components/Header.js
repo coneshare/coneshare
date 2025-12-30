@@ -31,12 +31,15 @@ function NavDropdown({ title, href, items }) {
   }, [isOpen]);
 
   return (
-    <div ref={node} className="relative">
+    <div
+      ref={node}
+      className="relative -my-2 py-2"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        onMouseEnter={() => setIsOpen(true)}
-        onMouseLeave={() => setIsOpen(false)}
         aria-haspopup="true"
         aria-expanded={isOpen}
         className="text-sm font-medium text-gray-500 hover:text-gray-900 inline-flex items-center gap-x-1 py-2"
@@ -47,8 +50,6 @@ function NavDropdown({ title, href, items }) {
 
       {isOpen && (
         <div
-          onMouseEnter={() => setIsOpen(true)}
-          onMouseLeave={() => setIsOpen(false)}
           className="absolute left-1/2 -translate-x-1/2 bg-white shadow-lg rounded-lg mt-2 py-2 w-80 z-10 ring-1 ring-black ring-opacity-5"
         >
           {items.map((item) => (
