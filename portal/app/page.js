@@ -83,7 +83,7 @@ export default function HomePage() {
           <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-5xl">
             <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-16 lg:max-w-none lg:grid-cols-3">
               {solutions.map((solution) => (
-                <div key={solution.name} className="flex flex-col">
+                <div key={solution.slug} className="flex flex-col">
                   <dt className="flex items-center gap-x-3 text-base font-semibold leading-7 text-gray-900">
                     <solution.icon className="h-5 w-5 flex-none text-blue-600" aria-hidden="true" />
                     {solution.name}
