@@ -1,6 +1,70 @@
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { features, solutions } from '../lib/content';
 import { ChevronDown } from 'lucide-react';
+
+function NavDropdown({ title, href, items }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const node = useRef();
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (node.current.contains(e.target)) {
+        // inside click
+        return;
+      }
+      // outside click
+      setIsOpen(false);
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  return (
+    <div ref={node} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        onMouseEnter={() => setIsOpen(true)}
+        onMouseLeave={() => setIsOpen(false)}
+        aria-haspopup="true"
+        aria-expanded={isOpen}
+        className="text-sm font-medium text-gray-500 hover:text-gray-900 inline-flex items-center gap-x-1 py-2"
+      >
+        <span>{title}</span>
+        <ChevronDown className="h-4 w-4" />
+      </button>
+
+      {isOpen && (
+        <div
+          onMouseEnter={() => setIsOpen(true)}
+          onMouseLeave={() => setIsOpen(false)}
+          className="absolute left-1/2 -translate-x-1/2 bg-white shadow-lg rounded-lg mt-2 py-2 w-80 z-10 ring-1 ring-black ring-opacity-5"
+        >
+          {items.map((item) => (
+            <Link
+              key={item.slug}
+              href={`${href}/${item.slug}`}
+              onClick={() => setIsOpen(false)}
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              {item.menuName}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 export function Header() {
   return (
@@ -15,40 +79,8 @@ export function Header() {
             </div>
           </div>
           <div className="flex items-center gap-x-4">
-            <div className="relative group -my-2 py-2">
-              <Link href="/features" className="text-sm font-medium text-gray-500 hover:text-gray-900 inline-flex items-center gap-x-1">
-                <span>Features</span>
-                <ChevronDown className="h-4 w-4" />
-              </Link>
-              <div className="absolute left-1/2 -translate-x-1/2 hidden group-hover:block bg-white shadow-lg rounded-lg mt-2 py-2 w-80 z-10 ring-1 ring-black ring-opacity-5">
-                {features.map((feature) => (
-                  <Link
-                    key={feature.slug}
-                    href={`/features/${feature.slug}`}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    {feature.menuName}
-                  </Link>
-                ))}
-              </div>
-            </div>
-            <div className="relative group -my-2 py-2">
-              <Link href="/solutions" className="text-sm font-medium text-gray-500 hover:text-gray-900 inline-flex items-center gap-x-1">
-                <span>Solutions</span>
-                <ChevronDown className="h-4 w-4" />
-              </Link>
-              <div className="absolute left-1/2 -translate-x-1/2 hidden group-hover:block bg-white shadow-lg rounded-lg mt-2 py-2 w-80 z-10 ring-1 ring-black ring-opacity-5">
-                {solutions.map((solution) => (
-                  <Link
-                    key={solution.slug}
-                    href={`/solutions/${solution.slug}`}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    {solution.menuName}
-                  </Link>
-                ))}
-              </div>
-            </div>
+            <NavDropdown title="Features" href="/features" items={features} />
+            <NavDropdown title="Solutions" href="/solutions" items={solutions} />
             <Link href="https://docs.coneshare.com" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-gray-500 hover:text-gray-900">
               Pricing
             </Link>
