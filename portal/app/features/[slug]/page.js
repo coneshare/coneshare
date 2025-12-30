@@ -15,7 +15,7 @@ export default async function FeatureDetailPage({ params }) {
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-3xl">
           <div className="flex items-center gap-x-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-600">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-900">
               <feature.icon
                 className="h-7 w-7 text-white"
                 aria-hidden="true"

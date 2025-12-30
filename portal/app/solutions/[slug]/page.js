@@ -15,8 +15,8 @@ export default async function SolutionDetailPage({ params }) {
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-3xl">
           <div className="flex items-center gap-x-4">
-             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100">
-                <solution.icon className="h-7 w-7 text-blue-600" aria-hidden="true" />
+             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-900">
+                <solution.icon className="h-7 w-7 text-white" aria-hidden="true" />
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
               {solution.name}
