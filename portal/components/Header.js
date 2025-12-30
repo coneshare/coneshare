@@ -1,6 +1,9 @@
 "use client";
 
+"use client";
+
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { features, solutions } from '../lib/content';
 import { ChevronDown } from 'lucide-react';
@@ -76,25 +79,34 @@ export function Header() {
         <div className="flex h-16 justify-between">
           <div className="flex">
             <div className="flex flex-shrink-0 items-center">
-              <Link href="/" className="text-xl font-bold text-gray-800">
-                Coneshare
+              <Link href="/">
+                <Image
+                  className="h-12 w-auto"
+                  src="/logo.svg"
+                  alt="Coneshare Logo"
+                  width={175}
+                  height={40}
+                  priority
+                />
               </Link>
             </div>
           </div>
           <div className="flex items-center gap-x-4">
             <NavDropdown title="Features" href="/features" items={features} />
             <NavDropdown title="Solutions" href="/solutions" items={solutions} />
-            <Link href="https://docs.coneshare.com" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-gray-500 hover:text-gray-900">
-              Pricing
+            <Link href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-gray-500 hover:text-gray-900">
+              Contribute
             </Link>
-            <Link href="/login" className="text-sm font-medium text-gray-500 hover:text-gray-900">
-              Log in
+            <Link href="https://github.com/orgs/coneshare/discussions" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-gray-500 hover:text-gray-900">
+              Forum
             </Link>
             <Link
-              href="/signup"
+              href="https://github.com/coneshare/coneshare-compose"
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
             >
-              Sign up
+              Get Started
             </Link>
           </div>
         </div>

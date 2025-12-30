@@ -6,8 +6,11 @@ import { Footer } from '../components/Footer';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'Coneshare | Secure Document Sharing',
-  description: 'Self-hosted, enterprise-grade document sharing and virtual data room platform.',
+  title: 'Coneshare: Self-Hosted Secure Document Sharing & VDR Platform',
+  description: 'Open-source, self-hosted platform for secure document sharing, virtual data rooms (VDRs), and advanced analytics. Total control over your data.',
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({ children }) {
