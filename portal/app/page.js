@@ -15,8 +15,18 @@ export default function HomePage() {
       {/* Hero Section */}
       <div className="bg-white">
         <div className="relative isolate px-6 pt-14 lg:px-8">
-          <div className="mx-auto max-w-2xl py-32 sm:py-48 lg:py-56">
-            <div className="text-center">
+          <div
+            className="absolute inset-0 -z-10"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle at 1px 1px, #d1d5db 1px, transparent 0)',
+              backgroundSize: '20px 20px',
+              maskImage: 'linear-gradient(to bottom, white, transparent)',
+            }}
+            aria-hidden="true"
+          />
+          <div className="py-24 sm:py-32 lg:py-40">
+            <div className="mx-auto max-w-2xl text-center">
               <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
                 Secure Document Sharing,
                 <br />
@@ -39,24 +49,9 @@ export default function HomePage() {
                 </Link>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Workflow Carousel Section */}
-      <div className="bg-white py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl lg:text-center">
-            <h2 className="text-base font-semibold leading-7 text-gray-900">Simple & Powerful Workflow</h2>
-            <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              From Upload to Analysis in Three Steps
-            </p>
-            <p className="mt-6 text-lg leading-8 text-gray-600">
-              Coneshare streamlines secure document sharing. See how easy it is to upload your files, create protected links, and track engagement with detailed analytics.
-            </p>
-          </div>
-          <div className="mt-16 sm:mt-20">
-            <Carousel images={workflowImages} />
+            <div className="mt-16 sm:mt-20">
+              <Carousel images={workflowImages} />
+            </div>
           </div>
         </div>
       </div>

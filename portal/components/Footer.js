@@ -15,9 +15,6 @@ export function Footer() {
             <div className="pb-6">
                 <a href="https://github.com/orgs/coneshare/discussions" target="_blank" rel="noopener noreferrer" className="text-sm leading-6 text-gray-600 hover:text-gray-900">Forum</a>
             </div>
-            <div className="pb-6">
-                <a href="https://docs.coneshare.com" target="_blank" rel="noopener noreferrer" className="text-sm leading-6 text-gray-600 hover:text-gray-900">Docs</a>
-            </div>
         </nav>
         <p className="mt-10 text-center text-xs leading-5 text-gray-500">
           &copy; 2025 Coneshare, Inc. All rights reserved.
