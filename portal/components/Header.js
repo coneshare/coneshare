@@ -1,12 +1,10 @@
 "use client";
 
-"use client";
-
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { features, solutions } from '../lib/content';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Menu, X } from 'lucide-react';
 
 function NavDropdown({ title, href, items }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -73,12 +71,14 @@ function NavDropdown({ title, href, items }) {
 
 
 export function Header() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   return (
-    <header className="bg-white shadow-sm">
+    <header className="bg-white shadow-sm sticky top-0 z-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 justify-between">
-          <div className="flex">
-            <div className="flex flex-shrink-0 items-center">
+        <div className="flex h-16 items-center justify-between">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
               <Link href="/">
                 <Image
                   className="h-10 w-auto"
@@ -91,7 +91,9 @@ export function Header() {
               </Link>
             </div>
           </div>
-          <div className="flex items-center gap-x-4">
+
+          {/* Desktop Nav */}
+          <div className="hidden md:flex md:items-center md:gap-x-4">
             <NavDropdown title="Features" href="/features" items={features} />
             <NavDropdown title="Solutions" href="/solutions" items={solutions} />
             <Link href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-gray-500 hover:text-gray-900">
@@ -109,8 +111,82 @@ export function Header() {
               Get Started
             </Link>
           </div>
+
+          {/* Mobile Menu Button */}
+          <div className="-mr-2 flex items-center md:hidden">
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              type="button"
+              className="inline-flex items-center justify-center rounded-md bg-white p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gray-500"
+              aria-controls="mobile-menu"
+              aria-expanded={isMobileMenuOpen}
+            >
+              <span className="sr-only">Open main menu</span>
+              {isMobileMenuOpen ? (
+                <X className="block h-6 w-6" aria-hidden="true" />
+              ) : (
+                <Menu className="block h-6 w-6" aria-hidden="true" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Mobile Menu Panel */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-white shadow-lg" id="mobile-menu">
+          <div className="space-y-4 px-4 pb-4 pt-4">
+            <div>
+              <h3 className="px-3 text-xs font-semibold uppercase text-gray-500 tracking-wider">Features</h3>
+              <div className="mt-2 space-y-1">
+                {features.map((item) => (
+                  <Link
+                    key={item.slug}
+                    href={`/features/${item.slug}`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                  >
+                    {item.menuName}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div className="border-t border-gray-200 pt-4">
+              <h3 className="px-3 text-xs font-semibold uppercase text-gray-500 tracking-wider">Solutions</h3>
+              <div className="mt-2 space-y-1">
+                {solutions.map((item) => (
+                  <Link
+                    key={item.slug}
+                    href={`/solutions/${item.slug}`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                  >
+                    {item.menuName}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div className="border-t border-gray-200 pt-4 space-y-1">
+              <Link href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900">
+                Contribute
+              </Link>
+              <Link href="https://github.com/orgs/coneshare/discussions" target="_blank" rel="noopener noreferrer" className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900">
+                Forum
+              </Link>
+            </div>
+            <div className="border-t border-gray-200 pt-4">
+               <Link
+                  href="https://github.com/coneshare/coneshare-compose"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-center rounded-md border border-transparent bg-gray-900 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-gray-800"
+                >
+                  Get Started
+                </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
