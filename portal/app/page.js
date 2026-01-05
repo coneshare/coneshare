@@ -3,10 +3,10 @@ import { features, solutions } from '../lib/content';
 import { Carousel } from '../components/Carousel';
 
 const workflowImages = [
-  { src: '/screenshots/upload.png', alt: 'Screenshot of the document upload process' },
-  { src: '/screenshots/sharing.png', alt: 'Screenshot of creating a secure share link' },
-  { src: '/screenshots/watermark.png', alt: 'Screenshot of dynamic watermarking' },
-  { src: '/screenshots/analytics.png', alt: 'Screenshot of document analytics and viewer insights' },
+  { src: '/screenshots/feat-upload.png', alt: 'Screenshot of the document upload process' },
+  { src: '/screenshots/feat-sharing.png', alt: 'Screenshot of creating a secure share link' },
+  { src: '/screenshots/feat-watermark.png', alt: 'Screenshot of dynamic watermarking' },
+  { src: '/screenshots/feat-analytics.png', alt: 'Screenshot of document analytics and viewer insights' },
 ];
 
 export default function HomePage() {

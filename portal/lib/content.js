@@ -1,4 +1,5 @@
 import { ShieldCheck, LineChart, Droplets, HardDrive, Folders, Cloud, TrendingUp, Landmark, Target } from 'lucide-react';
+import Image from 'next/image';
 
 export const features = [
   {
@@ -11,8 +12,11 @@ export const features = [
       <div>
         <h3 className="text-xl font-semibold mb-4">Granular Access Control</h3>
         <p className="mb-4">Protect every link with robust security settings including password protection, email verification, download restrictions, and link expiration. You have full control over your shared content.</p>
+        <Image src="/screenshots/feat-sharing.png" alt="Screenshot of creating a secure share link" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
+
         <h3 className="text-xl font-semibold mb-4">Live Document Updates</h3>
         <p>Fix a typo or update a file by uploading a new version. All existing share links will automatically point to the latest version, ensuring everyone stays on the same page without you having to resend links.</p>
+        <Image src="/screenshots/feat-sharing2.png" alt="Screenshot of creating a secure share link" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
       </div>
     )
   },
@@ -26,8 +30,11 @@ export const features = [
        <div>
         <h3 className="text-xl font-semibold mb-4">Real-Time View Notifications</h3>
         <p className="mb-4">Opt-in to receive an email notification the moment someone views your shared link, so you can follow up at the perfect time.</p>
+        <Image src="/screenshots/feat-notification.png" alt="Screenshot of real time view notifications" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
+
         <h3 className="text-xl font-semibold mb-4">Page-by-Page Analytics</h3>
         <p>Understand what content resonates most with detailed, page-by-page analytics, including time spent on each page and overall completion rate. See who is viewing your documents, where they are from, and what device they are using.</p>
+        <Image src="/screenshots/feat-analytics.png" alt="Screenshot of document analytics and viewer insights" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
       </div>
     )
   },
@@ -41,8 +48,11 @@ export const features = [
       <div>
         <h3 className="text-xl font-semibold mb-4">Dynamic, Viewer-Specific Content</h3>
         <p className="mb-4">Automatically embed viewer-specific information into the watermark, such as their email address or IP address, to deter leaks and trace their source.</p>
+        <Image src="/screenshots/feat-watermark.png" alt="Screenshot of dynamic watermarking" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
+
         <h3 className="text-xl font-semibold mb-4">Pervasive Protection</h3>
         <p>Watermarks are tiled across the entire document and applied to both in-browser previews and downloaded PDF files, ensuring persistent protection of your intellectual property.</p>
+        <Image src="/screenshots/feat-watermark2.png" alt="Screenshot of dynamic watermarking" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
       </div>
     )
   },
@@ -54,10 +64,13 @@ export const features = [
     icon: Folders,
     content: (
       <div>
-        <h3 className="text-xl font-semibold mb-4">Granular Link Permissions</h3>
-        <p className="mb-4">When sharing a data room, you retain fine-grained control. Set unique visibility, download, and watermarking rules for every individual file and folder within that specific share link.</p>
         <h3 className="text-xl font-semibold mb-4">Easy Setup and Management</h3>
         <p>Create and organize unlimited data rooms in minutes. Add existing documents, create nested folders, and manage content with an intuitive interface.</p>
+        <Image src="/screenshots/feat-vdr-add-content.png" alt="Screenshot of virtual dataroom" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
+
+        <h3 className="text-xl font-semibold mb-4">Granular Link Permissions</h3>
+        <p className="mb-4">When sharing a data room, you retain fine-grained control. Set unique visibility, download, and watermarking rules for every individual file and folder within that specific share link.</p>
+        <Image src="/screenshots/feat-vdr-manage-perm.png" alt="Screenshot of virtual dataroom" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
       </div>
     )
   },
@@ -71,8 +84,12 @@ export const features = [
        <div>
         <h3 className="text-xl font-semibold mb-4">Connect Your Accounts</h3>
         <p className="mb-4">Securely connect to popular public cloud services like Dropbox and Google Drive, as well as self-hosted private cloud platforms like Nextcloud, all via standard OAuth2.</p>
+        <Image src="/screenshots/feat-cloud-import.png" alt="Screenshot of connecting cloud" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
+
         <h3 className="text-xl font-semibold mb-4">Asynchronous Imports</h3>
         <p>Select files to import, and Coneshare's background workers will handle the download and processing, ensuring the UI remains responsive while you work.</p>
+        <Image src="/screenshots/feat-dropbox.png" alt="Screenshot of dropbox importing" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
+
       </div>
     )
   },
