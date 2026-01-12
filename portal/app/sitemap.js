@@ -1,5 +1,7 @@
 import { features, solutions } from '../lib/content';
 
+export const dynamic = 'force-static';
+
 const URL = 'https://www.coneshare.com';
 
 export default function sitemap() {
