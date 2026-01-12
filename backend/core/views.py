@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model, logout
+from django.contrib.auth.signals import user_logged_in
 from django.core.cache import cache
 from django.db import connections
 from django.db.utils import OperationalError
@@ -7,7 +8,9 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from core.models import Organization, UserGroup
 from core.serializers import (ChangePasswordSerializer, OrganizationSerializer,
@@ -58,6 +61,20 @@ class UserGroupViewSet(viewsets.ModelViewSet):
     """
     queryset = UserGroup.objects.all().order_by('name')
     serializer_class = UserGroupSerializer
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+
+        try:
+            serializer.is_valid(raise_exception=True)
+        except TokenError as e:
+            raise InvalidToken(e.args[0])
+
+        user_logged_in.send(sender=serializer.user.__class__, request=request, user=serializer.user)
+
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
 
 class RegisterView(APIView):

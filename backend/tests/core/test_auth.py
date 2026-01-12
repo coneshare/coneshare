@@ -3,6 +3,8 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 
+from core.models import LoginActivity
+
 User = get_user_model()
 
 
@@ -144,3 +146,46 @@ def test_create_superuser_via_manager():
     assert user.organization is not None
     assert user.organization.name == "Default Organization"
     assert user.role == 'admin'
+
+
+@pytest.mark.django_db
+class TestLoginActivitySignal:
+    def test_login_creates_activity_record(self, public_client, user):
+        """
+        Tests that a successful login via the token endpoint creates a LoginActivity record.
+        """
+        assert LoginActivity.objects.count() == 0
+
+        login_data = {
+            'email': user.email,
+            'password': 'password'
+        }
+        url = reverse('token_obtain_pair')
+
+        public_client.post(
+            url,
+            login_data,
+            HTTP_USER_AGENT='Test Browser',
+            REMOTE_ADDR='192.168.1.1'
+        )
+
+        assert LoginActivity.objects.count() == 1
+        activity = LoginActivity.objects.first()
+        assert activity.user == user
+        assert activity.ip_address == '192.168.1.1'
+        assert activity.user_agent == 'Test Browser'
+
+    def test_failed_login_does_not_create_activity_record(self, public_client, user):
+        """
+        Tests that a failed login attempt does not create a LoginActivity record.
+        """
+        assert LoginActivity.objects.count() == 0
+
+        login_data = {
+            'email': user.email,
+            'password': 'wrongpassword'
+        }
+        url = reverse('token_obtain_pair')
+        public_client.post(url, login_data)
+
+        assert LoginActivity.objects.count() == 0

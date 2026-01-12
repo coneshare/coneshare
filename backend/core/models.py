@@ -88,6 +88,23 @@ class UserGroup(Group):
         verbose_name_plural = 'User Groups'
 
 
+class LoginActivity(BaseModel):
+    """
+    Records a user login event for security and auditing purposes.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='login_activities')
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Login Activity"
+        verbose_name_plural = "Login Activities"
+
+    def __str__(self):
+        return f"{self.user.email} logged in at {self.created_at}"
+
+
 class AppConfiguration(models.Model):
     """
     Stores dynamic, admin-configurable settings as key-value pairs.
