@@ -374,5 +374,6 @@ export const getAdminUsers = () => api.get('/admin/users/');
 export const createAdminUser = (data) => api.post('/admin/users/', data);
 export const updateAdminUser = (id, data) => api.patch(`/admin/users/${id}/`, data);
 export const deleteAdminUser = (id) => api.delete(`/admin/users/${id}/`);
+export const getAdminLoginActivities = (page = 1) => api.get(`/admin/login-activities/?page=${page}`);
     
 export default api;
