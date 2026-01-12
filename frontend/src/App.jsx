@@ -17,6 +17,7 @@ import { ShareLinkAnalyticsPage } from './pages/ShareLinkAnalyticsPage';
 import { ShareLinkViewerPage } from './pages/ShareLinkViewerPage';
 import UserSettingsPage from './pages/UserSettingsPage';
 import { AdminSettingsPage } from './pages/AdminSettingsPage';
+import { AdminLoginActivityPage } from './pages/AdminLoginActivityPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { ErrorPage } from './pages/ErrorPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -45,6 +46,7 @@ function App() {
             <Route path="/settings/password" element={<PasswordSettingsPage />} />
             <Route path="/admin/settings" element={<AdminSettingsPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
+            <Route path="/admin/login-activity" element={<AdminLoginActivityPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
