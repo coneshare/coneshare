@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 const NAV_LINKS = [
   { to: '/admin/settings', label: 'Settings' },
   { to: '/admin/users', label: 'Users' },
+  { to: '/admin/login-activity', label: 'Login Activity' },
 ];
 
 export function AdminNav() {
