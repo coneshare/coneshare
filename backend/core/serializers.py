@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model, password_validation
 from django.core.exceptions import ValidationError
 from rest_framework import serializers
 
-from core.models import AppConfiguration, Organization, UserGroup
+from core.models import AppConfiguration, LoginActivity, Organization, UserGroup
 from core.services import get_dynamic_setting
 
 User = get_user_model()
@@ -114,6 +114,15 @@ class ChangePasswordSerializer(serializers.Serializer):
         except ValidationError as e:
             raise serializers.ValidationError(list(e.messages))
         return value
+
+
+class LoginActivitySerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    user_name = serializers.CharField(source='user.name', read_only=True)
+
+    class Meta:
+        model = LoginActivity
+        fields = ['id', 'user_email', 'user_name', 'created_at', 'ip_address', 'user_agent']
 
 
 class AppConfigurationSerializer(serializers.ModelSerializer):

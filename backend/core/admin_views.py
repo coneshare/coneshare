@@ -7,8 +7,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from documents.views import StandardResultsSetPagination
-from .models import AppConfiguration
-from .serializers import AppConfigurationSerializer, UserSerializer
+from .models import AppConfiguration, LoginActivity
+from .serializers import (AppConfigurationSerializer, LoginActivitySerializer,
+                          UserSerializer)
 
 User = get_user_model()
 
@@ -168,3 +169,29 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AdminLoginActivityViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API endpoint for admins to view user login activities.
+    """
+    queryset = LoginActivity.objects.all()
+    serializer_class = LoginActivitySerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        """
+        Admins can see all login activities for users in their organization.
+        Can be filtered by `user_id`.
+        """
+        user = self.request.user
+        queryset = LoginActivity.objects.filter(
+            user__organization=user.organization
+        ).select_related('user').order_by('-created_at')
+
+        user_id = self.request.query_params.get('user_id')
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+
+        return queryset
