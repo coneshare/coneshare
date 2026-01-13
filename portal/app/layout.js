@@ -9,7 +9,11 @@ export const metadata = {
   title: 'Coneshare: Self-Hosted Secure Document Sharing & VDR Platform',
   description: 'Open-source, self-hosted platform for secure document sharing, virtual data rooms (VDRs), and advanced analytics. Total control over your data.',
   icons: {
-    icon: '/favicon.svg',
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon-96x96.png', type: 'image/png', sizes: '96x96' },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+    ],    
   },
   verification: {
     google: 'Sudow8xymk-f09r-u5KWAI4vln9Z39omDVZqzHI0T8s',
