@@ -3,6 +3,7 @@ from urllib.parse import urljoin
 from django.conf import settings
 from django.contrib.auth import get_user_model, password_validation
 from django.core.exceptions import ValidationError
+from geoip2.errors import AddressNotFoundError
 from rest_framework import serializers
 
 from core.models import AppConfiguration, LoginActivity, Organization, UserGroup
@@ -119,10 +120,28 @@ class ChangePasswordSerializer(serializers.Serializer):
 class LoginActivitySerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source='user.email', read_only=True)
     user_name = serializers.CharField(source='user.name', read_only=True)
+    country = serializers.SerializerMethodField()
+    city = serializers.SerializerMethodField()
 
     class Meta:
         model = LoginActivity
-        fields = ['id', 'user_email', 'user_name', 'created_at', 'ip_address', 'user_agent']
+        fields = ['id', 'user_email', 'user_name', 'created_at', 'ip_address', 'user_agent', 'country', 'city']
+
+    def get_country(self, obj):
+        if obj.ip_address and settings.GEOIP:
+            try:
+                return settings.GEOIP.city(obj.ip_address).get('country_name', '')
+            except AddressNotFoundError:
+                pass
+        return ''
+
+    def get_city(self, obj):
+        if obj.ip_address and settings.GEOIP:
+            try:
+                return settings.GEOIP.city(obj.ip_address).get('city', '')
+            except AddressNotFoundError:
+                pass
+        return ''
 
 
 class AppConfigurationSerializer(serializers.ModelSerializer):

@@ -17,7 +17,10 @@ function SkeletonRow() {
         <Skeleton className="h-4 w-24" />
       </td>
       <td className="p-4">
-        <Skeleton className="h-4 w-20" />
+        <div className="space-y-1">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-3 w-24" />
+        </div>
       </td>
       <td className="p-4">
         <Skeleton className="h-4 w-48" />
@@ -75,7 +78,12 @@ export function AdminLoginActivityPage() {
                       </div>
                     </td>
                     <td className="p-4 font-mono text-sm text-muted-foreground">
-                      {activity.ip_address}
+                      <div>{activity.ip_address}</div>
+                      <div className="text-xs">
+                        {activity.city && activity.country
+                          ? `${activity.city}, ${activity.country}`
+                          : activity.city || activity.country}
+                      </div>
                     </td>
                     <td className="p-4 text-sm text-muted-foreground">
                       <div className="w-64 truncate" title={activity.user_agent}>
