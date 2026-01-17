@@ -41,6 +41,17 @@ export function DraggableItem({
   const handleClick = (e) => {
     e.stopPropagation();
     // If a child component (like a dropdown menu item) has already handled this
+    // event by calling `preventDefault`, do not proceed with selection.
+    if (e.defaultPrevented) {
+      return;
+    }
+    // A single click on the row now triggers selection.
+    onSelect(id, type, e);
+  };
+
+  const handleDoubleClick = (e) => {
+    e.stopPropagation();
+    // If a child component (like a dropdown menu item) has already handled this
     // event by calling `preventDefault`, do not proceed with navigation.
     if (e.defaultPrevented) {
       return;
@@ -61,6 +72,7 @@ export function DraggableItem({
   return (
     <div
       onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       data-testid={`draggable-item-${id}`}
