@@ -57,7 +57,7 @@ export function AdminLoginActivityPage() {
             <tr className="border-b">
               <th className="p-4 text-left font-semibold">User</th>
               <th className="p-4 text-left font-semibold">Time</th>
-              <th className="p-4 text-left font-semibold">IP Address</th>
+              <th className="p-4 text-left font-semibold">Location</th>
               <th className="p-4 text-left font-semibold">User Agent</th>
             </tr>
           </thead>
