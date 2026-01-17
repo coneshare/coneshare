@@ -127,21 +127,22 @@ class LoginActivitySerializer(serializers.ModelSerializer):
         model = LoginActivity
         fields = ['id', 'user_email', 'user_name', 'created_at', 'ip_address', 'user_agent', 'country', 'city']
 
+    def _get_geoip_data(self, obj):
+        if not hasattr(obj, '_geoip_data_cache'):
+            data = {}
+            if obj.ip_address and settings.GEOIP:
+                try:
+                    data = settings.GEOIP.city(obj.ip_address)
+                except AddressNotFoundError:
+                    pass
+            setattr(obj, '_geoip_data_cache', data)
+        return obj._geoip_data_cache
+
     def get_country(self, obj):
-        if obj.ip_address and settings.GEOIP:
-            try:
-                return settings.GEOIP.city(obj.ip_address).get('country_name', '')
-            except AddressNotFoundError:
-                pass
-        return ''
+        return self._get_geoip_data(obj).get('country_name', '')
 
     def get_city(self, obj):
-        if obj.ip_address and settings.GEOIP:
-            try:
-                return settings.GEOIP.city(obj.ip_address).get('city', '')
-            except AddressNotFoundError:
-                pass
-        return ''
+        return self._get_geoip_data(obj).get('city', '')
 
 
 class AppConfigurationSerializer(serializers.ModelSerializer):
