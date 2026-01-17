@@ -23,16 +23,7 @@ import {
   TooltipTrigger,
 } from '../ui/Tooltip';
 import { copyTextToClipboard } from '../../lib/utils';
-
-function parseUserAgent(uaString) {
-  if (!uaString) return { browser: 'Unknown', os: 'Unknown' };
-  const parser = new UAParser(uaString);
-  const result = parser.getResult();
-  return {
-    browser: result.browser.name || 'Unknown',
-    os: result.os.name || 'Unknown',
-  };
-}
+import { parseUserAgent } from '../../lib/utils';
 
 function formatDuration(seconds) {
   if (seconds < 60) {

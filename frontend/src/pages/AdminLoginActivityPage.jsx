@@ -3,6 +3,7 @@ import { formatDistanceToNow } from 'date-fns';
 import * as api from '../services/api';
 import { AdminNav } from '../components/admin/AdminNav';
 import { Skeleton } from '../components/ui/Skeleton';
+import { parseUserAgent } from '../lib/utils';
 
 function SkeletonRow() {
   return (
@@ -23,7 +24,10 @@ function SkeletonRow() {
         </div>
       </td>
       <td className="p-4">
-        <Skeleton className="h-4 w-48" />
+        <div className="space-y-1">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-3 w-48" />
+        </div>
       </td>
     </tr>
   );
@@ -64,34 +68,40 @@ export function AdminLoginActivityPage() {
           <tbody>
             {isLoading
               ? [...Array(10)].map((_, i) => <SkeletonRow key={i} />)
-              : activities.map((activity) => (
-                  <tr key={activity.id} className="border-b">
-                    <td className="p-4">
-                      <div className="font-medium">{activity.user_name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {activity.user_email}
-                      </div>
-                    </td>
-                    <td className="p-4 text-muted-foreground">
-                      <div title={new Date(activity.created_at).toLocaleString()}>
-                        {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
-                      </div>
-                    </td>
-                    <td className="p-4 font-mono text-sm text-muted-foreground">
-                      <div>{activity.ip_address}</div>
-                      <div className="text-xs">
-                        {activity.city && activity.country
-                          ? `${activity.city}, ${activity.country}`
-                          : activity.city || activity.country}
-                      </div>
-                    </td>
-                    <td className="p-4 text-sm text-muted-foreground">
-                      <div className="w-64 truncate" title={activity.user_agent}>
-                        {activity.user_agent}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+              : activities.map((activity) => {
+                  const { browser, os } = parseUserAgent(activity.user_agent);
+                  return (
+                    <tr key={activity.id} className="border-b">
+                      <td className="p-4">
+                        <div className="font-medium">{activity.user_name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {activity.user_email}
+                        </div>
+                      </td>
+                      <td className="p-4 text-muted-foreground">
+                        <div title={new Date(activity.created_at).toLocaleString()}>
+                          {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                        </div>
+                      </td>
+                      <td className="p-4 font-mono text-sm text-muted-foreground">
+                        <div>{activity.ip_address}</div>
+                        <div className="text-xs">
+                          {activity.city && activity.country
+                            ? `${activity.city}, ${activity.country}`
+                            : activity.city || activity.country}
+                        </div>
+                      </td>
+                      <td className="p-4 text-sm text-muted-foreground">
+                        <div>
+                          {browser} on {os}
+                        </div>
+                        <div className="w-64 truncate text-xs" title={activity.user_agent}>
+                          {activity.user_agent}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
           </tbody>
         </table>
       </div>
