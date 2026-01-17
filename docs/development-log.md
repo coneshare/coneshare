@@ -1378,3 +1378,11 @@ This session implements a feature to manage resource consumption and improve use
 - Test Refactoring and Coverage: Existing PDF generation tests were refactored and moved to a new dedicated test_tasks.py file. New test cases were added to cover the behavior of skipping large PDFs and the API's enforcement of the page limit.
 
 ---
+
+## Session 63: Admin Panel Login Activity (2026-01-12)
+
+This session introduces a login activity logging feature. It establishes a robust backend mechanism to capture and store detailed user login information, such as IP addresses and user agents, for auditing and security. Concurrently, it provides an intuitive administrative interface on the frontend, allowing administrators to easily monitor and review these login events, enhancing the system's transparency and security posture. [https://github.com/coneshare/coneshare/pull/107](https://github.com/coneshare/coneshare/pull/107)
+
+- Login Activity Tracking: Implemented a new LoginActivity model to record user login events, capturing details such as the user, IP address, and user agent.
+- Admin View for Login Logs: Introduced an administrative interface at /admin/login-activities/ allowing administrators to view and filter detailed login activity records.
+- Custom Token View Integration: Modified the token obtain pair view (CustomTokenObtainPairView) to trigger the login activity recording upon successful user authentication.

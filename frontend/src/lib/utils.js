@@ -1,6 +1,7 @@
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from 'sonner';
+import { UAParser } from 'ua-parser-js';
 
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -46,4 +47,14 @@ export function copyTextToClipboard(text, successMessage = 'Copied to clipboard!
 
     document.body.removeChild(textArea);
   }
+}
+
+export function parseUserAgent(uaString) {
+  if (!uaString) return { browser: 'N/A', os: 'N/A' };
+  const parser = new UAParser(uaString);
+  const result = parser.getResult();
+  return {
+    browser: result.browser.name || 'Unknown',
+    os: result.os.name || 'Unknown',
+  };
 }

@@ -1,7 +1,6 @@
 import { Fragment, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronRight, FolderIcon, FileTextIcon } from 'lucide-react';
-import { UAParser } from 'ua-parser-js';
 import { PageViewsChart } from './PageViewsChart';
 import { Pagination } from '../ui/Pagination';
 import { Skeleton } from '../ui/Skeleton';
@@ -19,6 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../ui/Tooltip';
+import { parseUserAgent } from '../../lib/utils';
 
 function DataroomVisitRow({ visit }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -79,16 +79,6 @@ function formatDuration(seconds) {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
   return `${minutes}m ${remainingSeconds}s`;
-}
-
-function parseUserAgent(uaString) {
-  if (!uaString) return { browser: 'N/A', os: 'N/A' };
-  const parser = new UAParser(uaString);
-  const result = parser.getResult();
-  return {
-    browser: result.browser.name || 'Unknown',
-    os: result.os.name || 'Unknown',
-  };
 }
 
 export function ViewSessionsTable({ views, totalCount, loading, currentPage, onPageChange, pageSize, isDashboardWidget, contextType = 'document' }) {
