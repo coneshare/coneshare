@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
-import { ShareIcon } from 'lucide-react';
+import { ShareIcon, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, removeContentFromDataroom } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
@@ -51,6 +51,7 @@ export function DataroomPage() {
   const [isRemoveContentDialogOpen, setIsRemoveContentDialogOpen] = useState(false);
   const [itemToRename, setItemToRename] = useState(null);
   const [itemToRemove, setItemToRemove] = useState(null);
+  const [showStarredOnly, setShowStarredOnly] = useState(false);
     
   const fetchContent = useCallback(async () => {
     setIsLoading(true);
@@ -99,7 +100,7 @@ export function DataroomPage() {
   const unsortedItems = useMemo(() => {
     if (!dataroom) return [];
 
-    return [
+    let combined = [
       ...(folders || []).map(f => ({
         ...f,
         type: 'folder'
@@ -113,7 +114,12 @@ export function DataroomPage() {
         type: 'document'
       }))
     ];
-  }, [dataroom, folders, documents]);
+
+    if (showStarredOnly) {
+      combined = combined.filter((item) => item.is_starred);
+    }
+    return combined;
+  }, [dataroom, folders, documents, showStarredOnly]);
 
   const { sortedItems: allItems, sortConfig, handleSort } = useSortedList(unsortedItems);
   const { selection, setSelection, setLastSelectedItem, handleItemSelect, handleClearSelection } = useItemSelection(allItems);
@@ -400,8 +406,8 @@ export function DataroomPage() {
           <TabsTrigger value="links">Links and Permissions</TabsTrigger>
         </TabsList>
         <TabsContent value="documents" className="mt-6">
-          {(selection.documents.length > 0 || selection.folders.length > 0) && (
-            <div className="mb-4">
+          <div className="mb-4">
+            {selection.documents.length > 0 || selection.folders.length > 0 ? (
               <SelectionActionBar
                 selectedDocumentsCount={selection.documents.length}
                 selectedFoldersCount={selection.folders.length}
@@ -410,8 +416,19 @@ export function DataroomPage() {
                 onDelete={handleRemoveContent}
                 deleteText="Remove"
               />
-            </div>
-          )}
+            ) : (
+              <div className="flex min-h-[48px] items-center">
+                <Button
+                  variant={showStarredOnly ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setShowStarredOnly(prev => !prev)}
+                >
+                  <Star className="mr-2 h-4 w-4" />
+                  Starred
+                </Button>
+              </div>
+            )}
+          </div>
           {!hasContent ? (
             <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted bg-muted/20 p-12 text-center">
               <h3 className="text-xl font-semibold tracking-tight">
