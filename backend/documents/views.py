@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
-    max_page_size = 100
+    max_page_size = 1000
 
 
 def _get_folder_from_path(requesting_user, folder_path: str) -> Folder | None:

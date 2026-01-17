@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import * as api from '../services/api';
 import { AdminNav } from '../components/admin/AdminNav';
+import { Pagination } from '../components/ui/Pagination';
 import { Skeleton } from '../components/ui/Skeleton';
 import { parseUserAgent } from '../lib/utils';
 
@@ -36,20 +37,29 @@ function SkeletonRow() {
 export function AdminLoginActivityPage() {
   const [activities, setActivities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  // TODO: Add pagination controls
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 10; // Corresponds to backend's StandardResultsSetPagination
 
   useEffect(() => {
-    const fetchActivities = async () => {
+    const fetchActivities = async (page) => {
       setIsLoading(true);
       try {
-        const response = await api.getAdminLoginActivities();
+        const response = await api.getAdminLoginActivities(page);
         setActivities(response.data.results);
+        setTotalCount(response.data.count);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchActivities();
-  }, []);
+    fetchActivities(currentPage);
+  }, [currentPage]);
+
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
 
   return (
     <div className="container mx-auto py-6">
@@ -105,6 +115,11 @@ export function AdminLoginActivityPage() {
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 }
