@@ -34,7 +34,7 @@ export function DataroomPage() {
   const [isAddContentOpen, setIsAddContentOpen] = useState(false);
   const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
   const [isMoveItemsOpen, setIsMoveItemsOpen] = useState(false);
-  const [currentFolderId, setCurrentFolderId] = useState(null);
+  const [currentFolderId, setCurrentFolderId] = useState(() => searchParams.get('folder'));
   const [currentDataroomFolder, setCurrentDataroomFolder] = useState(null);
   const [folders, setFolders] = useState([]);
   const [documents, setDocuments] = useState([]);
@@ -56,15 +56,21 @@ export function DataroomPage() {
   const fetchContent = useCallback(async () => {
     setIsLoading(true);
     try {
-      let response;
       if (currentFolderId) {
-        response = await getDataroomFolderContents(currentFolderId);
-        setCurrentDataroomFolder(response.data);
-        setFolders(response.data.sub_folders || []);
-        setDocuments(response.data.documents || []);
+        // When viewing a subfolder, we need to fetch both the main dataroom
+        // details (for name, etc.) and the specific folder's content.
+        const [dataroomResponse, folderResponse] = await Promise.all([
+          getDataroom(dataroomId),
+          getDataroomFolderContents(currentFolderId),
+        ]);
+        setDataroom(dataroomResponse.data);
+        setCurrentDataroomFolder(folderResponse.data);
+        setFolders(folderResponse.data.sub_folders || []);
+        setDocuments(folderResponse.data.documents || []);
       } else {
-        response = await getDataroom(dataroomId);
-        setDataroom(response.data); // This holds the dataroom's own metadata
+        // When viewing the dataroom root, we just need the main dataroom data.
+        const response = await getDataroom(dataroomId);
+        setDataroom(response.data);
         setCurrentDataroomFolder(null);
         setFolders(response.data.folders || []);
         setDocuments(response.data.documents || []);
@@ -159,8 +165,19 @@ export function DataroomPage() {
   }, [fetchContent, setBreadcrumbData]);
 
   const handleBreadcrumbNavigate = useCallback((folderId) => {
-    setCurrentFolderId(folderId);
-  }, []);
+    setSearchParams(prev => {
+      if (folderId) {
+        prev.set('folder', folderId);
+      } else {
+        prev.delete('folder');
+      }
+      return prev;
+    });
+  }, [setSearchParams]);
+
+  useEffect(() => {
+    setCurrentFolderId(searchParams.get('folder'));
+  }, [searchParams]);
 
   useEffect(() => {
     if (dataroom) {
@@ -207,10 +224,15 @@ export function DataroomPage() {
 
   const handleItemClick = (item, type) => {
     if (type === 'folder') {
-      setCurrentFolderId(item.id);
+      setSearchParams(prev => {
+        prev.set('folder', item.id);
+        return prev;
+      });
     } else {
-      // For documents, we need the actual document_id for navigation
-      navigate(`/documents/${item.document_id}`);
+      // For documents, we pass along the dataroom context via query params
+      // so the document page can render the correct breadcrumbs.
+      const fromFolder = currentFolderId || '';
+      navigate(`/documents/${item.document_id}?from_dataroom=${dataroomId}&from_folder=${fromFolder}`);
     }
   };
     

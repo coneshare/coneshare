@@ -696,7 +696,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
         return self.queryset.filter(
             organization=self.request.user.organization,
             created_by=self.request.user
-        ).prefetch_related('versions', 'share_links', 'share_links__view_sessions')
+        ).select_related('folder').prefetch_related('versions', 'share_links', 'share_links__view_sessions')
 
     def list(self, request, *args, **kwargs):
         """

@@ -147,6 +147,16 @@ class DocumentSerializer(serializers.ModelSerializer):
         queryset = instance.share_links.all()
         return ShareLinkSerializer(queryset, many=True, context=self.context).data
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # For GET requests, serialize the full folder object to include 'ancestors'
+        # for breadcrumbs on the document detail page.
+        if instance.folder:
+            representation['folder'] = FolderSerializer(
+                instance.folder, context=self.context
+            ).data
+        return representation
+
     def create(self, validated_data):
         request = self.context['request']
         # Automatically assign the user's organization and the user

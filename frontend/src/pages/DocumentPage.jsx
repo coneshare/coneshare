@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Loader2, AlertTriangle } from 'lucide-react';
-import { getDocumentDetails, getDocumentViews, getDocumentStats, deleteShareLink, uploadNewVersion, getDocumentDownloadUrl, deleteDocument } from '../services/api';
+import { getDocumentDetails, getDocumentViews, getDocumentStats, deleteShareLink, uploadNewVersion, getDocumentDownloadUrl, deleteDocument, getDataroom, getDataroomFolderContents } from '../services/api';
 import { DocumentHeader } from '../components/documents/DocumentHeader';
 import { LinksTable } from '../components/documents/LinksTable';
 import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
@@ -14,6 +15,8 @@ import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 
 export function DocumentPage() {
   const { documentId } = useParams();
+  const [searchParams] = useSearchParams();
+  const { setBreadcrumbData } = useBreadcrumb();
   const navigate = useNavigate();
   const [document, setDocument] = useState(null);
   const [stats, setStats] = useState(null);
@@ -32,17 +35,43 @@ export function DocumentPage() {
   const [newVersionFile, setNewVersionFile] = useState(null);
 
   const fetchDocumentAndStats = useCallback(async (options = {}) => {
+    const fromDataroomId = searchParams.get('from_dataroom');
+    const fromFolderId = searchParams.get('from_folder');
     const { showSkeleton = true } = options;
     try {
       if (showSkeleton) {
         setLoading(true);
       }
+
+      let dataroomContextData = null;
+      if (fromDataroomId) {
+        try {
+          const drResponse = await getDataroom(fromDataroomId);
+          let drFolderResponse = null;
+          if (fromFolderId) {
+            drFolderResponse = await getDataroomFolderContents(fromFolderId);
+          }
+          dataroomContextData = {
+            dataroom: drResponse.data,
+            folder: drFolderResponse ? drFolderResponse.data : null,
+          };
+        } catch (contextError) {
+          console.error("Failed to fetch dataroom context:", contextError);
+          // Continue without context if it fails
+        }
+      }
+
       const [docResponse, statsResponse] = await Promise.all([
         getDocumentDetails(documentId),
         getDocumentStats(documentId),
       ]);
       setDocument(docResponse.data);
       setStats(statsResponse.data);
+      setBreadcrumbData({
+        folder: docResponse.data.folder,
+        documentName: docResponse.data.name,
+        dataroomContext: dataroomContextData,
+      });
     } catch (err) {
       // API errors are handled by the global interceptor in api.js
       console.error(err);
@@ -51,7 +80,7 @@ export function DocumentPage() {
         setLoading(false);
       }
     }
-  }, [documentId]);
+  }, [documentId, searchParams, setBreadcrumbData]);
 
   const fetchViews = useCallback(async () => {
     try {
@@ -67,7 +96,10 @@ export function DocumentPage() {
 
   useEffect(() => {
     fetchDocumentAndStats();
-  }, [fetchDocumentAndStats]);
+    return () => {
+      setBreadcrumbData(null);
+    };
+  }, [fetchDocumentAndStats, setBreadcrumbData]);
 
   useEffect(() => {
     fetchViews();
