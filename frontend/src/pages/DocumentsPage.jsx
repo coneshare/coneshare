@@ -494,7 +494,7 @@ function DocumentsPage() {
             onMove={() => setIsMoveItemsOpen(true)}
           />
         ) : (
-          <div>
+          <div className="flex min-h-[48px] items-center">
             <Button
               variant={showStarredOnly ? "secondary" : "ghost"}
               size="sm"

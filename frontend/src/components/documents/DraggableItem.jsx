@@ -76,10 +76,10 @@ export function DraggableItem({
               "transition-opacity",
               isSelected || isHovered || isMenuOpen ? "opacity-100" : "opacity-0"
             )}
+            onClick={handleCheckboxClick}
           >
             <Checkbox
               checked={isSelected}
-              onClick={handleCheckboxClick}
               aria-label={`Select ${item.name}`}
             />
           </div>
