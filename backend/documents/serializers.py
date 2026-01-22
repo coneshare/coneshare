@@ -124,9 +124,24 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class NestedFolderField(serializers.PrimaryKeyRelatedField):
+    """
+    A custom field that uses a primary key for writes but serializes
+    the full related object for reads.
+    """
+    def to_representation(self, value):
+        # 'value' is the Folder instance.
+        return FolderSerializer(value, context=self.context).data
+
+
 class DocumentSerializer(serializers.ModelSerializer):
     versions = DocumentVersionSerializer(many=True, read_only=True)
     share_links = serializers.SerializerMethodField()
+    folder = NestedFolderField(
+        queryset=Folder.objects.all(),
+        required=False,
+        allow_null=True
+    )
 
     class Meta:
         model = Document
@@ -146,16 +161,6 @@ class DocumentSerializer(serializers.ModelSerializer):
         # so this should be efficient.
         queryset = instance.share_links.all()
         return ShareLinkSerializer(queryset, many=True, context=self.context).data
-
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        # For GET requests, serialize the full folder object to include 'ancestors'
-        # for breadcrumbs on the document detail page.
-        if instance.folder:
-            representation['folder'] = FolderSerializer(
-                instance.folder, context=self.context
-            ).data
-        return representation
 
     def create(self, validated_data):
         request = self.context['request']
