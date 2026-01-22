@@ -3,7 +3,7 @@ from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from documents.models import Document, Folder
-from documents.serializers import FolderSerializer
+from documents.serializers import DocumentSerializer, FolderSerializer
 
 pytestmark = pytest.mark.django_db
 
@@ -102,3 +102,34 @@ class TestFolderSerializer:
         ancestors = serializer.data["ancestors"]
 
         assert len(ancestors) == 0
+
+
+class TestDocumentSerializer:
+    def test_folder_is_nested_on_read_fails_without_prefetch(self, user, organization, serializer_context):
+        """
+        Reproduces an AttributeError that occurs when serializing a Document whose
+        'folder' relation has not been prefetched using `select_related`.
+        """
+        root = Folder.objects.get(organization=organization, name="__root__")
+        parent_folder = Folder.objects.create(
+            organization=organization, name="Parent", parent=root, created_by=user
+        )
+        doc = Document.objects.create(
+            organization=organization,
+            name="My Doc",
+            folder=parent_folder,
+            created_by=user,
+            file_size=12345,
+        )
+
+        # Fetch the document instance *without* prefetching the folder relation.
+        # This is the key step to reproducing the bug.
+        doc_from_db = Document.objects.get(pk=doc.pk)
+
+        # When the serializer accesses the 'folder' attribute, it will receive a
+        # lazy-loading proxy object, which causes the NestedFolderField to fail.
+        serializer = DocumentSerializer(instance=doc_from_db, context=serializer_context)
+
+        # Accessing .data will trigger the AttributeError.
+        with pytest.raises(AttributeError, match="'PKOnlyObject' object has no attribute 'name'"):
+            _ = serializer.data
