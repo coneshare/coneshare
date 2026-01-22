@@ -105,10 +105,10 @@ class TestFolderSerializer:
 
 
 class TestDocumentSerializer:
-    def test_folder_is_nested_on_read_fails_without_prefetch(self, user, organization, serializer_context):
+    def test_folder_is_nested_on_read_succeeds_without_prefetch(self, user, organization, serializer_context):
         """
-        Reproduces an AttributeError that occurs when serializing a Document whose
-        'folder' relation has not been prefetched using `select_related`.
+        Tests that the serializer correctly handles a Document whose 'folder'
+        relation has not been prefetched, preventing an AttributeError.
         """
         root = Folder.objects.get(organization=organization, name="__root__")
         parent_folder = Folder.objects.create(
@@ -123,13 +123,12 @@ class TestDocumentSerializer:
         )
 
         # Fetch the document instance *without* prefetching the folder relation.
-        # This is the key step to reproducing the bug.
         doc_from_db = Document.objects.get(pk=doc.pk)
-
-        # When the serializer accesses the 'folder' attribute, it will receive a
-        # lazy-loading proxy object, which causes the NestedFolderField to fail.
         serializer = DocumentSerializer(instance=doc_from_db, context=serializer_context)
 
-        # Accessing .data will trigger the AttributeError.
-        with pytest.raises(AttributeError, match="'PKOnlyObject' object has no attribute 'name'"):
-            _ = serializer.data
+        # Accessing .data should now succeed without raising an error.
+        data = serializer.data
+
+        assert data['folder'] is not None
+        assert data['folder']['id'] == str(parent_folder.id)
+        assert data['folder']['name'] == "Parent"

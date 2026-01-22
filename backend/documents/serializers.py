@@ -130,8 +130,10 @@ class NestedFolderField(serializers.PrimaryKeyRelatedField):
     the full related object for reads.
     """
     def to_representation(self, value):
-        # 'value' is the Folder instance.
-        return FolderSerializer(value, context=self.context).data
+        # When a related field is not prefetched, 'value' may be a lazy
+        # proxy object. We must fetch the full instance to serialize it.
+        instance = self.get_queryset().get(pk=value.pk)
+        return FolderSerializer(instance, context=self.context).data
 
 
 class DocumentSerializer(serializers.ModelSerializer):
