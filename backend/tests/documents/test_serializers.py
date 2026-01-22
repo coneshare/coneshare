@@ -3,7 +3,7 @@ from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from documents.models import Document, Folder
-from documents.serializers import FolderSerializer
+from documents.serializers import DocumentSerializer, FolderSerializer
 
 pytestmark = pytest.mark.django_db
 
@@ -102,3 +102,33 @@ class TestFolderSerializer:
         ancestors = serializer.data["ancestors"]
 
         assert len(ancestors) == 0
+
+
+class TestDocumentSerializer:
+    def test_folder_is_nested_on_read_succeeds_without_prefetch(self, user, organization, serializer_context):
+        """
+        Tests that the serializer correctly handles a Document whose 'folder'
+        relation has not been prefetched, preventing an AttributeError.
+        """
+        root = Folder.objects.get(organization=organization, name="__root__")
+        parent_folder = Folder.objects.create(
+            organization=organization, name="Parent", parent=root, created_by=user
+        )
+        doc = Document.objects.create(
+            organization=organization,
+            name="My Doc",
+            folder=parent_folder,
+            created_by=user,
+            file_size=12345,
+        )
+
+        # Fetch the document instance *without* prefetching the folder relation.
+        doc_from_db = Document.objects.get(pk=doc.pk)
+        serializer = DocumentSerializer(instance=doc_from_db, context=serializer_context)
+
+        # Accessing .data should now succeed without raising an error.
+        data = serializer.data
+
+        assert data['folder'] is not None
+        assert data['folder']['id'] == str(parent_folder.id)
+        assert data['folder']['name'] == "Parent"

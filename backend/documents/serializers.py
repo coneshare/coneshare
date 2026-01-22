@@ -124,9 +124,27 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class NestedFolderField(serializers.PrimaryKeyRelatedField):
+    """
+    A custom field that uses a primary key for writes but serializes
+    the full related object for reads.
+    """
+    def to_representation(self, value):
+        # When a related field is not prefetched, 'value' may be a lazy
+        # proxy object. We must fetch the full instance to serialize it.
+        instance = self.get_queryset().get(pk=value.pk)
+        return FolderSerializer(instance, context=self.context).data
+
+
 class DocumentSerializer(serializers.ModelSerializer):
     versions = DocumentVersionSerializer(many=True, read_only=True)
     share_links = serializers.SerializerMethodField()
+    # folder this document belongs to
+    folder = NestedFolderField(
+        queryset=Folder.objects.all(),
+        required=False,
+        allow_null=True
+    )
 
     class Meta:
         model = Document
