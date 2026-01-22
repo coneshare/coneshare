@@ -46,20 +46,20 @@ export function DocumentPage() {
       let dataroomContextData = null;
       if (fromDataroomId) {
         try {
-          const drResponse = await getDataroom(fromDataroomId);
-          let drFolderResponse = null;
+          const contextPromises = [getDataroom(fromDataroomId)];
           if (fromFolderId) {
-            drFolderResponse = await getDataroomFolderContents(fromFolderId);
+            contextPromises.push(getDataroomFolderContents(fromFolderId));
           }
+          const [drResponse, drFolderResponseResult] = await Promise.all(contextPromises);
           dataroomContextData = {
             dataroom: drResponse.data,
-            folder: drFolderResponse ? drFolderResponse.data : null,
+            folder: drFolderResponseResult ? drFolderResponseResult.data : null,
           };
         } catch (contextError) {
           console.error("Failed to fetch dataroom context:", contextError);
           // Continue without context if it fails
         }
-      }
+      }      
 
       const [docResponse, statsResponse] = await Promise.all([
         getDocumentDetails(documentId),

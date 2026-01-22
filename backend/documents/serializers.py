@@ -139,6 +139,7 @@ class NestedFolderField(serializers.PrimaryKeyRelatedField):
 class DocumentSerializer(serializers.ModelSerializer):
     versions = DocumentVersionSerializer(many=True, read_only=True)
     share_links = serializers.SerializerMethodField()
+    # folder this document belongs to
     folder = NestedFolderField(
         queryset=Folder.objects.all(),
         required=False,

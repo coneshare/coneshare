@@ -28,26 +28,24 @@ export function Breadcrumbs({ currentFolder: data }) {
               </Link>
             </li>
           ))}
-          {folder && documentName && (
+          {folder && (
             <li className="flex items-center">
               <ChevronRightIcon className="h-5 w-5 flex-shrink-0" />
-              <Link to={`/datarooms/${dataroom.id}?folder=${folder.id}`} className="ml-2 hover:text-foreground">
-                {folder.name}
-              </Link>
+              {documentName ? (
+                <Link to={`/datarooms/${dataroom.id}?folder=${folder.id}`} className="ml-2 hover:text-foreground">
+                  {folder.name}
+                </Link>
+              ) : (
+                <span className="ml-2 text-foreground">{folder.name}</span>
+              )}
             </li>
           )}
-          {folder && !documentName && (
-            <li className="flex items-center">
-                <ChevronRightIcon className="h-5 w-5 flex-shrink-0" />
-                <span className="ml-2 text-foreground">{folder.name}</span>
-            </li>
-           )}
           {documentName && (
             <li className="flex items-center">
               <ChevronRightIcon className="h-5 w-5 flex-shrink-0" />
               <span className="ml-2 text-foreground truncate max-w-xs">{documentName}</span>
             </li>
-          )}
+          )}          
         </ol>
       </nav>
     );
