@@ -136,14 +136,34 @@ class NestedFolderField(serializers.PrimaryKeyRelatedField):
         return FolderSerializer(instance, context=self.context).data
 
 
+class RootFolderDefault:
+    """
+    A default class that can be used to set the root folder for a user.
+    """
+    requires_context = True
+
+    def __call__(self, serializer_field):
+        request = serializer_field.context['request']
+        return Folder.objects.get_root_for_org(request.user.organization)
+
+    def __repr__(self):
+        return '%s()' % self.__class__.__name__
+
+
 class DocumentSerializer(serializers.ModelSerializer):
     versions = DocumentVersionSerializer(many=True, read_only=True)
     share_links = serializers.SerializerMethodField()
-    # folder this document belongs to
+    # parent folder this document belongs to.
+    # TODO: we may need to explict pass parent folder to this serialier for performance consideration.
+    # XXX: why default=RootFolderDefault()? Even though required=False tells the serializer that the client does not
+    # need to send the folder field, the ModelSerializer is smart enough to know that it cannot create a valid
+    # Document instance without a value for this field. This underlying model constraint causes the initial
+    # validation to fail before any of your custom logic (like the validate or create methods) can run.
     folder = NestedFolderField(
         queryset=Folder.objects.all(),
         required=False,
-        allow_null=True
+        allow_null=True,
+        default=RootFolderDefault()
     )
 
     class Meta:
