@@ -41,6 +41,7 @@ export function DocumentsList({
   onItemClick,
   onRename,
   onDelete,
+  onShare,
 }) {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [itemToRename, setItemToRename] = useState(null);
@@ -87,10 +88,6 @@ export function DocumentsList({
     } finally {
       setItemToDelete(null);
     }
-  };
-
-  const handleShare = (document) => {
-    console.log(`Share action for: ${document.name} (${document.id})`);
   };
 
   return (
@@ -167,7 +164,7 @@ export function DocumentsList({
                   onSelect={handleSelect}
                   onRename={onRename || internalHandleRename}
                   onDelete={onDelete || internalHandleDelete}
-                  onShare={() => handleShare(item)}
+                  onShare={onShare}
                   onToggleStar={onToggleStar}
                   isReadOnly={isReadOnly}
                   showActions={showActions}

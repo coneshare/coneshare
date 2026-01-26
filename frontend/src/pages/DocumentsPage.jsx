@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -40,6 +40,7 @@ function DocumentsPage() {
   const [isMoveItemsOpen, setIsMoveItemsOpen] = useState(false);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
   const { user } = useUser();
+  const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
 
@@ -57,6 +58,10 @@ function DocumentsPage() {
 
   const { sortedItems: allItems, sortConfig, handleSort } = useSortedList(combinedItems);
   const { selection, setSelection, setLastSelectedItem, handleItemSelect, handleClearSelection } = useItemSelection(allItems);
+
+  const handleShare = (document) => {
+    navigate(`/documents/${document.id}?action=share`);
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -523,6 +528,7 @@ function DocumentsPage() {
         onSelectAll={handleSelectAll}
         isAllSelected={isAllSelected}
         onToggleStar={handleToggleStar}
+        onShare={handleShare}
       />
     </div>
   );

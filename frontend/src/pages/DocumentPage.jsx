@@ -15,7 +15,7 @@ import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 
 export function DocumentPage() {
   const { documentId } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { setBreadcrumbData } = useBreadcrumb();
   const navigate = useNavigate();
   const [document, setDocument] = useState(null);
@@ -33,6 +33,17 @@ export function DocumentPage() {
   const fileInputRef = useRef(null);
   const [isVersionMismatchDialogOpen, setIsVersionMismatchDialogOpen] = useState(false);
   const [newVersionFile, setNewVersionFile] = useState(null);
+
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'share') {
+      setIsLinkSheetOpen(true);
+      // Clean up the URL so the modal doesn't re-open on refresh
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete('action');
+      setSearchParams(newSearchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const fetchDocumentAndStats = useCallback(async (options = {}) => {
     const fromDataroomId = searchParams.get('from_dataroom');
