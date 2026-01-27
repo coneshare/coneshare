@@ -437,8 +437,8 @@ class ShareLinkViewDataView(APIView):
             visible_folder_ids = [s.dataroom_folder_id for s in dataroom_link_settings if s.dataroom_folder_id]
 
             # Fetch all visible documents and folders to construct the hierarchy
-            all_docs = DataroomDocument.objects.filter(id__in=visible_doc_ids).select_related('document', 'folder')
-            all_folders = DataroomFolder.objects.filter(id__in=visible_folder_ids)
+            all_docs = DataroomDocument.objects.filter(id__in=visible_doc_ids).select_related('document', 'folder').order_by('name')
+            all_folders = DataroomFolder.objects.filter(id__in=visible_folder_ids).order_by('name')
 
             # Use context to pass settings to serializers
             serializer_context = {'request': request, 'settings_map': settings_map}
