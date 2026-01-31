@@ -161,24 +161,32 @@ export function DataroomViewer({ data, slug, viewId }) {
       }
       setCurrentFolderId(item.id);
     } else {
+      // 1. Open a blank window IMMEDIATELY to satisfy Safari's user gesture rule
+      const newTab = window.open('about:blank', '_blank');
+      if (!newTab) {
+        toast.error('Pop-up blocked. Please allow pop-ups for this site.');
+        return;
+      }
+
       // This is a document. Record the visit and then open it in a new tab.
       if (viewId) {
         try {
           // Record the visit to get a specific visit ID for page-level tracking.
           const visitResponse = await recordDataroomVisit(viewId, { dataroomDocumentId: item.id });
           const dataroomVisitId = visitResponse.data.id;
-
           // Construct the URL for the new tab.
           const url = `/view/${slug}?document_id=${item.document_id}&view_session_id=${viewId}&dataroom_visit_id=${dataroomVisitId}`;
-          window.open(url, '_blank', 'noopener,noreferrer');
+
+          // 2. Update the already-opened window with the actual URL
+          newTab.location.href = url;
         } catch (err) {
           console.error('Failed to record document visit or open document:', err);
+          newTab.close(); // Close the blank tab if the request fails
           toast.error('Could not open document. Please try again.');
         }
       } else {
         // Fallback for the case where viewId is not ready, though it should be.
-        const url = `/view/${slug}?document_id=${item.document_id}`;
-        window.open(url, '_blank', 'noopener,noreferrer');
+        newTab.location.href = `/view/${slug}?document_id=${item.document_id}`;
       }
     }
   };
