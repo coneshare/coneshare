@@ -1,0 +1,95 @@
+name: Post-Release Tasks
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  tag-and-push-docker-image:
+    name: Tag and Push Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull, Re-tag, and Push Docker Image
+        env:
+          # Extracts the version number from the git tag (e.g., v1.0.0 -> 1.0.0)
+          VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          CLEAN_VERSION=$(echo $VERSION | sed 's/^v//')
+          docker pull conesharedev/coneshare:rolling
+          docker tag conesharedev/coneshare:rolling conesharedev/coneshare:$CLEAN_VERSION
+          docker push conesharedev/coneshare:$CLEAN_VERSION
+
+  update-compose-repository:
+    name: Update Coneshare Compose Repository
+    runs-on: ubuntu-latest
+    needs: tag-and-push-docker-image
+    steps:
+      - name: Checkout coneshare-compose repository
+        uses: actions/checkout@v4
+        with:
+          repository: coneshare/coneshare-compose
+          token: ${{ secrets.GH_PAT }}
+          path: coneshare-compose
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Update compose file and create PR
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          # Extracts the version number from the git tag (e.g., v1.0.0 -> 1.0.0)
+          VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          CLEAN_VERSION=$(echo $VERSION | sed 's/^v//')
+          cd coneshare-compose
+          git checkout -b "release-${CLEAN_VERSION}"
+          sed -i "s|CONESHARE_IMAGE=conesharedev/coneshare:rolling|CONESHARE_IMAGE=conesharedev/coneshare:${CLEAN_VERSION}|" .env
+          git add .env
+          git commit -m "release: ${CLEAN_VERSION}"
+          git push origin "release-${CLEAN_VERSION}"
+          
+          gh pr create \
+            --repo coneshare/coneshare-compose \
+            --base main \
+            --head "release-${CLEAN_VERSION}" \
+            --title "Release ${CLEAN_VERSION}" \
+            --body "Automated release for version ${CLEAN_VERSION}"
+          
+          gh pr merge "release-${CLEAN_VERSION}" \
+            --repo coneshare/coneshare-compose \
+            --merge \
+            --delete-branch
+
+      - name: Create Release in coneshare-compose
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          CLEAN_VERSION=$(echo $VERSION | sed 's/^v//')
+          gh release create "${VERSION}" \
+            --repo coneshare/coneshare-compose \
+            --title "Release ${CLEAN_VERSION}" \
+            --notes "Deployment configuration for Coneshare ${VERSION}" \
+            --target main
+      
+      - name: Update main branch back to rolling
+        env:
+          VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          CLEAN_VERSION=$(echo $VERSION | sed 's/^v//')
+          cd coneshare-compose
+          git fetch origin
+          git checkout main
+          git reset --hard origin/main 
+          sed -i "s|CONESHARE_IMAGE=conesharedev/coneshare:${CLEAN_VERSION}|CONESHARE_IMAGE=conesharedev/coneshare:rolling|" .env
+          git add .env
+          git commit -m "build: Set main version back to rolling"
+          git push origin main
