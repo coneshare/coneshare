@@ -1386,3 +1386,27 @@ This session introduces a login activity logging feature. It establishes a robus
 - Login Activity Tracking: Implemented a new LoginActivity model to record user login events, capturing details such as the user, IP address, and user agent.
 - Admin View for Login Logs: Introduced an administrative interface at /admin/login-activities/ allowing administrators to view and filter detailed login activity records.
 - Custom Token View Integration: Modified the token obtain pair view (CustomTokenObtainPairView) to trigger the login activity recording upon successful user authentication.
+
+---
+
+## Session 64: Automated Release Workflow with Release Please (2026-02-07)
+
+This session focused on automating the entire release process using GitHub Actions and Release Please, streamlining versioning, changelog generation, and deployment updates.
+
+### 1. Release Please Integration
+- **Conventional Commits**: The release process is now driven by Conventional Commit messages (e.g., `feat:`, `fix:`).
+- **Automated Release PRs**: A new GitHub Actions workflow (`release-please.yml`) was added. It runs on every push to `main` and automatically creates or updates a "Release PR" containing the correct version bump and a generated `CHANGELOG.md`.
+- **Triggering a Release**: Merging the Release PR automatically creates a GitHub tag and a release with generated notes.
+
+### 2. Post-Release Automation
+- **New Workflow**: A second workflow (`release.yml`) was created that triggers *after* a release is published.
+- **Docker Image Tagging**: This workflow automatically pulls the `:rolling` Docker image, tags it with the new release version (e.g., `1.2.3`), and pushes it to Docker Hub.
+- **Deployment Repository Update**: The workflow then checks out the `coneshare/coneshare-compose` repository and performs the following actions:
+    1. Creates a release branch (e.g., `release-1.2.3`).
+    2. Updates the `.env` file to use the new versioned image tag.
+    3. Creates, merges, and deletes a pull request to update `main`.
+    4. Creates a corresponding release in the `coneshare-compose` repository.
+    5. Resets the image tag in the `main` branch back to `:rolling` for ongoing development.
+
+### 3. CI Workflow Refinements
+- **Path Exclusion**: Both the main backend CI (`backend-ci.yml`) and the new `release-please.yml` workflows were updated to ignore changes in the `portal/` directory. This prevents commits related to the marketing site from triggering backend tests or new release cycles.
