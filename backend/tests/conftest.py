@@ -132,6 +132,19 @@ def dataroom(user, organization):
 
 
 @pytest.fixture
+def file_request(user, organization):
+    """Fixture to create a file request."""
+    from filerequests.models import FileRequest
+    from documents.models import Folder
+    root_folder = Folder.objects.get_root_for_org(organization)
+    return FileRequest.objects.create(
+        name="Test File Request",
+        folder=root_folder,
+        created_by=user,
+    )
+
+
+@pytest.fixture
 def api_client(user):
     """Fixture to create an authenticated API client."""
     client = APIClient()
