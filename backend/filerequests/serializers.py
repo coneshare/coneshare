@@ -8,7 +8,6 @@ class FileRequestSerializer(serializers.ModelSerializer):
     folder_name = serializers.CharField(source='folder.name', read_only=True)
     folder = serializers.PrimaryKeyRelatedField(
         queryset=Folder.objects.all(),
-        write_only=True
     )
 
     class Meta:

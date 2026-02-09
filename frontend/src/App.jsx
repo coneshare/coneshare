@@ -8,6 +8,7 @@ import { AllViewSessionsPage } from './pages/AllViewSessionsPage';
 import { CloudAuthCallbackPage } from './pages/CloudAuthCallbackPage';
 import { DataroomPage } from './pages/DataroomPage';
 import { DataroomsPage } from './pages/DataroomsPage';
+import { FileRequestsPage } from './pages/FileRequestsPage';
 import { DocumentPage } from './pages/DocumentPage';
 import DocumentsPage from './pages/DocumentsPage';
 import HomePage from './pages/HomePage';
@@ -40,6 +41,7 @@ function App() {
             <Route path="/documents/:documentId/links/:linkId" element={<ShareLinkAnalyticsPage />} />
             <Route path="/datarooms" element={<DataroomsPage />} />
             <Route path="/datarooms/:dataroomId" element={<DataroomPage />} />
+            <Route path="/file-requests" element={<FileRequestsPage />} />
             <Route path="/analytics/links" element={<AllLinksPage />} />
             <Route path="/analytics/view-sessions" element={<AllViewSessionsPage />} />
             <Route path="/settings" element={<UserSettingsPage />} />

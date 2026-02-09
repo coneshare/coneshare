@@ -1,4 +1,4 @@
-import { File, Home, LayoutGrid } from "lucide-react";
+import { File, Home, LayoutGrid, UploadCloud } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import { useSidebar } from "./SidebarProvider";
@@ -7,6 +7,7 @@ export const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: Home },
   { href: "/documents", label: "Documents", icon: File },
   { href: "/datarooms", label: "Datarooms", icon: LayoutGrid },
+  { href: "/file-requests", label: "File Requests", icon: UploadCloud },
 ];
 
 function SidebarContent() {
