@@ -48,29 +48,31 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
         setExpiresAt('');
         setMaxFileSize('');
         setSelectedFolderId('');
-        // If a folder is passed (e.g., from DocumentsPage), use it.
-        if (folder) {
-          setSelectedFolderId(folder.id);
-        } else {
-          // Otherwise, fetch folders for the dropdown.
-          const fetchFolders = async () => {
-            setIsLoadingFolders(true);
-            try {
-              const [rootRes, contentsRes] = await Promise.all([
-                getRootFolderId(),
-                getRootFolderContents(),
-              ]);
-              const rootFolder = { id: rootRes.data.id, name: 'Root Folder' };
-              setFolders([rootFolder, ...contentsRes.data.sub_folders]);
-              setSelectedFolderId(rootFolder.id); // Default to root
-            } catch (error) {
-              toast.error('Could not load folders for selection.');
-            } finally {
-              setIsLoadingFolders(false);
+        // Always fetch folders for the dropdown in create mode.
+        const fetchFolders = async () => {
+          setIsLoadingFolders(true);
+          try {
+            const [rootRes, contentsRes] = await Promise.all([
+              getRootFolderId(),
+              getRootFolderContents(),
+            ]);
+            const rootFolder = { id: rootRes.data.id, name: 'Root Folder' };
+            setFolders([rootFolder, ...contentsRes.data.sub_folders]);
+
+            // If a folder is passed (e.g., from DocumentsPage), use it as the default.
+            // Otherwise, default to the root folder.
+            if (folder) {
+              setSelectedFolderId(folder.id);
+            } else {
+              setSelectedFolderId(rootFolder.id);
             }
-          };
-          fetchFolders();
-        }
+          } catch (error) {
+            toast.error('Could not load folders for selection.');
+          } finally {
+            setIsLoadingFolders(false);
+          }
+        };
+        fetchFolders();
       }
     }
   }, [isOpen, isEditing, currentRequest, folder]);
@@ -81,7 +83,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
     try {
       const payload = {
         name,
-        folder: folder ? folder.id : selectedFolderId,
+        folder: selectedFolderId,
         expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
         max_file_size: maxFileSize ? parseInt(maxFileSize, 10) : null,
       };
@@ -102,7 +104,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
     }
   };
 
-  const isSubmitDisabled = isSubmitting || (!folder && !selectedFolderId);
+  const isSubmitDisabled = isSubmitting || !selectedFolderId;
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -116,7 +118,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
           </SheetDescription>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          {!isEditing && !folder && (
+          {!isEditing && (
             <div>
               <Label htmlFor="folder-select">Destination Folder</Label>
               <select
