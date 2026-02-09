@@ -23,12 +23,13 @@ class FileRequestSerializer(serializers.ModelSerializer):
     def validate_folder(self, value):
         """
         Check that the folder belongs to the user making the request.
+        The invisible __root__ folder (created_by=None) is allowed.
         """
         request = self.context.get('request')
         if not request or not hasattr(request, 'user'):
             raise serializers.ValidationError("Request context is missing.")
 
-        if value.created_by != request.user:
+        if value.created_by is not None and value.created_by != request.user:
             raise serializers.ValidationError("You can only create file requests for your own folders.")
         return value
 
