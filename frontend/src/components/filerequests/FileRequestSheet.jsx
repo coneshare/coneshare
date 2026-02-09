@@ -1,6 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Folder as FolderIcon, ChevronRight, Home, ArrowLeft } from 'lucide-react';
 
 import {
   Sheet,
@@ -13,12 +12,10 @@ import {
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
-import { Skeleton } from '../ui/Skeleton';
+import { FolderBrowser } from '../documents/FolderBrowser';
 import {
   createFileRequest,
   updateFileRequest,
-  getFolderContents,
-  getRootFolderContents,
   getRootFolderId,
 } from '../../services/api';
 
@@ -30,25 +27,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
   const isEditing = !!currentRequest;
 
   // State for folder browser
-  const [browserCurrentFolder, setBrowserCurrentFolder] = useState(null);
-  const [browserSubFolders, setBrowserSubFolders] = useState([]);
-  const [loadingFolders, setLoadingFolders] = useState(false);
-
-  const fetchFolders = useCallback(async (folderId) => {
-    setLoadingFolders(true);
-    try {
-      const response = folderId
-        ? await getFolderContents(folderId)
-        : await getRootFolderContents();
-      const { current_folder, sub_folders } = response.data;
-      setBrowserCurrentFolder(current_folder);
-      setBrowserSubFolders(sub_folders);
-    } catch (error) {
-      toast.error('Could not load folders for selection.');
-    } finally {
-      setLoadingFolders(false);
-    }
-  }, []);
+  const [destinationFolder, setDestinationFolder] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -64,24 +43,27 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
         setName('');
         setExpiresAt('');
         setMaxFileSize('');
-        fetchFolders(folder?.id || null); // Start at pre-selected folder or root
+        setDestinationFolder(folder || null);
       }
     }
-  }, [isOpen, isEditing, currentRequest, folder, fetchFolders]);
+  }, [isOpen, isEditing, currentRequest, folder]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      const folderId = isEditing
+        ? currentRequest.folder
+        : destinationFolder?.id || (await getRootFolderId()).data.id;
+
       const payload = {
         name,
-        folder: browserCurrentFolder?.id || (await getRootFolderId()).data.id,
+        folder: folderId,
         expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
         max_file_size: maxFileSize ? parseInt(maxFileSize, 10) : null,
       };
 
       if (isEditing) {
-        payload.folder = currentRequest.folder; // Folder cannot be changed on edit
         await updateFileRequest(currentRequest.id, payload);
         toast.success('File request updated successfully.');
       } else {
@@ -97,48 +79,6 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
     }
   };
   
-  const handleFolderClick = (folderId) => fetchFolders(folderId);
-  
-  const handleBackClick = () => {
-    if (browserCurrentFolder && browserCurrentFolder.ancestors && browserCurrentFolder.ancestors.length > 0) {
-        const parentId = browserCurrentFolder.ancestors[browserCurrentFolder.ancestors.length - 1].id;
-        fetchFolders(parentId);
-    } else {
-        fetchFolders(null); // Go to root
-    }
-  };
-
-  const renderBreadcrumbs = () => (
-    <nav className="flex flex-wrap items-center gap-1 text-sm font-medium text-muted-foreground">
-      <button
-        type="button"
-        onClick={() => fetchFolders(null)}
-        className="flex items-center gap-1 hover:text-foreground"
-      >
-        <Home className="h-4 w-4" />
-        <span>Root</span>
-      </button>
-      {browserCurrentFolder?.ancestors?.map(ancestor => (
-        <div key={ancestor.id} className="flex items-center gap-1">
-          <ChevronRight className="h-4 w-4 flex-shrink-0" />
-          <button
-            type="button"
-            onClick={() => fetchFolders(ancestor.id)}
-            className="truncate hover:text-foreground"
-          >
-            {ancestor.name}
-          </button>
-        </div>
-      ))}
-      {browserCurrentFolder && browserCurrentFolder.name !== '__root__' && (
-        <div className="flex items-center gap-1">
-          <ChevronRight className="h-4 w-4 flex-shrink-0" />
-          <span className="font-semibold text-foreground">{browserCurrentFolder.name}</span>
-        </div>
-      )}
-    </nav>
-  );
-
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent>
@@ -154,35 +94,10 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
           {!isEditing && (
             <div className="space-y-2">
               <Label>Destination Folder</Label>
-              {browserCurrentFolder && (
-                <Button variant="ghost" size="sm" type="button" onClick={handleBackClick} className="flex w-full items-center justify-start gap-2 text-sm">
-                  <ArrowLeft className="h-4 w-4" /> Back
-                </Button>
-              )}
-              <div className="rounded-md border bg-muted/50 p-2">
-                {renderBreadcrumbs()}
-              </div>
-              <div className="h-48 overflow-y-auto rounded-md border p-2">
-                {loadingFolders ? (
-                  <div className="space-y-2 p-2">
-                    {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
-                  </div>
-                ) : browserSubFolders.length > 0 ? (
-                  browserSubFolders.map(f => (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => handleFolderClick(f.id)}
-                      className="flex w-full items-center gap-2 rounded p-2 text-left hover:bg-muted"
-                    >
-                      <FolderIcon className="h-5 w-5 flex-shrink-0 text-gray-400" />
-                      <span className="truncate">{f.name}</span>
-                    </button>
-                  ))
-                ) : (
-                  <p className="flex h-full items-center justify-center text-sm text-muted-foreground">No subfolders</p>
-                )}
-              </div>
+              <FolderBrowser
+                initialFolderId={folder?.id || null}
+                onCurrentFolderChange={setDestinationFolder}
+              />
             </div>
           )}
 
