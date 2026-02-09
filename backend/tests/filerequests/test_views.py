@@ -112,6 +112,17 @@ class TestPublicFileRequestViews:
         assert 'storage_key' in response.data
         assert 'unique_name' in response.data
         mock_generate_url.assert_called_once()
+
+    @patch('filerequests.views.fileserver_client.generate_upload_url')
+    def test_request_upload_url_with_string_file_size(self, mock_generate_url, public_client, file_request):
+        """Test that file_size as a string is handled correctly."""
+        mock_generate_url.return_value = "http://fileserver/upload/token"
+        url = f'/api/v1/public/file-requests/{file_request.slug}/request-upload/'
+        data = {'file_name': 'test.pdf', 'file_size': '12345'}  # file_size as string
+        response = public_client.post(url, data)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['upload_url'] == "http://fileserver/upload/token"
         
     def test_request_upload_url_exceeds_size_limit(self, public_client, file_request):
         """Test request fails if file size exceeds the link's limit."""

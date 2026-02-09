@@ -82,6 +82,12 @@ class FileRequestUploadRequestView(APIView):
         if not file_name or file_size is None:
             return Response({"detail": "file_name and file_size are required."}, status=status.HTTP_400_BAD_REQUEST)
 
+        try:
+            file_size = int(file_size)
+        except (ValueError, TypeError):
+            return Response({"detail": "file_size must be a valid integer."}, status=status.HTTP_400_BAD_REQUEST)
+
+
         # Validate against link constraints
         if file_request.max_file_size and file_size > file_request.max_file_size:
             return Response({"detail": "File size exceeds the maximum allowed for this link."}, status=status.HTTP_400_BAD_REQUEST)
