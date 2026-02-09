@@ -1,8 +1,16 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Edit, MoreHorizontal, Share2, Trash2 } from 'lucide-react';
+import { Edit, MoreHorizontal, Share2, Trash2, UploadCloud } from 'lucide-react';
 import { Button } from '../ui/Button';
 
-export function ActionsDropdown({ item, type, onRename, onDelete, onShare, onOpenChange }) {
+export function ActionsDropdown({
+  item,
+  type,
+  onRename,
+  onDelete,
+  onShare,
+  onRequestFiles,
+  onOpenChange,
+}) {
   return (
     <DropdownMenu.Root onOpenChange={onOpenChange}>
       <DropdownMenu.Trigger asChild>
@@ -50,6 +58,20 @@ export function ActionsDropdown({ item, type, onRename, onDelete, onShare, onOpe
            >
             <Share2 className="h-4 w-4" aria-hidden="true" />
             <span>Share</span>
+          </DropdownMenu.Item>
+        )}
+
+        {type === 'folder' && onRequestFiles && (
+          <DropdownMenu.Item
+            onSelect={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onRequestFiles(item);
+            }}
+            className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
+          >
+            <UploadCloud className="h-4 w-4" aria-hidden="true" />
+            <span>Request files</span>
           </DropdownMenu.Item>
         )}
 

@@ -367,6 +367,10 @@ export const downloadDataroomFolder = (slug, folderId) => {
   });
 };
 
+// File Requests
+export const createFileRequest = (data) => api.post('/file-requests/', data);
+export const updateFileRequest = (id, data) => api.patch(`/file-requests/${id}/`, data);
+
 // Admin
 export const getAdminSettings = () => api.get('/admin/settings/');
 export const updateAdminSetting = (key, value) => api.patch(`/admin/settings/${key}/`, { value });
