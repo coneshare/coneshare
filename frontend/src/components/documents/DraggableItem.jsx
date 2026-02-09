@@ -3,17 +3,9 @@ import { FileIcon, FolderIcon, Star } from "lucide-react";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../../lib/utils";
+import { formatBytes } from "../../lib/formatters";
 import { ActionsDropdown } from "./ActionsDropdown";
 import { Checkbox } from "../ui/Checkbox";
-
-function formatFileSize(bytes) {
-  if (bytes === null || bytes === undefined) return "—";
-  if (bytes === 0) return "0 KB";
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-}
 
 export function DraggableItem({
   id,
@@ -24,6 +16,7 @@ export function DraggableItem({
   onRename,
   onDelete,
   onShare,
+  onRequestFiles,
   onToggleStar,
   isReadOnly = false,
   showActions = true,
@@ -119,7 +112,7 @@ export function DraggableItem({
       </div>
       <div className="w-[10%]">
         {type === "document"
-          ? formatFileSize(item.file_size)
+          ? formatBytes(item.file_size)
           : "—"}
       </div>
       <div className="w-16">
@@ -138,6 +131,7 @@ export function DraggableItem({
               onRename={onRename}
               onDelete={onDelete}
               onShare={onShare}
+              onRequestFiles={onRequestFiles}
               onOpenChange={setIsMenuOpen}
             />
           </div>
