@@ -16,6 +16,7 @@ urlpatterns = [
     path('documents/<str:document_id>/preview-data/', views.DocumentPreviewDataView.as_view(), name='document-preview-data'),
     path('documents/<str:document_id>/download/', views.DocumentDownloadView.as_view(), name='document-download'),
     path('actions/move/', views.MoveItemsView.as_view(), name='move-items'),
+    path('folders/root/', views.RootFolderView.as_view(), name='root-folder-detail'),
 
     path('', include(router.urls)),
 ]

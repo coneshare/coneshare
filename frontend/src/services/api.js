@@ -185,6 +185,8 @@ export const getFolderContents = (id) => api.get(`/folders/${id}/`);
 
 export const getRootFolderContents = () => api.get('/folders/');
 
+export const getRootFolderId = () => api.get('/folders/root/');
+
 export const createFolder = (name, parentId = null) => api.post('/folders/', { name, parent: parentId });
 
 export const ensureFolderPaths = (paths, parentPath = null) =>

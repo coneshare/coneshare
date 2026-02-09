@@ -892,3 +892,17 @@ class MoveItemsView(APIView):
         except Exception:
             logger.exception("An error occurred during move operation.")
             return Response({"detail": "An unexpected error occurred."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RootFolderView(APIView):
+    """
+    Provides the ID of the user's root folder.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        try:
+            root_folder = Folder.objects.get_root_for_org(request.user.organization)
+            return Response({'id': root_folder.id})
+        except Folder.DoesNotExist:
+            return Response({'detail': 'Root folder not found.'}, status=status.HTTP_404_NOT_FOUND)

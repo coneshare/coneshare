@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast, Toaster } from 'sonner';
 import { format, formatDistanceToNow } from 'date-fns';
-import { MoreHorizontal, Edit, Trash2, Copy } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, Copy, UploadCloud } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 import { getFileRequests, deleteFileRequest } from '../services/api';
@@ -15,6 +15,7 @@ export function FileRequestsPage() {
   const [fileRequests, setFileRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -72,6 +73,11 @@ export function FileRequestsPage() {
   return (
     <div className="p-4 sm:p-6">
       <Toaster richColors />
+      <FileRequestSheet
+        isOpen={isCreateSheetOpen}
+        onOpenChange={setIsCreateSheetOpen}
+        onSuccess={fetchData}
+      />
       {selectedRequest && (
         <FileRequestSheet
           isOpen={isEditSheetOpen}
@@ -90,9 +96,17 @@ export function FileRequestsPage() {
         confirmText="Delete"
       />
 
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">File Requests</h1>
+        <Button onClick={() => setIsCreateSheetOpen(true)}>
+          <UploadCloud className="mr-2 h-4 w-4" />
+          Create File Request
+        </Button>
+      </div>
+
       <div className="rounded-lg border">
-        <div className="flex items-center border-b px-4 py-3 text-sm font-medium text-muted-foreground">
-          <div className="w-[35%]">Name</div>
+        <div className="flex items-center border-b bg-gray-50 px-4 py-3 text-sm font-medium text-muted-foreground dark:bg-gray-900/50">
+          <div className="w-[35%] pl-8">Name</div>
           <div className="w-[25%]">Destination Folder</div>
           <div className="w-[15%]">Expires</div>
           <div className="w-[15%]">Created</div>
@@ -101,16 +115,22 @@ export function FileRequestsPage() {
         <div>
           {loading && <div className="p-4 text-center">Loading...</div>}
           {!loading && fileRequests.length === 0 && (
-            <div className="p-4 text-center">No file requests found.</div>
+            <div className="p-8 text-center text-muted-foreground">
+              <p>No file requests found.</p>
+              <p className="mt-2 text-sm">
+                Click "Create File Request" to get started.
+              </p>
+            </div>
           )}
           {!loading &&
             fileRequests.map((request) => (
               <div
                 key={request.id}
-                className="flex items-center border-b px-4 py-3 text-sm"
+                className="flex w-full cursor-pointer items-center border-b px-4 py-2 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/50"
               >
-                <div className="w-[35%] font-medium">{request.name || 'Untitled Request'}</div>
-                <div className="w-[25%]">{request.folder_name}</div>
+                <div className="w-8" />
+                <div className="w-[35%] truncate font-medium">{request.name || 'Untitled Request'}</div>
+                <div className="w-[25%] truncate">{request.folder_name}</div>
                 <div className="w-[15%]">
                   {request.expires_at ? format(new Date(request.expires_at), 'PPp') : 'Never'}
                 </div>
