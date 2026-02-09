@@ -1,5 +1,4 @@
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -16,33 +15,38 @@ import { Label } from '../ui/Label';
 import { createFileRequest, updateFileRequest } from '../../services/api';
 
 export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest, onSuccess }) {
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm();
+  const [name, setName] = useState('');
+  const [expiresAt, setExpiresAt] = useState('');
+  const [maxFileSize, setMaxFileSize] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditing = !!currentRequest;
 
   useEffect(() => {
     if (isOpen) {
       if (isEditing) {
-        const expiresAt = currentRequest.expires_at
+        const expiresAtValue = currentRequest.expires_at
           ? new Date(currentRequest.expires_at).toISOString().slice(0, 16)
           : '';
-        reset({
-          name: currentRequest.name || '',
-          expires_at: expiresAt,
-          max_file_size: currentRequest.max_file_size || '',
-        });
+        setName(currentRequest.name || '');
+        setExpiresAt(expiresAtValue);
+        setMaxFileSize(currentRequest.max_file_size || '');
       } else {
-        reset({ name: '', expires_at: '', max_file_size: '' });
+        setName('');
+        setExpiresAt('');
+        setMaxFileSize('');
       }
     }
-  }, [isOpen, isEditing, currentRequest, reset]);
+  }, [isOpen, isEditing, currentRequest]);
 
-  const onSubmit = async (data) => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
     try {
       const payload = {
-        ...data,
+        name,
         folder: folder.id,
-        expires_at: data.expires_at ? new Date(data.expires_at).toISOString() : null,
-        max_file_size: data.max_file_size ? parseInt(data.max_file_size, 10) : null,
+        expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+        max_file_size: maxFileSize ? parseInt(maxFileSize, 10) : null,
       };
 
       if (isEditing) {
@@ -56,6 +60,8 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
       onOpenChange(false);
     } catch (error) {
       toast.error(error.response?.data?.detail || 'An error occurred.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -70,18 +76,34 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
               : `Create a link to request files for the "${folder?.name}" folder.`}
           </SheetDescription>
         </SheetHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div>
             <Label htmlFor="name">Name (Optional)</Label>
-            <Input id="name" {...register('name')} placeholder="e.g., Q1 Financials from Client" />
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Q1 Financials from Client"
+            />
           </div>
           <div>
             <Label htmlFor="expires_at">Expires At (Optional)</Label>
-            <Input id="expires_at" type="datetime-local" {...register('expires_at')} />
+            <Input
+              id="expires_at"
+              type="datetime-local"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+            />
           </div>
           <div>
             <Label htmlFor="max_file_size">Max File Size (Bytes, Optional)</Label>
-            <Input id="max_file_size" type="number" {...register('max_file_size')} placeholder="e.g., 10485760 for 10MB" />
+            <Input
+              id="max_file_size"
+              type="number"
+              value={maxFileSize}
+              onChange={(e) => setMaxFileSize(e.target.value)}
+              placeholder="e.g., 10485760 for 10MB"
+            />
           </div>
           <SheetFooter>
             <Button type="submit" disabled={isSubmitting}>
