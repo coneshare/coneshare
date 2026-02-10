@@ -10,6 +10,7 @@ import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
 import { Progress } from '../components/ui/Progress';
 import { formatBytes } from '../lib/formatters';
+import { cn } from '../lib/utils';
 
 export function PublicUploadPage() {
   const { slug } = useParams();
@@ -23,6 +24,7 @@ export function PublicUploadPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     const fetchRequestDetails = async () => {
@@ -38,9 +40,32 @@ export function PublicUploadPage() {
     fetchRequestDetails();
   }, [slug]);
 
+  const addFiles = (newFiles) => {
+    setFiles((prevFiles) => [...prevFiles, ...Array.from(newFiles)]);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      addFiles(e.dataTransfer.files);
+    }
+  };
+
   const handleFileChange = (e) => {
-    const newFiles = Array.from(e.target.files);
-    setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+    if (e.target.files && e.target.files.length > 0) {
+      addFiles(e.target.files);
+    }
   };
 
   const removeFile = (fileToRemove) => {
@@ -152,7 +177,15 @@ export function PublicUploadPage() {
                 <Label htmlFor="file-upload" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Files
                 </Label>
-                <div className="mt-1 flex justify-center rounded-md border-2 border-dashed border-gray-300 px-6 pt-5 pb-6 dark:border-gray-600">
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={cn(
+                    'mt-1 flex justify-center rounded-md border-2 border-dashed border-gray-300 px-6 pt-5 pb-6 transition-colors dark:border-gray-600',
+                    isDragging && 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/10'
+                  )}
+                >
                   <div className="space-y-1 text-center">
                     <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
                     <div className="flex text-sm text-gray-600 dark:text-gray-400">
