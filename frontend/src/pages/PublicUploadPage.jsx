@@ -77,6 +77,10 @@ export function PublicUploadPage() {
       toast.error('Please select at least one file to upload.');
       return;
     }
+    if (!uploaderName || !uploaderEmail) {
+      toast.error('Please enter your name and email address.');
+      return;
+    }
     setIsUploading(true);
 
     const uploadPromises = files.map(async (file) => {
@@ -153,22 +157,24 @@ export function PublicUploadPage() {
             <div className="mt-6 space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <Label htmlFor="uploaderName">Your Name (Optional)</Label>
+                  <Label htmlFor="uploaderName">Your Name</Label>
                   <Input
                     id="uploaderName"
                     value={uploaderName}
                     onChange={(e) => setUploaderName(e.target.value)}
                     disabled={isUploading}
+                    required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="uploaderEmail">Your Email (Optional)</Label>
+                  <Label htmlFor="uploaderEmail">Your Email</Label>
                   <Input
                     id="uploaderEmail"
                     type="email"
                     value={uploaderEmail}
                     onChange={(e) => setUploaderEmail(e.target.value)}
                     disabled={isUploading}
+                    required
                   />
                 </div>
               </div>
