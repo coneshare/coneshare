@@ -375,6 +375,12 @@ export const createFileRequest = (data) => api.post('/file-requests/', data);
 export const updateFileRequest = (id, data) => api.patch(`/file-requests/${id}/`, data);
 export const deleteFileRequest = (id) => api.delete(`/file-requests/${id}/`);
 
+// Public File Requests
+export const getPublicFileRequest = (slug) => api.get(`/public/file-requests/${slug}/`);
+export const requestPublicUpload = (slug, data) => api.post(`/public/file-requests/${slug}/request-upload/`, data);
+export const finalizePublicUpload = (slug, data) => api.post(`/public/file-requests/${slug}/finalize-upload/`, data);
+
+
 // Admin
 export const getAdminSettings = () => api.get('/admin/settings/');
 export const updateAdminSetting = (key, value) => api.patch(`/admin/settings/${key}/`, { value });

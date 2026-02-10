@@ -14,6 +14,7 @@ import DocumentsPage from './pages/DocumentsPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import PasswordSettingsPage from './pages/PasswordSettingsPage';
+import { PublicUploadPage } from './pages/PublicUploadPage';
 import { ShareLinkAnalyticsPage } from './pages/ShareLinkAnalyticsPage';
 import { ShareLinkViewerPage } from './pages/ShareLinkViewerPage';
 import UserSettingsPage from './pages/UserSettingsPage';
@@ -31,6 +32,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/view/:slug" element={<ShareLinkViewerPage />} />
+          <Route path="/upload/:slug" element={<PublicUploadPage />} />
           <Route path="/auth/:providerName/callback" element={<CloudAuthCallbackPage />} />
           <Route path="/500" element={<ErrorPage />} />
           <Route element={<MainLayout />}>
