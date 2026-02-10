@@ -52,9 +52,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const folderId = isEditing
-        ? currentRequest.folder
-        : destinationFolder?.id || (await getRootFolderId()).data.id;
+      const folderId = destinationFolder?.id || (await getRootFolderId()).data.id;
 
       const payload = {
         name,
@@ -91,15 +89,13 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
           </SheetDescription>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          {!isEditing && (
-            <div className="space-y-2">
-              <Label>Destination Folder</Label>
-              <FolderBrowser
-                initialFolderId={folder?.id || null}
-                onCurrentFolderChange={setDestinationFolder}
-              />
-            </div>
-          )}
+          <div className="space-y-2">
+            <Label>Destination Folder</Label>
+            <FolderBrowser
+              initialFolderId={isEditing ? currentRequest.folder : (folder?.id || null)}
+              onCurrentFolderChange={setDestinationFolder}
+            />
+          </div>
 
           <div>
             <Label htmlFor="name">Name (Optional)</Label>
