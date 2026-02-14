@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { toast, Toaster } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { getFileRequest, getDocumentDownloadUrl } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
-import { ArrowLeft, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 
 export function FileRequestDetailPage() {
@@ -32,26 +32,29 @@ export function FileRequestDetailPage() {
     }
   };
 
-  useEffect(() => {
-    setBreadcrumbData(null); // Use page title from nav item
-  }, [setBreadcrumbData]);
-
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const response = await getFileRequest(requestId);
       setFileRequest(response.data);
+      setBreadcrumbData({
+        type: 'fileRequest',
+        fileRequestName: response.data.name || 'Untitled Request',
+      });
     } catch (error) {
       toast.error('Failed to fetch file request details.');
       console.error('Failed to fetch file request details:', error);
     } finally {
       setLoading(false);
     }
-  }, [requestId]);
+  }, [requestId, setBreadcrumbData]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+    return () => {
+      setBreadcrumbData(null);
+    };
+  }, [fetchData, setBreadcrumbData]);
 
   if (loading) {
     return <div className="p-4 sm:p-6 text-center">Loading...</div>;
@@ -64,21 +67,6 @@ export function FileRequestDetailPage() {
   return (
     <div className="p-4 sm:p-6">
       <Toaster richColors />
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">{fileRequest.name || 'Untitled Request'}</h1>
-          <p className="text-muted-foreground">
-            Uploading to folder: <span className="font-medium text-foreground">{fileRequest.folder_name}</span>
-          </p>
-        </div>
-        <Button asChild variant="outline" size="sm">
-          <Link to="/file-requests">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to all requests
-          </Link>
-        </Button>
-      </div>
-
       <h2 className="text-xl font-semibold mb-4">Uploaded Files ({fileRequest.uploaded_files.length})</h2>
       <div className="rounded-lg border">
         <div className="flex items-center border-b bg-gray-50 px-4 py-3 text-sm font-medium text-muted-foreground dark:bg-gray-900/50">
