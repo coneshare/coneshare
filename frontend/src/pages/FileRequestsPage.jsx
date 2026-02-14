@@ -199,16 +199,16 @@ export function FileRequestsPage() {
                         </Button>
                       </DropdownMenu.Trigger>
                       <DropdownMenu.Content align="end" className="z-20 w-48 rounded-md bg-white p-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-gray-800">
-                        <DropdownMenu.Item onSelect={(e) => { e.stopPropagation(); handleCopyLink(request.slug); }} className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700">
+                        <DropdownMenu.Item onSelect={(e) => { e.preventDefault(); e.stopPropagation(); handleCopyLink(request.slug); }} className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700">
                           <Copy className="h-4 w-4" />
                           <span>Copy Link</span>
                         </DropdownMenu.Item>
-                        <DropdownMenu.Item onSelect={(e) => { e.stopPropagation(); handleEditRequest(request); }} className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700">
+                        <DropdownMenu.Item onSelect={(e) => { e.preventDefault(); e.stopPropagation(); handleEditRequest(request); }} className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700">
                           <Edit className="h-4 w-4" />
                           <span>Edit</span>
                         </DropdownMenu.Item>
                         <DropdownMenu.Separator className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
-                        <DropdownMenu.Item onSelect={(e) => { e.stopPropagation(); handleDeleteRequest(request); }} className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 focus:text-red-700 dark:text-red-500 dark:hover:bg-red-900/20">
+                        <DropdownMenu.Item onSelect={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteRequest(request); }} className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 focus:text-red-700 dark:text-red-500 dark:hover:bg-red-900/20">
                           <Trash2 className="h-4 w-4" />
                           <span>Delete</span>
                         </DropdownMenu.Item>
