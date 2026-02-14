@@ -127,9 +127,13 @@ export function PublicUploadPage() {
       }
     });
 
-    await Promise.all(uploadPromises);
+    const results = await Promise.all(uploadPromises);
     setIsUploading(false);
-    setUploadSuccess(true);
+    
+    const allSucceeded = results.every((result) => result.success);
+    if (allSucceeded) {
+      setUploadSuccess(true);
+    }
   };
 
   if (loading) {
