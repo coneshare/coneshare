@@ -205,7 +205,11 @@ export function FileRequestsPage() {
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenu.Trigger>
-                        <DropdownMenu.Content align="end" className="z-20 w-48 rounded-md bg-white p-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-gray-800">
+                        <DropdownMenu.Content
+                          align="end"
+                          className="z-20 w-48 rounded-md bg-white p-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-gray-800"
+                          onCloseAutoFocus={(e) => e.preventDefault()}
+                        >
                           <DropdownMenu.Item onSelect={(e) => { e.stopPropagation(); handleCopyLink(request.slug); }} className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700">
                             <Copy className="h-4 w-4" />
                             <span>Copy Link</span>
