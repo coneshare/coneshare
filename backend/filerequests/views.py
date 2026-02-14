@@ -1,5 +1,6 @@
 import logging
 
+from django.db.models import Count
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.exceptions import APIException
@@ -14,7 +15,7 @@ from documents.services import (
     _get_unique_document_name,
     generate_storage_key,
 )
-from .models import FileRequest
+from .models import FileRequest, UploadedFile
 from .serializers import (
     FileRequestSerializer,
     PublicFileRequestSerializer,
@@ -36,7 +37,11 @@ class FileRequestViewSet(viewsets.ModelViewSet):
         This view should return a list of all the file requests
         for the currently authenticated user.
         """
-        return FileRequest.objects.filter(created_by=self.request.user).select_related('folder')
+        return FileRequest.objects.filter(
+            created_by=self.request.user
+        ).select_related('folder').annotate(
+            uploaded_files_count=Count('uploaded_files')
+        )
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
@@ -139,12 +144,6 @@ class FileRequestUploadFinalizeView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         validated_data = serializer.validated_data
 
-        upload_info = {}
-        if validated_data.get('uploader_name'):
-            upload_info['name'] = validated_data['uploader_name']
-        if validated_data.get('uploader_email'):
-            upload_info['email'] = validated_data['uploader_email']
-
         try:
             document = create_document_from_upload(
                 requesting_user=file_request.created_by,
@@ -154,11 +153,13 @@ class FileRequestUploadFinalizeView(APIView):
                 file_size=validated_data['file_size'],
                 content_type=validated_data['content_type'],
             )
-            # As we can't modify create_document_from_upload, we save upload_info separately.
-            if upload_info:
-                document.upload_info = upload_info
-                document.save(update_fields=['upload_info'])
-
+            # Create the link record
+            UploadedFile.objects.create(
+                file_request=file_request,
+                document=document,
+                uploader_name=validated_data['uploader_name'],
+                uploader_email=validated_data['uploader_email']
+            )
         except Exception as e:
             logger.error(f"Failed to finalize document upload for file request {slug}: {e}")
             return Response(

@@ -6,6 +6,7 @@ from .models import FileRequest
 
 class FileRequestSerializer(serializers.ModelSerializer):
     folder_name = serializers.CharField(source='folder.name', read_only=True)
+    uploaded_files_count = serializers.IntegerField(read_only=True)
     folder = serializers.PrimaryKeyRelatedField(
         queryset=Folder.objects.all(),
     )
@@ -14,10 +15,10 @@ class FileRequestSerializer(serializers.ModelSerializer):
         model = FileRequest
         fields = [
             'id', 'name', 'folder', 'folder_name', 'slug', 'is_active',
-            'expires_at', 'max_file_size', 'allowed_file_types',
+            'expires_at', 'max_file_size', 'allowed_file_types', 'uploaded_files_count',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'slug', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'slug', 'created_at', 'updated_at', 'uploaded_files_count']
 
     def validate_folder(self, value):
         """

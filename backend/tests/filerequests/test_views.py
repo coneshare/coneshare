@@ -5,7 +5,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 from documents.models import Document, Folder
-from filerequests.models import FileRequest
+from filerequests.models import FileRequest, UploadedFile
 
 pytestmark = pytest.mark.django_db
 
@@ -150,7 +150,7 @@ class TestPublicFileRequestViews:
 
     @patch('documents.services.generate_pdf_pages_task.delay')
     def test_finalize_upload_success_and_creates_document(self, mock_task_delay, public_client, file_request):
-        """Test finalizing an upload creates a Document with correct ownership and info."""
+        """Test finalizing an upload creates a Document and an UploadedFile record."""
         url = f'/api/v1/public/file-requests/{file_request.slug}/finalize-upload/'
         data = {
             'storage_key': 'some-key',
@@ -162,15 +162,22 @@ class TestPublicFileRequestViews:
         }
         
         assert Document.objects.count() == 0
+        assert UploadedFile.objects.count() == 0
         response = public_client.post(url, data)
         assert response.status_code == status.HTTP_202_ACCEPTED
         assert Document.objects.count() == 1
+        assert UploadedFile.objects.count() == 1
         
         doc = Document.objects.first()
         assert doc.name == 'final-doc.pdf'
         assert doc.created_by == file_request.created_by
         assert doc.folder == file_request.folder
-        assert doc.upload_info == {'name': 'John Doe', 'email': 'john.doe@example.com'}
+        
+        uploaded_file = UploadedFile.objects.first()
+        assert uploaded_file.document == doc
+        assert uploaded_file.file_request == file_request
+        assert uploaded_file.uploader_name == 'John Doe'
+        assert uploaded_file.uploader_email == 'john.doe@example.com'
 
         # The service should have triggered a processing task
         mock_task_delay.assert_called_once()

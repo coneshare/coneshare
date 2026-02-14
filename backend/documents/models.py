@@ -69,7 +69,6 @@ class Document(BaseModel):
     assistant_enabled = models.BooleanField(default=False)
     is_starred = models.BooleanField(default=False)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='documents_created')
-    upload_info = models.JSONField(null=True, blank=True)
 
     class Meta:
         unique_together = ('created_by', 'folder', 'name')
