@@ -86,33 +86,6 @@ export function FileRequestDetailPage() {
     <TooltipProvider>
       <div className="p-4 sm:p-6">
         <Toaster richColors />
-        <div className="mb-6 flex items-center justify-between rounded-lg border p-4">
-          <div className="flex items-center gap-4">
-            <h2 className="text-lg font-semibold">Link Status</h2>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex align-middle">
-                  <Switch
-                    checked={fileRequest.is_active}
-                    onCheckedChange={handleStatusChange}
-                    aria-label="Toggle link status"
-                  />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{fileRequest.is_active ? 'Active' : 'Inactive'}</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">
-              Destination Folder:
-              <Link to={`/documents/folders/${fileRequest.folder}`} className="ml-1 font-medium text-primary hover:underline">
-                {fileRequest.folder_name}
-              </Link>
-            </p>
-          </div>
-        </div>
         <h2 className="text-xl font-semibold mb-4">Uploaded Files ({fileRequest.uploaded_files.length})</h2>
       <div className="rounded-lg border">
         <div className="flex items-center border-b bg-gray-50 px-4 py-3 text-sm font-medium text-muted-foreground dark:bg-gray-900/50">
