@@ -33,8 +33,7 @@ export function FileRequestDetailPage() {
   };
 
   useEffect(() => {
-    // Empty breadcrumb, page title is handled by h1
-    setBreadcrumbData({});
+    setBreadcrumbData(null); // Use page title from nav item
   }, [setBreadcrumbData]);
 
   const fetchData = useCallback(async () => {
@@ -65,7 +64,13 @@ export function FileRequestDetailPage() {
   return (
     <div className="p-4 sm:p-6">
       <Toaster richColors />
-      <div className="mb-4">
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">{fileRequest.name || 'Untitled Request'}</h1>
+          <p className="text-muted-foreground">
+            Uploading to folder: <span className="font-medium text-foreground">{fileRequest.folder_name}</span>
+          </p>
+        </div>
         <Button asChild variant="outline" size="sm">
           <Link to="/file-requests">
             <ArrowLeft className="mr-2 h-4 w-4" />

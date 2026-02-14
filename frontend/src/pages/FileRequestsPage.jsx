@@ -23,7 +23,7 @@ export function FileRequestsPage() {
   const [selectedRequest, setSelectedRequest] = useState(null);
 
   useEffect(() => {
-    setBreadcrumbData({}); // Sets page title via Header component
+    setBreadcrumbData(null); // Use page title from nav item
   }, [setBreadcrumbData]);
 
   const fetchData = useCallback(async () => {
@@ -98,8 +98,7 @@ export function FileRequestsPage() {
         confirmText="Delete"
       />
 
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">File Requests</h1>
+      <div className="mb-4 flex items-center justify-end">
         <Button onClick={() => setIsCreateSheetOpen(true)}>
           <UploadCloud className="mr-2 h-4 w-4" />
           Create File Request
