@@ -96,19 +96,18 @@ export function FileRequestsPage() {
       <div className="p-4 sm:p-6">
         <Toaster richColors />
       <FileRequestSheet
-        isOpen={isCreateSheetOpen}
-        onOpenChange={setIsCreateSheetOpen}
+        isOpen={isCreateSheetOpen || isEditSheetOpen}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setIsCreateSheetOpen(false);
+            setIsEditSheetOpen(false);
+            setSelectedRequest(null);
+          }
+        }}
+        currentRequest={selectedRequest}
+        folder={selectedRequest ? { id: selectedRequest.folder, name: selectedRequest.folder_name } : null}
         onSuccess={fetchData}
       />
-      {selectedRequest && (
-        <FileRequestSheet
-          isOpen={isEditSheetOpen}
-          onOpenChange={setIsEditSheetOpen}
-          currentRequest={selectedRequest}
-          folder={{ id: selectedRequest.folder, name: selectedRequest.folder_name }}
-          onSuccess={fetchData}
-        />
-      )}
       <ConfirmationDialog
         isOpen={isDeleteConfirmOpen}
         onOpenChange={setIsDeleteConfirmOpen}
