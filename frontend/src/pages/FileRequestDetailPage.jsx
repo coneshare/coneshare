@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { toast, Toaster } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
-import { getFileRequest } from '../services/api';
+import { getFileRequest, getDocumentDownloadUrl } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Download } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 
 export function FileRequestDetailPage() {
@@ -12,6 +12,25 @@ export function FileRequestDetailPage() {
   const { setBreadcrumbData } = useBreadcrumb();
   const [fileRequest, setFileRequest] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const handleDownload = async (documentId, documentName) => {
+    try {
+      toast.info(`Preparing download for ${documentName}...`);
+      const response = await getDocumentDownloadUrl(documentId);
+      const url = response.data.download_url;
+
+      // Create a temporary link to trigger the download
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', documentName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Failed to get download URL:', error);
+      // Error toast is handled by the API interceptor
+    }
+  };
 
   useEffect(() => {
     // Empty breadcrumb, page title is handled by h1
@@ -64,10 +83,12 @@ export function FileRequestDetailPage() {
       <h2 className="text-xl font-semibold mb-4">Uploaded Files ({fileRequest.uploaded_files.length})</h2>
       <div className="rounded-lg border">
         <div className="flex items-center border-b bg-gray-50 px-4 py-3 text-sm font-medium text-muted-foreground dark:bg-gray-900/50">
-          <div className="w-[40%]">File Name</div>
-          <div className="w-[25%]">Uploader</div>
-          <div className="w-[20%]">Email</div>
+          <div className="w-[30%]">File Name</div>
+          <div className="w-[20%]">Destination Folder</div>
+          <div className="w-[15%]">Uploader</div>
+          <div className="w-[15%]">Email</div>
           <div className="w-[15%]">Uploaded At</div>
+          <div className="w-[5%] text-right"></div>
         </div>
         <div>
           {fileRequest.uploaded_files.length === 0 ? (
@@ -77,11 +98,23 @@ export function FileRequestDetailPage() {
           ) : (
             fileRequest.uploaded_files.map((file) => (
               <div key={file.id} className="flex w-full items-center border-b px-4 py-2 text-sm">
-                <div className="w-[40%] truncate font-medium">{file.document_name}</div>
-                <div className="w-[25%] truncate">{file.uploader_name}</div>
-                <div className="w-[20%] truncate">{file.uploader_email}</div>
+                <div className="w-[30%] truncate font-medium">{file.document_name}</div>
+                <div className="w-[20%] truncate">{file.folder_name}</div>
+                <div className="w-[15%] truncate">{file.uploader_name}</div>
+                <div className="w-[15%] truncate">{file.uploader_email}</div>
                 <div className="w-[15%]">
                   {formatDistanceToNow(new Date(file.created_at), { addSuffix: true })}
+                </div>
+                <div className="w-[5%] flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => handleDownload(file.document_id, file.document_name)}
+                    title={`Download ${file.document_name}`}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             ))

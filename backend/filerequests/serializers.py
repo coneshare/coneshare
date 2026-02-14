@@ -6,10 +6,12 @@ from .models import FileRequest, UploadedFile
 
 class UploadedFileSerializer(serializers.ModelSerializer):
     document_name = serializers.CharField(source='document.name', read_only=True)
+    document_id = serializers.CharField(source='document.id', read_only=True)
+    folder_name = serializers.CharField(source='document.folder.name', read_only=True)
 
     class Meta:
         model = UploadedFile
-        fields = ['id', 'document_name', 'uploader_name', 'uploader_email', 'created_at']
+        fields = ['id', 'document_id', 'document_name', 'folder_name', 'uploader_name', 'uploader_email', 'created_at']
 
 
 class FileRequestSerializer(serializers.ModelSerializer):

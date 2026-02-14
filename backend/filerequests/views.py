@@ -49,7 +49,7 @@ class FileRequestViewSet(viewsets.ModelViewSet):
             uploaded_files_count=Count('uploaded_files')
         )
         if self.action == 'retrieve':
-            queryset = queryset.prefetch_related('uploaded_files', 'uploaded_files__document')
+            queryset = queryset.prefetch_related('uploaded_files', 'uploaded_files__document__folder')
         return queryset
 
     def perform_create(self, serializer):
