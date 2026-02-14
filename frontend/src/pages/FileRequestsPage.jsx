@@ -150,7 +150,10 @@ export function FileRequestsPage() {
               return (
                 <div
                   key={request.id}
-                  onClick={() => navigate(`/file-requests/${request.id}`)}
+                  onClick={(e) => {
+                    if (e.defaultPrevented) return;
+                    navigate(`/file-requests/${request.id}`);
+                  }}                  
                   className="flex w-full cursor-pointer items-center border-b px-4 py-2 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/50"
                 >
                   <div className="w-8" />
@@ -194,7 +197,11 @@ export function FileRequestsPage() {
                   <div className="w-16 flex justify-end">
                     <DropdownMenu.Root>
                       <DropdownMenu.Trigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                }}>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenu.Trigger>
