@@ -73,12 +73,6 @@ export function FileRequestDetailPage() {
           </Link>
         </Button>
       </div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold">{fileRequest.name || 'Untitled Request'}</h1>
-        <p className="text-muted-foreground">
-          Uploading to folder: <span className="font-medium text-foreground">{fileRequest.folder_name}</span>
-        </p>
-      </div>
 
       <h2 className="text-xl font-semibold mb-4">Uploaded Files ({fileRequest.uploaded_files.length})</h2>
       <div className="rounded-lg border">
