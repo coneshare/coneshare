@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast, Toaster } from 'sonner';
 import { format, formatDistanceToNow } from 'date-fns';
 import { MoreHorizontal, Edit, Trash2, Copy, UploadCloud } from 'lucide-react';
@@ -133,7 +133,15 @@ export function FileRequestsPage() {
               >
                 <div className="w-8" />
                 <div className="w-[30%] truncate font-medium">{request.name || 'Untitled Request'}</div>
-                <div className="w-[25%] truncate">{request.folder_name}</div>
+                <div className="w-[25%] truncate">
+                  <Link
+                    to={`/documents/folders/${request.folder}`}
+                    className="hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {request.folder_name}
+                  </Link>
+                </div>
                 <div className="w-[10%]">{request.uploaded_files_count}</div>
                 <div className="w-[15%]">
                   {request.expires_at ? format(new Date(request.expires_at), 'PPp') : 'Never'}

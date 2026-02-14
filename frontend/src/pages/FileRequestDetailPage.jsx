@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { toast, Toaster } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { getFileRequest, getDocumentDownloadUrl } from '../services/api';
@@ -86,7 +86,11 @@ export function FileRequestDetailPage() {
             fileRequest.uploaded_files.map((file) => (
               <div key={file.id} className="flex w-full items-center border-b px-4 py-2 text-sm">
                 <div className="w-[30%] truncate font-medium">{file.document_name}</div>
-                <div className="w-[20%] truncate">{file.folder_name}</div>
+                <div className="w-[20%] truncate">
+                  <Link to={`/documents/folders/${file.folder_id}`} className="hover:underline">
+                    {file.folder_name}
+                  </Link>
+                </div>
                 <div className="w-[15%] truncate">{file.uploader_name}</div>
                 <div className="w-[15%] truncate">{file.uploader_email}</div>
                 <div className="w-[15%]">
