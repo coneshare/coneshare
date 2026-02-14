@@ -81,6 +81,13 @@ export function PublicUploadPage() {
       toast.error('Please enter your name and email address.');
       return;
     }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(uploaderEmail)) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
+
     setIsUploading(true);
 
     const uploadPromises = files.map(async (file) => {
