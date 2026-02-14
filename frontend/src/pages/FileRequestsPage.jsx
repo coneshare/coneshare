@@ -5,11 +5,18 @@ import { formatDistanceToNow } from 'date-fns';
 import { MoreHorizontal, Edit, Trash2, Copy, UploadCloud } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
-import { getFileRequests, deleteFileRequest } from '../services/api';
+import { getFileRequests, deleteFileRequest, updateFileRequest } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { FileRequestSheet } from '../components/filerequests/FileRequestSheet';
+import { Switch } from '../components/ui/Switch';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../components/ui/Tooltip';
 
 export function FileRequestsPage() {
   const navigate = useNavigate();
@@ -37,6 +44,18 @@ export function FileRequestsPage() {
       setLoading(false);
     }
   }, []);
+
+  const handleStatusChange = async (request, newStatus) => {
+    try {
+      const response = await updateFileRequest(request.id, { is_active: newStatus });
+      toast.success(`Link "${request.name || 'Untitled Request'}" is now ${newStatus ? 'active' : 'inactive'}.`);
+      setFileRequests(prev => 
+        prev.map(r => r.id === request.id ? response.data : r)
+      );
+    } catch (error) {
+      // Error is handled by API interceptor
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -73,8 +92,9 @@ export function FileRequestsPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6">
-      <Toaster richColors />
+    <TooltipProvider>
+      <div className="p-4 sm:p-6">
+        <Toaster richColors />
       <FileRequestSheet
         isOpen={isCreateSheetOpen}
         onOpenChange={setIsCreateSheetOpen}
@@ -107,9 +127,10 @@ export function FileRequestsPage() {
 
       <div className="rounded-lg border">
         <div className="flex items-center border-b bg-gray-50 px-4 py-3 text-sm font-medium text-muted-foreground dark:bg-gray-900/50">
-          <div className="w-[35%] pl-8">Name</div>
-          <div className="w-[30%]">Destination Folder</div>
+          <div className="w-[30%] pl-8">Name</div>
+          <div className="w-[25%]">Destination Folder</div>
           <div className="w-[10%]">Uploaded</div>
+          <div className="w-[10%]">Status</div>
           <div className="w-[20%]">Created</div>
           <div className="w-16 text-right">Actions</div>
         </div>
@@ -141,7 +162,7 @@ export function FileRequestsPage() {
                       </span>
                     )}
                   </div>
-                  <div className="w-[30%] truncate">
+                  <div className="w-[25%] truncate">
                     <Link
                       to={`/documents/folders/${request.folder}`}
                       className="hover:underline"
@@ -151,6 +172,22 @@ export function FileRequestsPage() {
                     </Link>
                   </div>
                   <div className="w-[10%]">{request.uploaded_files_count}</div>
+                  <div className="w-[10%]">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex align-middle" onClick={(e) => e.stopPropagation()}>
+                          <Switch
+                            checked={request.is_active}
+                            onCheckedChange={(checked) => handleStatusChange(request, checked)}
+                            aria-label="Toggle link status"
+                          />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{request.is_active ? 'Active' : 'Inactive'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                   <div className="w-[20%]">
                     {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
                   </div>
@@ -184,5 +221,6 @@ export function FileRequestsPage() {
         </div>
       </div>
     </div>
+    </TooltipProvider>
   );
 }
