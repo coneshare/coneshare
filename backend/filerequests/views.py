@@ -18,6 +18,7 @@ from documents.services import (
 from .models import FileRequest, UploadedFile
 from .serializers import (
     FileRequestSerializer,
+    FileRequestDetailSerializer,
     PublicFileRequestSerializer,
     FileRequestUploadFinalizeSerializer,
 )
@@ -32,16 +33,24 @@ class FileRequestViewSet(viewsets.ModelViewSet):
     serializer_class = FileRequestSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return FileRequestDetailSerializer
+        return FileRequestSerializer
+
     def get_queryset(self):
         """
         This view should return a list of all the file requests
         for the currently authenticated user.
         """
-        return FileRequest.objects.filter(
+        queryset = FileRequest.objects.filter(
             created_by=self.request.user
         ).select_related('folder').annotate(
             uploaded_files_count=Count('uploaded_files')
         )
+        if self.action == 'retrieve':
+            queryset = queryset.prefetch_related('uploaded_files', 'uploaded_files__document')
+        return queryset
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)

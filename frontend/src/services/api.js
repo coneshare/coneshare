@@ -371,6 +371,7 @@ export const downloadDataroomFolder = (slug, folderId) => {
 
 // File Requests
 export const getFileRequests = () => api.get('/file-requests/');
+export const getFileRequest = (id) => api.get(`/file-requests/${id}/`);
 export const createFileRequest = (data) => api.post('/file-requests/', data);
 export const updateFileRequest = (id, data) => api.patch(`/file-requests/${id}/`, data);
 export const deleteFileRequest = (id) => api.delete(`/file-requests/${id}/`);

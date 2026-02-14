@@ -1,7 +1,15 @@
 from rest_framework import serializers
 
 from documents.models import Folder
-from .models import FileRequest
+from .models import FileRequest, UploadedFile
+
+
+class UploadedFileSerializer(serializers.ModelSerializer):
+    document_name = serializers.CharField(source='document.name', read_only=True)
+
+    class Meta:
+        model = UploadedFile
+        fields = ['id', 'document_name', 'uploader_name', 'uploader_email', 'created_at']
 
 
 class FileRequestSerializer(serializers.ModelSerializer):
@@ -32,6 +40,13 @@ class FileRequestSerializer(serializers.ModelSerializer):
         if value.created_by is not None and value.created_by != request.user:
             raise serializers.ValidationError("You can only create file requests for your own folders.")
         return value
+
+
+class FileRequestDetailSerializer(FileRequestSerializer):
+    uploaded_files = UploadedFileSerializer(many=True, read_only=True)
+
+    class Meta(FileRequestSerializer.Meta):
+        fields = list(FileRequestSerializer.Meta.fields) + ['uploaded_files']
 
 
 class PublicFileRequestSerializer(serializers.ModelSerializer):
