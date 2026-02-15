@@ -74,11 +74,7 @@ export function FileRequestDetailPage() {
     };
   }, [fetchData, setBreadcrumbData]);
 
-  if (loading) {
-    return <div className="p-4 sm:p-6 text-center">Loading...</div>;
-  }
-
-  if (!fileRequest) {
+  if (!loading && !fileRequest) {
     return <div className="p-4 sm:p-6 text-center">File request not found.</div>;
   }
 
@@ -86,7 +82,7 @@ export function FileRequestDetailPage() {
     <TooltipProvider>
       <div className="p-4 sm:p-6">
         <Toaster richColors />
-        <h2 className="text-xl font-semibold mb-4">Uploaded Files ({fileRequest.uploaded_files.length})</h2>
+        <h2 className="text-xl font-semibold mb-4">Uploaded Files ({fileRequest?.uploaded_files?.length || 0})</h2>
       <div className="rounded-lg border">
         <div className="flex items-center border-b bg-gray-50 px-4 py-3 text-sm font-medium text-muted-foreground dark:bg-gray-900/50">
           <div className="w-[30%]">File Name</div>
@@ -97,7 +93,9 @@ export function FileRequestDetailPage() {
           <div className="w-[5%] text-right"></div>
         </div>
         <div>
-          {fileRequest.uploaded_files.length === 0 ? (
+          {loading ? (
+            <div className="p-4 text-center">Loading...</div>
+          ) : fileRequest.uploaded_files.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
               <p>No files have been uploaded to this link yet.</p>
             </div>
