@@ -21,6 +21,7 @@ import {
 
 export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest, onSuccess }) {
   const [name, setName] = useState('');
+  const [message, setMessage] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
   const [maxFileSize, setMaxFileSize] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,11 +37,13 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
           ? new Date(currentRequest.expires_at).toISOString().slice(0, 16)
           : '';
         setName(currentRequest.name || '');
+        setMessage(currentRequest.message || '');
         setExpiresAt(expiresAtValue);
-        setMaxFileSize(currentRequest.max_file_size || '');
+        setMaxFileSize(currentRequest.max_file_size ? String(currentRequest.max_file_size / (1024 * 1024)) : '');
       } else {
         // Reset for create mode
         setName('');
+        setMessage('');
         setExpiresAt('');
         setMaxFileSize('');
         setDestinationFolder(folder || null);
@@ -50,15 +53,20 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!name.trim()) {
+      toast.error('Name is required.');
+      return;
+    }
     setIsSubmitting(true);
     try {
       const folderId = destinationFolder?.id || (await getRootFolderId()).data.id;
 
       const payload = {
         name,
+        message,
         folder: folderId,
         expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
-        max_file_size: maxFileSize ? parseInt(maxFileSize, 10) : null,
+        max_file_size: maxFileSize ? parseInt(maxFileSize, 10) * 1024 * 1024 : null,
       };
 
       if (isEditing) {
@@ -98,12 +106,21 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
           </div>
 
           <div>
-            <Label htmlFor="name">Name (Optional)</Label>
+            <Label htmlFor="name">Name</Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Q1 Financials from Client"
+            />
+          </div>
+          <div>
+            <Label htmlFor="message">Message (Optional)</Label>
+            <Input
+              id="message"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="e.g., A short message to display on the upload page"
             />
           </div>
           <div>
@@ -116,13 +133,13 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
             />
           </div>
           <div>
-            <Label htmlFor="max_file_size">Max File Size (Bytes, Optional)</Label>
+            <Label htmlFor="max_file_size">Max File Size (MB, Optional)</Label>
             <Input
               id="max_file_size"
               type="number"
               value={maxFileSize}
               onChange={(e) => setMaxFileSize(e.target.value)}
-              placeholder="e.g., 10485760 for 10MB"
+              placeholder="e.g., 10 for 10MB"
             />
           </div>
           <SheetFooter>

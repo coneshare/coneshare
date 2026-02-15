@@ -27,7 +27,7 @@ class FileRequestSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'folder', 'folder_name', 'slug', 'is_active',
             'expires_at', 'max_file_size', 'allowed_file_types', 'uploaded_files_count',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'message'
         ]
         read_only_fields = ['id', 'slug', 'created_at', 'updated_at', 'uploaded_files_count']
 
@@ -59,7 +59,7 @@ class PublicFileRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = FileRequest
         fields = [
-            'name', 'max_file_size', 'allowed_file_types'
+            'name', 'max_file_size', 'allowed_file_types', 'message'
         ]
 
 

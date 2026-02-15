@@ -161,7 +161,7 @@ export function PublicUploadPage() {
                 {fileRequest.name || 'File Upload'}
               </h1>
               <p className="mt-2 text-muted-foreground">
-                You have been invited to upload files.
+                {fileRequest.message || 'You have been invited to upload files.'}
               </p>
             </div>
 

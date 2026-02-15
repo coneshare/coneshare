@@ -12,7 +12,8 @@ class FileRequest(BaseModel):
     """
     folder = models.ForeignKey(Folder, on_delete=models.CASCADE, related_name='file_requests')
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='file_requests_created')
-    name = models.CharField(max_length=255, blank=True)
+    name = models.CharField(max_length=255)
+    message = models.TextField(blank=True)
     slug = models.CharField(max_length=50, unique=True, blank=True)
     is_active = models.BooleanField(default=True)
     expires_at = models.DateTimeField(null=True, blank=True)
