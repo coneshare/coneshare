@@ -107,7 +107,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
           </div>
 
           <div>
-            <Label htmlFor="name">Name</Label>
+            <Label htmlFor="name">Name (Visible to public)</Label>
             <Input
               id="name"
               value={name}

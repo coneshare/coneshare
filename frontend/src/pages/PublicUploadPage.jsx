@@ -161,7 +161,7 @@ export function PublicUploadPage() {
                 {fileRequest.owner_name || 'Someone'} has invited you to upload files for:
               </p>
               <h1 className="mt-2 text-2xl font-bold">
-                {fileRequest.name || 'File Upload'}
+                {fileRequest.name}
               </h1>
               {fileRequest.message && (
                 <p className="mt-2 text-muted-foreground">
