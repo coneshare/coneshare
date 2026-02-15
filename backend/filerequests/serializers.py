@@ -56,10 +56,12 @@ class PublicFileRequestSerializer(serializers.ModelSerializer):
     """
     Serializer for exposing public-facing details of a file request.
     """
+    owner_name = serializers.CharField(source='created_by.name', read_only=True)
+
     class Meta:
         model = FileRequest
         fields = [
-            'name', 'max_file_size', 'allowed_file_types', 'message'
+            'name', 'owner_name', 'max_file_size', 'allowed_file_types', 'message'
         ]
 
 

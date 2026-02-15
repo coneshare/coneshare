@@ -157,12 +157,17 @@ export function PublicUploadPage() {
         ) : (
           <>
             <div className="text-center">
-              <h1 className="text-2xl font-bold">
+              <p className="text-muted-foreground">
+                {fileRequest.owner_name || 'Someone'} has invited you to upload files for:
+              </p>
+              <h1 className="mt-2 text-2xl font-bold">
                 {fileRequest.name || 'File Upload'}
               </h1>
-              <p className="mt-2 text-muted-foreground">
-                {fileRequest.message || 'You have been invited to upload files.'}
-              </p>
+              {fileRequest.message && (
+                <p className="mt-2 text-muted-foreground">
+                  {fileRequest.message}
+                </p>
+              )}
             </div>
 
             <div className="mt-6 space-y-4">
