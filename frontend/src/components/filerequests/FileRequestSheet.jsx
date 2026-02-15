@@ -87,7 +87,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
   
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-3xl">
+      <SheetContent className="sm:max-w-3xl flex flex-col">
         <SheetHeader>
           <SheetTitle>{isEditing ? 'Edit File Request' : 'Create File Request'}</SheetTitle>
           <SheetDescription>
@@ -96,9 +96,10 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
               : 'Create a link to request files. Select a destination folder and set your options.'}
           </SheetDescription>
         </SheetHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label>Destination Folder</Label>
+        <form id="file-request-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+          <div className="space-y-4 py-4 pr-6">
+            <div className="space-y-2">
+              <Label>Destination Folder</Label>
             <FolderBrowser
               initialFolderId={isEditing ? currentRequest.folder : (folder?.id || null)}
               onCurrentFolderChange={setDestinationFolder}
@@ -142,12 +143,13 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
               placeholder="e.g., 10 for 10MB"
             />
           </div>
-          <SheetFooter>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Link'}
-            </Button>
-          </SheetFooter>
+          </div>
         </form>
+        <SheetFooter>
+          <Button type="submit" form="file-request-form" disabled={isSubmitting}>
+            {isSubmitting ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Link'}
+          </Button>
+        </SheetFooter>
       </SheetContent>
     </Sheet>
   );
