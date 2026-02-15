@@ -6,6 +6,12 @@ import { cn } from "../../lib/utils";
 import { formatBytes } from "../../lib/formatters";
 import { ActionsDropdown } from "./ActionsDropdown";
 import { Checkbox } from "../ui/Checkbox";
+import { Badge } from "../ui/Badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "../ui/Tooltip";
 
 export function DraggableItem({
   id,
@@ -104,7 +110,24 @@ export function DraggableItem({
           </button>
         )}
       </div>
-      <div className="w-[20%] truncate">{item.created_by?.name || "Me"}</div>
+      <div className="w-[20%] truncate">
+        {item.uploader_info ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="secondary" className="cursor-default">
+                {item.uploader_info.name}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>
+                Uploaded by {item.uploader_info.name} ({item.uploader_info.email})
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          item.created_by?.name || "Me"
+        )}
+      </div>
       <div className="w-[20%]">
         {item.updated_at
           ? formatDistanceToNow(new Date(item.updated_at), { addSuffix: true })

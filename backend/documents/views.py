@@ -601,7 +601,7 @@ class FolderViewSet(viewsets.ModelViewSet):
         """Helper to fetch and serialize sub-folders and documents for a given folder."""
         sub_folders = folder.children.filter(created_by=request.user)
         documents = folder.documents.filter(created_by=request.user).prefetch_related(
-            'versions', 'share_links', 'share_links__view_sessions'
+            'versions', 'share_links', 'share_links__view_sessions', 'uploaded_via_file_request'
         )
 
         sub_folders_serializer = self.get_serializer(sub_folders, many=True)
@@ -696,7 +696,9 @@ class DocumentViewSet(viewsets.ModelViewSet):
         return self.queryset.filter(
             organization=self.request.user.organization,
             created_by=self.request.user
-        ).select_related('folder').prefetch_related('versions', 'share_links', 'share_links__view_sessions')
+        ).select_related('folder').prefetch_related(
+            'versions', 'share_links', 'share_links__view_sessions', 'uploaded_via_file_request'
+        )
 
     def list(self, request, *args, **kwargs):
         """

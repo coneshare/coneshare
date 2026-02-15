@@ -1,4 +1,5 @@
 import { Eye, Upload } from 'lucide-react';
+import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import {
   DropdownMenu,
@@ -18,7 +19,16 @@ import { PlusIcon } from '../icons/PlusIcon';
 export function DocumentHeader({ document, onCreateLink, onPreview, onUploadNewVersion, onDownload, onDelete }) {
   return (
     <div className="border-b border-gray-200 pb-5 sm:flex sm:items-center sm:justify-between">
-      <h1 className="text-2xl font-bold leading-6 text-gray-900">{document.name}</h1>
+      <div>
+        <h1 className="text-2xl font-bold leading-6 text-gray-900">{document.name}</h1>
+        {document.uploader_info && (
+          <div className="mt-2">
+            <Badge variant="secondary">
+              Uploaded by {document.uploader_info.name} ({document.uploader_info.email})
+            </Badge>
+          </div>
+        )}
+      </div>
       <TooltipProvider>
         <div className="mt-3 flex sm:ml-4 sm:mt-0">
           <Tooltip>
