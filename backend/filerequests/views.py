@@ -69,7 +69,7 @@ class PublicFileRequestView(APIView):
             return Response({"detail": "File request not found or has been disabled."}, status=status.HTTP_404_NOT_FOUND)
 
         if file_request.expires_at and file_request.expires_at < timezone.now():
-            return Response({"detail": "This file request has expired."}, status=status.HTTP_410_GONE)
+            return Response({"detail": "This file request has expired."}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = PublicFileRequestSerializer(file_request)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -88,7 +88,7 @@ class FileRequestUploadRequestView(APIView):
             return Response({"detail": "File request not found or has been disabled."}, status=status.HTTP_404_NOT_FOUND)
 
         if file_request.expires_at and file_request.expires_at < timezone.now():
-            return Response({"detail": "This file request has expired."}, status=status.HTTP_410_GONE)
+            return Response({"detail": "This file request has expired."}, status=status.HTTP_400_BAD_REQUEST)
 
         file_name = request.data.get('file_name')
         file_size = request.data.get('file_size')
@@ -146,7 +146,7 @@ class FileRequestUploadFinalizeView(APIView):
             return Response({"detail": "File request not found or has been disabled."}, status=status.HTTP_404_NOT_FOUND)
 
         if file_request.expires_at and file_request.expires_at < timezone.now():
-            return Response({"detail": "This file request has expired."}, status=status.HTTP_410_GONE)
+            return Response({"detail": "This file request has expired."}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = FileRequestUploadFinalizeSerializer(data=request.data)
         if not serializer.is_valid():
