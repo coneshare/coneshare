@@ -165,13 +165,23 @@ export function FileRequestsPage() {
                     )}
                   </div>
                   <div className="w-[25%] truncate">
-                    <Link
-                      to={`/documents/folders/${request.folder}`}
-                      className="hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {request.folder_name}
-                    </Link>
+                    {request.folder_name === '__root__' ? (
+                      <Link
+                        to="/documents"
+                        className="hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Root
+                      </Link>
+                    ) : (
+                      <Link
+                        to={`/documents/folders/${request.folder}`}
+                        className="hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {request.folder_name}
+                      </Link>
+                    )}
                   </div>
                   <div className="w-[10%]">{request.uploaded_files_count}</div>
                   <div className="w-[10%]">
