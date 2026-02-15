@@ -23,6 +23,7 @@ import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
 import { MoveItemsDialog } from '../components/dialogs/MoveItemsDialog';
 import { CloudImportDialog } from '../components/dialogs/CloudImportDialog';
 import { FileRequestSheet } from '../components/filerequests/FileRequestSheet';
+import { TooltipProvider } from '../components/ui/Tooltip';
 
 function DocumentsPage() {
   const { folderId } = useParams();
@@ -390,10 +391,11 @@ function DocumentsPage() {
 
 
   return (
-    <div className="sticky top-0 mb-4 rounded-lg bg-white p-4 dark:bg-gray-900 sm:mx-4 sm:pt-8">
-      <Toaster richColors />
-      <FileRequestSheet
-        isOpen={isFileRequestSheetOpen}
+    <TooltipProvider>
+      <div className="sticky top-0 mb-4 rounded-lg bg-white p-4 dark:bg-gray-900 sm:mx-4 sm:pt-8">
+        <Toaster richColors />
+        <FileRequestSheet
+          isOpen={isFileRequestSheetOpen}
         onOpenChange={setIsFileRequestSheetOpen}
         folder={selectedFolderForRequest}
         onSuccess={() => {
@@ -547,7 +549,8 @@ function DocumentsPage() {
         onShare={handleShare}
         onRequestFiles={handleRequestFiles}
       />
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }
 
