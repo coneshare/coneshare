@@ -87,7 +87,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
   
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent>
+      <SheetContent className="sm:max-w-3xl">
         <SheetHeader>
           <SheetTitle>{isEditing ? 'Edit File Request' : 'Create File Request'}</SheetTitle>
           <SheetDescription>
