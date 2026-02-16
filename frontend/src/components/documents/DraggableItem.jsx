@@ -111,10 +111,11 @@ export function DraggableItem({
         )}
       </div>
       <div className="w-[20%] truncate">
-        {item.uploader_info ? (
+        {item.created_by?.name || "Me"}
+        {item.uploader_info && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Badge variant="secondary" className="cursor-default">
+              <Badge variant="secondary" className="cursor-default ml-2">
                 {item.uploader_info.name}
               </Badge>
             </TooltipTrigger>
@@ -124,9 +125,7 @@ export function DraggableItem({
               </p>
             </TooltipContent>
           </Tooltip>
-        ) : (
-          item.created_by?.name || "Me"
-        )}
+        )}        
       </div>
       <div className="w-[20%]">
         {item.updated_at
