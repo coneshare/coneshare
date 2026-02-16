@@ -4,7 +4,7 @@ import { toast, Toaster } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { getFileRequest, getDocumentDownloadUrl, updateFileRequest } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
-import { Download } from 'lucide-react';
+import { Download, Copy } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Switch } from '../components/ui/Switch';
 import {
@@ -19,6 +19,13 @@ export function FileRequestDetailPage() {
   const { setBreadcrumbData } = useBreadcrumb();
   const [fileRequest, setFileRequest] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const handleCopyLink = () => {
+    if (!fileRequest) return;
+    const url = `${window.location.origin}/upload/${fileRequest.slug}`;
+    navigator.clipboard.writeText(url);
+    toast.success('Link copied to clipboard!');
+  };
 
   const handleDownload = async (documentId, documentName) => {
     try {
@@ -82,7 +89,15 @@ export function FileRequestDetailPage() {
     <TooltipProvider>
       <div className="p-4 sm:p-6">
         <Toaster richColors />
-        <h2 className="text-xl font-semibold mb-4">Uploaded Files ({fileRequest?.uploaded_files?.length || 0})</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Uploaded Files ({fileRequest?.uploaded_files?.length || 0})</h2>
+          {fileRequest && (
+            <Button onClick={handleCopyLink} variant="outline">
+              <Copy className="mr-2 h-4 w-4" />
+              Copy Link
+            </Button>
+          )}
+        </div>
       <div className="rounded-lg border">
         <div className="flex items-center border-b bg-gray-50 px-4 py-3 text-sm font-medium text-muted-foreground dark:bg-gray-900/50">
           <div className="w-[30%]">File Name</div>
