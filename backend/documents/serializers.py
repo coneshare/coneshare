@@ -187,13 +187,8 @@ class DocumentSerializer(serializers.ModelSerializer):
         return ShareLinkSerializer(queryset, many=True, context=self.context).data
 
     def get_uploader_info(self, obj):
-        # Assumes a Document will have at most one UploadedFile record.
-        upload_record = obj.uploaded_via_file_request.first()
-        if upload_record:
-            return {
-                'name': upload_record.uploader_name,
-                'email': upload_record.uploader_email
-            }
+        if obj.metadata:
+            return obj.metadata.get('uploader_info')
         return None
 
     def create(self, validated_data):

@@ -162,6 +162,14 @@ class FileRequestUploadFinalizeView(APIView):
                 file_size=validated_data['file_size'],
                 content_type=validated_data['content_type'],
             )
+            # Store uploader info in the document's metadata
+            document.metadata = {
+                'uploader_info': {
+                    'name': validated_data['uploader_name'],
+                    'email': validated_data['uploader_email'],
+                }
+            }
+            document.save(update_fields=['metadata'])
             # Create the link record
             UploadedFile.objects.create(
                 file_request=file_request,
