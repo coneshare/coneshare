@@ -50,7 +50,7 @@ export function FileRequestDetailPage() {
     if (!fileRequest) return;
     try {
       const response = await updateFileRequest(fileRequest.id, { is_active: newStatus });
-      setFileRequest(response.data); // Update local state
+      setFileRequest(prev => ({ ...prev, ...response.data })); // Merge new data with existing state
       toast.success(`Link is now ${newStatus ? 'active' : 'inactive'}.`);
     } catch (error) {
       // Error handled by interceptor
