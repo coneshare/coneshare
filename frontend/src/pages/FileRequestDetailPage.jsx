@@ -102,11 +102,21 @@ export function FileRequestDetailPage() {
           ) : (
             fileRequest.uploaded_files.map((file) => (
               <div key={file.id} className="flex w-full items-center border-b px-4 py-2 text-sm">
-                <div className="w-[30%] truncate font-medium">{file.document_name}</div>
-                <div className="w-[20%] truncate">
-                  <Link to={`/documents/folders/${file.folder_id}`} className="hover:underline">
-                    {file.folder_name}
+                <div className="w-[30%] truncate font-medium">
+                  <Link to={`/documents/${file.document_id}`} className="hover:underline">
+                    {file.document_name}
                   </Link>
+                </div>
+                <div className="w-[20%] truncate">
+                  {file.folder_name === '__root__' ? (
+                    <Link to="/documents" className="hover:underline">
+                      Root
+                    </Link>
+                  ) : (
+                    <Link to={`/documents/folders/${file.folder_id}`} className="hover:underline">
+                      {file.folder_name}
+                    </Link>
+                  )}
                 </div>
                 <div className="w-[15%] truncate">{file.uploader_name}</div>
                 <div className="w-[15%] truncate">{file.uploader_email}</div>
