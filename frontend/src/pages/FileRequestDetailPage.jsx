@@ -85,17 +85,42 @@ export function FileRequestDetailPage() {
     return <div className="p-4 sm:p-6 text-center">File request not found.</div>;
   }
 
+  const isExpired = fileRequest?.expires_at && new Date(fileRequest.expires_at) < new Date();
+
   return (
     <TooltipProvider>
       <div className="p-4 sm:p-6">
         <Toaster richColors />
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Uploaded Files ({fileRequest?.uploaded_files?.length || 0})</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-semibold">Uploaded Files ({fileRequest?.uploaded_files?.length || 0})</h2>
+            {isExpired && (
+              <span className="flex-shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                Expired
+              </span>
+            )}
+          </div>
           {fileRequest && (
-            <Button onClick={handleCopyLink} variant="outline">
-              <Copy className="mr-2 h-4 w-4" />
-              Copy Link
-            </Button>
+            <div className="flex items-center gap-4">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex align-middle">
+                    <Switch
+                      checked={fileRequest.is_active}
+                      onCheckedChange={handleStatusChange}
+                      aria-label="Toggle link status"
+                    />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{fileRequest.is_active ? 'Active' : 'Inactive'}</p>
+                </TooltipContent>
+              </Tooltip>
+              <Button onClick={handleCopyLink} variant="outline">
+                <Copy className="mr-2 h-4 w-4" />
+                Copy Link
+              </Button>
+            </div>
           )}
         </div>
       <div className="rounded-lg border">
