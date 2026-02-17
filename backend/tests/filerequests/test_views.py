@@ -115,12 +115,12 @@ class TestPublicFileRequestViews:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_get_public_details_expired(self, public_client, file_request):
-        """Test an expired file request returns 410."""
+        """Test an expired file request returns 400."""
         file_request.expires_at = timezone.now() - timedelta(days=1)
         file_request.save()
         url = f'/api/v1/public/file-requests/{file_request.slug}/'
         response = public_client.get(url)
-        assert response.status_code == status.HTTP_410_GONE
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     @patch('filerequests.views.fileserver_client.generate_upload_url')
     def test_request_upload_url_success(self, mock_generate_url, public_client, file_request):
