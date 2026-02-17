@@ -1,5 +1,6 @@
 import logging
 
+from django.db import transaction
 from django.db.models import Count
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
@@ -155,29 +156,30 @@ class FileRequestUploadFinalizeView(APIView):
         validated_data = serializer.validated_data
 
         try:
-            document = create_document_from_upload(
-                requesting_user=file_request.created_by,
-                folder=file_request.folder,
-                storage_key=validated_data['storage_key'],
-                unique_name=validated_data['unique_name'],
-                file_size=validated_data['file_size'],
-                content_type=validated_data['content_type'],
-            )
-            # Store uploader info in the document's metadata
-            document.metadata = {
-                'uploader_info': {
-                    'name': validated_data['uploader_name'],
-                    'email': validated_data['uploader_email'],
+            with transaction.atomic():
+                document = create_document_from_upload(
+                    requesting_user=file_request.created_by,
+                    folder=file_request.folder,
+                    storage_key=validated_data['storage_key'],
+                    unique_name=validated_data['unique_name'],
+                    file_size=validated_data['file_size'],
+                    content_type=validated_data['content_type'],
+                )
+                # Store uploader info in the document's metadata
+                document.metadata = {
+                    'uploader_info': {
+                        'name': validated_data['uploader_name'],
+                        'email': validated_data['uploader_email'],
+                    }
                 }
-            }
-            document.save(update_fields=['metadata'])
-            # Create the link record
-            UploadedFile.objects.create(
-                file_request=file_request,
-                document=document,
-                uploader_name=validated_data['uploader_name'],
-                uploader_email=validated_data['uploader_email']
-            )
+                document.save(update_fields=['metadata'])
+                # Create the link record
+                UploadedFile.objects.create(
+                    file_request=file_request,
+                    document=document,
+                    uploader_name=validated_data['uploader_name'],
+                    uploader_email=validated_data['uploader_email']
+                )
         except Exception as e:
             logger.error(f"Failed to finalize document upload for file request {slug}: {e}")
             return Response(
