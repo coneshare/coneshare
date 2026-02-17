@@ -179,7 +179,7 @@ export function FileRequestsPage() {
                   className="flex w-full cursor-pointer items-center border-b px-4 py-2 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/50"
                 >
                   <div className="w-8" />
-                  <div className="w-[35%] flex items-center gap-2 font-medium">
+                  <div className="w-[30%] flex items-center gap-2 font-medium">
                     <span className="truncate">{request.name || 'Untitled Request'}</span>
                     {isExpired && (
                       <span className="flex-shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
