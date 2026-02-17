@@ -696,7 +696,9 @@ class DocumentViewSet(viewsets.ModelViewSet):
         return self.queryset.filter(
             organization=self.request.user.organization,
             created_by=self.request.user
-        ).select_related('folder').prefetch_related('versions', 'share_links', 'share_links__view_sessions')
+        ).select_related('folder').prefetch_related(
+            'versions', 'share_links', 'share_links__view_sessions'
+        )
 
     def list(self, request, *args, **kwargs):
         """
@@ -892,3 +894,17 @@ class MoveItemsView(APIView):
         except Exception:
             logger.exception("An error occurred during move operation.")
             return Response({"detail": "An unexpected error occurred."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RootFolderView(APIView):
+    """
+    Provides the ID of the user's root folder.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        try:
+            root_folder = Folder.objects.get_root_for_org(request.user.organization)
+            return Response({'id': root_folder.id})
+        except Folder.DoesNotExist:
+            return Response({'detail': 'Root folder not found.'}, status=status.HTTP_404_NOT_FOUND)

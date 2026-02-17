@@ -103,6 +103,7 @@ The core entity for a file. It stores metadata and points to the primary version
 -   **assistant_enabled**: Boolean (Feature flag for AI assistant)
 -   **is_starred**: Boolean
 -   **created_by_id**: Foreign Key to `User`
+-   **upload_info**: JSONB (Stores external uploader details, nullable)
 -   **created_at**: DateTime
 -   **updated_at**: DateTime
 
@@ -266,6 +267,28 @@ Represents an external, non-team member who has accessed a shared link and has b
 
 ---
 
+## File Request Models (`filerequests` app)
+
+### 15. FileRequest
+
+Represents a secure, shareable link for collecting files from external parties.
+
+-   **id**: ULID, Primary Key
+-   **folder_id**: Foreign Key to `Folder`
+-   **created_by_id**: Foreign Key to `User`
+-   **name**: String (blank=True)
+-   **slug**: String, Unique
+-   **is_active**: Boolean
+-   **expires_at**: DateTime (nullable)
+-   **max_file_size**: BigInt (nullable, in bytes)
+-   **allowed_file_types**: JSONB (nullable, list of extensions)
+-   **created_at**: DateTime
+-   **updated_at**: DateTime
+
+**Relations:** Belongs to one Folder and one User.
+
+---
+
 ## Cloud Integration Models (`cloudfiles` app)
 
 ### CloudConnection
@@ -290,7 +313,7 @@ Stores user-specific authorization tokens for a cloud provider.
 
 These models introduce the concept of a `Dataroom` for sharing collections of documents. Note that `DataroomFolder` is distinct from the general-purpose `Folder` model and is scoped exclusively to a single `Dataroom`.
 
-### 15. Dataroom
+### 16. Dataroom
 
 A container for organizing and sharing a collection of documents and folders.
 
@@ -303,7 +326,7 @@ A container for organizing and sharing a collection of documents and folders.
 
 **Relations:** Belongs to one Organization. Has many DataroomDocuments, DataroomFolders, and ShareLinks.
 
-### 16. DataroomFolder
+### 17. DataroomFolder
 
 A folder within a `Dataroom` to create a hierarchical structure.
 
@@ -316,7 +339,7 @@ A folder within a `Dataroom` to create a hierarchical structure.
 
 **Relations:** Belongs to one Dataroom.
 
-### 17. DataroomDocument
+### 18. DataroomDocument
 
 A linking table to place a `Document` within a Dataroom's structure.
 
