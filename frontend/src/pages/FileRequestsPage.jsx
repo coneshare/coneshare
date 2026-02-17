@@ -10,6 +10,7 @@ import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { FileRequestSheet } from '../components/filerequests/FileRequestSheet';
+import { Pagination } from '../components/ui/Pagination';
 import { Switch } from '../components/ui/Switch';
 import {
   Tooltip,
@@ -23,6 +24,9 @@ export function FileRequestsPage() {
   const { setBreadcrumbData } = useBreadcrumb();
   const [fileRequests, setFileRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 10;
 
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
@@ -36,14 +40,15 @@ export function FileRequestsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await getFileRequests();
-      setFileRequests(response.data);
+      const response = await getFileRequests(currentPage);
+      setFileRequests(response.data.results);
+      setTotalCount(response.data.count);
     } catch (error) {
       console.error('Failed to fetch file requests:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage]);
 
   const handleStatusChange = async (request, newStatus) => {
     try {
@@ -71,12 +76,30 @@ export function FileRequestsPage() {
     setIsDeleteConfirmOpen(true);
   };
 
+  const handleSuccess = () => {
+    // If editing, refetch current page. If creating, go to page 1.
+    if (selectedRequest) {
+      fetchData();
+    } else {
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+      } else {
+        fetchData();
+      }
+    }
+  };
+
   const confirmDelete = async () => {
     if (!selectedRequest) return;
     try {
       await deleteFileRequest(selectedRequest.id);
       toast.success('File request deleted successfully.');
-      fetchData();
+      // If the deleted item was the last one on a page > 1, go to previous page.
+      if (fileRequests.length === 1 && currentPage > 1) {
+        setCurrentPage(currentPage - 1);
+      } else {
+        fetchData();
+      }
     } catch (error) {
       console.error('Failed to delete file request:', error);
     } finally {
@@ -106,7 +129,7 @@ export function FileRequestsPage() {
         }}
         currentRequest={selectedRequest}
         folder={selectedRequest ? { id: selectedRequest.folder, name: selectedRequest.folder_name } : null}
-        onSuccess={fetchData}
+        onSuccess={handleSuccess}
       />
       <ConfirmationDialog
         isOpen={isDeleteConfirmOpen}
@@ -242,6 +265,11 @@ export function FileRequestsPage() {
             })}
         </div>
       </div>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={Math.ceil(totalCount / pageSize)}
+        onPageChange={setCurrentPage}
+      />
     </div>
     </TooltipProvider>
   );
