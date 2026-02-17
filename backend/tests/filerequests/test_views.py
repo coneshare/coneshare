@@ -4,6 +4,7 @@ from rest_framework import status
 from django.utils import timezone
 from datetime import timedelta
 
+from core.models import Organization
 from documents.models import Document, Folder
 from filerequests.models import FileRequest, UploadedFile
 
@@ -78,6 +79,20 @@ class TestFileRequestViewSet:
         response = api_client.delete(f'/api/v1/file-requests/{file_request.id}/')
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert not FileRequest.objects.filter(id=file_request.id).exists()
+
+    def test_create_file_request_for_other_organization_folder_fails(self, api_client, user):
+        """A user cannot create a file request for a folder in another organization."""
+        other_org = Organization.objects.create(name="Other Org")
+        other_org_root_folder = Folder.objects.get_root_for_org(other_org)
+
+        data = {
+            "name": "Cross-Org Upload",
+            "folder": str(other_org_root_folder.id),
+        }
+        response = api_client.post('/api/v1/file-requests/', data)
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "You can only select folders within your own organization" in str(response.data)
 
 
 class TestPublicFileRequestViews:

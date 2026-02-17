@@ -40,6 +40,9 @@ class FileRequestSerializer(serializers.ModelSerializer):
         if not request or not hasattr(request, 'user'):
             raise serializers.ValidationError("Request context is missing.")
 
+        if value.organization != request.user.organization:
+            raise serializers.ValidationError("You can only select folders within your own organization.")
+
         if value.created_by is not None and value.created_by != request.user:
             raise serializers.ValidationError("You can only create file requests for your own folders.")
         return value
