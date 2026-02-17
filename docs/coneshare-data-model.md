@@ -276,7 +276,7 @@ Represents a secure, shareable link for collecting files from external parties.
 -   **id**: ULID, Primary Key
 -   **folder_id**: Foreign Key to `Folder`
 -   **created_by_id**: Foreign Key to `User`
--   **name**: String (blank=True)
+-   **name**: String
 -   **slug**: String, Unique
 -   **is_active**: Boolean
 -   **expires_at**: DateTime (nullable)
