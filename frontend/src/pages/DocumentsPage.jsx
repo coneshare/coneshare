@@ -22,6 +22,8 @@ import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
 import { MoveItemsDialog } from '../components/dialogs/MoveItemsDialog';
 import { CloudImportDialog } from '../components/dialogs/CloudImportDialog';
+import { FileRequestSheet } from '../components/filerequests/FileRequestSheet';
+import { TooltipProvider } from '../components/ui/Tooltip';
 
 function DocumentsPage() {
   const { folderId } = useParams();
@@ -38,6 +40,8 @@ function DocumentsPage() {
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
   const [isMoveItemsOpen, setIsMoveItemsOpen] = useState(false);
+  const [isFileRequestSheetOpen, setIsFileRequestSheetOpen] = useState(false);
+  const [selectedFolderForRequest, setSelectedFolderForRequest] = useState(null);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
   const { user } = useUser();
   const navigate = useNavigate();
@@ -61,6 +65,17 @@ function DocumentsPage() {
 
   const handleShare = (document) => {
     navigate(`/documents/${document.id}?action=share`);
+  };
+
+  const handleRequestFiles = (folder) => {
+    setSelectedFolderForRequest(folder);
+    setIsFileRequestSheetOpen(true);
+  };
+
+  const handleFileRequestSuccess = (newRequest) => {
+    if (newRequest?.id) {
+      navigate(`/file-requests/${newRequest.id}`);
+    }
   };
 
   const fetchData = useCallback(async () => {
@@ -382,8 +397,15 @@ function DocumentsPage() {
 
 
   return (
-    <div className="sticky top-0 mb-4 rounded-lg bg-white p-4 dark:bg-gray-900 sm:mx-4 sm:pt-8">
-      <Toaster richColors />
+    <TooltipProvider>
+      <div className="sticky top-0 mb-4 rounded-lg bg-white p-4 dark:bg-gray-900 sm:mx-4 sm:pt-8">
+        <Toaster richColors />
+        <FileRequestSheet
+          isOpen={isFileRequestSheetOpen}
+        onOpenChange={setIsFileRequestSheetOpen}
+        folder={selectedFolderForRequest}
+        onSuccess={handleFileRequestSuccess}
+      />
       <ConfirmationDialog
         isOpen={isBulkDeleteConfirmOpen}
         onOpenChange={setIsBulkDeleteConfirmOpen}
@@ -529,8 +551,10 @@ function DocumentsPage() {
         isAllSelected={isAllSelected}
         onToggleStar={handleToggleStar}
         onShare={handleShare}
+        onRequestFiles={handleRequestFiles}
       />
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }
 

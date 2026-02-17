@@ -42,6 +42,7 @@ export function DocumentsList({
   onRename,
   onDelete,
   onShare,
+  onRequestFiles,
 }) {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [itemToRename, setItemToRename] = useState(null);
@@ -165,6 +166,7 @@ export function DocumentsList({
                   onRename={onRename || internalHandleRename}
                   onDelete={onDelete || internalHandleDelete}
                   onShare={onShare}
+                  onRequestFiles={onRequestFiles}
                   onToggleStar={onToggleStar}
                   isReadOnly={isReadOnly}
                   showActions={showActions}
