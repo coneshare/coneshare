@@ -125,6 +125,7 @@ INSTALLED_APPS = [
     'sharelinks',
     'analytics',
     'cloudfiles',
+    'filerequests',
 ]
 
 MIDDLEWARE = [
