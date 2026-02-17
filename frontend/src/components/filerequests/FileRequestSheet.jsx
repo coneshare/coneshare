@@ -70,13 +70,14 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
       };
 
       if (isEditing) {
-        await updateFileRequest(currentRequest.id, payload);
+        const response = await updateFileRequest(currentRequest.id, payload);
         toast.success('File request updated successfully.');
+        onSuccess(response.data);
       } else {
-        await createFileRequest(payload);
+        const response = await createFileRequest(payload);
         toast.success('File request created successfully.');
+        onSuccess(response.data);
       }
-      onSuccess();
       onOpenChange(false);
     } catch (error) {
       toast.error(error.response?.data?.detail || 'An error occurred.');

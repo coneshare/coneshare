@@ -72,6 +72,12 @@ function DocumentsPage() {
     setIsFileRequestSheetOpen(true);
   };
 
+  const handleFileRequestSuccess = (newRequest) => {
+    if (newRequest?.id) {
+      navigate(`/file-requests/${newRequest.id}`);
+    }
+  };
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     // Reset state before fetching
