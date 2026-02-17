@@ -36,7 +36,7 @@ collecting documents from clients, partners, or applicants.
     -   Other constraint fields (e.g., `max_file_size`, `allowed_file_types`).
 
 -   **Modify `Document` Model**: The `documents.models.Document` model will be updated to track externally uploaded files.
-    -   **`upload_info`**: A `JSONField` will be added. It will be `null` for internal uploads but will store external uploader details (e.g., `{'name': 'John Doe', 'email': 'john.doe@example.com'}`) for file request uploads.
+    -   **`metadata`**: The existing `JSONField` will be used. A key named `uploader_info` within this field will be used to store external uploader details (e.g., `{'uploader_info': {'name': 'John Doe', 'email': 'john.doe@example.com'}}`) for file request uploads.
     -   **`created_by`**: For file request uploads, this field will be populated with the `User` who owns the file request link, ensuring consistency with existing ownership and permission logic.
 
 ### Step 3: Implement API Endpoints
@@ -46,7 +46,7 @@ collecting documents from clients, partners, or applicants.
 -   **Public API**:
     -   Public, unauthenticated views will be created to:
         1.  Fetch the public details of a file request link (e.g., its name).
-        2.  Handle the three-step upload process (request pre-signed URL, upload to file server, finalize) for external users. The finalization step will populate the `created_by` and `upload_info` fields on the new `Document` record.
+        2.  Handle the three-step upload process (request pre-signed URL, upload to file server, finalize) for external users. The finalization step will populate the `created_by` field and the `uploader_info` key within the `metadata` field on the new `Document` record.
 
 ### Step 4: Configure URLs
 
@@ -75,11 +75,11 @@ collecting documents from clients, partners, or applicants.
 
 ### Step 4: Display Uploader Information
 
--   The UI component that lists documents will be updated to check for the presence of the `upload_info` field in the document data.
--   If `upload_info` exists, it will display the uploader's name/email alongside the file, distinguishing it from internally created files.
+-   The UI component that lists documents will be updated to check for the presence of the `uploader_info` field in the document data.
+-   If `uploader_info` exists, it will display the uploader's name/email alongside the file, distinguishing it from internally created files. This information is sourced from the `metadata` field in the database.
 
 ---
 
 ## 4. Documentation
 
--   The `coneshare-data-model.md` document will be updated to reflect the addition of the `upload_info` field to the `Document` model and to define the schema for the new `FileRequest` model.
+-   The `coneshare-data-model.md` document will be updated to reflect the use of the `metadata` field on the `Document` model to store uploader information and to define the schema for the new `FileRequest` model.

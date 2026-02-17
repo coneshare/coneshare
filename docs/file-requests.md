@@ -24,10 +24,10 @@ A new Django app, `filerequests`, was created to encapsulate all logic related t
 
 -   **`filerequests.FileRequest` Model**: A new model was introduced to store the configuration for each file request link, including a unique `slug`, a foreign key to the destination `documents.Folder`, the `created_by` user, and optional constraints like `expires_at` and `max_file_size`.
 
--   **Modification to `documents.Document` Model**: To track the origin of externally uploaded files, a `JSONField` named `upload_info` was added to the `Document` model.
+-   **Modification to `documents.Document` Model**: The existing `metadata` `JSONField` on the `Document` model is used to track the origin of externally uploaded files.
     -   **Critical Decision**:
         -   The `created_by` field on the `Document` is populated with the **owner of the file request link**, not `NULL`. This ensures that existing permission checks, ownership logic, and filtering continue to work seamlessly.
-        -   The `upload_info` field stores the external uploader's details (e.g., `{'name': 'John Doe', 'email': 'john.doe@example.com'}`). This provides clear attribution in the UI without disrupting the core ownership model.
+        -   The `uploader_info` key within the `metadata` field stores the external uploader's details (e.g., `{'uploader_info': {'name': 'John Doe', 'email': 'john.doe@example.com'}}`). This provides clear attribution in the UI without disrupting the core ownership model.
 
 ### API Endpoints
 
@@ -37,7 +37,7 @@ A new Django app, `filerequests`, was created to encapsulate all logic related t
     -   **Rationale**: This follows the secure three-step upload pattern already established in the system:
         1.  **Request Upload**: The client requests a pre-signed upload URL from the backend, which performs all necessary validation (e.g., checking link status, file size limits, owner's quota).
         2.  **Upload to File Server**: The client uploads the file directly to the pre-signed URL, offloading the data transfer from the Django application.
-        3.  **Finalize Upload**: The client notifies the backend that the upload is complete. The backend then creates the `Document` record and populates the `created_by` and `upload_info` fields.
+        3.  **Finalize Upload**: The client notifies the backend that the upload is complete. The backend then creates the `Document` record and populates the `created_by` field and the `uploader_info` key within the `metadata` field.
 
 ## 3. Frontend Design
 
@@ -57,4 +57,4 @@ A new Django app, `filerequests`, was created to encapsulate all logic related t
     -   **Critical Decision**: The uploader's name and email are **required fields**. This ensures that every externally uploaded file can be attributed to a specific person, which is crucial for auditing and tracking purposes.
 
 -   **Displaying Uploader Information**:
-    -   The `DraggableItem.jsx` component, used in the main documents list, was updated to check for the `upload_info` field. If present, it displays the external uploader's name in the "Owner" column, providing clear and immediate attribution.
+    -   The `DraggableItem.jsx` component, used in the main documents list, was updated to check for the `uploader_info` field in the serialized document data (derived from the `metadata` field). If present, it displays the external uploader's name in the "Owner" column, providing clear and immediate attribution.

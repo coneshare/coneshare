@@ -103,7 +103,7 @@ The core entity for a file. It stores metadata and points to the primary version
 -   **assistant_enabled**: Boolean (Feature flag for AI assistant)
 -   **is_starred**: Boolean
 -   **created_by_id**: Foreign Key to `User`
--   **upload_info**: JSONB (Stores external uploader details, nullable)
+-   **metadata**: JSONB (Stores miscellaneous metadata, including external uploader details via an `uploader_info` key, nullable)
 -   **created_at**: DateTime
 -   **updated_at**: DateTime
 
