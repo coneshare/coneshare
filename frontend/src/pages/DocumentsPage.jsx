@@ -404,9 +404,7 @@ function DocumentsPage() {
           isOpen={isFileRequestSheetOpen}
         onOpenChange={setIsFileRequestSheetOpen}
         folder={selectedFolderForRequest}
-        onSuccess={() => {
-          // Future: refresh file requests list page
-        }}
+        onSuccess={handleFileRequestSuccess}
       />
       <ConfirmationDialog
         isOpen={isBulkDeleteConfirmOpen}
