@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from documents.fileserver import fileserver_client
+from documents.views import StandardResultsSetPagination
 from documents.services import (
     QuotaExceededError,
     check_user_quota_on_upload,
@@ -32,6 +33,7 @@ class FileRequestViewSet(viewsets.ModelViewSet):
     """
     serializer_class = FileRequestSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -47,7 +49,7 @@ class FileRequestViewSet(viewsets.ModelViewSet):
             created_by=self.request.user
         ).select_related('folder').annotate(
             uploaded_files_count=Count('uploaded_files')
-        )
+        ).order_by('-created_at')
         if self.action == 'retrieve':
             queryset = queryset.prefetch_related('uploaded_files', 'uploaded_files__document__folder')
         return queryset

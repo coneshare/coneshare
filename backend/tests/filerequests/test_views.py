@@ -37,16 +37,24 @@ class TestFileRequestViewSet:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "You can only create file requests for your own folders" in str(response.data)
 
-    def test_list_file_requests_is_scoped_to_user(self, api_client, user, user2, organization):
-        """Test that listing file requests only returns items created by the authenticated user."""
+    def test_list_file_requests_is_scoped_to_user_and_ordered(self, api_client, user, user2, organization):
+        """
+        Test that listing file requests only returns items created by the
+        authenticated user and that they are ordered by creation date descending.
+        """
         root_folder = Folder.objects.get_root_for_org(organization)
-        FileRequest.objects.create(name="My Request", folder=root_folder, created_by=user)
-        FileRequest.objects.create(name="Other Request", folder=root_folder, created_by=user2)
+        # These are created sequentially, so request2 is newer
+        FileRequest.objects.create(name="My First Request", folder=root_folder, created_by=user)
+        FileRequest.objects.create(name="My Second Request", folder=root_folder, created_by=user)
+        FileRequest.objects.create(name="Other User Request", folder=root_folder, created_by=user2)
 
         response = api_client.get('/api/v1/file-requests/')
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data) == 1
-        assert response.data[0]['name'] == "My Request"
+        assert response.data['count'] == 2
+        results = response.data['results']
+        assert len(results) == 2
+        assert results[0]['name'] == "My Second Request"
+        assert results[1]['name'] == "My First Request"
 
     def test_update_file_request(self, api_client, file_request):
         """Test that a user can update their own file request."""
