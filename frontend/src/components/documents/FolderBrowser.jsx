@@ -3,6 +3,7 @@ import { Folder as FolderIcon, ChevronRight, Home, ArrowLeft } from 'lucide-reac
 import { getFolderContents, getRootFolderContents } from '../../services/api';
 import { Skeleton } from '../ui/Skeleton';
 import { Button } from '../ui/Button';
+import { ROOT_FOLDER_NAME } from '../../lib/constants';
 
 export function FolderBrowser({ onCurrentFolderChange, initialFolderId = null, disabledFolderIds = [] }) {
   const [currentFolder, setCurrentFolder] = useState(null);

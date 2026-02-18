@@ -103,7 +103,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
             <div className="space-y-2">
               <Label>Destination Folder</Label>
             <FolderBrowser
-              initialFolderId={isEditing ? (currentRequest.folder_name === '__root__' ? null : currentRequest.folder) : (folder?.id || null)}
+              initialFolderId={isEditing ? (currentRequest.folder_name === ROOT_FOLDER_NAME ? null : currentRequest.folder) : (folder?.id || null)}
               onCurrentFolderChange={setDestinationFolder}
             />
           </div>
