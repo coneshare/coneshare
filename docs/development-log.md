@@ -1410,3 +1410,15 @@ This session focused on automating the entire release process using GitHub Actio
 
 ### 3. CI Workflow Refinements
 - **Path Exclusion**: Both the main backend CI (`backend-ci.yml`) and the new `release-please.yml` workflows were updated to ignore changes in the `portal/` directory. This prevents commits related to the marketing site from triggering backend tests or new release cycles.
+
+---
+
+## Session 65: 'File Requests' (2026-02-17)
+
+This session delivers the 'File Requests' feature, empowering users to efficiently collect documents from external collaborators without requiring them to log in. It establishes a robust backend infrastructure for managing these requests and handling secure file uploads, complemented by an intuitive frontend experience for both internal users creating requests and external parties submitting files. The changes enhance the platform's collaboration capabilities by streamlining the inbound file transfer process. [https://github.com/coneshare/coneshare/pull/117](https://github.com/coneshare/coneshare/pull/117)
+
+- New Feature: File Requests: Introduced a comprehensive 'File Requests' feature, allowing authenticated users to generate secure, shareable links for external parties to upload files directly into designated folders. This includes both backend API functionality and a full-fledged frontend user interface.
+- Backend API and Data Model: Implemented new Django models (FileRequest, UploadedFile) and associated serializers and views within a dedicated filerequests app. The Document model was extended with a metadata JSONField to store uploader information for files received via these requests. Public-facing endpoints were created to handle the multi-step file upload process securely.
+- Frontend User Interface: Developed new pages for managing file requests (/file-requests, /file-requests/:requestId), a public upload page (/upload/:slug), and reusable components like FileRequestSheet and FolderBrowser. Existing components (DocumentsList, DraggableItem, ActionsDropdown) were updated to integrate with the new feature, including displaying uploader details.
+- Refactored Folder Selection: Extracted folder browsing logic into a new reusable FolderBrowser component, improving consistency and scalability for folder selection across different parts of the application, such as the 'Move Items' dialog and the new 'File Request' creation sheet.
+
