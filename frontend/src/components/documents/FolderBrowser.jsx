@@ -5,13 +5,14 @@ import { Skeleton } from '../ui/Skeleton';
 import { Button } from '../ui/Button';
 import { ROOT_FOLDER_NAME } from '../../lib/constants';
 
-export function FolderBrowser({ onCurrentFolderChange, initialFolderId = null, disabledFolderIds = [] }) {
+export function FolderBrowser({ onCurrentFolderChange, initialFolderId = null, disabledFolderIds = [], onLoadingChange }) {
   const [currentFolder, setCurrentFolder] = useState(null);
   const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const fetchFolders = useCallback(async (folderId) => {
     setLoading(true);
+    if (onLoadingChange) onLoadingChange(true);
     try {
       const response = folderId
         ? await getFolderContents(folderId)
@@ -27,8 +28,9 @@ export function FolderBrowser({ onCurrentFolderChange, initialFolderId = null, d
       // Let consuming components show a toast if they want to.
     } finally {
       setLoading(false);
+      if (onLoadingChange) onLoadingChange(false);
     }
-  }, [onCurrentFolderChange]);
+  }, [onCurrentFolderChange, onLoadingChange]);
 
   useEffect(() => {
     fetchFolders(initialFolderId);

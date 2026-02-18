@@ -26,6 +26,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
   const [expiresAt, setExpiresAt] = useState('');
   const [maxFileSize, setMaxFileSize] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFolderLoading, setIsFolderLoading] = useState(true);
   const isEditing = !!currentRequest;
 
   // State for folder browser
@@ -49,6 +50,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
         setMaxFileSize('');
         setDestinationFolder(folder || null);
       }
+      setIsFolderLoading(true);
     }
   }, [isOpen, isEditing, currentRequest, folder]);
 
@@ -105,6 +107,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
             <FolderBrowser
               initialFolderId={isEditing ? (currentRequest.folder_name === ROOT_FOLDER_NAME ? null : currentRequest.folder) : (folder?.id || null)}
               onCurrentFolderChange={setDestinationFolder}
+              onLoadingChange={setIsFolderLoading}
             />
           </div>
 
@@ -148,7 +151,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
           </div>
         </form>
         <SheetFooter>
-          <Button type="submit" form="file-request-form" disabled={isSubmitting}>
+          <Button type="submit" form="file-request-form" disabled={isSubmitting || isFolderLoading}>
             {isSubmitting ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Link'}
           </Button>
         </SheetFooter>
