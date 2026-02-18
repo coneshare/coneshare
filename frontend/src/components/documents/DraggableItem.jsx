@@ -3,17 +3,15 @@ import { FileIcon, FolderIcon, Star } from "lucide-react";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../../lib/utils";
+import { formatBytes } from "../../lib/formatters";
 import { ActionsDropdown } from "./ActionsDropdown";
 import { Checkbox } from "../ui/Checkbox";
-
-function formatFileSize(bytes) {
-  if (bytes === null || bytes === undefined) return "—";
-  if (bytes === 0) return "0 KB";
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-}
+import { Badge } from "../ui/Badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "../ui/Tooltip";
 
 export function DraggableItem({
   id,
@@ -24,6 +22,7 @@ export function DraggableItem({
   onRename,
   onDelete,
   onShare,
+  onRequestFiles,
   onToggleStar,
   isReadOnly = false,
   showActions = true,
@@ -111,7 +110,23 @@ export function DraggableItem({
           </button>
         )}
       </div>
-      <div className="w-[20%] truncate">{item.created_by?.name || "Me"}</div>
+      <div className="w-[20%] truncate">
+        {item.created_by?.name || "Me"}
+        {item.uploader_info && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="secondary" className="cursor-default ml-2">
+                {item.uploader_info.name}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>
+                Uploaded by {item.uploader_info.name} ({item.uploader_info.email})
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        )}        
+      </div>
       <div className="w-[20%]">
         {item.updated_at
           ? formatDistanceToNow(new Date(item.updated_at), { addSuffix: true })
@@ -119,7 +134,7 @@ export function DraggableItem({
       </div>
       <div className="w-[10%]">
         {type === "document"
-          ? formatFileSize(item.file_size)
+          ? formatBytes(item.file_size)
           : "—"}
       </div>
       <div className="w-16">
@@ -138,6 +153,7 @@ export function DraggableItem({
               onRename={onRename}
               onDelete={onDelete}
               onShare={onShare}
+              onRequestFiles={onRequestFiles}
               onOpenChange={setIsMenuOpen}
             />
           </div>

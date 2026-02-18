@@ -8,11 +8,14 @@ import { AllViewSessionsPage } from './pages/AllViewSessionsPage';
 import { CloudAuthCallbackPage } from './pages/CloudAuthCallbackPage';
 import { DataroomPage } from './pages/DataroomPage';
 import { DataroomsPage } from './pages/DataroomsPage';
+import { FileRequestsPage } from './pages/FileRequestsPage';
+import { FileRequestDetailPage } from './pages/FileRequestDetailPage';
 import { DocumentPage } from './pages/DocumentPage';
 import DocumentsPage from './pages/DocumentsPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import PasswordSettingsPage from './pages/PasswordSettingsPage';
+import { PublicUploadPage } from './pages/PublicUploadPage';
 import { ShareLinkAnalyticsPage } from './pages/ShareLinkAnalyticsPage';
 import { ShareLinkViewerPage } from './pages/ShareLinkViewerPage';
 import UserSettingsPage from './pages/UserSettingsPage';
@@ -30,6 +33,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/view/:slug" element={<ShareLinkViewerPage />} />
+          <Route path="/upload/:slug" element={<PublicUploadPage />} />
           <Route path="/auth/:providerName/callback" element={<CloudAuthCallbackPage />} />
           <Route path="/500" element={<ErrorPage />} />
           <Route element={<MainLayout />}>
@@ -40,6 +44,8 @@ function App() {
             <Route path="/documents/:documentId/links/:linkId" element={<ShareLinkAnalyticsPage />} />
             <Route path="/datarooms" element={<DataroomsPage />} />
             <Route path="/datarooms/:dataroomId" element={<DataroomPage />} />
+            <Route path="/file-requests" element={<FileRequestsPage />} />
+            <Route path="/file-requests/:requestId" element={<FileRequestDetailPage />} />
             <Route path="/analytics/links" element={<AllLinksPage />} />
             <Route path="/analytics/view-sessions" element={<AllViewSessionsPage />} />
             <Route path="/settings" element={<UserSettingsPage />} />

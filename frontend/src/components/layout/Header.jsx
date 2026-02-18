@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Breadcrumbs } from "../documents/Breadcrumbs";
 import { useBreadcrumb } from "./BreadcrumbProvider";
 import { NAV_ITEMS } from "./SidebarContent";
@@ -31,6 +31,24 @@ function Header() {
           currentFolder={breadcrumbData.folder}
           onNavigate={breadcrumbData.onNavigate}
         />
+      );
+    }
+
+    if (breadcrumbData.type === 'fileRequest') {
+      return (
+        <nav className="flex" aria-label="Breadcrumb">
+          <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-medium text-muted-foreground">
+            <li>
+              <Link to="/file-requests" className="hover:text-foreground">
+                File Requests
+              </Link>
+            </li>
+            <li className="flex items-center">
+              <span className="select-none px-1 text-muted-foreground">/</span>
+              <span className="font-semibold text-foreground">{breadcrumbData.fileRequestName}</span>
+            </li>
+          </ol>
+        </nav>
       );
     }
 
