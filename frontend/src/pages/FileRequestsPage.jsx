@@ -12,6 +12,7 @@ import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { FileRequestSheet } from '../components/filerequests/FileRequestSheet';
 import { Pagination } from '../components/ui/Pagination';
 import { Switch } from '../components/ui/Switch';
+import { ROOT_FOLDER_NAME } from '../lib/constants';
 import {
   Tooltip,
   TooltipContent,
@@ -188,7 +189,7 @@ export function FileRequestsPage() {
                     )}
                   </div>
                   <div className="w-[25%] truncate">
-                    {request.folder_name === '__root__' ? (
+                    {request.folder_name === ROOT_FOLDER_NAME ? (
                       <Link
                         to="/documents"
                         className="hover:underline"

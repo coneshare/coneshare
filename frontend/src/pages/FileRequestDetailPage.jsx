@@ -7,6 +7,7 @@ import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Download, Copy } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Switch } from '../components/ui/Switch';
+import { ROOT_FOLDER_NAME } from '../lib/constants';
 import {
   Tooltip,
   TooltipContent,
@@ -148,7 +149,7 @@ export function FileRequestDetailPage() {
                   </Link>
                 </div>
                 <div className="w-[20%] truncate">
-                  {file.folder_name === '__root__' ? (
+                  {file.folder_name === ROOT_FOLDER_NAME ? (
                     <Link to="/documents" className="hover:underline">
                       Root
                     </Link>

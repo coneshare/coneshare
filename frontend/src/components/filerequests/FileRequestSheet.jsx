@@ -18,6 +18,7 @@ import {
   updateFileRequest,
   getRootFolderId,
 } from '../../services/api';
+import { ROOT_FOLDER_NAME } from '../../lib/constants';
 
 export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest, onSuccess }) {
   const [name, setName] = useState('');
@@ -93,7 +94,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
           <SheetTitle>{isEditing ? 'Edit File Request' : 'Create File Request'}</SheetTitle>
           <SheetDescription>
             {isEditing
-              ? `Editing file request for folder "${currentRequest.folder_name === '__root__' ? 'Root' : currentRequest.folder_name}".`
+              ? `Editing file request for folder "${currentRequest.folder_name === ROOT_FOLDER_NAME ? 'Root' : currentRequest.folder_name}".`
               : 'Create a link to request files. Select a destination folder and set your options.'}
           </SheetDescription>
         </SheetHeader>

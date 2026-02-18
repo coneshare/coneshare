@@ -68,7 +68,7 @@ export function FolderBrowser({ onCurrentFolderChange, initialFolderId = null, d
           </button>
         </div>
       ))}
-      {currentFolder && currentFolder.name !== '__root__' && (
+      {currentFolder && currentFolder.name !== ROOT_FOLDER_NAME && (
         <div className="flex items-center gap-1">
           <ChevronRight className="h-4 w-4 flex-shrink-0" />
           <span className="font-semibold text-foreground">{currentFolder.name}</span>
