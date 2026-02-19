@@ -1,4 +1,4 @@
-import { ShieldCheck, LineChart, Droplets, HardDrive, Folders, Cloud, TrendingUp, Landmark, Target } from 'lucide-react';
+import { ShieldCheck, LineChart, Droplets, HardDrive, Folders, Cloud, UploadCloud, TrendingUp, Landmark, Target } from 'lucide-react';
 import Image from 'next/image';
 
 export const features = [
@@ -94,6 +94,24 @@ export const features = [
     )
   },
   {
+    slug: 'file-requests',
+    name: 'File Requests',
+    menuName: 'File Requests',
+    description: 'Securely request and receive files from anyone, directly into a designated folder, without requiring them to have an account.',
+    icon: UploadCloud,
+    content: (
+      <div>
+        <h3 className="text-xl font-semibold mb-4">Streamline Content Collection</h3>
+        <p className="mb-4">Create a secure upload link for any folder. External collaborators can use this link to upload files directly to you, simplifying how you collect documents from clients, partners, or vendors.</p>
+        <Image src="/screenshots/feat-filerequest1.png" alt="Screenshot of creating a file request link" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
+
+        <h3 className="text-xl font-semibold mb-4">Track Every Submission</h3>
+        <p>The external uploader's name and email are automatically captured and displayed alongside the file, so you always know who uploaded what. All files are automatically owned by you, integrating seamlessly into your existing library.</p>
+        <Image src="/screenshots/feat-filerequest2.png" alt="Screenshot of a file uploaded via a file request" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
+      </div>
+    )
+  },
+  {
     slug: 'self-hosted',
     name: 'Self-Hosted & Enterprise-Ready',
     menuName: 'Self-Hosting',
@@ -108,6 +126,7 @@ export const features = [
       </div>
     )
   },
+
 ];
 
 export const solutions = [
