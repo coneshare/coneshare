@@ -65,7 +65,6 @@ export function ActionsDropdown({
         {type === 'document' && onDownload && (
           <DropdownMenu.Item
             onSelect={(e) => {
-              e.preventDefault();
               e.stopPropagation();
               onDownload(item);
             }}

@@ -213,6 +213,7 @@ func handleDownload(config Config) http.HandlerFunc {
 		}
 
 		filePath := filepath.Join(config.StoragePath, info.StorageKey)
+		w.Header().Set("Content-Disposition", "attachment; filename=\""+filepath.Base(filePath)+"\"")
 		http.ServeFile(w, r, filePath)
 	}
 }
