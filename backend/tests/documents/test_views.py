@@ -1061,6 +1061,63 @@ class TestDocumentViewSet:
         doc_by_user2.refresh_from_db()
         assert doc_by_user2.is_starred is False
 
+    @patch('documents.views.copy_document')
+    def test_copy_document_api_success(self, mock_copy_document, api_client, document, user):
+        """Test the POST /copy/ endpoint successfully triggers the copy."""
+        # Arrange
+        from core.fields import ULIDField
+        new_doc_id = ULIDField.generate_new_id_as_str()
+        new_doc_instance = Document(
+            id=new_doc_id,
+            name="Copy of doc.pdf",
+            created_by=user,
+            organization=user.organization
+        )
+        mock_copy_document.return_value = new_doc_instance
+
+        # Act
+        response = api_client.post(f'/api/v1/documents/{document.id}/copy/')
+
+        # Assert
+        assert response.status_code == status.HTTP_201_CREATED
+        mock_copy_document.assert_called_once()
+        # Check that the service was called with the correct document and user
+        assert mock_copy_document.call_args[0][0] == document
+        assert mock_copy_document.call_args[0][1] == user
+        assert response.data['name'] == "Copy of doc.pdf"
+
+    def test_copy_document_api_permission_denied(self, api_client, user2, document):
+        """Test a user cannot copy a document they do not own."""
+        document.created_by = user2
+        document.save()
+
+        response = api_client.post(f'/api/v1/documents/{document.id}/copy/')
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    @patch('documents.views.copy_document')
+    def test_copy_document_api_quota_exceeded(self, mock_copy_document, api_client, document):
+        """Test that the API returns a 400 if QuotaExceededError is raised."""
+        from documents.services import QuotaExceededError
+        mock_copy_document.side_effect = QuotaExceededError("Quota exceeded")
+
+        response = api_client.post(f'/api/v1/documents/{document.id}/copy/')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "Quota exceeded" in response.data['detail']
+
+    @patch('documents.views.copy_document')
+    def test_copy_document_api_fileserver_error(self, mock_copy_document, api_client, document):
+        """Test that the API returns the correct status if the fileserver fails."""
+        mock_copy_document.side_effect = APIException(
+            "File server error", code=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
+        response = api_client.post(f'/api/v1/documents/{document.id}/copy/')
+
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert "File server error" in response.data['detail']
+
 
 @pytest.mark.django_db
 class TestMoveItemsView:
