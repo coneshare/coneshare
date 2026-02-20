@@ -314,7 +314,8 @@ def copy_document(original_doc: Document, user: User) -> Document:
         )
     except APIException as e:
         logger.error(f"Failed to copy file in storage for doc {original_doc.id}: {e}")
-        raise APIException("Failed to copy file in storage.")
+        # Re-raise the original exception to preserve the status code.
+        raise
 
     # 6. Create new Document and DocumentVersion records
     new_doc = Document.objects.create(

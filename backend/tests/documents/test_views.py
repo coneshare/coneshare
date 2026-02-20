@@ -1065,8 +1065,8 @@ class TestDocumentViewSet:
     def test_copy_document_api_success(self, mock_copy_document, api_client, document, user):
         """Test the POST /copy/ endpoint successfully triggers the copy."""
         # Arrange
-        from core.fields import ULIDField
-        new_doc_id = ULIDField.generate_new_id_as_str()
+        from core.fields import generate_ulid
+        new_doc_id = generate_ulid()
         new_doc_instance = Document(
             id=new_doc_id,
             name="Copy of doc.pdf",
@@ -1106,12 +1106,15 @@ class TestDocumentViewSet:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "Quota exceeded" in response.data['detail']
 
-    @patch('documents.views.copy_document')
-    def test_copy_document_api_fileserver_error(self, mock_copy_document, api_client, document):
+    @patch('documents.services.fileserver_client.copy_file')
+    def test_copy_document_api_fileserver_error(self, mock_copy_file, api_client, document):
         """Test that the API returns the correct status if the fileserver fails."""
-        mock_copy_document.side_effect = APIException(
-            "File server error", code=status.HTTP_503_SERVICE_UNAVAILABLE
-        )
+        document.file_size = 1024  # Add file size to pass initial check
+        document.save()
+
+        api_exception = APIException("File server error")
+        api_exception.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        mock_copy_file.side_effect = api_exception
 
         response = api_client.post(f'/api/v1/documents/{document.id}/copy/')
 
