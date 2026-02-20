@@ -1,5 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Edit, MoreHorizontal, Share2, Trash2, UploadCloud, Download } from 'lucide-react';
+import { Edit, MoreHorizontal, Share2, Trash2, UploadCloud, Download, Copy } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 export function ActionsDropdown({
@@ -11,6 +11,7 @@ export function ActionsDropdown({
   onRequestFiles,
   onOpenChange,
   onDownload,
+  onCopy,
 }) {
   return (
     <DropdownMenu.Root onOpenChange={onOpenChange}>
@@ -47,6 +48,19 @@ export function ActionsDropdown({
           <Edit className="h-4 w-4" aria-hidden="true" />
           <span>Rename</span>
         </DropdownMenu.Item>
+
+        {type === 'document' && onCopy && (
+          <DropdownMenu.Item
+            onSelect={(e) => {
+              e.stopPropagation();
+              onCopy(item);
+            }}
+            className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
+          >
+            <Copy className="h-4 w-4" aria-hidden="true" />
+            <span>Copy</span>
+          </DropdownMenu.Item>
+        )}
 
         {type === 'document' && onShare && (
            <DropdownMenu.Item

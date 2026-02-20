@@ -194,6 +194,8 @@ export const ensureFolderPaths = (paths, parentPath = null) =>
 
 export const deleteDocument = (id) => api.delete(`/documents/${id}/`);
 
+export const copyDocument = (id) => api.post(`/documents/${id}/copy/`);
+
 export const deleteFolder = (id) => api.delete(`/folders/${id}/`);
 
 export const renameDocument = (id, name) => api.patch(`/documents/${id}/`, { name });
