@@ -14,7 +14,7 @@ import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl, getDocumentDownloadUrl } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl, getDocumentDownloadUrl, copyDocument } from '../services/api';
 import { useUser } from '../contexts/UserProvider';
 import { useUpload } from '../contexts/UploadProvider';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
@@ -114,6 +114,18 @@ function DocumentsPage() {
       setLoading(false);
     }
   }, [folderId, setBreadcrumbData]);
+
+  const handleCopy = useCallback(async (item) => {
+    const toastId = toast.loading(`Copying "${item.name}"...`);
+    try {
+      await copyDocument(item.id);
+      toast.success(`"${item.name}" was copied successfully.`, { id: toastId });
+      fetchData(); // Refresh list
+    } catch (error) {
+      // API interceptor will show an error toast.
+      toast.dismiss(toastId);
+    }
+  }, [fetchData]);
 
   useEffect(() => {
     setSelection({ documents: [], folders: [] });
@@ -563,6 +575,7 @@ function DocumentsPage() {
         isAllSelected={isAllSelected}
         onToggleStar={handleToggleStar}
         onDownload={handleDownload}
+        onCopy={handleCopy}
         onShare={handleShare}
         onRequestFiles={handleRequestFiles}
       />
