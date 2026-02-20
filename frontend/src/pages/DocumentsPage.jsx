@@ -79,7 +79,7 @@ function DocumentsPage() {
     }
   };
 
-  const handleCopy = async (item) => {
+  const handleCopy = useCallback(async (item) => {
     const toastId = toast.loading(`Copying "${item.name}"...`);
     try {
       await copyDocument(item.id);
@@ -89,7 +89,7 @@ function DocumentsPage() {
       // API interceptor will show an error toast.
       toast.dismiss(toastId);
     }
-  };
+  }, [fetchData]);
 
   const handleRequestFiles = (folder) => {
     setSelectedFolderForRequest(folder);
