@@ -25,6 +25,7 @@ export function DraggableItem({
   onRequestFiles,
   onToggleStar,
   onDownload,
+  onCopy,
   isReadOnly = false,
   showActions = true,
   onItemClick,
@@ -157,6 +158,7 @@ export function DraggableItem({
               onRequestFiles={onRequestFiles}
               onOpenChange={setIsMenuOpen}
               onDownload={onDownload}
+              onCopy={onCopy}
             />
           </div>
         )}
