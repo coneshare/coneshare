@@ -276,6 +276,108 @@ def delete_document_and_files(document: Document):
         document.delete()
 
 
+def copy_document(original_doc: Document, user: User) -> Document:
+    """
+    Creates a copy of a document, including its file in storage and database records.
+    """
+    if not original_doc.file_size:
+        raise APIException("Cannot copy a document with no file size.")
+
+    # 1. Check user quota before doing anything else
+    try:
+        check_user_quota_on_upload(user=user, new_file_size=original_doc.file_size)
+    except QuotaExceededError as e:
+        # Re-raise to be handled by the view
+        raise e
+
+    # 2. Get unique name for the copy
+    new_name = _get_unique_document_name(
+        requesting_user=user,
+        folder=original_doc.folder,
+        original_name=original_doc.name
+    )
+
+    # 3. Generate new storage key for the copied file
+    new_storage_key = generate_storage_key(user.organization.id, new_name)
+
+    # 4. Get the primary version of the original document
+    original_primary_version = original_doc.versions.filter(is_primary=True).first()
+    if not original_primary_version:
+        raise APIException("Original document has no primary version to copy.")
+
+    # 5. Copy the file on the file server
+    try:
+        fileserver_client.copy_file(
+            source_storage_key=original_primary_version.original_storage_key,
+            destination_storage_key=new_storage_key
+        )
+    except APIException as e:
+        logger.error(f"Failed to copy file in storage for doc {original_doc.id}: {e}")
+        # Re-raise the original exception to preserve the status code.
+        raise
+
+    try:
+        with transaction.atomic():
+            # 6. Create new Document and DocumentVersion records
+            new_metadata = original_doc.metadata.copy()
+            new_metadata.pop('uploader_info', None)
+
+            new_doc = Document.objects.create(
+                organization=original_doc.organization,
+                folder=original_doc.folder,
+                name=new_name,
+                description=original_doc.description,
+                status='processing',
+                storage_key=new_storage_key,
+                original_storage_key=new_storage_key,
+                type=original_doc.type,
+                content_type=original_doc.content_type,
+                num_pages=original_doc.num_pages,
+                file_size=original_doc.file_size,
+                download_only=original_doc.download_only,
+                assistant_enabled=original_doc.assistant_enabled,
+                is_starred=False,
+                created_by=user,
+                metadata=new_metadata,
+            )
+
+            new_version = DocumentVersion.objects.create(
+                document=new_doc,
+                version_number=1,
+                is_primary=True,
+                storage_key=new_storage_key,
+                original_storage_key=new_storage_key,
+                content_type=original_primary_version.content_type,
+                type=original_primary_version.type,
+                file_size=original_primary_version.file_size,
+                num_pages=original_primary_version.num_pages,
+                is_vertical=original_primary_version.is_vertical,
+                has_pages=False,
+            )
+
+            # 7. Update user's total document size
+            User.objects.filter(pk=user.pk).update(
+                total_document_size=F('total_document_size') + new_doc.file_size
+            )
+
+        # 8. Route for processing
+        _route_document_for_processing(
+            document=new_doc,
+            version=new_version,
+            file_size=new_doc.file_size,
+            content_type=new_doc.content_type
+        )
+
+        return new_doc
+    except Exception as e:
+        logger.error(f"DB operation failed after file copy for doc {original_doc.id}. Cleaning up file. Error: {e}")
+        try:
+            fileserver_client.delete_file(new_storage_key)
+        except APIException as cleanup_e:
+            logger.error(f"Failed to cleanup orphaned file {new_storage_key}: {cleanup_e}")
+        raise e
+
+
 def create_new_document_version(
     document: Document,
     requesting_user: User,

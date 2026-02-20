@@ -59,6 +59,14 @@ class FileServerClient:
         data = {'storage_key': storage_key}
         self._post('/internal/v1/delete-file', data, expect_json=False)
 
+    def copy_file(self, source_storage_key: str, destination_storage_key: str):
+        """Requests copying of a file on the file server."""
+        data = {
+            'source_storage_key': source_storage_key,
+            'destination_storage_key': destination_storage_key
+        }
+        self._post('/internal/v1/copy-file', data, expect_json=False)
+
 
 # A singleton instance of the client for use throughout the application.
 fileserver_client = FileServerClient()
