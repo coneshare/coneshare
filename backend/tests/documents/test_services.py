@@ -138,3 +138,20 @@ class TestCopyDocumentService:
         mock_copy_file.assert_not_called()
         user.refresh_from_db()
         assert user.total_document_size == 0  # User size wasn't updated
+
+    def test_copy_document_removes_uploader_info(self, mock_route_for_processing, mock_copy_file, user, document):
+        """Test that uploader_info is removed from metadata on copy, but other metadata is kept."""
+        # Arrange
+        original_doc = document
+        original_doc.file_size = 1000
+        original_doc.metadata = {'uploader_info': {'name': 'test', 'email': 'test@test.com'}, 'other_key': 'value'}
+        original_doc.save()
+
+        # Act
+        new_doc = copy_document(original_doc, user)
+
+        # Assert
+        assert 'uploader_info' in original_doc.metadata
+        assert 'uploader_info' not in new_doc.metadata
+        assert 'other_key' in new_doc.metadata
+        assert new_doc.metadata['other_key'] == 'value'

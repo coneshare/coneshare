@@ -318,6 +318,9 @@ def copy_document(original_doc: Document, user: User) -> Document:
         raise
 
     # 6. Create new Document and DocumentVersion records
+    new_metadata = original_doc.metadata.copy()
+    new_metadata.pop('uploader_info', None)
+
     new_doc = Document.objects.create(
         organization=original_doc.organization,
         folder=original_doc.folder,
@@ -334,7 +337,7 @@ def copy_document(original_doc: Document, user: User) -> Document:
         assistant_enabled=original_doc.assistant_enabled,
         is_starred=False,
         created_by=user,
-        metadata=original_doc.metadata,
+        metadata=new_metadata,
     )
 
     new_version = DocumentVersion.objects.create(
