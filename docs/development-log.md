@@ -1413,7 +1413,7 @@ This session focused on automating the entire release process using GitHub Actio
 
 ---
 
-## Session 65: 'File Requests' (2026-02-17)
+## Session 65: File Requests (2026-02-17)
 
 This session delivers the 'File Requests' feature, empowering users to efficiently collect documents from external collaborators without requiring them to log in. It establishes a robust backend infrastructure for managing these requests and handling secure file uploads, complemented by an intuitive frontend experience for both internal users creating requests and external parties submitting files. The changes enhance the platform's collaboration capabilities by streamlining the inbound file transfer process. [https://github.com/coneshare/coneshare/pull/117](https://github.com/coneshare/coneshare/pull/117)
 
@@ -1422,3 +1422,8 @@ This session delivers the 'File Requests' feature, empowering users to efficient
 - Frontend User Interface: Developed new pages for managing file requests (/file-requests, /file-requests/:requestId), a public upload page (/upload/:slug), and reusable components like FileRequestSheet and FolderBrowser. Existing components (DocumentsList, DraggableItem, ActionsDropdown) were updated to integrate with the new feature, including displaying uploader details.
 - Refactored Folder Selection: Extracted folder browsing logic into a new reusable FolderBrowser component, improving consistency and scalability for folder selection across different parts of the application, such as the 'Move Items' dialog and the new 'File Request' creation sheet.
 
+---
+
+## Session 66: Copy Document (2026-02-20)
+
+This session delivers a new 'copy document' functionality, enabling users to duplicate their documents. The implementation spans across the entire stack, from the frontend UI to the backend API and services, and down to the core file storage system. It ensures that when a document is copied, its file is duplicated, new database records are created, user quotas are respected, and the new document is routed for processing, providing a seamless user experience for document management. [https://github.com/coneshare/coneshare/pull/124](https://github.com/coneshare/coneshare/pull/124)
