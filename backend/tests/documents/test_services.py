@@ -119,7 +119,8 @@ class TestCopyDocumentService:
         # Check processing was triggered
         mock_route_for_processing.assert_called_once()
 
-    def test_copy_document_respects_quota(self, mock_route_for_processing, mock_copy_file, user, document):
+    @patch('documents.services.get_dynamic_setting', return_value=1)
+    def test_copy_document_respects_quota(self, mock_get_setting, mock_route_for_processing, mock_copy_file, user, document):
         """Test that copy_document fails if user quota is exceeded."""
         # Arrange
         from django.test import override_settings
