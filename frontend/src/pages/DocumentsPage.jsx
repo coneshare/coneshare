@@ -79,18 +79,6 @@ function DocumentsPage() {
     }
   };
 
-  const handleCopy = useCallback(async (item) => {
-    const toastId = toast.loading(`Copying "${item.name}"...`);
-    try {
-      await copyDocument(item.id);
-      toast.success(`"${item.name}" was copied successfully.`, { id: toastId });
-      fetchData(); // Refresh list
-    } catch (error) {
-      // API interceptor will show an error toast.
-      toast.dismiss(toastId);
-    }
-  }, [fetchData]);
-
   const handleRequestFiles = (folder) => {
     setSelectedFolderForRequest(folder);
     setIsFileRequestSheetOpen(true);
@@ -126,6 +114,18 @@ function DocumentsPage() {
       setLoading(false);
     }
   }, [folderId, setBreadcrumbData]);
+
+  const handleCopy = useCallback(async (item) => {
+    const toastId = toast.loading(`Copying "${item.name}"...`);
+    try {
+      await copyDocument(item.id);
+      toast.success(`"${item.name}" was copied successfully.`, { id: toastId });
+      fetchData(); // Refresh list
+    } catch (error) {
+      // API interceptor will show an error toast.
+      toast.dismiss(toastId);
+    }
+  }, [fetchData]);
 
   useEffect(() => {
     setSelection({ documents: [], folders: [] });
