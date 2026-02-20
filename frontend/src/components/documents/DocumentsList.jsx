@@ -43,6 +43,7 @@ export function DocumentsList({
   onDelete,
   onShare,
   onRequestFiles,
+  onDownload,
 }) {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [itemToRename, setItemToRename] = useState(null);
@@ -171,6 +172,7 @@ export function DocumentsList({
                   isReadOnly={isReadOnly}
                   showActions={showActions}
                   onItemClick={onItemClick}
+                  onDownload={onDownload}
                 />
               ))}
             </div>

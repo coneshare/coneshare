@@ -14,7 +14,7 @@ import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl } from '../services/api';
+import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl, getDocumentDownloadUrl } from '../services/api';
 import { useUser } from '../contexts/UserProvider';
 import { useUpload } from '../contexts/UploadProvider';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
@@ -65,6 +65,18 @@ function DocumentsPage() {
 
   const handleShare = (document) => {
     navigate(`/documents/${document.id}?action=share`);
+  };
+
+  const handleDownload = async (document) => {
+    const toastId = toast.loading(`Preparing download for "${document.name}"...`);
+    try {
+      const response = await getDocumentDownloadUrl(document.id);
+      window.open(response.data.download_url, '_blank');
+      toast.success('Download started.', { id: toastId });
+    } catch (error) {
+      toast.dismiss(toastId);
+      // API interceptor will show an error toast.
+    }
   };
 
   const handleRequestFiles = (folder) => {
@@ -550,6 +562,7 @@ function DocumentsPage() {
         onSelectAll={handleSelectAll}
         isAllSelected={isAllSelected}
         onToggleStar={handleToggleStar}
+        onDownload={handleDownload}
         onShare={handleShare}
         onRequestFiles={handleRequestFiles}
       />
