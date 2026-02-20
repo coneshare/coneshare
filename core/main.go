@@ -177,14 +177,21 @@ func deleteFileHandler(config Config) http.HandlerFunc {
 
 		filePath := filepath.Join(config.StoragePath, reqBody.StorageKey)
 
-		// Basic security check to prevent path traversal.
+		// Security check to prevent path traversal.
+		storageRoot, err := filepath.Abs(config.StoragePath)
+		if err != nil {
+			log.Printf("Configuration error: invalid storage path: %v", err)
+			http.Error(w, "Internal server error due to server configuration", http.StatusInternalServerError)
+			return
+		}
+		safePrefix := storageRoot + string(os.PathSeparator)
+
 		cleanPath, err := filepath.Abs(filePath)
 		if err != nil {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
-		storageRoot, _ := filepath.Abs(config.StoragePath)
-		if !strings.HasPrefix(cleanPath, storageRoot) {
+		if !strings.HasPrefix(cleanPath, safePrefix) {
 			http.Error(w, "Forbidden: path traversal attempt", http.StatusForbidden)
 			return
 		}
@@ -220,7 +227,15 @@ func copyFileHandler(config Config) http.HandlerFunc {
 		sourcePath := filepath.Join(config.StoragePath, reqBody.SourceStorageKey)
 		destPath := filepath.Join(config.StoragePath, reqBody.DestinationStorageKey)
 
-		// Basic security check to prevent path traversal.
+		// Security check to prevent path traversal.
+		storageRoot, err := filepath.Abs(config.StoragePath)
+		if err != nil {
+			log.Printf("Configuration error: invalid storage path: %v", err)
+			http.Error(w, "Internal server error due to server configuration", http.StatusInternalServerError)
+			return
+		}
+		safePrefix := storageRoot + string(os.PathSeparator)
+
 		cleanSourcePath, err := filepath.Abs(sourcePath)
 		if err != nil {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -231,8 +246,7 @@ func copyFileHandler(config Config) http.HandlerFunc {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
-		storageRoot, _ := filepath.Abs(config.StoragePath)
-		if !strings.HasPrefix(cleanSourcePath, storageRoot) || !strings.HasPrefix(cleanDestPath, storageRoot) {
+		if !strings.HasPrefix(cleanSourcePath, safePrefix) || !strings.HasPrefix(cleanDestPath, safePrefix) {
 			http.Error(w, "Forbidden: path traversal attempt", http.StatusForbidden)
 			return
 		}
