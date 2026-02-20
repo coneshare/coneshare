@@ -30,6 +30,7 @@ from .services import (
     delete_document_and_files,
     delete_folder_and_contents,
     generate_storage_key,
+    copy_document,
 )
 
 
@@ -730,6 +731,27 @@ class DocumentViewSet(viewsets.ModelViewSet):
         document = self.get_object()
         delete_document_and_files(document)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'])
+    def copy(self, request, *args, **kwargs):
+        """
+        Creates a copy of the document.
+        """
+        original_document = self.get_object()
+        try:
+            new_document = copy_document(original_document, request.user)
+            serializer = self.get_serializer(new_document)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except QuotaExceededError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except APIException as e:
+            return Response({'detail': str(e.detail)}, status=e.status_code)
+        except Exception:
+            logger.exception(f"An unexpected error occurred while copying document {original_document.id}")
+            return Response(
+                {"detail": "An unexpected error occurred during the copy operation."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     @action(detail=True, methods=['get'], url_path='view-sessions')
     def view_sessions(self, request, pk=None):

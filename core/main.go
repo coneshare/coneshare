@@ -31,6 +31,11 @@ type URLResponse struct {
 	URL string `json:"url"`
 }
 
+type CopyFileRequest struct {
+	SourceStorageKey      string `json:"source_storage_key"`
+	DestinationStorageKey string `json:"destination_storage_key"`
+}
+
 type TokenInfo struct {
 	StorageKey string
 	ExpiresAt  time.Time
@@ -66,6 +71,7 @@ func main() {
 		r.Post("/generate-upload-url", generateURLHandler("upload"))
 		r.Post("/generate-download-url", generateURLHandler("download"))
 		r.Post("/delete-file", deleteFileHandler(config))
+		r.Post("/copy-file", copyFileHandler(config))
 	})
 
 	// Public routes for file handling
@@ -196,6 +202,76 @@ func deleteFileHandler(config Config) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func copyFileHandler(config Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var reqBody CopyFileRequest
+		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+		if reqBody.SourceStorageKey == "" || reqBody.DestinationStorageKey == "" {
+			http.Error(w, "source_storage_key and destination_storage_key are required", http.StatusBadRequest)
+			return
+		}
+
+		sourcePath := filepath.Join(config.StoragePath, reqBody.SourceStorageKey)
+		destPath := filepath.Join(config.StoragePath, reqBody.DestinationStorageKey)
+
+		// Basic security check to prevent path traversal.
+		cleanSourcePath, err := filepath.Abs(sourcePath)
+		if err != nil {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		cleanDestPath, err := filepath.Abs(destPath)
+		if err != nil {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		storageRoot, _ := filepath.Abs(config.StoragePath)
+		if !strings.HasPrefix(cleanSourcePath, storageRoot) || !strings.HasPrefix(cleanDestPath, storageRoot) {
+			http.Error(w, "Forbidden: path traversal attempt", http.StatusForbidden)
+			return
+		}
+
+		sourceFile, err := os.Open(sourcePath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				http.Error(w, "Source file not found", http.StatusNotFound)
+				return
+			}
+			log.Printf("Error opening source file %s: %v", sourcePath, err)
+			http.Error(w, "Could not open source file", http.StatusInternalServerError)
+			return
+		}
+		defer sourceFile.Close()
+
+		destDir := filepath.Dir(destPath)
+		if err := os.MkdirAll(destDir, 0755); err != nil {
+			log.Printf("Error creating destination directory %s: %v", destDir, err)
+			http.Error(w, "Could not create storage directory", http.StatusInternalServerError)
+			return
+		}
+
+		destFile, err := os.Create(destPath)
+		if err != nil {
+			log.Printf("Error creating destination file %s: %v", destPath, err)
+			http.Error(w, "Could not create destination file", http.StatusInternalServerError)
+			return
+		}
+		defer destFile.Close()
+
+		_, err = io.Copy(destFile, sourceFile)
+		if err != nil {
+			log.Printf("Error copying file from %s to %s: %v", sourcePath, destPath, err)
+			http.Error(w, "Failed to copy file content", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
 	}
 }
 
