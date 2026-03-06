@@ -27,7 +27,7 @@ def create_document_for_import(
         organization=requesting_user.organization,
         parent=root_folder,
         name=folder_name,
-        defaults={'created_by': requesting_user}
+        created_by=requesting_user,
     )
 
     # 2. Get a unique name for the document

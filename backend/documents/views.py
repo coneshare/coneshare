@@ -74,29 +74,29 @@ def _get_folder_from_path(requesting_user, folder_path: str) -> Folder | None:
     return target_folder
 
 
-def _get_or_create_folders_from_path(requesting_user, folder_path: str) -> Folder:
-    """
-    Recursively finds or creates folders from a path string, starting from the
-    organization's invisible root folder. Returns the final Folder instance.
-    """
-    try:
-        parent = Folder.objects.get_root_for_org(requesting_user.organization)
-    except Folder.DoesNotExist:
-        logger.error(f"Invisible root folder not found for user {requesting_user.id}'s organization")
-        # This is a critical failure, as the root folder should always exist.
-        # We will let this fail hard, which will result in a 500 error.
-        raise
+# def _get_or_create_folders_from_path(requesting_user, folder_path: str) -> Folder:
+#     """
+#     Recursively finds or creates folders from a path string, starting from the
+#     organization's invisible root folder. Returns the final Folder instance.
+#     """
+#     try:
+#         parent = Folder.objects.get_root_for_org(requesting_user.organization)
+#     except Folder.DoesNotExist:
+#         logger.error(f"Invisible root folder not found for user {requesting_user.id}'s organization")
+#         # This is a critical failure, as the root folder should always exist.
+#         # We will let this fail hard, which will result in a 500 error.
+#         raise
 
-    path = Path(folder_path)
-    for part in path.parts:
-        folder, _ = Folder.objects.get_or_create(
-            organization=requesting_user.organization,
-            name=part,
-            parent=parent,
-            defaults={'created_by': requesting_user}
-        )
-        parent = folder
-    return parent
+#     path = Path(folder_path)
+#     for part in path.parts:
+#         folder, _ = Folder.objects.get_or_create(
+#             organization=requesting_user.organization,
+#             name=part,
+#             parent=parent,
+#             defaults={'created_by': requesting_user}
+#         )
+#         parent = folder
+#     return parent
 
 
 class DocumentUploadRequestView(APIView):
@@ -314,18 +314,12 @@ class EnsureFolderPathsView(APIView):
                         )
 
                     folder_name = path.name
-                    folder, created = Folder.objects.get_or_create(
+                    folder, _ = Folder.objects.get_or_create(
                         organization=organization,
                         parent=parent_folder,
                         name=folder_name,
-                        defaults={'created_by': requesting_user}
+                        created_by=requesting_user
                     )
-
-                    # If the folder already existed, verify ownership
-                    if not created and folder.created_by != requesting_user:
-                        raise PermissionDenied(
-                            detail=f"You do not have permission to access or create subfolders in '{path_str}'."
-                        )
 
                     path_to_folder_map[path_str] = folder
 
