@@ -22,8 +22,8 @@ def change_ugid():
     """Change the UID/GID of the existing container user at runtime
     so they match the host user that owns the mounted files.
     """
-    puid = int(os.getenv("PUID"))
-    pgid = int(os.getenv("PGID"))
+    puid = os.getenv("PUID")
+    pgid = os.getenv("PGID")
 
     if puid:
         check_call(f'usermod -o -u {puid} coneshare', shell=True)
