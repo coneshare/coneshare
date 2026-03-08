@@ -29,7 +29,7 @@ def change_ugid():
         check_call(f'usermod -o -u {puid} coneshare', shell=True)
 
     if pgid:
-        check_call(f'groupmod -o -u {pgid} coneshare', shell=True)
+        check_call(f'groupmod -o -g {pgid} coneshare', shell=True)
 
 
 def main(argv):
