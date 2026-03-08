@@ -17,6 +17,9 @@ LABEL org.opencontainers.image.authors="dev@coneshare.com"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
+ARG PUID=1000
+ARG PGID=1000
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     poppler-utils \
     libreoffice \
@@ -29,10 +32,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 && rm -rf /var/lib/apt/lists/*
 
 # add our user and group first to make sure their IDs get assigned consistently
-#RUN set -eux; \
-#        groupadd -g 1002 coneshare; \
-#        useradd -g coneshare -u 1001 coneshare
-RUN groupadd coneshare && useradd -m -g coneshare coneshare
+RUN groupadd -g ${PGID} coneshare \
+    && useradd -u ${PUID} -g coneshare -m coneshare
 
 # grab gosu for easy step-down from root
 ARG GOSU_VERSION=1.19

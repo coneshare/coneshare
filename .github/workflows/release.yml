@@ -76,7 +76,7 @@ jobs:
           CLEAN_VERSION=$(echo $VERSION | sed 's/^v//')
           gh release create "${VERSION}" \
             --repo coneshare/coneshare-compose \
-            --title "Release ${CLEAN_VERSION}" \
+            --title "${CLEAN_VERSION}" \
             --notes "Deployment configuration for Coneshare ${VERSION}" \
             --target main
       

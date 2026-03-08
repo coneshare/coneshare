@@ -18,15 +18,23 @@ def initialize_logdir(app='coneshare'):
     check_call('chown -R coneshare:coneshare %s' % (log_dir), shell=True)
     check_call('chmod -R 0755 %s' % (log_dir), shell=True)
 
-    # # get around of supervisor log permission bug
-    # # issue: https://github.com/Supervisor/supervisor/issues/123
-    # for filename in ['coneshare.log', 'core.out.log', 'script.log', 'task.log']:
-    #     check_call('touch %s/%s/%s' % (log_dir, app, filename), shell=True)
-    #     check_call('chown -R coneshare:coneshare %s/%s/%s' % (log_dir, app, filename), shell=True)
+def change_ugid():
+    """Change the UID/GID of the existing container user at runtime
+    so they match the host user that owns the mounted files.
+    """
+    puid = int(os.getenv("PUID"))
+    pgid = int(os.getenv("PGID"))
+
+    if puid:
+        check_call(f'usermod -o -u {puid} coneshare', shell=True)
+
+    if pgid:
+        check_call(f'groupmod -o -u {pgid} coneshare', shell=True)
 
 
 def main(argv):
     initialize_logdir()
+    change_ugid()
 
     app_dir = os.environ['APP_DIR']
     os.chdir(app_dir)
