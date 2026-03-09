@@ -188,29 +188,39 @@ SIMPLE_JWT = {
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
-# AUTH_PASSWORD_VALIDATORS = [
-#     {
-#         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-#     },
-#     {
-#         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-#     },
-#     {
-#         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-#     },
-#     {
-#         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-#     },
-# ]
-
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-        "OPTIONS": {
-            "min_length": 3,  # default is 8
+POSSIBLE_PASSWORD_VALIDATORS = {
+    'similarity': {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    'min_length': {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': int(os.environ.get('PASSWORD_MIN_LENGTH', 8)),
         }
     },
+    'common': {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    'numeric': {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+}
+
+# Get the comma-separated list of enabled validators from the environment.
+# Default to enabling all for security.
+ENABLED_VALIDATORS_STR = os.environ.get('ENABLED_PASSWORD_VALIDATORS', 'similarity,min_length,common,numeric')
+ENABLED_VALIDATOR_KEYS = [key.strip() for key in ENABLED_VALIDATORS_STR.split(',') if key.strip()]
+
+# Build the final list for Django based on the enabled keys.
+AUTH_PASSWORD_VALIDATORS = [
+    POSSIBLE_PASSWORD_VALIDATORS[key] for key in ENABLED_VALIDATOR_KEYS if key in POSSIBLE_PASSWORD_VALIDATORS
 ]
+
+if not AUTH_PASSWORD_VALIDATORS:
+    # As a safe default, ensure at least a minimum length validator is active if the env var is empty/invalid.
+    AUTH_PASSWORD_VALIDATORS = [POSSIBLE_PASSWORD_VALIDATORS['min_length']]
+
+print("AUTH_PASSWORD_VALIDATORS", AUTH_PASSWORD_VALIDATORS)
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
