@@ -49,7 +49,7 @@ def main(argv):
         # Start the container.
         check_call("supervisord -c /home/coneshare/runtime/supervisord/supervisord.conf", shell=True)
         time.sleep(5)
-        check_call("tail -f /home/coneshare/app/logs/*.log", shell=True)
+        check_call("tail -f /home/coneshare/logs/*.log", shell=True)
     # elif argv[1] == 'sudo':
     #     command = ' '.join(argv[2:])  # Join all arguments after the first
     #     check_call(f"{command}", shell=True)
