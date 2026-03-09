@@ -1059,12 +1059,15 @@ class ShareLinkFileDownloadView(APIView):
                 return Response({"message": "Document ID is required for dataroom downloads."}, status=status.HTTP_400_BAD_REQUEST)
 
             try:
-                setting = link.dataroom_settings.get(dataroom_document__document_id=document_id)
+                setting = link.dataroom_settings.get(
+                    dataroom_document__document_id=document_id,
+                    is_visible=True
+                )
                 document = setting.dataroom_document.document
                 allow_download = setting.allow_download
                 enable_watermark = setting.enable_watermark
             except ShareLinkDataroomSetting.DoesNotExist:
-                return Response({"message": "Document not found in this dataroom link."}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"message": "You do not have permission to download this document through this link."}, status=status.HTTP_403_FORBIDDEN)
 
         elif link.document:
             document = link.document

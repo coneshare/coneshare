@@ -1901,8 +1901,28 @@ class TestWatermarkingViews:
         url = f'/api/v1/links/{link.slug}/download-file/?document_id={invalid_doc_id}'
         response = public_client.get(url)
 
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-        assert "Document not found" in response.data['message']
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert "permission to download" in response.data['message']
+
+    def test_download_from_dataroom_denied_if_not_visible(self, public_client, dataroom_with_watermarked_link):
+        """Test download is denied if dataroom document is not visible, even if download is allowed."""
+        link = dataroom_with_watermarked_link['link']
+        document = dataroom_with_watermarked_link['document']
+        ddoc = dataroom_with_watermarked_link['ddoc']
+
+        # Override setting for this item to be invisible, but downloadable
+        setting = link.dataroom_settings.get(dataroom_document=ddoc)
+        setting.is_visible = False
+        setting.allow_download = True
+        setting.save()
+
+        # Attacker tries to download it directly
+        download_url = f'/api/v1/links/{link.slug}/download-file/?document_id={document.id}'
+        response = public_client.get(download_url)
+
+        # Before the fix, this would be 200 OK. After, it should be 403 Forbidden.
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert "permission to download" in response.data['message']
 
     def test_download_file_password_protected_fails_without_auth(self, public_client, watermarked_link):
         """Test that downloading from a password-protected link without an authorized session fails."""
