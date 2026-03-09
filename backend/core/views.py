@@ -34,6 +34,7 @@ class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = Organization.objects.all().order_by('-created_at')
     serializer_class = OrganizationSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class UserViewSet(mixins.RetrieveModelMixin,
@@ -61,9 +62,12 @@ class UserGroupViewSet(viewsets.ModelViewSet):
     """
     queryset = UserGroup.objects.all().order_by('name')
     serializer_class = UserGroupSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
 
@@ -78,6 +82,8 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 
 class RegisterView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request):
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():

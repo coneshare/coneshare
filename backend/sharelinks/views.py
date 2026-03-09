@@ -217,7 +217,7 @@ class ShareLinkViewDataView(APIView):
     Provides the data needed for a public viewer to render a document from a share link.
     This view includes all necessary security checks.
     """
-    # No permission_classes, as this is a public endpoint with internal checks.
+    permission_classes = [permissions.AllowAny]
 
     def get(self, request, slug, *args, **kwargs):
         is_preview = False
@@ -487,7 +487,7 @@ class ShareLinkVerifyPasswordView(APIView):
     """
     throttle_classes = [PerSlugScopedRateThrottle]
     throttle_scope = 'password_verify'
-    # No permission_classes, as this is a public endpoint.
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request, slug, *args, **kwargs):
         try:
@@ -525,7 +525,7 @@ class ShareLinkRequestAccessView(APIView):
     """
     Handles a viewer's request to access a link that requires an email.
     """
-    # No permission_classes, as this is a public endpoint.
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request, slug, *args, **kwargs):
         try:
@@ -650,6 +650,8 @@ class ShareLinkPageView(APIView):
     via a public share link. It performs all necessary security checks
     for each page request and serves the file from storage.
     """
+    permission_classes = [permissions.AllowAny]
+
     def get(self, request, slug, page_number, *args, **kwargs):
         try:
             link = _get_active_share_link(slug)
@@ -715,6 +717,8 @@ class WatermarkedPageRenderView(APIView):
     Dynamically renders a watermarked image for a document page.
     This is a public endpoint, but it checks for an active share link.
     """
+    permission_classes = [permissions.AllowAny]
+
     def get(self, request, slug, page_number, *args, **kwargs):
         if not Image:
             logger.error("Pillow is not installed. Watermarking is not available.")
@@ -1004,6 +1008,8 @@ class ShareLinkFileDownloadView(APIView):
     is enabled for the item, it generates a watermarked PDF; otherwise, it
     serves the original file.
     """
+    permission_classes = [permissions.AllowAny]
+
     def get(self, request, slug, *args, **kwargs):
         try:
             link = _get_active_share_link(slug)
@@ -1125,6 +1131,8 @@ class DataroomFolderDownloadView(APIView):
     """
     Handles the download of an entire dataroom folder as a ZIP archive.
     """
+    permission_classes = [permissions.AllowAny]
+
     def _add_folder_to_zip(self, zipf, folder, current_path, link, request, viewer_email):
         """
         Recursively adds a folder's contents to the ZIP archive, respecting
@@ -1406,8 +1414,7 @@ class RecordPageView(APIView):
     """
     Receives and records granular page view tracking data.
     """
-    # No permission_classes, as this is a public endpoint. Security is implicit
-    # as it requires a valid, existing `view_id`.
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
         serializer = PageViewRecordSerializer(data=request.data)
