@@ -125,6 +125,29 @@ class TestDataroomViewSet:
         ddoc = DataroomDocument.objects.get(dataroom=dataroom, document=document)
         assert ddoc.name == document.name
 
+    def test_add_content_permission_denied_for_other_user_content(self, api_client, user, user2, document):
+        """
+        Test that a user cannot add documents or folders owned by another user
+        to their dataroom.
+        """
+        # `document` is created by `user`
+        assert document.created_by == user
+
+        # `user2` creates a dataroom that they own
+        dataroom_by_user2 = Dataroom.objects.create(name="User2's Dataroom", organization=user2.organization, created_by=user2)
+
+        # `user2` logs in
+        api_client.force_authenticate(user=user2)
+
+        # `user2` tries to add `user`'s document to their dataroom
+        url = f'/api/v1/datarooms/{dataroom_by_user2.id}/add-content/'
+        data = {'document_ids': [str(document.id)]}
+        response = api_client.post(url, data)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert "You do not have permission" in response.data['detail']
+        assert DataroomDocument.objects.count() == 0
+
     def test_add_content_updates_existing_share_links(self, api_client, dataroom, document, user):
         """
         Test that adding content to a dataroom automatically updates existing

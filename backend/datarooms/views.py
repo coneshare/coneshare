@@ -46,7 +46,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
             created_by=self.request.user
         )
 
-    def _replicate_folder_structure(self, dataroom, source_folder, parent_dataroom_folder):
+    def _replicate_folder_structure(self, dataroom, source_folder, parent_dataroom_folder, requesting_user):
         """
         Recursively replicates a source folder structure and its documents
         into a dataroom.
@@ -66,7 +66,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
         # Add documents from the source folder to the new dataroom folder.
         # If a document is already in the dataroom, its folder will be updated.
-        for doc in source_folder.documents.all():
+        for doc in source_folder.documents.filter(created_by=requesting_user):
             unique_name = self._get_unique_dataroom_document_name(
                 dataroom, new_dataroom_folder, doc.name
             )
@@ -78,8 +78,8 @@ class DataroomViewSet(viewsets.ModelViewSet):
             )
 
         # Recurse for subfolders.
-        for subfolder in source_folder.children.all():
-            self._replicate_folder_structure(dataroom, subfolder, new_dataroom_folder)
+        for subfolder in source_folder.children.filter(created_by=requesting_user):
+            self._replicate_folder_structure(dataroom, subfolder, new_dataroom_folder, requesting_user)
 
     @action(detail=True, methods=['post'], url_path='add-content')
     def add_content(self, request, pk=None):
@@ -100,7 +100,10 @@ class DataroomViewSet(viewsets.ModelViewSet):
         try:
             with transaction.atomic():
                 # Add individual documents.
-                docs_to_add = Document.objects.filter(id__in=doc_ids, organization=request.user.organization)
+                docs_to_add = Document.objects.filter(id__in=doc_ids, created_by=request.user)
+                if docs_to_add.count() != len(doc_ids):
+                    raise PermissionDenied("You do not have permission to add one or more of the selected documents.")
+
                 for doc in docs_to_add:
                     unique_name = self._get_unique_dataroom_document_name(
                         dataroom, destination_folder, doc.name
@@ -113,11 +116,16 @@ class DataroomViewSet(viewsets.ModelViewSet):
                     )
 
                 # Add folders and their contents recursively.
-                folders_to_add = Folder.objects.filter(id__in=folder_ids, organization=request.user.organization)
+                folders_to_add = Folder.objects.filter(id__in=folder_ids, created_by=request.user)
+                if folders_to_add.count() != len(folder_ids):
+                    raise PermissionDenied("You do not have permission to add one or more of the selected folders.")
+
                 for folder in folders_to_add:
-                    self._replicate_folder_structure(dataroom, folder, destination_folder)
+                    self._replicate_folder_structure(dataroom, folder, destination_folder, request.user)
 
             return Response({"detail": "Content added successfully."}, status=status.HTTP_200_OK)
+        except PermissionDenied as e:
+            return Response({"detail": str(e)}, status=status.HTTP_403_FORBIDDEN)
         except Exception as e:
             logger.error(e)
             return Response({
