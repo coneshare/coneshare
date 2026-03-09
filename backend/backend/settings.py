@@ -30,7 +30,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # These settings are required for the application to start.
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-(ptz@00bnu41y5xkt51b6qi23hqv9@8our!x+14vi7r)9ga)#b')
+SECRET_KEY = os.environ['SECRET_KEY']
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 't')
