@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -343,7 +345,9 @@ func handleDownload(config Config) http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Disposition", "attachment; filename=\""+filepath.Base(filePath)+"\"")
+		safeName := url.PathEscape(filepath.Base(filePath))
+		w.Header().Set("Content-Disposition",
+			fmt.Sprintf(`attachment; filename*=UTF-8''%s`, safeName))
 		http.ServeFile(w, r, filePath)
 	}
 }
