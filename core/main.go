@@ -137,6 +137,26 @@ func handleUpload(config Config) http.HandlerFunc {
 		}
 
 		filePath := filepath.Join(config.StoragePath, info.StorageKey)
+
+		// Security check to prevent path traversal.
+		storageRoot, err := filepath.Abs(config.StoragePath)
+		if err != nil {
+			log.Printf("Configuration error: invalid storage path: %v", err)
+			http.Error(w, "Internal server error due to server configuration", http.StatusInternalServerError)
+			return
+		}
+		safePrefix := storageRoot + string(os.PathSeparator)
+
+		cleanPath, err := filepath.Abs(filePath)
+		if err != nil {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		if !strings.HasPrefix(cleanPath, safePrefix) {
+			http.Error(w, "Forbidden: path traversal attempt", http.StatusForbidden)
+			return
+		}
+
 		dir := filepath.Dir(filePath)
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			log.Printf("Error creating directory %s: %v", dir, err)
@@ -303,6 +323,26 @@ func handleDownload(config Config) http.HandlerFunc {
 		}
 
 		filePath := filepath.Join(config.StoragePath, info.StorageKey)
+
+		// Security check to prevent path traversal.
+		storageRoot, err := filepath.Abs(config.StoragePath)
+		if err != nil {
+			log.Printf("Configuration error: invalid storage path: %v", err)
+			http.Error(w, "Internal server error due to server configuration", http.StatusInternalServerError)
+			return
+		}
+		safePrefix := storageRoot + string(os.PathSeparator)
+
+		cleanPath, err := filepath.Abs(filePath)
+		if err != nil {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		if !strings.HasPrefix(cleanPath, safePrefix) {
+			http.Error(w, "Forbidden: path traversal attempt", http.StatusForbidden)
+			return
+		}
+
 		w.Header().Set("Content-Disposition", "attachment; filename=\""+filepath.Base(filePath)+"\"")
 		http.ServeFile(w, r, filePath)
 	}
