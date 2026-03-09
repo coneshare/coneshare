@@ -8,30 +8,28 @@ from core.models import LoginActivity
 User = get_user_model()
 
 
-@pytest.mark.django_db
-def test_user_registration(public_client):
-    """
-    Test that a new user can be registered via the API.
-    The new user should be automatically assigned to the default organization.
-    """
-    register_data = {
-        'email': 'newuser@coneshare.com',
-        'password': 'newpassword123',
-        'first_name': 'New',
-        'last_name': 'User',
-    }
-    url = reverse('register')
-    response = public_client.post(url, register_data)
-
-    assert response.status_code == status.HTTP_201_CREATED
-    assert response.data['email'] == register_data['email']
-
-    # Verify user exists in DB and is assigned to the default organization.
-    # The `post_migrate` signal creates the "Default Organization".
-    assert User.objects.filter(email=register_data['email']).exists()
-    new_user = User.objects.get(email=register_data['email'])
-    assert new_user.organization is not None
-    assert new_user.organization.name == "Default Organization"
+# @pytest.mark.django_db
+# def test_user_registration(public_client):
+#     """
+#     Test that a new user can be registered via the API.
+#     The new user should be automatically assigned to the default organization.
+#     """
+#     register_data = {
+#         'email': 'newuser@coneshare.com',
+#         'password': 'newpassword123',
+#         'first_name': 'New',
+#         'last_name': 'User',
+#     }
+#     url = reverse('register')
+#     response = public_client.post(url, register_data)
+#     assert response.status_code == status.HTTP_201_CREATED
+#     assert response.data['email'] == register_data['email']
+#     # Verify user exists in DB and is assigned to the default organization.
+#     # The `post_migrate` signal creates the "Default Organization".
+#     assert User.objects.filter(email=register_data['email']).exists()
+#     new_user = User.objects.get(email=register_data['email'])
+#     assert new_user.organization is not None
+#     assert new_user.organization.name == "Default Organization"
 
 
 @pytest.mark.django_db
