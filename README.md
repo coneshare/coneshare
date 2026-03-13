@@ -1,11 +1,21 @@
+<div align="center">
+
 ![Coneshare logo](https://raw.githubusercontent.com/coneshare/coneshare/refs/heads/main/coneshare_logo.png)
 
 [![Backend CI](https://github.com/coneshare/coneshare/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/coneshare/coneshare/actions/workflows/backend-ci.yml)
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/coneshare/coneshare)
+
+Documentation: [docs.coneshare.com](https://docs.coneshare.com)
+
+</div>
+
 
 # Coneshare
 
 > [!TIP]
 > For general information about Coneshare and how to install, please visit **[Coneshare on Github](https://github.com/coneshare/)**.
+
 
 This is the main repository for the Coneshare server. It contains the backend services (written in Python and Go) and the frontend service (written in React).
 
@@ -29,7 +39,11 @@ Coneshare is built with a modern, maintainable, and scalable technology stack su
 
 For more details, see the [Technology Stack Documentation](docs/coneshare-techstack.md).
 
-## Getting Started
+## Usage
+
+Visit [the docs](https://docs.coneshare.com/en/quick-start/) for a more in-depth guide on how to get started.
+
+## Build from Source
 
 ### Prerequisites
 
