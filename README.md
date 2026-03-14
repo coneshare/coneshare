@@ -1,14 +1,12 @@
-<div align="center">
 
 ![Coneshare logo](https://raw.githubusercontent.com/coneshare/coneshare/refs/heads/main/coneshare_logo.png)
 
 [![Backend CI](https://github.com/coneshare/coneshare/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/coneshare/coneshare/actions/workflows/backend-ci.yml)
-
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/coneshare/coneshare)
+[![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![Documentation](https://img.shields.io/badge/docs-coneshare-blue)](https://docs.coneshare.com/en/)
 
-Documentation: [docs.coneshare.com](https://docs.coneshare.com)
-
-</div>
+⭐ If you like this project, please give this repo a star — it helps more people discover this project.
 
 
 # Coneshare
