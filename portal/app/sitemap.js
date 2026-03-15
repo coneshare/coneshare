@@ -15,7 +15,7 @@ export default function sitemap() {
     lastModified: new Date(),
   }));
 
-  const routes = ['', '/features', '/solutions'].map((route) => ({
+  const routes = ['', '/features', '/solutions', '/privacy-policy', '/terms', '/demo'].map((route) => ({
     url: `${URL}${route}`,
     lastModified: new Date(),
   }));

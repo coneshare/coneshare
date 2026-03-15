@@ -10,6 +10,12 @@ export function Footer() {
                 <a href="/solutions" className="text-sm leading-6 text-gray-600 hover:text-gray-900">Solutions</a>
             </div>
             <div className="pb-6">
+                <a href="/terms" className="text-sm leading-6 text-gray-600 hover:text-gray-900">Terms</a>
+            </div>
+            <div className="pb-6">
+                <a href="/privacy-policy" className="text-sm leading-6 text-gray-600 hover:text-gray-900">Privacy</a>
+            </div>
+            <div className="pb-6">
                 <a href="https://docs.coneshare.com/en/" target="_blank" rel="noopener noreferrer" className="text-sm leading-6 text-gray-600 hover:text-gray-900">Docs</a>
             </div>
             <div className="pb-6">
