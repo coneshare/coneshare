@@ -348,7 +348,14 @@ class ShareLinkViewDataView(APIView):
                 allow_download = dataroom_setting.allow_download
                 enable_watermark = dataroom_setting.enable_watermark
 
-            pages_data = _prepare_pages_data(document, primary_version, share_link=link)
+            pages_data = _prepare_pages_data(
+                document,
+                primary_version,
+                share_link=link,
+                enable_watermark_override=(
+                    dataroom_setting.enable_watermark if dataroom_setting else None
+                ),
+            )
 
             download_url = None
             is_watermarked = enable_watermark and link.watermark_text
@@ -732,10 +739,8 @@ class WatermarkedPageRenderView(APIView):
         except NotFound as e:
             return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
 
-        if not link.enable_watermark or not link.watermark_text:
-            return Response({"message": "Watermarking is not enabled for this link."}, status=status.HTTP_400_BAD_REQUEST)
-
         document = None
+        watermark_enabled_for_item = False
         if link.dataroom:
             document_id = request.query_params.get('document_id')
             if not document_id:
@@ -748,12 +753,17 @@ class WatermarkedPageRenderView(APIView):
                     is_visible=True
                 )
                 document = setting.dataroom_document.document
+                watermark_enabled_for_item = setting.enable_watermark
             except ShareLinkDataroomSetting.DoesNotExist:
                 return Response({"message": "You do not have permission to view this document."}, status=status.HTTP_403_FORBIDDEN)
         elif link.document:
             document = link.document
+            watermark_enabled_for_item = link.enable_watermark
         else:
             return Response({"message": "Invalid link target."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not watermark_enabled_for_item or not link.watermark_text:
+            return Response({"message": "Watermarking is not enabled for this file."}, status=status.HTTP_400_BAD_REQUEST)
 
         primary_version = document.versions.filter(is_primary=True).first()
 

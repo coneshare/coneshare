@@ -121,6 +121,9 @@ class ShareLinkDataroomSetting(BaseModel):
             )
         ]
 
+    def __str__(self):
+        return f"dataroom-setting for {self.dataroom_document}, perms: {self.is_visible}, {self.allow_download}, {self.enable_watermark}"
+
 
 class DataroomVisit(models.Model):
     id = ULIDField(primary_key=True, editable=False)

@@ -703,6 +703,55 @@ class TestDataroomVisitTracking:
         expected_url = f"http://test.coneshare.com/api/v1/links/{link.slug}/download-file/?document_id={document.id}"
         assert data['download_url'] == expected_url
 
+    @override_settings(SITE_DOMAIN="http://test.coneshare.com")
+    def test_dataroom_document_watermark_override_disables_watermarked_page_url(
+        self, public_client, user, dataroom, image_document_with_content
+    ):
+        """
+        A dataroom document's item-level watermark setting must override the
+        parent link watermark setting when generating page URLs.
+        """
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=image_document_with_content)
+        link = ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            enable_watermark=True,
+            watermark_text="CONFIDENTIAL",
+        )
+        setting = link.dataroom_settings.get(dataroom_document=ddoc)
+        setting.enable_watermark = False
+        setting.save(update_fields=["enable_watermark"])
+
+        response = public_client.get(f"/api/v1/links/{link.slug}/view-data/?document_id={image_document_with_content.id}")
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["link_settings"]["enable_watermark"] is False
+        assert data["pages"][0]["url"] == f"http://test.coneshare.com/api/v1/links/{link.slug}/page/1/?document_id={image_document_with_content.id}"
+
+    def test_render_page_rejects_dataroom_document_when_item_watermark_is_disabled(
+        self, public_client, user, dataroom, image_document_with_content
+    ):
+        """
+        The watermark render endpoint must reject dataroom documents whose
+        item-level watermark is disabled, even if link-level watermark is enabled.
+        """
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=image_document_with_content)
+        link = ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            enable_watermark=True,
+            watermark_text="CONFIDENTIAL",
+        )
+        setting = link.dataroom_settings.get(dataroom_document=ddoc)
+        setting.enable_watermark = False
+        setting.save(update_fields=["enable_watermark"])
+
+        response = public_client.get(
+            f"/api/v1/links/{link.slug}/render-page/1/?document_id={image_document_with_content.id}"
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["message"] == "Watermarking is not enabled for this file."
+
 @pytest.mark.django_db
 class TestShareLinkPreview:
     """Tests for the Share Link Preview functionality."""
