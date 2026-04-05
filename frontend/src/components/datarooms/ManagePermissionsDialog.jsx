@@ -20,6 +20,8 @@ import {
   TooltipTrigger,
 } from '../ui/Tooltip';
 
+const PERMISSION_GRID_CLASS = 'grid grid-cols-[minmax(0,1fr)_6rem_6rem_6rem] items-center';
+
 // --- Tree Building Utility ---
 const buildTree = (folders, documents) => {
   const allItems = [
@@ -63,7 +65,7 @@ function PermissionRow({ item, level, settings, onSettingChange, onBulkSettingCh
 
   return (
     <>
-      <div className="flex items-center justify-between rounded-md p-2 hover:bg-muted/50 text-sm">
+      <div className={`${PERMISSION_GRID_CLASS} rounded-md p-2 hover:bg-muted/50 text-sm`}>
         <div className="flex items-center gap-2 flex-1 min-w-0" style={{ paddingLeft: `${level * 1.5}rem` }}>
           {isFolder ? (
             <button onClick={() => toggleFolder(item.id)} className="p-1 -ml-1">
@@ -75,29 +77,35 @@ function PermissionRow({ item, level, settings, onSettingChange, onBulkSettingCh
           {isFolder ? <FolderIcon className="h-4 w-4 flex-shrink-0" /> : <FileIcon className="h-4 w-4 flex-shrink-0" />}
           <span className="truncate">{item.name}</span>
         </div>
-        <div className="flex items-center gap-x-6">
+        <div className="flex justify-center">
           {isFolder ? (
-            <>
-              <Checkbox checked={setting.is_visible} onCheckedChange={(checked) => handleBulkChange('is_visible', checked)} />
-              <Checkbox checked={setting.allow_download} onCheckedChange={(checked) => handleBulkChange('allow_download', checked)} />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  {/* Disabled elements need a wrapper for the tooltip to trigger */}
-                  <span tabIndex="0">
-                    <Checkbox checked={setting.enable_watermark} onCheckedChange={(checked) => handleBulkChange('enable_watermark', checked)} disabled />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Watermark settings are applied to individual documents, not folders.</p>
-                </TooltipContent>
-              </Tooltip>
-            </>
+            <Checkbox checked={setting.is_visible} onCheckedChange={(checked) => handleBulkChange('is_visible', checked)} />
           ) : (
-            <>
-              <Checkbox id={`visible-${item.id}`} checked={setting.is_visible} onCheckedChange={(c) => handleCheckboxChange('is_visible', c)} />
-              <Checkbox id={`download-${item.id}`} checked={setting.allow_download} onCheckedChange={(c) => handleCheckboxChange('allow_download', c)} />
-              <Checkbox id={`watermark-${item.id}`} checked={setting.enable_watermark} onCheckedChange={(c) => handleCheckboxChange('enable_watermark', c)} />
-            </>
+            <Checkbox id={`visible-${item.id}`} checked={setting.is_visible} onCheckedChange={(c) => handleCheckboxChange('is_visible', c)} />
+          )}
+        </div>
+        <div className="flex justify-center">
+          {isFolder ? (
+            <Checkbox checked={setting.allow_download} onCheckedChange={(checked) => handleBulkChange('allow_download', checked)} />
+          ) : (
+            <Checkbox id={`download-${item.id}`} checked={setting.allow_download} onCheckedChange={(c) => handleCheckboxChange('allow_download', c)} />
+          )}
+        </div>
+        <div className="flex justify-center">
+          {isFolder ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {/* Disabled elements need a wrapper for the tooltip to trigger */}
+                <span tabIndex="0" className="inline-flex">
+                  <Checkbox checked={setting.enable_watermark} onCheckedChange={(checked) => handleBulkChange('enable_watermark', checked)} disabled />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Watermark settings are applied to individual documents, not folders.</p>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Checkbox id={`watermark-${item.id}`} checked={setting.enable_watermark} onCheckedChange={(c) => handleCheckboxChange('enable_watermark', c)} />
           )}
         </div>
       </div>
@@ -218,7 +226,7 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className="sm:max-w-4xl">
         <TooltipProvider>
           <DialogHeader>
             <DialogTitle>Manage Permissions for "{link?.name || 'Untitled Link'}"</DialogTitle>
@@ -226,24 +234,23 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
             Set visibility, download, and watermark permissions for each item. Changes apply only to
             this link.
           </DialogDescription>
+          <p className="text-xs text-muted-foreground">
+            Folder permission changes apply recursively to all nested folders and documents.
+          </p>
         </DialogHeader>
         <div className="py-4 space-y-2">
-          <div className="flex items-center justify-between px-2 text-sm font-medium text-muted-foreground">
-            <span className="flex-1">Content</span>
-            <div className="flex items-center gap-x-6">
-              <Label className="w-16 text-center">Visible</Label>
-              <Label className="w-16 text-center">Download</Label>
-              <Label className="w-16 text-center">Watermark</Label>
-            </div>
+          <div className={`${PERMISSION_GRID_CLASS} px-2 text-sm font-medium text-muted-foreground`}>
+            <span>Content</span>
+            <Label className="text-center">Visible</Label>
+            <Label className="text-center">Download</Label>
+            <Label className="text-center">Watermark</Label>
           </div>
-          <div className="flex items-center justify-between px-2 text-xs font-medium text-muted-foreground bg-muted/50 rounded-md py-1">
-            <span className="flex-1 ml-8">Apply to all items in a folder:</span>
-            <div className="flex items-center gap-x-6">
-              <Label className="w-16 text-center">Visible</Label>
-              <Label className="w-16 text-center">Download</Label>
-              <Label className="w-16 text-center">Watermark</Label>
-            </div>
-          </div>
+          {/* <div className={`${PERMISSION_GRID_CLASS} px-2 text-xs font-medium text-muted-foreground bg-muted/50 rounded-md py-1`}> */}
+          {/*   <span className="ml-8">Folder controls (recursive):</span> */}
+          {/*   <Label className="text-center">Visible</Label> */}
+          {/*   <Label className="text-center">Download</Label> */}
+          {/*   <Label className="text-center">Watermark</Label> */}
+          {/* </div> */}
           <div className="max-h-[50vh] overflow-y-auto rounded-md border p-2">
             {isLoading ? (
               <div className="flex items-center justify-center p-8">
