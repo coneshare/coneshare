@@ -611,17 +611,24 @@ class FolderViewSet(viewsets.ModelViewSet):
 
     def _get_folder_contents(self, folder, request):
         """Helper to fetch and serialize sub-folders and documents for a given folder."""
-        sub_folders = folder.children.filter(created_by=request.user)
-        documents = folder.documents.filter(created_by=request.user).prefetch_related(
+        logging.debug('get root folder contents...')
+        sub_folders = list(folder.children.filter(created_by=request.user))
+        logging.debug(f'folders: {sub_folders}')
+        documents = list(folder.documents.filter(created_by=request.user).prefetch_related(
             'versions', 'share_links', 'share_links__view_sessions'
-        )
+        ))
+        logging.debug(f'documents: {documents}')
 
-        sub_folders_serializer = self.get_serializer(sub_folders, many=True)
+        sub_folders_serializer = FolderSerializer(sub_folders, many=True)
+        sub_folders_data = sub_folders_serializer.data
+        logging.debug(f'sub_folders_data: {sub_folders_data}')
         documents_serializer = DocumentSerializer(documents, many=True, context={'request': request})
+        documents_data = documents_serializer.data
+        logging.debug(f'documents_data: {documents_data}')
 
         return {
-            'sub_folders': sub_folders_serializer.data,
-            'documents': documents_serializer.data,
+            'sub_folders': sub_folders_data,
+            'documents': documents_data,
         }
 
     def list(self, request, *args, **kwargs):
