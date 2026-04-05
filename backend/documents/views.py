@@ -434,14 +434,22 @@ class DocumentVersionUploadFinalizeView(APIView):
         return Response(doc_serializer.data, status=status.HTTP_202_ACCEPTED)
 
 
-def _prepare_pages_data(document, primary_version, share_link=None):
+def _prepare_pages_data(document, primary_version, share_link=None, enable_watermark_override=None):
     """
     Prepares a list of page data with absolute URLs for a given document version.
     Handles both image types and paginated document types.
     If a share_link is provided, it generates secure, permission-checked URLs.
     """
     pages_data = []
-    is_watermarked = share_link and share_link.enable_watermark and share_link.watermark_text
+    if share_link:
+        watermark_enabled = (
+            enable_watermark_override
+            if enable_watermark_override is not None
+            else share_link.enable_watermark
+        )
+        is_watermarked = watermark_enabled and bool(share_link.watermark_text)
+    else:
+        is_watermarked = False
 
     if document.type == 'image':
         absolute_url = None

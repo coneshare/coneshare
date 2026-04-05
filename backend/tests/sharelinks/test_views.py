@@ -703,6 +703,64 @@ class TestDataroomVisitTracking:
         expected_url = f"http://test.coneshare.com/api/v1/links/{link.slug}/download-file/?document_id={document.id}"
         assert data['download_url'] == expected_url
 
+    @override_settings(SITE_DOMAIN="http://test.coneshare.com")
+    def test_dataroom_document_watermark_override_disables_watermarked_page_url(
+        self, public_client, user, dataroom, image_document_with_content
+    ):
+        """
+        A dataroom document's item-level watermark setting must override the
+        parent link watermark setting when generating page URLs.
+        """
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=image_document_with_content)
+        link = ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            enable_watermark=True,
+            watermark_text="CONFIDENTIAL",
+        )
+        setting = link.dataroom_settings.get(dataroom_document=ddoc)
+        setting.enable_watermark = False
+        setting.save(update_fields=["enable_watermark"])
+
+        response = public_client.get(f"/api/v1/links/{link.slug}/view-data/?document_id={image_document_with_content.id}")
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["link_settings"]["enable_watermark"] is False
+        assert data["pages"][0]["url"] == f"http://test.coneshare.com/api/v1/links/{link.slug}/page/1/?document_id={image_document_with_content.id}"
+
+    def test_render_page_rejects_dataroom_document_when_item_watermark_is_disabled(
+        self, public_client, user, dataroom, image_document_with_content
+    ):
+        """
+        The watermark render endpoint must reject dataroom documents whose
+        item-level watermark is disabled, even if link-level watermark is enabled.
+        """
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=image_document_with_content)
+        link = ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            enable_watermark=True,
+            watermark_text="CONFIDENTIAL",
+        )
+        setting = link.dataroom_settings.get(dataroom_document=ddoc)
+        setting.enable_watermark = False
+        setting.save(update_fields=["enable_watermark"])
+        session = public_client.session
+        session['authorized_share_links'] = {
+            str(link.id): {
+                'password_verified': True,
+                'email_verified': True,
+                'viewer_email': '',
+            }
+        }
+        session.save()
+
+        response = public_client.get(
+            f"/api/v1/links/{link.slug}/render-page/1/?document_id={image_document_with_content.id}"
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["message"] == "Watermarking is not enabled for this file."
+
 @pytest.mark.django_db
 class TestShareLinkPreview:
     """Tests for the Share Link Preview functionality."""
@@ -1412,6 +1470,18 @@ class TestShareLinkPageView:
 class TestWatermarkingViews:
     """Tests for the dynamic watermarking endpoints."""
 
+    @staticmethod
+    def _authorize_link_session(client, link, viewer_email=''):
+        session = client.session
+        session['authorized_share_links'] = {
+            str(link.id): {
+                'password_verified': True,
+                'email_verified': True,
+                'viewer_email': viewer_email,
+            }
+        }
+        session.save()
+
     @pytest.fixture
     def document_with_page(self, document):
         """Fixture for a document that has one page."""
@@ -1471,6 +1541,7 @@ class TestWatermarkingViews:
     @patch('sharelinks.views.fileserver_client.generate_download_url')
     def test_render_watermarked_page_success(self, mock_fs_download_url, mock_requests_get, public_client, watermarked_link):
         """Test that a watermarked page image is rendered successfully."""
+        self._authorize_link_session(public_client, watermarked_link)
         mock_fs_download_url.return_value = "/files/download/token"
         img = Image.new('RGB', (100, 100), color='white')
         buffer = BytesIO()
@@ -1621,6 +1692,7 @@ class TestWatermarkingViews:
 
     def test_render_page_for_link_without_watermark_fails(self, public_client, share_link):
         """Test that the render endpoint fails if watermarking is not enabled."""
+        self._authorize_link_session(public_client, share_link)
         url = f'/api/v1/links/{share_link.slug}/render-page/1/'
         response = public_client.get(url)
 
@@ -1631,6 +1703,7 @@ class TestWatermarkingViews:
     @patch('sharelinks.views.fileserver_client.generate_download_url')
     def test_render_watermarked_page_returns_caching_headers(self, mock_fs_download, mock_requests_get, public_client, watermarked_link):
         """Test that the initial response for a watermarked page includes ETag and Cache-Control headers."""
+        self._authorize_link_session(public_client, watermarked_link)
         mock_fs_download.return_value = "http://core:8080/files/download/token"
         mock_response = MagicMock()
         mock_response.raise_for_status.return_value = None
@@ -1654,6 +1727,7 @@ class TestWatermarkingViews:
     @patch('sharelinks.views.fileserver_client.generate_download_url')
     def test_render_watermarked_page_with_etag_returns_304(self, mock_fs_download, mock_requests_get, public_client, watermarked_link):
         """Test that sending a valid ETag in If-None-Match returns a 304 Not Modified."""
+        self._authorize_link_session(public_client, watermarked_link)
         mock_fs_download.return_value = "http://core:8080/files/download/token"
         mock_response = MagicMock()
         mock_response.raise_for_status.return_value = None
@@ -1685,6 +1759,7 @@ class TestWatermarkingViews:
         Test that ETag validation fails and returns a new 200 response if the
         link's watermark text has changed.
         """
+        self._authorize_link_session(public_client, watermarked_link)
         def setup_mocks(*args, **kwargs):
             mock_response = MagicMock()
             mock_response.raise_for_status.return_value = None
@@ -1772,6 +1847,7 @@ class TestWatermarkingViews:
         Test that the ETag for a watermarked page is different for different
         viewers when the IP address is taken from X-Real-IP.
         """
+        self._authorize_link_session(public_client, watermarked_link)
         watermarked_link.watermark_text = "Viewed from {{ip-address}}"
         watermarked_link.save()
 
@@ -1808,6 +1884,7 @@ class TestWatermarkingViews:
     @patch('sharelinks.views.fileserver_client.generate_download_url')
     def test_render_watermarked_page_from_dataroom_success(self, mock_fs_download, mock_requests_get, public_client, dataroom_with_watermarked_link):
         """Test that a watermarked page can be rendered from a dataroom link."""
+        self._authorize_link_session(public_client, dataroom_with_watermarked_link['link'])
         mock_fs_download.return_value = "http://core:8080/files/download/token"
         mock_response = MagicMock()
         mock_response.raise_for_status.return_value = None
@@ -1826,6 +1903,13 @@ class TestWatermarkingViews:
 
         assert response.status_code == status.HTTP_200_OK
         assert response.get('Content-Type') == 'image/jpeg'
+
+    def test_render_watermarked_page_without_authorized_session_fails(self, public_client, watermarked_link):
+        """Direct access to render-page must require an authorized session."""
+        url = f'/api/v1/links/{watermarked_link.slug}/render-page/1/'
+        response = public_client.get(url)
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.data['message'] == 'Authorization required to view this content.'
 
     @pytest.fixture
     def dataroom_with_watermarked_link(self, dataroom, user, document_with_page):
