@@ -122,7 +122,8 @@ class ShareLinkDataroomSetting(BaseModel):
         ]
 
     def __str__(self):
-        return f"dataroom-setting for {self.dataroom_document}, perms: {self.is_visible}, {self.allow_download}, {self.enable_watermark}"
+        target = self.dataroom_document or self.dataroom_folder
+        return f"dataroom-setting for {target}, perms: {self.is_visible}, {self.allow_download}, {self.enable_watermark}"
 
 
 class DataroomVisit(models.Model):
