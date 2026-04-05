@@ -739,6 +739,19 @@ class WatermarkedPageRenderView(APIView):
         except NotFound as e:
             return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
 
+        if link.expires_at and link.expires_at < timezone.now():
+            return Response({"message": "This link has expired."}, status=status.HTTP_410_GONE)
+
+        # Keep authorization behavior consistent with ShareLinkPageView:
+        # page-render endpoints require an already authorized session.
+        authorized_links = request.session.get('authorized_share_links', {})
+        auth_status = authorized_links.get(str(link.id), {})
+        if not auth_status:
+            return Response(
+                {"message": "Authorization required to view this content."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
         document = None
         watermark_enabled_for_item = False
         if link.dataroom:
@@ -784,8 +797,6 @@ class WatermarkedPageRenderView(APIView):
         if not source_image_key:
             return Response({"message": "Source image for page not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        authorized_links = request.session.get('authorized_share_links', {})
-        auth_status = authorized_links.get(str(link.id), {})
         viewer_email = auth_status.get('viewer_email', '')
 
         # Generate an ETag based on factors that would change the output image.
