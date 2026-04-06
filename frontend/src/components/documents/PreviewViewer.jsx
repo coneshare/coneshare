@@ -5,6 +5,7 @@ import { recordPageView } from '../../services/api';
 export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId, dataroomVisitId }) {
   const [scrollContainer, setScrollContainer] = useState(null);
   const pageRefs = useRef(new Map());
+  const visibilityRatiosRef = useRef(new Map());
   const activePageRef = useRef(1);
   const timeOnPageRef = useRef(0);
   const intervalRef = useRef(null);
@@ -88,14 +89,29 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId, d
   useEffect(() => {
     if (!scrollContainer) return;
 
+    // Always start a newly loaded document at the first page.
+    scrollContainer.scrollTop = 0;
+    activePageRef.current = 1;
+    timeOnPageRef.current = 0;
+    visibilityRatiosRef.current.clear();
+    onPageChange(1);
+
     const observer = new IntersectionObserver(
       (entries) => {
-        const [mostVisibleEntry] = [...entries].sort(
-          (a, b) => b.intersectionRatio - a.intersectionRatio
-        );
+        entries.forEach((entry) => {
+          const pageNumber = parseInt(entry.target.dataset.pageNumber, 10);
+          if (entry.isIntersecting) {
+            visibilityRatiosRef.current.set(pageNumber, entry.intersectionRatio);
+          } else {
+            visibilityRatiosRef.current.delete(pageNumber);
+          }
+        });
 
-        if (mostVisibleEntry && mostVisibleEntry.isIntersecting) {
-          const newPageNumber = parseInt(mostVisibleEntry.target.dataset.pageNumber, 10);
+        const visiblePages = [...visibilityRatiosRef.current.entries()];
+        if (visiblePages.length > 0) {
+          const [newPageNumber] = visiblePages.reduce((mostVisible, page) =>
+            page[1] > mostVisible[1] ? page : mostVisible
+          );
           if (newPageNumber !== activePageRef.current) {
             // Page has changed, send tracking data for the previous page
             sendTrackingData(activePageRef.current, timeOnPageRef.current);
