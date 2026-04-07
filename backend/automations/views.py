@@ -1,4 +1,6 @@
-from rest_framework import permissions, viewsets
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 from .models import (AutomationAssignment, AutomationDelivery, AutomationDestination,
                      AutomationRule)
@@ -6,6 +8,7 @@ from .serializers import (AutomationAssignmentSerializer,
                           AutomationDeliverySerializer,
                           AutomationDestinationSerializer,
                           AutomationRuleSerializer)
+from .tasks import deliver_automation_delivery_task
 
 
 class AutomationDestinationViewSet(viewsets.ModelViewSet):
@@ -42,6 +45,29 @@ class AutomationDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
         if rule_id:
             queryset = queryset.filter(rule_id=rule_id)
         return queryset
+
+    @action(detail=True, methods=['post'], url_path='replay')
+    def replay(self, request, pk=None):
+        delivery = self.get_object()
+        delivery.status = AutomationDelivery.Status.PENDING
+        delivery.response_code = None
+        delivery.response_body_excerpt = ''
+        delivery.next_retry_at = None
+        delivery.delivered_at = None
+        delivery.attempt_count = 0
+        delivery.save(
+            update_fields=[
+                'status',
+                'response_code',
+                'response_body_excerpt',
+                'next_retry_at',
+                'delivered_at',
+                'attempt_count',
+                'updated_at',
+            ]
+        )
+        deliver_automation_delivery_task.delay(str(delivery.id))
+        return Response({'detail': 'Delivery replay queued.'}, status=status.HTTP_202_ACCEPTED)
 
 
 class AutomationAssignmentViewSet(viewsets.ReadOnlyModelViewSet):

@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch
 from rest_framework import status
 
 from core.models import Organization, User
@@ -231,3 +232,43 @@ class TestAutomationDeliveryViewSet:
         )
 
         assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+
+    @patch('automations.views.deliver_automation_delivery_task.delay')
+    def test_replay_endpoint_resets_and_queues_delivery(self, mock_delay, api_client, user, share_link):
+        destination = AutomationDestination.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name='Replay Destination',
+            destination_type='webhook',
+            endpoint_url='https://example.com/replay',
+        )
+        rule = AutomationRule.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name='Replay Rule',
+            scope_type='share_link',
+            share_link=share_link,
+            subscribed_events=['link_viewed'],
+            actions=[{'type': 'notify_destination'}],
+        )
+        delivery = AutomationDelivery.objects.create(
+            organization=user.organization,
+            rule=rule,
+            destination=destination,
+            event_type='link_viewed',
+            payload={'share_link_id': str(share_link.id)},
+            status=AutomationDelivery.Status.DEAD_LETTER,
+            response_code=500,
+            response_body_excerpt='failed',
+            attempt_count=3,
+        )
+
+        response = api_client.post(f'/api/v1/automation-deliveries/{delivery.id}/replay/')
+
+        assert response.status_code == status.HTTP_202_ACCEPTED
+        delivery.refresh_from_db()
+        assert delivery.status == AutomationDelivery.Status.PENDING
+        assert delivery.attempt_count == 0
+        assert delivery.response_code is None
+        assert delivery.response_body_excerpt == ''
+        mock_delay.assert_called_once_with(str(delivery.id))
