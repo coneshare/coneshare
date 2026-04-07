@@ -33,6 +33,7 @@ from datarooms.serializers import (PublicDataroomDocumentSerializer,
 from documents.fileserver import fileserver_client
 from documents.models import DocumentPage
 from documents.views import StandardResultsSetPagination, _prepare_pages_data
+from automations.tasks import dispatch_automation_event_task
 from .models import (DataroomVisit, EmailVerificationToken, PreviewSession,
                      ShareLink, ShareLinkDataroomSetting, ShareLinkTemplate,
                      Viewer, ViewSession)
@@ -45,6 +46,25 @@ from .serializers import (DataroomVisitSerializer, PageViewRecordSerializer,
 from .tasks import send_view_notification_email_task
 
 logger = logging.getLogger(__name__)
+
+
+def _dispatch_automation_event(share_link, event_type: str, extra_payload=None):
+    """
+    Queue an automation event without blocking user-facing request flow.
+    """
+    if not share_link:
+        return
+
+    payload = {
+        'organization_id': str(share_link.created_by.organization_id),
+        'share_link_id': str(share_link.id),
+        'dataroom_id': str(share_link.dataroom_id) if share_link.dataroom_id else None,
+        'document_id': str(share_link.document_id) if share_link.document_id else None,
+    }
+    if extra_payload:
+        payload.update(extra_payload)
+
+    dispatch_automation_event_task.delay(event_type, payload)
 
 
 # --- Watermarking Constants ---
@@ -267,6 +287,11 @@ class ShareLinkViewDataView(APIView):
                             'viewer_email': verification.email,
                         }
                         request.session['authorized_share_links'] = authorized_links
+                        _dispatch_automation_event(
+                            link,
+                            'email_identified',
+                            {'viewer_email': verification.email},
+                        )
                         verification.delete()
             except EmailVerificationToken.DoesNotExist:
                 logger.debug(f"Invalid or expired access token used for share link {slug}: {access_token}")
@@ -578,6 +603,11 @@ class ShareLinkRequestAccessView(APIView):
             authorized_links[str(link.id)]['email_verified'] = True
             authorized_links[str(link.id)]['viewer_email'] = email
             request.session['authorized_share_links'] = authorized_links
+            _dispatch_automation_event(
+                link,
+                'email_identified',
+                {'viewer_email': email},
+            )
             return Response({"message": "Access granted.", "verification_required": False}, status=status.HTTP_200_OK)
         else:
             # To prevent database bloat and user confusion from multiple valid links,
@@ -1271,6 +1301,11 @@ class DataroomFolderDownloadView(APIView):
                 if not view_session.downloaded_at:
                     view_session.downloaded_at = timezone.now()
                     view_session.save(update_fields=['downloaded_at'])
+                    _dispatch_automation_event(
+                        link,
+                        'document_downloaded',
+                        {'view_session_id': str(view_session.id)},
+                    )
             except ViewSession.DoesNotExist:
                 logger.warning(f"Could not find view session {view_session_id} for link {link.id} to record download.")
 
@@ -1325,6 +1360,11 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
             if view_session.downloaded_at is None:
                 view_session.downloaded_at = timezone.now()
                 view_session.save(update_fields=['downloaded_at'])
+                _dispatch_automation_event(
+                    view_session.share_link,
+                    'document_downloaded',
+                    {'view_session_id': str(view_session.id)},
+                )
             return Response(status=status.HTTP_200_OK)
         except ViewSession.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -1432,6 +1472,17 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
 
         if instance.share_link and instance.share_link.receive_email_notification:
             send_view_notification_email_task.delay(str(instance.id))
+
+        if instance.share_link:
+            base_payload = {
+                'view_session_id': str(instance.id),
+                'viewer_email': instance.viewer_email,
+            }
+            _dispatch_automation_event(instance.share_link, 'link_viewed', base_payload)
+            if instance.share_link.document_id:
+                _dispatch_automation_event(instance.share_link, 'document_viewed', base_payload)
+            if instance.share_link.dataroom_id:
+                _dispatch_automation_event(instance.share_link, 'dataroom_opened', base_payload)
 
 
 class RecordPageView(APIView):
