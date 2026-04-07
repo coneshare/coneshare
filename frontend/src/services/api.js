@@ -123,6 +123,9 @@ api.interceptors.response.use(
 );
 
 export const uploadDocument = async (file, path, onProgress) => {
+  // Path contract with backend:
+  // - root-relative virtual path only (no leading '/')
+  // - examples: "foo.txt", "folder/sub/file.pdf"
   // Step 1: Request an upload URL from the backend
   const requestResponse = await api.post('/uploads/document/request/', {
     file_name: file.name,
@@ -190,6 +193,7 @@ export const getRootFolderId = () => api.get('/folders/root/');
 export const createFolder = (name, parentId = null) => api.post('/folders/', { name, parent: parentId });
 
 export const ensureFolderPaths = (paths, parentPath = null) =>
+  // `paths` and `parentPath` are root-relative folder paths (no leading '/').
   api.post('/folders/ensure-paths/', { paths, parent_path: parentPath });
 
 export const deleteDocument = (id) => api.delete(`/documents/${id}/`);

@@ -8,6 +8,16 @@ This document outlines the implementation plan for adding document upload functi
 
 The goal for V1 is to implement a clean, reliable file and folder upload feature using a dropdown button in the main documents view. The upload process is a three-step flow to improve scalability by offloading file transfers to a dedicated file server.
 
+### Path Contract (V1)
+
+- `path` is a **root-relative virtual path** and must **not** start with `/`.
+- Valid examples:
+  - File at root: `"foo.txt"`
+  - File in nested folder: `"foo/bar/baz.txt"`
+  - Folder path for ensure call: `"foo/bar"`
+- Invalid in current contract: `"/foo.txt"` or `"/foo/bar/baz.txt"`.
+- The backend resolves these paths from the organization's invisible `__root__` folder.
+
 ### 1. Backend (Django)
 
 -   **Bulk Folder Creation Endpoint**:

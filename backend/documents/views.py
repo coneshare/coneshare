@@ -108,6 +108,8 @@ class DocumentUploadRequestView(APIView):
     class DocumentUploadRequestSerializer(serializers.Serializer):
         file_name = serializers.CharField()
         file_size = serializers.IntegerField()
+        # Upload path contract: `path` is root-relative (no leading slash),
+        # e.g. "foo.txt" or "folder/sub/file.pdf".
         path = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     def post(self, request, *args, **kwargs):
@@ -183,6 +185,7 @@ class DocumentUploadFinalizeView(APIView):
         unique_name = serializers.CharField()
         file_size = serializers.IntegerField()
         content_type = serializers.CharField(allow_blank=True)
+        # Must follow the same root-relative contract used in request step.
         path = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     def post(self, request, *args, **kwargs):
