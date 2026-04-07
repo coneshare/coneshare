@@ -1,0 +1,91 @@
+from rest_framework import serializers
+
+from .models import (AutomationAssignment, AutomationDelivery, AutomationDestination,
+                     AutomationRule)
+
+
+class AutomationDestinationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AutomationDestination
+        fields = [
+            'id', 'organization', 'created_by', 'name', 'destination_type', 'endpoint_url',
+            'http_method', 'headers', 'signing_secret', 'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_by', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'signing_secret': {'write_only': True, 'required': False, 'allow_blank': True},
+        }
+
+    def validate_endpoint_url(self, value):
+        if not (value.startswith('https://') or value.startswith('http://')):
+            raise serializers.ValidationError('Endpoint URL must start with http:// or https://')
+        return value
+
+
+class AutomationRuleSerializer(serializers.ModelSerializer):
+    destinations = serializers.PrimaryKeyRelatedField(
+        queryset=AutomationDestination.objects.all(), many=True, required=False
+    )
+
+    class Meta:
+        model = AutomationRule
+        fields = [
+            'id', 'organization', 'created_by', 'name', 'is_active', 'scope_type',
+            'share_link', 'dataroom', 'subscribed_events', 'actions', 'destinations',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_by', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        org = getattr(user, 'organization', None)
+
+        scope_type = attrs.get('scope_type', getattr(self.instance, 'scope_type', None))
+        share_link = attrs.get('share_link', getattr(self.instance, 'share_link', None))
+        dataroom = attrs.get('dataroom', getattr(self.instance, 'dataroom', None))
+
+        if scope_type == AutomationRule.ScopeType.GLOBAL and (share_link or dataroom):
+            raise serializers.ValidationError('Global scope cannot target a share link or dataroom.')
+        if scope_type == AutomationRule.ScopeType.SHARE_LINK and not share_link:
+            raise serializers.ValidationError('Share link scope requires a share_link.')
+        if scope_type == AutomationRule.ScopeType.SHARE_LINK and dataroom:
+            raise serializers.ValidationError('Share link scope cannot include dataroom.')
+        if scope_type == AutomationRule.ScopeType.DATAROOM and not dataroom:
+            raise serializers.ValidationError('Dataroom scope requires a dataroom.')
+        if scope_type == AutomationRule.ScopeType.DATAROOM and share_link:
+            raise serializers.ValidationError('Dataroom scope cannot include share_link.')
+
+        if share_link and org and share_link.created_by.organization_id != org.id:
+            raise serializers.ValidationError('share_link must belong to your organization.')
+        if dataroom and org and dataroom.organization_id != org.id:
+            raise serializers.ValidationError('dataroom must belong to your organization.')
+
+        destinations = attrs.get('destinations')
+        if destinations is not None and org:
+            invalid = [d.id for d in destinations if d.organization_id != org.id]
+            if invalid:
+                raise serializers.ValidationError(f'destinations contain ids outside your organization: {invalid}')
+
+        return attrs
+
+
+class AutomationDeliverySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AutomationDelivery
+        fields = [
+            'id', 'organization', 'rule', 'destination', 'event_type', 'payload', 'status',
+            'response_code', 'response_body_excerpt', 'attempt_count', 'next_retry_at',
+            'delivered_at', 'idempotency_key', 'created_at', 'updated_at'
+        ]
+        read_only_fields = fields
+
+
+class AutomationAssignmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AutomationAssignment
+        fields = [
+            'id', 'organization', 'delivery', 'assigned_user', 'assigned_by_rule', 'status',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at']
