@@ -745,6 +745,48 @@ def test_upload_document_with_path(mock_fs_upload_url, api_client, user):
 
 
 @pytest.mark.django_db
+@patch('documents.views.fileserver_client.generate_upload_url')
+def test_upload_duplicate_root_file_is_renamed(mock_fs_upload_url, api_client):
+    """Uploading the same root-level filename twice should auto-rename the second file."""
+    mock_fs_upload_url.return_value = "/files/upload/some-token"
+
+    first_request_data = {'file_name': 'foo.txt', 'path': 'foo.txt', 'file_size': 123}
+    first_request = api_client.post('/api/v1/uploads/document/request/', first_request_data)
+    assert first_request.status_code == status.HTTP_200_OK
+    first_upload_data = first_request.json()
+    assert first_upload_data['unique_name'] == 'foo.txt'
+
+    first_finalize_data = {
+        'storage_key': first_upload_data['storage_key'],
+        'unique_name': first_upload_data['unique_name'],
+        'file_size': 123,
+        'content_type': 'text/plain',
+        'path': 'foo.txt'
+    }
+    first_finalize = api_client.post('/api/v1/uploads/document/finalize/', first_finalize_data)
+    assert first_finalize.status_code == status.HTTP_202_ACCEPTED
+
+    second_request_data = {'file_name': 'foo.txt', 'path': 'foo.txt', 'file_size': 456}
+    second_request = api_client.post('/api/v1/uploads/document/request/', second_request_data)
+    assert second_request.status_code == status.HTTP_200_OK
+    second_upload_data = second_request.json()
+    assert second_upload_data['unique_name'] == 'foo (2).txt'
+
+    second_finalize_data = {
+        'storage_key': second_upload_data['storage_key'],
+        'unique_name': second_upload_data['unique_name'],
+        'file_size': 456,
+        'content_type': 'text/plain',
+        'path': 'foo.txt'
+    }
+    second_finalize = api_client.post('/api/v1/uploads/document/finalize/', second_finalize_data)
+    assert second_finalize.status_code == status.HTTP_202_ACCEPTED
+
+    assert Document.objects.count() == 2
+    assert sorted(Document.objects.values_list('name', flat=True)) == ['foo (2).txt', 'foo.txt']
+
+
+@pytest.mark.django_db
 @override_settings(SITE_DOMAIN="http://test.coneshare.com")
 @patch('documents.views.fileserver_client.generate_download_url')
 def test_get_document_preview_data_for_image_document(

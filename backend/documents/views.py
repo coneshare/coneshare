@@ -129,6 +129,7 @@ class DocumentUploadRequestView(APIView):
         relative_path = validated_data.get('path')
 
         parent_folder = None
+        root_folder = Folder.objects.get_root_for_org(request.user.organization)
         if relative_path:
             folder_path, file_name_from_path = os.path.split(relative_path)
             if folder_path:
@@ -143,7 +144,11 @@ class DocumentUploadRequestView(APIView):
             if file_name_from_path:
                 file_name = file_name_from_path
         else:
-            parent_folder = Folder.objects.get_root_for_org(request.user.organization)
+            parent_folder = root_folder
+
+        # If path contains only a filename (e.g. "foo.txt"), treat it as root upload.
+        if parent_folder is None:
+            parent_folder = root_folder
 
         unique_name = _get_unique_document_name(
             requesting_user=request.user,
@@ -188,6 +193,7 @@ class DocumentUploadFinalizeView(APIView):
         validated_data = serializer.validated_data
         parent_folder = None
         relative_path = validated_data.get('path')
+        root_folder = Folder.objects.get_root_for_org(request.user.organization)
 
         if relative_path:
             folder_path, _ = os.path.split(relative_path)
@@ -195,6 +201,9 @@ class DocumentUploadFinalizeView(APIView):
                 parent_folder = _get_folder_from_path(
                     request.user, folder_path
                 )
+
+        if parent_folder is None:
+            parent_folder = root_folder
 
         try:
             document = create_document_from_upload(
