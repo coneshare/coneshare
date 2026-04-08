@@ -28,7 +28,9 @@ class AutomationDestination(BaseModel):
 
     class Meta:
         ordering = ['-created_at']
-        unique_together = ('organization', 'name')
+        indexes = [
+            models.Index(fields=['organization', 'name']),
+        ]
 
     def __str__(self):
         return self.name
@@ -53,7 +55,9 @@ class AutomationRule(BaseModel):
 
     class Meta:
         ordering = ['-created_at']
-        unique_together = ('organization', 'name')
+        indexes = [
+            models.Index(fields=['organization', 'name']),
+        ]
         constraints = [
             models.CheckConstraint(
                 condition=(

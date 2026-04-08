@@ -63,8 +63,67 @@ class TestAutomationDestinationViewSet:
         assert own_destination.id in ids
         assert len(ids) == 1
 
+    def test_create_destination_allows_duplicate_name_in_same_org(self, api_client):
+        payload = {
+            'name': 'Shared Name',
+            'destination_type': 'webhook',
+            'endpoint_url': 'https://example.com/webhook-a',
+            'http_method': 'POST',
+            'headers': {},
+            'is_active': True,
+        }
+        first = api_client.post('/api/v1/automation-destinations/', payload, format='json')
+        assert first.status_code == status.HTTP_201_CREATED
+
+        second_payload = {
+            **payload,
+            'endpoint_url': 'https://example.com/webhook-b',
+        }
+        second = api_client.post('/api/v1/automation-destinations/', second_payload, format='json')
+        assert second.status_code == status.HTTP_201_CREATED
+        assert second.data['name'] == payload['name']
+
 
 class TestAutomationRuleViewSet:
+    def test_create_rule_requires_at_least_one_destination(self, api_client):
+        response = api_client.post(
+            '/api/v1/automations/',
+            {
+                'name': 'No Destination Rule',
+                'scope_type': 'global',
+                'subscribed_events': ['link_viewed'],
+                'actions': [{'type': 'notify_destination'}],
+                'destinations': [],
+            },
+            format='json',
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'at least one destination is required' in str(response.data).lower()
+
+    def test_create_rule_allows_duplicate_name_in_same_org(self, api_client, user):
+        destination = AutomationDestination.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name='Rule Destination',
+            destination_type='webhook',
+            endpoint_url='https://example.com/rule-destination',
+        )
+        payload = {
+            'name': 'Shared Rule Name',
+            'scope_type': 'global',
+            'subscribed_events': ['link_viewed'],
+            'actions': [{'type': 'notify_destination'}],
+            'destinations': [str(destination.id)],
+        }
+
+        first = api_client.post('/api/v1/automations/', payload, format='json')
+        assert first.status_code == status.HTTP_201_CREATED
+
+        second = api_client.post('/api/v1/automations/', payload, format='json')
+        assert second.status_code == status.HTTP_201_CREATED
+        assert second.data['name'] == payload['name']
+
     def test_create_share_link_scope_requires_share_link(self, api_client):
         response = api_client.post(
             '/api/v1/automations/',
@@ -127,6 +186,13 @@ class TestAutomationRuleViewSet:
         assert 'outside your organization' in str(response.data)
 
     def test_create_rule_with_valid_dataroom_scope(self, api_client, user, organization):
+        destination = AutomationDestination.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name='Dataroom Destination',
+            destination_type='webhook',
+            endpoint_url='https://example.com/dataroom',
+        )
         dataroom = Dataroom.objects.create(
             name='Automation Dataroom',
             organization=organization,
@@ -141,6 +207,7 @@ class TestAutomationRuleViewSet:
                 'dataroom': str(dataroom.id),
                 'subscribed_events': ['dataroom_opened'],
                 'actions': [{'type': 'notify_owner'}],
+                'destinations': [str(destination.id)],
             },
             format='json',
         )
@@ -217,7 +284,7 @@ class TestAutomationDeliveryViewSet:
         response = api_client.get('/api/v1/automation-deliveries/')
 
         assert response.status_code == status.HTTP_200_OK
-        ids = {item['id'] for item in response.data}
+        ids = {item['id'] for item in response.data['results']}
         assert own_delivery.id in ids
         assert len(ids) == 1
 
@@ -232,6 +299,51 @@ class TestAutomationDeliveryViewSet:
         )
 
         assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+
+    def test_list_deliveries_supports_destination_filter(self, api_client, user, share_link):
+        destination_a = AutomationDestination.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name='Destination A',
+            destination_type='webhook',
+            endpoint_url='https://example.com/a',
+        )
+        destination_b = AutomationDestination.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name='Destination B',
+            destination_type='webhook',
+            endpoint_url='https://example.com/b',
+        )
+        rule = AutomationRule.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name='Rule for Filter',
+            scope_type='share_link',
+            share_link=share_link,
+            subscribed_events=['link_viewed'],
+            actions=[{'type': 'notify_destination'}],
+        )
+        delivery_a = AutomationDelivery.objects.create(
+            organization=user.organization,
+            rule=rule,
+            destination=destination_a,
+            event_type='link_viewed',
+            payload={'share_link_id': str(share_link.id)},
+        )
+        AutomationDelivery.objects.create(
+            organization=user.organization,
+            rule=rule,
+            destination=destination_b,
+            event_type='link_viewed',
+            payload={'share_link_id': str(share_link.id)},
+        )
+
+        response = api_client.get(f'/api/v1/automation-deliveries/?destination_id={destination_a.id}')
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['count'] == 1
+        assert response.data['results'][0]['id'] == delivery_a.id
 
     @patch('automations.views.deliver_automation_delivery_task.delay')
     def test_replay_endpoint_resets_and_queues_delivery(self, mock_delay, api_client, user, share_link):
