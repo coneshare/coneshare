@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch
 
 from automations.models import AutomationDelivery, AutomationDestination, AutomationRule
 from automations.services import dispatch_automation_event
@@ -149,3 +150,32 @@ def test_dispatch_drops_event_with_invalid_org_id(user):
 
     assert created_count == 0
     assert AutomationDelivery.objects.count() == 0
+
+
+@patch('automations.tasks.deliver_automation_delivery_task.delay')
+def test_dispatch_queues_delivery_execution_task(mock_delay, user):
+    destination = AutomationDestination.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name='Queue Destination',
+        destination_type='webhook',
+        endpoint_url='https://example.com/queue',
+    )
+    rule = AutomationRule.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name='Queue Rule',
+        scope_type='global',
+        subscribed_events=['link_viewed'],
+        actions=[{'type': 'notify_destination'}],
+    )
+    rule.destinations.add(destination)
+
+    created_count = dispatch_automation_event(
+        event_type='link_viewed',
+        payload={'organization_id': str(user.organization.id)},
+    )
+
+    assert created_count == 1
+    delivery = AutomationDelivery.objects.get()
+    mock_delay.assert_called_once_with(str(delivery.id))

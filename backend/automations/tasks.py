@@ -24,7 +24,7 @@ def _build_signature(secret: str, payload: dict) -> str:
     return f'sha256={digest}'
 
 
-def _build_headers(delivery: AutomationDelivery) -> dict:
+def _build_headers(delivery: AutomationDelivery, request_payload: dict) -> dict:
     headers = {'Content-Type': 'application/json'}
     if isinstance(delivery.destination.headers, dict):
         headers.update(delivery.destination.headers)
@@ -33,9 +33,30 @@ def _build_headers(delivery: AutomationDelivery) -> dict:
         headers['X-Coneshare-Idempotency-Key'] = delivery.idempotency_key
 
     if delivery.destination.signing_secret:
-        headers['X-Coneshare-Signature'] = _build_signature(delivery.destination.signing_secret, delivery.payload)
+        headers['X-Coneshare-Signature'] = _build_signature(delivery.destination.signing_secret, request_payload)
 
     return headers
+
+
+def _build_request_payload(delivery: AutomationDelivery) -> dict:
+    if delivery.destination.destination_type != 'slack':
+        return delivery.payload
+
+    # Slack incoming webhook requires "text" at minimum.
+    event_type = delivery.event_type
+    share_link_id = delivery.payload.get('share_link_id')
+    dataroom_id = delivery.payload.get('dataroom_id')
+    viewer_email = delivery.payload.get('viewer_email') or 'anonymous'
+
+    text = f"[Coneshare] {event_type} | viewer={viewer_email}"
+    if share_link_id:
+        text += f" | link={share_link_id}"
+    if dataroom_id:
+        text += f" | dataroom={dataroom_id}"
+
+    return {
+        'text': text,
+    }
 
 
 def _mark_success(delivery: AutomationDelivery, response):
@@ -80,24 +101,55 @@ def deliver_automation_delivery_task(delivery_id: str):
         return
 
     if not delivery.rule.is_active or not delivery.destination.is_active:
+        logger.debug(
+            'Automation delivery skipped due to inactive state: delivery_id=%s rule_active=%s destination_active=%s',
+            delivery_id,
+            delivery.rule.is_active,
+            delivery.destination.is_active,
+        )
         _mark_failure_and_retry(delivery, 'Rule or destination is inactive.')
         return
+
+    request_payload = _build_request_payload(delivery)
+    logger.info(
+        'Automation delivery prepared: delivery_id=%s destination_type=%s method=%s url=%s payload_keys=%s has_text=%s',
+        delivery_id,
+        delivery.destination.destination_type,
+        delivery.destination.http_method,
+        delivery.destination.endpoint_url,
+        sorted(list(request_payload.keys())) if isinstance(request_payload, dict) else type(request_payload).__name__,
+        bool(isinstance(request_payload, dict) and request_payload.get('text')),
+    )
 
     try:
         response = requests.request(
             method=delivery.destination.http_method,
             url=delivery.destination.endpoint_url,
-            json=delivery.payload,
-            headers=_build_headers(delivery),
+            json=request_payload,
+            headers=_build_headers(delivery, request_payload),
             timeout=10,
         )
     except requests.RequestException as exc:
+        logger.warning('Automation delivery request exception: delivery_id=%s error=%s', delivery_id, exc)
         _mark_failure_and_retry(delivery, f'Request failed: {exc}')
         return
 
     if 200 <= response.status_code < 300:
+        logger.info(
+            'Automation delivery success: delivery_id=%s status_code=%s response_excerpt=%s',
+            delivery_id,
+            response.status_code,
+            (response.text or '')[:200],
+        )
         _mark_success(delivery, response)
     else:
+        logger.error(
+            'Automation delivery failed: delivery_id=%s status_code=%s response_excerpt=%s payload=%s',
+            delivery_id,
+            response.status_code,
+            (response.text or '')[:200],
+            request_payload,
+        )
         _mark_failure_and_retry(
             delivery,
             message=f'HTTP {response.status_code}: {response.text}',

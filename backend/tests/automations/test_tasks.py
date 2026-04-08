@@ -62,6 +62,28 @@ def test_deliver_task_marks_success(mock_request, user, share_link):
     assert delivery.next_retry_at is None
 
 
+@patch('automations.tasks.requests.request')
+def test_deliver_task_builds_slack_payload_with_text(mock_request, user, share_link):
+    delivery = _make_delivery(user, share_link)
+    delivery.destination.destination_type = 'slack'
+    delivery.destination.save(update_fields=['destination_type'])
+    delivery.payload = {
+        'organization_id': str(user.organization.id),
+        'share_link_id': str(share_link.id),
+        'viewer_email': 'buyer@example.com',
+    }
+    delivery.save(update_fields=['payload'])
+    mock_request.return_value = DummyResponse(status_code=200, text='ok')
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    _, kwargs = mock_request.call_args
+    assert 'json' in kwargs
+    assert isinstance(kwargs['json'], dict)
+    assert 'text' in kwargs['json']
+    assert 'buyer@example.com' in kwargs['json']['text']
+
+
 @patch('automations.tasks.deliver_automation_delivery_task.apply_async')
 @patch('automations.tasks.requests.request')
 def test_deliver_task_marks_failed_and_schedules_retry(mock_request, mock_apply_async, user, share_link):

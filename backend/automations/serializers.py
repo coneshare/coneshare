@@ -67,6 +67,15 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
             if invalid:
                 raise serializers.ValidationError(f'destinations contain ids outside your organization: {invalid}')
 
+        # Require at least one destination for every automation rule.
+        if self.instance:
+            resulting_destinations = destinations if destinations is not None else self.instance.destinations.all()
+        else:
+            resulting_destinations = destinations if destinations is not None else []
+
+        if not resulting_destinations:
+            raise serializers.ValidationError('At least one destination is required.')
+
         return attrs
 
 

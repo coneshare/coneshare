@@ -322,6 +322,29 @@ export const getDailyVisits = () => api.get('/analytics/daily-visits/');
 export const getAllActiveLinks = (page = 1) => api.get(`/analytics/links/?page=${page}`);
 export const getAllViewSessions = (page = 1) => api.get(`/analytics/view-sessions/?page=${page}`);
 
+// Automations
+export const getAutomations = () => api.get('/automations/');
+export const createAutomation = (data) => api.post('/automations/', data);
+export const updateAutomation = (id, data) => api.patch(`/automations/${id}/`, data);
+export const deleteAutomation = (id) => api.delete(`/automations/${id}/`);
+
+export const getAutomationDestinations = () => api.get('/automation-destinations/');
+export const createAutomationDestination = (data) => api.post('/automation-destinations/', data);
+export const updateAutomationDestination = (id, data) => api.patch(`/automation-destinations/${id}/`, data);
+export const deleteAutomationDestination = (id) => api.delete(`/automation-destinations/${id}/`);
+
+export const getAutomationDeliveries = ({ ruleId = null, destinationId = null, page = 1 } = {}) => {
+  const params = {};
+  if (ruleId) params.rule_id = ruleId;
+  if (destinationId) params.destination_id = destinationId;
+  params.page = page;
+  return api.get('/automation-deliveries/', { params });
+};
+export const replayAutomationDelivery = (deliveryId) =>
+  api.post(`/automation-deliveries/${deliveryId}/replay/`);
+
+export const getShareLinks = () => api.get('/share-links/');
+
 // Cloud Imports
 export const getCloudProviders = () => api.get('/cloud/providers/');
 

@@ -57,7 +57,7 @@ def dispatch_automation_event(event_type: str, payload: dict) -> int:
             continue
 
         for destination in rule.destinations.filter(is_active=True):
-            AutomationDelivery.objects.create(
+            delivery = AutomationDelivery.objects.create(
                 organization=organization,
                 rule=rule,
                 destination=destination,
@@ -65,6 +65,10 @@ def dispatch_automation_event(event_type: str, payload: dict) -> int:
                 payload=payload,
                 idempotency_key=str(uuid.uuid4()),
             )
+            # Queue delivery execution immediately after creating the log row.
+            # Import locally to avoid circular imports (tasks imports this service).
+            from .tasks import deliver_automation_delivery_task
+            deliver_automation_delivery_task.delay(str(delivery.id))
             created += 1
 
     return created
