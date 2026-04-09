@@ -12,11 +12,12 @@ export function ViewerToolbar({
   currentPage,
   totalPages,
   viewId,
+  downloadDocumentId = null,
 }) {
   const handleDownload = () => {
     if (viewId && downloadUrl) {
       // Log the download event in the background
-      recordDownload(viewId).catch(err => console.error("Failed to record download", err));
+      recordDownload(viewId, downloadDocumentId).catch(err => console.error("Failed to record download", err));
       
       // Create a temporary link element to trigger the download
       const link = document.createElement('a');

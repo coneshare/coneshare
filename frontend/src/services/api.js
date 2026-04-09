@@ -268,7 +268,8 @@ export const requestShareLinkAccess = (slug, email) =>
 
 export const createViewSession = (data) => api.post('/view-sessions/', data);
 
-export const recordDownload = (viewSessionId) => api.post(`/view-sessions/${viewSessionId}/record-download/`);
+export const recordDownload = (viewSessionId, documentId = null) =>
+  api.post(`/view-sessions/${viewSessionId}/record-download/`, documentId ? { document_id: documentId } : {});
 
 export const recordDataroomVisit = (viewId, { dataroomDocumentId, dataroomFolderId }) => {
   const payload = {};
@@ -322,6 +323,29 @@ export const getDailyVisits = () => api.get('/analytics/daily-visits/');
 export const getAllActiveLinks = (page = 1) => api.get(`/analytics/links/?page=${page}`);
 export const getAllViewSessions = (page = 1) => api.get(`/analytics/view-sessions/?page=${page}`);
 
+// Automations
+export const getAutomations = () => api.get('/automations/');
+export const createAutomation = (data) => api.post('/automations/', data);
+export const updateAutomation = (id, data) => api.patch(`/automations/${id}/`, data);
+export const deleteAutomation = (id) => api.delete(`/automations/${id}/`);
+
+export const getAutomationDestinations = () => api.get('/automation-destinations/');
+export const createAutomationDestination = (data) => api.post('/automation-destinations/', data);
+export const updateAutomationDestination = (id, data) => api.patch(`/automation-destinations/${id}/`, data);
+export const deleteAutomationDestination = (id) => api.delete(`/automation-destinations/${id}/`);
+
+export const getAutomationDeliveries = ({ ruleId = null, destinationId = null, page = 1 } = {}) => {
+  const params = {};
+  if (ruleId) params.rule_id = ruleId;
+  if (destinationId) params.destination_id = destinationId;
+  params.page = page;
+  return api.get('/automation-deliveries/', { params });
+};
+export const replayAutomationDelivery = (deliveryId) =>
+  api.post(`/automation-deliveries/${deliveryId}/replay/`);
+
+export const getShareLinks = () => api.get('/share-links/');
+
 // Cloud Imports
 export const getCloudProviders = () => api.get('/cloud/providers/');
 
@@ -369,9 +393,14 @@ export const getShareLinksForDataroom = (dataroomId) => api.get(`/share-links/?d
 export const updateDataroomLinkSettings = (linkId, settings) => api.patch(`/share-links/${linkId}/dataroom-settings/`, settings);
 export const getDataroomViewSessions = (dataroomId, page = 1) => api.get(`/datarooms/${dataroomId}/view-sessions/?page=${page}`);
 
-export const downloadDataroomFolder = (slug, folderId) => {
+export const downloadDataroomFolder = (slug, folderId, viewSessionId = null) => {
+  const params = {};
+  if (viewSessionId) {
+    params.view_session_id = viewSessionId;
+  }
   return api.get(`/links/${slug}/download-folder/${folderId}/`, {
     responseType: 'blob',
+    params,
   });
 };
 

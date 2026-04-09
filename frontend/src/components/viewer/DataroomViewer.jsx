@@ -74,7 +74,7 @@ export function DataroomViewer({ data, slug, viewId }) {
   const handleDownloadFolder = async (folder) => {
     toast.info(`Preparing to download "${folder.name}"...`);
     try {
-      const response = await downloadDataroomFolder(slug, folder.id);
+      const response = await downloadDataroomFolder(slug, folder.id, viewId);
 
       const contentDisposition = response.headers['content-disposition'];
       let filename = `${folder.name}.zip`;
@@ -103,7 +103,11 @@ export function DataroomViewer({ data, slug, viewId }) {
 
   const handleDownloadDocument = (doc) => {
     // This constructs a URL to the existing single-file download endpoint.
-    const downloadUrl = `/api/v1/links/${slug}/download-file/?document_id=${doc.document_id}`;
+    const params = new URLSearchParams({ document_id: doc.document_id });
+    if (viewId) {
+      params.set('view_session_id', viewId);
+    }
+    const downloadUrl = `/api/v1/links/${slug}/download-file/?${params.toString()}`;
     const link = document.createElement('a');
     link.href = downloadUrl;
     // The browser will handle the 'download' attribute for same-origin URLs.

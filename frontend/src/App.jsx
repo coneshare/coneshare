@@ -5,6 +5,7 @@ import MainLayout from './components/layout/MainLayout';
 import { UploadProvider } from './contexts/UploadProvider';
 import { AllLinksPage } from './pages/AllLinksPage';
 import { AllViewSessionsPage } from './pages/AllViewSessionsPage';
+import { AutomationsPage } from './pages/AutomationsPage';
 import { CloudAuthCallbackPage } from './pages/CloudAuthCallbackPage';
 import { DataroomPage } from './pages/DataroomPage';
 import { DataroomsPage } from './pages/DataroomsPage';
@@ -48,6 +49,7 @@ function App() {
             <Route path="/file-requests/:requestId" element={<FileRequestDetailPage />} />
             <Route path="/analytics/links" element={<AllLinksPage />} />
             <Route path="/analytics/view-sessions" element={<AllViewSessionsPage />} />
+            <Route path="/automations" element={<AutomationsPage />} />
             <Route path="/settings" element={<UserSettingsPage />} />
             <Route path="/settings/password" element={<PasswordSettingsPage />} />
             <Route path="/admin/settings" element={<AdminSettingsPage />} />
