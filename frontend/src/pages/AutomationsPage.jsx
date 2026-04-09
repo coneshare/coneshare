@@ -231,7 +231,7 @@ export function AutomationsPage() {
       <section className="space-y-2">
         <h1 className="text-2xl font-bold">Automations</h1>
         <p className="text-sm text-gray-500">
-          Build event-driven workflows using webhooks or Slack destinations.
+          Build event-driven workflows using webhooks, Slack, WeChat Work, FeiShu, or Discord destinations.
         </p>
       </section>
 

@@ -9,8 +9,11 @@ from core.models import BaseModel, Organization, User
 
 class AutomationDestination(BaseModel):
     class DestinationType(models.TextChoices):
-        WEBHOOK = 'webhook', 'Webhook'
         SLACK = 'slack', 'Slack'
+        DISCORD = 'discord', 'Discord'
+        WECHAT = 'wechat', 'WeChat Work'
+        FEISHU = 'feishu', 'FeiShu'
+        WEBHOOK = 'webhook', 'Webhook'
 
     class HttpMethod(models.TextChoices):
         POST = 'POST', 'POST'

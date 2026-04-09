@@ -84,6 +84,157 @@ def test_deliver_task_builds_slack_payload_with_text(mock_request, user, share_l
     assert 'buyer@example.com' in kwargs['json']['text']
 
 
+@patch('automations.tasks.requests.request')
+def test_deliver_task_builds_wechat_payload_from_destination_type(mock_request, user, share_link):
+    delivery = _make_delivery(user, share_link)
+    delivery.destination.destination_type = 'wechat'
+    delivery.destination.save(update_fields=['destination_type'])
+    delivery.payload = {
+        'organization_id': str(user.organization.id),
+        'share_link_id': str(share_link.id),
+        'viewer_email': 'buyer@example.com',
+    }
+    delivery.save(update_fields=['payload'])
+    mock_request.return_value = DummyResponse(status_code=200, text='ok')
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    _, kwargs = mock_request.call_args
+    assert kwargs['json']['msgtype'] == 'text'
+    assert kwargs['json']['text']['content']
+    assert 'buyer@example.com' in kwargs['json']['text']['content']
+
+
+@patch('automations.tasks.requests.request')
+def test_deliver_task_builds_wechat_payload_from_wechat_webhook_url(mock_request, user, share_link):
+    delivery = _make_delivery(user, share_link)
+    delivery.destination.destination_type = 'webhook'
+    delivery.destination.endpoint_url = 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=example'
+    delivery.destination.save(update_fields=['destination_type', 'endpoint_url'])
+    delivery.payload = {
+        'organization_id': str(user.organization.id),
+        'share_link_id': str(share_link.id),
+        'viewer_email': 'buyer@example.com',
+    }
+    delivery.save(update_fields=['payload'])
+    mock_request.return_value = DummyResponse(status_code=200, text='ok')
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    _, kwargs = mock_request.call_args
+    assert kwargs['json']['msgtype'] == 'text'
+    assert kwargs['json']['text']['content']
+    assert 'buyer@example.com' in kwargs['json']['text']['content']
+
+
+@patch('automations.tasks.requests.request')
+def test_deliver_task_builds_feishu_payload_from_destination_type(mock_request, user, share_link):
+    delivery = _make_delivery(user, share_link)
+    delivery.destination.destination_type = 'feishu'
+    delivery.destination.save(update_fields=['destination_type'])
+    delivery.payload = {
+        'organization_id': str(user.organization.id),
+        'share_link_id': str(share_link.id),
+        'viewer_email': 'buyer@example.com',
+    }
+    delivery.save(update_fields=['payload'])
+    mock_request.return_value = DummyResponse(status_code=200, text='ok')
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    _, kwargs = mock_request.call_args
+    assert kwargs['json']['msg_type'] == 'text'
+    assert kwargs['json']['content']
+    assert 'buyer@example.com' in kwargs['json']['content']
+
+
+@patch('automations.tasks.requests.request')
+def test_deliver_task_builds_feishu_payload_from_feishu_webhook_url(mock_request, user, share_link):
+    delivery = _make_delivery(user, share_link)
+    delivery.destination.destination_type = 'webhook'
+    delivery.destination.endpoint_url = 'https://www.feishu.cn/flow/api/trigger-webhook/cd8ffe896873e9fe04baf2b56d53b001'
+    delivery.destination.save(update_fields=['destination_type', 'endpoint_url'])
+    delivery.payload = {
+        'organization_id': str(user.organization.id),
+        'share_link_id': str(share_link.id),
+        'viewer_email': 'buyer@example.com',
+    }
+    delivery.save(update_fields=['payload'])
+    mock_request.return_value = DummyResponse(status_code=200, text='ok')
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    _, kwargs = mock_request.call_args
+    assert kwargs['json']['msg_type'] == 'text'
+    assert kwargs['json']['content']
+    assert 'buyer@example.com' in kwargs['json']['content']
+
+
+@patch('automations.tasks.requests.request')
+def test_deliver_task_builds_discord_payload_from_destination_type(mock_request, user, share_link):
+    delivery = _make_delivery(user, share_link)
+    delivery.destination.destination_type = 'discord'
+    delivery.destination.save(update_fields=['destination_type'])
+    delivery.payload = {
+        'organization_id': str(user.organization.id),
+        'share_link_id': str(share_link.id),
+        'viewer_email': 'buyer@example.com',
+    }
+    delivery.save(update_fields=['payload'])
+    mock_request.return_value = DummyResponse(status_code=200, text='ok')
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    _, kwargs = mock_request.call_args
+    assert kwargs['json']['content']
+    assert 'buyer@example.com' in kwargs['json']['content']
+
+
+@patch('automations.tasks.requests.request')
+def test_deliver_task_builds_discord_payload_from_discord_webhook_url(mock_request, user, share_link):
+    delivery = _make_delivery(user, share_link)
+    delivery.destination.destination_type = 'webhook'
+    delivery.destination.endpoint_url = 'https://discord.com/api/webhooks/1491653538072494121/example'
+    delivery.destination.save(update_fields=['destination_type', 'endpoint_url'])
+    delivery.payload = {
+        'organization_id': str(user.organization.id),
+        'share_link_id': str(share_link.id),
+        'viewer_email': 'buyer@example.com',
+    }
+    delivery.save(update_fields=['payload'])
+    mock_request.return_value = DummyResponse(status_code=200, text='ok')
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    _, kwargs = mock_request.call_args
+    assert kwargs['json']['content']
+    assert 'buyer@example.com' in kwargs['json']['content']
+
+
+@patch('automations.tasks.requests.request')
+def test_deliver_task_builds_discord_payload_for_empty_viewer_email(mock_request, user, share_link):
+    delivery = _make_delivery(user, share_link)
+    delivery.destination.destination_type = 'webhook'
+    delivery.destination.endpoint_url = 'https://discord.com/api/webhooks/1491653538072494121/Ta_example'
+    delivery.destination.save(update_fields=['destination_type', 'endpoint_url'])
+    delivery.payload = {
+        'organization_id': str(user.organization.id),
+        'share_link_id': str(share_link.id),
+        'dataroom_id': None,
+        'document_id': 'doc-1',
+        'view_session_id': 'session-1',
+        'viewer_email': '',
+    }
+    delivery.save(update_fields=['payload'])
+    mock_request.return_value = DummyResponse(status_code=200, text='ok')
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    _, kwargs = mock_request.call_args
+    assert kwargs['json']['content']
+    assert 'anonymous' in kwargs['json']['content']
+
+
 @patch('automations.tasks.deliver_automation_delivery_task.apply_async')
 @patch('automations.tasks.requests.request')
 def test_deliver_task_marks_failed_and_schedules_retry(mock_request, mock_apply_async, user, share_link):

@@ -10,10 +10,10 @@ export function DestinationForm({
   submitLabel = 'Save Destination',
   onCancel = null,
   title = 'Create Destination',
-  description = 'Destinations receive automation events via webhook or Slack webhook URL.',
+  description = 'Destinations receive automation events via generic webhook, Slack, WeChat Work, FeiShu, or Discord webhook.',
 }) {
   const [name, setName] = useState(initialValues?.name || '');
-  const [destinationType, setDestinationType] = useState(initialValues?.destination_type || 'webhook');
+  const [destinationType, setDestinationType] = useState(initialValues?.destination_type || 'slack');
   const [endpointUrl, setEndpointUrl] = useState(initialValues?.endpoint_url || '');
   const [httpMethod, setHttpMethod] = useState(initialValues?.http_method || 'POST');
   const [signingSecret, setSigningSecret] = useState('');
@@ -21,7 +21,7 @@ export function DestinationForm({
   useEffect(() => {
     if (!initialValues) return;
     setName(initialValues.name || '');
-    setDestinationType(initialValues.destination_type || 'webhook');
+    setDestinationType(initialValues.destination_type || 'slack');
     setEndpointUrl(initialValues.endpoint_url || '');
     setHttpMethod(initialValues.http_method || 'POST');
     setSigningSecret('');
@@ -67,8 +67,11 @@ export function DestinationForm({
             value={destinationType}
             onChange={(e) => setDestinationType(e.target.value)}
           >
-            <option value="webhook">Webhook</option>
             <option value="slack">Slack</option>
+            <option value="discord">Discord</option>
+            <option value="wechat">WeChat Work</option>
+            <option value="feishu">FeiShu</option>
+            <option value="webhook">Webhook</option>
           </select>
         </div>
 

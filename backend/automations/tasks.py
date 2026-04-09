@@ -3,6 +3,7 @@ import hmac
 import json
 import logging
 from datetime import timedelta
+from urllib.parse import urlparse
 
 import requests
 from celery import shared_task
@@ -39,10 +40,9 @@ def _build_headers(delivery: AutomationDelivery, request_payload: dict) -> dict:
 
 
 def _build_request_payload(delivery: AutomationDelivery) -> dict:
-    if delivery.destination.destination_type != 'slack':
-        return delivery.payload
+    destination_type = delivery.destination.destination_type
+    endpoint_url = (delivery.destination.endpoint_url or '').lower()
 
-    # Slack incoming webhook requires "text" at minimum.
     event_type = delivery.event_type
     share_link_id = delivery.payload.get('share_link_id')
     dataroom_id = delivery.payload.get('dataroom_id')
@@ -54,9 +54,41 @@ def _build_request_payload(delivery: AutomationDelivery) -> dict:
     if dataroom_id:
         text += f" | dataroom={dataroom_id}"
 
-    return {
-        'text': text,
-    }
+    if destination_type == 'slack':
+        # Slack incoming webhook requires "text" at minimum.
+        return {'text': text}
+
+    if destination_type == 'wechat' or 'qyapi.weixin.qq.com/cgi-bin/webhook/send' in endpoint_url:
+        # WeCom custom bot requires msgtype + text.content.
+        return {
+            'msgtype': 'text',
+            'text': {
+                'content': text,
+            },
+        }
+
+    if destination_type == 'feishu' or 'feishu.cn/flow/api/trigger-webhook/' in endpoint_url:
+        # FeiShu flow webhook payload example expects msg_type + content string.
+        return {
+            'msg_type': 'text',
+            'content': text,
+        }
+
+    parsed = urlparse(endpoint_url) if endpoint_url else None
+    discord_host = (parsed.netloc or '') if parsed else ''
+    discord_path = (parsed.path or '') if parsed else ''
+    is_discord_webhook = (
+        destination_type == 'discord'
+        or ('discord.com' in discord_host and '/api/webhooks/' in discord_path)
+        or ('discordapp.com' in discord_host and '/api/webhooks/' in discord_path)
+    )
+    if is_discord_webhook:
+        # Discord webhook message payload uses "content".
+        return {
+            'content': text,
+        }
+
+    return delivery.payload
 
 
 def _mark_success(delivery: AutomationDelivery, response):
@@ -121,6 +153,7 @@ def deliver_automation_delivery_task(delivery_id: str):
         bool(isinstance(request_payload, dict) and request_payload.get('text')),
     )
 
+    logger.info(f"Webhook URL: {delivery.destination.endpoint_url}, json_data: {request_payload}")
     try:
         response = requests.request(
             method=delivery.destination.http_method,
