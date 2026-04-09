@@ -85,6 +85,39 @@ def test_dispatch_respects_share_link_scope(user, share_link):
     assert AutomationDelivery.objects.count() == 1
 
 
+def test_dispatch_creates_delivery_for_file_request_uploaded_event(user):
+    destination = AutomationDestination.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name='File Request Destination',
+        destination_type='webhook',
+        endpoint_url='https://example.com/file-request',
+    )
+    rule = AutomationRule.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name='File Request Rule',
+        scope_type='global',
+        subscribed_events=['file_request_uploaded'],
+        actions=[{'type': 'notify_destination'}],
+    )
+    rule.destinations.add(destination)
+
+    created_count = dispatch_automation_event(
+        event_type='file_request_uploaded',
+        payload={
+            'organization_id': str(user.organization.id),
+            'file_request_id': 'fr-1',
+            'document_id': 'doc-1',
+            'uploaded_by_email': 'uploader@example.com',
+        },
+    )
+
+    assert created_count == 1
+    delivery = AutomationDelivery.objects.get()
+    assert delivery.event_type == 'file_request_uploaded'
+
+
 def test_dispatch_ignores_inactive_rule_or_destination(user):
     inactive_destination = AutomationDestination.objects.create(
         organization=user.organization,

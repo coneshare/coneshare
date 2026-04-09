@@ -17,6 +17,7 @@ from documents.services import (
     _get_unique_document_name,
     generate_storage_key,
 )
+from automations.tasks import dispatch_automation_event_task
 from .models import FileRequest, UploadedFile
 from .serializers import (
     FileRequestSerializer,
@@ -179,6 +180,21 @@ class FileRequestUploadFinalizeView(APIView):
                     document=document,
                     uploader_name=validated_data['uploader_name'],
                     uploader_email=validated_data['uploader_email']
+                )
+                payload = {
+                    'organization_id': str(file_request.created_by.organization_id),
+                    'file_request_id': str(file_request.id),
+                    'file_request_slug': file_request.slug,
+                    'folder_id': str(file_request.folder_id),
+                    'document_id': str(document.id),
+                    'uploaded_by_name': validated_data['uploader_name'],
+                    'uploaded_by_email': validated_data['uploader_email'],
+                    'uploaded_file_name': document.name,
+                    'uploaded_file_size': validated_data['file_size'],
+                    'uploaded_at': timezone.now().isoformat(),
+                }
+                transaction.on_commit(
+                    lambda: dispatch_automation_event_task.delay('file_request_uploaded', payload)
                 )
         except Exception as e:
             logger.error(f"Failed to finalize document upload for file request {slug}: {e}")

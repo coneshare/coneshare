@@ -258,6 +258,84 @@ Records a granular page view event within a single viewing session (`ViewSession
 
 Represents an external, non-team member who has accessed a shared link and has been identified (e.g., via email verification).
 
+---
+
+## Automation Models
+
+### 15. AutomationDestination
+
+Destination endpoint that receives automation notifications.
+
+-   **id**: ULID, Primary Key
+-   **organization_id**: Foreign Key to `Organization`
+-   **created_by_id**: Foreign Key to `User`
+-   **name**: String
+-   **destination_type**: String (`webhook | slack | wechat | feishu | discord`)
+-   **endpoint_url**: URL
+-   **http_method**: String (`POST | PUT`)
+-   **headers**: JSONB
+-   **signing_secret**: String (encrypted, nullable)
+-   **is_active**: Boolean
+-   **created_at**: DateTime
+-   **updated_at**: DateTime
+
+### 16. AutomationRule
+
+Rule that subscribes to events and routes to destinations.
+
+-   **id**: ULID, Primary Key
+-   **organization_id**: Foreign Key to `Organization`
+-   **created_by_id**: Foreign Key to `User`
+-   **name**: String
+-   **is_active**: Boolean
+-   **scope_type**: String (`global | share_link | dataroom`)
+-   **share_link_id**: Foreign Key to `ShareLink` (nullable)
+-   **dataroom_id**: Foreign Key to `Dataroom` (nullable)
+-   **subscribed_events**: JSONB list
+-   **actions**: JSONB list
+-   **created_at**: DateTime
+-   **updated_at**: DateTime
+
+Supported V1 events include:
+-   `document_viewed`
+-   `dataroom_opened`
+-   `document_downloaded`
+-   `email_identified`
+-   `file_request_uploaded` (global scope only)
+
+### 17. AutomationDelivery
+
+Per-attempt delivery log for a matched rule/destination pair.
+
+-   **id**: ULID, Primary Key
+-   **organization_id**: Foreign Key to `Organization`
+-   **rule_id**: Foreign Key to `AutomationRule`
+-   **destination_id**: Foreign Key to `AutomationDestination`
+-   **event_type**: String
+-   **payload**: JSONB
+-   **status**: String (`pending | success | failed | dead_letter`)
+-   **response_code**: Integer (nullable)
+-   **response_body_excerpt**: Text
+-   **attempt_count**: Integer
+-   **next_retry_at**: DateTime (nullable)
+-   **delivered_at**: DateTime (nullable)
+-   **idempotency_key**: String
+-   **created_at**: DateTime
+-   **updated_at**: DateTime
+
+### 18. AutomationAssignment
+
+Assignment record for action-layer workflows.
+
+-   **id**: ULID, Primary Key
+-   **organization_id**: Foreign Key to `Organization`
+-   **delivery_id**: Foreign Key to `AutomationDelivery`
+-   **assigned_user_id**: Foreign Key to `User`
+-   **assigned_by_rule_id**: Foreign Key to `AutomationRule`
+-   **status**: String (`open | acknowledged | closed`)
+-   **created_at**: DateTime
+-   **updated_at**: DateTime
+
 -   **id**: ULID, Primary Key
 -   **organization_id**: Foreign Key to `Organization`
 -   **email**: String
@@ -352,4 +430,3 @@ A linking table to place a `Document` within a Dataroom's structure.
 -   **updated_at**: DateTime
 
 **Relations:** Links a Document to a Dataroom and an optional DataroomFolder. Unique on (`dataroom_id`, `document_id`, `folder_id`).
-

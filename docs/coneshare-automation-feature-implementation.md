@@ -56,11 +56,11 @@ Coneshare already has a solid event source layer (view sessions/page views). V1 
   - Custom webhook
   - Slack preset (implemented as webhook-backed preset)
 - Event subscriptions (basic, no advanced filtering logic):
-  - Link viewed
-  - Dataroom opened
   - Document viewed
+  - Dataroom opened
   - Document downloaded
   - Email identified
+  - File request uploaded
 - Actions:
   - Notify destination (webhook/slack)
   - Notify owner (email)
@@ -77,15 +77,18 @@ Coneshare already has a solid event source layer (view sessions/page views). V1 
 
 ### 4.1 Event source (reuse)
 
-Use existing operational events from `sharelinks`:
+Use existing operational events from `sharelinks` and `filerequests`:
 - View session created
 - Page view recorded
 - Download recorded
 - Dataroom visit recorded
 - Email verified/identified in access flow
+- File request upload finalized
 
 Implementation note:
-- Emit internal automation events at existing write points in `backend/sharelinks/views.py`.
+- Emit internal automation events at existing write points in:
+  - `backend/sharelinks/views.py`
+  - `backend/filerequests/views.py` (on finalize upload)
 
 ### 4.2 New automation domain (backend app: `automation`)
 
@@ -266,4 +269,3 @@ E2E tests:
 - Whether assignment should remain internal metadata in V1 or also produce user-visible tasks/notifications immediately.
 - Whether Slack should support only incoming-webhook mode in V1 or OAuth-based workspace app install.
 - Final event schema versioning strategy (`event_version`) for webhook compatibility.
-

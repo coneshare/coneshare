@@ -218,6 +218,31 @@ class TestAutomationRuleViewSet:
         assert rule.created_by == user
         assert rule.dataroom == dataroom
 
+    def test_create_file_request_uploaded_rule_rejects_non_global_scope(self, api_client, user, share_link):
+        destination = AutomationDestination.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name='FR Destination',
+            destination_type='webhook',
+            endpoint_url='https://example.com/fr',
+        )
+
+        response = api_client.post(
+            '/api/v1/automations/',
+            {
+                'name': 'Invalid FR Scope Rule',
+                'scope_type': 'share_link',
+                'share_link': str(share_link.id),
+                'subscribed_events': ['file_request_uploaded'],
+                'actions': [{'type': 'notify_destination'}],
+                'destinations': [str(destination.id)],
+            },
+            format='json',
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'only supported for global scope' in str(response.data).lower()
+
 
 class TestAutomationDeliveryViewSet:
     def test_list_deliveries_is_scoped_to_org(self, api_client, user, share_link):

@@ -39,6 +39,16 @@ A new Django app, `filerequests`, was created to encapsulate all logic related t
         2.  **Upload to File Server**: The client uploads the file directly to the pre-signed URL, offloading the data transfer from the Django application.
         3.  **Finalize Upload**: The client notifies the backend that the upload is complete. The backend then creates the `Document` record and populates the `created_by` field and the `uploader_info` key within the `metadata` field.
 
+### Automation Integration
+
+-   On successful `finalize-upload`, the backend emits an internal automation event: `file_request_uploaded`.
+-   The event is queued after DB commit and includes normalized payload fields such as:
+    -   `organization_id`, `file_request_id`, `file_request_slug`
+    -   `folder_id`, `document_id`
+    -   `uploaded_by_name`, `uploaded_by_email`
+    -   `uploaded_file_name`, `uploaded_file_size`, `uploaded_at`
+-   This enables automation rules to notify configured destinations (webhook/Slack/WeChat/FeiShu/Discord) whenever files are uploaded through a file request link.
+
 ## 3. Frontend Design
 
 ### UI/UX and Component Reusability

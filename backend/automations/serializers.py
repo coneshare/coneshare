@@ -82,6 +82,7 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
             'dataroom_opened',
             'document_downloaded',
             'email_identified',
+            'file_request_uploaded',
         }
         if not isinstance(subscribed_events, list) or not subscribed_events:
             raise serializers.ValidationError('At least one subscribed event is required.')
@@ -90,6 +91,8 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 f'Unsupported subscribed events: {invalid_events}. Allowed events: {sorted(allowed_events)}'
             )
+        if 'file_request_uploaded' in subscribed_events and scope_type != AutomationRule.ScopeType.GLOBAL:
+            raise serializers.ValidationError('file_request_uploaded is only supported for global scope rules.')
 
         return attrs
 

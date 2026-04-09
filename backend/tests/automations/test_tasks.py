@@ -85,6 +85,33 @@ def test_deliver_task_builds_slack_payload_with_text(mock_request, user, share_l
 
 
 @patch('automations.tasks.requests.request')
+def test_deliver_task_builds_file_request_uploaded_text(mock_request, user, share_link):
+    delivery = _make_delivery(user, share_link)
+    delivery.destination.destination_type = 'slack'
+    delivery.destination.save(update_fields=['destination_type'])
+    delivery.event_type = 'file_request_uploaded'
+    delivery.payload = {
+        'organization_id': str(user.organization.id),
+        'file_request_id': 'fr-1',
+        'document_id': 'doc-1',
+        'uploaded_by_name': 'John Doe',
+        'uploaded_by_email': 'john.doe@example.com',
+        'uploaded_file_name': 'nda.pdf',
+        'file_request_slug': 'upload-abc',
+    }
+    delivery.save(update_fields=['event_type', 'payload'])
+    mock_request.return_value = DummyResponse(status_code=200, text='ok')
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    _, kwargs = mock_request.call_args
+    assert 'text' in kwargs['json']
+    assert 'john.doe@example.com' in kwargs['json']['text']
+    assert 'nda.pdf' in kwargs['json']['text']
+    assert 'upload-abc' in kwargs['json']['text']
+
+
+@patch('automations.tasks.requests.request')
 def test_deliver_task_builds_wechat_payload_from_destination_type(mock_request, user, share_link):
     delivery = _make_delivery(user, share_link)
     delivery.destination.destination_type = 'wechat'

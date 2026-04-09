@@ -8,6 +8,7 @@ const EVENT_OPTIONS = [
   { value: 'document_viewed', label: 'Document viewed' },
   { value: 'document_downloaded', label: 'Document downloaded' },
   { value: 'email_identified', label: 'Email identified' },
+  { value: 'file_request_uploaded', label: 'File request uploaded' },
 ];
 
 export function AutomationBuilder({
@@ -44,6 +45,11 @@ export function AutomationBuilder({
     if (!onScopeTypeChange) return;
     onScopeTypeChange(scopeType);
   }, [scopeType, onScopeTypeChange]);
+
+  useEffect(() => {
+    if (scopeType === 'global') return;
+    setSubscribedEvents((prev) => prev.filter((event) => event !== 'file_request_uploaded'));
+  }, [scopeType]);
 
   const canSubmit = useMemo(() => {
     if (!name.trim()) return false;
@@ -168,16 +174,29 @@ export function AutomationBuilder({
         <Label>Events</Label>
         <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {EVENT_OPTIONS.map((option) => (
-            <label key={option.value} className="flex items-center gap-2 rounded border px-2 py-1 text-sm">
+            <label
+              key={option.value}
+              className={`flex items-center gap-2 rounded border px-2 py-1 text-sm ${
+                option.value === 'file_request_uploaded' && scopeType !== 'global'
+                  ? 'cursor-not-allowed opacity-50'
+                  : ''
+              }`}
+            >
               <input
                 type="checkbox"
                 checked={subscribedEvents.includes(option.value)}
+                disabled={option.value === 'file_request_uploaded' && scopeType !== 'global'}
                 onChange={() => toggleEvent(option.value)}
               />
               {option.label}
             </label>
           ))}
         </div>
+        {scopeType !== 'global' && (
+          <p className="mt-2 text-xs text-gray-500">
+            File request uploaded is only available for global scope rules.
+          </p>
+        )}
       </div>
 
       <div>
