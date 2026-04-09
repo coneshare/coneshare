@@ -213,6 +213,7 @@ export function ShareLinkViewerPage() {
             allowDownload={viewData.link_settings.allow_download}
             downloadUrl={downloadUrl}
             downloadFileName={viewData.name}
+            downloadDocumentId={documentIdFromUrl || null}
             onFullScreen={handleFullScreen}
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}

@@ -70,6 +70,7 @@ def test_deliver_task_builds_slack_payload_with_text(mock_request, user, share_l
     delivery.payload = {
         'organization_id': str(user.organization.id),
         'share_link_id': str(share_link.id),
+        'document_name': 'Pitch Deck.pdf',
         'viewer_email': 'buyer@example.com',
     }
     delivery.save(update_fields=['payload'])
@@ -82,6 +83,7 @@ def test_deliver_task_builds_slack_payload_with_text(mock_request, user, share_l
     assert isinstance(kwargs['json'], dict)
     assert 'text' in kwargs['json']
     assert 'buyer@example.com' in kwargs['json']['text']
+    assert 'Pitch Deck.pdf' in kwargs['json']['text']
 
 
 @patch('automations.tasks.requests.request')
@@ -260,6 +262,31 @@ def test_deliver_task_builds_discord_payload_for_empty_viewer_email(mock_request
     _, kwargs = mock_request.call_args
     assert kwargs['json']['content']
     assert 'anonymous' in kwargs['json']['content']
+
+
+@patch('automations.tasks.requests.request')
+def test_deliver_task_includes_dataroom_folder_name_in_text(mock_request, user, share_link):
+    delivery = _make_delivery(user, share_link)
+    delivery.destination.destination_type = 'slack'
+    delivery.destination.save(update_fields=['destination_type'])
+    delivery.event_type = 'document_downloaded'
+    delivery.payload = {
+        'organization_id': str(user.organization.id),
+        'share_link_id': str(share_link.id),
+        'viewer_email': 'b@b.com',
+        'dataroom_id': 'dr-1',
+        'dataroom_name': 'project b',
+        'dataroom_folder_id': 'folder-1',
+        'dataroom_folder_name': 'Financials',
+    }
+    delivery.save(update_fields=['event_type', 'payload'])
+    mock_request.return_value = DummyResponse(status_code=200, text='ok')
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    _, kwargs = mock_request.call_args
+    assert 'text' in kwargs['json']
+    assert 'folder_name=Financials' in kwargs['json']['text']
 
 
 @patch('automations.tasks.deliver_automation_delivery_task.apply_async')

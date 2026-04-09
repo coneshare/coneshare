@@ -15,8 +15,8 @@ describe('DataroomViewer', () => {
       { id: 'folder1', name: 'Sub Folder A', parent: null, updated_at: new Date().toISOString() },
     ],
     documents: [
-      { id: 'doc1', document_name: 'Root Document', parent: null, document_type: 'pdf', updated_at: new Date().toISOString(), file_size: 1024 },
-      { id: 'doc2', document_name: 'Sub Folder Document', parent: 'folder1', document_type: 'pdf', updated_at: new Date().toISOString(), file_size: 2048 },
+      { id: 'doc1', document_id: 'doc-file-1', document_name: 'Root Document', parent: null, document_type: 'pdf', updated_at: new Date().toISOString(), file_size: 1024, allow_download: true },
+      { id: 'doc2', document_id: 'doc-file-2', document_name: 'Sub Folder Document', parent: 'folder1', document_type: 'pdf', updated_at: new Date().toISOString(), file_size: 2048, allow_download: true },
     ],
   };
 
@@ -61,5 +61,20 @@ describe('DataroomViewer', () => {
     expect(screen.getByText('Root Document')).toBeInTheDocument();
     expect(screen.getByText('Sub Folder A')).toBeInTheDocument();
     expect(screen.queryByText('Sub Folder Document')).not.toBeInTheDocument();
+  });
+
+  it('includes view_session_id when downloading a dataroom document', () => {
+    const appendSpy = vi.spyOn(document.body, 'appendChild');
+    const removeSpy = vi.spyOn(document.body, 'removeChild');
+
+    render(<DataroomViewer data={mockDataroomData} slug="test-slug" viewId="view-123" />);
+
+    fireEvent.click(screen.getByTitle('Download "Root Document"'));
+
+    const anchor = appendSpy.mock.calls[0][0];
+    expect(anchor.href).toContain('/api/v1/links/test-slug/download-file/?document_id=doc-file-1&view_session_id=view-123');
+
+    appendSpy.mockRestore();
+    removeSpy.mockRestore();
   });
 });

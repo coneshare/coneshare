@@ -46,6 +46,10 @@ def _build_request_payload(delivery: AutomationDelivery) -> dict:
     event_type = delivery.event_type
     share_link_id = delivery.payload.get('share_link_id')
     dataroom_id = delivery.payload.get('dataroom_id')
+    dataroom_name = delivery.payload.get('dataroom_name')
+    dataroom_folder_id = delivery.payload.get('dataroom_folder_id')
+    dataroom_folder_name = delivery.payload.get('dataroom_folder_name')
+    document_name = delivery.payload.get('document_name')
     viewer_email = delivery.payload.get('viewer_email') or 'anonymous'
     uploaded_by_email = delivery.payload.get('uploaded_by_email') or 'anonymous'
     uploaded_by_name = delivery.payload.get('uploaded_by_name') or 'unknown'
@@ -62,8 +66,16 @@ def _build_request_payload(delivery: AutomationDelivery) -> dict:
         text = f"[Coneshare] {event_type} | viewer={viewer_email}"
         if share_link_id:
             text += f" | link={share_link_id}"
+        if document_name:
+            text += f" | document={document_name}"
         if dataroom_id:
             text += f" | dataroom={dataroom_id}"
+        if dataroom_name:
+            text += f" | dataroom_name={dataroom_name}"
+        if dataroom_folder_id:
+            text += f" | folder={dataroom_folder_id}"
+        if dataroom_folder_name:
+            text += f" | folder_name={dataroom_folder_name}"
 
     if destination_type == 'slack':
         # Slack incoming webhook requires "text" at minimum.
