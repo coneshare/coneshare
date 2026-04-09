@@ -17,7 +17,10 @@ class AutomationDestinationViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return AutomationDestination.objects.filter(organization=self.request.user.organization)
+        return AutomationDestination.objects.filter(
+            organization=self.request.user.organization,
+            created_by=self.request.user,
+        )
 
     def perform_create(self, serializer):
         serializer.save(organization=self.request.user.organization, created_by=self.request.user)
@@ -28,7 +31,10 @@ class AutomationRuleViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return AutomationRule.objects.filter(organization=self.request.user.organization).prefetch_related('destinations')
+        return AutomationRule.objects.filter(
+            organization=self.request.user.organization,
+            created_by=self.request.user,
+        ).prefetch_related('destinations')
 
     def perform_create(self, serializer):
         serializer.save(organization=self.request.user.organization, created_by=self.request.user)
@@ -40,9 +46,10 @@ class AutomationDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        queryset = AutomationDelivery.objects.filter(organization=self.request.user.organization).select_related(
-            'rule', 'destination'
-        )
+        queryset = AutomationDelivery.objects.filter(
+            organization=self.request.user.organization,
+            rule__created_by=self.request.user,
+        ).select_related('rule', 'destination')
         rule_id = self.request.query_params.get('rule_id')
         destination_id = self.request.query_params.get('destination_id')
         if rule_id:
@@ -80,6 +87,7 @@ class AutomationAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return AutomationAssignment.objects.filter(organization=self.request.user.organization).select_related(
-            'delivery', 'assigned_user', 'assigned_by_rule'
-        )
+        return AutomationAssignment.objects.filter(
+            organization=self.request.user.organization,
+            assigned_by_rule__created_by=self.request.user,
+        ).select_related('delivery', 'assigned_user', 'assigned_by_rule')

@@ -65,6 +65,7 @@ def _dispatch_automation_event(share_link, event_type: str, extra_payload=None):
 
     payload = {
         'organization_id': str(share_link.created_by.organization_id),
+        'owner_user_id': str(share_link.created_by_id),
         'share_link_id': str(share_link.id),
         'dataroom_id': str(share_link.dataroom_id) if share_link.dataroom_id else None,
         'dataroom_name': dataroom_name,

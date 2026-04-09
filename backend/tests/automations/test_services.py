@@ -212,3 +212,52 @@ def test_dispatch_queues_delivery_execution_task(mock_delay, user):
     assert created_count == 1
     delivery = AutomationDelivery.objects.get()
     mock_delay.assert_called_once_with(str(delivery.id))
+
+
+def test_dispatch_is_scoped_to_event_owner_user(user, user2):
+    destination_user1 = AutomationDestination.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name='Owner Dest',
+        destination_type='webhook',
+        endpoint_url='https://example.com/owner',
+    )
+    destination_user2 = AutomationDestination.objects.create(
+        organization=user.organization,
+        created_by=user2,
+        name='Other Dest',
+        destination_type='webhook',
+        endpoint_url='https://example.com/other',
+    )
+
+    rule_user1 = AutomationRule.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name='Owner Rule',
+        scope_type='global',
+        subscribed_events=['document_viewed'],
+        actions=[{'type': 'notify_destination'}],
+    )
+    rule_user1.destinations.add(destination_user1)
+
+    rule_user2 = AutomationRule.objects.create(
+        organization=user.organization,
+        created_by=user2,
+        name='Other Rule',
+        scope_type='global',
+        subscribed_events=['document_viewed'],
+        actions=[{'type': 'notify_destination'}],
+    )
+    rule_user2.destinations.add(destination_user2)
+
+    created_count = dispatch_automation_event(
+        event_type='document_viewed',
+        payload={
+            'organization_id': str(user.organization.id),
+            'owner_user_id': str(user.id),
+        },
+    )
+
+    assert created_count == 1
+    delivery = AutomationDelivery.objects.get()
+    assert delivery.rule == rule_user1

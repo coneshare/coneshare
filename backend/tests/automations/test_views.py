@@ -32,7 +32,84 @@ class TestAutomationDestinationViewSet:
         assert destination.created_by == user
         assert destination.destination_type == 'webhook'
 
-    def test_list_destinations_is_scoped_to_request_user_org(self, api_client, user):
+    def test_list_destinations_is_scoped_to_request_user(self, api_client, user, user2):
+        own_destination = AutomationDestination.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name='Own Destination',
+            destination_type='webhook',
+            endpoint_url='https://example.com/a',
+        )
+        AutomationDestination.objects.create(
+            organization=user.organization,
+            created_by=user2,
+            name='Other User Destination',
+            destination_type='webhook',
+            endpoint_url='https://example.com/b',
+        )
+
+        response = api_client.get('/api/v1/automation-destinations/')
+
+        assert response.status_code == status.HTTP_200_OK
+        ids = {item['id'] for item in response.data}
+        assert own_destination.id in ids
+        assert len(ids) == 1
+
+    def test_create_rule_rejects_destination_owned_by_other_user_in_same_org(self, api_client, user, user2):
+        foreign_owned_destination = AutomationDestination.objects.create(
+            organization=user.organization,
+            created_by=user2,
+            name='Other User Destination',
+            destination_type='webhook',
+            endpoint_url='https://example.com/other-user',
+        )
+
+        response = api_client.post(
+            '/api/v1/automations/',
+            {
+                'name': 'Cross User Rule',
+                'scope_type': 'global',
+                'subscribed_events': ['document_viewed'],
+                'actions': [{'type': 'notify_destination'}],
+                'destinations': [str(foreign_owned_destination.id)],
+            },
+            format='json',
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'must be owned by you' in str(response.data).lower()
+
+    def test_detail_destination_of_other_user_returns_404(self, api_client, user, user2):
+        other_user_destination = AutomationDestination.objects.create(
+            organization=user.organization,
+            created_by=user2,
+            name='Other User Destination',
+            destination_type='webhook',
+            endpoint_url='https://example.com/other-user',
+        )
+
+        response = api_client.get(f'/api/v1/automation-destinations/{other_user_destination.id}/')
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_update_destination_of_other_user_returns_404(self, api_client, user, user2):
+        other_user_destination = AutomationDestination.objects.create(
+            organization=user.organization,
+            created_by=user2,
+            name='Other User Destination',
+            destination_type='webhook',
+            endpoint_url='https://example.com/other-user',
+        )
+
+        response = api_client.patch(
+            f'/api/v1/automation-destinations/{other_user_destination.id}/',
+            {'name': 'Hacked'},
+            format='json',
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_list_destinations_hides_other_org(self, api_client, user):
         other_org = Organization.objects.create(name='Other Org')
         other_user = User.objects.create_user(
             username='other-org-user@example.com',
@@ -41,13 +118,6 @@ class TestAutomationDestinationViewSet:
             organization=other_org,
         )
 
-        own_destination = AutomationDestination.objects.create(
-            organization=user.organization,
-            created_by=user,
-            name='Own Destination',
-            destination_type='webhook',
-            endpoint_url='https://example.com/a',
-        )
         AutomationDestination.objects.create(
             organization=other_org,
             created_by=other_user,
@@ -59,9 +129,7 @@ class TestAutomationDestinationViewSet:
         response = api_client.get('/api/v1/automation-destinations/')
 
         assert response.status_code == status.HTTP_200_OK
-        ids = {item['id'] for item in response.data}
-        assert own_destination.id in ids
-        assert len(ids) == 1
+        assert len(response.data) == 0
 
     def test_create_destination_allows_duplicate_name_in_same_org(self, api_client):
         payload = {
@@ -245,7 +313,7 @@ class TestAutomationRuleViewSet:
 
 
 class TestAutomationDeliveryViewSet:
-    def test_list_deliveries_is_scoped_to_org(self, api_client, user, share_link):
+    def test_list_deliveries_is_scoped_to_request_user(self, api_client, user, user2, share_link):
         destination = AutomationDestination.objects.create(
             organization=user.organization,
             created_by=user,
@@ -270,28 +338,21 @@ class TestAutomationDeliveryViewSet:
             payload={'share_link_id': str(share_link.id)},
         )
 
-        other_org = Organization.objects.create(name='Other Org')
-        other_user = User.objects.create_user(
-            username='delivery-other@example.com',
-            email='delivery-other@example.com',
-            password='password',
-            organization=other_org,
-        )
         other_destination = AutomationDestination.objects.create(
-            organization=other_org,
-            created_by=other_user,
+            organization=user.organization,
+            created_by=user2,
             name='Other Delivery Destination',
             destination_type='webhook',
             endpoint_url='https://example.com/other',
         )
         other_dataroom = Dataroom.objects.create(
             name='Other Dataroom',
-            organization=other_org,
-            created_by=other_user,
+            organization=user.organization,
+            created_by=user2,
         )
         other_rule = AutomationRule.objects.create(
-            organization=other_org,
-            created_by=other_user,
+            organization=user.organization,
+            created_by=user2,
             name='Other Rule',
             scope_type='dataroom',
             dataroom=other_dataroom,
@@ -299,7 +360,7 @@ class TestAutomationDeliveryViewSet:
             actions=[{'type': 'notify_destination'}],
         )
         AutomationDelivery.objects.create(
-            organization=other_org,
+            organization=user.organization,
             rule=other_rule,
             destination=other_destination,
             event_type='dataroom_opened',

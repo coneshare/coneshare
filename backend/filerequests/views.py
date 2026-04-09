@@ -183,6 +183,7 @@ class FileRequestUploadFinalizeView(APIView):
                 )
                 payload = {
                     'organization_id': str(file_request.created_by.organization_id),
+                    'owner_user_id': str(file_request.created_by_id),
                     'file_request_id': str(file_request.id),
                     'file_request_slug': file_request.slug,
                     'folder_id': str(file_request.folder_id),

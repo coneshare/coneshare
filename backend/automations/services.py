@@ -47,7 +47,11 @@ def dispatch_automation_event(event_type: str, payload: dict) -> int:
     rules = AutomationRule.objects.filter(
         organization=organization,
         is_active=True,
-    ).prefetch_related('destinations')
+    )
+    owner_user_id = payload.get('owner_user_id')
+    if owner_user_id:
+        rules = rules.filter(created_by_id=owner_user_id)
+    rules = rules.prefetch_related('destinations')
 
     created = 0
     for rule in rules:

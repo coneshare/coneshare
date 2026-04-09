@@ -66,6 +66,10 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
             invalid = [d.id for d in destinations if d.organization_id != org.id]
             if invalid:
                 raise serializers.ValidationError(f'destinations contain ids outside your organization: {invalid}')
+            if user:
+                not_owned = [d.id for d in destinations if d.created_by_id != user.id]
+                if not_owned:
+                    raise serializers.ValidationError(f'destinations must be owned by you: {not_owned}')
 
         # Require at least one destination for every automation rule.
         if self.instance:
