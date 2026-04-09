@@ -173,7 +173,15 @@ class TestPublicFileRequestViews:
 
     @patch('documents.services.generate_pdf_pages_task.delay')
     @patch('filerequests.views.dispatch_automation_event_task.delay')
-    def test_finalize_upload_success_and_creates_document(self, mock_dispatch_automation, mock_task_delay, public_client, file_request):
+    @patch('filerequests.views.transaction.on_commit', side_effect=lambda fn: fn())
+    def test_finalize_upload_success_and_creates_document(
+        self,
+        _mock_on_commit,
+        mock_dispatch_automation,
+        mock_task_delay,
+        public_client,
+        file_request,
+    ):
         """Test finalizing an upload creates a Document and an UploadedFile record."""
         url = f'/api/v1/public/file-requests/{file_request.slug}/finalize-upload/'
         data = {
