@@ -172,7 +172,8 @@ class TestPublicFileRequestViews:
         assert "storage limit" in response.data['detail']
 
     @patch('documents.services.generate_pdf_pages_task.delay')
-    def test_finalize_upload_success_and_creates_document(self, mock_task_delay, public_client, file_request):
+    @patch('filerequests.views.dispatch_automation_event_task.delay')
+    def test_finalize_upload_success_and_creates_document(self, mock_dispatch_automation, mock_task_delay, public_client, file_request):
         """Test finalizing an upload creates a Document and an UploadedFile record."""
         url = f'/api/v1/public/file-requests/{file_request.slug}/finalize-upload/'
         data = {
@@ -204,3 +205,10 @@ class TestPublicFileRequestViews:
 
         # The service should have triggered a processing task
         mock_task_delay.assert_called_once()
+        mock_dispatch_automation.assert_called_once()
+        event_type, payload = mock_dispatch_automation.call_args.args
+        assert event_type == 'file_request_uploaded'
+        assert payload['organization_id'] == str(file_request.created_by.organization_id)
+        assert payload['file_request_id'] == str(file_request.id)
+        assert payload['document_id'] == str(doc.id)
+        assert payload['uploaded_by_email'] == 'john.doe@example.com'
