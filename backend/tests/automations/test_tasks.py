@@ -32,7 +32,7 @@ def _make_delivery(user, share_link, *, destination_active=True, rule_active=Tru
         name=f'Rule-{destination_active}-{rule_active}',
         scope_type='share_link',
         share_link=share_link,
-        subscribed_events=['link_viewed'],
+        subscribed_events=['document_viewed'],
         actions=[{'type': 'notify_destination'}],
         is_active=rule_active,
     )
@@ -40,7 +40,7 @@ def _make_delivery(user, share_link, *, destination_active=True, rule_active=Tru
         organization=user.organization,
         rule=rule,
         destination=destination,
-        event_type='link_viewed',
+        event_type='document_viewed',
         payload={'organization_id': str(user.organization.id), 'share_link_id': str(share_link.id)},
         status=AutomationDelivery.Status.PENDING,
         idempotency_key='idem-1',

@@ -1478,7 +1478,6 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
                 'view_session_id': str(instance.id),
                 'viewer_email': instance.viewer_email,
             }
-            _dispatch_automation_event(instance.share_link, 'link_viewed', base_payload)
             if instance.share_link.document_id:
                 _dispatch_automation_event(instance.share_link, 'document_viewed', base_payload)
             if instance.share_link.dataroom_id:

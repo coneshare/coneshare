@@ -409,12 +409,14 @@ export function AutomationsPage() {
             <div className="space-y-2">
               {destinations.length === 0 && <p className="text-sm text-gray-500">No destinations configured.</p>}
               {destinations.map((destination) => (
-                <div key={destination.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
-                  <div>
+                <div key={destination.id} className="flex items-start justify-between gap-3 rounded-md border p-3">
+                  <div className="min-w-0 flex-1">
                     <p className="font-medium">{destination.name}</p>
-                    <p className="text-xs text-gray-500">{destination.destination_type} | {destination.endpoint_url}</p>
+                    <p className="truncate text-xs text-gray-500" title={`${destination.destination_type} | ${destination.endpoint_url}`}>
+                      {destination.destination_type} | {destination.endpoint_url}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     <Button variant="outline" size="sm" onClick={() => handleOpenEditDestination(destination)}>
                       Edit
                     </Button>

@@ -91,7 +91,7 @@ class TestAutomationRuleViewSet:
             {
                 'name': 'No Destination Rule',
                 'scope_type': 'global',
-                'subscribed_events': ['link_viewed'],
+                'subscribed_events': ['document_viewed'],
                 'actions': [{'type': 'notify_destination'}],
                 'destinations': [],
             },
@@ -112,7 +112,7 @@ class TestAutomationRuleViewSet:
         payload = {
             'name': 'Shared Rule Name',
             'scope_type': 'global',
-            'subscribed_events': ['link_viewed'],
+            'subscribed_events': ['document_viewed'],
             'actions': [{'type': 'notify_destination'}],
             'destinations': [str(destination.id)],
         }
@@ -130,7 +130,7 @@ class TestAutomationRuleViewSet:
             {
                 'name': 'Missing Target Rule',
                 'scope_type': 'share_link',
-                'subscribed_events': ['link_viewed'],
+                'subscribed_events': ['document_viewed'],
                 'actions': [{'type': 'notify_destination'}],
             },
             format='json',
@@ -175,7 +175,7 @@ class TestAutomationRuleViewSet:
             {
                 'name': 'Cross Org Rule',
                 'scope_type': 'global',
-                'subscribed_events': ['link_viewed'],
+                'subscribed_events': ['document_viewed'],
                 'actions': [{'type': 'notify_destination'}],
                 'destinations': [str(foreign_destination.id)],
             },
@@ -234,14 +234,14 @@ class TestAutomationDeliveryViewSet:
             name='Own Rule',
             scope_type='share_link',
             share_link=share_link,
-            subscribed_events=['link_viewed'],
+            subscribed_events=['document_viewed'],
             actions=[{'type': 'notify_destination'}],
         )
         own_delivery = AutomationDelivery.objects.create(
             organization=user.organization,
             rule=rule,
             destination=destination,
-            event_type='link_viewed',
+            event_type='document_viewed',
             payload={'share_link_id': str(share_link.id)},
         )
 
@@ -292,7 +292,7 @@ class TestAutomationDeliveryViewSet:
         response = api_client.post(
             '/api/v1/automation-deliveries/',
             {
-                'event_type': 'link_viewed',
+                'event_type': 'document_viewed',
                 'status': 'pending',
             },
             format='json',
@@ -321,21 +321,21 @@ class TestAutomationDeliveryViewSet:
             name='Rule for Filter',
             scope_type='share_link',
             share_link=share_link,
-            subscribed_events=['link_viewed'],
+            subscribed_events=['document_viewed'],
             actions=[{'type': 'notify_destination'}],
         )
         delivery_a = AutomationDelivery.objects.create(
             organization=user.organization,
             rule=rule,
             destination=destination_a,
-            event_type='link_viewed',
+            event_type='document_viewed',
             payload={'share_link_id': str(share_link.id)},
         )
         AutomationDelivery.objects.create(
             organization=user.organization,
             rule=rule,
             destination=destination_b,
-            event_type='link_viewed',
+            event_type='document_viewed',
             payload={'share_link_id': str(share_link.id)},
         )
 
@@ -360,14 +360,14 @@ class TestAutomationDeliveryViewSet:
             name='Replay Rule',
             scope_type='share_link',
             share_link=share_link,
-            subscribed_events=['link_viewed'],
+            subscribed_events=['document_viewed'],
             actions=[{'type': 'notify_destination'}],
         )
         delivery = AutomationDelivery.objects.create(
             organization=user.organization,
             rule=rule,
             destination=destination,
-            event_type='link_viewed',
+            event_type='document_viewed',
             payload={'share_link_id': str(share_link.id)},
             status=AutomationDelivery.Status.DEAD_LETTER,
             response_code=500,

@@ -4,7 +4,6 @@ import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 
 const EVENT_OPTIONS = [
-  { value: 'link_viewed', label: 'Link viewed' },
   { value: 'dataroom_opened', label: 'Dataroom opened' },
   { value: 'document_viewed', label: 'Document viewed' },
   { value: 'document_downloaded', label: 'Document downloaded' },
@@ -27,7 +26,7 @@ export function AutomationBuilder({
   const [scopeType, setScopeType] = useState(initialValues?.scope_type || 'global');
   const [shareLinkId, setShareLinkId] = useState(initialValues?.share_link || '');
   const [dataroomId, setDataroomId] = useState(initialValues?.dataroom || '');
-  const [subscribedEvents, setSubscribedEvents] = useState(initialValues?.subscribed_events || ['link_viewed']);
+  const [subscribedEvents, setSubscribedEvents] = useState(initialValues?.subscribed_events || ['document_viewed']);
   const [selectedDestinationIds, setSelectedDestinationIds] = useState(initialValues?.destinations || []);
 
   useEffect(() => {
@@ -36,7 +35,7 @@ export function AutomationBuilder({
     setScopeType(initialValues.scope_type || 'global');
     setShareLinkId(initialValues.share_link || '');
     setDataroomId(initialValues.dataroom || '');
-    setSubscribedEvents(initialValues.subscribed_events || ['link_viewed']);
+    setSubscribedEvents(initialValues.subscribed_events || ['document_viewed']);
     setSelectedDestinationIds(initialValues.destinations || []);
   }, [initialValues]);
 
@@ -82,7 +81,7 @@ export function AutomationBuilder({
       setScopeType('global');
       setShareLinkId('');
       setDataroomId('');
-      setSubscribedEvents(['link_viewed']);
+      setSubscribedEvents(['document_viewed']);
       setSelectedDestinationIds([]);
     }
   };

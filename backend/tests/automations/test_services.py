@@ -22,13 +22,13 @@ def test_dispatch_creates_delivery_for_matching_global_rule(user):
         created_by=user,
         name='Global Rule',
         scope_type='global',
-        subscribed_events=['link_viewed'],
+        subscribed_events=['document_viewed'],
         actions=[{'type': 'notify_destination'}],
     )
     rule.destinations.add(destination)
 
     created_count = dispatch_automation_event(
-        event_type='link_viewed',
+        event_type='document_viewed',
         payload={
             'organization_id': str(user.organization.id),
             'share_link_id': 'fake-link-id',
@@ -40,7 +40,7 @@ def test_dispatch_creates_delivery_for_matching_global_rule(user):
     delivery = AutomationDelivery.objects.first()
     assert delivery.rule == rule
     assert delivery.destination == destination
-    assert delivery.event_type == 'link_viewed'
+    assert delivery.event_type == 'document_viewed'
 
 
 def test_dispatch_respects_share_link_scope(user, share_link):
@@ -108,7 +108,7 @@ def test_dispatch_ignores_inactive_rule_or_destination(user):
         created_by=user,
         name='Inactive Rule',
         scope_type='global',
-        subscribed_events=['link_viewed'],
+        subscribed_events=['document_viewed'],
         actions=[{'type': 'notify_destination'}],
         is_active=False,
     )
@@ -119,14 +119,14 @@ def test_dispatch_ignores_inactive_rule_or_destination(user):
         created_by=user,
         name='Active Rule',
         scope_type='global',
-        subscribed_events=['link_viewed'],
+        subscribed_events=['document_viewed'],
         actions=[{'type': 'notify_destination'}],
         is_active=True,
     )
     active_rule.destinations.add(inactive_destination)
 
     created_count = dispatch_automation_event(
-        event_type='link_viewed',
+        event_type='document_viewed',
         payload={'organization_id': str(user.organization.id)},
     )
 
@@ -144,7 +144,7 @@ def test_dispatch_drops_event_with_invalid_org_id(user):
     )
 
     created_count = dispatch_automation_event(
-        event_type='link_viewed',
+        event_type='document_viewed',
         payload={'organization_id': 'non-existent-org-id'},
     )
 
@@ -166,13 +166,13 @@ def test_dispatch_queues_delivery_execution_task(mock_delay, user):
         created_by=user,
         name='Queue Rule',
         scope_type='global',
-        subscribed_events=['link_viewed'],
+        subscribed_events=['document_viewed'],
         actions=[{'type': 'notify_destination'}],
     )
     rule.destinations.add(destination)
 
     created_count = dispatch_automation_event(
-        event_type='link_viewed',
+        event_type='document_viewed',
         payload={'organization_id': str(user.organization.id)},
     )
 

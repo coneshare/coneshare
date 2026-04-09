@@ -76,6 +76,21 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
         if not resulting_destinations:
             raise serializers.ValidationError('At least one destination is required.')
 
+        subscribed_events = attrs.get('subscribed_events', getattr(self.instance, 'subscribed_events', []))
+        allowed_events = {
+            'document_viewed',
+            'dataroom_opened',
+            'document_downloaded',
+            'email_identified',
+        }
+        if not isinstance(subscribed_events, list) or not subscribed_events:
+            raise serializers.ValidationError('At least one subscribed event is required.')
+        invalid_events = [e for e in subscribed_events if e not in allowed_events]
+        if invalid_events:
+            raise serializers.ValidationError(
+                f'Unsupported subscribed events: {invalid_events}. Allowed events: {sorted(allowed_events)}'
+            )
+
         return attrs
 
 

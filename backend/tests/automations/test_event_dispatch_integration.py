@@ -11,12 +11,11 @@ pytestmark = pytest.mark.django_db
 
 class TestEventDispatchIntegration:
     @patch('sharelinks.views.dispatch_automation_event_task.delay')
-    def test_create_view_session_dispatches_link_and_document_events(self, mock_delay, public_client, share_link):
+    def test_create_view_session_dispatches_document_event(self, mock_delay, public_client, share_link):
         response = public_client.post('/api/v1/view-sessions/', {'share_link': str(share_link.id)}, format='json')
 
         assert response.status_code == status.HTTP_201_CREATED
         event_types = [call.args[0] for call in mock_delay.call_args_list]
-        assert 'link_viewed' in event_types
         assert 'document_viewed' in event_types
 
     @patch('sharelinks.views.dispatch_automation_event_task.delay')
@@ -42,7 +41,6 @@ class TestEventDispatchIntegration:
 
         assert response.status_code == status.HTTP_201_CREATED
         event_types = [call.args[0] for call in mock_delay.call_args_list]
-        assert 'link_viewed' in event_types
         assert 'dataroom_opened' in event_types
 
     @patch('sharelinks.views.dispatch_automation_event_task.delay')
