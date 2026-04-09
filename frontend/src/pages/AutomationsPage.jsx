@@ -32,6 +32,10 @@ export function AutomationsPage() {
   const [deliveriesData, setDeliveriesData] = useState({ results: [], count: 0 });
   const [shareLinks, setShareLinks] = useState([]);
   const [datarooms, setDatarooms] = useState([]);
+  const [isLoadingShareLinks, setIsLoadingShareLinks] = useState(false);
+  const [isLoadingDatarooms, setIsLoadingDatarooms] = useState(false);
+  const [hasFetchedShareLinks, setHasFetchedShareLinks] = useState(false);
+  const [hasFetchedDatarooms, setHasFetchedDatarooms] = useState(false);
 
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isSavingAutomation, setIsSavingAutomation] = useState(false);
@@ -53,16 +57,12 @@ export function AutomationsPage() {
       setIsInitialLoading(true);
     }
     try {
-      const [automationsRes, destinationsRes, shareLinksRes, dataroomsRes] = await Promise.all([
+      const [automationsRes, destinationsRes] = await Promise.all([
         getAutomations(),
         getAutomationDestinations(),
-        getShareLinks(),
-        getDatarooms(),
       ]);
       setAutomations(automationsRes.data || []);
       setDestinations(destinationsRes.data || []);
-      setShareLinks(shareLinksRes.data || []);
-      setDatarooms(dataroomsRes.data || []);
     } catch (error) {
       console.error(error);
     } finally {
@@ -114,6 +114,44 @@ export function AutomationsPage() {
   useEffect(() => {
     fetchDeliveries();
   }, [fetchDeliveries]);
+
+  const ensureShareLinksLoaded = useCallback(async () => {
+    if (hasFetchedShareLinks || isLoadingShareLinks) return;
+    setIsLoadingShareLinks(true);
+    try {
+      const response = await getShareLinks();
+      setShareLinks(response.data || []);
+      setHasFetchedShareLinks(true);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoadingShareLinks(false);
+    }
+  }, [hasFetchedShareLinks, isLoadingShareLinks]);
+
+  const ensureDataroomsLoaded = useCallback(async () => {
+    if (hasFetchedDatarooms || isLoadingDatarooms) return;
+    setIsLoadingDatarooms(true);
+    try {
+      const response = await getDatarooms();
+      setDatarooms(response.data || []);
+      setHasFetchedDatarooms(true);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoadingDatarooms(false);
+    }
+  }, [hasFetchedDatarooms, isLoadingDatarooms]);
+
+  const handleAutomationScopeChange = useCallback((scopeType) => {
+    if (scopeType === 'share_link') {
+      ensureShareLinksLoaded();
+      return;
+    }
+    if (scopeType === 'dataroom') {
+      ensureDataroomsLoaded();
+    }
+  }, [ensureShareLinksLoaded, ensureDataroomsLoaded]);
 
   const handleCreateAutomation = async (payload) => {
     setIsSavingAutomation(true);
@@ -248,6 +286,7 @@ export function AutomationsPage() {
                 destinations={destinations}
                 shareLinks={shareLinks}
                 datarooms={datarooms}
+                onScopeTypeChange={handleAutomationScopeChange}
                 onSubmit={async (payload) => {
                   await handleCreateAutomation(payload);
                   setIsCreateRuleOpen(false);
@@ -291,6 +330,7 @@ export function AutomationsPage() {
                   destinations={destinations}
                   shareLinks={shareLinks}
                   datarooms={datarooms}
+                  onScopeTypeChange={handleAutomationScopeChange}
                   onSubmit={handleUpdateAutomation}
                   loading={isSavingAutomation}
                   initialValues={editingAutomation}

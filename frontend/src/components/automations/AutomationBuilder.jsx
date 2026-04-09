@@ -14,6 +14,7 @@ export function AutomationBuilder({
   destinations,
   shareLinks,
   datarooms,
+  onScopeTypeChange = null,
   onSubmit,
   loading = false,
   initialValues = null,
@@ -38,6 +39,11 @@ export function AutomationBuilder({
     setSubscribedEvents(initialValues.subscribed_events || ['document_viewed']);
     setSelectedDestinationIds(initialValues.destinations || []);
   }, [initialValues]);
+
+  useEffect(() => {
+    if (!onScopeTypeChange) return;
+    onScopeTypeChange(scopeType);
+  }, [scopeType, onScopeTypeChange]);
 
   const canSubmit = useMemo(() => {
     if (!name.trim()) return false;
