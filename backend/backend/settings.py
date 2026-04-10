@@ -126,6 +126,7 @@ INSTALLED_APPS = [
     'analytics',
     'cloudfiles',
     'filerequests',
+    'automations',
 ]
 
 MIDDLEWARE = [
