@@ -31,6 +31,7 @@ def test_dispatch_creates_delivery_for_matching_global_rule(user):
         event_type='document_viewed',
         payload={
             'organization_id': str(user.organization.id),
+            'owner_user_id': str(user.id),
             'share_link_id': 'fake-link-id',
         },
     )
@@ -67,6 +68,7 @@ def test_dispatch_respects_share_link_scope(user, share_link):
         event_type='document_viewed',
         payload={
             'organization_id': str(user.organization.id),
+            'owner_user_id': str(user.id),
             'share_link_id': 'another-link-id',
         },
     )
@@ -78,6 +80,7 @@ def test_dispatch_respects_share_link_scope(user, share_link):
         event_type='document_viewed',
         payload={
             'organization_id': str(user.organization.id),
+            'owner_user_id': str(user.id),
             'share_link_id': str(share_link.id),
         },
     )
@@ -107,6 +110,7 @@ def test_dispatch_creates_delivery_for_file_request_uploaded_event(user):
         event_type='file_request_uploaded',
         payload={
             'organization_id': str(user.organization.id),
+            'owner_user_id': str(user.id),
             'file_request_id': 'fr-1',
             'document_id': 'doc-1',
             'uploaded_by_email': 'uploader@example.com',
@@ -160,7 +164,10 @@ def test_dispatch_ignores_inactive_rule_or_destination(user):
 
     created_count = dispatch_automation_event(
         event_type='document_viewed',
-        payload={'organization_id': str(user.organization.id)},
+        payload={
+            'organization_id': str(user.organization.id),
+            'owner_user_id': str(user.id),
+        },
     )
 
     assert created_count == 0
@@ -206,12 +213,42 @@ def test_dispatch_queues_delivery_execution_task(mock_delay, user):
 
     created_count = dispatch_automation_event(
         event_type='document_viewed',
-        payload={'organization_id': str(user.organization.id)},
+        payload={
+            'organization_id': str(user.organization.id),
+            'owner_user_id': str(user.id),
+        },
     )
 
     assert created_count == 1
     delivery = AutomationDelivery.objects.get()
     mock_delay.assert_called_once_with(str(delivery.id))
+
+
+def test_dispatch_drops_event_with_missing_owner_user_id(user):
+    destination = AutomationDestination.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name='Owner Destination',
+        destination_type='webhook',
+        endpoint_url='https://example.com/owner',
+    )
+    rule = AutomationRule.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name='Owner Rule',
+        scope_type='global',
+        subscribed_events=['document_viewed'],
+        actions=[{'type': 'notify_destination'}],
+    )
+    rule.destinations.add(destination)
+
+    created_count = dispatch_automation_event(
+        event_type='document_viewed',
+        payload={'organization_id': str(user.organization.id)},
+    )
+
+    assert created_count == 0
+    assert AutomationDelivery.objects.count() == 0
 
 
 def test_dispatch_is_scoped_to_event_owner_user(user, user2):

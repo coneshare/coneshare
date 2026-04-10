@@ -3,6 +3,14 @@ from rest_framework import serializers
 from .models import (AutomationAssignment, AutomationDelivery, AutomationDestination,
                      AutomationRule)
 
+ALLOWED_AUTOMATION_EVENTS = {
+    'document_viewed',
+    'dataroom_opened',
+    'document_downloaded',
+    'email_identified',
+    'file_request_uploaded',
+}
+
 
 class AutomationDestinationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -81,13 +89,7 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('At least one destination is required.')
 
         subscribed_events = attrs.get('subscribed_events', getattr(self.instance, 'subscribed_events', []))
-        allowed_events = {
-            'document_viewed',
-            'dataroom_opened',
-            'document_downloaded',
-            'email_identified',
-            'file_request_uploaded',
-        }
+        allowed_events = ALLOWED_AUTOMATION_EVENTS
         if not isinstance(subscribed_events, list) or not subscribed_events:
             raise serializers.ValidationError('At least one subscribed event is required.')
         invalid_events = [e for e in subscribed_events if e not in allowed_events]

@@ -1420,10 +1420,9 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
                 'viewer_email': view_session.viewer_email,
             }
 
-            if share_link.document_id:
+            if share_link.document:
                 extra_payload['document_id'] = str(share_link.document_id)
-                if share_link.document:
-                    extra_payload['document_name'] = share_link.document.name
+                extra_payload['document_name'] = share_link.document.name
             elif share_link.dataroom_id and document_id:
                 setting = share_link.dataroom_settings.filter(
                     dataroom_document__document_id=document_id,

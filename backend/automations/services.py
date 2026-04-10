@@ -44,13 +44,16 @@ def dispatch_automation_event(event_type: str, payload: dict) -> int:
         logger.warning('Automation event dropped: invalid organization_id=%s for event=%s', organization_id, event_type)
         return 0
 
+    owner_user_id = payload.get('owner_user_id')
+    if not owner_user_id:
+        logger.warning('Automation event dropped: missing owner_user_id for event=%s organization_id=%s', event_type, organization_id)
+        return 0
+
     rules = AutomationRule.objects.filter(
         organization=organization,
         is_active=True,
+        created_by_id=owner_user_id,
     )
-    owner_user_id = payload.get('owner_user_id')
-    if owner_user_id:
-        rules = rules.filter(created_by_id=owner_user_id)
     rules = rules.prefetch_related('destinations')
 
     created = 0

@@ -176,7 +176,7 @@ def deliver_automation_delivery_task(delivery_id: str):
         bool(isinstance(request_payload, dict) and request_payload.get('text')),
     )
 
-    logger.info(f"Webhook URL: {delivery.destination.endpoint_url}, json_data: {request_payload}")
+    logger.debug(f"Webhook URL: {delivery.destination.endpoint_url}, json_data: {request_payload}")
     try:
         response = requests.request(
             method=delivery.destination.http_method,
