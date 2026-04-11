@@ -4,7 +4,7 @@ import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
 import { ShareIcon, Star } from 'lucide-react';
 import { toast } from 'sonner';
-import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, removeContentFromDataroom } from '../services/api';
+import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, removeContentFromDataroom, updateDataroomFolder, updateDataroomDocument } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
@@ -326,6 +326,38 @@ export function DataroomPage() {
     setItemToRemove(item);
   };
 
+  const handleToggleStar = useCallback(async (id, type) => {
+    const isFolder = type === 'folder';
+    const items = isFolder ? folders : documents;
+    const setItems = isFolder ? setFolders : setDocuments;
+    const updateApiCall = isFolder ? updateDataroomFolder : updateDataroomDocument;
+
+    const originalItem = items.find(item => item.id === id);
+    if (!originalItem) {
+      console.error('Item to star/unstar not found in state.');
+      return;
+    }
+
+    const newIsStarred = !originalItem.is_starred;
+
+    setItems(prevItems =>
+      prevItems.map(item =>
+        item.id === id ? { ...item, is_starred: newIsStarred } : item
+      )
+    );
+
+    try {
+      await updateApiCall(id, { is_starred: newIsStarred });
+    } catch (error) {
+      setItems(prevItems =>
+        prevItems.map(item =>
+          item.id === id ? originalItem : item
+        )
+      );
+      toast.error(`Failed to update star for "${originalItem.name}".`);
+    }
+  }, [documents, folders]);
+
   const handleConfirmRemoveItem = async () => {
     if (!itemToRemove) return;
 
@@ -480,6 +512,7 @@ export function DataroomPage() {
               isAllSelected={isAllSelected}
               onRename={handleRenameItem}
               onDelete={handleRemoveItem}
+              onToggleStar={handleToggleStar}
             />
           )}
         </TabsContent>

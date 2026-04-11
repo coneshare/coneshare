@@ -383,6 +383,8 @@ export const createDataroom = (data) => api.post('/datarooms/', data);
 export const createDataroomFolder = (data) => api.post('/dataroom-folders/', data);
 export const renameDataroomFolder = (id, name) => api.patch(`/dataroom-folders/${id}/`, { name });
 export const renameDataroomDocument = (id, name) => api.patch(`/dataroom-documents/${id}/`, { name });
+export const updateDataroomFolder = (id, data) => api.patch(`/dataroom-folders/${id}/`, data);
+export const updateDataroomDocument = (id, data) => api.patch(`/dataroom-documents/${id}/`, data);
 export const updateDataroom = (id, data) => api.patch(`/datarooms/${id}/`, data);
 export const deleteDataroom = (id) => api.delete(`/datarooms/${id}/`);
 export const addContentToDataroom = (id, data) => api.post(`/datarooms/${id}/add-content/`, data);

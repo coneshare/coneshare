@@ -229,8 +229,8 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
 
 class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
-                            mixins.UpdateModelMixin,
-                            viewsets.GenericViewSet):
+                              mixins.UpdateModelMixin,
+                              viewsets.GenericViewSet):
     queryset = DataroomDocument.objects.all()
     permission_classes = [permissions.IsAuthenticated]
 

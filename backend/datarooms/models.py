@@ -16,6 +16,7 @@ class DataroomFolder(BaseModel):
     dataroom = models.ForeignKey(Dataroom, on_delete=models.CASCADE, related_name='folders')
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
     name = models.CharField(max_length=255)
+    is_starred = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
@@ -26,6 +27,7 @@ class DataroomDocument(BaseModel):
     document = models.ForeignKey('documents.Document', on_delete=models.CASCADE)
     folder = models.ForeignKey(DataroomFolder, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=255, blank=True)
+    is_starred = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ('dataroom', 'document', 'folder')

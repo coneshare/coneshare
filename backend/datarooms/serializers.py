@@ -15,7 +15,7 @@ class DataroomFolderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DataroomFolder
-        fields = ['id', 'name', 'dataroom', 'parent', 'created_at', 'updated_at', 'ancestors']
+        fields = ['id', 'name', 'dataroom', 'parent', 'is_starred', 'created_at', 'updated_at', 'ancestors']
         read_only_fields = ['id', 'created_at', 'updated_at', 'ancestors']
 
     def get_ancestors(self, obj):
@@ -47,7 +47,7 @@ class DataroomDocumentSerializer(serializers.ModelSerializer):
         model = DataroomDocument
         fields = [
             'id', 'name', 'document_id', 'document_type', 'created_at',
-            'file_size', 'updated_at', 'created_by', 'folder'
+            'file_size', 'updated_at', 'created_by', 'folder', 'is_starred'
         ]
 
     def get_name(self, obj):
@@ -116,9 +116,10 @@ class RemoveContentSerializer(serializers.Serializer):
 class DataroomDocumentUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = DataroomDocument
-        fields = ['name']
+        fields = ['name', 'is_starred']
         extra_kwargs = {
-            'name': {'required': True}
+            'name': {'required': False},
+            'is_starred': {'required': False}
         }
 
 

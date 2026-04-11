@@ -453,6 +453,18 @@ class TestDataroomFolderViewSet:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert 'already exists' in str(response.json())
 
+    def test_toggle_folder_star_success(self, api_client, dataroom):
+        """Test toggling a dataroom folder's starred status."""
+        folder = DataroomFolder.objects.create(dataroom=dataroom, name="Folder", is_starred=False)
+        url = f'/api/v1/dataroom-folders/{folder.id}/'
+
+        response = api_client.patch(url, {'is_starred': True})
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()['is_starred'] is True
+
+        folder.refresh_from_db()
+        assert folder.is_starred is True
+
 
 class TestDataroomDocumentViewSet:
     def test_rename_document_success(self, api_client, dataroom, document):
@@ -489,6 +501,18 @@ class TestDataroomDocumentViewSet:
         data = {'name': 'New Name'}
         response = api_client.patch(url, data)
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_toggle_document_star_success(self, api_client, dataroom, document):
+        """Test toggling a dataroom document's starred status."""
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name, is_starred=False)
+        url = f'/api/v1/dataroom-documents/{ddoc.id}/'
+
+        response = api_client.patch(url, {'is_starred': True})
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()['is_starred'] is True
+
+        ddoc.refresh_from_db()
+        assert ddoc.is_starred is True
 
 
 class TestPublicDataroomDataView:

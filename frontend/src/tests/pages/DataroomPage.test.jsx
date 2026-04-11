@@ -69,6 +69,8 @@ describe('DataroomPage', () => {
         api.getDataroom.mockResolvedValue({ data: mockDataroomRoot });
         api.getDataroomFolderContents.mockResolvedValue({ data: mockSubFolderContent });
         api.createDataroomFolder.mockResolvedValue({ data: {} });
+        api.updateDataroomDocument.mockResolvedValue({ data: {} });
+        api.updateDataroomFolder.mockResolvedValue({ data: {} });
         api.getShareLinksForDataroom.mockResolvedValue({ data: [] });
         api.getDataroomViewSessions.mockResolvedValue({ data: { results: [], count: 0 } });
     });
@@ -195,6 +197,20 @@ describe('DataroomPage', () => {
     });
 
     describe('Content Management', () => {
+        it('should toggle dataroom document star status and call backend', async () => {
+            const user = userEvent.setup();
+            renderComponent();
+
+            const starButton = await screen.findByLabelText('Star Root Document');
+            await user.click(starButton);
+
+            await waitFor(() => {
+                expect(api.updateDataroomDocument).toHaveBeenCalledWith('ddoc1', { is_starred: true });
+            });
+
+            expect(await screen.findByLabelText('Unstar Root Document')).toBeInTheDocument();
+        });
+
         it('should create a new folder and refresh the list', async () => {
             const user = userEvent.setup();
 
