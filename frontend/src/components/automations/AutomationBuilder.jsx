@@ -88,14 +88,15 @@ export function AutomationBuilder({
       is_active: true,
     });
 
-    if (!initialValues) {
-      setName('');
-      setScopeType('global');
-      setShareLinkId('');
-      setDataroomId('');
-      setSubscribedEvents(['document_viewed']);
-      setSelectedDestinationIds([]);
-    }
+    // if (!initialValues) {
+    //   setName('');
+    //   setScopeType('global');
+    //   setShareLinkId('');
+    //   setDataroomId('');
+    //   setSubscribedEvents(['document_viewed']);
+    //   setSelectedDestinationIds([]);
+    // }
+
   };
 
   return (

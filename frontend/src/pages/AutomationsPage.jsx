@@ -388,13 +388,13 @@ export function AutomationsPage() {
               {automations.map((automation) => (
                 <div
                   key={automation.id}
-                  className={`flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 transition-colors ${
+                  className={`flex items-start justify-between gap-3 rounded-md border p-3 transition-colors ${
                     automation.is_active
                       ? 'border-emerald-200 bg-emerald-50/40'
                       : 'border-gray-200 bg-gray-50 opacity-80'
                   }`}
                 >
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="font-medium">{automation.name}</p>
                       <span
@@ -407,23 +407,24 @@ export function AutomationsPage() {
                         {automation.is_active ? 'Enabled' : 'Disabled'}
                       </span>
                     </div>
-                    <p className={`text-xs ${automation.is_active ? 'text-gray-600' : 'text-gray-500'}`}>
+                    <p
+                      className={`truncate text-xs ${automation.is_active ? 'text-gray-600' : 'text-gray-500'}`}
+                      title={`scope: ${automation.scope_type} | events: ${(automation.subscribed_events || []).join(', ') || '-'}`}
+                    >
                       scope: {automation.scope_type} | events: {(automation.subscribed_events || []).join(', ') || '-'}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     <Button variant="outline" size="sm" onClick={() => handleOpenEdit(automation)}>
                       Edit
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        setSelectedRuleIdForLogs((prev) => {
-                          setLogsCurrentPage(1);
-                          return prev === automation.id ? null : automation.id;
-                        })
-                      }
+                      onClick={() => {
+                        setLogsCurrentPage(1);
+                        setSelectedRuleIdForLogs((prev) => (prev === automation.id ? null : automation.id));
+                      }}
                     >
                       {selectedRuleIdForLogs === automation.id ? 'Show All Logs' : 'View Logs'}
                     </Button>
@@ -463,12 +464,10 @@ export function AutomationsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        setSelectedDestinationIdForLogs((prev) => {
-                          setLogsCurrentPage(1);
-                          return prev === destination.id ? null : destination.id;
-                        })
-                      }
+                      onClick={() => {
+                        setLogsCurrentPage(1);
+                        setSelectedDestinationIdForLogs((prev) => (prev === destination.id ? null : destination.id));
+                      }}
                     >
                       {selectedDestinationIdForLogs === destination.id ? 'Show All Logs' : 'View Logs'}
                     </Button>
