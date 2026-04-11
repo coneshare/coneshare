@@ -63,7 +63,7 @@ def dispatch_automation_event(event_type: str, payload: dict) -> int:
         if not _rule_matches_scope(rule, payload):
             continue
 
-        for destination in rule.destinations.filter(is_active=True):
+        for destination in [d for d in rule.destinations.all() if d.is_active]:
             delivery = AutomationDelivery.objects.create(
                 organization=organization,
                 rule=rule,

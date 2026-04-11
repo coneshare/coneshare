@@ -323,12 +323,13 @@ def test_deliver_task_marks_dead_letter_after_max_attempts(mock_request, mock_ap
 
 
 @patch('automations.tasks.deliver_automation_delivery_task.apply_async')
-def test_deliver_task_inactive_rule_or_destination_goes_to_retry_path(mock_apply_async, user, share_link):
+def test_deliver_task_inactive_rule_or_destination_is_non_retryable(mock_apply_async, user, share_link):
     delivery = _make_delivery(user, share_link, destination_active=False, rule_active=True)
 
     deliver_automation_delivery_task(str(delivery.id))
 
     delivery.refresh_from_db()
-    assert delivery.status == AutomationDelivery.Status.FAILED
+    assert delivery.status == AutomationDelivery.Status.DEAD_LETTER
     assert delivery.attempt_count == 1
-    mock_apply_async.assert_called_once()
+    assert delivery.next_retry_at is None
+    mock_apply_async.assert_not_called()

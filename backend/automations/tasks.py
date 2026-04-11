@@ -142,6 +142,24 @@ def _mark_failure_and_retry(delivery: AutomationDelivery, message: str, response
     deliver_automation_delivery_task.apply_async(args=[str(delivery.id)], countdown=countdown)
 
 
+def _mark_non_retryable_failure(delivery: AutomationDelivery, message: str, response_code=None):
+    delivery.attempt_count += 1
+    delivery.response_code = response_code
+    delivery.response_body_excerpt = (message or '')[:RESPONSE_EXCERPT_LIMIT]
+    delivery.status = AutomationDelivery.Status.DEAD_LETTER
+    delivery.next_retry_at = None
+    delivery.save(
+        update_fields=[
+            'attempt_count',
+            'response_code',
+            'response_body_excerpt',
+            'status',
+            'next_retry_at',
+            'updated_at',
+        ]
+    )
+
+
 @shared_task
 def dispatch_automation_event_task(event_type: str, payload: dict):
     return dispatch_automation_event(event_type=event_type, payload=payload)
@@ -162,7 +180,7 @@ def deliver_automation_delivery_task(delivery_id: str):
             delivery.rule.is_active,
             delivery.destination.is_active,
         )
-        _mark_failure_and_retry(delivery, 'Rule or destination is inactive.')
+        _mark_non_retryable_failure(delivery, 'Rule or destination is inactive.')
         return
 
     request_payload = _build_request_payload(delivery)
