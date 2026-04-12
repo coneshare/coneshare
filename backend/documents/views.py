@@ -13,6 +13,7 @@ from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
 
 
 from core.services import get_dynamic_setting
@@ -99,6 +100,7 @@ def _get_folder_from_path(requesting_user, folder_path: str) -> Folder | None:
 #     return parent
 
 
+@extend_schema(tags=['documents'])
 class DocumentUploadRequestView(APIView):
     """
     Requests a temporary, secure URL for uploading a document from the file server.
@@ -112,6 +114,15 @@ class DocumentUploadRequestView(APIView):
         # e.g. "foo.txt" or "folder/sub/file.pdf".
         path = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
+    class DocumentUploadRequestResponseSerializer(serializers.Serializer):
+        upload_url = serializers.CharField()
+        storage_key = serializers.CharField()
+        unique_name = serializers.CharField()
+
+    @extend_schema(
+        request=DocumentUploadRequestSerializer,
+        responses={200: DocumentUploadRequestResponseSerializer, 400: dict},
+    )
     def post(self, request, *args, **kwargs):
         serializer = self.DocumentUploadRequestSerializer(data=request.data)
         if not serializer.is_valid():
@@ -173,6 +184,7 @@ class DocumentUploadRequestView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+@extend_schema(tags=['documents'])
 class DocumentUploadFinalizeView(APIView):
     """
     Finalizes a document upload after the file has been sent to the file server.
@@ -188,6 +200,10 @@ class DocumentUploadFinalizeView(APIView):
         # Must follow the same root-relative contract used in request step.
         path = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
+    @extend_schema(
+        request=DocumentUploadFinalizeSerializer,
+        responses={202: DocumentSerializer, 400: dict, 500: dict},
+    )
     def post(self, request, *args, **kwargs):
         serializer = self.DocumentUploadFinalizeSerializer(data=request.data)
         if not serializer.is_valid():
@@ -228,6 +244,7 @@ class DocumentUploadFinalizeView(APIView):
         return Response(doc_serializer.data, status=status.HTTP_202_ACCEPTED)
 
 
+@extend_schema(tags=['documents'])
 class EnsureFolderPathsView(APIView):
     """
     A view to ensure multiple folder paths exist, creating them if necessary.
@@ -236,6 +253,14 @@ class EnsureFolderPathsView(APIView):
     """
     permission_classes = [permissions.IsAuthenticated]
 
+    class EnsureFolderPathsResponseSerializer(serializers.Serializer):
+        detail = serializers.CharField()
+        path_mappings = serializers.DictField(child=serializers.CharField())
+
+    @extend_schema(
+        request=EnsureFolderPathsSerializer,
+        responses={201: EnsureFolderPathsResponseSerializer, 400: dict, 403: dict, 500: dict},
+    )
     def post(self, request, *args, **kwargs):
         serializer = EnsureFolderPathsSerializer(data=request.data)
         if not serializer.is_valid():
@@ -361,6 +386,7 @@ class EnsureFolderPathsView(APIView):
             )
 
 
+@extend_schema(tags=['documents'])
 class DocumentVersionUploadRequestView(APIView):
     """
     Requests a temporary, secure URL for uploading a new document version.
@@ -371,6 +397,14 @@ class DocumentVersionUploadRequestView(APIView):
         file_name = serializers.CharField()
         file_size = serializers.IntegerField()
 
+    class ResponseSerializer(serializers.Serializer):
+        upload_url = serializers.CharField()
+        storage_key = serializers.CharField()
+
+    @extend_schema(
+        request=RequestSerializer,
+        responses={200: ResponseSerializer, 400: dict, 404: dict},
+    )
     def post(self, request, document_id, *args, **kwargs):
         try:
             document = Document.objects.get(id=document_id, created_by=request.user)
@@ -406,6 +440,7 @@ class DocumentVersionUploadRequestView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+@extend_schema(tags=['documents'])
 class DocumentVersionUploadFinalizeView(APIView):
     """
     Finalizes a new document version upload after the file has been sent to the file server.
@@ -417,6 +452,10 @@ class DocumentVersionUploadFinalizeView(APIView):
         file_size = serializers.IntegerField()
         content_type = serializers.CharField(allow_blank=True)
 
+    @extend_schema(
+        request=FinalizeSerializer,
+        responses={202: DocumentSerializer, 400: dict, 404: dict, 500: dict},
+    )
     def post(self, request, document_id, *args, **kwargs):
         try:
             document = Document.objects.get(id=document_id, created_by=request.user)
@@ -501,12 +540,19 @@ def _prepare_pages_data(document, primary_version, share_link=None, enable_water
     return pages_data
 
 
+@extend_schema(tags=['documents'])
 class DocumentDownloadView(APIView):
     """
     Provides a temporary, secure URL for downloading a document's original file.
     """
     permission_classes = [permissions.IsAuthenticated]
 
+    class DocumentDownloadResponseSerializer(serializers.Serializer):
+        download_url = serializers.CharField()
+
+    @extend_schema(
+        responses={200: DocumentDownloadResponseSerializer, 404: dict},
+    )
     def get(self, request, document_id, *args, **kwargs):
         try:
             document = Document.objects.get(
@@ -537,12 +583,23 @@ class DocumentDownloadView(APIView):
             return Response({"detail": str(e.detail)}, status=e.status_code)
 
 
+@extend_schema(tags=['documents'])
 class DocumentPreviewDataView(APIView):
     """
     Provides data for rendering an internal document preview.
     """
     permission_classes = [permissions.IsAuthenticated]
 
+    class DocumentPreviewResponseSerializer(serializers.Serializer):
+        id = serializers.CharField()
+        name = serializers.CharField()
+        type = serializers.CharField()
+        num_pages = serializers.IntegerField(allow_null=True)
+        pages = serializers.ListField(child=serializers.DictField())
+
+    @extend_schema(
+        responses={200: DocumentPreviewResponseSerializer, 400: dict, 404: dict},
+    )
     def get(self, request, document_id, *args, **kwargs):
         # Authentication & Authorization is handled by DRF + this query
         try:
@@ -598,6 +655,7 @@ class DocumentPreviewDataView(APIView):
         return Response(response_data, status=status.HTTP_200_OK)
 
 
+@extend_schema(tags=['documents'])
 class FolderViewSet(viewsets.ModelViewSet):
     queryset = Folder.objects.all()
     serializer_class = FolderSerializer
@@ -704,6 +762,7 @@ class FolderViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(tags=['documents'])
 class DocumentViewSet(viewsets.ModelViewSet):
     queryset = Document.objects.all()
     serializer_class = DocumentSerializer
@@ -835,6 +894,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
         })
 
 
+@extend_schema(tags=['documents'])
 class MoveItemsView(APIView):
     """
     A dedicated view for moving documents and folders to a new location.
@@ -850,6 +910,13 @@ class MoveItemsView(APIView):
         )
         destination_folder_id = serializers.CharField(allow_null=True)
 
+    class MoveItemsResponseSerializer(serializers.Serializer):
+        detail = serializers.CharField()
+
+    @extend_schema(
+        request=MoveItemsSerializer,
+        responses={200: MoveItemsResponseSerializer, 400: dict, 403: dict, 404: dict, 500: dict},
+    )
     def post(self, request, *args, **kwargs):
         serializer = self.MoveItemsSerializer(data=request.data)
         if not serializer.is_valid():
@@ -939,12 +1006,19 @@ class MoveItemsView(APIView):
             return Response({"detail": "An unexpected error occurred."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(tags=['documents'])
 class RootFolderView(APIView):
     """
     Provides the ID of the user's root folder.
     """
     permission_classes = [permissions.IsAuthenticated]
 
+    class RootFolderResponseSerializer(serializers.Serializer):
+        id = serializers.CharField()
+
+    @extend_schema(
+        responses={200: RootFolderResponseSerializer, 404: dict},
+    )
     def get(self, request, *args, **kwargs):
         try:
             root_folder = Folder.objects.get_root_for_org(request.user.organization)

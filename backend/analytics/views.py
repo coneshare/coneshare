@@ -3,9 +3,10 @@ from datetime import timedelta
 
 from django.db.models import Count, OuterRef, Subquery
 from django.utils import timezone
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
 
 from documents.views import StandardResultsSetPagination
 from sharelinks.models import ShareLink, ViewSession
@@ -15,12 +16,18 @@ from sharelinks.serializers import ShareLinkSerializer, ViewSessionSerializer
 logger = logging.getLogger(__name__)
 
 
+@extend_schema(tags=['analytics'])
 class DashboardSummaryView(APIView):
     """
     Provides a summary of recent activity for the main dashboard.
     """
     permission_classes = [permissions.IsAuthenticated]
 
+    class DashboardSummaryResponseSerializer(serializers.Serializer):
+        recent_views = ViewSessionSerializer(many=True)
+        recent_links = ShareLinkSerializer(many=True)
+
+    @extend_schema(responses={200: DashboardSummaryResponseSerializer})
     def get(self, request, *args, **kwargs):
         # 1. Get the 10 most recent view sessions
         recent_views = ViewSession.objects.filter(
@@ -49,12 +56,18 @@ class DashboardSummaryView(APIView):
         })
 
 
+@extend_schema(tags=['analytics'])
 class DailyVisitsView(APIView):
     """
     Provides aggregated daily view counts for the last 30 days.
     """
     permission_classes = [permissions.IsAuthenticated]
 
+    class DailyVisitsItemSerializer(serializers.Serializer):
+        date = serializers.CharField()
+        visits = serializers.IntegerField()
+
+    @extend_schema(responses={200: DailyVisitsItemSerializer(many=True)})
     def get(self, request, *args, **kwargs):
         organization = request.user.organization
         thirty_days_ago = timezone.now().date() - timedelta(days=30)
@@ -83,6 +96,7 @@ class DailyVisitsView(APIView):
         return Response(chart_data)
 
 
+@extend_schema(tags=['analytics'])
 class AllLinksView(generics.ListAPIView):
     """
     Provides a paginated list of all share links for the organization,
@@ -106,6 +120,7 @@ class AllLinksView(generics.ListAPIView):
         ).order_by('-last_viewed_at')
 
 
+@extend_schema(tags=['analytics'])
 class AllViewSessionsView(generics.ListAPIView):
     """
     Provides a paginated list of all view sessions for the organization.

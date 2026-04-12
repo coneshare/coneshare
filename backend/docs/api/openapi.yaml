@@ -1,0 +1,6790 @@
+openapi: 3.0.3
+info:
+  title: ConeShare API
+  version: 1.0.0
+  description: OpenAPI schema for the ConeShare backend API.
+paths:
+  /api/schema/:
+    get:
+      operationId: schema_retrieve
+      description: |-
+        OpenApi3 schema for this API. Format can be selected via content negotiation.
+
+        - YAML: application/vnd.oai.openapi
+        - JSON: application/vnd.oai.openapi+json
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - json
+          - yaml
+      - in: query
+        name: lang
+        schema:
+          type: string
+          enum:
+          - af
+          - ar
+          - ar-dz
+          - ast
+          - az
+          - be
+          - bg
+          - bn
+          - br
+          - bs
+          - ca
+          - ckb
+          - cs
+          - cy
+          - da
+          - de
+          - dsb
+          - el
+          - en
+          - en-au
+          - en-gb
+          - eo
+          - es
+          - es-ar
+          - es-co
+          - es-mx
+          - es-ni
+          - es-ve
+          - et
+          - eu
+          - fa
+          - fi
+          - fr
+          - fy
+          - ga
+          - gd
+          - gl
+          - he
+          - hi
+          - hr
+          - hsb
+          - hu
+          - hy
+          - ia
+          - id
+          - ig
+          - io
+          - is
+          - it
+          - ja
+          - ka
+          - kab
+          - kk
+          - km
+          - kn
+          - ko
+          - ky
+          - lb
+          - lt
+          - lv
+          - mk
+          - ml
+          - mn
+          - mr
+          - ms
+          - my
+          - nb
+          - ne
+          - nl
+          - nn
+          - os
+          - pa
+          - pl
+          - pt
+          - pt-br
+          - ro
+          - ru
+          - sk
+          - sl
+          - sq
+          - sr
+          - sr-latn
+          - sv
+          - sw
+          - ta
+          - te
+          - tg
+          - th
+          - tk
+          - tr
+          - tt
+          - udm
+          - ug
+          - uk
+          - ur
+          - uz
+          - vi
+          - zh-hans
+          - zh-hant
+      tags:
+      - schema
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/vnd.oai.openapi:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/yaml:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/vnd.oai.openapi+json:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/_health/:
+    get:
+      operationId: v1__health_retrieve
+      description: |-
+        Checks the health of the database and Redis cache.
+        Used by Docker for health checks.
+      tags:
+      - core
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+          description: ''
+  /api/v1/actions/move/:
+    post:
+      operationId: v1_actions_move_create
+      description: A dedicated view for moving documents and folders to a new location.
+      tags:
+      - documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveItems'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MoveItems'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MoveItems'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoveItemsResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/admin/login-activities/:
+    get:
+      operationId: v1_admin_login_activities_list
+      description: API endpoint for admins to view user login activities.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLoginActivityList'
+          description: ''
+  /api/v1/admin/login-activities/{id}/:
+    get:
+      operationId: v1_admin_login_activities_retrieve
+      description: API endpoint for admins to view user login activities.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this Login Activity.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginActivity'
+          description: ''
+  /api/v1/admin/settings/:
+    get:
+      operationId: v1_admin_settings_list
+      description: |-
+        API endpoint for superusers to manage application settings.
+        This view dynamically merges settings from the database with defaults from settings.py.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppConfiguration'
+          description: ''
+    post:
+      operationId: v1_admin_settings_create
+      description: |-
+        API endpoint for superusers to manage application settings.
+        This view dynamically merges settings from the database with defaults from settings.py.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppConfiguration'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AppConfiguration'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AppConfiguration'
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppConfiguration'
+          description: ''
+  /api/v1/admin/settings/{key}/:
+    get:
+      operationId: v1_admin_settings_retrieve
+      description: |-
+        API endpoint for superusers to manage application settings.
+        This view dynamically merges settings from the database with defaults from settings.py.
+      parameters:
+      - in: path
+        name: key
+        schema:
+          type: string
+        description: A unique value identifying this Application Configuration.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppConfiguration'
+          description: ''
+    put:
+      operationId: v1_admin_settings_update
+      description: |-
+        API endpoint for superusers to manage application settings.
+        This view dynamically merges settings from the database with defaults from settings.py.
+      parameters:
+      - in: path
+        name: key
+        schema:
+          type: string
+        description: A unique value identifying this Application Configuration.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppConfiguration'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AppConfiguration'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AppConfiguration'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppConfiguration'
+          description: ''
+    patch:
+      operationId: v1_admin_settings_partial_update
+      description: |-
+        API endpoint for superusers to manage application settings.
+        This view dynamically merges settings from the database with defaults from settings.py.
+      parameters:
+      - in: path
+        name: key
+        schema:
+          type: string
+        description: A unique value identifying this Application Configuration.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAppConfiguration'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAppConfiguration'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAppConfiguration'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppConfiguration'
+          description: ''
+    delete:
+      operationId: v1_admin_settings_destroy
+      description: |-
+        API endpoint for superusers to manage application settings.
+        This view dynamically merges settings from the database with defaults from settings.py.
+      parameters:
+      - in: path
+        name: key
+        schema:
+          type: string
+        description: A unique value identifying this Application Configuration.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/admin/users/:
+    get:
+      operationId: v1_admin_users_list
+      description: API endpoint for admins to manage users in their organization.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserList'
+          description: ''
+    post:
+      operationId: v1_admin_users_create
+      description: API endpoint for admins to manage users in their organization.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/admin/users/{id}/:
+    get:
+      operationId: v1_admin_users_retrieve
+      description: API endpoint for admins to manage users in their organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this user.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    put:
+      operationId: v1_admin_users_update
+      description: API endpoint for admins to manage users in their organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this user.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: v1_admin_users_partial_update
+      description: API endpoint for admins to manage users in their organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this user.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    delete:
+      operationId: v1_admin_users_destroy
+      description: API endpoint for admins to manage users in their organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this user.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/analytics/daily-visits/:
+    get:
+      operationId: v1_analytics_daily_visits_list
+      description: Provides aggregated daily view counts for the last 30 days.
+      tags:
+      - analytics
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyVisitsItem'
+          description: ''
+  /api/v1/analytics/dashboard/:
+    get:
+      operationId: v1_analytics_dashboard_retrieve
+      description: Provides a summary of recent activity for the main dashboard.
+      tags:
+      - analytics
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummaryResponse'
+          description: ''
+  /api/v1/analytics/links/:
+    get:
+      operationId: v1_analytics_links_list
+      description: |-
+        Provides a paginated list of all share links for the organization,
+        ordered by the most recently active.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - analytics
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedShareLinkList'
+          description: ''
+  /api/v1/analytics/view-sessions/:
+    get:
+      operationId: v1_analytics_view_sessions_list
+      description: Provides a paginated list of all view sessions for the organization.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - analytics
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedViewSessionList'
+          description: ''
+  /api/v1/automation-assignments/:
+    get:
+      operationId: v1_automation_assignments_list
+      tags:
+      - automations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AutomationAssignment'
+          description: ''
+  /api/v1/automation-assignments/{id}/:
+    get:
+      operationId: v1_automation_assignments_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - automations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationAssignment'
+          description: ''
+  /api/v1/automation-deliveries/:
+    get:
+      operationId: v1_automation_deliveries_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - automations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAutomationDeliveryList'
+          description: ''
+  /api/v1/automation-deliveries/{id}/:
+    get:
+      operationId: v1_automation_deliveries_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - automations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationDelivery'
+          description: ''
+  /api/v1/automation-deliveries/{id}/replay/:
+    post:
+      operationId: v1_automation_deliveries_replay_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - automations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutomationDelivery'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AutomationDelivery'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AutomationDelivery'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationDelivery'
+          description: ''
+  /api/v1/automation-destinations/:
+    get:
+      operationId: v1_automation_destinations_list
+      tags:
+      - automations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AutomationDestination'
+          description: ''
+    post:
+      operationId: v1_automation_destinations_create
+      tags:
+      - automations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutomationDestination'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AutomationDestination'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AutomationDestination'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationDestination'
+          description: ''
+  /api/v1/automation-destinations/{id}/:
+    get:
+      operationId: v1_automation_destinations_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - automations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationDestination'
+          description: ''
+    put:
+      operationId: v1_automation_destinations_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - automations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutomationDestination'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AutomationDestination'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AutomationDestination'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationDestination'
+          description: ''
+    patch:
+      operationId: v1_automation_destinations_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - automations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAutomationDestination'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAutomationDestination'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAutomationDestination'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationDestination'
+          description: ''
+    delete:
+      operationId: v1_automation_destinations_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - automations
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/automations/:
+    get:
+      operationId: v1_automations_list
+      tags:
+      - automations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AutomationRule'
+          description: ''
+    post:
+      operationId: v1_automations_create
+      tags:
+      - automations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutomationRule'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AutomationRule'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AutomationRule'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationRule'
+          description: ''
+  /api/v1/automations/{id}/:
+    get:
+      operationId: v1_automations_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - automations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationRule'
+          description: ''
+    put:
+      operationId: v1_automations_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - automations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutomationRule'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AutomationRule'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AutomationRule'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationRule'
+          description: ''
+    patch:
+      operationId: v1_automations_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - automations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAutomationRule'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAutomationRule'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAutomationRule'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationRule'
+          description: ''
+    delete:
+      operationId: v1_automations_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - automations
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/cloud/callback/{provider_name}/:
+    post:
+      operationId: v1_cloud_callback_create
+      description: |-
+        Handles the final step of the OAuth2 flow, receiving the code and state
+        from the frontend.
+      parameters:
+      - in: path
+        name: provider_name
+        schema:
+          type: string
+        required: true
+      tags:
+      - cloudfiles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthCallback'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OAuthCallback'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OAuthCallback'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/cloud/connect/{provider_name}/:
+    get:
+      operationId: v1_cloud_connect_retrieve
+      description: Generates a cloud provider authorization URL and returns it to
+        the frontend.
+      parameters:
+      - in: path
+        name: provider_name
+        schema:
+          type: string
+        required: true
+      tags:
+      - cloudfiles
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudConnectResponse'
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/cloud/connections/:
+    get:
+      operationId: v1_cloud_connections_list
+      description: Lists the user's active cloud connections.
+      tags:
+      - cloudfiles
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CloudConnection'
+          description: ''
+  /api/v1/cloud/connections/{connection_id}/import/:
+    post:
+      operationId: v1_cloud_connections_import_create
+      description: Initiates a file import from a cloud service.
+      parameters:
+      - in: path
+        name: connection_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - cloudfiles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloudImport'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CloudImport'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CloudImport'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/cloud/connections/{connection_id}/list/:
+    get:
+      operationId: v1_cloud_connections_list_retrieve
+      description: Lists files from a specific cloud connection.
+      parameters:
+      - in: path
+        name: connection_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - cloudfiles
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/cloud/providers/:
+    get:
+      operationId: v1_cloud_providers_list
+      description: Returns a list of cloud providers enabled in the system configuration.
+      tags:
+      - cloudfiles
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CloudProvider'
+          description: ''
+  /api/v1/dataroom-documents/{id}/:
+    get:
+      operationId: v1_dataroom_documents_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom document.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataroomDocument'
+          description: ''
+    put:
+      operationId: v1_dataroom_documents_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom document.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataroomDocumentUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DataroomDocumentUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DataroomDocumentUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataroomDocumentUpdate'
+          description: ''
+    patch:
+      operationId: v1_dataroom_documents_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom document.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDataroomDocumentUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDataroomDocumentUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDataroomDocumentUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataroomDocumentUpdate'
+          description: ''
+  /api/v1/dataroom-folders/:
+    get:
+      operationId: v1_dataroom_folders_list
+      tags:
+      - datarooms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DataroomFolder'
+          description: ''
+    post:
+      operationId: v1_dataroom_folders_create
+      tags:
+      - datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataroomFolder'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DataroomFolder'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DataroomFolder'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataroomFolder'
+          description: ''
+  /api/v1/dataroom-folders/{id}/:
+    get:
+      operationId: v1_dataroom_folders_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom folder.
+        required: true
+      tags:
+      - datarooms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataroomFolder'
+          description: ''
+    put:
+      operationId: v1_dataroom_folders_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom folder.
+        required: true
+      tags:
+      - datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataroomFolder'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DataroomFolder'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DataroomFolder'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataroomFolder'
+          description: ''
+    patch:
+      operationId: v1_dataroom_folders_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom folder.
+        required: true
+      tags:
+      - datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDataroomFolder'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDataroomFolder'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDataroomFolder'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataroomFolder'
+          description: ''
+    delete:
+      operationId: v1_dataroom_folders_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom folder.
+        required: true
+      tags:
+      - datarooms
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/datarooms/:
+    get:
+      operationId: v1_datarooms_list
+      tags:
+      - datarooms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dataroom'
+          description: ''
+    post:
+      operationId: v1_datarooms_create
+      tags:
+      - datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
+  /api/v1/datarooms/{id}/:
+    get:
+      operationId: v1_datarooms_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataroomDetail'
+          description: ''
+    put:
+      operationId: v1_datarooms_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
+    patch:
+      operationId: v1_datarooms_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDataroom'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
+    delete:
+      operationId: v1_datarooms_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/datarooms/{id}/add-content/:
+    post:
+      operationId: v1_datarooms_add_content_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
+  /api/v1/datarooms/{id}/move-content/:
+    post:
+      operationId: v1_datarooms_move_content_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
+  /api/v1/datarooms/{id}/remove-content/:
+    post:
+      operationId: v1_datarooms_remove_content_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
+  /api/v1/datarooms/{id}/view-sessions/:
+    get:
+      operationId: v1_datarooms_view_sessions_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
+  /api/v1/documents/:
+    get:
+      operationId: v1_documents_list
+      description: |-
+        Returns a list of documents for the currently authenticated user,
+        optionally filtered by a parent folder.
+      tags:
+      - documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Document'
+          description: ''
+    post:
+      operationId: v1_documents_create
+      tags:
+      - documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Document'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Document'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Document'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+  /api/v1/documents/{document_id}/download/:
+    get:
+      operationId: v1_documents_download_retrieve
+      description: Provides a temporary, secure URL for downloading a document's original
+        file.
+      parameters:
+      - in: path
+        name: document_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDownloadResponse'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/documents/{document_id}/preview-data/:
+    get:
+      operationId: v1_documents_preview_data_retrieve
+      description: Provides data for rendering an internal document preview.
+      parameters:
+      - in: path
+        name: document_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentPreviewResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/documents/{id}/:
+    get:
+      operationId: v1_documents_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this document.
+        required: true
+      tags:
+      - documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+    put:
+      operationId: v1_documents_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this document.
+        required: true
+      tags:
+      - documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Document'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Document'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Document'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+    patch:
+      operationId: v1_documents_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this document.
+        required: true
+      tags:
+      - documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDocument'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDocument'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDocument'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+    delete:
+      operationId: v1_documents_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this document.
+        required: true
+      tags:
+      - documents
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/documents/{id}/copy/:
+    post:
+      operationId: v1_documents_copy_create
+      description: Creates a copy of the document.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this document.
+        required: true
+      tags:
+      - documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Document'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Document'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Document'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+  /api/v1/documents/{id}/stats/:
+    get:
+      operationId: v1_documents_stats_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this document.
+        required: true
+      tags:
+      - documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+  /api/v1/documents/{id}/view-sessions/:
+    get:
+      operationId: v1_documents_view_sessions_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this document.
+        required: true
+      tags:
+      - documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+  /api/v1/file-requests/:
+    get:
+      operationId: v1_file_requests_list
+      description: API endpoint for managing File Requests.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - filerequests
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFileRequestList'
+          description: ''
+    post:
+      operationId: v1_file_requests_create
+      description: API endpoint for managing File Requests.
+      tags:
+      - filerequests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FileRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FileRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileRequest'
+          description: ''
+  /api/v1/file-requests/{id}/:
+    get:
+      operationId: v1_file_requests_retrieve
+      description: API endpoint for managing File Requests.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this file request.
+        required: true
+      tags:
+      - filerequests
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileRequestDetail'
+          description: ''
+    put:
+      operationId: v1_file_requests_update
+      description: API endpoint for managing File Requests.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this file request.
+        required: true
+      tags:
+      - filerequests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FileRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FileRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileRequest'
+          description: ''
+    patch:
+      operationId: v1_file_requests_partial_update
+      description: API endpoint for managing File Requests.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this file request.
+        required: true
+      tags:
+      - filerequests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFileRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedFileRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedFileRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileRequest'
+          description: ''
+    delete:
+      operationId: v1_file_requests_destroy
+      description: API endpoint for managing File Requests.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this file request.
+        required: true
+      tags:
+      - filerequests
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/folders/:
+    get:
+      operationId: v1_folders_list
+      description: |-
+        Returns the contents of the user's root folder, including its
+        subfolders and documents.
+      tags:
+      - documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Folder'
+          description: ''
+    post:
+      operationId: v1_folders_create
+      tags:
+      - documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Folder'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Folder'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Folder'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+          description: ''
+  /api/v1/folders/{id}/:
+    get:
+      operationId: v1_folders_retrieve
+      description: Returns the contents of a specific folder, including its subfolders
+        and documents.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this folder.
+        required: true
+      tags:
+      - documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+          description: ''
+    put:
+      operationId: v1_folders_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this folder.
+        required: true
+      tags:
+      - documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Folder'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Folder'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Folder'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+          description: ''
+    patch:
+      operationId: v1_folders_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this folder.
+        required: true
+      tags:
+      - documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFolder'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedFolder'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedFolder'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+          description: ''
+    delete:
+      operationId: v1_folders_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this folder.
+        required: true
+      tags:
+      - documents
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/folders/ensure-paths/:
+    post:
+      operationId: v1_folders_ensure_paths_create
+      description: |-
+        A view to ensure multiple folder paths exist, creating them if necessary.
+        This is designed to be called once before a batch of folder uploads.
+        It's atomic, ensuring that if any path fails, the whole transaction is rolled back.
+      tags:
+      - documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnsureFolderPaths'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EnsureFolderPaths'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EnsureFolderPaths'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnsureFolderPathsResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/folders/root/:
+    get:
+      operationId: v1_folders_root_retrieve
+      description: Provides the ID of the user's root folder.
+      tags:
+      - documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RootFolderResponse'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/groups/:
+    get:
+      operationId: v1_groups_list
+      description: API endpoint that allows user groups to be viewed or edited.
+      tags:
+      - core
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserGroup'
+          description: ''
+    post:
+      operationId: v1_groups_create
+      description: API endpoint that allows user groups to be viewed or edited.
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserGroup'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserGroup'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserGroup'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserGroup'
+          description: ''
+  /api/v1/groups/{id}/:
+    get:
+      operationId: v1_groups_retrieve
+      description: API endpoint that allows user groups to be viewed or edited.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this User Group.
+        required: true
+      tags:
+      - core
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserGroup'
+          description: ''
+    put:
+      operationId: v1_groups_update
+      description: API endpoint that allows user groups to be viewed or edited.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this User Group.
+        required: true
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserGroup'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserGroup'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserGroup'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserGroup'
+          description: ''
+    patch:
+      operationId: v1_groups_partial_update
+      description: API endpoint that allows user groups to be viewed or edited.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this User Group.
+        required: true
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserGroup'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserGroup'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserGroup'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserGroup'
+          description: ''
+    delete:
+      operationId: v1_groups_destroy
+      description: API endpoint that allows user groups to be viewed or edited.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this User Group.
+        required: true
+      tags:
+      - core
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/links/{slug}/download-file/:
+    get:
+      operationId: v1_links_download_file_retrieve
+      description: |-
+        Handles the download of a single file from a share link. If watermarking
+        is enabled for the item, it generates a watermarked PDF; otherwise, it
+        serves the original file.
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+        '302':
+          description: No response body
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '410':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/links/{slug}/download-folder/{folder_id}/:
+    get:
+      operationId: v1_links_download_folder_retrieve
+      description: Handles the download of an entire dataroom folder as a ZIP archive.
+      parameters:
+      - in: path
+        name: folder_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '410':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/links/{slug}/page/{page_number}/:
+    get:
+      operationId: v1_links_page_retrieve
+      description: |-
+        Serves a single, non-watermarked page image for a document accessed
+        via a public share link. It performs all necessary security checks
+        for each page request and serves the file from storage.
+      parameters:
+      - in: path
+        name: page_number
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '302':
+          description: No response body
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/links/{slug}/render-page/{page_number}/:
+    get:
+      operationId: v1_links_render_page_retrieve
+      description: |-
+        Dynamically renders a watermarked image for a document page.
+        This is a public endpoint, but it checks for an active share link.
+      parameters:
+      - in: path
+        name: page_number
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+        '304':
+          description: No response body
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '410':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/links/{slug}/request-access/:
+    post:
+      operationId: v1_links_request_access_create
+      description: Handles a viewer's request to access a link that requires an email.
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareLinkEmail'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ShareLinkEmail'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ShareLinkEmail'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/links/{slug}/verify-password/:
+    post:
+      operationId: v1_links_verify_password_create
+      description: Verifies the password for a share link and authorizes the session.
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareLinkPassword'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ShareLinkPassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ShareLinkPassword'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/links/{slug}/view-data/:
+    get:
+      operationId: v1_links_view_data_retrieve
+      description: |-
+        Provides the data needed for a public viewer to render a document from a share link.
+        This view includes all necessary security checks.
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '410':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/logout/:
+    post:
+      operationId: v1_logout_create
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '205':
+          description: No response body
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/organizations/:
+    get:
+      operationId: v1_organizations_list
+      description: API endpoint that allows organizations to be viewed or edited.
+      tags:
+      - core
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Organization'
+          description: ''
+  /api/v1/organizations/{id}/:
+    get:
+      operationId: v1_organizations_retrieve
+      description: API endpoint that allows organizations to be viewed or edited.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this organization.
+        required: true
+      tags:
+      - core
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+  /api/v1/page-views/record/:
+    post:
+      operationId: v1_page_views_record_create
+      description: Receives and records granular page view tracking data.
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PageViewRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PageViewRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PageViewRecord'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordPageResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/public/file-requests/{slug}/:
+    get:
+      operationId: v1_public_file_requests_retrieve
+      description: Provides public details about a file request link.
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - filerequests
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicFileRequest'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/public/file-requests/{slug}/finalize-upload/:
+    post:
+      operationId: v1_public_file_requests_finalize_upload_create
+      description: Finalizes a document upload made via a file request link.
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - filerequests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileRequestUploadFinalize'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FileRequestUploadFinalize'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FileRequestUploadFinalize'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/public/file-requests/{slug}/request-upload/:
+    post:
+      operationId: v1_public_file_requests_request_upload_create
+      description: 'Handles the first step of a public upload: requesting a pre-signed
+        URL.'
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - filerequests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Request'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Request'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Request'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/share-link-templates/:
+    get:
+      operationId: v1_share_link_templates_list
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ShareLinkTemplate'
+          description: ''
+    post:
+      operationId: v1_share_link_templates_create
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareLinkTemplate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ShareLinkTemplate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ShareLinkTemplate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLinkTemplate'
+          description: ''
+  /api/v1/share-link-templates/{id}/:
+    get:
+      operationId: v1_share_link_templates_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this share link template.
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLinkTemplate'
+          description: ''
+    put:
+      operationId: v1_share_link_templates_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this share link template.
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareLinkTemplate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ShareLinkTemplate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ShareLinkTemplate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLinkTemplate'
+          description: ''
+    patch:
+      operationId: v1_share_link_templates_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this share link template.
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedShareLinkTemplate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedShareLinkTemplate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedShareLinkTemplate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLinkTemplate'
+          description: ''
+    delete:
+      operationId: v1_share_link_templates_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this share link template.
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/share-links/:
+    get:
+      operationId: v1_share_links_list
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ShareLink'
+          description: ''
+    post:
+      operationId: v1_share_links_create
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareLink'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ShareLink'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ShareLink'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLink'
+          description: ''
+  /api/v1/share-links/{id}/:
+    get:
+      operationId: v1_share_links_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this share link.
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLink'
+          description: ''
+    put:
+      operationId: v1_share_links_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this share link.
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareLink'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ShareLink'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ShareLink'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLink'
+          description: ''
+    patch:
+      operationId: v1_share_links_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this share link.
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedShareLink'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedShareLink'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedShareLink'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLink'
+          description: ''
+    delete:
+      operationId: v1_share_links_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this share link.
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/share-links/{id}/dataroom-settings/:
+    patch:
+      operationId: v1_share_links_dataroom_settings_partial_update
+      description: Bulk updates settings for items within a dataroom share link.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this share link.
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedShareLink'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedShareLink'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedShareLink'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLink'
+          description: ''
+  /api/v1/share-links/{id}/preview/:
+    post:
+      operationId: v1_share_links_preview_create
+      description: Creates a short-lived, single-use preview session for the share
+        link owner.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this share link.
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareLink'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ShareLink'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ShareLink'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLink'
+          description: ''
+  /api/v1/share-links/{id}/view-sessions/:
+    get:
+      operationId: v1_share_links_view_sessions_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this share link.
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLink'
+          description: ''
+  /api/v1/token/:
+    post:
+      operationId: v1_token_create
+      description: |-
+        Takes a set of user credentials and returns an access and refresh JSON web
+        token pair to prove the authentication of those credentials.
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPair'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenObtainPair'
+          description: ''
+  /api/v1/token/refresh/:
+    post:
+      operationId: v1_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/uploads/document/{document_id}/versions/finalize/:
+    post:
+      operationId: v1_uploads_document_versions_finalize_create
+      description: Finalizes a new document version upload after the file has been
+        sent to the file server.
+      parameters:
+      - in: path
+        name: document_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Finalize'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Finalize'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Finalize'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/uploads/document/{document_id}/versions/request/:
+    post:
+      operationId: v1_uploads_document_versions_request_create
+      description: Requests a temporary, secure URL for uploading a new document version.
+      parameters:
+      - in: path
+        name: document_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Request'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Request'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Request'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/uploads/document/finalize/:
+    post:
+      operationId: v1_uploads_document_finalize_create
+      description: |-
+        Finalizes a document upload after the file has been sent to the file server.
+        Creates the Document records and triggers processing.
+      tags:
+      - documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentUploadFinalize'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DocumentUploadFinalize'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DocumentUploadFinalize'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/uploads/document/request/:
+    post:
+      operationId: v1_uploads_document_request_create
+      description: Requests a temporary, secure URL for uploading a document from
+        the file server.
+      tags:
+      - documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentUploadRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DocumentUploadRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DocumentUploadRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentUploadRequestResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/users/:
+    get:
+      operationId: v1_users_list
+      description: API endpoint that allows a user to view and edit their own profile.
+      tags:
+      - core
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/users/{id}/:
+    get:
+      operationId: v1_users_retrieve
+      description: API endpoint that allows a user to view and edit their own profile.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this user.
+        required: true
+      tags:
+      - core
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    put:
+      operationId: v1_users_update
+      description: API endpoint that allows a user to view and edit their own profile.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this user.
+        required: true
+      tags:
+      - core
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: v1_users_partial_update
+      description: API endpoint that allows a user to view and edit their own profile.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this user.
+        required: true
+      tags:
+      - core
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/users/set-password/:
+    post:
+      operationId: v1_users_set_password_create
+      description: View to set a user's password.
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/view-sessions/:
+    get:
+      operationId: v1_view_sessions_list
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ViewSession'
+          description: ''
+    post:
+      operationId: v1_view_sessions_create
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ViewSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ViewSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ViewSession'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViewSession'
+          description: ''
+  /api/v1/view-sessions/{id}/:
+    get:
+      operationId: v1_view_sessions_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this view session.
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViewSession'
+          description: ''
+    put:
+      operationId: v1_view_sessions_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this view session.
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ViewSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ViewSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ViewSession'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViewSession'
+          description: ''
+    patch:
+      operationId: v1_view_sessions_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this view session.
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedViewSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedViewSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedViewSession'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViewSession'
+          description: ''
+    delete:
+      operationId: v1_view_sessions_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this view session.
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/view-sessions/{id}/record-download/:
+    post:
+      operationId: v1_view_sessions_record_download_create
+      description: Records that a document was downloaded during this view session.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this view session.
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ViewSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ViewSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ViewSession'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViewSession'
+          description: ''
+  /api/v1/view-sessions/{id}/record-visit/:
+    post:
+      operationId: v1_view_sessions_record_visit_create
+      description: Records a visit to a specific document or folder within a dataroom
+        view session.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this view session.
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ViewSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ViewSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ViewSession'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViewSession'
+          description: ''
+  /api/v1/viewers/:
+    get:
+      operationId: v1_viewers_list
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Viewer'
+          description: ''
+    post:
+      operationId: v1_viewers_create
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Viewer'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Viewer'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Viewer'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Viewer'
+          description: ''
+  /api/v1/viewers/{id}/:
+    get:
+      operationId: v1_viewers_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this viewer.
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Viewer'
+          description: ''
+    put:
+      operationId: v1_viewers_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this viewer.
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Viewer'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Viewer'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Viewer'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Viewer'
+          description: ''
+    patch:
+      operationId: v1_viewers_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this viewer.
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedViewer'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedViewer'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedViewer'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Viewer'
+          description: ''
+    delete:
+      operationId: v1_viewers_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this viewer.
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+components:
+  schemas:
+    AppConfiguration:
+      type: object
+      description: Serializer for the AppConfiguration model for admin use.
+      properties:
+        key:
+          type: string
+          readOnly: true
+        value:
+          type: string
+        description:
+          type: string
+          readOnly: true
+          description: A description of what this setting controls.
+      required:
+      - description
+      - key
+    AutomationAssignment:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        organization:
+          type: string
+          readOnly: true
+        delivery:
+          type: string
+        assigned_user:
+          type: string
+        assigned_by_rule:
+          type: string
+        status:
+          $ref: '#/components/schemas/AutomationAssignmentStatusEnum'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - assigned_by_rule
+      - assigned_user
+      - created_at
+      - delivery
+      - id
+      - organization
+      - updated_at
+    AutomationAssignmentStatusEnum:
+      enum:
+      - open
+      - acknowledged
+      - closed
+      type: string
+      description: |-
+        * `open` - Open
+        * `acknowledged` - Acknowledged
+        * `closed` - Closed
+    AutomationDelivery:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        organization:
+          type: string
+          readOnly: true
+        rule:
+          type: string
+          readOnly: true
+        destination:
+          type: string
+          readOnly: true
+        event_type:
+          type: string
+          readOnly: true
+        payload:
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AutomationDeliveryStatusEnum'
+          readOnly: true
+        response_code:
+          type: integer
+          readOnly: true
+          nullable: true
+        response_body_excerpt:
+          type: string
+          readOnly: true
+        attempt_count:
+          type: integer
+          readOnly: true
+        next_retry_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        delivered_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        idempotency_key:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - attempt_count
+      - created_at
+      - delivered_at
+      - destination
+      - event_type
+      - id
+      - idempotency_key
+      - next_retry_at
+      - organization
+      - payload
+      - response_body_excerpt
+      - response_code
+      - rule
+      - status
+      - updated_at
+    AutomationDeliveryStatusEnum:
+      enum:
+      - pending
+      - success
+      - failed
+      - dead_letter
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `success` - Success
+        * `failed` - Failed
+        * `dead_letter` - Dead Letter
+    AutomationDestination:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        organization:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        destination_type:
+          $ref: '#/components/schemas/DestinationTypeEnum'
+        endpoint_url:
+          type: string
+          format: uri
+          maxLength: 2048
+        http_method:
+          $ref: '#/components/schemas/HttpMethodEnum'
+        headers: {}
+        signing_secret:
+          type: string
+          writeOnly: true
+          nullable: true
+          maxLength: 255
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - endpoint_url
+      - id
+      - name
+      - organization
+      - updated_at
+    AutomationRule:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        organization:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        is_active:
+          type: boolean
+        scope_type:
+          $ref: '#/components/schemas/ScopeTypeEnum'
+        share_link:
+          type: string
+          nullable: true
+        dataroom:
+          type: string
+          nullable: true
+        subscribed_events: {}
+        actions: {}
+        destinations:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - id
+      - name
+      - organization
+      - updated_at
+    ChangePassword:
+      type: object
+      description: Serializer for password change endpoint.
+      properties:
+        old_password:
+          type: string
+        new_password1:
+          type: string
+        new_password2:
+          type: string
+      required:
+      - new_password1
+      - new_password2
+      - old_password
+    CloudConnectResponse:
+      type: object
+      properties:
+        authorization_url:
+          type: string
+      required:
+      - authorization_url
+    CloudConnection:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        provider:
+          allOf:
+          - $ref: '#/components/schemas/ProviderEnum'
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - id
+      - provider
+    CloudImport:
+      type: object
+      properties:
+        file_id:
+          type: string
+          maxLength: 1024
+        file_name:
+          type: string
+          maxLength: 255
+        file_size:
+          type: integer
+      required:
+      - file_id
+      - file_name
+      - file_size
+    CloudProvider:
+      type: object
+      properties:
+        name:
+          type: string
+        display_name:
+          type: string
+        is_connected:
+          type: boolean
+      required:
+      - display_name
+      - is_connected
+      - name
+    DailyVisitsItem:
+      type: object
+      properties:
+        date:
+          type: string
+        visits:
+          type: integer
+      required:
+      - date
+      - visits
+    DashboardSummaryResponse:
+      type: object
+      properties:
+        recent_views:
+          type: array
+          items:
+            $ref: '#/components/schemas/ViewSession'
+        recent_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShareLink'
+      required:
+      - recent_links
+      - recent_views
+    Dataroom:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        organization:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+          nullable: true
+      required:
+      - created_at
+      - created_by
+      - id
+      - name
+      - organization
+      - updated_at
+    DataroomDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        organization:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+          nullable: true
+        folders:
+          type: string
+          readOnly: true
+        documents:
+          type: string
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - documents
+      - folders
+      - id
+      - name
+      - organization
+      - updated_at
+    DataroomDocument:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        document_id:
+          type: string
+          readOnly: true
+        document_type:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        file_size:
+          type: integer
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        folder:
+          type: string
+          readOnly: true
+        is_starred:
+          type: boolean
+      required:
+      - created_at
+      - created_by
+      - document_id
+      - document_type
+      - file_size
+      - folder
+      - id
+      - name
+      - updated_at
+    DataroomDocumentUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        is_starred:
+          type: boolean
+    DataroomFolder:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        dataroom:
+          type: string
+        parent:
+          type: string
+          nullable: true
+        is_starred:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        ancestors:
+          type: string
+          readOnly: true
+      required:
+      - ancestors
+      - created_at
+      - dataroom
+      - id
+      - name
+      - updated_at
+    DataroomVisit:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        visited_at:
+          type: string
+          format: date-time
+        dataroom_document_id:
+          type: string
+          nullable: true
+          readOnly: true
+        dataroom_folder_id:
+          type: string
+          nullable: true
+          readOnly: true
+        dataroom_document_name:
+          type: string
+          readOnly: true
+        dataroom_folder_name:
+          type: string
+          readOnly: true
+        page_views:
+          type: array
+          items:
+            $ref: '#/components/schemas/PageView'
+          readOnly: true
+      required:
+      - dataroom_document_id
+      - dataroom_document_name
+      - dataroom_folder_id
+      - dataroom_folder_name
+      - id
+      - page_views
+    DestinationTypeEnum:
+      enum:
+      - slack
+      - discord
+      - wechat
+      - feishu
+      - webhook
+      type: string
+      description: |-
+        * `slack` - Slack
+        * `discord` - Discord
+        * `wechat` - WeChat Work
+        * `feishu` - FeiShu
+        * `webhook` - Webhook
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        organization:
+          type: string
+          readOnly: true
+        folder:
+          type: string
+          nullable: true
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/DocumentStatusEnum'
+        status_message:
+          type: string
+          nullable: true
+          maxLength: 255
+        storage_key:
+          type: string
+          nullable: true
+          maxLength: 1024
+        original_storage_key:
+          type: string
+          nullable: true
+          maxLength: 1024
+        type:
+          type: string
+          maxLength: 20
+        content_type:
+          type: string
+          maxLength: 255
+        num_pages:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        file_size:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        download_only:
+          type: boolean
+        assistant_enabled:
+          type: boolean
+        is_starred:
+          type: boolean
+        created_by:
+          type: string
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentVersion'
+          readOnly: true
+        share_links:
+          type: string
+          readOnly: true
+        uploader_info:
+          type: string
+          readOnly: true
+      required:
+      - content_type
+      - created_at
+      - created_by
+      - id
+      - name
+      - organization
+      - share_links
+      - type
+      - updated_at
+      - uploader_info
+      - versions
+    DocumentDownloadResponse:
+      type: object
+      properties:
+        download_url:
+          type: string
+      required:
+      - download_url
+    DocumentPage:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        page_number:
+          type: integer
+          readOnly: true
+        storage_key:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - page_number
+      - storage_key
+    DocumentPreviewResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        num_pages:
+          type: integer
+          nullable: true
+        pages:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+      required:
+      - id
+      - name
+      - num_pages
+      - pages
+      - type
+    DocumentStatusEnum:
+      enum:
+      - uploading
+      - processing
+      - ready
+      - error
+      type: string
+      description: |-
+        * `uploading` - Uploading
+        * `processing` - Processing
+        * `ready` - Ready
+        * `error` - Error
+    DocumentUploadFinalize:
+      type: object
+      properties:
+        storage_key:
+          type: string
+        unique_name:
+          type: string
+        file_size:
+          type: integer
+        content_type:
+          type: string
+        path:
+          type: string
+          nullable: true
+      required:
+      - content_type
+      - file_size
+      - storage_key
+      - unique_name
+    DocumentUploadRequest:
+      type: object
+      properties:
+        file_name:
+          type: string
+        file_size:
+          type: integer
+        path:
+          type: string
+          nullable: true
+      required:
+      - file_name
+      - file_size
+    DocumentUploadRequestResponse:
+      type: object
+      properties:
+        upload_url:
+          type: string
+        storage_key:
+          type: string
+        unique_name:
+          type: string
+      required:
+      - storage_key
+      - unique_name
+      - upload_url
+    DocumentVersion:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        version_number:
+          type: integer
+          readOnly: true
+        file_size:
+          type: integer
+          readOnly: true
+          nullable: true
+        num_pages:
+          type: integer
+          readOnly: true
+          nullable: true
+        is_primary:
+          type: boolean
+          readOnly: true
+        has_pages:
+          type: boolean
+          readOnly: true
+        pages:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentPage'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - file_size
+      - has_pages
+      - id
+      - is_primary
+      - num_pages
+      - pages
+      - version_number
+    EnsureFolderPaths:
+      type: object
+      description: Serializer for validating paths for the ensure-paths endpoint.
+      properties:
+        paths:
+          type: array
+          items:
+            type: string
+            maxLength: 1024
+        parent_path:
+          type: string
+          nullable: true
+          maxLength: 1024
+      required:
+      - paths
+    EnsureFolderPathsResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+        path_mappings:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+      - detail
+      - path_mappings
+    FileRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        folder:
+          type: string
+        folder_name:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        max_file_size:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          description: Maximum file size in bytes.
+        allowed_file_types:
+          nullable: true
+          description: List of allowed file extensions, e.g., ['.pdf', '.docx']
+        uploaded_files_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        message:
+          type: string
+      required:
+      - created_at
+      - folder
+      - folder_name
+      - id
+      - name
+      - slug
+      - updated_at
+      - uploaded_files_count
+    FileRequestDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        folder:
+          type: string
+        folder_name:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        max_file_size:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          description: Maximum file size in bytes.
+        allowed_file_types:
+          nullable: true
+          description: List of allowed file extensions, e.g., ['.pdf', '.docx']
+        uploaded_files_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        message:
+          type: string
+        uploaded_files:
+          type: array
+          items:
+            $ref: '#/components/schemas/UploadedFile'
+          readOnly: true
+      required:
+      - created_at
+      - folder
+      - folder_name
+      - id
+      - name
+      - slug
+      - updated_at
+      - uploaded_files
+      - uploaded_files_count
+    FileRequestUploadFinalize:
+      type: object
+      description: Serializer for finalizing an upload made via a file request.
+      properties:
+        storage_key:
+          type: string
+        unique_name:
+          type: string
+        file_size:
+          type: integer
+        content_type:
+          type: string
+        uploader_name:
+          type: string
+          maxLength: 255
+        uploader_email:
+          type: string
+          format: email
+      required:
+      - content_type
+      - file_size
+      - storage_key
+      - unique_name
+      - uploader_email
+      - uploader_name
+    Finalize:
+      type: object
+      properties:
+        storage_key:
+          type: string
+        file_size:
+          type: integer
+        content_type:
+          type: string
+      required:
+      - content_type
+      - file_size
+      - storage_key
+    Folder:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        parent:
+          type: string
+          nullable: true
+        organization:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        ancestors:
+          type: string
+          readOnly: true
+        is_starred:
+          type: boolean
+      required:
+      - ancestors
+      - created_at
+      - id
+      - name
+      - organization
+      - updated_at
+    HealthResponse:
+      type: object
+      properties:
+        database:
+          type: string
+        redis:
+          type: string
+      required:
+      - database
+      - redis
+    HttpMethodEnum:
+      enum:
+      - POST
+      - PUT
+      type: string
+      description: |-
+        * `POST` - POST
+        * `PUT` - PUT
+    LoginActivity:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        user_email:
+          type: string
+          format: email
+          readOnly: true
+        user_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        ip_address:
+          type: string
+          nullable: true
+        user_agent:
+          type: string
+          maxLength: 255
+        country:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+      required:
+      - city
+      - country
+      - created_at
+      - id
+      - user_email
+      - user_name
+    LogoutRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+      required:
+      - refresh
+    MoveItems:
+      type: object
+      properties:
+        document_ids:
+          type: array
+          items:
+            type: string
+        folder_ids:
+          type: array
+          items:
+            type: string
+        destination_folder_id:
+          type: string
+          nullable: true
+      required:
+      - destination_folder_id
+    MoveItemsResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+    OAuthCallback:
+      type: object
+      description: Validates the data sent from the frontend after an OAuth redirect.
+      properties:
+        code:
+          type: string
+        state:
+          type: string
+      required:
+      - code
+      - state
+    Organization:
+      type: object
+      description: Serializer for the Organization model.
+      properties:
+        id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        plan:
+          type: string
+          readOnly: true
+        stripe_customer_id:
+          type: string
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+      - plan
+      - stripe_customer_id
+      - updated_at
+    PageView:
+      type: object
+      properties:
+        page_number:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        duration_seconds:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        url:
+          type: string
+          nullable: true
+          readOnly: true
+      required:
+      - duration_seconds
+      - page_number
+      - url
+    PageViewRecord:
+      type: object
+      description: Serializer for validating and creating PageView records from tracking
+        data.
+      properties:
+        view_session:
+          type: string
+        page_number:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        duration_seconds:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        dataroom_visit:
+          type: string
+          nullable: true
+      required:
+      - duration_seconds
+      - page_number
+      - view_session
+    PaginatedAutomationDeliveryList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutomationDelivery'
+    PaginatedFileRequestList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileRequest'
+    PaginatedLoginActivityList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/LoginActivity'
+    PaginatedShareLinkList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShareLink'
+    PaginatedUserList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+    PaginatedViewSessionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ViewSession'
+    PatchedAppConfiguration:
+      type: object
+      description: Serializer for the AppConfiguration model for admin use.
+      properties:
+        key:
+          type: string
+          readOnly: true
+        value:
+          type: string
+        description:
+          type: string
+          readOnly: true
+          description: A description of what this setting controls.
+    PatchedAutomationDestination:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        organization:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        destination_type:
+          $ref: '#/components/schemas/DestinationTypeEnum'
+        endpoint_url:
+          type: string
+          format: uri
+          maxLength: 2048
+        http_method:
+          $ref: '#/components/schemas/HttpMethodEnum'
+        headers: {}
+        signing_secret:
+          type: string
+          writeOnly: true
+          nullable: true
+          maxLength: 255
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedAutomationRule:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        organization:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        is_active:
+          type: boolean
+        scope_type:
+          $ref: '#/components/schemas/ScopeTypeEnum'
+        share_link:
+          type: string
+          nullable: true
+        dataroom:
+          type: string
+          nullable: true
+        subscribed_events: {}
+        actions: {}
+        destinations:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedDataroom:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        organization:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+          nullable: true
+    PatchedDataroomDocumentUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        is_starred:
+          type: boolean
+    PatchedDataroomFolder:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        dataroom:
+          type: string
+        parent:
+          type: string
+          nullable: true
+        is_starred:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        ancestors:
+          type: string
+          readOnly: true
+    PatchedDocument:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        organization:
+          type: string
+          readOnly: true
+        folder:
+          type: string
+          nullable: true
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/DocumentStatusEnum'
+        status_message:
+          type: string
+          nullable: true
+          maxLength: 255
+        storage_key:
+          type: string
+          nullable: true
+          maxLength: 1024
+        original_storage_key:
+          type: string
+          nullable: true
+          maxLength: 1024
+        type:
+          type: string
+          maxLength: 20
+        content_type:
+          type: string
+          maxLength: 255
+        num_pages:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        file_size:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        download_only:
+          type: boolean
+        assistant_enabled:
+          type: boolean
+        is_starred:
+          type: boolean
+        created_by:
+          type: string
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentVersion'
+          readOnly: true
+        share_links:
+          type: string
+          readOnly: true
+        uploader_info:
+          type: string
+          readOnly: true
+    PatchedFileRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        folder:
+          type: string
+        folder_name:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        max_file_size:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          description: Maximum file size in bytes.
+        allowed_file_types:
+          nullable: true
+          description: List of allowed file extensions, e.g., ['.pdf', '.docx']
+        uploaded_files_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        message:
+          type: string
+    PatchedFolder:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        parent:
+          type: string
+          nullable: true
+        organization:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        ancestors:
+          type: string
+          readOnly: true
+        is_starred:
+          type: boolean
+    PatchedShareLink:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        document:
+          type: string
+          nullable: true
+        dataroom:
+          type: string
+          nullable: true
+        document_name:
+          type: string
+          readOnly: true
+          nullable: true
+        dataroom_name:
+          type: string
+          readOnly: true
+          nullable: true
+        dataroom_settings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShareLinkDataroomSetting'
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        slug:
+          type: string
+          readOnly: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        has_password:
+          type: boolean
+          description: Returns True if the link is password-protected.
+          readOnly: true
+        password:
+          type: string
+          nullable: true
+          maxLength: 255
+        requires_email:
+          type: boolean
+        requires_email_verification:
+          type: boolean
+        allow_download:
+          type: boolean
+        enable_watermark:
+          type: boolean
+        watermark_text:
+          type: string
+          maxLength: 255
+        receive_email_notification:
+          type: boolean
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        view_count:
+          type: integer
+          description: Returns the number of view sessions for the link.
+          readOnly: true
+        recent_view_sessions:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: Returns up to 10 most recent view sessions.
+          readOnly: true
+        last_viewed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Returns the timestamp of the most recent view session.
+          readOnly: true
+    PatchedShareLinkTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        organization:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        is_default:
+          type: boolean
+        expires_in_days:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        requires_password:
+          type: boolean
+        requires_email:
+          type: boolean
+        requires_email_verification:
+          type: boolean
+        allow_download:
+          type: boolean
+        enable_watermark:
+          type: boolean
+        watermark_text:
+          type: string
+          maxLength: 255
+        receive_email_notification:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedUser:
+      type: object
+      description: Serializer for the User model.
+      properties:
+        id:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        name:
+          type: string
+          maxLength: 255
+        role:
+          type: string
+          maxLength: 20
+        organization:
+          type: string
+          readOnly: true
+        password:
+          type: string
+          writeOnly: true
+          maxLength: 128
+        avatar:
+          type: string
+          format: uri
+          writeOnly: true
+          nullable: true
+        avatar_url:
+          type: string
+          readOnly: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        total_document_size:
+          type: integer
+          readOnly: true
+          description: Total size of all documents in bytes.
+        file_size_quota_mb:
+          type: string
+          readOnly: true
+        max_files_per_upload:
+          type: string
+          readOnly: true
+        is_superuser:
+          type: boolean
+          readOnly: true
+          title: Superuser status
+          description: Designates that this user has all permissions without explicitly
+            assigning them.
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+    PatchedUserGroup:
+      type: object
+      description: Serializer for the UserGroup model.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        organization:
+          type: string
+    PatchedViewSession:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        share_link:
+          type: string
+        viewer:
+          type: string
+          nullable: true
+        viewer_email:
+          type: string
+          format: email
+          maxLength: 254
+        share_link_name:
+          type: string
+          readOnly: true
+        document_id:
+          type: string
+          readOnly: true
+        document_name:
+          type: string
+          readOnly: true
+        ip_address:
+          type: string
+          readOnly: true
+          nullable: true
+        user_agent:
+          type: string
+          readOnly: true
+        country:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        latitude:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        duration_seconds:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        completion_rate:
+          type: number
+          format: double
+        viewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+        page_views:
+          type: array
+          items:
+            $ref: '#/components/schemas/PageView'
+          readOnly: true
+        dataroom_visits:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataroomVisit'
+          readOnly: true
+        is_owner_view:
+          type: boolean
+          readOnly: true
+        downloaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+    PatchedViewer:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        organization:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    ProviderEnum:
+      enum:
+      - dropbox
+      - google_drive
+      - nextcloud
+      type: string
+      description: |-
+        * `dropbox` - Dropbox
+        * `google_drive` - Google Drive
+        * `nextcloud` - Nextcloud
+    PublicFileRequest:
+      type: object
+      description: Serializer for exposing public-facing details of a file request.
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        owner_name:
+          type: string
+          readOnly: true
+        max_file_size:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          description: Maximum file size in bytes.
+        allowed_file_types:
+          nullable: true
+          description: List of allowed file extensions, e.g., ['.pdf', '.docx']
+        message:
+          type: string
+      required:
+      - name
+      - owner_name
+    RecordPageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+      - message
+    Request:
+      type: object
+      properties:
+        file_name:
+          type: string
+        file_size:
+          type: integer
+      required:
+      - file_name
+      - file_size
+    Response:
+      type: object
+      properties:
+        upload_url:
+          type: string
+        storage_key:
+          type: string
+        unique_name:
+          type: string
+      required:
+      - storage_key
+      - unique_name
+      - upload_url
+    RootFolderResponse:
+      type: object
+      properties:
+        id:
+          type: string
+      required:
+      - id
+    ScopeTypeEnum:
+      enum:
+      - global
+      - share_link
+      - dataroom
+      type: string
+      description: |-
+        * `global` - Global
+        * `share_link` - Share Link
+        * `dataroom` - Dataroom
+    ShareLink:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        document:
+          type: string
+          nullable: true
+        dataroom:
+          type: string
+          nullable: true
+        document_name:
+          type: string
+          readOnly: true
+          nullable: true
+        dataroom_name:
+          type: string
+          readOnly: true
+          nullable: true
+        dataroom_settings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShareLinkDataroomSetting'
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        slug:
+          type: string
+          readOnly: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        has_password:
+          type: boolean
+          description: Returns True if the link is password-protected.
+          readOnly: true
+        password:
+          type: string
+          nullable: true
+          maxLength: 255
+        requires_email:
+          type: boolean
+        requires_email_verification:
+          type: boolean
+        allow_download:
+          type: boolean
+        enable_watermark:
+          type: boolean
+        watermark_text:
+          type: string
+          maxLength: 255
+        receive_email_notification:
+          type: boolean
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        view_count:
+          type: integer
+          description: Returns the number of view sessions for the link.
+          readOnly: true
+        recent_view_sessions:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: Returns up to 10 most recent view sessions.
+          readOnly: true
+        last_viewed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Returns the timestamp of the most recent view session.
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - dataroom_name
+      - dataroom_settings
+      - document_name
+      - has_password
+      - id
+      - last_viewed_at
+      - name
+      - recent_view_sessions
+      - slug
+      - updated_at
+      - view_count
+    ShareLinkDataroomSetting:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        dataroom_document:
+          type: string
+          nullable: true
+        dataroom_folder:
+          type: string
+          nullable: true
+        is_visible:
+          type: boolean
+        allow_download:
+          type: boolean
+        enable_watermark:
+          type: boolean
+      required:
+      - id
+    ShareLinkEmail:
+      type: object
+      description: Serializer for the email submission form.
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+      - email
+    ShareLinkPassword:
+      type: object
+      properties:
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - password
+    ShareLinkTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        organization:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        is_default:
+          type: boolean
+        expires_in_days:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        requires_password:
+          type: boolean
+        requires_email:
+          type: boolean
+        requires_email_verification:
+          type: boolean
+        allow_download:
+          type: boolean
+        enable_watermark:
+          type: boolean
+        watermark_text:
+          type: string
+          maxLength: 255
+        receive_email_notification:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+      - organization
+      - updated_at
+    TokenObtainPair:
+      type: object
+      properties:
+        email:
+          type: string
+          writeOnly: true
+        password:
+          type: string
+          writeOnly: true
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          readOnly: true
+      required:
+      - access
+      - email
+      - password
+      - refresh
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    UploadedFile:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        document_id:
+          type: string
+          readOnly: true
+        document_name:
+          type: string
+          readOnly: true
+        folder_id:
+          type: string
+          readOnly: true
+        folder_name:
+          type: string
+          readOnly: true
+        uploader_name:
+          type: string
+          maxLength: 255
+        uploader_email:
+          type: string
+          format: email
+          maxLength: 254
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - document_id
+      - document_name
+      - folder_id
+      - folder_name
+      - id
+      - uploader_email
+      - uploader_name
+    User:
+      type: object
+      description: Serializer for the User model.
+      properties:
+        id:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        name:
+          type: string
+          maxLength: 255
+        role:
+          type: string
+          maxLength: 20
+        organization:
+          type: string
+          readOnly: true
+        password:
+          type: string
+          writeOnly: true
+          maxLength: 128
+        avatar:
+          type: string
+          format: uri
+          writeOnly: true
+          nullable: true
+        avatar_url:
+          type: string
+          readOnly: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        total_document_size:
+          type: integer
+          readOnly: true
+          description: Total size of all documents in bytes.
+        file_size_quota_mb:
+          type: string
+          readOnly: true
+        max_files_per_upload:
+          type: string
+          readOnly: true
+        is_superuser:
+          type: boolean
+          readOnly: true
+          title: Superuser status
+          description: Designates that this user has all permissions without explicitly
+            assigning them.
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+      required:
+      - avatar_url
+      - date_joined
+      - email
+      - file_size_quota_mb
+      - id
+      - is_superuser
+      - max_files_per_upload
+      - organization
+      - total_document_size
+      - updated_at
+    UserGroup:
+      type: object
+      description: Serializer for the UserGroup model.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        organization:
+          type: string
+      required:
+      - id
+      - name
+      - organization
+    ViewSession:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        share_link:
+          type: string
+        viewer:
+          type: string
+          nullable: true
+        viewer_email:
+          type: string
+          format: email
+          maxLength: 254
+        share_link_name:
+          type: string
+          readOnly: true
+        document_id:
+          type: string
+          readOnly: true
+        document_name:
+          type: string
+          readOnly: true
+        ip_address:
+          type: string
+          readOnly: true
+          nullable: true
+        user_agent:
+          type: string
+          readOnly: true
+        country:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        latitude:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        duration_seconds:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        completion_rate:
+          type: number
+          format: double
+        viewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+        page_views:
+          type: array
+          items:
+            $ref: '#/components/schemas/PageView'
+          readOnly: true
+        dataroom_visits:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataroomVisit'
+          readOnly: true
+        is_owner_view:
+          type: boolean
+          readOnly: true
+        downloaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - city
+      - country
+      - dataroom_visits
+      - document_id
+      - document_name
+      - downloaded_at
+      - id
+      - ip_address
+      - is_owner_view
+      - latitude
+      - longitude
+      - page_views
+      - share_link
+      - share_link_name
+      - user_agent
+      - viewed_at
+    Viewer:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        organization:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - id
+      - organization
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

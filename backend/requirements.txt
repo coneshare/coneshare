@@ -2,6 +2,7 @@ asgiref==3.9.1
 Django==5.2.6
 sqlparse==0.5.3
 djangorestframework==3.16.1
+drf-spectacular==0.28.0
 python-ulid==3.0.0
 pytest==8.2.2
 pytest-django==4.8.0
@@ -23,5 +24,6 @@ google-auth-oauthlib==1.2.2
 django-cryptography-5==2.0.3
 dj-database-url==3.0.1
 psycopg[binary]==3.2.13
+openapi-spec-validator==0.7.1
 
 gunicorn==23.0.0

@@ -2,9 +2,10 @@ import logging
 
 from django.core.cache import cache
 from django.shortcuts import redirect
-from rest_framework import permissions, status
+from rest_framework import permissions, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
 
 from core.services import get_dynamic_setting
 from documents.serializers import DocumentSerializer
@@ -18,12 +19,19 @@ from .services import create_document_for_import
 logger = logging.getLogger(__name__)
 
 
+@extend_schema(tags=['cloudfiles'])
 class CloudProviderListView(APIView):
     """
     Returns a list of cloud providers enabled in the system configuration.
     """
     permission_classes = [permissions.IsAuthenticated]
 
+    class CloudProviderSerializer(serializers.Serializer):
+        name = serializers.CharField()
+        display_name = serializers.CharField()
+        is_connected = serializers.BooleanField()
+
+    @extend_schema(responses={200: CloudProviderSerializer(many=True)})
     def get(self, request, *args, **kwargs):
         providers = get_dynamic_setting('ENABLED_CLOUD_PROVIDERS')
 
@@ -43,24 +51,31 @@ class CloudProviderListView(APIView):
         return Response(provider_data)
 
 
+@extend_schema(tags=['cloudfiles'])
 class CloudConnectionListView(APIView):
     """
     Lists the user's active cloud connections.
     """
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(responses={200: CloudConnectionSerializer(many=True)})
     def get(self, request, *args, **kwargs):
         connections = CloudConnection.objects.filter(user=request.user)
         serializer = CloudConnectionSerializer(connections, many=True)
         return Response(serializer.data)
 
 
+@extend_schema(tags=['cloudfiles'])
 class CloudConnectView(APIView):
     """
     Generates a cloud provider authorization URL and returns it to the frontend.
     """
     permission_classes = [permissions.IsAuthenticated]
 
+    class CloudConnectResponseSerializer(serializers.Serializer):
+        authorization_url = serializers.CharField()
+
+    @extend_schema(responses={200: CloudConnectResponseSerializer, 500: dict})
     def get(self, request, provider_name, *args, **kwargs):
         try:
             provider = get_cloud_provider(provider_name)
@@ -76,6 +91,7 @@ class CloudConnectView(APIView):
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(tags=['cloudfiles'])
 class CloudCallbackView(APIView):
     """
     Handles the final step of the OAuth2 flow, receiving the code and state
@@ -83,6 +99,10 @@ class CloudCallbackView(APIView):
     """
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        request=OAuthCallbackSerializer,
+        responses={200: dict, 400: dict, 500: dict},
+    )
     def post(self, request, provider_name, *args, **kwargs):
         serializer = OAuthCallbackSerializer(data=request.data)
         if not serializer.is_valid():
@@ -138,12 +158,14 @@ class CloudCallbackView(APIView):
             return Response({"detail": "An unexpected error occurred."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(tags=['cloudfiles'])
 class CloudFileListView(APIView):
     """
     Lists files from a specific cloud connection.
     """
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(responses={200: dict, 404: dict, 500: dict})
     def get(self, request, connection_id, *args, **kwargs):
         try:
             connection = CloudConnection.objects.get(id=connection_id, user=request.user)
@@ -159,12 +181,17 @@ class CloudFileListView(APIView):
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(tags=['cloudfiles'])
 class CloudImportView(APIView):
     """
     Initiates a file import from a cloud service.
     """
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        request=CloudImportSerializer,
+        responses={202: DocumentSerializer, 400: dict, 404: dict, 500: dict},
+    )
     def post(self, request, connection_id, *args, **kwargs):
         serializer = CloudImportSerializer(data=request.data)
         if not serializer.is_valid():

@@ -7,6 +7,8 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import serializers
+from drf_spectacular.utils import extend_schema
 
 from documents.fileserver import fileserver_client
 from documents.views import StandardResultsSetPagination
@@ -29,6 +31,7 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
+@extend_schema(tags=['filerequests'])
 class FileRequestViewSet(viewsets.ModelViewSet):
     """
     API endpoint for managing File Requests.
@@ -60,12 +63,16 @@ class FileRequestViewSet(viewsets.ModelViewSet):
         serializer.save(created_by=self.request.user)
 
 
+@extend_schema(tags=['filerequests'])
 class PublicFileRequestView(APIView):
     """
     Provides public details about a file request link.
     """
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={200: PublicFileRequestSerializer, 400: dict, 404: dict},
+    )
     def get(self, request, slug, *args, **kwargs):
         try:
             file_request = FileRequest.objects.select_related('created_by').get(slug=slug, is_active=True)
@@ -79,12 +86,26 @@ class PublicFileRequestView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+@extend_schema(tags=['filerequests'])
 class FileRequestUploadRequestView(APIView):
     """
     Handles the first step of a public upload: requesting a pre-signed URL.
     """
     permission_classes = [permissions.AllowAny]
 
+    class RequestSerializer(serializers.Serializer):
+        file_name = serializers.CharField()
+        file_size = serializers.IntegerField()
+
+    class ResponseSerializer(serializers.Serializer):
+        upload_url = serializers.CharField()
+        storage_key = serializers.CharField()
+        unique_name = serializers.CharField()
+
+    @extend_schema(
+        request=RequestSerializer,
+        responses={200: ResponseSerializer, 400: dict, 404: dict},
+    )
     def post(self, request, slug, *args, **kwargs):
         try:
             file_request = FileRequest.objects.get(slug=slug, is_active=True)
@@ -94,16 +115,11 @@ class FileRequestUploadRequestView(APIView):
         if file_request.expires_at and file_request.expires_at < timezone.now():
             return Response({"detail": "This file request has expired."}, status=status.HTTP_400_BAD_REQUEST)
 
-        file_name = request.data.get('file_name')
-        file_size = request.data.get('file_size')
-
-        if not file_name or file_size is None:
-            return Response({"detail": "file_name and file_size are required."}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            file_size = int(file_size)
-        except (ValueError, TypeError):
-            return Response({"detail": "file_size must be a valid integer."}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = self.RequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        file_name = serializer.validated_data['file_name']
+        file_size = serializer.validated_data['file_size']
 
         # Validate against link constraints
         if file_request.max_file_size and file_size > file_request.max_file_size:
@@ -136,12 +152,17 @@ class FileRequestUploadRequestView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+@extend_schema(tags=['filerequests'])
 class FileRequestUploadFinalizeView(APIView):
     """
     Finalizes a document upload made via a file request link.
     """
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        request=FileRequestUploadFinalizeSerializer,
+        responses={202: dict, 400: dict, 404: dict, 500: dict},
+    )
     def post(self, request, slug, *args, **kwargs):
         try:
             file_request = FileRequest.objects.get(slug=slug, is_active=True)

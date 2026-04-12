@@ -3,11 +3,12 @@ from django.contrib.auth.signals import user_logged_in
 from django.core.cache import cache
 from django.db import connections
 from django.db.utils import OperationalError
-from rest_framework import mixins, permissions, status, viewsets
+from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -28,6 +29,7 @@ class IsSelf(permissions.BasePermission):
         return obj == request.user
 
 
+@extend_schema(tags=['core'])
 class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):
     """
     API endpoint that allows organizations to be viewed or edited.
@@ -37,6 +39,7 @@ class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
 
 
+@extend_schema(tags=['core'])
 class UserViewSet(mixins.RetrieveModelMixin,
                   mixins.UpdateModelMixin,
                   mixins.ListModelMixin,
@@ -56,6 +59,7 @@ class UserViewSet(mixins.RetrieveModelMixin,
         return User.objects.filter(pk=self.request.user.pk)
 
 
+@extend_schema(tags=['core'])
 class UserGroupViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows user groups to be viewed or edited.
@@ -65,6 +69,7 @@ class UserGroupViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
 
+@extend_schema(tags=['core'])
 class CustomTokenObtainPairView(TokenObtainPairView):
     permission_classes = [permissions.AllowAny]
 
@@ -81,9 +86,14 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
 
+@extend_schema(tags=['core'])
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        request=UserSerializer,
+        responses={201: UserSerializer, 400: dict},
+    )
     def post(self, request):
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
@@ -92,10 +102,15 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(tags=['core'])
 class SetPasswordView(APIView):
     """View to set a user's password."""
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        request=ChangePasswordSerializer,
+        responses={204: None, 400: dict},
+    )
     def post(self, request):
         serializer = ChangePasswordSerializer(data=request.data)
         if serializer.is_valid():
@@ -112,9 +127,17 @@ class SetPasswordView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(tags=['core'])
 class LogoutView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    class LogoutRequestSerializer(serializers.Serializer):
+        refresh = serializers.CharField()
+
+    @extend_schema(
+        request=LogoutRequestSerializer,
+        responses={205: None, 400: dict},
+    )
     def post(self, request):
         try:
             refresh_token = request.data["refresh"]
@@ -126,6 +149,7 @@ class LogoutView(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(tags=['core'])
 class HealthCheckView(APIView):
     """
     Checks the health of the database and Redis cache.
@@ -134,6 +158,13 @@ class HealthCheckView(APIView):
     permission_classes = [permissions.AllowAny]
     throttle_scope = 'health_check'
 
+    class HealthResponseSerializer(serializers.Serializer):
+        database = serializers.CharField()
+        redis = serializers.CharField()
+
+    @extend_schema(
+        responses={200: HealthResponseSerializer, 503: HealthResponseSerializer},
+    )
     def get(self, request, *args, **kwargs):
         db_ok = False
         try:
