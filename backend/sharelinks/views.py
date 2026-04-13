@@ -17,7 +17,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.http import quote_etag
 from django.utils.text import get_valid_filename
-from rest_framework import permissions, status, viewsets
+from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, APIException
 from rest_framework.response import Response
@@ -25,6 +25,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from django.db.models import F
 from geoip2.errors import AddressNotFoundError
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
 
 from backend.utils import get_client_ip
 from datarooms.models import (DataroomDocument, DataroomFolder)
@@ -142,6 +143,7 @@ def _get_active_share_link(slug: str) -> ShareLink:
     return link
 
 
+@extend_schema(tags=['sharelinks'])
 class ShareLinkTemplateViewSet(viewsets.ModelViewSet):
     queryset = ShareLinkTemplate.objects.all()
     serializer_class = ShareLinkTemplateSerializer
@@ -151,6 +153,7 @@ class ShareLinkTemplateViewSet(viewsets.ModelViewSet):
         return ShareLinkTemplate.objects.filter(organization=self.request.user.organization)
 
 
+@extend_schema(tags=['sharelinks'])
 class ShareLinkViewSet(viewsets.ModelViewSet):
     queryset = ShareLink.objects.all()
     serializer_class = ShareLinkSerializer
@@ -243,6 +246,7 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
             )
 
 
+@extend_schema(tags=['sharelinks'])
 class ShareLinkViewDataView(APIView):
     """
     Provides the data needed for a public viewer to render a document from a share link.
@@ -250,6 +254,9 @@ class ShareLinkViewDataView(APIView):
     """
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={200: dict, 401: dict, 403: dict, 404: dict, 410: dict},
+    )
     def get(self, request, slug, *args, **kwargs):
         is_preview = False
         preview_token = request.query_params.get('previewToken')
@@ -545,6 +552,7 @@ class PerSlugScopedRateThrottle(ScopedRateThrottle):
         }
 
 
+@extend_schema(tags=['sharelinks'])
 class ShareLinkVerifyPasswordView(APIView):
     """
     Verifies the password for a share link and authorizes the session.
@@ -553,6 +561,10 @@ class ShareLinkVerifyPasswordView(APIView):
     throttle_scope = 'password_verify'
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        request=ShareLinkPasswordSerializer,
+        responses={200: dict, 400: dict, 401: dict, 404: dict},
+    )
     def post(self, request, slug, *args, **kwargs):
         try:
             link = _get_active_share_link(slug)
@@ -585,12 +597,17 @@ class ShareLinkVerifyPasswordView(APIView):
             )
 
 
+@extend_schema(tags=['sharelinks'])
 class ShareLinkRequestAccessView(APIView):
     """
     Handles a viewer's request to access a link that requires an email.
     """
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        request=ShareLinkEmailSerializer,
+        responses={200: dict, 400: dict, 404: dict, 500: dict},
+    )
     def post(self, request, slug, *args, **kwargs):
         try:
             link = _get_active_share_link(slug)
@@ -713,6 +730,7 @@ def _render_watermark_text(template_string: str, request, viewer_email: str = ''
     return rendered_text
 
 
+@extend_schema(tags=['sharelinks'])
 class ShareLinkPageView(APIView):
     """
     Serves a single, non-watermarked page image for a document accessed
@@ -721,6 +739,9 @@ class ShareLinkPageView(APIView):
     """
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={302: None, 400: dict, 401: dict, 403: dict, 404: dict, 503: dict},
+    )
     def get(self, request, slug, page_number, *args, **kwargs):
         try:
             link = _get_active_share_link(slug)
@@ -781,6 +802,7 @@ class ShareLinkPageView(APIView):
             )
 
 
+@extend_schema(tags=['sharelinks'])
 class WatermarkedPageRenderView(APIView):
     """
     Dynamically renders a watermarked image for a document page.
@@ -788,6 +810,9 @@ class WatermarkedPageRenderView(APIView):
     """
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={200: None, 304: None, 400: dict, 401: dict, 403: dict, 404: dict, 410: dict, 500: dict, 503: dict},
+    )
     def get(self, request, slug, page_number, *args, **kwargs):
         if not Image:
             logger.error("Pillow is not installed. Watermarking is not available.")
@@ -1085,6 +1110,7 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
         raise WatermarkingError("An error occurred while generating the watermarked file.") from e
 
 
+@extend_schema(tags=['sharelinks'])
 class ShareLinkFileDownloadView(APIView):
     """
     Handles the download of a single file from a share link. If watermarking
@@ -1093,6 +1119,9 @@ class ShareLinkFileDownloadView(APIView):
     """
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={200: None, 302: None, 400: dict, 401: dict, 403: dict, 404: dict, 410: dict, 500: dict, 503: dict},
+    )
     def get(self, request, slug, *args, **kwargs):
         try:
             link = _get_active_share_link(slug)
@@ -1233,6 +1262,7 @@ class ShareLinkFileDownloadView(APIView):
                 return Response({"detail": "Could not retrieve file."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
+@extend_schema(tags=['sharelinks'])
 class DataroomFolderDownloadView(APIView):
     """
     Handles the download of an entire dataroom folder as a ZIP archive.
@@ -1292,6 +1322,9 @@ class DataroomFolderDownloadView(APIView):
                 except Exception as e:
                     logger.error(f"Failed to add file '{doc.name}' to zip for link '{link.slug}'. Error: {e}")
 
+    @extend_schema(
+        responses={200: None, 400: dict, 401: dict, 403: dict, 404: dict, 410: dict},
+    )
     def get(self, request, slug, folder_id, *args, **kwargs):
         is_preview = False
         preview_token = request.query_params.get('previewToken')
@@ -1386,6 +1419,7 @@ class DataroomFolderDownloadView(APIView):
         return response
 
 
+@extend_schema(tags=['sharelinks'])
 class ViewerViewSet(viewsets.ModelViewSet):
     queryset = Viewer.objects.all()
     serializer_class = ViewerSerializer
@@ -1395,6 +1429,7 @@ class ViewerViewSet(viewsets.ModelViewSet):
         return Viewer.objects.filter(organization=self.request.user.organization)
 
 
+@extend_schema(tags=['sharelinks'])
 class ViewSessionViewSet(viewsets.ModelViewSet):
     queryset = ViewSession.objects.all()
     serializer_class = ViewSessionSerializer
@@ -1560,12 +1595,21 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
                 _dispatch_automation_event(instance.share_link, 'dataroom_opened', base_payload)
 
 
+@extend_schema(tags=['sharelinks'])
 class RecordPageView(APIView):
     """
     Receives and records granular page view tracking data.
     """
     permission_classes = [permissions.AllowAny]
+    serializer_class = PageViewRecordSerializer
 
+    class RecordPageResponseSerializer(serializers.Serializer):
+        message = serializers.CharField()
+
+    @extend_schema(
+        request=PageViewRecordSerializer,
+        responses={200: RecordPageResponseSerializer, 400: dict, 500: dict},
+    )
     def post(self, request, *args, **kwargs):
         serializer = PageViewRecordSerializer(data=request.data)
         if not serializer.is_valid():

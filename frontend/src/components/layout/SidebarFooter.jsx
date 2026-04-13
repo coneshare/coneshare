@@ -1,4 +1,5 @@
 import { cn } from "../../lib/utils";
+import { BookOpen } from "lucide-react";
 import { Progress } from "../ui/Progress";
 import NavUser from "./NavUser";
 import { useSidebar } from "./SidebarProvider";
@@ -16,6 +17,18 @@ function SidebarFooter() {
 
   return (
     <div className="mt-auto flex flex-col gap-4 p-2">
+      <a
+        href="/api/schema/swagger/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cn(
+          "flex items-center gap-3 rounded-lg py-2 text-gray-500 transition-all hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50",
+          isCollapsed ? "justify-center px-0 h-10 w-10" : "px-3"
+        )}
+      >
+        <BookOpen className="h-5 w-5" />
+        <span className={cn(isCollapsed && "hidden")}>API Docs (Swagger)</span>
+      </a>
       {user && (
         <div className={cn("px-2 text-xs", isCollapsed && "hidden")}>
           <div className="mb-2 flex justify-between font-medium text-muted-foreground">
@@ -28,7 +41,7 @@ function SidebarFooter() {
           </div>
           <Progress value={usagePercentage} className="h-2" />
         </div>
-      )}      
+      )}
       <NavUser />
     </div>
   );

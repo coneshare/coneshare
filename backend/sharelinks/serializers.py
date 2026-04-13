@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from rest_framework import serializers
 
 from core.models import Organization
@@ -31,7 +33,7 @@ class PageViewSerializer(serializers.ModelSerializer):
         model = PageView
         fields = ['page_number', 'duration_seconds', 'url']
 
-    def get_url(self, obj):
+    def get_url(self, obj) -> str | None:
         pages_map = self.context.get('pages_map', {})
         return pages_map.get(obj.page_number)
 
@@ -84,7 +86,7 @@ class ViewSessionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name', 'document_id', 'document_name', 'country', 'city', 'latitude', 'longitude', 'page_views', 'dataroom_visits', 'is_owner_view', 'downloaded_at']
     
-    def get_is_owner_view(self, obj):
+    def get_is_owner_view(self, obj) -> bool:
         request = self.context.get('request')
         if request and hasattr(request, 'user') and request.user.is_authenticated:
             return obj.viewer_email == request.user.email
@@ -234,18 +236,18 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         # We handle uniqueness manually in `validate()` for updates and `create()` for creations.
         validators = []
 
-    def get_has_password(self, obj):
+    def get_has_password(self, obj) -> bool:
         """Returns True if the link is password-protected."""
         return bool(obj.password)
 
-    def get_view_count(self, obj):
+    def get_view_count(self, obj) -> int:
         """Returns the number of view sessions for the link."""
         # This is efficient because of the prefetch_related in the view.
         if hasattr(obj, '_prefetched_objects_cache') and 'view_sessions' in obj._prefetched_objects_cache:
             return len(obj._prefetched_objects_cache['view_sessions'])
         return obj.view_sessions.count()
 
-    def get_recent_view_sessions(self, obj):
+    def get_recent_view_sessions(self, obj) -> list[dict]:
         """Returns up to 10 most recent view sessions."""
         # This is efficient because of the prefetch_related in the view.
         if hasattr(obj, '_prefetched_objects_cache') and 'view_sessions' in obj._prefetched_objects_cache:
@@ -258,7 +260,7 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         serializer = ViewSessionSerializer(sessions, many=True, context=self.context)
         return serializer.data
 
-    def get_last_viewed_at(self, obj):
+    def get_last_viewed_at(self, obj) -> datetime | None:
         """Returns the timestamp of the most recent view session."""
         # This is efficient because of the prefetch_related in the view.
         # The ViewSession model's Meta ordering is '-viewed_at', so the first session is the latest.

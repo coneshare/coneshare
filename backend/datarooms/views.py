@@ -6,6 +6,7 @@ from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
 
 from backend.utils import get_unique_name
 from documents.models import Document, Folder
@@ -20,6 +21,7 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
+@extend_schema(tags=['datarooms'])
 class DataroomViewSet(viewsets.ModelViewSet):
     queryset = Dataroom.objects.all()
     serializer_class = DataroomSerializer
@@ -257,6 +259,7 @@ class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
         serializer.save()
 
 
+@extend_schema(tags=['datarooms'])
 class DataroomFolderViewSet(viewsets.ModelViewSet):
     queryset = DataroomFolder.objects.all()
     serializer_class = DataroomFolderSerializer

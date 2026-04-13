@@ -1,6 +1,7 @@
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema
 from documents.views import StandardResultsSetPagination
 
 from .models import (AutomationAssignment, AutomationDelivery, AutomationDestination,
@@ -12,6 +13,7 @@ from .serializers import (AutomationAssignmentSerializer,
 from .tasks import deliver_automation_delivery_task
 
 
+@extend_schema(tags=['automations'])
 class AutomationDestinationViewSet(viewsets.ModelViewSet):
     serializer_class = AutomationDestinationSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -26,6 +28,7 @@ class AutomationDestinationViewSet(viewsets.ModelViewSet):
         serializer.save(organization=self.request.user.organization, created_by=self.request.user)
 
 
+@extend_schema(tags=['automations'])
 class AutomationRuleViewSet(viewsets.ModelViewSet):
     serializer_class = AutomationRuleSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -40,6 +43,7 @@ class AutomationRuleViewSet(viewsets.ModelViewSet):
         serializer.save(organization=self.request.user.organization, created_by=self.request.user)
 
 
+@extend_schema(tags=['automations'])
 class AutomationDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AutomationDeliverySerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -82,6 +86,7 @@ class AutomationDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
         return Response({'detail': 'Delivery replay queued.'}, status=status.HTTP_202_ACCEPTED)
 
 
+@extend_schema(tags=['automations'])
 class AutomationAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AutomationAssignmentSerializer
     permission_classes = [permissions.IsAuthenticated]

@@ -24,6 +24,8 @@ help:
 	@echo "  lint.portal     - Run portal linter with eslint"
 	@echo "  migrate         - Run database migrations"
 	@echo "  superuser       - Create a superuser"
+	@echo "  api.schema      - Generate OpenAPI schema at backend/docs/api/openapi.yaml"
+	@echo "  api.schema.validate - Validate generated OpenAPI schema"
 
 
 # ====================================================================================
@@ -113,3 +115,13 @@ migrate:
 superuser:
 	@echo "Creating a superuser..."
 	COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend python manage.py createsuperuser
+
+.PHONY: api.schema
+api.schema:
+	@echo "Generating OpenAPI schema..."
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend python manage.py spectacular --file /app/docs/api/openapi.yaml
+
+.PHONY: api.schema.validate
+api.schema.validate: api.schema
+	@echo "Validating OpenAPI schema..."
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend python -m openapi_spec_validator /app/docs/api/openapi.yaml

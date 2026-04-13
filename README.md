@@ -37,6 +37,8 @@ Coneshare is built with a modern, maintainable, and scalable technology stack su
 
 For more details, see the [Technology Stack Documentation](docs/coneshare-techstack.md).
 
+For API integration details, see the [Open API Reference](docs/coneshare-open-api.md).
+
 ## Usage
 
 Visit [the docs](https://docs.coneshare.com/en/quick-start/) for a more in-depth guide on how to get started.
