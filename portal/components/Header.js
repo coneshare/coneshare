@@ -95,7 +95,7 @@ export function Header() {
           {/* Desktop Nav */}
           <div className="hidden md:flex md:items-center md:gap-x-4">
             <NavDropdown title="Features" href="/features" items={features} />
-            <NavDropdown title="Solutions" href="/solutions" items={solutions} />
+            <NavDropdown title="Use Cases" href="/solutions" items={solutions} />
             <Link href="https://docs.coneshare.com/en/" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-gray-500 hover:text-gray-900">
               Docs
             </Link>
@@ -153,7 +153,7 @@ export function Header() {
               </div>
             </div>
             <div className="border-t border-gray-200 pt-4">
-              <h3 className="px-3 text-xs font-semibold uppercase text-gray-500 tracking-wider">Solutions</h3>
+              <h3 className="px-3 text-xs font-semibold uppercase text-gray-500 tracking-wider">Use Cases</h3>
               <div className="mt-2 space-y-1">
                 {solutions.map((item) => (
                   <Link

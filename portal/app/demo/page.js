@@ -24,10 +24,10 @@ export default function DemoPage() {
         <div className="mx-auto max-w-2xl lg:text-center">
           <h2 className="text-base font-semibold leading-7 text-gray-900">Live Demo</h2>
           <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-            Explore Coneshare Today
+            Explore Real-Time Signals in Coneshare
           </p>
           <p className="mt-6 text-lg leading-8 text-gray-600">
-            Use the credentials below to access our live, shared demo environment. Please note that all data is public and the environment is reset periodically.
+            Use the credentials below to test activity tracking and automation workflows in our live shared environment. All data is public and reset periodically.
           </p>
         </div>
         <div className="mx-auto mt-16 max-w-xl">
@@ -76,6 +76,15 @@ export default function DemoPage() {
                 className="flex w-full items-center justify-center rounded-md border border-transparent bg-gray-900 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-gray-800"
               >
                 Launch Demo
+              </Link>
+            </div>
+            <div className="border-t border-gray-200 pt-5 text-center text-sm">
+              <Link href="/features" className="font-semibold text-gray-900 hover:text-gray-700">
+                Explore features
+              </Link>
+              <span className="mx-2 text-gray-400">•</span>
+              <Link href="/solutions" className="font-semibold text-gray-900 hover:text-gray-700">
+                Browse use cases
               </Link>
             </div>
           </div>
