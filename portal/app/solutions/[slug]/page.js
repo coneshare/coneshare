@@ -1,5 +1,32 @@
 import { solutions } from '../../../lib/content';
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
+
+export async function generateMetadata({ params }) {
+  const { slug } = await params;
+  const solution = solutions.find((s) => s.slug === slug);
+
+  if (!solution) {
+    return {
+      title: 'Use Case Not Found | Coneshare',
+      description: 'Explore Coneshare use cases for real-time engagement visibility and workflow automation.',
+    };
+  }
+
+  return {
+    title: `${solution.name} | Coneshare Use Cases`,
+    description: solution.description,
+    alternates: {
+      canonical: `/solutions/${solution.slug}`,
+    },
+    openGraph: {
+      title: `${solution.name} | Coneshare Use Cases`,
+      description: solution.description,
+      url: `https://www.coneshare.com/solutions/${solution.slug}`,
+      type: 'article',
+    },
+  };
+}
 
 export default async function SolutionDetailPage({ params }) {
   const { slug } = await params;
@@ -30,6 +57,32 @@ export default async function SolutionDetailPage({ params }) {
           </blockquote>
           <div className="mt-10 prose prose-lg text-gray-600">
             {solution.content}
+          </div>
+
+          <div className="mt-14 rounded-2xl border border-gray-200 bg-gray-50 px-8 py-10">
+            <p className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+              Take Action
+            </p>
+            <h2 className="mt-3 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+              Put this use case into motion
+            </h2>
+            <p className="mt-4 text-base text-gray-600">
+              Launch the demo to see real-time engagement signals, then connect alerts to your team via Slack or webhooks.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <Link
+                href="/demo"
+                className="rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800"
+              >
+                See automation in action
+              </Link>
+              <Link
+                href="/features"
+                className="text-sm font-semibold text-gray-900 hover:text-gray-700"
+              >
+                Explore features <span aria-hidden="true">→</span>
+              </Link>
+            </div>
           </div>
         </div>
       </div>

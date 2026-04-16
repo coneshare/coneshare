@@ -1,17 +1,25 @@
 import Link from 'next/link';
 import { features } from '../../lib/content';
 
+export const metadata = {
+  title: 'Features | Coneshare',
+  description: 'Explore Coneshare features for real-time document visibility, engagement awareness, and workflow automation.',
+  alternates: {
+    canonical: '/features',
+  },
+};
+
 export default function FeaturesPage() {
   return (
     <div className="bg-white py-24 sm:py-32">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-2xl lg:text-center">
-          <h2 className="text-base font-semibold leading-7 text-gray-900">Total Control</h2>
+          <h2 className="text-base font-semibold leading-7 text-gray-900">Core Features</h2>
           <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-            Everything you need to share documents securely
+            Secure sharing, engagement visibility, and automation
           </p>
           <p className="mt-6 text-lg leading-8 text-gray-600">
-            From link-based sharing with granular access controls to detailed analytics, Coneshare provides a comprehensive solution for modern document workflows.
+            Start with secure document and dataroom sharing, then add engagement insights and workflow automations through Slack and webhooks.
           </p>
         </div>
         <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-4xl">
@@ -33,6 +41,25 @@ export default function FeaturesPage() {
               </div>
             ))}
           </dl>
+        </div>
+        <div className="mx-auto mt-16 max-w-3xl rounded-2xl bg-gray-900 px-8 py-10 text-center text-white sm:mt-20">
+          <h3 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            Ready to automate from real-time engagement signals?
+          </h3>
+          <p className="mt-4 text-base text-gray-200">
+            Start with the live demo and see how document events can trigger immediate team actions.
+          </p>
+          <div className="mt-8 flex items-center justify-center gap-6">
+            <Link
+              href="/demo"
+              className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-100"
+            >
+              View live demo
+            </Link>
+            <Link href="/solutions" className="text-sm font-semibold text-white hover:text-gray-200">
+              Browse use cases <span aria-hidden="true">→</span>
+            </Link>
+          </div>
         </div>
       </div>
     </div>

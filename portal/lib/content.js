@@ -6,7 +6,7 @@ export const features = [
     slug: 'secure-sharing',
     name: 'Secure Document & Dataroom Sharing',
     menuName: 'Secure Sharing',
-    description: 'Share sensitive documents with confidence. Coneshare\'s link-based sharing system gives you complete control over who sees your content and how they access it.',
+    description: 'Share sensitive documents with confidence using secure links, granular access controls, and dataroom-level permissions.',
     icon: ShieldCheck,
     content: (
       <div>
@@ -15,25 +15,25 @@ export const features = [
         <Image src="/screenshots/feat-sharing.png" alt="Screenshot of creating a secure share link" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
 
         <h3 className="text-xl font-semibold mb-4">Live Document Updates</h3>
-        <p>Fix a typo or update a file by uploading a new version. All existing share links will automatically point to the latest version, ensuring everyone stays on the same page without you having to resend links.</p>
+        <p>Update files without breaking links. Every shared link points to the latest version, so recipients always see current content without resending links.</p>
         <Image src="/screenshots/feat-sharing2.png" alt="Screenshot of creating a secure share link" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
       </div>
     )
   },
   {
     slug: 'advanced-analytics',
-    name: 'Advanced Analytics & Tracking',
-    menuName: 'Analytics & Tracking',
-    description: 'Gain actionable insights into how your shared documents are being consumed with real-time, page-by-page analytics.',
+    name: 'Engagement Awareness',
+    menuName: 'Engagement Awareness',
+    description: 'Understand how prospects interact with your content through real-time and page-level activity insights.',
     icon: LineChart,
     content: (
        <div>
-        <h3 className="text-xl font-semibold mb-4">Real-Time View Notifications</h3>
-        <p className="mb-4">Opt-in to receive an email notification the moment someone views your shared link, so you can follow up at the perfect time.</p>
+        <h3 className="text-xl font-semibold mb-4">Real-Time Activity Notifications</h3>
+        <p className="mb-4">Receive immediate event notifications when your shared documents are viewed, downloaded, or revisited so your team can follow up with strong timing.</p>
         <Image src="/screenshots/feat-notification.png" alt="Screenshot of real time view notifications" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
 
         <h3 className="text-xl font-semibold mb-4">Page-by-Page Analytics</h3>
-        <p>Understand what content resonates most with detailed, page-by-page analytics, including time spent on each page and overall completion rate. See who is viewing your documents, where they are from, and what device they are using.</p>
+        <p>See what content resonates with detailed page-level analytics, including time spent and completion rate. Understand engagement context before every follow-up conversation.</p>
         <Image src="/screenshots/feat-analytics.png" alt="Screenshot of document analytics and viewer insights" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
       </div>
     )
@@ -75,20 +75,20 @@ export const features = [
     )
   },
   {
-    slug: 'cloud-storage-integration',
-    name: 'Cloud Storage Integration',
-    menuName: 'Cloud Integration',
-    description: 'Seamlessly import files from your existing cloud storage like Dropbox, Google Drive, and Nextcloud.',
+    slug: 'workflow-automation-integration',
+    name: 'Workflow Automation & Integrations',
+    menuName: 'Automation & Integrations',
+    description: 'Trigger workflows from document events and send activity to Slack, webhooks, and internal systems in real time.',
     icon: Cloud,
     content: (
        <div>
-        <h3 className="text-xl font-semibold mb-4">Connect Your Accounts</h3>
-        <p className="mb-4">Securely connect to popular public cloud services like Dropbox and Google Drive, as well as self-hosted private cloud platforms like Nextcloud, all via standard OAuth2.</p>
-        <Image src="/screenshots/feat-cloud-import.png" alt="Screenshot of connecting cloud" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
+        <h3 className="text-xl font-semibold mb-4">Event-Driven Workflows</h3>
+        <p className="mb-4">Map document events to actions so your team is alerted instantly when engagement happens. Route events to Slack channels, webhook endpoints, or downstream systems.</p>
+        <Image src="/screenshots/automation-rules.png" alt="Screenshot of connecting cloud" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
 
-        <h3 className="text-xl font-semibold mb-4">Asynchronous Imports</h3>
-        <p>Select files to import, and Coneshare's background workers will handle the download and processing, ensuring the UI remains responsive while you work.</p>
-        <Image src="/screenshots/feat-dropbox.png" alt="Screenshot of dropbox importing" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
+        <h3 className="text-xl font-semibold mb-4">Reliable Delivery Operations</h3>
+        <p>Use delivery logs with retry and replay support to keep automations dependable. Configure multiple destinations for the same event stream to keep every team aligned.</p>
+        <Image src="/screenshots/automation-logs.png" alt="Screenshot of dropbox importing" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
 
       </div>
     )
@@ -132,49 +132,81 @@ export const features = [
 export const solutions = [
   {
     slug: 'secure-fundraising',
-    name: 'For Secure Fundraising',
-    menuName: 'Secure Fundraising',
-    description: 'Streamline your fundraising process from pitch to due diligence. Control your pitch deck, track investor engagement page-by-page, and use secure VDRs for due diligence.',
+    name: 'Investor Awareness',
+    menuName: 'Investor Awareness',
+    description: 'Never miss the moment an investor views your deck. Trigger instant team alerts and follow up while your pitch is top of mind.',
     icon: TrendingUp,
     quote: "As a VC, the decks sent via a platform like Coneshare immediately stand out. It shows the founders are serious about security and gives us confidence.",
     content: (
       <div>
-        <h3 className="text-xl font-semibold mb-4">Control Your Pitch Deck</h3>
-        <p className="mb-4">Share your deck using a secure link and track investor engagement page by page. See which slides are getting the most attention and identify truly interested parties. If an investor passes, deactivate their link instantly.</p>
-        <h3 className="text-xl font-semibold mb-4">Secure Data Rooms for Due Diligence</h3>
-        <p>Create VDRs for serious investors. Use granular permissions to reveal documents in stages, require email verification, and apply dynamic watermarks with the investor's email address to deter leaks.</p>
+        <h3 className="text-xl font-semibold mb-4">Know Exactly When Investors Engage</h3>
+        <p className="mb-4">Get real-time visibility into pitch deck activity so founders can time outreach when attention is highest.</p>
+        <h3 className="text-xl font-semibold mb-4">Coordinate Follow-Ups with Confidence</h3>
+        <p>Send event signals to Slack or webhooks so investor updates are shared immediately with your team and advisors.</p>
       </div>
     )
   },
   {
     slug: 'regulated-industries',
-    name: 'For Regulated Industries',
-    menuName: 'Regulated Industries',
-    description: 'Share sensitive client information for legal, finance, or healthcare with the assurance of complete data sovereignty by self-hosting on your own network.',
+    name: 'Engagement Visibility',
+    menuName: 'Engagement Visibility',
+    description: 'Separate real prospects from noise by tracking views, downloads, and revisits across documents and datarooms.',
     icon: Landmark,
     quote: "Our law firm can't afford client data on a multi-tenant cloud service. Coneshare gives us modern VDR features with on-premise security.",
     content: (
       <div>
-        <h3 className="text-xl font-semibold mb-4">Meet Compliance Requirements</h3>
-        <p className="mb-4">By self-hosting Coneshare, you ensure all data stays within your network, helping you meet strict compliance standards like HIPAA or GDPR without trusting a third-party vendor with your sensitive files.</p>
-        <h3 className="text-xl font-semibold mb-4">Client Portals</h3>
-        <p>Use Datarooms to create secure client portals. Share discovery documents, contracts, and reports. Granular permissions ensure clients only see the files relevant to them.</p>
+        <h3 className="text-xl font-semibold mb-4">Prioritize High-Engagement Accounts</h3>
+        <p className="mb-4">Use real-time event streams to focus team effort on prospects actively interacting with your materials.</p>
+        <h3 className="text-xl font-semibold mb-4">Push Signals into Internal Systems</h3>
+        <p>Route activity events through webhooks to your CRM or internal tooling so engagement data is visible where your team already works.</p>
       </div>
     )
   },
   {
     slug: 'sales-and-marketing',
-    name: 'For Sales & Marketing Teams',
-    menuName: 'Sales & Marketing',
-    description: 'Arm your sales team with insights to close deals faster. Track proposal engagement, tailor your follow-up, and ensure brand consistency with a central content library.',
+    name: 'Team Awareness',
+    menuName: 'Team Awareness',
+    description: 'Keep your sales team in the loop instantly when prospects open proposals or enter datarooms.',
     icon: Target,
     quote: "Before Coneshare, we sent PDFs into the void. Now, our sales team can focus on prospects who are actually engaged with our materials.",
     content: (
       <div>
-        <h3 className="text-xl font-semibold mb-4">Track Proposal Engagement</h3>
-        <p className="mb-4">Stop guessing if your proposal was read. Get notified when a prospect opens your document and see exactly which pages they focused on. Tailor your follow-up call to address their specific interests.</p>
-        <h3 className="text-xl font-semibold mb-4">Centralized Content Library</h3>
-        <p>Manage all your sales collateral—brochures, case studies, price sheets—in one place. When you update a document, every link your sales team has ever sent is automatically updated to the latest version.</p>
+        <h3 className="text-xl font-semibold mb-4">Automatic Team Alerts</h3>
+        <p className="mb-4">Trigger Slack and webhook notifications from document events so your account owners, managers, and support teams move in sync.</p>
+        <h3 className="text-xl font-semibold mb-4">Timely Follow-Up Motion</h3>
+        <p>Reach out when interest is highest by pairing real-time engagement signals with simple event-driven workflow automations.</p>
+      </div>
+    )
+  },
+  {
+    slug: 'timely-follow-ups',
+    name: 'Timely Follow-Ups',
+    menuName: 'Timely Follow-Ups',
+    description: 'Follow up when interest is highest by triggering workflows from document views and downloads.',
+    icon: Target,
+    quote: "We stopped guessing when to follow up. Coneshare gives us precise timing signals from real document activity.",
+    content: (
+      <div>
+        <h3 className="text-xl font-semibold mb-4">Engage at the Right Moment</h3>
+        <p className="mb-4">Use real-time activity signals to contact prospects when they are actively reviewing your content.</p>
+        <h3 className="text-xl font-semibold mb-4">Automate Next Steps</h3>
+        <p>Trigger follow-up tasks and notifications from views and downloads to reduce manual coordination and improve response speed.</p>
+      </div>
+    )
+  },
+  {
+    slug: 'deal-visibility',
+    name: 'Deal Visibility',
+    menuName: 'Deal Visibility',
+    description: 'Understand how buyers explore your deal across datarooms and document interactions before every conversation.',
+    icon: LineChart,
+    quote: "Before each call, we know what the buyer actually reviewed and where they spent time.",
+    content: (
+      <div>
+        <h3 className="text-xl font-semibold mb-4">Pre-Call Context</h3>
+        <p className="mb-4">Review who viewed what, where engagement is strongest, and which files are being revisited so conversations are grounded in evidence.</p>
+        <h3 className="text-xl font-semibold mb-4">Better Deal Execution</h3>
+        <p>Use engagement context to drive smarter conversations and align your internal team around the most active opportunities.</p>
       </div>
     )
   },
