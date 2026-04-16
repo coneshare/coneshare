@@ -1,4 +1,4 @@
-import { ShieldCheck, LineChart, Droplets, HardDrive, Folders, Cloud, UploadCloud, TrendingUp, Landmark, Target } from 'lucide-react';
+import { ShieldCheck, LineChart, Droplets, HardDrive, Folders, Cloud, UploadCloud, TrendingUp, Landmark, Target, Workflow } from 'lucide-react';
 import Image from 'next/image';
 
 export const features = [
@@ -75,20 +75,38 @@ export const features = [
     )
   },
   {
+    slug: 'cloud-storage-integration',
+    name: 'Cloud Storage Integration',
+    menuName: 'Cloud Integration',
+    description: 'Seamlessly import files from your existing cloud storage like Dropbox, Google Drive, and Nextcloud.',
+    icon: Cloud,
+    content: (
+      <div>
+        <h3 className="text-xl font-semibold mb-4">Connect Your Accounts</h3>
+        <p className="mb-4">Securely connect to popular public cloud services like Dropbox and Google Drive, as well as self-hosted private cloud platforms like Nextcloud, all via standard OAuth2.</p>
+        <Image src="/screenshots/feat-cloud-import.png" alt="Screenshot of connecting cloud" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
+
+        <h3 className="text-xl font-semibold mb-4">Asynchronous Imports</h3>
+        <p>Select files to import, and Coneshare's background workers will handle the download and processing, ensuring the UI remains responsive while you work.</p>
+        <Image src="/screenshots/feat-dropbox.png" alt="Screenshot of dropbox importing" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
+      </div>
+    )
+  },
+  {
     slug: 'workflow-automation-integration',
     name: 'Workflow Automation & Integrations',
     menuName: 'Automation & Integrations',
     description: 'Trigger workflows from document events and send activity to Slack, webhooks, and internal systems in real time.',
-    icon: Cloud,
+    icon: Workflow,
     content: (
        <div>
         <h3 className="text-xl font-semibold mb-4">Event-Driven Workflows</h3>
         <p className="mb-4">Map document events to actions so your team is alerted instantly when engagement happens. Route events to Slack channels, webhook endpoints, or downstream systems.</p>
-        <Image src="/screenshots/automation-rules.png" alt="Screenshot of connecting cloud" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
+        <Image src="/screenshots/automation-rules.png" alt="Screenshot of automation rules" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
 
         <h3 className="text-xl font-semibold mb-4">Reliable Delivery Operations</h3>
         <p>Use delivery logs with retry and replay support to keep automations dependable. Configure multiple destinations for the same event stream to keep every team aligned.</p>
-        <Image src="/screenshots/automation-logs.png" alt="Screenshot of dropbox importing" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
+        <Image src="/screenshots/automation-logs.png" alt="Screenshot of automation logs" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
 
       </div>
     )
