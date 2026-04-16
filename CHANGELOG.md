@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.0](https://github.com/coneshare/coneshare/compare/v1.1.3...v1.2.0) (2026-04-16)
+
+
+### Features
+
+* **automations:** document activity automations feature ([ad20070](https://github.com/coneshare/coneshare/commit/ad200707882f29ff07339751dd58b8834d667ff7))
+* **backend:** add coneshare open api ([19f1bfc](https://github.com/coneshare/coneshare/commit/19f1bfca556f8d67000cf7322d075866c735f6c8))
+* **frontend:** add api docs link to sidebar ([adb5191](https://github.com/coneshare/coneshare/commit/adb5191ac8a7eab9f7e3afeafd54a5f5dea0dad7))
+* **automations:** enrich webhook payload and include event_type ([d1a9e0c](https://github.com/coneshare/coneshare/commit/d1a9e0c25b6723fd2d45be30d28786a0324b9817))
+
+
+### Fixes
+
+* **datarooms:** fix datarooms doc/folder stars ([ace0ce9](https://github.com/coneshare/coneshare/commit/ace0ce9af14b33fe2195ed682a2bd1efe8cfc69e))
+
+
 ## [1.1.3](https://github.com/coneshare/coneshare/compare/v1.1.2...v1.1.3) (2026-04-07)
 
 
