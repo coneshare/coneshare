@@ -147,6 +147,12 @@ Base payload fields include:
 - `share_link_id`
 - optional `document_id/document_name`
 - optional `dataroom_id/dataroom_name`
+- `event_datetime` (ISO datetime string)
+- `visitor_ip` (nullable)
+- `visitor_country` (nullable)
+- `visitor_city` (nullable)
+- `visitor_latitude` (nullable)
+- `visitor_longitude` (nullable)
 
 Emitted events:
 - `document_viewed`
@@ -166,6 +172,7 @@ Emitted events:
 On finalize upload success:
 - enqueue on commit: `file_request_uploaded`
 - payload includes uploader/file/request metadata and `owner_user_id`
+- payload includes `event_datetime` and visitor fields set to `null`
 
 ---
 
@@ -219,7 +226,28 @@ Future (per plan):
 
 ---
 
-## 11. Key File Index
+## 11. Future Destination Payload Strategy
+
+For predefined chat-style destinations (`slack`, `wechat`, `feishu`, `discord`):
+- Keep destination-specific formatted payloads as the default behavior.
+- Rationale:
+  - each platform has strict payload schemas/limits;
+  - formatted messages are immediately readable by humans;
+  - reduces integration breakage from raw payload schema changes.
+
+For generic system integrations:
+- Keep raw JSON payload delivery for `webhook` destinations.
+
+Potential future enhancement:
+- add an optional per-destination **raw mode** toggle for predefined destinations.
+- when raw mode is enabled, include stable metadata fields such as:
+  - `event_type`
+  - `event_datetime`
+  - `schema_version` (recommended for compatibility management)
+
+---
+
+## 12. Key File Index
 
 Backend core:
 - `backend/automations/models.py`

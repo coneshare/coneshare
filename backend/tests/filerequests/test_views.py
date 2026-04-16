@@ -220,3 +220,9 @@ class TestPublicFileRequestViews:
         assert payload['file_request_id'] == str(file_request.id)
         assert payload['document_id'] == str(doc.id)
         assert payload['uploaded_by_email'] == 'john.doe@example.com'
+        assert payload['event_datetime'] is not None
+        assert payload['visitor_ip'] is None
+        assert payload['visitor_country'] is None
+        assert payload['visitor_city'] is None
+        assert payload['visitor_latitude'] is None
+        assert payload['visitor_longitude'] is None

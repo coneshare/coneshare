@@ -49,7 +49,34 @@ from .tasks import send_view_notification_email_task
 logger = logging.getLogger(__name__)
 
 
-def _dispatch_automation_event(share_link, event_type: str, extra_payload=None):
+def _to_iso_datetime(value):
+    if not value:
+        return None
+    return value.isoformat()
+
+
+def _build_visitor_context(view_session=None):
+    if not view_session:
+        return {
+            'event_datetime': _to_iso_datetime(timezone.now()),
+            'visitor_ip': None,
+            'visitor_country': None,
+            'visitor_city': None,
+            'visitor_latitude': None,
+            'visitor_longitude': None,
+        }
+
+    return {
+        'event_datetime': _to_iso_datetime(view_session.viewed_at or timezone.now()),
+        'visitor_ip': view_session.ip_address or None,
+        'visitor_country': view_session.country or None,
+        'visitor_city': view_session.city or None,
+        'visitor_latitude': view_session.latitude,
+        'visitor_longitude': view_session.longitude,
+    }
+
+
+def _dispatch_automation_event(share_link, event_type: str, extra_payload=None, view_session=None):
     """
     Queue an automation event without blocking user-facing request flow.
     """
@@ -72,6 +99,7 @@ def _dispatch_automation_event(share_link, event_type: str, extra_payload=None):
         'dataroom_name': dataroom_name,
         'document_id': str(share_link.document_id) if share_link.document_id else None,
         'document_name': document_name,
+        **_build_visitor_context(view_session=view_session),
     }
     if extra_payload:
         payload.update(extra_payload)
@@ -387,16 +415,29 @@ class ShareLinkViewDataView(APIView):
                 authorized_links = request.session.get('authorized_share_links', {})
                 auth_status = authorized_links.get(str(link.id), {})
                 viewer_email = auth_status.get('viewer_email', '')
-                if not viewer_email and view_session_id:
-                    view_session = ViewSession.objects.filter(id=view_session_id, share_link=link).only('viewer_email').first()
-                    viewer_email = view_session.viewer_email if view_session else ''
+                view_session = None
+                if view_session_id:
+                    view_session = ViewSession.objects.filter(
+                        id=view_session_id,
+                        share_link=link,
+                    ).only(
+                        'viewer_email',
+                        'viewed_at',
+                        'ip_address',
+                        'country',
+                        'city',
+                        'latitude',
+                        'longitude',
+                    ).first()
+                    if not viewer_email and view_session:
+                        viewer_email = view_session.viewer_email
                 if viewer_email:
                     extra_payload['viewer_email'] = viewer_email
                 if view_session_id:
                     extra_payload['view_session_id'] = view_session_id
                 if dataroom_visit_id:
                     extra_payload['dataroom_visit_id'] = dataroom_visit_id
-                _dispatch_automation_event(link, 'document_viewed', extra_payload)
+                _dispatch_automation_event(link, 'document_viewed', extra_payload, view_session=view_session)
 
             if not primary_version or document.status != 'ready':
                 return Response(
@@ -1210,6 +1251,7 @@ class ShareLinkFileDownloadView(APIView):
                         'document_name': document.name,
                         'viewer_email': view_session.viewer_email,
                     },
+                    view_session=view_session,
                 )
             except ViewSession.DoesNotExist:
                 logger.warning(f"Could not find view session {view_session_id} for link {link.id} to record file download.")
@@ -1395,6 +1437,7 @@ class DataroomFolderDownloadView(APIView):
                         'dataroom_folder_id': str(root_folder.id),
                         'dataroom_folder_name': root_folder.name,
                     },
+                    view_session=view_session,
                 )
             except ViewSession.DoesNotExist:
                 logger.warning(f"Could not find view session {view_session_id} for link {link.id} to record download.")
@@ -1475,6 +1518,7 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
                 share_link,
                 'document_downloaded',
                 extra_payload,
+                view_session=view_session,
             )
             return Response(status=status.HTTP_200_OK)
         except ViewSession.DoesNotExist:
@@ -1590,9 +1634,9 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
                 'viewer_email': instance.viewer_email,
             }
             if instance.share_link.document_id:
-                _dispatch_automation_event(instance.share_link, 'document_viewed', base_payload)
+                _dispatch_automation_event(instance.share_link, 'document_viewed', base_payload, view_session=instance)
             if instance.share_link.dataroom_id:
-                _dispatch_automation_event(instance.share_link, 'dataroom_opened', base_payload)
+                _dispatch_automation_event(instance.share_link, 'dataroom_opened', base_payload, view_session=instance)
 
 
 @extend_schema(tags=['sharelinks'])

@@ -63,6 +63,19 @@ def test_deliver_task_marks_success(mock_request, user, share_link):
 
 
 @patch('automations.tasks.requests.request')
+def test_deliver_task_includes_event_type_in_generic_webhook_payload(mock_request, user, share_link):
+    delivery = _make_delivery(user, share_link)
+    mock_request.return_value = DummyResponse(status_code=200, text='ok')
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    _, kwargs = mock_request.call_args
+    assert kwargs['json']['event_type'] == 'document_viewed'
+    assert kwargs['json']['organization_id'] == str(user.organization.id)
+    assert kwargs['json']['share_link_id'] == str(share_link.id)
+
+
+@patch('automations.tasks.requests.request')
 def test_deliver_task_builds_slack_payload_with_text(mock_request, user, share_link):
     delivery = _make_delivery(user, share_link)
     delivery.destination.destination_type = 'slack'
