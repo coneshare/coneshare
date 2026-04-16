@@ -20,6 +20,12 @@ class TestEventDispatchIntegration:
         dispatched = {call.args[0]: call.args[1] for call in mock_delay.call_args_list}
         assert 'document_viewed' in dispatched
         assert dispatched['document_viewed']['document_name'] == share_link.document.name
+        assert dispatched['document_viewed']['event_datetime'] is not None
+        assert 'visitor_ip' in dispatched['document_viewed']
+        assert 'visitor_country' in dispatched['document_viewed']
+        assert 'visitor_city' in dispatched['document_viewed']
+        assert 'visitor_latitude' in dispatched['document_viewed']
+        assert 'visitor_longitude' in dispatched['document_viewed']
 
     @patch('sharelinks.views.dispatch_automation_event_task.delay')
     def test_create_view_session_dispatches_dataroom_opened_for_dataroom_link(
@@ -96,6 +102,12 @@ class TestEventDispatchIntegration:
         payload = matched[0].args[1]
         assert payload['viewer_email'] == 'b@b.com'
         assert payload['document_name'] == document.name
+        assert payload['event_datetime'] is not None
+        assert 'visitor_ip' in payload
+        assert 'visitor_country' in payload
+        assert 'visitor_city' in payload
+        assert 'visitor_latitude' in payload
+        assert 'visitor_longitude' in payload
 
     @patch('sharelinks.views.dispatch_automation_event_task.delay')
     def test_dataroom_document_open_dispatches_document_viewed(

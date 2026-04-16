@@ -111,7 +111,9 @@ def _build_request_payload(delivery: AutomationDelivery) -> dict:
             'content': text,
         }
 
-    return delivery.payload
+    webhook_payload = dict(delivery.payload or {})
+    webhook_payload['event_type'] = event_type
+    return webhook_payload
 
 
 def _mark_success(delivery: AutomationDelivery, response):

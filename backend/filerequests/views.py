@@ -213,7 +213,12 @@ class FileRequestUploadFinalizeView(APIView):
                     'uploaded_by_email': validated_data['uploader_email'],
                     'uploaded_file_name': document.name,
                     'uploaded_file_size': validated_data['file_size'],
-                    'uploaded_at': timezone.now().isoformat(),
+                    'event_datetime': timezone.now().isoformat(),
+                    'visitor_ip': None,
+                    'visitor_country': None,
+                    'visitor_city': None,
+                    'visitor_latitude': None,
+                    'visitor_longitude': None,
                 }
                 transaction.on_commit(
                     lambda: dispatch_automation_event_task.delay('file_request_uploaded', payload)
