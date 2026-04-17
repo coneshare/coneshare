@@ -69,6 +69,85 @@ function NavDropdown({ title, href, items }) {
   );
 }
 
+const resources = [
+  {
+    key: 'docs',
+    name: 'Docs',
+    href: 'https://docs.coneshare.com/en/',
+  },
+  {
+    key: 'forum',
+    name: 'Forum',
+    href: 'https://github.com/orgs/coneshare/discussions',
+  },
+  {
+    key: 'contribute',
+    name: 'Contribute',
+    href: 'https://github.com/coneshare/coneshare',
+  },
+];
+
+function ResourceDropdown({ title, items }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const node = useRef();
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (node.current.contains(e.target)) {
+        return;
+      }
+      setIsOpen(false);
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  return (
+    <div
+      ref={node}
+      className="relative -my-2 py-2"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        aria-haspopup="true"
+        aria-expanded={isOpen}
+        className="text-sm font-medium text-gray-500 hover:text-gray-900 inline-flex items-center gap-x-1 py-2"
+      >
+        <span>{title}</span>
+        <ChevronDown className="h-4 w-4" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-1/2 -translate-x-1/2 bg-white shadow-lg rounded-lg mt-2 py-2 w-56 z-10 ring-1 ring-black ring-opacity-5">
+          {items.map((item) => (
+            <Link
+              key={item.key}
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setIsOpen(false)}
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              {item.name}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -96,15 +175,10 @@ export function Header() {
           <div className="hidden md:flex md:items-center md:gap-x-4">
             <NavDropdown title="Features" href="/features" items={features} />
             <NavDropdown title="Use Cases" href="/solutions" items={solutions} />
-            <Link href="https://docs.coneshare.com/en/" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-gray-500 hover:text-gray-900">
-              Docs
+            <Link href="/blog" className="text-sm font-medium text-gray-500 hover:text-gray-900">
+              Blog
             </Link>
-            <Link href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-gray-500 hover:text-gray-900">
-              Contribute
-            </Link>
-            <Link href="https://github.com/orgs/coneshare/discussions" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-gray-500 hover:text-gray-900">
-              Forum
-            </Link>
+            <ResourceDropdown title="Resources" items={resources} />
             <Link
               href="/demo"
               className="inline-flex items-center justify-center rounded-md border border-transparent bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-800"
@@ -168,15 +242,25 @@ export function Header() {
               </div>
             </div>
             <div className="border-t border-gray-200 pt-4 space-y-1">
-              <Link href="https://docs.coneshare.com/en/" target="_blank" rel="noopener noreferrer" className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900">
-                Docs
+              <Link href="/blog" className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900">
+                Blog
               </Link>
-              <Link href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900">
-                Contribute
-              </Link>
-              <Link href="https://github.com/orgs/coneshare/discussions" target="_blank" rel="noopener noreferrer" className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900">
-                Forum
-              </Link>
+            </div>
+            <div className="border-t border-gray-200 pt-4">
+              <h3 className="px-3 text-xs font-semibold uppercase text-gray-500 tracking-wider">Resources</h3>
+              <div className="mt-2 space-y-1">
+                {resources.map((item) => (
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                  >
+                    {item.name}
+                  </Link>
+                ))}
+              </div>
             </div>
             <div className="border-t border-gray-200 pt-4">
                <Link

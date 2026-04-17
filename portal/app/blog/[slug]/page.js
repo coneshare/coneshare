@@ -1,0 +1,131 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { getAllBlogPosts, getBlogPostBySlug } from '../../../lib/blog';
+
+const SITE_URL = 'https://www.coneshare.com';
+
+function formatDate(dateStr) {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+export async function generateStaticParams() {
+  const posts = await getAllBlogPosts();
+  return posts.map((post) => ({ slug: post.slug }));
+}
+
+export async function generateMetadata({ params }) {
+  const { slug } = await params;
+  const post = await getBlogPostBySlug(slug);
+
+  if (!post) {
+    return {
+      title: 'Blog Post Not Found | Coneshare',
+      description: 'Browse Coneshare release notes and blog updates.',
+    };
+  }
+
+  return {
+    title: `${post.title} | Coneshare Blog`,
+    description: post.description,
+    alternates: {
+      canonical: `/blog/${post.slug}`,
+    },
+    openGraph: {
+      title: post.title,
+      description: post.description,
+      url: `${SITE_URL}/blog/${post.slug}`,
+      type: 'article',
+      publishedTime: post.date,
+    },
+  };
+}
+
+export default async function BlogPostPage({ params }) {
+  const { slug } = await params;
+  const post = await getBlogPostBySlug(slug);
+
+  if (!post) {
+    notFound();
+  }
+
+  const articleJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: post.title,
+    description: post.description,
+    datePublished: post.date,
+    author: {
+      '@type': 'Organization',
+      name: 'Coneshare',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Coneshare',
+      logo: {
+        '@type': 'ImageObject',
+        url: `${SITE_URL}/logo.svg`,
+      },
+    },
+    mainEntityOfPage: `${SITE_URL}/blog/${post.slug}`,
+  };
+
+  const PostContent = post.Content;
+
+  return (
+    <div className="bg-white py-16 sm:py-24">
+      <div className="mx-auto max-w-4xl px-6 lg:px-8">
+        <Link href="/blog" className="text-sm font-semibold text-gray-900 hover:text-gray-700">
+          ← Back to Blog
+        </Link>
+
+        <article className="mt-6">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500">
+            <time dateTime={post.date}>{formatDate(post.date)}</time>
+            <span className="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">{post.version}</span>
+          </div>
+
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">{post.title}</h1>
+          <p className="mt-6 text-lg leading-8 text-gray-600">{post.description}</p>
+
+          <div className="mt-6 flex flex-wrap gap-2">
+            {(post.tags || []).map((tag) => (
+              <span key={tag} className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600">
+                {tag}
+              </span>
+            ))}
+          </div>
+
+          <div className="prose prose-lg mt-10 max-w-none text-gray-700">
+            <PostContent />
+          </div>
+        </article>
+
+        <div className="mt-14 rounded-2xl border border-gray-200 bg-gray-50 px-8 py-10">
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900">Discuss This Release</h2>
+          <p className="mt-4 text-base text-gray-600">
+            Share your automation workflow and feedback in the Coneshare forum.
+          </p>
+          <p className="mt-6">
+            <Link
+              href="https://github.com/orgs/coneshare/discussions"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-semibold text-gray-900 hover:text-gray-700"
+            >
+              Join the discussion <span aria-hidden="true">→</span>
+            </Link>
+          </p>
+        </div>
+
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+        />
+      </div>
+    </div>
+  );
+}

@@ -69,6 +69,7 @@ services:
     build:
       context: ./portal
       dockerfile: Dockerfile-dev
+    # command: tail -f /dev/null
     volumes:
       - ./portal:/app
       - /app/node_modules
