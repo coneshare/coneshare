@@ -1,0 +1,34 @@
+## architecture picture
+
+make with mermaid:
+
+```
+---
+config:
+  layout: fixed
+  theme: base
+---
+flowchart LR
+    U["Internal Teams<br>Founders / Sales / Admins"] --> FE["Coneshare Web App<br>React Frontend"]
+    V["External Viewers<br>Investors / Buyers / Clients"] --> FE
+    FE --> API["Django + DRF API<br>Auth · Sharing Rules · Permissions"] & FS["Go File Service<br>Secure Upload/Download/Stream"]
+    API <--> DB[("PostgreSQL<br>Metadata · Permissions · Analytics")]
+    FS <--> ST[("Object Storage<br>MinIO / S3 / Local FS")]
+    API --> FS & Q["Redis + Celery<br>Async Processing Queue"] & EVT["Activity Events<br>View · Download · Dataroom Access"]
+    Q --> PR["Document Processing<br>Conversion / Preview Pipeline"]
+    PR --> ST
+    EVT --> AUTO["Automation Engine<br>Rules · Multi-Destination Routing"]
+    AUTO --> n1["Slack/Discord/Webhook/etc.."]
+    API -. enforces access control .-> FS
+    n1 --> SYS["Internal Systems<br>CRM / BI / Alerting"]
+
+    U@{ shape: terminal}
+    V@{ shape: terminal}
+    n1@{ shape: procs}
+    SYS@{ shape: terminal}
+    style U fill:#BBDEFB
+    style V fill:#BBDEFB
+    style SYS fill:#C8E6C9
+```
+
+https://mermaid.ai/app/projects/b80df21c-a4f9-43a9-9343-4e6854ac7b46/diagrams/f91931aa-51c7-4f3a-8467-8b6eb0992953/version/v0.1/edit
