@@ -151,6 +151,7 @@ export function ShareLinkViewerPage() {
   // Document-specific state and handlers
   const PREVIEWABLE_TYPES = ['image', 'pdf', 'document'];
   const isPreviewable = viewData && PREVIEWABLE_TYPES.includes(viewData.type);
+  const canDownload = Boolean(viewData?.link_settings?.allow_download);
 
   const documentIdFromUrl = searchParams.get('document_id');
   let downloadUrl = `/api/v1/links/${slug}/download-file/`;
@@ -185,11 +186,22 @@ export function ShareLinkViewerPage() {
               This type of file is not available for online preview. Download the file and open it
               on your device.
             </p>
-            <Button asChild size="lg" className="w-full">
-              <a href={downloadUrl} download={viewData.name}>
-                Download
-              </a>
-            </Button>
+            {canDownload ? (
+              <Button asChild size="lg" className="w-full">
+                <a href={downloadUrl} download={viewData.name}>
+                  Download
+                </a>
+              </Button>
+            ) : (
+              <>
+                <Button size="lg" className="w-full" disabled>
+                  Download
+                </Button>
+                <p className="mt-2 text-sm text-gray-500">
+                  Download is disabled for this document by the link permissions.
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>
