@@ -6,23 +6,28 @@ on:
 
 jobs:
   tag-and-push-docker-image:
-    name: Tag and Push Docker Image
+    name: Build and Push Release Docker Image
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Pull, Re-tag, and Push Docker Image
+      - name: Build and Push Release Image
         env:
-          # Extracts the version number from the git tag (e.g., v1.0.0 -> 1.0.0)
           VERSION: ${{ github.event.release.tag_name }}
         run: |
           CLEAN_VERSION=$(echo $VERSION | sed 's/^v//')
-          docker pull conesharedev/coneshare:rolling
-          docker tag conesharedev/coneshare:rolling conesharedev/coneshare:$CLEAN_VERSION
+          SHORT_SHA=$(git rev-parse --short=10 HEAD)
+          make dist APP_VERSION=$CLEAN_VERSION GIT_SHA=$SHORT_SHA
+          docker tag coneshare:latest conesharedev/coneshare:$CLEAN_VERSION
           docker push conesharedev/coneshare:$CLEAN_VERSION
 
   update-compose-repository:

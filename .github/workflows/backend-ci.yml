@@ -87,7 +87,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build Docker images
-        run: make dist
+        run: make dist APP_VERSION=rolling GIT_SHA=${GITHUB_SHA}
 
       - name: Tag image
         run: docker tag coneshare:latest conesharedev/coneshare:rolling
