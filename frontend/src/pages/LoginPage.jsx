@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { authService } from '../services/authService'
+import { APP_DISPLAY_VERSION } from '../lib/constants'
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -84,6 +85,11 @@ function LoginPage() {
             </button>
           </div>
         </form>
+        {APP_DISPLAY_VERSION && (
+          <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+            {`v${APP_DISPLAY_VERSION}`}
+          </p>
+        )}
       </div>
     </div>
   )

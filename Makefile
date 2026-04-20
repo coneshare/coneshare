@@ -1,5 +1,8 @@
 .DEFAULT_GOAL := help
 
+APP_VERSION ?= dev
+GIT_SHA ?= $(shell git rev-parse --short=10 HEAD 2>/dev/null || echo unknown)
+
 # ====================================================================================
 # HELPERS
 # ====================================================================================
@@ -49,7 +52,10 @@ dist:
 	@echo "--> Building core service image..."
 	docker build -t coneshare-core:latest -f core/Dockerfile ./core
 	@echo "--> Building frontend assets image..."
-	docker build -t coneshare-frontend:latest -f frontend/Dockerfile ./frontend
+	docker build \
+		--build-arg VITE_APP_VERSION=$(APP_VERSION) \
+		--build-arg VITE_GIT_SHA=$(GIT_SHA) \
+		-t coneshare-frontend:latest -f frontend/Dockerfile ./frontend
 	@echo "--> Building final coneshare image..."
 	docker build -t coneshare:latest -f backend/Dockerfile ./backend
 

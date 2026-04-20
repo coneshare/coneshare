@@ -5,6 +5,7 @@ import NavUser from "./NavUser";
 import { useSidebar } from "./SidebarProvider";
 import { formatBytes } from "../../lib/formatters";
 import { useUser } from "../../contexts/UserProvider";
+import { APP_DISPLAY_VERSION } from "../../lib/constants";
 
 function SidebarFooter() {
   const { isCollapsed } = useSidebar();
@@ -40,6 +41,11 @@ function SidebarFooter() {
             )}
           </div>
           <Progress value={usagePercentage} className="h-2" />
+        </div>
+      )}
+      {APP_DISPLAY_VERSION && (
+        <div className={cn("px-2 text-xs text-gray-500 dark:text-gray-400", isCollapsed && "hidden")}>
+          {`v${APP_DISPLAY_VERSION}`}
         </div>
       )}
       <NavUser />
