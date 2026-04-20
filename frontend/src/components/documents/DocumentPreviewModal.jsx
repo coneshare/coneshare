@@ -66,7 +66,13 @@ export function DocumentPreviewModal({ documentId, isOpen, onOpenChange }) {
             </div>
           )}
           {error && <p className="text-center text-red-500">{error}</p>}
-          {documentData && <PreviewViewer documentData={documentData} />}
+          {documentData && (
+            <PreviewViewer
+              documentData={documentData}
+              zoomLevel={1}
+              onPageChange={() => null}
+            />
+          )}
         </div>
       </DialogContent>
     </Dialog>
