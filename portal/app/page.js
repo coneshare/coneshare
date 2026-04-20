@@ -7,6 +7,7 @@ const workflowImages = [
   { src: '/screenshots/feat-sharing.png', alt: 'Screenshot of creating a secure share link' },
   { src: '/screenshots/feat-watermark.png', alt: 'Screenshot of dynamic watermarking' },
   { src: '/screenshots/feat-analytics.png', alt: 'Screenshot of document analytics and viewer insights' },
+  { src: '/screenshots/feat-automations.png', alt: 'Screenshot of document activities automations' },
 ];
 
 export default function HomePage() {

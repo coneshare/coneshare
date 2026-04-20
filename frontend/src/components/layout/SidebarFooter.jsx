@@ -45,7 +45,7 @@ function SidebarFooter() {
       )}
       {APP_DISPLAY_VERSION && (
         <div className={cn("px-2 text-xs text-gray-500 dark:text-gray-400", isCollapsed && "hidden")}>
-          {`v${APP_DISPLAY_VERSION}`}
+          {`ver-${APP_DISPLAY_VERSION}`}
         </div>
       )}
       <NavUser />

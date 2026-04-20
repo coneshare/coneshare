@@ -87,7 +87,7 @@ function LoginPage() {
         </form>
         {APP_DISPLAY_VERSION && (
           <p className="text-center text-xs text-gray-500 dark:text-gray-400">
-            {`v${APP_DISPLAY_VERSION}`}
+            {`ver-${APP_DISPLAY_VERSION}`}
           </p>
         )}
       </div>
