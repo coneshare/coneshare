@@ -1,5 +1,15 @@
 # Changelog
 
+
+## [1.2.1](https://github.com/coneshare/coneshare/compare/v1.2.0...v1.2.1) (2026-04-20)
+
+
+### Bug Fixes
+
+* **frontend:** disable non-preview download when link forbids it ([e0e2f88](https://github.com/coneshare/coneshare/commit/e0e2f8882e5cbe0eb293ff2134c88302d822f1df))
+* **frontend:** pass required props to document preview modal viewer ([24370bc](https://github.com/coneshare/coneshare/commit/24370bc68ccb4ac4d85bfcb8a65f3127eccc8076))
+
+
 ## [1.2.0](https://github.com/coneshare/coneshare/compare/v1.1.3...v1.2.0) (2026-04-16)
 
 
