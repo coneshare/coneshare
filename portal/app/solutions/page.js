@@ -1,15 +1,37 @@
 import Link from 'next/link';
 import { solutions } from '../../lib/content';
 
+const SITE_URL = 'https://www.coneshare.com';
+
 export const metadata = {
   title: 'Use Cases | Coneshare',
   description: 'See how founders and revenue teams use self-hosted Coneshare for investor awareness, engagement visibility, and timely follow-ups.',
+  keywords: [
+    'self-hosted document automation use cases',
+    'dataroom activity use cases',
+    'investor awareness workflow',
+    'sales follow-up automation',
+    'deal visibility workflow',
+  ],
   alternates: {
     canonical: '/solutions',
   },
 };
 
 export default function SolutionsPage() {
+  const useCaseListJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Coneshare Use Cases',
+    itemListElement: solutions.map((solution, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      url: `${SITE_URL}/solutions/${solution.slug}`,
+      name: solution.name,
+      description: solution.description,
+    })),
+  };
+
   return (
     <div className="bg-gray-50 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -79,6 +101,10 @@ export default function SolutionsPage() {
             </div>
           </div>
         </div>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(useCaseListJsonLd) }}
+        />
       </div>
   );
 }
