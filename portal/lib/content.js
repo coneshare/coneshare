@@ -159,6 +159,9 @@ export const solutions = [
     trigger: 'An investor views, revisits, or downloads a pitch deck or dataroom file.',
     action: 'Coneshare sends event signals to Slack or webhook destinations so founders and advisors can coordinate immediately.',
     outcome: 'Faster, better-timed follow-ups and more prepared investor conversations.',
+    bestFor: 'Founders and fundraising teams',
+    primarySignal: 'Deck open/revisit/download events',
+    successMetric: 'Faster investor follow-up response time',
     selfHostedWhy: 'Investor materials stay inside your own infrastructure throughout sharing, tracking, and automation.',
     workflowSteps: [
       'Share pitch deck or dataroom link with secure controls.',
@@ -194,6 +197,9 @@ export const solutions = [
     trigger: 'Prospects repeatedly view, download, or re-open specific files and dataroom sections.',
     action: 'Coneshare turns these activity events into actionable signals delivered to internal systems.',
     outcome: 'Sales and deal teams focus attention on accounts showing clear engagement momentum.',
+    bestFor: 'Sales ops and deal teams',
+    primarySignal: 'Repeated view/download activity',
+    successMetric: 'Higher conversion on high-intent accounts',
     selfHostedWhy: 'Sensitive engagement data remains in your environment, not in third-party multi-tenant analytics pipelines.',
     workflowSteps: [
       'Share proposals, decks, or dataroom content.',
@@ -229,6 +235,9 @@ export const solutions = [
     trigger: 'A prospect opens a proposal, revisits a deck, or enters a shared dataroom.',
     action: 'Coneshare automatically notifies account owners, managers, and support teams through shared channels.',
     outcome: 'The whole team stays aligned without manual status updates.',
+    bestFor: 'Revenue and account teams',
+    primarySignal: 'Proposal/dataroom access events',
+    successMetric: 'Shorter internal handoff and response cycles',
     selfHostedWhy: 'Internal deal activity can be shared across your teams while still remaining inside your infrastructure boundary.',
     workflowSteps: [
       'Sales shares proposal or dataroom link.',
@@ -264,6 +273,9 @@ export const solutions = [
     trigger: 'A prospect hits a meaningful event such as first open, repeat view, or download.',
     action: 'Coneshare triggers the follow-up workflow and routes it to the right destination instantly.',
     outcome: 'Outreach happens at peak interest, improving conversion likelihood.',
+    bestFor: 'Outbound and closing reps',
+    primarySignal: 'High-intent engagement event triggers',
+    successMetric: 'Improved follow-up timing and reply rate',
     selfHostedWhy: 'Follow-up automation can integrate with internal systems while preserving data sovereignty.',
     workflowSteps: [
       'Define event conditions for follow-up timing.',
@@ -299,6 +311,9 @@ export const solutions = [
     trigger: 'Buyers engage unevenly across dataroom folders, key files, and repeated document sections.',
     action: 'Coneshare captures these signals and shares them as pre-call context for the internal deal team.',
     outcome: 'Conversations become more relevant, evidence-based, and aligned with buyer interest.',
+    bestFor: 'Dataroom and transaction teams',
+    primarySignal: 'Buyer behavior across dataroom/file tree',
+    successMetric: 'Higher quality deal conversations',
     selfHostedWhy: 'Deal activity telemetry remains private and controlled, which is critical for sensitive transactions.',
     workflowSteps: [
       'Buyer accesses shared dataroom and documents.',

@@ -32,6 +32,14 @@ export default function SolutionsPage() {
                   </dt>
                   <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-gray-600">
                     <p className="flex-auto">{solution.description}</p>
+                    <div className="mt-4 space-y-2 text-sm leading-6 text-gray-600">
+                      {solution.bestFor && (
+                        <p><span className="font-semibold text-gray-800">Best for:</span> {solution.bestFor}</p>
+                      )}
+                      {solution.primarySignal && (
+                        <p><span className="font-semibold text-gray-800">Primary signal:</span> {solution.primarySignal}</p>
+                      )}
+                    </div>
                     <p className="mt-6">
                         <Link href={`/solutions/${solution.slug}`} className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
                             Learn more <span aria-hidden="true">→</span>

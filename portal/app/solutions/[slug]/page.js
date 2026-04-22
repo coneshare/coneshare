@@ -56,6 +56,33 @@ export default async function SolutionDetailPage({ params }) {
           <blockquote className="mt-6 border-l-4 border-gray-200 pl-4 italic text-gray-600">
             "{solution.quote}"
           </blockquote>
+
+          {(solution.bestFor || solution.primarySignal || solution.successMetric) && (
+            <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-6">
+              <h2 className="text-lg font-bold tracking-tight text-gray-900">Use Case Fit</h2>
+              <dl className="mt-4 space-y-3 text-sm leading-6 text-gray-700">
+                {solution.bestFor && (
+                  <div>
+                    <dt className="font-semibold text-gray-800">Best for</dt>
+                    <dd>{solution.bestFor}</dd>
+                  </div>
+                )}
+                {solution.primarySignal && (
+                  <div>
+                    <dt className="font-semibold text-gray-800">Primary signal</dt>
+                    <dd>{solution.primarySignal}</dd>
+                  </div>
+                )}
+                {solution.successMetric && (
+                  <div>
+                    <dt className="font-semibold text-gray-800">Success metric</dt>
+                    <dd>{solution.successMetric}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+
           <div className="mt-10 prose prose-lg text-gray-600">
             {solution.content}
           </div>
