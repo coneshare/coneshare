@@ -7,6 +7,10 @@ export const features = [
     name: 'Secure Document & Dataroom Sharing',
     menuName: 'Secure Sharing',
     description: 'Share sensitive documents with confidence using secure links, granular access controls, and dataroom-level permissions.',
+    bestFor: 'Founders, legal teams, and deal teams sharing sensitive files',
+    primarySignal: 'Verified access and controlled recipient actions',
+    businessOutcome: 'Protect sensitive materials without slowing deal flow',
+    relatedSolutionSlugs: ['secure-fundraising', 'deal-visibility'],
     icon: ShieldCheck,
     content: (
       <div>
@@ -25,6 +29,10 @@ export const features = [
     name: 'Engagement Awareness',
     menuName: 'Engagement Awareness',
     description: 'Understand how prospects interact with your content through real-time and page-level activity insights.',
+    bestFor: 'Revenue teams and founders prioritizing high-intent follow-ups',
+    primarySignal: 'Real-time views, revisits, downloads, and page-level behavior',
+    businessOutcome: 'Prioritize outreach using actual engagement context',
+    relatedSolutionSlugs: ['engagement-visibility', 'timely-follow-ups'],
     icon: LineChart,
     content: (
        <div>
@@ -43,6 +51,10 @@ export const features = [
     name: 'Dynamic Watermarking',
     menuName: 'Dynamic Watermarking',
     description: 'Prevent unauthorized sharing and protect intellectual property with dynamic watermarks that are applied on the fly.',
+    bestFor: 'Security-conscious organizations sharing confidential documents',
+    primarySignal: 'Viewer-specific watermark identity on preview and download',
+    businessOutcome: 'Deter leaks and improve traceability of shared files',
+    relatedSolutionSlugs: ['secure-fundraising', 'deal-visibility'],
     icon: Droplets,
     content: (
       <div>
@@ -61,6 +73,10 @@ export const features = [
     name: 'Virtual Data Rooms (VDRs)',
     menuName: 'Virtual Data Rooms',
     description: 'Organize, manage, and share collections of documents and folders in a secure, structured environment.',
+    bestFor: 'Transaction, fundraising, and diligence workflows',
+    primarySignal: 'Activity across dataroom folders and shared files',
+    businessOutcome: 'Run organized, secure deal processes with better visibility',
+    relatedSolutionSlugs: ['deal-visibility', 'secure-fundraising'],
     icon: Folders,
     content: (
       <div>
@@ -79,6 +95,10 @@ export const features = [
     name: 'Cloud Storage Integration',
     menuName: 'Cloud Integration',
     description: 'Seamlessly import files from your existing cloud storage like Dropbox, Google Drive, and Nextcloud.',
+    bestFor: 'Teams centralizing files from mixed cloud environments',
+    primarySignal: 'Imported file activity becomes trackable in Coneshare',
+    businessOutcome: 'Reduce migration friction and speed up secure sharing rollout',
+    relatedSolutionSlugs: ['team-awareness', 'engagement-visibility'],
     icon: Cloud,
     content: (
       <div>
@@ -97,6 +117,10 @@ export const features = [
     name: 'Workflow Automation & Integrations',
     menuName: 'Automation & Integrations',
     description: 'Trigger workflows from document events and send activity to Slack, webhooks, and internal systems in real time.',
+    bestFor: 'Revenue operations and teams running signal-based workflows',
+    primarySignal: 'Document and dataroom event triggers routed to destinations',
+    businessOutcome: 'Turn engagement events into immediate coordinated action',
+    relatedSolutionSlugs: ['timely-follow-ups', 'team-awareness'],
     icon: Workflow,
     content: (
        <div>
@@ -116,6 +140,10 @@ export const features = [
     name: 'File Requests',
     menuName: 'File Requests',
     description: 'Securely request and receive files from anyone, directly into a designated folder, without requiring them to have an account.',
+    bestFor: 'Teams collecting documents from external partners or clients',
+    primarySignal: 'Uploader identity and submission activity linked to each file',
+    businessOutcome: 'Collect inbound files faster with clear submission context',
+    relatedSolutionSlugs: ['team-awareness', 'deal-visibility'],
     icon: UploadCloud,
     content: (
       <div>
@@ -134,6 +162,10 @@ export const features = [
     name: 'Self-Hosted & Enterprise-Ready',
     menuName: 'Self-Hosting',
     description: 'Built for security-conscious organizations, Coneshare runs entirely on your own infrastructure, giving you total data sovereignty.',
+    bestFor: 'Organizations with strict data residency and compliance requirements',
+    primarySignal: 'All sharing and event telemetry stays within your infrastructure',
+    businessOutcome: 'Adopt modern document workflows without losing data control',
+    relatedSolutionSlugs: ['secure-fundraising', 'engagement-visibility'],
     icon: HardDrive,
     content: (
       <div>
