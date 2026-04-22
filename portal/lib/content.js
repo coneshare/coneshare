@@ -162,6 +162,8 @@ export const solutions = [
     bestFor: 'Founders and fundraising teams',
     primarySignal: 'Deck open/revisit/download events',
     successMetric: 'Faster investor follow-up response time',
+    keywords: ['investor deck tracking', 'fundraising engagement alerts', 'pitch deck view notifications'],
+    relatedSlugs: ['timely-follow-ups', 'deal-visibility'],
     selfHostedWhy: 'Investor materials stay inside your own infrastructure throughout sharing, tracking, and automation.',
     workflowSteps: [
       'Share pitch deck or dataroom link with secure controls.',
@@ -200,6 +202,8 @@ export const solutions = [
     bestFor: 'Sales ops and deal teams',
     primarySignal: 'Repeated view/download activity',
     successMetric: 'Higher conversion on high-intent accounts',
+    keywords: ['document engagement visibility', 'proposal activity tracking', 'high-intent account signals'],
+    relatedSlugs: ['team-awareness', 'deal-visibility'],
     selfHostedWhy: 'Sensitive engagement data remains in your environment, not in third-party multi-tenant analytics pipelines.',
     workflowSteps: [
       'Share proposals, decks, or dataroom content.',
@@ -238,6 +242,8 @@ export const solutions = [
     bestFor: 'Revenue and account teams',
     primarySignal: 'Proposal/dataroom access events',
     successMetric: 'Shorter internal handoff and response cycles',
+    keywords: ['sales team alerts', 'proposal open notifications', 'team workflow automation'],
+    relatedSlugs: ['engagement-visibility', 'timely-follow-ups'],
     selfHostedWhy: 'Internal deal activity can be shared across your teams while still remaining inside your infrastructure boundary.',
     workflowSteps: [
       'Sales shares proposal or dataroom link.',
@@ -276,6 +282,8 @@ export const solutions = [
     bestFor: 'Outbound and closing reps',
     primarySignal: 'High-intent engagement event triggers',
     successMetric: 'Improved follow-up timing and reply rate',
+    keywords: ['timely follow-up automation', 'document event triggers', 'sales follow-up timing'],
+    relatedSlugs: ['team-awareness', 'secure-fundraising'],
     selfHostedWhy: 'Follow-up automation can integrate with internal systems while preserving data sovereignty.',
     workflowSteps: [
       'Define event conditions for follow-up timing.',
@@ -314,6 +322,8 @@ export const solutions = [
     bestFor: 'Dataroom and transaction teams',
     primarySignal: 'Buyer behavior across dataroom/file tree',
     successMetric: 'Higher quality deal conversations',
+    keywords: ['dataroom deal visibility', 'buyer behavior tracking', 'dataroom activity insights'],
+    relatedSlugs: ['engagement-visibility', 'secure-fundraising'],
     selfHostedWhy: 'Deal activity telemetry remains private and controlled, which is critical for sensitive transactions.',
     workflowSteps: [
       'Buyer accesses shared dataroom and documents.',

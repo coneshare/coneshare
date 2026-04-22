@@ -39,6 +39,9 @@ export default function SolutionsPage() {
                       {solution.primarySignal && (
                         <p><span className="font-semibold text-gray-800">Primary signal:</span> {solution.primarySignal}</p>
                       )}
+                      {solution.successMetric && (
+                        <p><span className="font-semibold text-gray-800">Success metric:</span> {solution.successMetric}</p>
+                      )}
                     </div>
                     <p className="mt-6">
                         <Link href={`/solutions/${solution.slug}`} className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">

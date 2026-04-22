@@ -17,6 +17,7 @@ export async function generateMetadata({ params }) {
   return {
     title: `${solution.name} | Self-Hosted Use Case | Coneshare`,
     description: `${solution.description} Self-hosted workflow for document and dataroom activity automation.`,
+    keywords: solution.keywords || [],
     alternates: {
       canonical: `/solutions/${solution.slug}`,
     },
@@ -33,6 +34,7 @@ export default async function SolutionDetailPage({ params }) {
   const { slug } = await params;
 
   const solution = solutions.find((s) => s.slug === slug);
+  const relatedUseCases = solutions.filter((s) => (solution?.relatedSlugs || []).includes(s.slug));
 
   if (!solution) {
     notFound();
@@ -185,6 +187,24 @@ export default async function SolutionDetailPage({ params }) {
               </Link>
             </div>
           </div>
+
+          {relatedUseCases.length > 0 && (
+            <div className="mt-10 rounded-2xl border border-gray-200 bg-white px-8 py-8">
+              <h2 className="text-xl font-bold tracking-tight text-gray-900">Related Use Cases</h2>
+              <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {relatedUseCases.map((item) => (
+                  <Link
+                    key={item.slug}
+                    href={`/solutions/${item.slug}`}
+                    className="rounded-lg border border-gray-200 px-4 py-4 hover:border-gray-300"
+                  >
+                    <p className="text-sm font-semibold text-gray-900">{item.name}</p>
+                    <p className="mt-2 text-sm text-gray-600">{item.description}</p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
