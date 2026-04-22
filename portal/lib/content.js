@@ -171,6 +171,7 @@ export const solutions = [
       alt: 'Investor engagement notification example',
       caption: 'Real-time investor activity notifications trigger coordinated follow-ups.',
     },
+    docsUrl: 'https://docs.coneshare.com/en/',
     content: (
       <div>
         <h3 className="text-xl font-semibold mb-4">Problem</h3>
@@ -205,6 +206,7 @@ export const solutions = [
       alt: 'Engagement analytics view with document activity',
       caption: 'Page-level analytics and event activity provide better account prioritization.',
     },
+    docsUrl: 'https://docs.coneshare.com/en/',
     content: (
       <div>
         <h3 className="text-xl font-semibold mb-4">Problem</h3>
@@ -239,6 +241,7 @@ export const solutions = [
       alt: 'Automation rules configured for team alerts',
       caption: 'Automation rules keep account teams aligned from the first engagement signal.',
     },
+    docsUrl: 'https://docs.coneshare.com/en/',
     content: (
       <div>
         <h3 className="text-xl font-semibold mb-4">Problem</h3>
@@ -273,6 +276,7 @@ export const solutions = [
       alt: 'Automation delivery logs with retry and replay',
       caption: 'Delivery logs, retry, and replay keep follow-up automations dependable.',
     },
+    docsUrl: 'https://docs.coneshare.com/en/',
     content: (
       <div>
         <h3 className="text-xl font-semibold mb-4">Problem</h3>
@@ -307,6 +311,7 @@ export const solutions = [
       alt: 'Dataroom management and engagement context',
       caption: 'Dataroom activity and document interaction signals improve pre-call readiness.',
     },
+    docsUrl: 'https://docs.coneshare.com/en/',
     content: (
       <div>
         <h3 className="text-xl font-semibold mb-4">Problem</h3>

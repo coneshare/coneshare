@@ -3,7 +3,7 @@ import { solutions } from '../../lib/content';
 
 export const metadata = {
   title: 'Use Cases | Coneshare',
-  description: 'See how founders and revenue teams use Coneshare for investor awareness, engagement visibility, and timely follow-ups.',
+  description: 'See how founders and revenue teams use self-hosted Coneshare for investor awareness, engagement visibility, and timely follow-ups.',
   alternates: {
     canonical: '/solutions',
   },
@@ -41,6 +41,12 @@ export default function SolutionsPage() {
                 </div>
               ))}
             </dl>
+          </div>
+          <div className="mx-auto mt-12 max-w-4xl rounded-2xl bg-gray-900 px-8 py-8 text-white">
+            <p className="text-sm font-semibold uppercase tracking-wide text-gray-300">Why Self-Hosted Matters</p>
+            <p className="mt-3 text-base leading-7 text-gray-100">
+              Coneshare keeps document sharing, engagement analytics, and automation events inside your own infrastructure, giving security-conscious teams stronger data control and integration flexibility.
+            </p>
           </div>
           <div className="mx-auto mt-16 max-w-3xl rounded-2xl border border-gray-200 bg-white px-8 py-10 text-center sm:mt-20">
             <h3 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">

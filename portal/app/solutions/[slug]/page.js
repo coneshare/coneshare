@@ -143,10 +143,18 @@ export default async function SolutionDetailPage({ params }) {
                 See automation in action
               </Link>
               <Link
-                href="/features"
+                href={solution.docsUrl || 'https://docs.coneshare.com/en/'}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-sm font-semibold text-gray-900 hover:text-gray-700"
               >
-                Explore features <span aria-hidden="true">→</span>
+                Read setup docs <span aria-hidden="true">→</span>
+              </Link>
+              <Link
+                href="/features/self-hosted"
+                className="text-sm font-semibold text-gray-900 hover:text-gray-700"
+              >
+                Why self-hosted <span aria-hidden="true">→</span>
               </Link>
             </div>
           </div>

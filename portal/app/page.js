@@ -11,6 +11,8 @@ const workflowImages = [
 ];
 
 export default function HomePage() {
+  const primaryUseCases = solutions.slice(0, 3);
+
   return (
     <>
       {/* Hero Section */}
@@ -107,7 +109,7 @@ export default function HomePage() {
           </div>
           <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-5xl">
             <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-16 lg:max-w-none lg:grid-cols-3">
-              {solutions.map((solution) => (
+              {primaryUseCases.map((solution) => (
                 <div key={solution.slug} className="flex flex-col">
                   <dt className="flex items-center gap-x-3 text-base font-semibold leading-7 text-gray-900">
                     <solution.icon className="h-5 w-5 flex-none text-gray-900" aria-hidden="true" />
@@ -125,6 +127,11 @@ export default function HomePage() {
                 </div>
               ))}
             </dl>
+            <div className="mt-10 text-center">
+              <Link href="/solutions" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
+                See all use cases <span aria-hidden="true">→</span>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
