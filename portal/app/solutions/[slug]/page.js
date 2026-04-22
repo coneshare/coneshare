@@ -15,14 +15,14 @@ export async function generateMetadata({ params }) {
   }
 
   return {
-    title: `${solution.name} | Coneshare Use Cases`,
-    description: solution.description,
+    title: `${solution.name} | Self-Hosted Use Case | Coneshare`,
+    description: `${solution.description} Self-hosted workflow for document and dataroom activity automation.`,
     alternates: {
       canonical: `/solutions/${solution.slug}`,
     },
     openGraph: {
       title: `${solution.name} | Coneshare Use Cases`,
-      description: solution.description,
+      description: `${solution.description} Built for self-hosted document and dataroom workflows.`,
       url: `https://www.coneshare.com/solutions/${solution.slug}`,
       type: 'article',
     },
