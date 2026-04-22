@@ -11,6 +11,12 @@ export const features = [
     primarySignal: 'Verified access and controlled recipient actions',
     businessOutcome: 'Protect sensitive materials without slowing deal flow',
     relatedSolutionSlugs: ['secure-fundraising', 'deal-visibility'],
+    workflowSteps: [
+      'Set password, verification, and expiration controls on shared links.',
+      'Share deck or dataroom content with external recipients.',
+      'Recipients access only what their permission scope allows.',
+      'Team updates files without breaking active share links.',
+    ],
     icon: ShieldCheck,
     content: (
       <div>
@@ -33,6 +39,12 @@ export const features = [
     primarySignal: 'Real-time views, revisits, downloads, and page-level behavior',
     businessOutcome: 'Prioritize outreach using actual engagement context',
     relatedSolutionSlugs: ['engagement-visibility', 'timely-follow-ups'],
+    workflowSteps: [
+      'Share proposal, deck, or dataroom link with target accounts.',
+      'Coneshare captures event-level activity in real time.',
+      'Team reviews page-level engagement to identify intent.',
+      'Reps prioritize follow-ups using engagement depth signals.',
+    ],
     icon: LineChart,
     content: (
        <div>
@@ -55,6 +67,12 @@ export const features = [
     primarySignal: 'Viewer-specific watermark identity on preview and download',
     businessOutcome: 'Deter leaks and improve traceability of shared files',
     relatedSolutionSlugs: ['secure-fundraising', 'deal-visibility'],
+    workflowSteps: [
+      'Configure watermark templates with viewer identity fields.',
+      'Apply watermarking controls to shared documents.',
+      'Recipients view or download content with embedded identity markers.',
+      'Teams can trace suspected leaks back to the access source.',
+    ],
     icon: Droplets,
     content: (
       <div>
@@ -77,6 +95,12 @@ export const features = [
     primarySignal: 'Activity across dataroom folders and shared files',
     businessOutcome: 'Run organized, secure deal processes with better visibility',
     relatedSolutionSlugs: ['deal-visibility', 'secure-fundraising'],
+    workflowSteps: [
+      'Create dataroom structure and organize files by diligence stage.',
+      'Apply folder and file-level controls for each share link.',
+      'Track buyer activity across room sections and key files.',
+      'Adjust next interactions using dataroom engagement context.',
+    ],
     icon: Folders,
     content: (
       <div>
@@ -99,6 +123,12 @@ export const features = [
     primarySignal: 'Imported file activity becomes trackable in Coneshare',
     businessOutcome: 'Reduce migration friction and speed up secure sharing rollout',
     relatedSolutionSlugs: ['team-awareness', 'engagement-visibility'],
+    workflowSteps: [
+      'Connect Dropbox, Google Drive, or Nextcloud accounts.',
+      'Select files and launch asynchronous imports.',
+      'Imported files become available for secure sharing workflows.',
+      'Teams track downstream engagement from a single platform.',
+    ],
     icon: Cloud,
     content: (
       <div>
@@ -121,6 +151,12 @@ export const features = [
     primarySignal: 'Document and dataroom event triggers routed to destinations',
     businessOutcome: 'Turn engagement events into immediate coordinated action',
     relatedSolutionSlugs: ['timely-follow-ups', 'team-awareness'],
+    workflowSteps: [
+      'Define event triggers and destination mappings.',
+      'Coneshare emits engagement events in real time.',
+      'Slack or webhook destinations receive actionable payloads.',
+      'Teams execute follow-up playbooks with minimal delay.',
+    ],
     icon: Workflow,
     content: (
        <div>
@@ -144,6 +180,12 @@ export const features = [
     primarySignal: 'Uploader identity and submission activity linked to each file',
     businessOutcome: 'Collect inbound files faster with clear submission context',
     relatedSolutionSlugs: ['team-awareness', 'deal-visibility'],
+    workflowSteps: [
+      'Create a file request link for the target folder.',
+      'External users upload files without creating accounts.',
+      'Coneshare captures uploader identity on each submission.',
+      'Team processes inbound files with clear provenance context.',
+    ],
     icon: UploadCloud,
     content: (
       <div>
@@ -166,6 +208,12 @@ export const features = [
     primarySignal: 'All sharing and event telemetry stays within your infrastructure',
     businessOutcome: 'Adopt modern document workflows without losing data control',
     relatedSolutionSlugs: ['secure-fundraising', 'engagement-visibility'],
+    workflowSteps: [
+      'Deploy the Coneshare stack in your own environment.',
+      'Configure storage, access controls, and integrations internally.',
+      'Run sharing, analytics, and automation inside your boundary.',
+      'Satisfy compliance and security requirements with full control.',
+    ],
     icon: HardDrive,
     content: (
       <div>

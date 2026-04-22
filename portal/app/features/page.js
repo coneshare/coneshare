@@ -1,15 +1,37 @@
 import Link from 'next/link';
 import { features } from '../../lib/content';
 
+const SITE_URL = 'https://www.coneshare.com';
+
 export const metadata = {
   title: 'Features | Coneshare',
   description: 'Explore Coneshare features for real-time document visibility, engagement awareness, and workflow automation.',
+  keywords: [
+    'secure document sharing features',
+    'dataroom security features',
+    'document engagement analytics',
+    'workflow automation features',
+    'self-hosted document platform',
+  ],
   alternates: {
     canonical: '/features',
   },
 };
 
 export default function FeaturesPage() {
+  const featureListJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Coneshare Features',
+    itemListElement: features.map((feature, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      url: `${SITE_URL}/features/${feature.slug}`,
+      name: feature.name,
+      description: feature.description,
+    })),
+  };
+
   return (
     <div className="bg-white py-24 sm:py-32">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -73,6 +95,10 @@ export default function FeaturesPage() {
           </div>
         </div>
       </div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(featureListJsonLd) }}
+      />
     </div>
   );
 }
