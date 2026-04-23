@@ -1,15 +1,37 @@
 import Link from 'next/link';
 import { features } from '../../lib/content';
 
+const SITE_URL = 'https://www.coneshare.com';
+
 export const metadata = {
   title: 'Features | Coneshare',
   description: 'Explore Coneshare features for real-time document visibility, engagement awareness, and workflow automation.',
+  keywords: [
+    'secure document sharing features',
+    'dataroom security features',
+    'document engagement analytics',
+    'workflow automation features',
+    'self-hosted document platform',
+  ],
   alternates: {
     canonical: '/features',
   },
 };
 
 export default function FeaturesPage() {
+  const featureListJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Coneshare Features',
+    itemListElement: features.map((feature, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      url: `${SITE_URL}/features/${feature.slug}`,
+      name: feature.name,
+      description: feature.description,
+    })),
+  };
+
   return (
     <div className="bg-white py-24 sm:py-32">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -25,18 +47,29 @@ export default function FeaturesPage() {
         <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-4xl">
           <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-10 lg:max-w-none lg:grid-cols-2 lg:gap-y-16">
             {features.map((feature) => (
-              <div key={feature.slug} className="relative pl-16">
+              <div key={feature.slug} className="relative rounded-lg border border-gray-200 bg-white p-8 pl-20 shadow-sm">
                 <dt className="text-base font-semibold leading-7 text-gray-900">
-                  <div className="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-lg bg-gray-900">
-                    <feature.icon className="h-6 w-6 text-white" aria-hidden="true" />
+                  <div className="absolute left-6 top-8 flex h-8 w-8 items-center justify-center rounded-lg bg-gray-900">
+                    <feature.icon className="h-4 w-4 text-white" aria-hidden="true" />
                   </div>
                   {feature.name}
                 </dt>
                 <dd className="mt-2 text-base leading-7 text-gray-600">{feature.description}</dd>
-                 <dd className="mt-4">
-                    <Link href={`/features/${feature.slug}`} className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
-                        Learn more <span aria-hidden="true">→</span>
-                    </Link>
+                <dd className="mt-4 space-y-2 text-sm leading-6 text-gray-600">
+                  {feature.bestFor && (
+                    <p><span className="font-semibold text-gray-800">Teams:</span> {feature.bestFor}</p>
+                  )}
+                  {feature.primarySignal && (
+                    <p><span className="font-semibold text-gray-800">What you’ll see:</span> {feature.primarySignal}</p>
+                  )}
+                  {feature.businessOutcome && (
+                    <p><span className="font-semibold text-gray-800">Why it matters:</span> {feature.businessOutcome}</p>
+                  )}
+                </dd>
+                <dd className="mt-6">
+                  <Link href={`/features/${feature.slug}`} className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
+                    Learn more <span aria-hidden="true">→</span>
+                  </Link>
                 </dd>
               </div>
             ))}
@@ -62,6 +95,10 @@ export default function FeaturesPage() {
           </div>
         </div>
       </div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(featureListJsonLd) }}
+      />
     </div>
   );
 }

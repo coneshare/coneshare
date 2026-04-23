@@ -1,15 +1,37 @@
 import Link from 'next/link';
 import { solutions } from '../../lib/content';
 
+const SITE_URL = 'https://www.coneshare.com';
+
 export const metadata = {
   title: 'Use Cases | Coneshare',
-  description: 'See how founders and revenue teams use Coneshare for investor awareness, engagement visibility, and timely follow-ups.',
+  description: 'See how founders and revenue teams use self-hosted Coneshare for investor awareness, engagement visibility, and timely follow-ups.',
+  keywords: [
+    'self-hosted document automation use cases',
+    'dataroom activity use cases',
+    'investor awareness workflow',
+    'sales follow-up automation',
+    'deal visibility workflow',
+  ],
   alternates: {
     canonical: '/solutions',
   },
 };
 
 export default function SolutionsPage() {
+  const useCaseListJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Coneshare Use Cases',
+    itemListElement: solutions.map((solution, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      url: `${SITE_URL}/solutions/${solution.slug}`,
+      name: solution.name,
+      description: solution.description,
+    })),
+  };
+
   return (
     <div className="bg-gray-50 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -32,6 +54,17 @@ export default function SolutionsPage() {
                   </dt>
                   <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-gray-600">
                     <p className="flex-auto">{solution.description}</p>
+                    <div className="mt-4 space-y-2 text-sm leading-6 text-gray-600">
+                      {solution.bestFor && (
+                        <p><span className="font-semibold text-gray-800">Teams:</span> {solution.bestFor}</p>
+                      )}
+                      {solution.primarySignal && (
+                        <p><span className="font-semibold text-gray-800">What you’ll see:</span> {solution.primarySignal}</p>
+                      )}
+                      {solution.successMetric && (
+                        <p><span className="font-semibold text-gray-800">Why it matters:</span> {solution.successMetric}</p>
+                      )}
+                    </div>
                     <p className="mt-6">
                         <Link href={`/solutions/${solution.slug}`} className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
                             Learn more <span aria-hidden="true">→</span>
@@ -62,6 +95,10 @@ export default function SolutionsPage() {
             </div>
           </div>
         </div>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(useCaseListJsonLd) }}
+        />
       </div>
   );
 }

@@ -1,4 +1,4 @@
-import { ShieldCheck, LineChart, Droplets, HardDrive, Folders, Cloud, UploadCloud, TrendingUp, Landmark, Target, Workflow } from 'lucide-react';
+import { ShieldCheck, LineChart, Droplets, HardDrive, Folders, Cloud, UploadCloud, TrendingUp, Landmark, Target, Workflow, Clock3 } from 'lucide-react';
 import Image from 'next/image';
 
 export const features = [
@@ -7,6 +7,16 @@ export const features = [
     name: 'Secure Document & Dataroom Sharing',
     menuName: 'Secure Sharing',
     description: 'Share sensitive documents with confidence using secure links, granular access controls, and dataroom-level permissions.',
+    bestFor: 'Founders, legal teams, and deal teams sharing sensitive files',
+    primarySignal: 'Verified access and controlled recipient actions',
+    businessOutcome: 'Protect sensitive materials without slowing deal flow',
+    relatedSolutionSlugs: ['secure-fundraising', 'deal-visibility'],
+    workflowSteps: [
+      'Set password, verification, and expiration controls on shared links.',
+      'Share deck or dataroom content with external recipients.',
+      'Recipients access only what their permission scope allows.',
+      'Team updates files without breaking active share links.',
+    ],
     icon: ShieldCheck,
     content: (
       <div>
@@ -25,6 +35,16 @@ export const features = [
     name: 'Engagement Awareness',
     menuName: 'Engagement Awareness',
     description: 'Understand how prospects interact with your content through real-time and page-level activity insights.',
+    bestFor: 'Revenue teams and founders prioritizing high-intent follow-ups',
+    primarySignal: 'Real-time views, revisits, downloads, and page-level behavior',
+    businessOutcome: 'Prioritize outreach using actual engagement context',
+    relatedSolutionSlugs: ['engagement-visibility', 'timely-follow-ups'],
+    workflowSteps: [
+      'Share proposal, deck, or dataroom link with target accounts.',
+      'Coneshare captures event-level activity in real time.',
+      'Team reviews page-level engagement to identify intent.',
+      'Reps prioritize follow-ups using engagement depth signals.',
+    ],
     icon: LineChart,
     content: (
        <div>
@@ -43,6 +63,16 @@ export const features = [
     name: 'Dynamic Watermarking',
     menuName: 'Dynamic Watermarking',
     description: 'Prevent unauthorized sharing and protect intellectual property with dynamic watermarks that are applied on the fly.',
+    bestFor: 'Security-conscious organizations sharing confidential documents',
+    primarySignal: 'Viewer-specific watermark identity on preview and download',
+    businessOutcome: 'Deter leaks and improve traceability of shared files',
+    relatedSolutionSlugs: ['secure-fundraising', 'deal-visibility'],
+    workflowSteps: [
+      'Configure watermark templates with viewer identity fields.',
+      'Apply watermarking controls to shared documents.',
+      'Recipients view or download content with embedded identity markers.',
+      'Teams can trace suspected leaks back to the access source.',
+    ],
     icon: Droplets,
     content: (
       <div>
@@ -61,6 +91,16 @@ export const features = [
     name: 'Virtual Data Rooms (VDRs)',
     menuName: 'Virtual Data Rooms',
     description: 'Organize, manage, and share collections of documents and folders in a secure, structured environment.',
+    bestFor: 'Transaction, fundraising, and diligence workflows',
+    primarySignal: 'Activity across dataroom folders and shared files',
+    businessOutcome: 'Run organized, secure deal processes with better visibility',
+    relatedSolutionSlugs: ['deal-visibility', 'secure-fundraising'],
+    workflowSteps: [
+      'Create dataroom structure and organize files by diligence stage.',
+      'Apply folder and file-level controls for each share link.',
+      'Track buyer activity across room sections and key files.',
+      'Adjust next interactions using dataroom engagement context.',
+    ],
     icon: Folders,
     content: (
       <div>
@@ -79,6 +119,16 @@ export const features = [
     name: 'Cloud Storage Integration',
     menuName: 'Cloud Integration',
     description: 'Seamlessly import files from your existing cloud storage like Dropbox, Google Drive, and Nextcloud.',
+    bestFor: 'Teams centralizing files from mixed cloud environments',
+    primarySignal: 'Imported file activity becomes trackable in Coneshare',
+    businessOutcome: 'Reduce migration friction and speed up secure sharing rollout',
+    relatedSolutionSlugs: ['team-awareness', 'engagement-visibility'],
+    workflowSteps: [
+      'Connect Dropbox, Google Drive, or Nextcloud accounts.',
+      'Select files and launch asynchronous imports.',
+      'Imported files become available for secure sharing workflows.',
+      'Teams track downstream engagement from a single platform.',
+    ],
     icon: Cloud,
     content: (
       <div>
@@ -97,6 +147,16 @@ export const features = [
     name: 'Workflow Automation & Integrations',
     menuName: 'Automation & Integrations',
     description: 'Trigger workflows from document events and send activity to Slack, webhooks, and internal systems in real time.',
+    bestFor: 'Revenue operations and teams running signal-based workflows',
+    primarySignal: 'Document and dataroom event triggers routed to destinations',
+    businessOutcome: 'Turn engagement events into immediate coordinated action',
+    relatedSolutionSlugs: ['timely-follow-ups', 'team-awareness'],
+    workflowSteps: [
+      'Define event triggers and destination mappings.',
+      'Coneshare emits engagement events in real time.',
+      'Slack or webhook destinations receive actionable payloads.',
+      'Teams execute follow-up playbooks with minimal delay.',
+    ],
     icon: Workflow,
     content: (
        <div>
@@ -116,6 +176,16 @@ export const features = [
     name: 'File Requests',
     menuName: 'File Requests',
     description: 'Securely request and receive files from anyone, directly into a designated folder, without requiring them to have an account.',
+    bestFor: 'Teams collecting documents from external partners or clients',
+    primarySignal: 'Uploader identity and submission activity linked to each file',
+    businessOutcome: 'Collect inbound files faster with clear submission context',
+    relatedSolutionSlugs: ['team-awareness', 'deal-visibility'],
+    workflowSteps: [
+      'Create a file request link for the target folder.',
+      'External users upload files without creating accounts.',
+      'Coneshare captures uploader identity on each submission.',
+      'Team processes inbound files with clear provenance context.',
+    ],
     icon: UploadCloud,
     content: (
       <div>
@@ -134,6 +204,16 @@ export const features = [
     name: 'Self-Hosted & Enterprise-Ready',
     menuName: 'Self-Hosting',
     description: 'Built for security-conscious organizations, Coneshare runs entirely on your own infrastructure, giving you total data sovereignty.',
+    bestFor: 'Organizations with strict data residency and compliance requirements',
+    primarySignal: 'All sharing and event telemetry stays within your infrastructure',
+    businessOutcome: 'Adopt modern document workflows without losing data control',
+    relatedSolutionSlugs: ['secure-fundraising', 'engagement-visibility'],
+    workflowSteps: [
+      'Deploy the Coneshare stack in your own environment.',
+      'Configure storage, access controls, and integrations internally.',
+      'Run sharing, analytics, and automation inside your boundary.',
+      'Satisfy compliance and security requirements with full control.',
+    ],
     icon: HardDrive,
     content: (
       <div>
@@ -152,47 +232,191 @@ export const solutions = [
     slug: 'secure-fundraising',
     name: 'Investor Awareness',
     menuName: 'Investor Awareness',
-    description: 'Never miss the moment an investor views your deck. Trigger instant team alerts and follow up while your pitch is top of mind.',
+    description: 'Never miss the moment an investor engages with your deck. Convert viewing signals into timely follow-up actions.',
     icon: TrendingUp,
     quote: "As a VC, the decks sent via a platform like Coneshare immediately stand out. It shows the founders are serious about security and gives us confidence.",
+    problem: 'Founders often learn investor interest too late, after the strongest engagement window has passed.',
+    trigger: 'An investor views, revisits, or downloads a pitch deck or dataroom file.',
+    action: 'Coneshare sends event signals to Slack or webhook destinations so founders and advisors can coordinate immediately.',
+    outcome: 'Faster, better-timed follow-ups and more prepared investor conversations.',
+    bestFor: 'Founders and fundraising teams',
+    primarySignal: 'Deck open/revisit/download events',
+    successMetric: 'Faster investor follow-up response time',
+    storyTags: ['Investor updates', 'Fundraising', 'SaaS', 'Deck engagement', 'Global'],
+    resultHighlights: [
+      { value: 'Real-time', label: 'investor activity visibility' },
+      { value: '<5 min', label: 'alert-to-follow-up coordination' },
+      { value: 'Higher', label: 'quality of investor conversations' },
+    ],
+    storySections: [
+      {
+        title: 'Missing the momentum window',
+        body: 'Investor intent is strongest right after a meaningful deck interaction, but many teams only notice engagement much later. By then, the context is stale and follow-up quality drops.',
+      },
+      {
+        title: 'Turning document events into team awareness',
+        body: 'Coneshare captures views, revisits, and downloads from pitch decks and dataroom files, then routes those signals to Slack and webhooks. Founders and advisors get the same context at the same time.',
+      },
+      {
+        title: 'Following up with better context',
+        body: 'With engagement signals and page-level context available before outreach, teams can lead with relevance instead of guesswork. The result is faster responses and stronger investor conversations.',
+      },
+      {
+        title: 'What changed operationally',
+        body: 'Instead of relying on manual updates and inbox forwarding, the fundraising motion runs on event-driven handoffs. Every key stakeholder sees the same signal and can act immediately.',
+      },
+    ],
+    keywords: ['investor deck tracking', 'fundraising engagement alerts', 'pitch deck view notifications'],
+    relatedSlugs: ['timely-follow-ups', 'deal-visibility'],
+    selfHostedWhy: 'Investor materials stay inside your own infrastructure throughout sharing, tracking, and automation.',
+    workflowSteps: [
+      'Share pitch deck or dataroom link with secure controls.',
+      'Investor activity event is captured in real time.',
+      'Slack/webhook automation notifies the internal team.',
+      'Founder follows up while engagement is still fresh.',
+    ],
+    proof: {
+      src: '/screenshots/feat-notification.png',
+      alt: 'Investor engagement notification example',
+      caption: 'Real-time investor activity notifications trigger coordinated follow-ups.',
+    },
+    docsUrl: 'https://docs.coneshare.com/en/',
     content: (
       <div>
-        <h3 className="text-xl font-semibold mb-4">Know Exactly When Investors Engage</h3>
-        <p className="mb-4">Get real-time visibility into pitch deck activity so founders can time outreach when attention is highest.</p>
-        <h3 className="text-xl font-semibold mb-4">Coordinate Follow-Ups with Confidence</h3>
-        <p>Send event signals to Slack or webhooks so investor updates are shared immediately with your team and advisors.</p>
+        <h3 className="text-xl font-semibold mb-4">Problem</h3>
+        <p className="mb-4">{'Founders often learn investor interest too late, after the strongest engagement window has passed.'}</p>
+        <h3 className="text-xl font-semibold mb-4">Trigger → Action</h3>
+        <p className="mb-4">{'When an investor views, revisits, or downloads key materials, Coneshare can alert your team instantly through Slack or webhooks.'}</p>
+        <h3 className="text-xl font-semibold mb-4">Outcome</h3>
+        <p>{'Move faster with better follow-up timing and stronger investor context before each conversation.'}</p>
       </div>
     )
   },
   {
-    slug: 'regulated-industries',
+    slug: 'engagement-visibility',
     name: 'Engagement Visibility',
     menuName: 'Engagement Visibility',
     description: 'Separate real prospects from noise by tracking views, downloads, and revisits across documents and datarooms.',
     icon: Landmark,
     quote: "Our law firm can't afford client data on a multi-tenant cloud service. Coneshare gives us modern VDR features with on-premise security.",
+    problem: 'Teams struggle to prioritize outreach when engagement intent is hidden across shared files.',
+    trigger: 'Prospects repeatedly view, download, or re-open specific files and dataroom sections.',
+    action: 'Coneshare turns these activity events into actionable signals delivered to internal systems.',
+    outcome: 'Sales and deal teams focus attention on accounts showing clear engagement momentum.',
+    bestFor: 'Sales ops and deal teams',
+    primarySignal: 'Repeated view/download activity',
+    successMetric: 'Higher conversion on high-intent accounts',
+    storyTags: ['Account prioritization', 'Revenue ops', 'SaaS', 'Engagement analytics', 'Global'],
+    resultHighlights: [
+      { value: 'Faster', label: 'account prioritization decisions' },
+      { value: 'Clearer', label: 'signal-to-noise separation' },
+      { value: 'Higher', label: 'focus on high-intent prospects' },
+    ],
+    storySections: [
+      {
+        title: 'When intent signals stay hidden',
+        body: 'Revenue teams often treat all pipeline accounts similarly because real engagement context is fragmented across documents, inboxes, and CRM notes. That slows prioritization and wastes outreach cycles.',
+      },
+      {
+        title: 'Capturing behavior that indicates intent',
+        body: 'Coneshare tracks repeated views, downloads, and revisit patterns across documents and dataroom content. Instead of relying on guesswork, teams can see where buying attention is actually concentrated.',
+      },
+      {
+        title: 'Routing signals into daily workflows',
+        body: 'Signals are delivered through Slack and webhooks so account owners, managers, and operations teams work from the same evidence. Prioritization can happen in real time, not at week-end review.',
+      },
+      {
+        title: 'Operating with confidence',
+        body: 'With consistent engagement visibility, teams spend less time debating pipeline quality and more time executing on opportunities that show clear momentum.',
+      },
+    ],
+    keywords: ['document engagement visibility', 'proposal activity tracking', 'high-intent account signals'],
+    relatedSlugs: ['team-awareness', 'deal-visibility'],
+    selfHostedWhy: 'Sensitive engagement data remains in your environment, not in third-party multi-tenant analytics pipelines.',
+    workflowSteps: [
+      'Share proposals, decks, or dataroom content.',
+      'Coneshare captures event-level engagement signals.',
+      'Signals are routed to Slack/webhooks and internal tooling.',
+      'Team prioritizes high-engagement accounts first.',
+    ],
+    proof: {
+      src: '/screenshots/feat-analytics.png',
+      alt: 'Engagement analytics view with document activity',
+      caption: 'Page-level analytics and event activity provide better account prioritization.',
+    },
+    docsUrl: 'https://docs.coneshare.com/en/',
     content: (
       <div>
-        <h3 className="text-xl font-semibold mb-4">Prioritize High-Engagement Accounts</h3>
-        <p className="mb-4">Use real-time event streams to focus team effort on prospects actively interacting with your materials.</p>
-        <h3 className="text-xl font-semibold mb-4">Push Signals into Internal Systems</h3>
-        <p>Route activity events through webhooks to your CRM or internal tooling so engagement data is visible where your team already works.</p>
+        <h3 className="text-xl font-semibold mb-4">Problem</h3>
+        <p className="mb-4">{'Teams struggle to prioritize outreach when engagement intent is hidden across shared files.'}</p>
+        <h3 className="text-xl font-semibold mb-4">Trigger → Action</h3>
+        <p className="mb-4">{'Coneshare detects repeated document activity and routes the signal to Slack/webhooks so internal systems reflect real engagement quickly.'}</p>
+        <h3 className="text-xl font-semibold mb-4">Outcome</h3>
+        <p>{'Spend less time guessing and more time on active opportunities.'}</p>
       </div>
     )
   },
   {
-    slug: 'sales-and-marketing',
+    slug: 'team-awareness',
     name: 'Team Awareness',
     menuName: 'Team Awareness',
     description: 'Keep your sales team in the loop instantly when prospects open proposals or enter datarooms.',
     icon: Target,
     quote: "Before Coneshare, we sent PDFs into the void. Now, our sales team can focus on prospects who are actually engaged with our materials.",
+    problem: 'Important buying signals are often trapped in one person’s inbox or discovered too late for coordinated action.',
+    trigger: 'A prospect opens a proposal, revisits a deck, or enters a shared dataroom.',
+    action: 'Coneshare automatically notifies account owners, managers, and support teams through shared channels.',
+    outcome: 'The whole team stays aligned without manual status updates.',
+    bestFor: 'Revenue and account teams',
+    primarySignal: 'Proposal/dataroom access events',
+    successMetric: 'Shorter internal handoff and response cycles',
+    storyTags: ['Team coordination', 'Revenue teams', 'Alerts', 'Shared context', 'Global'],
+    resultHighlights: [
+      { value: 'Shared', label: 'visibility across account stakeholders' },
+      { value: 'Shorter', label: 'handoff and response cycles' },
+      { value: 'Fewer', label: 'missed engagement moments' },
+    ],
+    storySections: [
+      {
+        title: 'Signals trapped in silos',
+        body: 'In many teams, prospect activity reaches one person first and everyone else learns too late. That creates uneven context and delays coordinated responses.',
+      },
+      {
+        title: 'Broadcasting engagement to the right people',
+        body: 'Coneshare automatically routes proposal and dataroom events to shared channels so account owners, managers, and supporting functions all receive the same signal.',
+      },
+      {
+        title: 'Coordinating next steps without status churn',
+        body: 'Because updates are event-driven, teams avoid manual check-ins and fragmented follow-up threads. Everyone can move with a common understanding of buyer activity.',
+      },
+      {
+        title: 'From isolated updates to team execution',
+        body: 'The motion shifts from individual awareness to collective action, improving internal alignment at exactly the moments where timing matters most.',
+      },
+    ],
+    keywords: ['sales team alerts', 'proposal open notifications', 'team workflow automation'],
+    relatedSlugs: ['engagement-visibility', 'timely-follow-ups'],
+    selfHostedWhy: 'Internal deal activity can be shared across your teams while still remaining inside your infrastructure boundary.',
+    workflowSteps: [
+      'Sales shares proposal or dataroom link.',
+      'Prospect activity event is generated instantly.',
+      'Coneshare distributes alerts to team channels.',
+      'Team executes next step with shared context.',
+    ],
+    proof: {
+      src: '/screenshots/automation-rules.png',
+      alt: 'Automation rules configured for team alerts',
+      caption: 'Automation rules keep account teams aligned from the first engagement signal.',
+    },
+    docsUrl: 'https://docs.coneshare.com/en/',
     content: (
       <div>
-        <h3 className="text-xl font-semibold mb-4">Automatic Team Alerts</h3>
-        <p className="mb-4">Trigger Slack and webhook notifications from document events so your account owners, managers, and support teams move in sync.</p>
-        <h3 className="text-xl font-semibold mb-4">Timely Follow-Up Motion</h3>
-        <p>Reach out when interest is highest by pairing real-time engagement signals with simple event-driven workflow automations.</p>
+        <h3 className="text-xl font-semibold mb-4">Problem</h3>
+        <p className="mb-4">{'Buying signals are often isolated, slowing team response and reducing momentum.'}</p>
+        <h3 className="text-xl font-semibold mb-4">Trigger → Action</h3>
+        <p className="mb-4">{'Prospect engagement events automatically trigger shared alerts so everyone sees the same signal at the same time.'}</p>
+        <h3 className="text-xl font-semibold mb-4">Outcome</h3>
+        <p>{'Improve coordination and response speed without manual reporting loops.'}</p>
       </div>
     )
   },
@@ -201,14 +425,62 @@ export const solutions = [
     name: 'Timely Follow-Ups',
     menuName: 'Timely Follow-Ups',
     description: 'Follow up when interest is highest by triggering workflows from document views and downloads.',
-    icon: Target,
+    icon: Clock3,
     quote: "We stopped guessing when to follow up. Coneshare gives us precise timing signals from real document activity.",
+    problem: 'Follow-ups often happen too early or too late because teams rely on guesswork instead of engagement signals.',
+    trigger: 'A prospect hits a meaningful event such as first open, repeat view, or download.',
+    action: 'Coneshare triggers the follow-up workflow and routes it to the right destination instantly.',
+    outcome: 'Outreach happens at peak interest, improving conversion likelihood.',
+    bestFor: 'Outbound and closing reps',
+    primarySignal: 'High-intent engagement event triggers',
+    successMetric: 'Improved follow-up timing and reply rate',
+    storyTags: ['Follow-up timing', 'Outbound', 'Automation', 'Revenue execution', 'Global'],
+    resultHighlights: [
+      { value: 'Faster', label: 'signal-to-outreach response' },
+      { value: 'Better', label: 'follow-up timing precision' },
+      { value: 'Stronger', label: 'reply and conversion potential' },
+    ],
+    storySections: [
+      {
+        title: 'The cost of guessing follow-up timing',
+        body: 'Teams often follow up based on calendar reminders rather than live engagement, which leads to outreach that is either too early, too late, or disconnected from buyer context.',
+      },
+      {
+        title: 'Defining high-intent trigger points',
+        body: 'Coneshare lets teams map meaningful events such as first opens, repeated views, and downloads to follow-up workflows tailored to their sales process.',
+      },
+      {
+        title: 'Automating the handoff into action',
+        body: 'When triggers fire, alerts and downstream tasks are routed immediately to Slack and webhook destinations. Reps receive timing cues while buyer interest is still active.',
+      },
+      {
+        title: 'Making timing a repeatable advantage',
+        body: 'Instead of relying on rep memory or ad hoc reminders, teams run a consistent follow-up engine that improves responsiveness and reduces missed intent windows.',
+      },
+    ],
+    keywords: ['timely follow-up automation', 'document event triggers', 'sales follow-up timing'],
+    relatedSlugs: ['team-awareness', 'secure-fundraising'],
+    selfHostedWhy: 'Follow-up automation can integrate with internal systems while preserving data sovereignty.',
+    workflowSteps: [
+      'Define event conditions for follow-up timing.',
+      'Coneshare monitors document activity continuously.',
+      'Matched events trigger alerts/tasks through Slack or webhooks.',
+      'Rep follows up while intent is highest.',
+    ],
+    proof: {
+      src: '/screenshots/automation-logs.png',
+      alt: 'Automation delivery logs with retry and replay',
+      caption: 'Delivery logs, retry, and replay keep follow-up automations dependable.',
+    },
+    docsUrl: 'https://docs.coneshare.com/en/',
     content: (
       <div>
-        <h3 className="text-xl font-semibold mb-4">Engage at the Right Moment</h3>
-        <p className="mb-4">Use real-time activity signals to contact prospects when they are actively reviewing your content.</p>
-        <h3 className="text-xl font-semibold mb-4">Automate Next Steps</h3>
-        <p>Trigger follow-up tasks and notifications from views and downloads to reduce manual coordination and improve response speed.</p>
+        <h3 className="text-xl font-semibold mb-4">Problem</h3>
+        <p className="mb-4">{'Without reliable engagement timing, teams miss high-intent follow-up windows.'}</p>
+        <h3 className="text-xl font-semibold mb-4">Trigger → Action</h3>
+        <p className="mb-4">{'Coneshare turns meaningful events into immediate workflow actions, reducing lag between signal and outreach.'}</p>
+        <h3 className="text-xl font-semibold mb-4">Outcome</h3>
+        <p>{'Better timing and stronger conversion performance from each follow-up attempt.'}</p>
       </div>
     )
   },
@@ -219,12 +491,60 @@ export const solutions = [
     description: 'Understand how buyers explore your deal across datarooms and document interactions before every conversation.',
     icon: LineChart,
     quote: "Before each call, we know what the buyer actually reviewed and where they spent time.",
+    problem: 'Deal conversations are weaker when teams lack clear visibility into buyer document behavior.',
+    trigger: 'Buyers engage unevenly across dataroom folders, key files, and repeated document sections.',
+    action: 'Coneshare captures these signals and shares them as pre-call context for the internal deal team.',
+    outcome: 'Conversations become more relevant, evidence-based, and aligned with buyer interest.',
+    bestFor: 'Dataroom and transaction teams',
+    primarySignal: 'Buyer behavior across dataroom/file tree',
+    successMetric: 'Higher quality deal conversations',
+    storyTags: ['Deal execution', 'Datarooms', 'Transaction teams', 'Buyer behavior', 'Global'],
+    resultHighlights: [
+      { value: 'Deeper', label: 'pre-call buyer context' },
+      { value: 'Smarter', label: 'deal conversation preparation' },
+      { value: 'Higher', label: 'conversation quality and relevance' },
+    ],
+    storySections: [
+      {
+        title: 'Limited visibility before critical conversations',
+        body: 'Deal teams often prepare for calls without knowing which materials buyers reviewed deeply versus skimmed. That makes discovery and objection handling less precise.',
+      },
+      {
+        title: 'Tracking engagement across the deal room',
+        body: 'Coneshare captures behavior across dataroom folders, key files, and repeated document sections, giving teams a clearer map of buyer attention.',
+      },
+      {
+        title: 'Converting activity into call-ready context',
+        body: 'Signals are surfaced internally before conversations so teams can tailor agenda, sequencing, and follow-up to what buyers actually explored.',
+      },
+      {
+        title: 'Driving evidence-based deal execution',
+        body: 'Preparation moves from assumption-driven to evidence-backed, improving discussion quality and helping teams maintain momentum across complex transactions.',
+      },
+    ],
+    keywords: ['dataroom deal visibility', 'buyer behavior tracking', 'dataroom activity insights'],
+    relatedSlugs: ['engagement-visibility', 'secure-fundraising'],
+    selfHostedWhy: 'Deal activity telemetry remains private and controlled, which is critical for sensitive transactions.',
+    workflowSteps: [
+      'Buyer accesses shared dataroom and documents.',
+      'Coneshare logs event-level engagement by file/activity.',
+      'Signals are surfaced to internal teams before calls.',
+      'Team adjusts conversation based on actual buyer behavior.',
+    ],
+    proof: {
+      src: '/screenshots/feat-vdr-manage-perm.png',
+      alt: 'Dataroom management and engagement context',
+      caption: 'Dataroom activity and document interaction signals improve pre-call readiness.',
+    },
+    docsUrl: 'https://docs.coneshare.com/en/',
     content: (
       <div>
-        <h3 className="text-xl font-semibold mb-4">Pre-Call Context</h3>
-        <p className="mb-4">Review who viewed what, where engagement is strongest, and which files are being revisited so conversations are grounded in evidence.</p>
-        <h3 className="text-xl font-semibold mb-4">Better Deal Execution</h3>
-        <p>Use engagement context to drive smarter conversations and align your internal team around the most active opportunities.</p>
+        <h3 className="text-xl font-semibold mb-4">Problem</h3>
+        <p className="mb-4">{'Teams need better context before buyer calls than generic open-rate signals.'}</p>
+        <h3 className="text-xl font-semibold mb-4">Trigger → Action</h3>
+        <p className="mb-4">{'Coneshare captures dataroom and document activity and routes it to your team as actionable call preparation context.'}</p>
+        <h3 className="text-xl font-semibold mb-4">Outcome</h3>
+        <p>{'Drive smarter conversations and improve deal execution with evidence-backed context.'}</p>
       </div>
     )
   },
