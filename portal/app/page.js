@@ -11,6 +11,11 @@ const workflowImages = [
 ];
 
 export default function HomePage() {
+  const featuredUseCaseSlugs = ['secure-fundraising', 'engagement-visibility', 'timely-follow-ups'];
+  const primaryUseCases = featuredUseCaseSlugs
+    .map((slug) => solutions.find((solution) => solution.slug === slug))
+    .filter(Boolean);
+
   return (
     <>
       {/* Hero Section */}
@@ -37,7 +42,7 @@ export default function HomePage() {
                 Know when prospects engage with your content and trigger actions instantly with real-time tracking, workflow automation, and integrations for Slack and webhooks.
               </p>
               <p className="mt-3 text-sm font-medium text-gray-500">
-                Track engagement today. Deal intelligence coming soon.
+                Track engagement, align teams, and automate timely follow-ups.
               </p>
               <div className="mt-10 flex items-center justify-center gap-x-6">
                 <Link
@@ -47,7 +52,7 @@ export default function HomePage() {
                   View live demo
                 </Link>
                 <Link href="/features" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
-                  See automation features <span aria-hidden="true">→</span>
+                  See core features <span aria-hidden="true">→</span>
                 </Link>
               </div>
             </div>
@@ -73,10 +78,10 @@ export default function HomePage() {
           <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-4xl">
             <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-10 lg:max-w-none lg:grid-cols-2 lg:gap-y-16">
               {features.map((feature) => (
-                <div key={feature.name} className="relative pl-16">
+                <div key={feature.slug} className="relative pl-14">
                   <dt className="text-base font-semibold leading-7 text-gray-900">
-                    <div className="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-lg bg-gray-900">
-                      <feature.icon className="h-6 w-6 text-white" aria-hidden="true" />
+                    <div className="absolute left-0 top-0 flex h-8 w-8 items-center justify-center rounded-lg bg-gray-900">
+                      <feature.icon className="h-4 w-4 text-white" aria-hidden="true" />
                     </div>
                     {feature.name}
                   </dt>
@@ -107,7 +112,7 @@ export default function HomePage() {
           </div>
           <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-5xl">
             <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-16 lg:max-w-none lg:grid-cols-3">
-              {solutions.map((solution) => (
+              {primaryUseCases.map((solution) => (
                 <div key={solution.slug} className="flex flex-col">
                   <dt className="flex items-center gap-x-3 text-base font-semibold leading-7 text-gray-900">
                     <solution.icon className="h-5 w-5 flex-none text-gray-900" aria-hidden="true" />
@@ -115,7 +120,6 @@ export default function HomePage() {
                   </dt>
                   <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-gray-600">
                     <p className="flex-auto">{solution.description}</p>
-                    <p className="mt-6 text-sm leading-6 text-gray-500 italic">"{solution.quote}"</p>
                     <p className="mt-6">
                       <Link href={`/solutions/${solution.slug}`} className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
                         Learn more <span aria-hidden="true">→</span>
@@ -125,6 +129,11 @@ export default function HomePage() {
                 </div>
               ))}
             </dl>
+            <div className="mt-10 text-center">
+              <Link href="/solutions" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
+                See all use cases <span aria-hidden="true">→</span>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
