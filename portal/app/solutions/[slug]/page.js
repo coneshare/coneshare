@@ -55,80 +55,28 @@ export default async function SolutionDetailPage({ params }) {
           <p className="mt-6 text-xl leading-8 text-gray-700">
             {solution.description}
           </p>
-          <blockquote className="mt-6 border-l-4 border-gray-200 pl-4 italic text-gray-600">
-            "{solution.quote}"
-          </blockquote>
 
-          {(solution.bestFor || solution.primarySignal || solution.successMetric) && (
-            <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-6">
-              <h2 className="text-lg font-bold tracking-tight text-gray-900">At a glance</h2>
-              <dl className="mt-4 space-y-3 text-sm leading-6 text-gray-700">
-                {solution.bestFor && (
-                  <div>
-                    <dt className="font-semibold text-gray-800">Teams</dt>
-                    <dd>{solution.bestFor}</dd>
-                  </div>
-                )}
-                {solution.primarySignal && (
-                  <div>
-                    <dt className="font-semibold text-gray-800">What you’ll see</dt>
-                    <dd>{solution.primarySignal}</dd>
-                  </div>
-                )}
-                {solution.successMetric && (
-                  <div>
-                    <dt className="font-semibold text-gray-800">Why it matters</dt>
-                    <dd>{solution.successMetric}</dd>
-                  </div>
-                )}
-              </dl>
+          {solution.storyTags && solution.storyTags.length > 0 && (
+            <div className="mt-6 flex flex-wrap gap-2">
+              {solution.storyTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full border border-gray-300 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-600"
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
           )}
 
-          <div className="mt-10 prose prose-lg text-gray-600">
-            {solution.content}
-          </div>
-
-          {(solution.problem || solution.workflowSteps || solution.proof || solution.selfHostedWhy) && (
-            <div className="mt-10 rounded-2xl border border-gray-200 bg-white p-8">
-              <h2 className="text-2xl font-bold tracking-tight text-gray-900">Use Case Breakdown</h2>
-              <dl className="mt-6 space-y-6">
-                {solution.problem && (
-                  <div>
-                    <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">Problem</dt>
-                    <dd className="mt-2 text-base leading-7 text-gray-700">{solution.problem}</dd>
-                  </div>
-                )}
-                {solution.trigger && (
-                  <div>
-                    <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">Trigger</dt>
-                    <dd className="mt-2 text-base leading-7 text-gray-700">{solution.trigger}</dd>
-                  </div>
-                )}
-                {solution.action && (
-                  <div>
-                    <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">Action</dt>
-                    <dd className="mt-2 text-base leading-7 text-gray-700">{solution.action}</dd>
-                  </div>
-                )}
-                {solution.outcome && (
-                  <div>
-                    <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">Outcome</dt>
-                    <dd className="mt-2 text-base leading-7 text-gray-700">{solution.outcome}</dd>
-                  </div>
-                )}
-              </dl>
-            </div>
-          )}
-
-          {solution.workflowSteps && (
-            <div className="mt-10 rounded-2xl border border-gray-200 bg-gray-50 p-8">
-              <h2 className="text-2xl font-bold tracking-tight text-gray-900">Typical Workflow</h2>
-              <ol className="mt-6 space-y-3 list-decimal pl-5 text-base leading-7 text-gray-700">
-                {solution.workflowSteps.map((step) => (
-                  <li key={step}>{step}</li>
-                ))}
-              </ol>
+          {solution.resultHighlights && solution.resultHighlights.length > 0 && (
+            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {solution.resultHighlights.map((item) => (
+                <div key={`${item.value}-${item.label}`} className="rounded-lg border border-gray-200 bg-white px-5 py-5">
+                  <p className="text-2xl font-bold tracking-tight text-gray-900">{item.value}</p>
+                  <p className="mt-2 text-sm text-gray-600">{item.label}</p>
+                </div>
+              ))}
             </div>
           )}
 
@@ -147,29 +95,34 @@ export default async function SolutionDetailPage({ params }) {
             </div>
           )}
 
-          {solution.selfHostedWhy && (
-            <div className="mt-10 rounded-2xl bg-gray-900 px-8 py-8 text-white">
-              <p className="text-sm font-semibold uppercase tracking-wide text-gray-300">Why Self-Hosted Matters</p>
-              <p className="mt-3 text-base leading-7 text-gray-100">{solution.selfHostedWhy}</p>
+          {solution.storySections && solution.storySections.length > 0 && (
+            <div className="mt-12 space-y-12">
+              {solution.storySections.map((section) => (
+                <section key={section.title}>
+                  <h2 className="text-2xl font-bold tracking-tight text-gray-900">{section.title}</h2>
+                  <p className="mt-4 text-base leading-8 text-gray-700">{section.body}</p>
+                </section>
+              ))}
             </div>
           )}
 
+          {solution.selfHostedWhy && (
+            <section className="mt-12">
+              <h2 className="text-2xl font-bold tracking-tight text-gray-900">Why teams choose self-hosted for this workflow</h2>
+              <p className="mt-4 text-base leading-8 text-gray-700">{solution.selfHostedWhy}</p>
+            </section>
+          )}
+
           <div className="mt-14 rounded-2xl border border-gray-200 bg-gray-50 px-8 py-10">
-            <p className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-              Take Action
-            </p>
-            <h2 className="mt-3 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-              Put this use case into motion
+            <h2 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+              Ready to get started with Coneshare?
             </h2>
-            <p className="mt-4 text-base text-gray-600">
-              Launch the demo to see real-time engagement signals, then connect alerts to your team via Slack or webhooks.
-            </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
                 href="/demo"
                 className="rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800"
               >
-                See automation in action
+                View live demo
               </Link>
               <Link
                 href={solution.docsUrl || 'https://docs.coneshare.com/en/'}
@@ -177,13 +130,7 @@ export default async function SolutionDetailPage({ params }) {
                 rel="noopener noreferrer"
                 className="text-sm font-semibold text-gray-900 hover:text-gray-700"
               >
-                Read setup docs <span aria-hidden="true">→</span>
-              </Link>
-              <Link
-                href="/features/self-hosted"
-                className="text-sm font-semibold text-gray-900 hover:text-gray-700"
-              >
-                Why self-hosted <span aria-hidden="true">→</span>
+                Read docs <span aria-hidden="true">→</span>
               </Link>
             </div>
           </div>

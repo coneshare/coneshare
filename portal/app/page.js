@@ -49,7 +49,7 @@ export default function HomePage() {
                   View live demo
                 </Link>
                 <Link href="/features" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
-                  See automation features <span aria-hidden="true">→</span>
+                  See core features <span aria-hidden="true">→</span>
                 </Link>
               </div>
             </div>

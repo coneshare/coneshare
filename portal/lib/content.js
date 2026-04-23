@@ -1,4 +1,4 @@
-import { ShieldCheck, LineChart, Droplets, HardDrive, Folders, Cloud, UploadCloud, TrendingUp, Landmark, Target, Workflow } from 'lucide-react';
+import { ShieldCheck, LineChart, Droplets, HardDrive, Folders, Cloud, UploadCloud, TrendingUp, Landmark, Target, Workflow, Clock3 } from 'lucide-react';
 import Image from 'next/image';
 
 export const features = [
@@ -242,6 +242,30 @@ export const solutions = [
     bestFor: 'Founders and fundraising teams',
     primarySignal: 'Deck open/revisit/download events',
     successMetric: 'Faster investor follow-up response time',
+    storyTags: ['Investor updates', 'Fundraising', 'SaaS', 'Deck engagement', 'Global'],
+    resultHighlights: [
+      { value: 'Real-time', label: 'investor activity visibility' },
+      { value: '<5 min', label: 'alert-to-follow-up coordination' },
+      { value: 'Higher', label: 'quality of investor conversations' },
+    ],
+    storySections: [
+      {
+        title: 'Missing the momentum window',
+        body: 'Investor intent is strongest right after a meaningful deck interaction, but many teams only notice engagement much later. By then, the context is stale and follow-up quality drops.',
+      },
+      {
+        title: 'Turning document events into team awareness',
+        body: 'Coneshare captures views, revisits, and downloads from pitch decks and dataroom files, then routes those signals to Slack and webhooks. Founders and advisors get the same context at the same time.',
+      },
+      {
+        title: 'Following up with better context',
+        body: 'With engagement signals and page-level context available before outreach, teams can lead with relevance instead of guesswork. The result is faster responses and stronger investor conversations.',
+      },
+      {
+        title: 'What changed operationally',
+        body: 'Instead of relying on manual updates and inbox forwarding, the fundraising motion runs on event-driven handoffs. Every key stakeholder sees the same signal and can act immediately.',
+      },
+    ],
     keywords: ['investor deck tracking', 'fundraising engagement alerts', 'pitch deck view notifications'],
     relatedSlugs: ['timely-follow-ups', 'deal-visibility'],
     selfHostedWhy: 'Investor materials stay inside your own infrastructure throughout sharing, tracking, and automation.',
@@ -282,6 +306,30 @@ export const solutions = [
     bestFor: 'Sales ops and deal teams',
     primarySignal: 'Repeated view/download activity',
     successMetric: 'Higher conversion on high-intent accounts',
+    storyTags: ['Account prioritization', 'Revenue ops', 'SaaS', 'Engagement analytics', 'Global'],
+    resultHighlights: [
+      { value: 'Faster', label: 'account prioritization decisions' },
+      { value: 'Clearer', label: 'signal-to-noise separation' },
+      { value: 'Higher', label: 'focus on high-intent prospects' },
+    ],
+    storySections: [
+      {
+        title: 'When intent signals stay hidden',
+        body: 'Revenue teams often treat all pipeline accounts similarly because real engagement context is fragmented across documents, inboxes, and CRM notes. That slows prioritization and wastes outreach cycles.',
+      },
+      {
+        title: 'Capturing behavior that indicates intent',
+        body: 'Coneshare tracks repeated views, downloads, and revisit patterns across documents and dataroom content. Instead of relying on guesswork, teams can see where buying attention is actually concentrated.',
+      },
+      {
+        title: 'Routing signals into daily workflows',
+        body: 'Signals are delivered through Slack and webhooks so account owners, managers, and operations teams work from the same evidence. Prioritization can happen in real time, not at week-end review.',
+      },
+      {
+        title: 'Operating with confidence',
+        body: 'With consistent engagement visibility, teams spend less time debating pipeline quality and more time executing on opportunities that show clear momentum.',
+      },
+    ],
     keywords: ['document engagement visibility', 'proposal activity tracking', 'high-intent account signals'],
     relatedSlugs: ['team-awareness', 'deal-visibility'],
     selfHostedWhy: 'Sensitive engagement data remains in your environment, not in third-party multi-tenant analytics pipelines.',
@@ -322,6 +370,30 @@ export const solutions = [
     bestFor: 'Revenue and account teams',
     primarySignal: 'Proposal/dataroom access events',
     successMetric: 'Shorter internal handoff and response cycles',
+    storyTags: ['Team coordination', 'Revenue teams', 'Alerts', 'Shared context', 'Global'],
+    resultHighlights: [
+      { value: 'Shared', label: 'visibility across account stakeholders' },
+      { value: 'Shorter', label: 'handoff and response cycles' },
+      { value: 'Fewer', label: 'missed engagement moments' },
+    ],
+    storySections: [
+      {
+        title: 'Signals trapped in silos',
+        body: 'In many teams, prospect activity reaches one person first and everyone else learns too late. That creates uneven context and delays coordinated responses.',
+      },
+      {
+        title: 'Broadcasting engagement to the right people',
+        body: 'Coneshare automatically routes proposal and dataroom events to shared channels so account owners, managers, and supporting functions all receive the same signal.',
+      },
+      {
+        title: 'Coordinating next steps without status churn',
+        body: 'Because updates are event-driven, teams avoid manual check-ins and fragmented follow-up threads. Everyone can move with a common understanding of buyer activity.',
+      },
+      {
+        title: 'From isolated updates to team execution',
+        body: 'The motion shifts from individual awareness to collective action, improving internal alignment at exactly the moments where timing matters most.',
+      },
+    ],
     keywords: ['sales team alerts', 'proposal open notifications', 'team workflow automation'],
     relatedSlugs: ['engagement-visibility', 'timely-follow-ups'],
     selfHostedWhy: 'Internal deal activity can be shared across your teams while still remaining inside your infrastructure boundary.',
@@ -353,7 +425,7 @@ export const solutions = [
     name: 'Timely Follow-Ups',
     menuName: 'Timely Follow-Ups',
     description: 'Follow up when interest is highest by triggering workflows from document views and downloads.',
-    icon: Target,
+    icon: Clock3,
     quote: "We stopped guessing when to follow up. Coneshare gives us precise timing signals from real document activity.",
     problem: 'Follow-ups often happen too early or too late because teams rely on guesswork instead of engagement signals.',
     trigger: 'A prospect hits a meaningful event such as first open, repeat view, or download.',
@@ -362,6 +434,30 @@ export const solutions = [
     bestFor: 'Outbound and closing reps',
     primarySignal: 'High-intent engagement event triggers',
     successMetric: 'Improved follow-up timing and reply rate',
+    storyTags: ['Follow-up timing', 'Outbound', 'Automation', 'Revenue execution', 'Global'],
+    resultHighlights: [
+      { value: 'Faster', label: 'signal-to-outreach response' },
+      { value: 'Better', label: 'follow-up timing precision' },
+      { value: 'Stronger', label: 'reply and conversion potential' },
+    ],
+    storySections: [
+      {
+        title: 'The cost of guessing follow-up timing',
+        body: 'Teams often follow up based on calendar reminders rather than live engagement, which leads to outreach that is either too early, too late, or disconnected from buyer context.',
+      },
+      {
+        title: 'Defining high-intent trigger points',
+        body: 'Coneshare lets teams map meaningful events such as first opens, repeated views, and downloads to follow-up workflows tailored to their sales process.',
+      },
+      {
+        title: 'Automating the handoff into action',
+        body: 'When triggers fire, alerts and downstream tasks are routed immediately to Slack and webhook destinations. Reps receive timing cues while buyer interest is still active.',
+      },
+      {
+        title: 'Making timing a repeatable advantage',
+        body: 'Instead of relying on rep memory or ad hoc reminders, teams run a consistent follow-up engine that improves responsiveness and reduces missed intent windows.',
+      },
+    ],
     keywords: ['timely follow-up automation', 'document event triggers', 'sales follow-up timing'],
     relatedSlugs: ['team-awareness', 'secure-fundraising'],
     selfHostedWhy: 'Follow-up automation can integrate with internal systems while preserving data sovereignty.',
@@ -402,6 +498,30 @@ export const solutions = [
     bestFor: 'Dataroom and transaction teams',
     primarySignal: 'Buyer behavior across dataroom/file tree',
     successMetric: 'Higher quality deal conversations',
+    storyTags: ['Deal execution', 'Datarooms', 'Transaction teams', 'Buyer behavior', 'Global'],
+    resultHighlights: [
+      { value: 'Deeper', label: 'pre-call buyer context' },
+      { value: 'Smarter', label: 'deal conversation preparation' },
+      { value: 'Higher', label: 'conversation quality and relevance' },
+    ],
+    storySections: [
+      {
+        title: 'Limited visibility before critical conversations',
+        body: 'Deal teams often prepare for calls without knowing which materials buyers reviewed deeply versus skimmed. That makes discovery and objection handling less precise.',
+      },
+      {
+        title: 'Tracking engagement across the deal room',
+        body: 'Coneshare captures behavior across dataroom folders, key files, and repeated document sections, giving teams a clearer map of buyer attention.',
+      },
+      {
+        title: 'Converting activity into call-ready context',
+        body: 'Signals are surfaced internally before conversations so teams can tailor agenda, sequencing, and follow-up to what buyers actually explored.',
+      },
+      {
+        title: 'Driving evidence-based deal execution',
+        body: 'Preparation moves from assumption-driven to evidence-backed, improving discussion quality and helping teams maintain momentum across complex transactions.',
+      },
+    ],
     keywords: ['dataroom deal visibility', 'buyer behavior tracking', 'dataroom activity insights'],
     relatedSlugs: ['engagement-visibility', 'secure-fundraising'],
     selfHostedWhy: 'Deal activity telemetry remains private and controlled, which is critical for sensitive transactions.',

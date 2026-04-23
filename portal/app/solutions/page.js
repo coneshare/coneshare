@@ -56,13 +56,13 @@ export default function SolutionsPage() {
                     <p className="flex-auto">{solution.description}</p>
                     <div className="mt-4 space-y-2 text-sm leading-6 text-gray-600">
                       {solution.bestFor && (
-                        <p><span className="font-semibold text-gray-800">Best for:</span> {solution.bestFor}</p>
+                        <p><span className="font-semibold text-gray-800">Teams:</span> {solution.bestFor}</p>
                       )}
                       {solution.primarySignal && (
-                        <p><span className="font-semibold text-gray-800">Primary signal:</span> {solution.primarySignal}</p>
+                        <p><span className="font-semibold text-gray-800">What you’ll see:</span> {solution.primarySignal}</p>
                       )}
                       {solution.successMetric && (
-                        <p><span className="font-semibold text-gray-800">Success metric:</span> {solution.successMetric}</p>
+                        <p><span className="font-semibold text-gray-800">Why it matters:</span> {solution.successMetric}</p>
                       )}
                     </div>
                     <p className="mt-6">
@@ -74,12 +74,6 @@ export default function SolutionsPage() {
                 </div>
               ))}
             </dl>
-          </div>
-          <div className="mx-auto mt-12 max-w-4xl rounded-2xl bg-gray-900 px-8 py-8 text-white">
-            <p className="text-sm font-semibold uppercase tracking-wide text-gray-300">Why Self-Hosted Matters</p>
-            <p className="mt-3 text-base leading-7 text-gray-100">
-              Coneshare keeps document sharing, engagement analytics, and automation events inside your own infrastructure, giving security-conscious teams stronger data control and integration flexibility.
-            </p>
           </div>
           <div className="mx-auto mt-16 max-w-3xl rounded-2xl border border-gray-200 bg-white px-8 py-10 text-center sm:mt-20">
             <h3 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
