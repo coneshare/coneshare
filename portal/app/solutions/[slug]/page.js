@@ -34,7 +34,6 @@ export default async function SolutionDetailPage({ params }) {
   const { slug } = await params;
 
   const solution = solutions.find((s) => s.slug === slug);
-  const relatedUseCases = solutions.filter((s) => (solution?.relatedSlugs || []).includes(s.slug));
   const relatedFeatures = features.filter((feature) => (feature.relatedSolutionSlugs || []).includes(slug));
 
   if (!solution) {
@@ -62,23 +61,23 @@ export default async function SolutionDetailPage({ params }) {
 
           {(solution.bestFor || solution.primarySignal || solution.successMetric) && (
             <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-6">
-              <h2 className="text-lg font-bold tracking-tight text-gray-900">Use Case Fit</h2>
+              <h2 className="text-lg font-bold tracking-tight text-gray-900">At a glance</h2>
               <dl className="mt-4 space-y-3 text-sm leading-6 text-gray-700">
                 {solution.bestFor && (
                   <div>
-                    <dt className="font-semibold text-gray-800">Best for</dt>
+                    <dt className="font-semibold text-gray-800">Teams</dt>
                     <dd>{solution.bestFor}</dd>
                   </div>
                 )}
                 {solution.primarySignal && (
                   <div>
-                    <dt className="font-semibold text-gray-800">Primary signal</dt>
+                    <dt className="font-semibold text-gray-800">What you’ll see</dt>
                     <dd>{solution.primarySignal}</dd>
                   </div>
                 )}
                 {solution.successMetric && (
                   <div>
-                    <dt className="font-semibold text-gray-800">Success metric</dt>
+                    <dt className="font-semibold text-gray-800">Why it matters</dt>
                     <dd>{solution.successMetric}</dd>
                   </div>
                 )}
@@ -188,24 +187,6 @@ export default async function SolutionDetailPage({ params }) {
               </Link>
             </div>
           </div>
-
-          {relatedUseCases.length > 0 && (
-            <div className="mt-10 rounded-2xl border border-gray-200 bg-white px-8 py-8">
-              <h2 className="text-xl font-bold tracking-tight text-gray-900">Related Use Cases</h2>
-              <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {relatedUseCases.map((item) => (
-                  <Link
-                    key={item.slug}
-                    href={`/solutions/${item.slug}`}
-                    className="rounded-lg border border-gray-200 px-4 py-4 hover:border-gray-300"
-                  >
-                    <p className="text-sm font-semibold text-gray-900">{item.name}</p>
-                    <p className="mt-2 text-sm text-gray-600">{item.description}</p>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
 
           {relatedFeatures.length > 0 && (
             <div className="mt-10 rounded-2xl border border-gray-200 bg-white px-8 py-8">

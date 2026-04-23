@@ -69,23 +69,23 @@ export default async function FeatureDetailPage({ params }) {
 
           {(feature.bestFor || feature.primarySignal || feature.businessOutcome) && (
             <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-6">
-              <h2 className="text-lg font-bold tracking-tight text-gray-900">Feature Fit</h2>
+              <h2 className="text-lg font-bold tracking-tight text-gray-900">At a glance</h2>
               <dl className="mt-4 space-y-3 text-sm leading-6 text-gray-700">
                 {feature.bestFor && (
                   <div>
-                    <dt className="font-semibold text-gray-800">Best for</dt>
+                    <dt className="font-semibold text-gray-800">Teams</dt>
                     <dd>{feature.bestFor}</dd>
                   </div>
                 )}
                 {feature.primarySignal && (
                   <div>
-                    <dt className="font-semibold text-gray-800">Primary signal</dt>
+                    <dt className="font-semibold text-gray-800">What you’ll see</dt>
                     <dd>{feature.primarySignal}</dd>
                   </div>
                 )}
                 {feature.businessOutcome && (
                   <div>
-                    <dt className="font-semibold text-gray-800">Business outcome</dt>
+                    <dt className="font-semibold text-gray-800">Why it matters</dt>
                     <dd>{feature.businessOutcome}</dd>
                   </div>
                 )}
