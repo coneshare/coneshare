@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getAllBlogPosts, getBlogPostBySlug } from '../../../lib/blog';
+import { getAllBlogPosts, getBlogPostBySlug, getEffectiveCategory, slugifyTerm } from '../../../lib/blog';
 
 const SITE_URL = 'https://www.coneshare.com';
 
@@ -74,6 +74,23 @@ export default async function BlogPostPage({ params }) {
   };
 
   const PostContent = post.Content;
+  const allPosts = await getAllBlogPosts();
+  const currentCategory = getEffectiveCategory(post);
+  const currentTags = new Set(post.tags || []);
+  const isReleasePost = currentCategory === 'Releases';
+
+  const relatedPosts = allPosts
+    .filter((item) => item.slug !== post.slug)
+    .map((item) => {
+      const sameCategory = getEffectiveCategory(item) === currentCategory ? 1 : 0;
+      const tagOverlap = (item.tags || []).filter((tag) => currentTags.has(tag)).length;
+      const score = sameCategory * 100 + tagOverlap * 10 + new Date(item.date).getTime() / 1e13;
+      return { item, score, sameCategory, tagOverlap };
+    })
+    .filter((entry) => entry.sameCategory || entry.tagOverlap > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map((entry) => entry.item);
 
   return (
     <div className="bg-white py-16 sm:py-24">
@@ -85,7 +102,12 @@ export default async function BlogPostPage({ params }) {
         <article className="mt-6">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500">
             <time dateTime={post.date}>{formatDate(post.date)}</time>
-            <span className="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">{post.version}</span>
+            <Link
+              href={`/blog/category/${slugifyTerm(currentCategory)}`}
+              className="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700 hover:bg-gray-200"
+            >
+              {currentCategory}
+            </Link>
           </div>
 
           <h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">{post.title}</h1>
@@ -93,9 +115,13 @@ export default async function BlogPostPage({ params }) {
 
           <div className="mt-6 flex flex-wrap gap-2">
             {(post.tags || []).map((tag) => (
-              <span key={tag} className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600">
+              <Link
+                key={tag}
+                href={`/blog/tag/${slugifyTerm(tag)}`}
+                className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600 hover:border-gray-300"
+              >
                 {tag}
-              </span>
+              </Link>
             ))}
           </div>
 
@@ -105,9 +131,13 @@ export default async function BlogPostPage({ params }) {
         </article>
 
         <div className="mt-14 rounded-2xl border border-gray-200 bg-gray-50 px-8 py-10">
-          <h2 className="text-2xl font-bold tracking-tight text-gray-900">Discuss This Release</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+            {isReleasePost ? 'Discuss This Release' : 'Discuss This Topic'}
+          </h2>
           <p className="mt-4 text-base text-gray-600">
-            Share your automation workflow and feedback in the Coneshare forum.
+            {isReleasePost
+              ? 'Share your automation workflow and feedback in the Coneshare forum.'
+              : 'Share your questions, deployment notes, and feedback in the Coneshare forum.'}
           </p>
           <p className="mt-6">
             <Link
@@ -120,6 +150,24 @@ export default async function BlogPostPage({ params }) {
             </Link>
           </p>
         </div>
+
+        {relatedPosts.length > 0 && (
+          <div className="mt-10 rounded-2xl border border-gray-200 bg-white px-8 py-8">
+            <h2 className="text-xl font-bold tracking-tight text-gray-900">Related Posts</h2>
+            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {relatedPosts.map((related) => (
+                <Link
+                  key={related.slug}
+                  href={`/blog/${related.slug}`}
+                  className="rounded-lg border border-gray-200 px-4 py-4 hover:border-gray-300"
+                >
+                  <p className="text-sm font-semibold text-gray-900">{related.title}</p>
+                  <p className="mt-2 text-sm text-gray-600">{related.description}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         <script
           type="application/ld+json"

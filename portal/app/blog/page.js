@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getAllBlogPosts } from '../../lib/blog';
+import { getAllBlogPosts, getAllCategories, getAllTags, getEffectiveCategory, slugifyTerm } from '../../lib/blog';
 
 export const metadata = {
   title: 'Blog | Coneshare',
@@ -18,7 +18,11 @@ function formatDate(dateStr) {
 }
 
 export default async function BlogPage() {
-  const posts = await getAllBlogPosts();
+  const [posts, categories, tags] = await Promise.all([
+    getAllBlogPosts(),
+    getAllCategories(),
+    getAllTags(),
+  ]);
 
   return (
     <div className="bg-white py-24 sm:py-32">
@@ -31,11 +35,32 @@ export default async function BlogPage() {
         </div>
 
         <div className="mx-auto mt-16 grid max-w-4xl grid-cols-1 gap-8">
+          {categories.length > 0 && (
+            <section>
+              <div className="flex flex-wrap gap-2">
+                {categories.map((category) => (
+                  <Link
+                    key={category.slug}
+                    href={`/blog/category/${category.slug}`}
+                    className="rounded-full border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:border-gray-400"
+                  >
+                    {category.name} ({category.count})
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
           {posts.map((post) => (
             <article key={post.slug} className="rounded-2xl border border-gray-200 p-8 shadow-sm">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500">
                 <time dateTime={post.date}>{formatDate(post.date)}</time>
-                <span className="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">{post.version}</span>
+                <Link
+                  href={`/blog/category/${slugifyTerm(getEffectiveCategory(post))}`}
+                  className="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700 hover:bg-gray-200"
+                >
+                  {getEffectiveCategory(post)}
+                </Link>
               </div>
               <h2 className="mt-4 text-2xl font-bold tracking-tight text-gray-900">
                 <Link href={`/blog/${post.slug}`} className="hover:text-gray-700">
@@ -52,7 +77,7 @@ export default async function BlogPage() {
               </div>
               <p className="mt-6">
                 <Link href={`/blog/${post.slug}`} className="text-sm font-semibold text-gray-900 hover:text-gray-700">
-                  Read release notes <span aria-hidden="true">→</span>
+                  Read more <span aria-hidden="true">→</span>
                 </Link>
               </p>
             </article>
