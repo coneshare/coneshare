@@ -1,7 +1,7 @@
 export const metadata = {
-  title: 'Coneshare V1.2.0 Release Notes: Document & Dataroom Activity Automation',
+  title: 'Coneshare V1.2: Document and Dataroom Activity Automation',
   description:
-    'Coneshare V1.2.0 introduces document activity automation, dataroom event workflows, Slack and webhook integrations, and reliable delivery logs with retry/replay.',
+    'Coneshare V1.2 introduces document workflow automation with real-time activity events, Slack and webhook delivery, retry/replay controls, and self-hosted operational visibility.',
   date: '2026-04-17',
   category: 'Releases',
   tags: [
@@ -13,39 +13,115 @@ export const metadata = {
   ],
 };
 
-## What's New in V1.2.0
+## Manual Follow-Up Is the Bottleneck
 
-- Activity-based workflow automation from key events such as document views, downloads, and dataroom access.
-- Slack and webhook integrations to route engagement signals to internal workflows in real time.
-- Delivery logs with retry and replay support for production reliability and operational visibility.
-- Multi-destination delivery so one event can notify several systems and teams at once.
+Teams often discover document engagement too late:
+
+- an investor reopened the deck yesterday;
+- a buyer downloaded pricing this morning;
+- legal accessed the dataroom an hour ago.
+
+Coneshare V1.2 introduces real-time document workflow automation, so document and dataroom activity becomes operational data that can trigger internal action immediately.
+
+## What’s New in V1.2
+
+- Activity-based triggers from document and dataroom events.
+- Slack and webhook destinations for real-time workflow routing.
+- Delivery logs with retry and replay controls.
+- Multi-destination fan-out for parallel team/system notifications.
 
 ![Automation rule configuration screenshot](/screenshots/blog/v1-2-0-automation-rules.png)
 
 ## Why This Matters
 
-V1.2.0 strengthens Coneshare as a secure document sharing and dataroom platform with actionable activity automation. Teams can detect engagement earlier, coordinate faster, and follow up when interest is highest.
+V1.2 turns document activity into operational signals.
 
+Instead of manually checking engagement dashboards, teams can route events directly into Slack channels, CRM pipelines, internal APIs, or workflow systems as activity happens.
 
-## Expanded Use Cases
+For self-hosted teams, this means document engagement automation without moving files or event data outside their infrastructure boundary.
 
-### 1. Investor Awareness and Timing
+## Event and Delivery Model
 
-Founders can trigger instant internal alerts when investors open or revisit a pitch deck. This helps teams follow up while the conversation is still warm, instead of waiting for manual updates.
+Supported activity triggers currently include:
 
+- document views;
+- revisits;
+- downloads;
+- dataroom access events.
 
-### 2. Sales Follow-Up Automation
+Each event can fan out to multiple destinations simultaneously through Slack notifications and webhook delivery pipelines.
 
-Sales teams can send proposal activity events to Slack or webhook endpoints, then trigger follow-up tasks when a document is viewed or downloaded. This reduces response time and improves team coordination.
+### Simplified Event Flow
 
+```text
+Document or Dataroom Activity
+            |
+            v
+  Coneshare Event Engine
+            |
+            v
+   Delivery Queue + Retry
+            |
+            v
+  Slack | Webhook | Internal API
+```
 
-### 3. Dataroom Deal Visibility
+## Workflow Examples
 
-Deal teams can monitor dataroom engagement and route activity signals into internal systems. This gives better pre-call context on what buyers reviewed and where interest is increasing.
+### 1. Investor Awareness Before Meetings
 
+When an investor reopens a pitch deck before a scheduled meeting, founders can receive immediate Slack notifications and prepare follow-up materials before the call starts.
+
+### 2. Sales Follow-Up at the Right Moment
+
+Proposal download events can trigger CRM workflows or notify account executives in real time when buyer engagement increases.
+
+### 3. Dataroom Operations for Deal Teams
+
+Dataroom activity can be routed into internal systems so teams know which files were revisited before legal, diligence, or negotiation checkpoints.
+
+## Reliability and Operational Controls
+
+Every outbound event delivery is tracked with operational logs, retry support, and replay controls.
+
+This helps teams:
+
+- diagnose failed integrations;
+- recover transient delivery failures;
+- validate automation behavior in production environments.
+
+![Delivery logs screenshot](/screenshots/blog/V1-2-0-delivery-logs.png)
+
+## Under the Hood
+
+The automation pipeline is designed around asynchronous event delivery:
+
+- event generation from document and dataroom activity;
+- queued delivery processing;
+- retry-safe outbound dispatch;
+- replay support for failed destinations.
+
+This architecture allows integrations to remain reliable even when downstream services or network paths are temporarily unstable.
+
+## What’s Next
+
+Future automation updates will continue in three directions:
+
+- deeper workflow action support;
+- stronger delivery reliability and observability;
+- richer event intelligence and filtering for high-intent scenarios.
+
+The overall direction remains the same: make document engagement a dependable operational signal that teams can route into internal systems without leaving a self-hosted model.
+
+## Availability
+
+V1.2 is available now for self-hosted deployments.
+
+Teams can use document engagement automation, dataroom automation, Slack document notifications, and webhook-based document tracking while keeping files and event data inside their own infrastructure.
 
 ## Next Steps
 
-- Try the automation flow in the live demo.
+- Try the automation flow in the [Live demo](/demo).
 - Connect your first Slack channel or webhook destination.
-- Share feedback and workflow examples in the Coneshare forum.
+- Review release details with your operations or revenue systems team.
+- Share feedback and workflow examples in the [Coneshare forum](https://github.com/orgs/coneshare/discussions).
