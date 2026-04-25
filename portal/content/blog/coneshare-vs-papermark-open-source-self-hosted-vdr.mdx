@@ -1,0 +1,148 @@
+export const metadata = {
+  title: 'Coneshare vs Papermark: Open-Source and Self-Hosted VDR Evaluation',
+  description:
+    'A technical comparison of Coneshare and Papermark focused on self-host deployment reality, operational ownership, and document workflow automation.',
+  date: '2026-04-24',
+  version: 'Comparison',
+  tags: [
+    'open source docsend alternative',
+    'self-hosted dataroom',
+    'docker compose document sharing',
+    'self-hosted document analytics',
+  ],
+};
+
+## Scope and Disclosure
+
+This is a vendor-authored comparison from Coneshare.
+
+The purpose is narrow: compare Coneshare and Papermark for teams evaluating open-source document sharing with self-hosted deployment requirements.
+
+This is not a broad market comparison of all VDR vendors, and it does not evaluate commercial support contracts.
+
+## Evaluation Method
+
+This comparison was based on:
+
+- repository and architecture documentation review;
+- deployment documentation review;
+- issue tracker review focused on self-host setup concerns;
+- self-host setup flow assessment from public docs and compose paths;
+- feature capability review for sharing controls, analytics signals, and automation operations.
+
+This comparison does not evaluate:
+
+- sales pipeline features outside documented scope;
+- hosted SaaS packaging and pricing;
+- closed enterprise support channels.
+
+Reference timestamp: content and links reviewed on April 24, 2026.
+
+## Quick Summary
+
+- Both Coneshare and Papermark are credible open-source projects.
+- Papermark has strong visibility and product momentum.
+- Coneshare is explicitly architected around operational ownership: self-host deployment, customer-managed infrastructure, and event-driven internal workflows.
+- For teams requiring private-network deployment, customer-managed storage/database, and predictable infrastructure control, Coneshare is optimized for that operating model.
+
+## Side-by-Side Comparison (Self-Hosted Operations Focus)
+
+| Category | Coneshare | Papermark |
+| --- | --- | --- |
+| Open-source posture | MIT-licensed repository with self-hosted-first positioning in product docs. | Open-source repository with active public development. |
+| Deployment path | Compose-first deployment path (`coneshare-compose`), environment template workflow, and stack-level docs. | Self-hosting is possible; teams should validate setup fit against current docs/issues for their environment. |
+| Infrastructure ownership model | Customer-managed PostgreSQL, queue/broker, storage integration, and reverse-proxy boundary. | Open-source deploy model with implementation details depending on chosen hosting topology. |
+| Sharing controls | Passwords, expiration, email verification, download controls, dataroom-level permissioning, watermarking. | Strong document sharing baseline; controls depend on selected deployment and feature path. |
+| Event and analytics signals | Real-time events (view/download/revisit patterns), page-level context, dataroom activity awareness. | Document analytics focus with active product iteration. |
+| Automation operations | Native webhook/Slack routing, multi-destination delivery, delivery logs, retry/replay. | Integration and automation depth should be validated against current release behavior and docs. |
+| Best operational fit | Organizations that require private-network deployment, internal system integration, and controlled data boundary. | Organizations prioritizing open-source document sharing momentum and broader community visibility. |
+
+## What Matters in Self-Hosted Deployments
+
+For operational buyers, self-hosting success is typically decided by:
+
+- clear and repeatable deployment steps;
+- compatibility with customer-managed database and object storage;
+- network isolation support (for example, private-network or VPN-restricted deployment);
+- observable event delivery behavior in production (logs, retries, replay);
+- ability to patch UI/workflows without waiting on vendor release cycles.
+
+## Evidence Notes on Self-Hosting Friction Signals
+
+Public issue discussions in Papermark around self-hosting guidance and setup clarity. Examples:
+
+- [Development Environment Setup #449](https://github.com/papermark/papermark/issues/449)
+- [Self Host Guidance #1566](https://github.com/mfts/papermark/issues/1566)
+- [Docker Support For Easier Deployment #1907](https://github.com/papermark/papermark/issues/1907)
+- [Papermark signup fails on Vercel with Upstash rate limit error + custom domain not working #1956](https://github.com/papermark/papermark/issues/1956)
+
+This should not be read as “Papermark cannot be self-hosted.” It should be read as a practical due-diligence signal: teams should validate deployment docs, issue patterns, and environment fit before committing.
+
+## Where Papermark Is Strong
+
+Papermark has clear strengths:
+
+- high visibility in the open-source document-sharing space;
+- active public product iteration;
+- strong awareness among teams evaluating DocSend-style workflows;
+- established mindshare for hosted/open-source hybrid evaluation paths.
+
+For organizations that do not require deep infrastructure control or internal platform-level customization, these strengths can outweigh operational ownership requirements.
+
+## Where Coneshare Is Strong
+
+Coneshare is strongest when infrastructure philosophy is the primary constraint, especially:
+
+- internal-only file and activity data boundary requirements;
+- customer-managed storage/database and deployment topology control;
+- audit-sensitive workflows where event delivery observability matters;
+- teams that need to customize UI/workflows and ship changes on internal timelines.
+
+## Coneshare Architecture Deep Dive
+
+Coneshare is a multi-service architecture designed for self-hosted document sharing infrastructure:
+
+![Coneshare architecture diagram](https://github.com/coneshare/coneshare/blob/main/docs/assets/readme/architecture-v1.2.png?raw=true)
+
+- React frontend + Django Backend;
+- Celery workers with Redis broker for async processing;
+- PostgreSQL for primary relational data;
+- dedicated Go file service for secure upload/download and file operations;
+- Docker Compose orchestration for environment consistency.
+
+### Operational Scenario Examples
+
+Common deployment patterns where this architecture is useful:
+
+- private-network deployment behind internal VPN/reverse proxy;
+- customer-managed object storage or local filesystem strategy;
+- webhook routing into internal systems (for example, SIEM, workflow engines, internal bus);
+- regulated deal-room operations where activity telemetry must remain in customer infrastructure.
+
+For technical details:
+
+- [Coneshare Technology Stack](https://github.com/coneshare/coneshare/blob/main/docs/coneshare-techstack.md)
+- [Coneshare repository README](https://github.com/coneshare/coneshare)
+
+## Reusable Evaluation Criteria
+
+If you are evaluating any self-hosted dataroom or document sharing infrastructure, use this checklist:
+
+- Is deployment reproducible with explicit environment documentation?
+- Can your team run customer-managed database and storage without vendor SaaS dependencies?
+- Are sharing controls sufficient for sensitive document workflows?
+- Can your team customize UI/feature behavior directly in code?
+- Do maintainer/community response patterns align with your roadmap urgency?
+
+## Final Recommendation
+
+Papermark is a credible open-source option and may fit teams prioritizing ecosystem visibility and rapid product momentum.
+
+For organizations where infrastructure ownership, deployment predictability, and internal workflow integration are primary requirements, Coneshare is explicitly optimized around those operational constraints.
+
+## Next Step
+
+- Explore the product flow: [Live demo](/demo)
+- Review capabilities: [Features](/features)
+- See workflow outcomes: [Use cases](/solutions)
+- Discuss deployment specifics: [Coneshare Discussions](https://github.com/orgs/coneshare/discussions)
