@@ -1,0 +1,268 @@
+export const metadata = {
+  title: 'Self-Hosted Secure Document Sharing: Operational Checklist for GDPR-Aligned and ISO-Oriented Teams',
+  description:
+    'A compliance-focused operational checklist for self-hosted secure document sharing, aligned to GDPR principles and ISO-style control objectives, with practical control mapping.',
+  date: '2026-04-26',
+  category: 'Self-Hosting',
+  tags: [
+    'Document Sharing',
+    'Self-Hosting',
+    'Security',
+    'Compliance',
+    'GDPR',
+    'ISO',
+    'Data Rooms',
+    'Automation',
+  ],
+};
+
+## Why This Checklist Exists
+
+Most secure sharing guidance stops at policy statements.  
+Compliance teams and technical operators need control-level implementation detail:
+
+- how to keep files and activity data inside your infrastructure;
+- how to apply least-privilege access controls consistently;
+- how to demonstrate accountability through logs, retention controls, and repeatable operational procedures.
+
+This checklist is written for organizations targeting GDPR-aligned processing and ISO-style information security controls in a self-hosted model.
+
+This article is operational guidance only and does not constitute legal advice or certification guidance. Organizations should validate GDPR and ISO requirements with qualified legal, compliance, and security professionals.
+
+## Before You Share: Infrastructure and Policy Baseline
+
+### 1. Define scope, trust boundary, and controller/processor roles
+
+Action:
+
+- define where personal data, file content, and access telemetry are permitted to reside;
+- document controller/processor responsibilities and subprocessors;
+- confirm database/storage ownership and network boundaries (for example, private subnet deployment, restricted admin ingress, VPN-only access, reverse proxy controls).
+
+Recommended control mechanisms:
+
+- customer-managed database and storage;
+- private network segmentation and ingress restrictions;
+- reproducible deployment workflows.
+
+Coneshare operational features:
+
+- self-hosted deployment model;
+- Docker Compose-first stack orchestration;
+- customer-managed infrastructure components.
+
+Why this matters:
+
+- can support GDPR accountability and integrity/confidentiality objectives ([Article 5(1)(f), Article 5(2)](https://gdpr-info.eu/art-5-gdpr/));
+- can align with ISO-style scope definition and asset boundary controls.
+
+### 2. Classify documents and establish lawful processing context
+
+Action:
+
+- classify documents by sensitivity (for example, internal, confidential, restricted);
+- identify lawful basis for personal data handling where applicable;
+- trigger DPIA review for high-risk processing scenarios.
+
+Example implementation mechanisms:
+
+- dataroom-based organization;
+- per-link and per-resource permissioning;
+- configurable download restrictions.
+
+Why this matters:
+
+- can support data minimization and purpose limitation objectives ([Article 5(1)(b), 5(1)(c)](https://gdpr-info.eu/art-5-gdpr/));
+- maps controls to risk levels for stronger audit evidence.
+
+### 3. Define secure-by-default sharing controls
+
+Action:
+
+- configure default controls before users start sharing;
+- avoid permissive defaults that depend on manual correction.
+
+Recommended control mechanisms:
+
+- password-protected links;
+- email verification support;
+- access expiry controls;
+- dynamic watermarking.
+
+Coneshare platform enforcement options:
+
+- secure share-link settings;
+- recipient verification flows;
+- configurable expiry and watermark controls.
+
+Why this matters:
+
+- can support “appropriate technical and organizational measures” expectations under [GDPR Article 32](https://gdpr-info.eu/art-32-gdpr/);
+- can align with ISO control intent for secure baseline configuration.
+
+## During Sharing: Enforce Least Privilege
+
+### 4. Use controlled distribution channels
+
+Action:
+
+- avoid sending sensitive documents as email attachments;
+- use revocable links with enforceable access controls and expiry.
+
+Coneshare platform enforcement options:
+
+- secure share links;
+- link-level control plane for visibility, expiry, and download rules.
+
+Why this matters:
+
+- reduces uncontrolled replication and supports access governance.
+
+### 5. Apply least-privilege recipient access
+
+Action:
+
+- grant only the minimum access required for each recipient group;
+- separate reviewer, advisor, buyer, and legal access where needed.
+
+Coneshare operational features:
+
+- granular visibility controls for document and dataroom sharing;
+- scope-aware rules across global/share-link/dataroom contexts.
+
+Why this matters:
+
+- can support confidentiality and need-to-know access control objectives.
+
+### 6. Add traceability safeguards for sensitive data
+
+Action:
+
+- assume forwarding can happen;
+- add deterrence and traceability mechanisms for sensitive content.
+
+Coneshare operational features:
+
+- dynamic watermarking tied to viewer context;
+- activity events and delivery logs for investigative follow-up.
+
+Why this matters:
+
+- can improve evidence quality for incident review and breach-response triage.
+
+## After Sharing: Operate, Observe, and Automate
+
+### 7. Maintain auditability and access monitoring
+
+Action:
+
+- review access patterns, event logs, and anomalous behavior;
+- maintain evidence trails suitable for internal audit and incident handling.
+
+Coneshare operational features:
+
+- document/dataroom activity events (views, revisits, downloads, access events);
+- page-level engagement context;
+- delivery logs for event traceability.
+
+Why this matters:
+
+- can support GDPR accountability ([Article 5(2)](https://gdpr-info.eu/art-5-gdpr/)) and ISO-style logging/monitoring controls.
+
+### 8. Automate compliance-relevant internal handoffs
+
+Action:
+
+- route document activity to team channels and systems in real time;
+- reduce manual handling that increases configuration drift and audit inconsistency.
+
+Coneshare implementation tools:
+
+- automation rules;
+- Slack + webhook destinations;
+- multi-destination fan-out;
+- retry/replay for reliable event delivery.
+
+Why this matters:
+
+- can improve control consistency and operational reliability of compliance workflows.
+
+### 9. Enforce retention, revocation, and data lifecycle controls
+
+Action:
+
+- revoke links after process completion;
+- align retention, archival, and deletion/anonymization actions with policy and legal obligations.
+
+Coneshare implementation tools:
+
+- link expiry and access revocation;
+- owner-scoped visibility to reduce long-term exposure.
+
+Why this matters:
+
+- can support storage limitation and lifecycle governance requirements ([Article 5(1)(e)](https://gdpr-info.eu/art-5-gdpr/)).
+
+## Requirement-to-Control Mapping
+
+| Requirement area | Operational control examples |
+| --- | --- |
+| Data minimization ([Article 5(1)(c)](https://gdpr-info.eu/art-5-gdpr/)) | Scoped dataroom visibility, least-privilege access, download restrictions |
+| Integrity and confidentiality ([Article 5(1)(f)](https://gdpr-info.eu/art-5-gdpr/), [Article 32](https://gdpr-info.eu/art-32-gdpr/)) | Password protection, recipient verification, private-network deployment controls |
+| Storage limitation ([Article 5(1)(e)](https://gdpr-info.eu/art-5-gdpr/)) | Link expiry, revocation, retention/deletion workflows |
+| Accountability ([Article 5(2)](https://gdpr-info.eu/art-5-gdpr/)) | Activity logs, delivery logs, documented role and boundary definitions |
+| Incident investigation readiness | Watermarking traceability, event replay/log review, SIEM/internal webhook routing |
+
+## GDPR/ISO Readiness Checklist (Quick Audit)
+
+Use this as a go/no-go checkpoint:
+
+- [ ] Processing scope and data boundary are documented and approved.
+- [ ] Files and activity telemetry stay in customer-managed infrastructure.
+- [ ] Sharing defaults are secure (password, verification, expiry).
+- [ ] Dataroom permissions match least-privilege policy.
+- [ ] Download and watermark controls are enabled for sensitive classes.
+- [ ] Activity events route to internal systems with retry/replay reliability.
+- [ ] Access lifecycle (review, revoke, retention/deletion) is operationalized.
+- [ ] Incident response and audit evidence paths are documented.
+
+## Shared Responsibility
+
+No document platform alone creates GDPR or ISO compliance.
+
+Operational outcomes depend on:
+
+- deployment architecture;
+- access governance;
+- retention policy;
+- internal procedures;
+- incident response practices;
+- ongoing administrative controls.
+
+Self-hosted platforms can provide enforcement and visibility mechanisms, but organizations remain responsible for governance and lawful processing obligations.
+
+## Why This Model Works
+
+Self-hosted secure sharing is not only a deployment preference.  
+It is a governance control model:
+
+- infrastructure ownership;
+- enforceable access controls;
+- auditable delivery behavior;
+- workflow automation tied to real engagement events.
+
+Self-hosted secure sharing changes the operational model from vendor-managed trust to organization-controlled enforcement.
+
+For organizations with strict governance requirements, those controls are often operationally significant, not only architectural preferences.
+
+## Next Steps
+
+- Explore controls and workflows in the [live demo](/demo).
+- Review implementation details in [features](/features).
+- See operational workflows in [use cases](/solutions).
+- Discuss deployment and security requirements in [Coneshare Discussions](https://github.com/orgs/coneshare/discussions).
+
+## References
+
+- GDPR Article 5 (Principles relating to processing of personal data): https://gdpr-info.eu/art-5-gdpr/
+- GDPR Article 32 (Security of processing): https://gdpr-info.eu/art-32-gdpr/
