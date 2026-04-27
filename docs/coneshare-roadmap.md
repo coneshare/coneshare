@@ -1,88 +1,88 @@
 # Coneshare Feature Roadmap
 
-This document outlines the strategic roadmap for Coneshare, organized by implemented features and future goals.
+This roadmap reflects the current implementation in this repository as of **2026-04-27**.
 
 ---
 ## Guiding Principles
 
-All development aligns with these core principles:
-
-1.  **Security First**: Prioritize robust security features like access control and data isolation.
-2.  **Reliability & Scalability**: Ensure the system handles large files and high concurrency.
-3.  **Administrator Control**: Provide administrators with full control over configuration and user management.
-4.  **Zero Third-Party Trust**: The solution must run entirely on the client's infrastructure.
-5.  **Unified "Open Core" Model**: Build a single, shared database schema for both open-source and future SaaS versions.
+1. **Security First**: strong link controls, access checks, and watermarking.
+2. **Reliability & Scalability**: async processing and queued delivery patterns.
+3. **Administrator Control**: organization/user management plus runtime settings.
+4. **Self-Hosted First**: deploy and operate fully inside customer infrastructure.
+5. **Unified Core Model**: shared schema foundation for OSS + future hosted editions.
 
 ---
-# Implemented Features
+## Implemented
 
-## Version 1.0: Secure Document Sharing Engine
+### 1) Core Platform & Admin
+- **Multi-tenant foundation**: `Organization`, custom `User`, and `UserGroup`.
+- **Auth and account management**: login/logout/JWT flows, password set/reset flows.
+- **Admin user operations**: create/update/deactivate users with last-admin safeguards.
+- **Admin settings service**: dynamic key-value app settings (`AppConfiguration`) for quotas/cloud provider toggles/import limits.
+- **Login activity tracking**: `LoginActivity` model + admin API page.
 
-The core lifecycle of a single document is complete.
+### 2) Documents & Storage Pipeline
+- **Document library with folders**: nested folders, root folder abstraction, starring, search/sort-oriented list UX.
+- **Upload pipeline**: upload-request + finalize flow to file service using pre-signed upload URLs.
+- **Background processing lifecycle**: `uploading -> processing -> ready/error` status model.
+- **Versioning**: `DocumentVersion` + `DocumentPage`, including page metadata/links.
+- **Bulk operations**: move, delete, copy, rename across documents/folders.
+- **Cloud import**: Dropbox, Google Drive, Nextcloud connect/list/import flows.
+- **UI upload ergonomics**: drag-and-drop upload support in document list.
 
-### 1. Core Platform & User Management
--   **Organization as Tenant**: The `Organization` is the top-level owner of all resources.
--   **User Authentication**: Robust authentication system where users belong to an `Organization`.
--   **User & Group Management**: Admins can manage users, roles (admin, member), and `User Groups`.
+### 3) Secure Sharing
+- **Share targets**: links can target exactly one of `Document` or `Dataroom`.
+- **Per-link controls**: expiration, password, email requirement, email verification, download permission, active toggle.
+- **Watermark controls**: link-level watermark settings and dynamic watermark rendering endpoints.
+- **Share link templates**: reusable defaults via `ShareLinkTemplate`.
+- **Owner preview sessions**: temporary bypass tokens for safe previewing.
 
-### 2. Document Pipeline & Storage
--   **Storage Configuration**: Flexible backend supporting **MinIO** or a **local filesystem**.
--   **Asynchronous Document Processing**: Background queue manages conversions for PDF, DOCX, PPTX, XLSX.
--   **Status Tracking**: UI displays document status: `Uploading`, `Processing`, `Ready`, `Error`.
+### 4) Analytics & Viewer Tracking
+- **Viewer identity model**: `Viewer`, `ViewSession`, `PageView`, and dataroom visit tracking.
+- **Captured telemetry**: email/IP/user-agent/geo fields, duration, completion, download timestamp.
+- **Dashboard endpoints**: recent views, daily visits, all links, all sessions.
+- **Per-link analytics UI**: links, sessions, page-level behavior, and viewer context.
 
-### 3. Secure Link Sharing
--   **Link Generation**: Backend service generates unique, secure links for documents.
--   **Access Control Features (per link)**: Link Expiration, Password Protection, Email Verification, and Download Control.
--   **Document Viewer**: A clean, performant, in-browser PDF viewer.
+### 5) Data Rooms (VDR)
+- **Data room structure**: `Dataroom`, `DataroomFolder`, `DataroomDocument`.
+- **Content management**: create/rename/delete folders, add/remove/move documents/folders, nested replication from document library folders.
+- **Dataroom sharing**: create dataroom share links and manage them in UI.
+- **Per-item link permissions**: `ShareLinkDataroomSetting` supports visibility/download/watermark per file/folder for each link.
+- **Dataroom activity views**: dataroom-scoped view sessions endpoint and UI tab.
 
-### 4. Foundational Analytics
--   **View Tracking**: Logs every link view with details like viewer identity, duration, and completion rate.
--   **Core Analytics Dashboard**: UI lists viewers for a link, shows total views, and distinguishes between identified and anonymous viewers.
+### 6) Workflow Automations
+- **Destinations**: Slack, Discord, WeChat Work, Feishu, and generic webhook destination model.
+- **Rules and scopes**: global/share-link/dataroom scoped rules with validation constraints.
+- **Delivery operations**: queued deliveries with retry metadata, dead-letter status, and replay endpoint.
+- **Assignment model**: `AutomationAssignment` for user-level follow-up ownership.
 
-### 5. Self-Hosting & Administration
--   **Docker Compose Setup**: Simple one-command deployment.
--   **Comprehensive Documentation**: Clear instructions for setup and configuration.
--   **Admin Panel**: Administrative interface to manage users and system configurations.
-
-## Version 2.0: Collaborative Data Room
-
-The foundational features for data rooms are in place.
-
-### 1. Data Room Structure & Management
--   **Data Room Model**: Data models for `Dataroom`, `DataroomFolder`, and `DataroomDocument` are implemented.
--   **UI for Data Rooms**: UI for creating, renaming, deleting, and managing content in data rooms exists.
-
-### 2. Granular Permissions
--   **User Groups**: Admins can create groups of users within the organization.
--   **Link-Level Permissions**: When sharing a data room, the creator can select which files and folders are visible for that specific link.
-
-### 3. Advanced Features & Analytics
--   **Watermarking**: Dynamic server-side watermarking on documents is implemented, with support for displaying viewer's email and IP address.
+### 7) File Requests
+- **Public upload links**: `FileRequest` with slug, expiry, status toggle, size/type constraints.
+- **No-account external uploads**: public request-upload/finalize APIs + public upload page.
+- **Uploader attribution**: `UploadedFile` records and uploader metadata attached to created documents.
+- **Automation integration**: file-request upload completion dispatches automation event.
 
 ---
-# To Do (Future Roadmap)
+## Not Implemented Yet (Roadmap)
 
-## Version 1.0 Enhancements
+### 1) Upload & Transfer
+- **Resumable/chunked uploads** (e.g., Tus or multipart checkpoint resume) are not implemented yet.
 
-### 1. Document Pipeline & Storage
--   **Drag-and-Drop Uploads**: Add a drop zone to the UI for uploading files and folders directly from the user's desktop.
--   **Resumable File Uploads**: Implement a robust file upload handler that supports chunking (e.g., via the Tus protocol) to reliably handle large enterprise files.
+### 2) Data Room Collaboration
+- **Drag-and-drop repositioning inside dataroom tree** is not implemented; move is currently dialog/action based.
+- **Group-based ACLs inside dataroom trees** (permissions assigned directly to internal user groups) are not implemented.
 
-## Version 2.0: Advanced Data Room Features
+### 3) Analytics & Branding
+- **Aggregated dataroom tree analytics** (folder/file rollups in one hierarchical analytics view) are not implemented.
+- **Per-dataroom branding** (custom logo/colors/themes) is not implemented.
 
-### 1. Data Room Structure & Management
--   **UI for Data Rooms**: Build a hierarchical file explorer UI to move documents/folders within a data room using drag-and-drop.
+### 4) Enterprise Security & Governance
+- **Comprehensive audit log framework** (beyond login activity) for uploads, permission changes, and admin actions is not implemented.
+- **SAML SSO** (Okta/Azure AD/etc.) is not implemented.
+- **Org-wide enforced share policies** (e.g., force password on all new links) are not implemented.
 
-### 2. Granular Permissions
--   **Group-Based Permissions**: Implement backend logic and UI for admins to assign `view` and `download` permissions to specific `User Groups` on a per-folder or per-document basis within a data room.
+---
+## Notes
 
-### 3. Advanced Features & Analytics
--   **Data Room Analytics**: Provide an aggregated analytics view for an entire data room, with a collapsible tree view to show stats for individual files and folders.
--   **Branding**: Allow custom branding (logo, colors) on a per-data-room basis.
--   **Data Room Analytics**: Provide an aggregated analytics view for an entire data room, with a collapsible tree view to show stats for individual files and folders.
--   **Branding**: Allow custom branding (logo, colors) on a per-data-room basis.
-
-### 4. Enterprise Readiness
--   **Audit Logs**: Implement the data model and UI to log and view significant events (logins, uploads, permission changes).
--   **SSO Integration**: Add support for SAML-based SSO providers like Okta and Azure AD.
--   **Advanced Configuration**: Allow admins to enforce security settings organization-wide (e.g., disable public links, require passwords on all new links).
+- This roadmap intentionally reflects **code present in this repository today**, not marketing intent.
+- For detailed entities and fields, see `docs/coneshare-data-model.md`.
