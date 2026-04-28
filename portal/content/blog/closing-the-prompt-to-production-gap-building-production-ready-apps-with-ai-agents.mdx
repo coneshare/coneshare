@@ -1,6 +1,6 @@
 export const metadata = {
   title:
-    'Closing the Prompt-to-Production Gap: Building Production-Ready Apps with AI Agents',
+    'Prompt-to-production gap: how we use AI agents to ship reliable software (without losing engineering fundamentals)',
   description:
     'A practical process for turning AI-generated prototypes into production-ready systems through structured planning, TDD constraints, and modular architecture.',
   date: '2026-04-28',
@@ -14,128 +14,243 @@ export const metadata = {
   ],
 };
 
-# Closing the Prompt-to-Production Gap: Building Production-Ready Apps with AI Agents
+## Intro
 
-Most vibe coding workflows stop at one milestone: “it runs.”
-Production starts where that milestone ends.
+Most vibe coding workflows stop at one milestone: *“it runs.”* Production starts where that milestone fails.
 
-To ship real software, generated code also needs correctness, maintainability, and security.
-That is where many teams hit friction.
+Generated code that “works” can still:
 
-In this post, we share the process we use to close that **prompt-to-production gap** with AI agents.
+* violate permission boundaries
+* introduce cross-tenant data leaks
+* create tightly coupled logic that breaks under iteration
 
-> By “AI agents,” we refer to LLM-driven tools that iteratively generate, modify, and test code within a structured development workflow.
+To ship real software, generated code must meet a higher bar: **correctness, maintainability, and security**.
 
-## Why this matters to ConeShare
+This is where many teams hit friction.
 
-ConeShare is our open-source, self-hosted secure document-sharing platform.
-We built and shipped core features such as dataroom permissions, share-link security controls, and activity automation with AI-assisted workflows.
+In this post, we share the process we use to close the **prompt-to-production gap**—turning AI agents from rapid prototyping tools into reliable contributors to production systems.
 
-This gives us a practical testbed: if an AI-generated change is weak, we feel it immediately in security-sensitive paths, permission logic, and cross-service behavior.
-The process below is what helped us turn fast generation into reliable delivery.
+> By “AI agents,” we mean LLM-driven tools that iteratively generate, modify, and test code within a structured workflow, e.g. Claude Code, OpenAI Codex.
 
----
+
+## Why this matters
+
+We built ConeShare: an open-source, self-hosted solution for secure document sharing and automated workflows
+
+We’ve used AI-assisted workflows to build core features such as:
+
+* dataroom permissions
+* share-link security controls
+* activity automation
+* ...
+
+AI significantly accelerated our feature delivery speed, but it also surfaced reliability and quality problems when constraints were weak.
+
+We operate in **security-sensitive, multi-tenant paths**, where small mistakes can lead to:
+
+* unintended data exposure
+* broken permission boundaries
+* inconsistent cross-service behavior
+
+For example, an early AI-generated authentication change introduced **cross-tenant data access** due to a subtle scoping issue.
+
+That kind of failure makes one thing clear:
+speed without constraints does not translate to reliability.
+
+The process below is what helped us change that.
+
 
 ## 1) Structured planning before implementation
 
 We do not allow agents to jump directly into coding.
-Instead, we enforce a clear planning hierarchy:
 
-* `docs/strategy/` (strategic planning): roadmap, guiding principles, and rationale
-* `docs/features/` (feature design): architecture decisions, system boundaries, and user flows
-* `plans/` (implementation planning): concrete technical steps and execution order
+Instead, we enforce a planning hierarchy:
 
-  * e.g., “define verification contract and edge cases → add token model + migration → write failing expiry/invalid-token tests → implement service + API endpoint → integrate login flow → add regression/permission tests”
-* `docs/development-log.md`: a running record of what was implemented, including decisions and tradeoffs
+* `docs/strategy/` — long-lived system design, principles, and rationale
+* `docs/features/` — feature-level architecture, boundaries, and flows
+* `plans/` — step-by-step implementation plans
+
+  * e.g. define verification contract → model + migration → failing tests → service + API → integration → regression tests
+* `docs/development-log.md` — decisions, tradeoffs, and implementation history
 
 **Why this works:**
 
-* `docs/strategy/` remains the source of truth for long-lived system design
-* `plans/` translates architecture into executable steps that agents can reliably follow
+* Strategy remains stable while implementation evolves
+* Plans translate architecture into **executable, verifiable steps**
+* Agents operate within predefined intent instead of improvising structure
 
-This structure ensures that generated code aligns with intentional design, rather than ad hoc iteration.
+Without this layer, agents tend to:
 
----
+* skip implicit requirements
+* produce inconsistent abstractions
+* generate partially aligned implementations across files
+
+This structure ensures generated code follows design—not the other way around.
+
 
 ## 2) Test-driven development as a control mechanism
 
-We intentionally constrain agents to small, test-driven increments.
+TDD is a best practice in software engineering and has been validated for decades.
 
-Our TDD practices include:
+In practice, many teams still have limited tests because writing and maintaining test code adds real overhead.
 
-* **Test isolation**: clean database state and well-scoped fixtures
-* **Mocking external services**: isolating dependencies such as email, file storage, and third-party APIs
-* **Comprehensive coverage across:**
+AI changes that economics: test code becomes much cheaper to produce and iterate.
+That makes disciplined TDD practical at a much broader scale.
 
-  * Models and relationships
+We constrain agents to small, test-driven increments.
+
+Key practices:
+
+* **Test isolation** — clean state, scoped fixtures
+* **Mocked dependencies** — email, storage, third-party services
+* **Coverage across:**
+
+  * models and relationships
   * API behavior and permissions
-  * Security flows (e.g., password reset, email verification)
-  * Data scoping and isolation
+  * security flows (auth, verification, reset)
+  * data scoping and isolation
 
-TDD serves not only as a validation tool, but as a **control mechanism**.
-It prevents large, unverified code changes and maintains tight feedback loops, reducing the risk of subtle or compounding errors.
+TDD here is not just validation—it is a **control mechanism for agent behavior**.
 
----
+It:
+
+* prevents large, unverified patches
+* limits scope drift
+* forces explicit contracts before implementation
+* reduces hallucinated integrations between components
+
+Instead of asking “does this code work?”, we force a tighter loop: *“what must be true before this code is allowed to exist?”*
+
+**Example: password reset tokens**
+
+A typical prompt might be:
+
+> “Implement password reset”
+
+An agent will generate something that *works*. But critical constraints are often implicit and easy to miss:
+
+* tokens must expire after a fixed time
+* tokens must be single-use
+* tokens must be scoped to the correct user (and tenant)
+* invalid or expired tokens must not leak information
+
+In our workflow, these are defined *before* implementation and encoded as tests.
+
+Only then do we allow the agent to generate code.
+
+This shifts the task from:
+
+> “make password reset work”
+
+to:
+
+> “satisfy these non-negotiable security invariants”
+
+This is the difference between code that appears correct and code that is constrained to be correct.
+
 
 ## 3) Modular architecture for iterative development
 
-AI agents are significantly more reliable when system boundaries are explicit.
+![ConeShare backend app stack architecture](https://github.com/coneshare/coneshare/raw/main/backend/docs/assets/backend-app-stack-architecture.png)
 
-We enforce the following principles:
+Modular architecture has a central role in software engineering because it directly affects development velocity, maintainability, and long-term system health.
 
-* **Separation of concerns**
-  Domain-specific modules own their models, APIs, and business logic independently
+AI agents are significantly more reliable when system boundaries are explicit and modular architecture is what enforces those boundaries.
 
-* **Event-driven communication**
-  Cross-module interactions occur through explicit events (e.g., `user_created` triggering onboarding workflows), rather than direct coupling
+Without explicit constraints, AI tends to generate **shallow modules**:
 
-This avoids tight dependencies that often emerge from incremental code generation.
+* too many exposed interfaces
+* fragmented logic spread across many small files
+* weak internal cohesion
 
-In ConeShare, this means backend permission models, share-link access checks, and frontend viewer behavior can evolve independently while still meeting through explicit contracts.
-The result is a stack with clear boundaries and well-defined interfaces, allowing changes in one layer without introducing unintended side effects in others.
+This makes it harder for an AI agent to track dependencies, reason about the architectural graph, and establish clean test boundaries.
 
----
+What we want instead is **deep modules**—units with clear ownership and meaningful internal depth:
+
+* simple, narrow interfaces
+* strong encapsulation of complex, related internal behavior
+* clearer ownership and tighter test scope
+
+We enforce this through a small set of structural rules:
+
+### Separation of concerns
+
+Each domain module owns its:
+
+* models
+* APIs
+* business logic
+
+### Event-driven communication
+
+Cross-module interactions follow a strict direction:
+
+* Upper layers may call downward
+* Lower layers communicate upward only through explicit events (e.g., `user_created` → onboarding workflow)
+
+**Why this matters for AI-generated code ?**
+
+Without clear boundaries, agents tend to:
+
+* reach across modules
+* duplicate logic
+* couple unrelated domains
+
+A common failure mode: an agent directly calls internal logic from another module, bypassing its interface. This creates hidden dependencies that don’t fail immediately but break under iteration.
+
+In ConeShare, this structure allows permission models, share-link validation, and frontend access behavior to evolve independently while still coordinating through explicit contracts.
+
+The result is a system that tolerates iteration—without accumulating fragile coupling.
+
 
 ## What this changed for us
 
-Adopting this process led to consistent improvements:
+Adopting these constraints led to:
 
-* Fewer regressions from large, generated code changes
-* Higher-quality code reviews, as changes align with planned scope
-* Easier debugging and rollback due to documented decision history
-* Faster onboarding for both engineers and agents through shared project context
+* fewer regressions from generated changes
+* higher-signal code reviews (changes match planned scope)
+* easier debugging and rollback via decision history
+* faster onboarding for both engineers and agents
 
-Before introducing these constraints, we allowed agents to generate larger patches with minimal structure.
-That accelerated early development, but also created avoidable failures.
-For example, a small authentication change introduced unintended cross-tenant data access behavior.
+Before this, we allowed larger, loosely guided generations. That accelerated early progress but introduced subtle, compounding failures.
 
-Introducing structured planning, testing, and architectural boundaries significantly reduced these risks.
+The shift was not about slowing down. It was about **making iteration safe**.
 
----
 
 ## If you are vibecoding this week, start here
 
-Use this lightweight sequence:
+A lightweight sequence:
 
-1. Write a one-page feature plan before prompting for code (`goal`, `scope`, `non-goals`, `risks`).
-2. Ask the agent for a minimal implementation plan with explicit step order.
-3. Require tests first for the highest-risk behavior (permissions, auth, data isolation, migrations).
-4. Constrain patch size (small PRs, single concern per change).
-5. Keep module boundaries explicit (no cross-domain shortcuts without an interface contract).
-6. Review every generated diff for security and tenancy assumptions.
-7. Record decisions in a running development log so future prompts inherit context.
-8. Treat “tests pass” as a gate, not as proof of complete correctness.
+1. Co-create a one-page feature plan (`goal`, `scope`, `non-goals`, `risks`)
+2. Ask for a minimal, ordered implementation plan
+3. Write tests first for high-risk areas (auth, permissions, data isolation)
+4. Keep patches small (single concern per change)
+5. Enforce module boundaries (no cross-domain shortcuts)
+6. Review every diff for security and tenancy assumptions
+7. Maintain a development log for future context
+8. Treat “tests pass” as a gate, not proof of correctness
 
-This sequence reduces rework and “mystery bugs” that make vibecoding frustrating.
+This reduces rework, hidden coupling, and “mystery bugs.”
 
----
 
 ## Conclusion
 
-The key insight is that **constraints—not speed—enable reliable AI-assisted development**.
+The key insight is simple:
 
-By enforcing structure across planning, testing, and system design, AI agents can evolve from rapid prototyping tools into dependable contributors to production systems.
+**Constraints—not speed—enable reliable AI-assisted development.**
 
-Closing the prompt-to-production gap is less about generating more code—and more about ensuring that what is generated can be trusted, maintained, and extended over time.
+Planning, testing, and architecture are not overhead.
+They are what make AI-generated code *trustworthy*.
 
-If you want to see this approach applied in a real project, ConeShare is open source and built in public.
+Closing the prompt-to-production gap is not about generating more code.
+
+It is about ensuring what gets generated can be:
+
+* understood
+* verified
+* maintained
+* safely extended
+
+This is what turns AI from a fast generator into a **reliable engineering tool**.
+
+ConeShare is open source and built in public if you want to see this approach applied in practice.
