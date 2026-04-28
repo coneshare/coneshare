@@ -1,5 +1,26 @@
 # Coneshare Authentication Flow: Email & Password
 
+## Strategy refs
+- [Coneshare Roadmap](./strategy/coneshare-roadmap.md)
+- [Coneshare Technology Stack](./strategy/coneshare-techstack.md)
+
+## Out of scope
+- SSO/SAML/OIDC enterprise identity integration.
+- Multi-factor authentication (MFA), passkeys, and WebAuthn flows.
+- Social login providers (Google, GitHub, Microsoft).
+- Fine-grained organization role/permission model beyond baseline auth.
+
+## Design decisions
+- Decision: Use JWT-based authentication (`djangorestframework-simplejwt`) as the primary API auth model.
+  Rationale: Matches decoupled React SPA architecture and supports API-first workflows.
+  Tradeoff: Requires careful token lifecycle handling (refresh, revocation, storage risks).
+- Decision: Keep Django session-based authentication documented as an alternative, not the default.
+  Rationale: Useful for teams prioritizing server-managed sessions and cookie security.
+  Tradeoff: Adds cross-domain CSRF/cookie complexity for SPA deployments.
+- Decision: Include frontend interceptor-based token refresh behavior in the baseline flow.
+  Rationale: Reduces login friction and keeps authenticated UX stable during access-token expiry.
+  Tradeoff: Increases client auth complexity and requires robust 401/retry safeguards.
+
 This document outlines the implementation plan for an email/password authentication system in Coneshare, tailored for its Django/React tech stack. It also includes an analysis of two primary approaches: token-based (JWT) and session-based authentication.
 
 ---

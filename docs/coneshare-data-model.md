@@ -1,6 +1,36 @@
 # Coneshare Data Model
 
+## Strategy refs
+- [Coneshare Roadmap](./strategy/coneshare-roadmap.md)
+- [Coneshare Technology Stack](./strategy/coneshare-techstack.md)
+
+## Out of scope
+- Physical database sharding and multi-region active-active replication design.
+- Historical data warehouse/BI schemas and ETL modeling.
+- Detailed SaaS billing/subscription schema beyond OSS defaults.
+- Provider-specific cloud-drive metadata extensions beyond base connection model.
+
+## Design decisions
+- Decision: Keep `Organization` as the top-level ownership boundary for most domain models.
+  Rationale: Enforces clear tenancy and simplifies access-control reasoning.
+  Tradeoff: Cross-organization collaboration requires explicit future model extensions.
+- Decision: Model `DocumentVersion` and `DocumentPage` as first-class entities instead of flattening into `Document`.
+  Rationale: Supports version history and efficient page-level rendering/analytics.
+  Tradeoff: More relational complexity and additional lifecycle management.
+- Decision: Keep share link target polymorphism on `ShareLink` (`document_id` xor `dataroom_id`).
+  Rationale: Reuses one secure link model for both single-document and dataroom flows.
+  Tradeoff: Requires strict integrity checks to prevent invalid dual-null/dual-set states.
+
 This document outlines the data model for Coneshare, a self-hosted, enterprise-grade document sharing platform. The model is designed to be robust, secure, and scalable, aligning with the principles in the project roadmap and tech stack.
+
+---
+
+## Sensitive Field Policy
+
+- Encrypt sensitive secrets/tokens/password-like values at rest (e.g., link passwords, OAuth tokens, webhook secrets).
+- Mask secrets in logs and delivery/error snapshots.
+- Avoid persisting full sensitive payloads when excerpts are sufficient for diagnostics.
+- Define key-rotation and re-encryption procedures for encrypted fields.
 
 ---
 
@@ -170,7 +200,9 @@ A secure, configurable link for sharing a `Document` or `Dataroom`.
 -   **created_at**: DateTime
 -   **updated_at**: DateTime
 
-**Relations:** Belongs to one Document or Dataroom. Has many Views.
+**Relations:** Belongs to one Document or Dataroom. Has many ViewSessions.
+
+**Polymorphic integrity constraint:** Exactly one of `document_id` or `dataroom_id` must be set for each `ShareLink` (XOR constraint).
 
 ### 9. EmailVerificationToken
 
@@ -258,6 +290,13 @@ Records a granular page view event within a single viewing session (`ViewSession
 
 Represents an external, non-team member who has accessed a shared link and has been identified (e.g., via email verification).
 
+-   **id**: ULID, Primary Key
+-   **organization_id**: Foreign Key to `Organization`
+-   **email**: String
+-   **created_at**: DateTime
+
+**Relations:** Belongs to an Organization, has many ViewSessions. Unique on (`organization_id`, `email`).
+
 ---
 
 ## Automation Models
@@ -336,18 +375,11 @@ Assignment record for action-layer workflows.
 -   **created_at**: DateTime
 -   **updated_at**: DateTime
 
--   **id**: ULID, Primary Key
--   **organization_id**: Foreign Key to `Organization`
--   **email**: String
--   **created_at**: DateTime
-
-**Relations:** Belongs to an Organization, has many Views. Unique on (organization_id, email).
-
 ---
 
 ## File Request Models (`filerequests` app)
 
-### 15. FileRequest
+### 19. FileRequest
 
 Represents a secure, shareable link for collecting files from external parties.
 
@@ -369,7 +401,7 @@ Represents a secure, shareable link for collecting files from external parties.
 
 ## Cloud Integration Models (`cloudfiles` app)
 
-### CloudConnection
+### 20. CloudConnection
 
 Stores user-specific authorization tokens for a cloud provider.
 
@@ -391,7 +423,7 @@ Stores user-specific authorization tokens for a cloud provider.
 
 These models introduce the concept of a `Dataroom` for sharing collections of documents. Note that `DataroomFolder` is distinct from the general-purpose `Folder` model and is scoped exclusively to a single `Dataroom`.
 
-### 16. Dataroom
+### 21. Dataroom
 
 A container for organizing and sharing a collection of documents and folders.
 
@@ -404,7 +436,7 @@ A container for organizing and sharing a collection of documents and folders.
 
 **Relations:** Belongs to one Organization. Has many DataroomDocuments, DataroomFolders, and ShareLinks.
 
-### 17. DataroomFolder
+### 22. DataroomFolder
 
 A folder within a `Dataroom` to create a hierarchical structure.
 
@@ -417,7 +449,7 @@ A folder within a `Dataroom` to create a hierarchical structure.
 
 **Relations:** Belongs to one Dataroom.
 
-### 18. DataroomDocument
+### 23. DataroomDocument
 
 A linking table to place a `Document` within a Dataroom's structure.
 

@@ -75,8 +75,8 @@ Coneshare is a multi-service stack:
 
 Technical reference:
 
-- [Technology Stack](docs/coneshare-techstack.md)
-- [Open API Reference](docs/coneshare-open-api.md)
+- [Technology Stack](docs/strategy/coneshare-techstack.md)
+- [Open API Reference](docs/strategy/coneshare-open-api.md)
 
 ## Contributing
 

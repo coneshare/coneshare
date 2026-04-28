@@ -1,0 +1,141 @@
+export const metadata = {
+  title:
+    'Closing the Prompt-to-Production Gap: Building Production-Ready Apps with AI Agents',
+  description:
+    'A practical process for turning AI-generated prototypes into production-ready systems through structured planning, TDD constraints, and modular architecture.',
+  date: '2026-04-28',
+  category: 'Engineering',
+  tags: [
+    'AI Agents',
+    'Software Engineering',
+    'Production Readiness',
+    'TDD',
+    'Architecture',
+  ],
+};
+
+# Closing the Prompt-to-Production Gap: Building Production-Ready Apps with AI Agents
+
+Most vibe coding workflows stop at one milestone: “it runs.”
+Production starts where that milestone ends.
+
+To ship real software, generated code also needs correctness, maintainability, and security.
+That is where many teams hit friction.
+
+In this post, we share the process we use to close that **prompt-to-production gap** with AI agents.
+
+> By “AI agents,” we refer to LLM-driven tools that iteratively generate, modify, and test code within a structured development workflow.
+
+## Why this matters to ConeShare
+
+ConeShare is our open-source, self-hosted secure document-sharing platform.
+We built and shipped core features such as dataroom permissions, share-link security controls, and activity automation with AI-assisted workflows.
+
+This gives us a practical testbed: if an AI-generated change is weak, we feel it immediately in security-sensitive paths, permission logic, and cross-service behavior.
+The process below is what helped us turn fast generation into reliable delivery.
+
+---
+
+## 1) Structured planning before implementation
+
+We do not allow agents to jump directly into coding.
+Instead, we enforce a clear planning hierarchy:
+
+* `docs/strategy/` (strategic planning): roadmap, guiding principles, and rationale
+* `docs/features/` (feature design): architecture decisions, system boundaries, and user flows
+* `plans/` (implementation planning): concrete technical steps and execution order
+
+  * e.g., “define verification contract and edge cases → add token model + migration → write failing expiry/invalid-token tests → implement service + API endpoint → integrate login flow → add regression/permission tests”
+* `docs/development-log.md`: a running record of what was implemented, including decisions and tradeoffs
+
+**Why this works:**
+
+* `docs/strategy/` remains the source of truth for long-lived system design
+* `plans/` translates architecture into executable steps that agents can reliably follow
+
+This structure ensures that generated code aligns with intentional design, rather than ad hoc iteration.
+
+---
+
+## 2) Test-driven development as a control mechanism
+
+We intentionally constrain agents to small, test-driven increments.
+
+Our TDD practices include:
+
+* **Test isolation**: clean database state and well-scoped fixtures
+* **Mocking external services**: isolating dependencies such as email, file storage, and third-party APIs
+* **Comprehensive coverage across:**
+
+  * Models and relationships
+  * API behavior and permissions
+  * Security flows (e.g., password reset, email verification)
+  * Data scoping and isolation
+
+TDD serves not only as a validation tool, but as a **control mechanism**.
+It prevents large, unverified code changes and maintains tight feedback loops, reducing the risk of subtle or compounding errors.
+
+---
+
+## 3) Modular architecture for iterative development
+
+AI agents are significantly more reliable when system boundaries are explicit.
+
+We enforce the following principles:
+
+* **Separation of concerns**
+  Domain-specific modules own their models, APIs, and business logic independently
+
+* **Event-driven communication**
+  Cross-module interactions occur through explicit events (e.g., `user_created` triggering onboarding workflows), rather than direct coupling
+
+This avoids tight dependencies that often emerge from incremental code generation.
+
+In ConeShare, this means backend permission models, share-link access checks, and frontend viewer behavior can evolve independently while still meeting through explicit contracts.
+The result is a stack with clear boundaries and well-defined interfaces, allowing changes in one layer without introducing unintended side effects in others.
+
+---
+
+## What this changed for us
+
+Adopting this process led to consistent improvements:
+
+* Fewer regressions from large, generated code changes
+* Higher-quality code reviews, as changes align with planned scope
+* Easier debugging and rollback due to documented decision history
+* Faster onboarding for both engineers and agents through shared project context
+
+Before introducing these constraints, we allowed agents to generate larger patches with minimal structure.
+That accelerated early development, but also created avoidable failures.
+For example, a small authentication change introduced unintended cross-tenant data access behavior.
+
+Introducing structured planning, testing, and architectural boundaries significantly reduced these risks.
+
+---
+
+## If you are vibecoding this week, start here
+
+Use this lightweight sequence:
+
+1. Write a one-page feature plan before prompting for code (`goal`, `scope`, `non-goals`, `risks`).
+2. Ask the agent for a minimal implementation plan with explicit step order.
+3. Require tests first for the highest-risk behavior (permissions, auth, data isolation, migrations).
+4. Constrain patch size (small PRs, single concern per change).
+5. Keep module boundaries explicit (no cross-domain shortcuts without an interface contract).
+6. Review every generated diff for security and tenancy assumptions.
+7. Record decisions in a running development log so future prompts inherit context.
+8. Treat “tests pass” as a gate, not as proof of complete correctness.
+
+This sequence reduces rework and “mystery bugs” that make vibecoding frustrating.
+
+---
+
+## Conclusion
+
+The key insight is that **constraints—not speed—enable reliable AI-assisted development**.
+
+By enforcing structure across planning, testing, and system design, AI agents can evolve from rapid prototyping tools into dependable contributors to production systems.
+
+Closing the prompt-to-production gap is less about generating more code—and more about ensuring that what is generated can be trusted, maintained, and extended over time.
+
+If you want to see this approach applied in a real project, ConeShare is open source and built in public.

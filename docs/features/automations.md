@@ -1,11 +1,34 @@
 # Coneshare Automations: Current Implementation Reference
 
+## Strategy refs
+- [Coneshare Roadmap](./strategy/coneshare-roadmap.md)
+- [Coneshare Technology Stack](./strategy/coneshare-techstack.md)
+
+## Out of scope
+- Organization-wide shared automation rule ownership and cross-owner visibility.
+- Fully implemented assignment action execution pipeline.
+- Advanced event filtering/high-intent signal generation beyond current event taxonomy.
+- Destination-level custom payload templating UI.
+
+## Design decisions
+- Decision: Keep automations owner-scoped (`created_by`) instead of organization-shared by default.
+  Rationale: Reduces accidental cross-user exposure and keeps authorization boundaries simple.
+  Tradeoff: Teams cannot centrally manage shared rules without future role/ownership extensions.
+- Decision: Use asynchronous delivery (`AutomationDelivery` + Celery task queue) with retry/dead-letter lifecycle.
+  Rationale: Improves reliability for webhook/chat integrations under transient failures.
+  Tradeoff: Adds operational complexity (queue workers, replay flows, delivery-state management).
+- Decision: Keep destination-specific formatted payloads for chat providers and raw payloads for generic webhooks.
+  Rationale: Chat endpoints require strict schemas while webhook consumers benefit from raw event JSON.
+  Tradeoff: Multiple payload shapes increase maintenance and schema-versioning requirements.
+
 This document maps the **current** implementation state of Automations and is intended as a maintenance and enhancement reference.
 
 Primary planning doc moved to:
-- `plans/automation-feature-impl.md`
+- [plans/automation-feature-impl.md](../plans/automation-feature-impl.md)
 
 ---
+
+## Current State
 
 ## 1. Scope Implemented Today
 
@@ -132,6 +155,12 @@ Retry behavior:
 Security note:
 - review concern is valid: avoid logging full webhook URLs and full payload bodies in production logs
 
+Logging policy (recommended baseline):
+- redact query parameters from destination URLs in application logs;
+- mask secret-bearing headers and payload fields before persistence/logging;
+- store only bounded response snippets for failure diagnostics;
+- apply retention limits for delivery logs and dead-letter payload snapshots.
+
 ---
 
 ## 7. Event Sources Implemented
@@ -207,8 +236,9 @@ Current UX highlights:
 3. Event taxonomy cleanup
 - continue to keep event names semantic and source-specific
 
-
 ---
+
+## Forward Plan
 
 ## 10. Recommended Enhancement Roadmap
 

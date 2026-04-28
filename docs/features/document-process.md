@@ -1,5 +1,27 @@
 # Coneshare Document Processing Architecture
 
+## Strategy refs
+- [Coneshare Roadmap](./strategy/coneshare-roadmap.md)
+- [Coneshare Technology Stack](./strategy/coneshare-techstack.md)
+- [Coneshare Data Model](./coneshare-data-model.md)
+
+## Out of scope
+- OCR accuracy tuning and language-model extraction pipelines.
+- Media transcoding pipeline design for video/audio beyond current file processing flow.
+- Cloud-provider-specific storage optimization strategy.
+- Full observability/metrics stack design for workers and queues.
+
+## Design decisions
+- Decision: Use asynchronous task execution for preview generation.
+  Rationale: Keeps upload/API response path responsive and offloads expensive conversion work.
+  Tradeoff: Requires background worker operations and eventual-consistency UI states.
+- Decision: Normalize preview generation around PDF page extraction.
+  Rationale: Provides one rendering path for office and PDF-origin files.
+  Tradeoff: Adds conversion dependency for office formats before page generation.
+- Decision: Mark unsupported/oversized files as `download_only` with immediate ready status.
+  Rationale: Preserves upload usability while avoiding failed or expensive preview pipelines.
+  Tradeoff: No in-app preview for these files.
+
 This document outlines the document processing architecture for Coneshare V1.0. The system is designed for a self-hosted environment and uses an asynchronous pipeline to handle file processing, ensuring the user interface remains responsive.
 
 The V1.0 pipeline is designed to handle common enterprise file types, including office documents (e.g., DOCX, PPTX), PDFs, and images, by routing them through a modular, asynchronous processing pipeline.
@@ -8,15 +30,15 @@ The V1.0 pipeline is designed to handle common enterprise file types, including 
 
 ## Component Map
 
-Based on the `coneshare-techstack.md`, the key components involved in this process are:
+Based on the `strategy/coneshare-techstack.md`, the key components involved in this process are:
 
 | Component            | Technology/Location         | Key Functions                                        |
 | -------------------- | --------------------------- | ---------------------------------------------------- |
-| **API Endpoint**     | Django REST Framework       | `POST /api/documents/` view, handles file uploads    |
-| **Document Processor** | Django Service (`services.py`) | `process_document()` - Creates DB records, triggers task |
-| **Office Converter**   | Celery Task (`tasks.py`)    | `convert_office_to_pdf_task()` - Converts DOCX etc. to PDF |
-| **PDF Page Processor** | Celery Task (`tasks.py`)    | `generate_pdf_pages_task()` - Extracts pages as images |
-| **Queue Manager**    | Redis / RabbitMQ            | Message broker for Celery                            |
+| **API Endpoint**     | Django REST Framework       | `POST /api/v1/documents/` view, handles file uploads |
+| **Document Processor** | Django Service (`backend/documents/services.py`) | `process_document()` - creates DB records, triggers tasks |
+| **Office Converter**   | Celery Task (`backend/documents/tasks.py`) | `convert_office_to_pdf_task()` - converts DOCX etc. to PDF |
+| **PDF Page Processor** | Celery Task (`backend/documents/tasks.py`) | `generate_pdf_pages_task()` - extracts pages as images |
+| **Queue Manager**    | Redis                       | Message broker for Celery in current deployment      |
 | **Task Runner**      | Celery Worker               | Background process that executes tasks               |
 | **Storage**          | MinIO / Filesystem          | Stores original PDFs and generated page images       |
 
@@ -60,24 +82,24 @@ sequenceDiagram
     participant DB as Database (PostgreSQL)
     participant Storage as Storage (MinIO)
 
-    Client->>API: POST /api/documents/ (+ file)
+    Client->>API: POST /api/v1/documents/ (+ file)
     API->>Storage: Store original file
     API->>DB: Create Document & Version
     
     alt Office Doc (previewable size)
         API->>DB: Set status: 'processing'
         API->>Queue: Push convert_office_to_pdf_task
-        API-->>Client: 202 Accepted
+        API-->>Client: 202 Accepted (recommended for async path)
     else PDF Doc (previewable size)
         API->>DB: Set status: 'processing'
         API->>Queue: Push generate_pdf_pages_task
-        API-->>Client: 202 Accepted
+        API-->>Client: 202 Accepted (recommended for async path)
     else Image File (previewable size)
         API->>DB: Set status: 'ready'
-        API-->>Client: 201 Created
+        API-->>Client: 201 Created (recommended for immediate-ready path)
     else Unsupported Type or Too Large
         API->>DB: Set status: 'ready', download_only: true
-        API-->>Client: 201 Created
+        API-->>Client: 201 Created (recommended for immediate-ready path)
     end
 
     Note right of Queue: Async processing begins

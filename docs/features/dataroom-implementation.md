@@ -1,5 +1,28 @@
 # Coneshare: Dataroom Feature Implementation Plan
 
+## Strategy refs
+- [Coneshare Roadmap](../strategy/coneshare-roadmap.md)
+- [Coneshare Technology Stack](../strategy/coneshare-techstack.md)
+- [Coneshare Data Model](../coneshare-data-model.md)
+- [Coneshare Dataroom Ownership and Department Scope](../strategy/dataroom-ownership-and-department-scope.md)
+
+## Out of scope
+- Department ownership model changes (departments remain scoping/filtering constructs).
+- Re-architecture of share link core beyond dataroom compatibility requirements.
+- Production-grade Q&A and audit workflows beyond foundational schema prep.
+- Non-dataroom sharing feature redesigns unrelated to this implementation plan.
+
+## Design decisions
+- Decision: Extend existing `ShareLink` to support dataroom targets via polymorphic relation.
+  Rationale: Reuses existing secure link infrastructure for dataroom sharing.
+  Tradeoff: Requires strict validation to keep link target integrity clear.
+- Decision: Keep per-item controls in `ShareLinkDataroomSetting` instead of embedding in documents/folders.
+  Rationale: Permissions are link-specific and need per-link isolation.
+  Tradeoff: Adds join complexity for public view/download flows.
+- Decision: Apply folder-level changes recursively by default for visibility/download/watermark settings.
+  Rationale: Matches operator expectations and reduces repetitive manual updates.
+  Tradeoff: Bulk updates must be transaction-safe and carefully validated.
+
 This document outlines the implementation plan for the Dataroom feature in Coneshare. The feature will allow users to create collections of documents and folders, share them via a single link, and configure granular, per-item access settings for that link.
 
 The plan also incorporates foundational data models for future enhancements, including audit logging and a Q&A system for document collaboration.

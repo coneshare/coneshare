@@ -1,4 +1,26 @@
-# ConeShare OpenAPI Guide
+# Coneshare OpenAPI Contract Workflow
+
+## Strategy refs
+- [Coneshare Roadmap](./coneshare-roadmap.md)
+- [Coneshare Technology Stack](./coneshare-techstack.md)
+- [Coneshare Data Model](../coneshare-data-model.md)
+
+## Out of scope
+- Endpoint-by-endpoint business semantics documentation for each domain app.
+- Full elimination of all schema generation warnings in one pass.
+- Client SDK generation/distribution process.
+- External partner API lifecycle/versioning policy.
+
+## Design decisions
+- Decision: Treat generated OpenAPI schema as a versioned contract artifact.
+  Rationale: Keeps frontend/integration consumers aligned with backend changes.
+  Tradeoff: Requires disciplined schema regeneration and review in API-change PRs.
+- Decision: Use `drf-spectacular` as the schema generation and serving implementation.
+  Rationale: Native DRF integration and strong OpenAPI compatibility.
+  Tradeoff: Requires explicit annotation on custom APIViews/viewsets to avoid missing endpoints.
+- Decision: Keep schema validation in developer workflow (`make api.schema`, `make api.schema.validate`) even without strict CI enforcement for now.
+  Rationale: Preserves contract quality while allowing incremental warning cleanup.
+  Tradeoff: Compliance depends on team discipline until CI enforcement is re-enabled.
 
 ## What We Implemented
 
@@ -31,6 +53,10 @@ When backend API contract changes:
 1. Run `make api.schema`
 2. Run `make api.schema.validate`
 3. Commit updated `backend/docs/api/openapi.yaml` with the API change
+
+## Policy
+
+For backend API contract changes, the updated OpenAPI schema (`backend/docs/api/openapi.yaml`) must be regenerated, validated, and committed in the same change set.
 
 ## Common Use Cases
 

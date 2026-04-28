@@ -1,5 +1,27 @@
 # Data Ownership Model Analysis for Coneshare
 
+## Strategy refs
+- [Coneshare Roadmap](./strategy/coneshare-roadmap.md)
+- [Coneshare Technology Stack](./strategy/coneshare-techstack.md)
+- [Coneshare Data Model](./coneshare-data-model.md)
+
+## Out of scope
+- Detailed migration runbooks for converting an existing personal-ownership production system.
+- Legal/compliance policy text beyond technical ownership and access-control implications.
+- Department-level delegated ownership models beyond organization-level primary ownership.
+- Public sharing policy semantics outside existing ShareLink controls.
+
+## Design decisions
+- Decision: Keep organization-centric ownership as the primary model (`Organization` owns `Document` and core resources).
+  Rationale: Aligns with enterprise ownership reality, simplifies offboarding, and keeps permission boundaries unambiguous.
+  Tradeoff: Requires permission-layer patterns to provide user-private draft workflows.
+- Decision: Treat personal ownership as a rejected baseline for enterprise default behavior.
+  Rationale: Avoids orphaned assets, transfer-ownership operational overhead, and quota ambiguity.
+  Tradeoff: Less consumer-style personal workspace semantics by default.
+- Decision: Support a hybrid collaboration model through permissions, not ownership changes.
+  Rationale: Enables private-by-default working patterns without sacrificing company ownership guarantees.
+  Tradeoff: Permission policy surface becomes more important and must be consistently enforced.
+
 This document analyzes data ownership models for Coneshare, an enterprise-focused product. This is a critical architectural decision that deeply impacts the entire application. Let's analyze a **"Personal Ownership Model"** versus the recommended **"Organization Ownership Model"**.
 
 ### Summary of Your Proposed Model (Personal Ownership)
@@ -59,3 +81,7 @@ I strongly recommend against the personal ownership model for an enterprise prod
 ### A Hybrid Solution to Get the "Best of Both Worlds"
 
 If the goal is to give users a private space to work on drafts before sharing with the wider organization, this can still be achieved *within* the organization-centric model by using fine-grained permissions (e.g., a document is owned by the organization but is only visible to its creator until explicitly shared with a wider user group). This approach provides the desired private workspace for users while ensuring that all collaborative, business-critical documents have clear, unambiguous company ownership from the moment of creation, solving the critical offboarding problem.
+
+### Decision Policy (Source-of-Truth)
+
+For Coneshare core resources (`Document`, `Folder`, `Dataroom`, automation entities), organization ownership is the default and authoritative model. User-level privacy and draft workflows should be modeled through permission visibility and role/group controls, not by changing primary data ownership.

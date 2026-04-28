@@ -1,17 +1,17 @@
 # Coneshare Technology Stack
 
-This document outlines the core technologies chosen for Coneshare, an enterprise-grade, self-hosted document sharing solution. The stack is designed to be modern, maintainable, and suitable for a secure, on-premise environment.
+This document outlines the core technologies used in Coneshare, an enterprise-grade, self-hosted document sharing solution. The stack is designed to be maintainable and suitable for secure, self-hosted environments.
 
 ---
 
-## Backend (Python / Django)
+## Backend API (Python / Django)
 
 The backend is built using the Django framework, chosen for its robust security features, scalability, and rapid development capabilities.
 
 -   **Core Framework:** **Django**
     -   The foundation for data models, business logic, and security.
 -   **API Layer:** **Django REST Framework (DRF)**
-    -   Used to build a powerful and flexible REST API for the frontend.
+    -   Used to build REST APIs for the frontend and integrations.
     -   **JSON Naming Convention:** All API responses use `snake_case` for field names to maintain consistency between the Python backend and the JSON payload.
 -   **Authentication:** **djangorestframework-simplejwt**
     -   Provides stateless API authentication using JSON Web Tokens (JWT), ideal for a decoupled SPA frontend.
@@ -21,6 +21,20 @@ The backend is built using the Django framework, chosen for its robust security 
     -   Acts as the message broker for Celery to manage the task queue, ensuring reliability.
 -   **Storage Abstraction:** **Django's Storage API**
     -   Provides a flexible storage backend that is configurable via environment variables to support on-premise solutions like **MinIO** or a local filesystem.
+
+---
+
+## File Service (Go)
+
+Coneshare includes a dedicated Go service for file handling operations.
+
+-   **Language / Runtime:** **Go**
+    -   Implemented as a separate service in `core/`.
+-   **HTTP Router:** **go-chi/chi**
+    -   Lightweight router for service endpoints.
+-   **Responsibilities:**
+    -   Secure upload/download paths and file operation flows.
+    -   Separation of file-serving concerns from the Django API layer.
 
 ---
 
@@ -34,12 +48,24 @@ The frontend is a modern single-page application (SPA) built with React, providi
     -   Provides a fast and modern development environment and build process for the React application.
 -   **UI & Styling:**
     -   **Tailwind CSS**: A utility-first CSS framework for rapid UI development.
-    -   **shadcn/ui**: A collection of reusable UI components built on Radix UI and Tailwind CSS.
-    -   **Lucide React**: Provides a simple and consistent icon set.
+    -   **Radix UI primitives**: Accessible component primitives used across the UI.
+    -   **shadcn-style component patterns**: Reusable component patterns built with Radix + Tailwind utilities.
+    -   **Lucide React**: A consistent icon set.
 -   **API Communication & Routing:**
-    -   **Axios**: A promise-based HTTP client for making requests to the Django backend, enhanced with interceptors for automatic token refresh.
+    -   **Axios**: A promise-based HTTP client for requests to the Django backend.
     -   **React Router**: Handles all client-side routing.
 -   **Document Viewer:** A custom, performant document viewer is used to render document pages within the browser.
+
+---
+
+## Portal / Website (Next.js + MDX)
+
+The repository also includes a separate portal application for marketing pages and long-form docs/blog content.
+
+-   **Framework:** **Next.js**
+    -   Server-rendered/static site for website and content pages.
+-   **Content Format:** **MDX**
+    -   Blog/docs content maintained as versioned `.mdx` files in-repo.
 
 ---
 
@@ -54,7 +80,7 @@ The entire stack is designed to be deployed easily in a self-hosted environment 
     -   The primary relational database for storing all application data.
 
 -   **Web Server / Reverse Proxy:** **Nginx**
-    -   Serves the static React frontend application and acts as a reverse proxy for the Django API.
+    -   Serves frontend assets and acts as a reverse proxy for backend services.
 
 ---
 

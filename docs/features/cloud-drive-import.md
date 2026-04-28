@@ -1,5 +1,26 @@
 # Coneshare: Cloud Drive Import Implementation Plan
 
+## Strategy refs
+- [Coneshare Roadmap](./strategy/coneshare-roadmap.md)
+- [Coneshare Technology Stack](./strategy/coneshare-techstack.md)
+
+## Out of scope
+- Folder import in V1 (including recursive traversal and batch folder sync).
+- Multi-file selection/import in a single action.
+- Background delta sync and two-way synchronization.
+- Provider-specific advanced features (shared-drive ACL mirroring, shortcuts, comments).
+
+## Design decisions
+- Decision: Use API-driven OAuth2 flow with frontend callback handoff and backend token exchange.
+  Rationale: Fits JWT-based SPA architecture and avoids relying on server-side session auth flow.
+  Tradeoff: Requires explicit state-token lifecycle handling and callback route coordination.
+- Decision: Keep V1 import asynchronous via Celery task.
+  Rationale: Avoids request timeouts and supports reliable large-file transfer behavior.
+  Tradeoff: Requires status tracking and UI polling/error surfacing.
+- Decision: Enforce single-file import and size pre-validation (<100MB) in V1.
+  Rationale: Keeps initial scope controlled while validating end-to-end provider integration.
+  Tradeoff: Reduced user convenience until folder/multi-file support is added.
+
 This document outlines the implementation plan for allowing users to import files from third-party cloud storage providers like Dropbox, Google Drive, or self-hosted solutions like ownCloud.
 
 The architecture is designed to be configurable by a system administrator, secure through the use of OAuth2, and scalable by leveraging an asynchronous import process.
@@ -38,10 +59,12 @@ The backend will manage secure connections to external providers and handle the 
 
 ### 1. System Administrator Configuration
 
-To allow administrators to control which services are available, new settings will be added to `backend/settings.py`. These settings are configured directly in the Python settings file.
+To allow administrators to control which services are available, settings will be loaded from environment variables in `backend/backend/settings.py`.
 
 **File**: `backend/backend/settings.py`
 ```python
+import os
+
 # Cloud Services Configuration
 # A list of enabled cloud providers.
 # Example: ENABLED_CLOUD_PROVIDERS = ["dropbox", "google_drive"]
@@ -53,10 +76,11 @@ CLOUD_IMPORT_FOLDER_MAPPING = {
     "google_drive": "Google Drive Imports",
 }
 
-# Dropbox API Credentials
-# Get these from your Dropbox App Console.
-DROPBOX_APP_KEY = 'your_dropbox_app_key'
-DROPBOX_APP_SECRET = 'your_dropbox_app_secret'
+# Provider API Credentials (loaded from env)
+DROPBOX_APP_KEY = os.environ.get("DROPBOX_APP_KEY", "")
+DROPBOX_APP_SECRET = os.environ.get("DROPBOX_APP_SECRET", "")
+GOOGLE_DRIVE_CLIENT_ID = os.environ.get("GOOGLE_DRIVE_CLIENT_ID", "")
+GOOGLE_DRIVE_CLIENT_SECRET = os.environ.get("GOOGLE_DRIVE_CLIENT_SECRET", "")
 ```
 
 ### 2. New `CloudConnection` Model
@@ -84,7 +108,7 @@ A new model is required to securely store user-specific authorization tokens for
         -   Finally, it saves the new `CloudConnection` in the database.
 -   **Cloud File Operations API** (all in `cloudfiles/urls.py`):
     -   **File Listing Endpoint**: `GET /api/v1/cloud/connections/<connection_id>/list/` will allow the frontend to browse files and folders in a connected drive.
-    -   **Import Endpoint**: `POST /api/v1/cloud/connections/<connection_id>/import/` will trigger the asynchronous import process for selected files and folders.
+    -   **Import Endpoint**: `POST /api/v1/cloud/connections/<connection_id>/import/` will trigger the asynchronous import process for one selected file in V1.
 
 ### 4. Token Encryption (Security Implementation)
 
@@ -124,7 +148,7 @@ To protect user credentials, all OAuth2 tokens (`access_token`, `refresh_token`)
         # ...
     ```
 
-5.  **Create and Apply Migrations**: The final step is to apply these changes to the database schema. `django-cryptography` will automatically handle the encryption of any existing, unencrypted data during the migration process.
+5.  **Create and Apply Migrations**: The final step is to apply these changes to the database schema. Validate encryption behavior in staging with a rollback plan before production rollout.
     ```bash
     docker compose exec backend python manage.py makemigrations cloudfiles
     docker compose exec backend python manage.py migrate
@@ -143,6 +167,13 @@ To prevent API timeouts when importing large files, the file transfer process mu
         -   It determines the destination folder for the import based on the provider (e.g., "Dropbox Imports"), creating it if it does not exist.
         -   It uses the stored tokens to download the file directly from the cloud provider's server to Coneshare's storage backend (e.g., MinIO) as a stream.
         -   After the transfer, it calls existing internal services to create the `Document` and `DocumentVersion` records within the designated folder.
+
+### Required Schema Changes
+
+- `CloudConnection` model for per-user provider credentials/tokens.
+- `Document.status` must support an import lifecycle (`processing`, `ready`, `error`) if not already present.
+- `Document.status_message` field is required for user-facing import failure feedback.
+- Corresponding migrations and API serializer exposure for status/status_message.
 
 ### Error Handling and Status Updates
 
@@ -174,8 +205,8 @@ A handler function for the dynamic menu items will implement the core conditiona
 ### 3. Cloud File Picker Modal
 
 -   A new modal component will serve as a file browser for the user's connected cloud drives.
--   When opened, it will use the `GET /api/v1/cloud/<connection_id>/list/` endpoint to display the user's cloud files and folders (though only files will be selectable in V1).
--   The user can select a single file and click an "Import" button, which will call the `POST /api/v1/cloud/import/` endpoint to start the asynchronous background process.
+-   When opened, it will use the `GET /api/v1/cloud/connections/<connection_id>/list/` endpoint to display the user's cloud files and folders (only files are selectable in V1).
+-   The user can select a single file and click an "Import" button, which will call the `POST /api/v1/cloud/connections/<connection_id>/import/` endpoint to start the asynchronous background process.
 
 ### 4. Displaying Import Status and Errors
 

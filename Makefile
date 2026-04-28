@@ -25,6 +25,7 @@ help:
 	@echo "  test            - Run backend tests with pytest"
 	@echo "  test.front      - Run frontend tests with vitest"
 	@echo "  lint.portal     - Run portal linter with eslint"
+	@echo "  lint.docs       - Validate feature docs template sections"
 	@echo "  migrate         - Run database migrations"
 	@echo "  superuser       - Create a superuser"
 	@echo "  api.schema      - Generate OpenAPI schema at backend/docs/api/openapi.yaml"
@@ -106,6 +107,11 @@ test.front:
 lint.portal:
 	@echo "Running portal linter..."
 	COMPOSE_PROJECT_NAME=coneshare docker-compose exec portal npm run lint
+
+.PHONY: lint.docs
+lint.docs:
+	@echo "Running feature docs checks..."
+	./scripts/check-feature-docs.sh
 
 .PHONY: portal
 portal:
