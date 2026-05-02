@@ -386,10 +386,36 @@ export const renameDataroomDocument = (id, name) => api.patch(`/dataroom-documen
 export const updateDataroomFolder = (id, data) => api.patch(`/dataroom-folders/${id}/`, data);
 export const updateDataroomDocument = (id, data) => api.patch(`/dataroom-documents/${id}/`, data);
 export const updateDataroom = (id, data) => api.patch(`/datarooms/${id}/`, data);
+export const updateDataroomBranding = (id, { name, bannerFile, removeBanner = false, brandPrimaryColor, brandSecondaryColor, brandAccentColor, showFileIndex }) => {
+  const formData = new FormData();
+  if (name !== undefined) {
+    formData.append('name', name);
+  }
+  if (bannerFile) {
+    formData.append('branding_banner', bannerFile);
+  }
+  formData.append('remove_branding_banner', removeBanner ? 'true' : 'false');
+  if (brandPrimaryColor !== undefined) {
+    formData.append('brand_primary_color', brandPrimaryColor || '');
+  }
+  if (brandSecondaryColor !== undefined) {
+    formData.append('brand_secondary_color', brandSecondaryColor || '');
+  }
+  if (brandAccentColor !== undefined) {
+    formData.append('brand_accent_color', brandAccentColor || '');
+  }
+  if (showFileIndex !== undefined) {
+    formData.append('show_file_index', showFileIndex ? 'true' : 'false');
+  }
+  return api.patch(`/datarooms/${id}/`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
 export const deleteDataroom = (id) => api.delete(`/datarooms/${id}/`);
 export const addContentToDataroom = (id, data) => api.post(`/datarooms/${id}/add-content/`, data);
 export const removeContentFromDataroom = (id, data) => api.post(`/datarooms/${id}/remove-content/`, data);
 export const moveDataroomContent = (id, data) => api.post(`/datarooms/${id}/move-content/`, data);
+export const reorderDataroomItems = (id, data) => api.post(`/datarooms/${id}/reorder-items/`, data);
 export const getDataroomFolderContents = (folderId) => api.get(`/dataroom-folders/${folderId}/`);
 export const getShareLinksForDataroom = (dataroomId) => api.get(`/share-links/?dataroom_id=${dataroomId}`);
 export const updateDataroomLinkSettings = (linkId, settings) => api.patch(`/share-links/${linkId}/dataroom-settings/`, settings);

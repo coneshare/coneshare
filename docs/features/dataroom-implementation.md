@@ -31,7 +31,7 @@ The plan also incorporates foundational data models for future enhancements, inc
 
 ## Part 1: Data Model Design
 
-The data model will be implemented in the new `dataroom` application. The following models will be created in `backend/dataroom/models.py`, with `ShareLink` being modified in `backend/documents/models.py` to establish the relationship.
+The data model is implemented in the `datarooms` application. The canonical models live in `backend/datarooms/models.py`, and dataroom sharing is integrated through `sharelinks` models and APIs.
 
 ### 1. Modified Models
 
@@ -209,3 +209,109 @@ Part 2: Frontend Implementation
     • The onClick handler for the new "Download" button will call the API service function.
     • Upon receiving the blob response, it will use a standard browser technique to trigger a file download: create an object URL from the blob, assign it to a temporary <a> element with a download
       attribute, and programmatically click the link.
+
+---
+
+## Part 6: Current Status Alignment (April 2026)
+
+This section aligns this document with the current codebase so new work can be planned accurately.
+
+- Dataroom backend module exists as `backend/datarooms/` (plural), with active models, serializers, viewsets, routes, and signals.
+- Dataroom frontend pages exist in `frontend/src/pages/DataroomsPage.jsx` and `frontend/src/pages/DataroomPage.jsx`.
+- Dataroom CRUD, add/remove/move content, share links, public viewing, and folder download API/service plumbing are already present.
+- Existing serializers include a known ancestor lookup scalability note (`TODO: N+1 query problem`) in `DataroomFolderSerializer.get_ancestors`.
+- This means this document should now be treated as a living implementation + extension plan, not a greenfield build spec.
+
+---
+
+## Part 7: Issue #152 Extension Plan (Branding, Ordering, UI Optimization)
+
+### Goals
+
+- Add per-dataroom branding (logo + theme colors).
+- Add owner-controlled manual ordering for dataroom folders/documents.
+- Improve dataroom page scalability and usability for larger datasets.
+
+### 1. Backend Data Model Updates
+
+#### `Dataroom` branding fields
+
+- `branding_banner` (image/file field, nullable)
+- `brand_primary_color` (char field, hex format validation)
+- `brand_secondary_color` (char field, hex format validation)
+- optional `brand_accent_color` (char field, nullable) for near-term extensibility
+
+Design note:
+- Keep these fields dataroom-scoped for now, but group naming under `brand_*` to allow future layering with organization branding/custom domains.
+
+#### Manual ordering fields
+
+- Add `position` (integer, indexed) to:
+  - `DataroomFolder` (ordered within same `dataroom` + `parent`)
+  - `DataroomDocument` (ordered within same `dataroom` + `folder`)
+- Add DB constraints/indexes to support deterministic ordering and performant fetches.
+- Migration backfill:
+  - initialize `position` by current `created_at`, fallback to `id` order.
+
+### 2. Backend API and Permission Updates
+
+- Extend `DataroomSerializer`/`DataroomDetailSerializer` with branding fields.
+- Add update validations:
+  - color format (`#RRGGBB` / optional `#RRGGBBAA` if approved)
+  - logo content type and size limits.
+- Add owner-only reorder endpoints:
+  - `POST /api/v1/datarooms/{id}/reorder-folders/`
+  - `POST /api/v1/datarooms/{id}/reorder-documents/`
+- Reorder payload should accept explicit ordered IDs scoped to one container level.
+- Enforce strict scope checks:
+  - all IDs must belong to target dataroom and same parent/folder context.
+  - non-owners receive 403.
+
+### 3. Frontend Dataroom UX Updates
+
+#### Branding management
+
+- Add branding controls in dataroom settings/actions:
+  - upload/replace/remove logo
+  - color inputs/picker with validation preview
+- Apply branding as dataroom-level CSS variables in `DataroomPage` and related components.
+- Ensure consistent fallback to product default theme when branding fields are unset.
+
+#### Custom ordering UX
+
+- Add drag-and-drop reorder for current folder/root list, with keyboard-accessible fallback controls.
+- Persist order through new reorder endpoints.
+- Use optimistic update with rollback on API failure.
+
+### 4. UI Performance and Scalability
+
+- Resolve high-impact N+1 patterns (especially folder ancestry path resolution).
+- Ensure list rendering avoids unnecessary recomputation/re-render:
+  - stable memoization boundaries
+  - avoid rebuilding merged item arrays on unrelated state changes
+- Add pagination/virtualization strategy for large dataroom content when thresholds are crossed.
+- Tighten loading states/skeleton behavior for nested navigation and large folder transitions.
+
+### 5. Test Plan Updates
+
+#### Backend tests
+
+- Branding field validation and persistence.
+- Branding update permission checks (owner vs non-owner).
+- Reorder endpoint correctness, atomicity, and invalid payload handling.
+- Reorder permission and scope validation tests.
+
+#### Frontend tests
+
+- Branding form behavior and themed rendering.
+- Reorder interaction and API payload correctness.
+- Error rollback behavior for failed reorder operations.
+- Large-list render/performance smoke coverage for dataroom content views.
+
+### 6. Delivery Sequence
+
+1. Schema migrations (`brand_*`, `position`) and model constraints.
+2. Serializer/viewset updates + reorder endpoints.
+3. Frontend API client additions + branding UI.
+4. Frontend reorder UX + performance improvements.
+5. Full regression and targeted tests.

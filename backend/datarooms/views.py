@@ -11,12 +11,13 @@ from drf_spectacular.utils import extend_schema
 from backend.utils import get_unique_name
 from documents.models import Document, Folder
 from documents.views import StandardResultsSetPagination
-from .models import Dataroom, DataroomDocument, DataroomFolder
+from .models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
 from .serializers import (
     AddContentSerializer, DataroomDetailSerializer,
     DataroomDocumentSerializer, DataroomDocumentUpdateSerializer,
     DataroomFolderSerializer, DataroomSerializer,
-    MoveDataroomContentSerializer, RemoveContentSerializer)
+    MoveDataroomContentSerializer, RemoveContentSerializer,
+    ReorderDataroomItemsSerializer)
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,26 @@ class DataroomViewSet(viewsets.ModelViewSet):
             created_by=self.request.user
         )
 
+    def _scope_has_item_order_rows(self, dataroom, parent_folder):
+        return DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=parent_folder).exists()
+
+    def _append_item_order(self, dataroom, parent_folder, item_type, folder=None, dataroom_document=None):
+        current_max = (
+            DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=parent_folder)
+            .order_by("-position")
+            .values_list("position", flat=True)
+            .first()
+        )
+        next_position = (current_max + 1) if current_max is not None else 0
+        DataroomItemOrder.objects.create(
+            dataroom=dataroom,
+            parent_folder=parent_folder,
+            item_type=item_type,
+            folder=folder,
+            dataroom_document=dataroom_document,
+            position=next_position,
+        )
+
     def _replicate_folder_structure(self, dataroom, source_folder, parent_dataroom_folder, requesting_user):
         """
         Recursively replicates a source folder structure and its documents
@@ -57,8 +78,15 @@ class DataroomViewSet(viewsets.ModelViewSet):
         new_dataroom_folder = DataroomFolder.objects.create(
             dataroom=dataroom,
             name=source_folder.name,
-            parent=parent_dataroom_folder
+            parent=parent_dataroom_folder,
         )
+        if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, parent_dataroom_folder):
+            self._append_item_order(
+                dataroom=dataroom,
+                parent_folder=parent_dataroom_folder,
+                item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
+                folder=new_dataroom_folder,
+            )
 
         # TODO: For folders with many documents, this will result in many individual
         # database queries, causing a performance bottleneck. Consider refactoring
@@ -72,12 +100,19 @@ class DataroomViewSet(viewsets.ModelViewSet):
             unique_name = self._get_unique_dataroom_document_name(
                 dataroom, new_dataroom_folder, doc.name
             )
-            DataroomDocument.objects.create(
+            created_doc = DataroomDocument.objects.create(
                 dataroom=dataroom,
                 document=doc,
                 folder=new_dataroom_folder,
                 name=unique_name,
             )
+            if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, new_dataroom_folder):
+                self._append_item_order(
+                    dataroom=dataroom,
+                    parent_folder=new_dataroom_folder,
+                    item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
+                    dataroom_document=created_doc,
+                )
 
         # Recurse for subfolders.
         for subfolder in source_folder.children.filter(created_by=requesting_user):
@@ -110,12 +145,19 @@ class DataroomViewSet(viewsets.ModelViewSet):
                     unique_name = self._get_unique_dataroom_document_name(
                         dataroom, destination_folder, doc.name
                     )
-                    DataroomDocument.objects.create(
+                    created_doc = DataroomDocument.objects.create(
                         dataroom=dataroom,
                         document=doc,
                         folder=destination_folder,
                         name=unique_name,
                     )
+                    if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, destination_folder):
+                        self._append_item_order(
+                            dataroom=dataroom,
+                            parent_folder=destination_folder,
+                            item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
+                            dataroom_document=created_doc,
+                        )
 
                 # Add folders and their contents recursively.
                 folders_to_add = Folder.objects.filter(id__in=folder_ids, created_by=request.user)
@@ -164,6 +206,76 @@ class DataroomViewSet(viewsets.ModelViewSet):
             'folder': parent_folder
         }
         return get_unique_name(DataroomDocument, original_name, filter_kwargs, has_extension=True)
+
+    @action(detail=True, methods=['post'], url_path='reorder-items')
+    def reorder_items(self, request, pk=None):
+        dataroom = self.get_object()
+        serializer = ReorderDataroomItemsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        parent_id = serializer.validated_data.get('parent_id') or None
+        ordered_items = serializer.validated_data['ordered_items']
+
+        parent = None
+        if parent_id:
+            parent = get_object_or_404(DataroomFolder, id=parent_id, dataroom=dataroom)
+
+        existing_folders = DataroomFolder.objects.filter(dataroom=dataroom, parent=parent)
+        existing_documents = DataroomDocument.objects.filter(dataroom=dataroom, folder=parent)
+
+        existing_item_keys = {
+            *{("folder", str(folder_id)) for folder_id in existing_folders.values_list('id', flat=True)},
+            *{("document", str(doc_id)) for doc_id in existing_documents.values_list('id', flat=True)},
+        }
+        requested_item_keys = {(item["type"], str(item["id"])) for item in ordered_items}
+
+        if existing_item_keys != requested_item_keys:
+            return Response(
+                {"detail": "ordered_items must include all and only items in the target scope."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        existing_order_rows = DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=parent)
+        has_existing_rows = existing_order_rows.exists()
+
+        with transaction.atomic():
+            if not has_existing_rows:
+                for position, item in enumerate(ordered_items):
+                    if item["type"] == "folder":
+                        DataroomItemOrder.objects.create(
+                            dataroom=dataroom,
+                            parent_folder=parent,
+                            item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
+                            folder_id=item["id"],
+                            position=position,
+                        )
+                    else:
+                        DataroomItemOrder.objects.create(
+                            dataroom=dataroom,
+                            parent_folder=parent,
+                            item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
+                            dataroom_document_id=item["id"],
+                            position=position,
+                        )
+            else:
+                order_map = {}
+                for row in existing_order_rows:
+                    if row.folder_id:
+                        order_map[("folder", str(row.folder_id))] = row
+                    elif row.dataroom_document_id:
+                        order_map[("document", str(row.dataroom_document_id))] = row
+
+                for position, item in enumerate(ordered_items):
+                    row = order_map.get((item["type"], str(item["id"])))
+                    if not row:
+                        return Response(
+                            {"detail": "Existing order rows are out of sync with current scope. Reinitialize required."},
+                            status=status.HTTP_409_CONFLICT,
+                        )
+                    row.position = position
+                    row.save(update_fields=["position", "updated_at"])
+
+        return Response({"detail": "Items reordered successfully."}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], url_path='move-content')
     def move_content(self, request, pk=None):
@@ -279,12 +391,42 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         # Custom logic to include sub-folders and documents
-        sub_folders = instance.children.all()
-        documents = DataroomDocument.objects.filter(folder=instance).select_related('document', 'document__created_by')
+        sub_folders = instance.children.all().order_by('created_at', 'id')
+        documents = DataroomDocument.objects.filter(folder=instance).select_related('document', 'document__created_by').order_by('created_at', 'id')
 
         data = self.get_serializer(instance).data
-        data['sub_folders'] = DataroomFolderSerializer(sub_folders, many=True).data
-        data['documents'] = DataroomDocumentSerializer(documents, many=True).data
+        sub_folder_data = DataroomFolderSerializer(sub_folders, many=True).data
+        document_data = DataroomDocumentSerializer(documents, many=True).data
+        data['sub_folders'] = sub_folder_data
+        data['documents'] = document_data
+
+        if instance.dataroom.show_file_index:
+            scope_rows = list(
+                DataroomItemOrder.objects.filter(dataroom=instance.dataroom, parent_folder=instance)
+                .order_by("position", "created_at", "id")
+            )
+            if scope_rows and len(scope_rows) == (len(sub_folder_data) + len(document_data)):
+                folder_map = {item["id"]: item for item in sub_folder_data}
+                doc_map = {item["id"]: item for item in document_data}
+                merged = []
+                for row in scope_rows:
+                    if row.item_type == DataroomItemOrder.ITEM_TYPE_FOLDER and row.folder_id in folder_map:
+                        merged.append({"type": "folder", **folder_map[row.folder_id], "position": row.position})
+                    elif row.item_type == DataroomItemOrder.ITEM_TYPE_DOCUMENT and row.dataroom_document_id in doc_map:
+                        merged.append({"type": "document", **doc_map[row.dataroom_document_id], "position": row.position})
+            else:
+                merged = (
+                    [{'type': 'folder', **item} for item in sub_folder_data] +
+                    [{'type': 'document', **item} for item in document_data]
+                )
+                merged.sort(key=lambda i: (i['type'] != 'folder', i.get('created_at', ''), i.get('id', '')))
+        else:
+            merged = (
+                [{'type': 'folder', **item} for item in sub_folder_data] +
+                [{'type': 'document', **item} for item in document_data]
+            )
+            merged.sort(key=lambda i: (i['type'] != 'folder', i.get('created_at', ''), i.get('id', '')))
+        data['items'] = merged
         return Response(data)
 
     def perform_create(self, serializer):
@@ -299,7 +441,23 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
         if dataroom.organization != self.request.user.organization:
             raise PermissionDenied("You do not have permission to add folders to this dataroom.")
 
-        serializer.save()
+        folder = serializer.save()
+        if dataroom.show_file_index and DataroomItemOrder.objects.filter(
+            dataroom=dataroom, parent_folder=folder.parent
+        ).exists():
+            current_max = (
+                DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=folder.parent)
+                .order_by("-position")
+                .values_list("position", flat=True)
+                .first()
+            )
+            DataroomItemOrder.objects.create(
+                dataroom=dataroom,
+                parent_folder=folder.parent,
+                item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
+                folder=folder,
+                position=(current_max + 1) if current_max is not None else 0,
+            )
 
     def perform_update(self, serializer):
         instance = self.get_object()

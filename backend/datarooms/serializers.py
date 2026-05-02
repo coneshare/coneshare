@@ -1,13 +1,65 @@
 from rest_framework import serializers
+import re
+from urllib.parse import urljoin
+from django.conf import settings
 
-from .models import Dataroom, DataroomDocument, DataroomFolder
+from .models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
+
+HEX_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 
 
 class DataroomSerializer(serializers.ModelSerializer):
+    remove_branding_banner = serializers.BooleanField(write_only=True, required=False, default=False)
+
+    def _get_branding_banner_url(self, obj):
+        if not obj.branding_banner:
+            return None
+        return urljoin(settings.SITE_DOMAIN, obj.branding_banner.url)
+
+    def _validate_hex_color(self, value, field_name):
+        if value in (None, ""):
+            return value
+        if not HEX_COLOR_RE.match(value):
+            raise serializers.ValidationError(
+                {field_name: "Must be a valid hex color in #RRGGBB or #RRGGBBAA format."}
+            )
+        return value
+
+    def validate_brand_primary_color(self, value):
+        return self._validate_hex_color(value, "brand_primary_color")
+
+    def validate_brand_secondary_color(self, value):
+        return self._validate_hex_color(value, "brand_secondary_color")
+
+    def validate_brand_accent_color(self, value):
+        return self._validate_hex_color(value, "brand_accent_color")
+
     class Meta:
         model = Dataroom
-        fields = ['id', 'name', 'organization', 'created_at', 'updated_at', 'created_by']
+        fields = [
+            'id', 'name', 'organization', 'created_at', 'updated_at', 'created_by',
+            'show_file_index',
+            'branding_banner', 'brand_primary_color', 'brand_secondary_color', 'brand_accent_color',
+            'remove_branding_banner',
+        ]
         read_only_fields = ['id', 'organization', 'created_at', 'updated_at', 'created_by']
+
+    def create(self, validated_data):
+        # API compatibility: this write-only control flag is only meaningful for updates.
+        validated_data.pop('remove_branding_banner', None)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        remove_logo = validated_data.pop('remove_branding_banner', False)
+        if remove_logo and instance.branding_banner:
+            instance.branding_banner.delete(save=False)
+            instance.branding_banner = None
+        return super().update(instance, validated_data)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['branding_banner'] = self._get_branding_banner_url(instance)
+        return data
 
 
 class DataroomFolderSerializer(serializers.ModelSerializer):
@@ -55,33 +107,72 @@ class DataroomDocumentSerializer(serializers.ModelSerializer):
 
 
 class DataroomDetailSerializer(serializers.ModelSerializer):
-    folders = serializers.SerializerMethodField()
-    documents = serializers.SerializerMethodField()
+    items = serializers.SerializerMethodField()
+    branding_banner = serializers.SerializerMethodField()
 
     class Meta:
         model = Dataroom
-        fields = ['id', 'name', 'organization', 'created_at', 'updated_at', 'created_by', 'folders', 'documents']
+        fields = [
+            'id', 'name', 'organization', 'created_at', 'updated_at', 'created_by',
+            'show_file_index',
+            'branding_banner', 'brand_primary_color', 'brand_secondary_color', 'brand_accent_color',
+            'items'
+        ]
         read_only_fields = fields
 
-    def get_folders(self, obj):
-        request = self.context.get('request')
-        if request and request.query_params.get('content') == 'full':
-            # Return all folders for permission management
-            all_folders = obj.folders.all()
-            return DataroomFolderSerializer(all_folders, many=True, context=self.context).data
-        # Return only root-level folders for browsing
-        root_folders = obj.folders.filter(parent__isnull=True)
-        return DataroomFolderSerializer(root_folders, many=True, context=self.context).data
+    def get_branding_banner(self, obj):
+        if not obj.branding_banner:
+            return None
+        return urljoin(settings.SITE_DOMAIN, obj.branding_banner.url)
 
-    def get_documents(self, obj):
+    def get_items(self, obj):
         request = self.context.get('request')
+        use_full_content = bool(request and request.query_params.get('content') == 'full')
         if request and request.query_params.get('content') == 'full':
-            # Return all documents for permission management
-            all_documents = obj.documents.all().select_related('document', 'document__created_by')
-            return DataroomDocumentSerializer(all_documents, many=True, context=self.context).data
-        # Return only root-level documents for browsing
-        root_documents = obj.documents.filter(folder__isnull=True).select_related('document', 'document__created_by')
-        return DataroomDocumentSerializer(root_documents, many=True, context=self.context).data
+            folders = obj.folders.all().order_by('created_at', 'id')
+            documents = obj.documents.all().select_related('document', 'document__created_by').order_by('created_at', 'id')
+        else:
+            folders = obj.folders.filter(parent__isnull=True).order_by('created_at', 'id')
+            documents = obj.documents.filter(folder__isnull=True).select_related('document', 'document__created_by').order_by('created_at', 'id')
+
+        if obj.show_file_index and not use_full_content:
+            scope_rows = list(
+                DataroomItemOrder.objects.filter(dataroom=obj, parent_folder__isnull=True)
+                .order_by("position", "created_at", "id")
+            )
+            if scope_rows and len(scope_rows) == (folders.count() + documents.count()):
+                folder_data_map = {
+                    str(folder.id): DataroomFolderSerializer(folder, context=self.context).data
+                    for folder in folders
+                }
+                document_data_map = {
+                    str(document.id): DataroomDocumentSerializer(document, context=self.context).data
+                    for document in documents
+                }
+                ordered_items = []
+                for row in scope_rows:
+                    if row.item_type == DataroomItemOrder.ITEM_TYPE_FOLDER and row.folder_id and str(row.folder_id) in folder_data_map:
+                        ordered_items.append({"type": "folder", **folder_data_map[str(row.folder_id)], "position": row.position})
+                    elif row.item_type == DataroomItemOrder.ITEM_TYPE_DOCUMENT and row.dataroom_document_id and str(row.dataroom_document_id) in document_data_map:
+                        ordered_items.append({"type": "document", **document_data_map[str(row.dataroom_document_id)], "position": row.position})
+                return ordered_items
+
+        merged = []
+        for folder in folders:
+            merged.append({
+                'type': 'folder',
+                'created_at': folder.created_at,
+                'data': DataroomFolderSerializer(folder, context=self.context).data,
+            })
+        for document in documents:
+            merged.append({
+                'type': 'document',
+                'created_at': document.created_at,
+                'data': DataroomDocumentSerializer(document, context=self.context).data,
+            })
+
+        merged.sort(key=lambda i: (i['type'] != 'folder', i['created_at'], i['data']['id']))
+        return [{'type': i['type'], **i['data']} for i in merged]
 
 
 class AddContentSerializer(serializers.Serializer):
@@ -136,6 +227,23 @@ class MoveDataroomContentSerializer(serializers.Serializer):
         if not data.get('dataroom_document_ids') and not data.get('dataroom_folder_ids'):
             raise serializers.ValidationError("Either 'dataroom_document_ids' or 'dataroom_folder_ids' must be provided.")
         return data
+
+
+class ReorderDataroomItemsSerializer(serializers.Serializer):
+    parent_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    ordered_items = serializers.ListField(child=serializers.DictField(), allow_empty=False)
+
+    def validate_ordered_items(self, value):
+        for item in value:
+            if not isinstance(item, dict):
+                raise serializers.ValidationError("Each ordered item must be an object.")
+            item_type = item.get("type")
+            item_id = item.get("id")
+            if item_type not in ("folder", "document"):
+                raise serializers.ValidationError("Each ordered item type must be 'folder' or 'document'.")
+            if not item_id:
+                raise serializers.ValidationError("Each ordered item must include a non-empty id.")
+        return value
 
 
 # --- Serializers for Public Dataroom View ---

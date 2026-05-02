@@ -1,9 +1,10 @@
 import pytest
+from django.test import override_settings
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from sharelinks.models import ShareLink
-from datarooms.models import DataroomDocument, DataroomFolder
+from datarooms.models import DataroomDocument, DataroomFolder, DataroomItemOrder
 from datarooms.serializers import (
     AddContentSerializer,
     DataroomDetailSerializer,
@@ -33,6 +34,10 @@ class TestDataroomSerializer:
         assert data["id"] == str(dataroom.id)
         assert data["name"] == dataroom.name
         assert data["created_by"] == str(dataroom.created_by.id)
+        assert "show_file_index" in data
+        assert "brand_primary_color" in data
+        assert "brand_secondary_color" in data
+        assert "brand_accent_color" in data
 
     def test_dataroom_detail_serializer(
         self, dataroom, document, serializer_context
@@ -47,10 +52,57 @@ class TestDataroomSerializer:
         data = serializer.data
 
         assert data["id"] == str(dataroom.id)
-        assert len(data["documents"]) == 1
-        assert data["documents"][0]["name"] == document.name
-        assert len(data["folders"]) == 1
-        assert data["folders"][0]["name"] == "Root Folder"
+        assert len(data["items"]) == 2
+        assert {item["type"] for item in data["items"]} == {"folder", "document"}
+
+    def test_dataroom_serializer_validates_hex_colors(self, dataroom, serializer_context):
+        serializer = DataroomSerializer(
+            instance=dataroom,
+            data={"brand_primary_color": "not-a-color"},
+            partial=True,
+            context=serializer_context,
+        )
+        assert not serializer.is_valid()
+        assert "brand_primary_color" in serializer.errors
+
+    @override_settings(SITE_DOMAIN="http://test.coneshare.com")
+    def test_dataroom_serializer_builds_branding_banner_url_from_site_domain(self, dataroom, serializer_context):
+        dataroom.branding_banner.name = (
+            f"dataroom-branding/{dataroom.organization_id}/{dataroom.id}/banner.jpeg"
+        )
+        serializer = DataroomSerializer(instance=dataroom, context=serializer_context)
+        data = serializer.data
+        assert data["branding_banner"] == (
+            f"http://test.coneshare.com/media/dataroom-branding/{dataroom.organization_id}/{dataroom.id}/banner.jpeg"
+        )
+
+    def test_dataroom_detail_items_use_item_order_when_enabled(self, dataroom, document, serializer_context):
+        folder = DataroomFolder.objects.create(dataroom=dataroom, name="Root Folder", parent=None)
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name)
+        dataroom.show_file_index = True
+        dataroom.save(update_fields=["show_file_index"])
+
+        DataroomItemOrder.objects.create(
+            dataroom=dataroom,
+            parent_folder=None,
+            item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
+            dataroom_document=ddoc,
+            position=0,
+        )
+        DataroomItemOrder.objects.create(
+            dataroom=dataroom,
+            parent_folder=None,
+            item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
+            folder=folder,
+            position=1,
+        )
+
+        serializer = DataroomDetailSerializer(instance=dataroom, context=serializer_context)
+        data = serializer.data
+        assert data["items"][0]["type"] == "document"
+        assert data["items"][0]["id"] == str(ddoc.id)
+        assert data["items"][1]["type"] == "folder"
+        assert data["items"][1]["id"] == str(folder.id)
 
 
 class TestDataroomFolderSerializer:
