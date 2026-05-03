@@ -23,11 +23,11 @@ import {
 const PERMISSION_GRID_CLASS = 'grid grid-cols-[minmax(0,1fr)_6rem_6rem_6rem] items-center';
 
 // --- Tree Building Utility ---
-const buildTree = (folders, documents) => {
-  const allItems = [
-    ...folders.map(f => ({ ...f, type: 'folder', children: [] })),
-    ...documents.map(d => ({ ...d, type: 'document', name: d.name }))
-  ];
+const buildTree = (items) => {
+  const allItems = (items || []).map((item) => ({
+    ...item,
+    children: item.type === 'folder' ? [] : undefined,
+  }));
 
   const itemMap = new Map(allItems.map(item => [item.id, item]));
   const tree = [];
@@ -139,10 +139,10 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
       const fetchContentAndBuildTree = async () => {
         setIsLoading(true);
         try {
-          // The getDataroom endpoint will now return all folders and documents
+          // The getDataroom endpoint returns a mixed `items` list for full content.
           const response = await getDataroom(link.dataroom, { content: 'full' });
-          const { folders, documents } = response.data;
-          const tree = buildTree(folders, documents);
+          const { items = [] } = response.data;
+          const tree = buildTree(items);
           setDataroomTree(tree);
 
           const settingsMap = link.dataroom_settings.reduce((acc, setting) => {
@@ -154,7 +154,9 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
           setOriginalSettings(JSON.parse(JSON.stringify(settingsMap))); // Deep copy
 
           // Expand all folders by default
-          const allFolderIds = folders.reduce((acc, f) => ({ ...acc, [f.id]: true }), {});
+          const allFolderIds = items
+            .filter((item) => item.type === 'folder')
+            .reduce((acc, folder) => ({ ...acc, [folder.id]: true }), {});
           setExpandedFolders(allFolderIds);
 
         } catch (error) {

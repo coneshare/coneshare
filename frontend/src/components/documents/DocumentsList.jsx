@@ -45,9 +45,14 @@ export function DocumentsList({
   onRequestFiles,
   onDownload,
   onCopy,
+  themed = false,
+  showIndex = false,
 }) {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [itemToRename, setItemToRename] = useState(null);
+  const indexMap = new Map(
+    allItems.map((item, idx) => [`${item.type}:${item.id}`, idx + 1])
+  );
 
   const onDrop = useCallback(
     (acceptedFiles) => {
@@ -136,6 +141,8 @@ export function DocumentsList({
               sortConfig={sortConfig}
               onSelectAll={onSelectAll}
               isAllSelected={isAllSelected}
+              themed={themed}
+              showIndex={showIndex}
             />
           )}
           {loading ? (
@@ -175,6 +182,9 @@ export function DocumentsList({
                   onItemClick={onItemClick}
                   onDownload={onDownload}
                   onCopy={onCopy}
+                  themed={themed}
+                  showIndex={showIndex}
+                  itemIndex={showIndex ? indexMap.get(`${item.type}:${item.id}`) : null}
                 />
               ))}
             </div>

@@ -38,6 +38,10 @@ describe('DataroomPage', () => {
     const mockDataroomRoot = {
         id: 'dr123',
         name: 'Test Dataroom',
+        items: [
+            { id: 'folder1', type: 'folder', name: 'Sub Folder', updated_at: '2023-01-01T12:00:00Z', ancestors: [] },
+            { id: 'ddoc1', type: 'document', document_id: 'doc1', name: 'Root Document', updated_at: '2023-01-01T12:00:00Z' },
+        ],
         folders: [
             { id: 'folder1', name: 'Sub Folder', updated_at: '2023-01-01T12:00:00Z', ancestors: [] }
         ],
@@ -50,6 +54,9 @@ describe('DataroomPage', () => {
         id: 'folder1',
         name: 'Sub Folder',
         ancestors: [],
+        items: [
+            { id: 'ddoc2', type: 'document', document_id: 'doc2', name: 'Nested Document', updated_at: '2023-01-02T12:00:00Z', parent: 'folder1' }
+        ],
         sub_folders: [],
         documents: [
             { id: 'ddoc2', document_id: 'doc2', name: 'Nested Document', updated_at: '2023-01-02T12:00:00Z' }
@@ -60,6 +67,7 @@ describe('DataroomPage', () => {
         id: 'folder1',
         name: 'Sub Folder',
         ancestors: [],
+        items: [],
         sub_folders: [],
         documents: []
     };
@@ -103,7 +111,7 @@ describe('DataroomPage', () => {
         });
 
         it('should display empty state for a dataroom with no content', async () => {
-            const emptyDataroom = { ...mockDataroomRoot, folders: [], documents: [] };
+            const emptyDataroom = { ...mockDataroomRoot, items: [], folders: [], documents: [] };
             api.getDataroom.mockResolvedValue({ data: emptyDataroom });
             renderComponent();
             expect(await screen.findByText('This dataroom is empty')).toBeInTheDocument();
@@ -216,6 +224,10 @@ describe('DataroomPage', () => {
 
             const updatedMockDataroomRoot = {
                 ...mockDataroomRoot,
+                items: [
+                    ...mockDataroomRoot.items,
+                    { id: 'newFolder1', type: 'folder', name: 'New Test Folder', updated_at: '2023-01-03T12:00:00Z', ancestors: [] }
+                ],
                 folders: [
                     ...mockDataroomRoot.folders,
                     { id: 'newFolder1', name: 'New Test Folder', updated_at: '2023-01-03T12:00:00Z', ancestors: [] }

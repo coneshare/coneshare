@@ -29,6 +29,9 @@ export function DraggableItem({
   isReadOnly = false,
   showActions = true,
   onItemClick,
+  themed = false,
+  showIndex = false,
+  itemIndex = null,
 }) {
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
@@ -66,9 +69,17 @@ export function DraggableItem({
       onMouseLeave={() => setIsHovered(false)}
       data-testid={`draggable-item-${id}`}
       className={cn(
-        `flex w-full cursor-pointer items-center px-4 py-2 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/50`,
-        isSelected && "bg-blue-50 dark:bg-blue-900/20"
+        "flex w-full cursor-pointer items-center px-4 py-2 text-sm transition-colors",
+        !themed && "hover:bg-gray-50 dark:hover:bg-gray-900/50",
+        !themed && isSelected && "bg-blue-50 dark:bg-blue-900/20"
       )}
+      style={themed ? {
+        backgroundColor: isSelected
+          ? "color-mix(in srgb, var(--dataroom-primary) 12%, transparent)"
+          : isHovered
+            ? "color-mix(in srgb, var(--dataroom-secondary) 10%, transparent)"
+            : "transparent",
+      } : undefined}
     >
       <div className="w-8">
         {!isReadOnly && (
@@ -86,13 +97,18 @@ export function DraggableItem({
           </div>
         )}
       </div>
+      {showIndex && (
+        <div className="w-12 text-xs text-gray-500">
+          {itemIndex}
+        </div>
+      )}
       <div className="flex w-[40%] items-center gap-2 truncate">
         {type === "folder" ? (
-          <FolderIcon className="h-5 w-5 text-gray-500" />
+          <FolderIcon className="h-5 w-5 text-gray-500" style={themed ? { color: "var(--dataroom-secondary)" } : undefined} />
         ) : (
-          <FileIcon className="h-5 w-5 text-gray-500" />
+          <FileIcon className="h-5 w-5 text-gray-500" style={themed ? { color: "var(--dataroom-secondary)" } : undefined} />
         )}
-        <span className="truncate font-medium">{item.name}</span>
+        <span className="truncate font-medium" style={themed ? { color: "var(--dataroom-primary)" } : undefined}>{item.name}</span>
         {showActions && !isReadOnly && (
           <button
             data-star-button

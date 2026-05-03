@@ -1,7 +1,12 @@
 import { useState, useMemo } from 'react';
 
-export function useSortedList(items, initialConfig = { key: 'name', direction: 'ascending' }) {
+export function useSortedList(
+  items,
+  initialConfig = { key: 'name', direction: 'ascending' },
+  options = { groupByType: true }
+) {
   const [sortConfig, setSortConfig] = useState(initialConfig);
+  const groupByType = options?.groupByType ?? true;
 
   const sortedItems = useMemo(() => {
     if (!items) return [];
@@ -10,8 +15,10 @@ export function useSortedList(items, initialConfig = { key: 'name', direction: '
 
     sorted.sort((a, b) => {
       // Folders always come first
-      if (a.type === "folder" && b.type === "document") return -1;
-      if (a.type === "document" && b.type === "folder") return 1;
+      if (groupByType) {
+        if (a.type === "folder" && b.type === "document") return -1;
+        if (a.type === "document" && b.type === "folder") return 1;
+      }
       
       const dir = sortConfig.direction === "ascending" ? 1 : -1;
       const key = sortConfig.key;
@@ -38,7 +45,7 @@ export function useSortedList(items, initialConfig = { key: 'name', direction: '
     });
 
     return sorted;
-  }, [items, sortConfig]);
+  }, [items, sortConfig, groupByType]);
 
   const handleSort = (key) => {
     setSortConfig((prevConfig) => {
