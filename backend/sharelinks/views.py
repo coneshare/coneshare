@@ -28,7 +28,7 @@ from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
 
 from backend.utils import get_client_ip
-from datarooms.models import (DataroomDocument, DataroomFolder)
+from datarooms.models import (DataroomDocument, DataroomFolder, DataroomItemOrder)
 from datarooms.serializers import (PublicDataroomDocumentSerializer,
                                    PublicDataroomFolderSerializer)
 from documents.fileserver import fileserver_client
@@ -549,18 +549,70 @@ class ShareLinkViewDataView(APIView):
             visible_folder_ids = [s.dataroom_folder_id for s in dataroom_link_settings if s.dataroom_folder_id]
 
             # Fetch all visible documents and folders to construct the hierarchy
-            all_docs = DataroomDocument.objects.filter(id__in=visible_doc_ids).select_related('document', 'folder').order_by('name')
-            all_folders = DataroomFolder.objects.filter(id__in=visible_folder_ids).order_by('name')
+            all_docs = DataroomDocument.objects.filter(id__in=visible_doc_ids).select_related('document', 'folder').order_by('created_at', 'id')
+            all_folders = DataroomFolder.objects.filter(id__in=visible_folder_ids).order_by('created_at', 'id')
 
             # Use context to pass settings to serializers
             serializer_context = {'request': request, 'settings_map': settings_map}
+            serialized_docs = PublicDataroomDocumentSerializer(all_docs, many=True, context=serializer_context).data
+            serialized_folders = PublicDataroomFolderSerializer(all_folders, many=True, context=serializer_context).data
+
+            if dataroom.show_file_index:
+                order_rows = DataroomItemOrder.objects.filter(dataroom=dataroom)
+                order_map = {}
+                for row in order_rows:
+                    if row.folder_id:
+                        order_map[("folder", str(row.folder_id))] = row.position
+                    elif row.dataroom_document_id:
+                        order_map[("document", str(row.dataroom_document_id))] = row.position
+            else:
+                order_map = {}
+
+            merged_items = (
+                [
+                    {
+                        'type': 'folder',
+                        **item,
+                        'position': order_map.get(("folder", str(item["id"])), 0),
+                    }
+                    for item in serialized_folders
+                ] +
+                [
+                    {
+                        'type': 'document',
+                        **item,
+                        'position': order_map.get(("document", str(item["id"])), 0),
+                    }
+                    for item in serialized_docs
+                ]
+            )
+            items_by_scope = {}
+            for item in merged_items:
+                scope_key = str(item.get('parent') or '')
+                items_by_scope.setdefault(scope_key, []).append(item)
+
+            # TODO: Replace this flat payload ordering step with scoped loading by `parent_id`
+            # so each request only returns one folder scope. See:
+            # plans/sharelink-view-data-scoped-folder-endpoint.md
+            for scope_items in items_by_scope.values():
+                scope_items.sort(key=lambda i: (i.get('position', 0), i.get('updated_at', ''), i.get('id', '')))
+
+            merged_items = items_by_scope.get('', [])
+            for scope_key in sorted(k for k in items_by_scope.keys() if k != ''):
+                merged_items.extend(items_by_scope[scope_key])
 
             response_data = {
                 'link_type': 'dataroom',
                 'id': dataroom.id,
                 'name': dataroom.name,
-                'documents': PublicDataroomDocumentSerializer(all_docs, many=True, context=serializer_context).data,
-                'folders': PublicDataroomFolderSerializer(all_folders, many=True, context=serializer_context).data,
+                'show_file_index': dataroom.show_file_index,
+                'branding_banner': urljoin(settings.SITE_DOMAIN, dataroom.branding_banner.url) if dataroom.branding_banner else None,
+                'brand_primary_color': dataroom.brand_primary_color,
+                'brand_secondary_color': dataroom.brand_secondary_color,
+                'brand_accent_color': dataroom.brand_accent_color,
+                'documents': serialized_docs,
+                'folders': serialized_folders,
+                'items': merged_items,
                 'link_settings': {
                     'id': link.id,
                     'allow_download': link.allow_download,
