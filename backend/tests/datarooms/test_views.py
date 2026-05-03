@@ -1,9 +1,10 @@
 import os
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import status
 
-from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
+from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
 from documents.models import Document, Folder
 from sharelinks.models import ShareLink, ViewSession
 
@@ -37,6 +38,39 @@ class TestDataroomViewSet:
         assert dataroom.organization == organization
         assert dataroom.created_by == user
 
+    def test_update_dataroom_branding_fields(self, api_client, dataroom):
+        url = f'/api/v1/datarooms/{dataroom.id}/'
+        response = api_client.patch(url, {
+            "brand_primary_color": "#112233",
+            "brand_secondary_color": "#445566",
+            "brand_accent_color": "#778899AA",
+            "show_file_index": False,
+        }, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        dataroom.refresh_from_db()
+        assert dataroom.brand_primary_color == "#112233"
+        assert dataroom.brand_secondary_color == "#445566"
+        assert dataroom.brand_accent_color == "#778899AA"
+        assert dataroom.show_file_index is False
+
+    def test_update_dataroom_branding_invalid_color_fails(self, api_client, dataroom):
+        url = f'/api/v1/datarooms/{dataroom.id}/'
+        response = api_client.patch(url, {"brand_primary_color": "blue"}, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "brand_primary_color" in response.data
+
+    def test_remove_dataroom_banner(self, api_client, dataroom):
+        dataroom.branding_banner = SimpleUploadedFile("banner.jpg", b"fake-image-bytes", content_type="image/jpeg")
+        dataroom.save()
+        assert dataroom.branding_banner
+
+        url = f'/api/v1/datarooms/{dataroom.id}/'
+        response = api_client.patch(url, {"remove_branding_banner": True}, format="multipart")
+        assert response.status_code == status.HTTP_200_OK
+        dataroom.refresh_from_db()
+        assert not dataroom.branding_banner
+
     def test_retrieve_dataroom_detail(self, api_client, dataroom, document):
         """Test retrieving a specific dataroom's contents."""
         # Add a document and a folder to the dataroom root
@@ -48,10 +82,9 @@ class TestDataroomViewSet:
 
         data = response.json()
         assert data['id'] == str(dataroom.id)
-        assert len(data['documents']) == 1
-        assert data['documents'][0]['name'] == document.name
-        assert len(data['folders']) == 1
-        assert data['folders'][0]['name'] == "Subfolder"
+        assert len(data['items']) == 2
+        assert data['items'][0]['type'] == 'folder'
+        assert data['items'][1]['type'] == 'document'
 
     def test_cannot_access_other_users_dataroom_folders(self, api_client, user2, organization):
         """A user cannot list or retrieve folders from a dataroom created by another user."""
@@ -85,11 +118,13 @@ class TestDataroomViewSet:
             DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=target_folder, name=doc.name)
 
         # The number of queries should remain constant regardless of document count.
-        # Current expected queries with N+1 bug in get_ancestors:
-        # 1 (get folder) + 1 (get children) + 1 (get documents) + 2 (for 2 ancestors) = 5
-        with django_assert_num_queries(5):
+        # Current expected queries:
+        # 1 (get folder) + 1 (get children) + 1 (get documents) + 2 (for 2 ancestors)
+        # + 1 (load dataroom.show_file_index) + 1 (check item-order rows for this scope) = 7
+        with django_assert_num_queries(7):
             url = f'/api/v1/dataroom-folders/{target_folder.id}/'
             response = api_client.get(url)
+            print(response.json()['ancestors'])
             assert response.status_code == status.HTTP_200_OK
             assert len(response.json()['documents']) == 5
             assert len(response.json()['ancestors']) == 2
@@ -312,6 +347,87 @@ class TestDataroomViewSet:
         assert folder_to_move.parent == destination_folder
         assert folder_to_move.name == "My Folder (3)"
 
+    def test_reorder_items_mixed_root_success(self, api_client, dataroom, document, user, organization):
+        doc2 = Document.objects.create(name="Doc 2", organization=organization, created_by=user)
+        folder_a = DataroomFolder.objects.create(dataroom=dataroom, name="A")
+        ddoc1 = DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name)
+        folder_b = DataroomFolder.objects.create(dataroom=dataroom, name="B")
+        ddoc2 = DataroomDocument.objects.create(dataroom=dataroom, document=doc2, name=doc2.name)
+        dataroom.show_file_index = True
+        dataroom.save(update_fields=["show_file_index"])
+
+        url = f'/api/v1/datarooms/{dataroom.id}/reorder-items/'
+        response = api_client.post(url, {
+            "ordered_items": [
+                {"type": "document", "id": str(ddoc2.id)},
+                {"type": "folder", "id": str(folder_b.id)},
+                {"type": "document", "id": str(ddoc1.id)},
+                {"type": "folder", "id": str(folder_a.id)},
+            ],
+        }, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder__isnull=True).count() == 4
+        ordered_rows = list(
+            DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder__isnull=True)
+            .order_by("position")
+        )
+        assert ordered_rows[0].item_type == DataroomItemOrder.ITEM_TYPE_DOCUMENT
+        assert str(ordered_rows[0].dataroom_document_id) == str(ddoc2.id)
+        assert ordered_rows[1].item_type == DataroomItemOrder.ITEM_TYPE_FOLDER
+        assert str(ordered_rows[1].folder_id) == str(folder_b.id)
+        assert ordered_rows[2].item_type == DataroomItemOrder.ITEM_TYPE_DOCUMENT
+        assert str(ordered_rows[2].dataroom_document_id) == str(ddoc1.id)
+        assert ordered_rows[3].item_type == DataroomItemOrder.ITEM_TYPE_FOLDER
+        assert str(ordered_rows[3].folder_id) == str(folder_a.id)
+
+    def test_reorder_items_requires_full_scope_ids(self, api_client, dataroom, document):
+        folder = DataroomFolder.objects.create(dataroom=dataroom, name="A")
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name)
+        dataroom.show_file_index = True
+        dataroom.save(update_fields=["show_file_index"])
+
+        url = f'/api/v1/datarooms/{dataroom.id}/reorder-items/'
+        response = api_client.post(url, {
+            "ordered_items": [
+                {"type": "folder", "id": str(folder.id)},
+            ],
+        }, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "ordered_items" in response.data["detail"]
+
+    def test_reorder_items_other_user_dataroom_returns_404(self, api_client, user2, organization, document):
+        other_room = Dataroom.objects.create(name="Other", organization=organization, created_by=user2)
+        ddoc = DataroomDocument.objects.create(dataroom=other_room, document=document, name=document.name)
+
+        url = f'/api/v1/datarooms/{other_room.id}/reorder-items/'
+        response = api_client.post(url, {
+            "ordered_items": [
+                {"type": "document", "id": str(ddoc.id)},
+            ],
+        }, format="json")
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_reorder_items_works_when_file_index_disabled(self, api_client, dataroom, document):
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name)
+        assert dataroom.show_file_index is True
+        dataroom.show_file_index = False
+        dataroom.save(update_fields=["show_file_index"])
+
+        url = f'/api/v1/datarooms/{dataroom.id}/reorder-items/'
+        response = api_client.post(url, {
+            "ordered_items": [
+                {"type": "document", "id": str(ddoc.id)},
+            ],
+        }, format="json")
+        assert response.status_code == status.HTTP_200_OK
+        assert DataroomItemOrder.objects.filter(
+            dataroom=dataroom,
+            parent_folder__isnull=True,
+            dataroom_document=ddoc,
+            position=0,
+        ).exists()
+
     def test_list_view_sessions_for_dataroom(self, api_client, user, dataroom, organization):
         """
         Test that the view-sessions endpoint returns paginated view sessions
@@ -430,6 +546,9 @@ class TestDataroomFolderViewSet:
         assert data['sub_folders'][0]['name'] == "Sub"
         assert len(data['documents']) == 1
         assert data['documents'][0]['name'] == document.name
+        assert len(data['items']) == 2
+        assert data['items'][0]['type'] == 'folder'
+        assert data['items'][1]['type'] == 'document'
 
     def test_rename_folder_success(self, api_client, dataroom):
         """Test renaming a dataroom folder successfully."""
@@ -587,3 +706,55 @@ class TestPublicDataroomDataView:
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_public_view_data_items_are_ordered_within_each_parent_scope(self, public_client, dataroom, user, organization):
+        dataroom.show_file_index = True
+        dataroom.save(update_fields=["show_file_index"])
+
+        root_doc = Document.objects.create(name="Root Doc", organization=organization, created_by=user)
+        nested_doc = Document.objects.create(name="Nested Doc", organization=organization, created_by=user)
+
+        root_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Root Folder", parent=None)
+        child_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Child Folder", parent=root_folder)
+        root_ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=root_doc, folder=None, name=root_doc.name)
+        nested_ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=nested_doc, folder=root_folder, name=nested_doc.name)
+
+        DataroomItemOrder.objects.create(
+            dataroom=dataroom,
+            parent_folder=None,
+            item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
+            dataroom_document=root_ddoc,
+            position=1,
+        )
+        DataroomItemOrder.objects.create(
+            dataroom=dataroom,
+            parent_folder=None,
+            item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
+            folder=root_folder,
+            position=0,
+        )
+        DataroomItemOrder.objects.create(
+            dataroom=dataroom,
+            parent_folder=root_folder,
+            item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
+            dataroom_document=nested_ddoc,
+            position=1,
+        )
+        DataroomItemOrder.objects.create(
+            dataroom=dataroom,
+            parent_folder=root_folder,
+            item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
+            folder=child_folder,
+            position=0,
+        )
+
+        link = ShareLink.objects.create(dataroom=dataroom, name="Scoped Order Link", created_by=user)
+        response = public_client.get(f"/api/v1/links/{link.slug}/view-data/")
+        assert response.status_code == status.HTTP_200_OK
+
+        items = response.json()["items"]
+        root_items = [item for item in items if item.get("parent") is None]
+        nested_items = [item for item in items if item.get("parent") == str(root_folder.id)]
+
+        assert [item["id"] for item in root_items] == [str(root_folder.id), str(root_ddoc.id)]
+        assert [item["id"] for item in nested_items] == [str(child_folder.id), str(nested_ddoc.id)]
