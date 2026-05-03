@@ -1,6 +1,6 @@
 # Coneshare Feature Roadmap
 
-This roadmap reflects the current implementation in this repository as of **2026-04-27**.
+This roadmap reflects the current implementation in this repository as of **2026-05-01**.
 
 ---
 ## Guiding Principles
@@ -49,6 +49,7 @@ This roadmap reflects the current implementation in this repository as of **2026
 - **Dataroom sharing**: create dataroom share links and manage them in UI.
 - **Per-item link permissions**: `ShareLinkDataroomSetting` supports visibility/download/watermark per file/folder for each link.
 - **Dataroom activity views**: dataroom-scoped view sessions endpoint and UI tab.
+- **Branding and presentation controls**: per-dataroom banner + theme colors, mixed item ordering API/UI, and optional file index display.
 
 ### 6) Workflow Automations
 - **Destinations**: Slack, Discord, WeChat Work, Feishu, and generic webhook destination model.
@@ -71,10 +72,10 @@ This roadmap reflects the current implementation in this repository as of **2026
 ### 2) Data Room Collaboration
 - **Drag-and-drop repositioning inside dataroom tree** is not implemented; move is currently dialog/action based.
 - **Group-based ACLs inside dataroom trees** (permissions assigned directly to internal user groups) are not implemented.
+- **Grid view for dataroom contents** is not implemented in the current release; table view is the only supported dataroom listing mode.
 
 ### 3) Analytics & Branding
 - **Aggregated dataroom tree analytics** (folder/file rollups in one hierarchical analytics view) are not implemented.
-- **Per-dataroom branding** (custom logo/colors/themes) is not implemented.
 
 ### 4) Enterprise Security & Governance
 - **Comprehensive audit log framework** (beyond login activity) for uploads, permission changes, and admin actions is not implemented.

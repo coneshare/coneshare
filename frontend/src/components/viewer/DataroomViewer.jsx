@@ -15,7 +15,7 @@ import { Button } from '../ui/Button';
 import { downloadDataroomFolder, recordDataroomVisit } from '../../services/api';
 
 function DocumentItemIcon({ type }) {
-  const commonProps = { className: "h-5 w-5 text-gray-500" };
+  const commonProps = { className: "h-5 w-5", style: { color: 'var(--viewer-secondary)' } };
   switch (type) {
     case 'pdf':
     case 'document':
@@ -27,13 +27,20 @@ function DocumentItemIcon({ type }) {
   }
 }
 
-function ListItem({ item, onItemClick, onDownloadClick }) {
+function ListItem({ item, onItemClick, onDownloadClick, showIndex = false, index = null }) {
   const isFolder = item.type === 'folder';
   return (
-    <div className="group flex w-full items-center px-4 py-2 text-left text-sm transition-colors hover:bg-gray-100">
+    <div
+      className="group flex w-full items-center px-4 py-2 text-left text-sm transition-colors hover:bg-[var(--viewer-row-hover-bg)]"
+      style={{
+        color: 'var(--viewer-primary)',
+        '--viewer-row-hover-bg': 'color-mix(in srgb, var(--viewer-secondary) 10%, transparent)',
+      }}
+    >
+      {showIndex && <div className="w-10 text-xs" style={{ color: 'var(--viewer-secondary)' }}>{index}</div>}
       <div className="flex w-8 items-center justify-center">
         {isFolder ? (
-          <FolderIcon className="h-5 w-5 text-blue-500" />
+          <FolderIcon className="h-5 w-5" style={{ color: 'var(--viewer-accent)' }} />
         ) : (
           <DocumentItemIcon type={item.document_type} />
         )}
@@ -45,10 +52,10 @@ function ListItem({ item, onItemClick, onDownloadClick }) {
       >
         {item.name || item.document_name}
       </button>
-      <div className="w-[20%] text-sm text-gray-500">
+      <div className="w-[20%] text-sm" style={{ color: 'var(--viewer-secondary)' }}>
         {item.updated_at && formatDistanceToNow(new Date(item.updated_at), { addSuffix: true })}
       </div>
-      <div className="w-[10%] text-sm text-gray-500">
+      <div className="w-[10%] text-sm" style={{ color: 'var(--viewer-secondary)' }}>
         {!isFolder && typeof item.file_size === 'number' ? formatBytes(item.file_size) : '—'}
       </div>
       <div className="w-[10%] text-right">
@@ -57,6 +64,7 @@ function ListItem({ item, onItemClick, onDownloadClick }) {
             variant="ghost"
             size="icon"
             className="h-8 w-8 opacity-0 group-hover:opacity-100"
+            style={{ color: 'var(--viewer-accent)' }}
             onClick={() => onDownloadClick(item)}
             title={`Download "${item.name || item.document_name}"`}
           >
@@ -126,10 +134,7 @@ export function DataroomViewer({ data, slug, viewId }) {
     }
   };
 
-  const allItems = useMemo(() => [
-    ...data.folders.map(f => ({ ...f, type: 'folder' })),
-    ...data.documents.map(d => ({ ...d, type: 'document' })),
-  ], [data.folders, data.documents]);
+  const allItems = useMemo(() => (Array.isArray(data.items) ? data.items : []), [data.items]);
 
   const itemsById = useMemo(() => {
     const map = new Map();
@@ -142,7 +147,12 @@ export function DataroomViewer({ data, slug, viewId }) {
   }, [currentFolderId, itemsById]);
 
   const itemsInCurrentFolder = useMemo(() => {
-    return allItems.filter(item => (item.parent || null) === currentFolderId);
+    return allItems
+      .filter(item => (item.parent || null) === currentFolderId)
+      .sort((a, b) => {
+        if ((a.position ?? 0) !== (b.position ?? 0)) return (a.position ?? 0) - (b.position ?? 0);
+        return String(a.id).localeCompare(String(b.id));
+      });
   }, [allItems, currentFolderId]);
 
   const breadcrumbs = useMemo(() => {
@@ -195,22 +205,34 @@ export function DataroomViewer({ data, slug, viewId }) {
     }
   };
 
+  const themeStyle = {
+    '--viewer-primary': data.brand_primary_color || '#111827',
+    '--viewer-secondary': data.brand_secondary_color || '#4b5563',
+    '--viewer-accent': data.brand_accent_color || '#1f2937',
+  };
+
   return (
-    <div className="flex h-screen w-screen flex-col bg-gray-50">
+    <div className="flex h-screen w-screen flex-col bg-gray-50" style={themeStyle}>
       <header className="flex flex-shrink-0 items-center justify-between border-b bg-white p-4">
-        <h1 className="text-xl font-semibold">{data.name}</h1>
-        <a href="/" className="flex items-center gap-2 rounded-md p-2 font-semibold">
+        <h1 className="text-xl font-semibold" style={{ color: 'var(--viewer-primary)' }}>{data.name}</h1>
+        <a href="/" className="flex items-center gap-2 rounded-md p-2 font-semibold" style={{ color: 'var(--viewer-primary)' }}>
           <img src="/logo.svg" alt="Coneshare logo" className="h-6 w-6" />
           <span>Coneshare</span>
         </a>
       </header>
+      {data.branding_banner && (
+        <section className="flex-shrink-0 border-b bg-white">
+          <img src={data.branding_banner} alt={`${data.name} banner`} className="h-32 w-full object-cover md:h-44" />
+        </section>
+      )}
 
       <nav className="flex-shrink-0 border-b bg-white px-4 py-2">
-        <ol className="flex items-center space-x-2 text-sm text-gray-500">
+        <ol className="flex items-center space-x-2 text-sm" style={{ color: 'var(--viewer-secondary)' }}>
           <li>
             <button
               onClick={() => setCurrentFolderId(null)}
-              className="flex items-center gap-2 hover:text-gray-900"
+              className="flex items-center gap-2"
+              style={{ color: 'var(--viewer-secondary)' }}
             >
               <HomeIcon className="h-4 w-4" />
               <span>Root</span>
@@ -218,10 +240,11 @@ export function DataroomViewer({ data, slug, viewId }) {
           </li>
           {breadcrumbs.map(crumb => (
             <li key={crumb.id} className="flex items-center">
-              <ChevronRight className="h-4 w-4 text-gray-400" />
+              <ChevronRight className="h-4 w-4" style={{ color: 'var(--viewer-secondary)' }} />
               <button
                 onClick={() => setCurrentFolderId(crumb.id)}
-                className="ml-2 hover:text-gray-900"
+                className="ml-2"
+                style={{ color: 'var(--viewer-secondary)' }}
               >
                 {crumb.name}
               </button>
@@ -231,7 +254,14 @@ export function DataroomViewer({ data, slug, viewId }) {
       </nav>
 
       <main className="flex-1 overflow-y-auto border-t">
-        <div className="flex w-full items-center border-b bg-gray-50 px-4 py-2 text-xs font-medium uppercase text-gray-500">
+        <div
+          className="flex w-full items-center border-b px-4 py-2 text-xs font-medium uppercase"
+          style={{
+            color: 'var(--viewer-secondary)',
+            backgroundColor: 'color-mix(in srgb, var(--viewer-secondary) 8%, white)',
+          }}
+        >
+          {data.show_file_index && <div className="w-10">#</div>}
           <div className="w-8" />
           <div className="w-[50%] pr-4">Name</div>
           <div className="w-[20%]">Last Modified</div>
@@ -239,17 +269,19 @@ export function DataroomViewer({ data, slug, viewId }) {
           <div className="w-[10%] text-right">Actions</div>
         </div>
         <div className="divide-y">
-          {itemsInCurrentFolder.map((item) => (
+          {itemsInCurrentFolder.map((item, idx) => (
             <ListItem
               key={item.id}
               item={item}
               onItemClick={handleItemClick}
               onDownloadClick={handleDownloadClick}
+              showIndex={Boolean(data.show_file_index)}
+              index={idx + 1}
             />
           ))}
         </div>
         {itemsInCurrentFolder.length === 0 && (
-          <div className="p-12 text-center text-gray-500">This folder is empty.</div>
+          <div className="p-12 text-center" style={{ color: 'var(--viewer-secondary)' }}>This folder is empty.</div>
         )}
       </main>
 

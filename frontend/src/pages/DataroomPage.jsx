@@ -1,10 +1,10 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
-import { ShareIcon, Star } from 'lucide-react';
+import { ShareIcon, Star, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
-import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, removeContentFromDataroom, updateDataroomFolder, updateDataroomDocument } from '../services/api';
+import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, removeContentFromDataroom, updateDataroomFolder, updateDataroomDocument, updateDataroomBranding, reorderDataroomItems } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
@@ -12,6 +12,7 @@ import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
 import { AddContentDialog } from '../components/dialogs/AddContentDialog';
 import { AddFolderDialog } from '../components/dialogs/AddFolderDialog';
 import { DataroomMoveItemsDialog } from '../components/dialogs/DataroomMoveItemsDialog';
+import { DataroomReorderItemsDialog } from '../components/dialogs/DataroomReorderItemsDialog';
 import { DocumentsList } from '../components/documents/DocumentsList';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
@@ -22,6 +23,18 @@ import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
 import { ManagePermissionsDialog } from '../components/datarooms/ManagePermissionsDialog';
 import { RenameItemDialog } from '../components/dialogs/RenameItemDialog';
 import { Skeleton } from '../components/ui/Skeleton';
+import { Input } from '../components/ui/Input';
+import { Label } from '../components/ui/Label';
+import { Switch } from '../components/ui/Switch';
+
+const BRAND_PRESETS = [
+  { name: 'Slate', primary: '#1f2937', secondary: '#4b5563', accent: '#111827' },
+  { name: 'Ocean', primary: '#0f4c81', secondary: '#2a6f9e', accent: '#0b3559' },
+  { name: 'Forest', primary: '#1f6f5f', secondary: '#3d8d7a', accent: '#174f44' },
+  { name: 'Sunset', primary: '#b45309', secondary: '#d97706', accent: '#7c2d12' },
+  { name: 'Rose', primary: '#9f1239', secondary: '#be185d', accent: '#881337' },
+  { name: 'Indigo', primary: '#3730a3', secondary: '#4f46e5', accent: '#312e81' },
+];
 
 export function DataroomPage() {
   const { dataroomId } = useParams();
@@ -30,14 +43,15 @@ export function DataroomPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'documents';
   const [dataroom, setDataroom] = useState(null);
+  const [dataroomName, setDataroomName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAddContentOpen, setIsAddContentOpen] = useState(false);
   const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
   const [isMoveItemsOpen, setIsMoveItemsOpen] = useState(false);
+  const [isReorderDialogOpen, setIsReorderDialogOpen] = useState(false);
   const [currentFolderId, setCurrentFolderId] = useState(() => searchParams.get('folder'));
   const [currentDataroomFolder, setCurrentDataroomFolder] = useState(null);
-  const [folders, setFolders] = useState([]);
-  const [documents, setDocuments] = useState([]);
+  const [items, setItems] = useState([]);
   const [links, setLinks] = useState([]);
   const [isLinkSheetOpen, setIsLinkSheetOpen] = useState(false);
   const [editingLink, setEditingLink] = useState(null);
@@ -52,6 +66,19 @@ export function DataroomPage() {
   const [itemToRename, setItemToRename] = useState(null);
   const [itemToRemove, setItemToRemove] = useState(null);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
+  const [brandingForm, setBrandingForm] = useState({
+    brandPrimaryColor: '',
+    brandSecondaryColor: '',
+    brandAccentColor: '',
+  });
+  const [brandingBannerFile, setBrandingBannerFile] = useState(null);
+  const [removeBrandingBanner, setRemoveBrandingBanner] = useState(false);
+  const [brandingPreviewUrl, setBrandingPreviewUrl] = useState(null);
+  const [isSavingGeneral, setIsSavingGeneral] = useState(false);
+  const [isSavingBanner, setIsSavingBanner] = useState(false);
+  const [isSavingColors, setIsSavingColors] = useState(false);
+  const [showFileIndex, setShowFileIndex] = useState(true);
+  const bannerFileInputRef = useRef(null);
     
   const fetchContent = useCallback(async () => {
     setIsLoading(true);
@@ -65,15 +92,13 @@ export function DataroomPage() {
         ]);
         setDataroom(dataroomResponse.data);
         setCurrentDataroomFolder(folderResponse.data);
-        setFolders(folderResponse.data.sub_folders || []);
-        setDocuments(folderResponse.data.documents || []);
+        setItems(folderResponse.data.items || []);
       } else {
         // When viewing the dataroom root, we just need the main dataroom data.
         const response = await getDataroom(dataroomId);
         setDataroom(response.data);
         setCurrentDataroomFolder(null);
-        setFolders(response.data.folders || []);
-        setDocuments(response.data.documents || []);
+        setItems(response.data.items || []);
       }
     } catch (error) {
       // Error toast is handled by api interceptor, but might want to redirect on 404
@@ -103,31 +128,39 @@ export function DataroomPage() {
     }
   }, [dataroomId, viewsCurrentPage]);
     
+  const folders = useMemo(() => items.filter((item) => item.type === 'folder'), [items]);
+  const documents = useMemo(() => items.filter((item) => item.type === 'document'), [items]);
+
   const unsortedItems = useMemo(() => {
     if (!dataroom) return [];
-
-    let combined = [
-      ...(folders || []).map(f => ({
-        ...f,
-        type: 'folder'
-      })),
-      ...(documents || []).map(d => ({
-        ...d,
-        // Use dataroom_document_id for selection, document_id for navigation
-        id: d.id, 
-        document_id: d.document_id,
-        name: d.name,
-        type: 'document'
-      }))
-    ];
-
+    const normalized = items.map((item) => ({
+      ...item,
+      id: item.id,
+      document_id: item.document_id,
+      name: item.name,
+      type: item.type,
+      position: item.position,
+    }));
     if (showStarredOnly) {
-      combined = combined.filter((item) => item.is_starred);
+      return normalized.filter((item) => item.is_starred);
     }
-    return combined;
-  }, [dataroom, folders, documents, showStarredOnly]);
+    return normalized;
+  }, [dataroom, items, showStarredOnly]);
 
-  const { sortedItems: allItems, sortConfig, handleSort } = useSortedList(unsortedItems);
+  const reorderableItems = useMemo(() => {
+    return (items || []).map((item) => ({
+      id: item.id,
+      name: item.name,
+      type: item.type,
+      created_at: item.created_at,
+    }));
+  }, [items]);
+
+  const { sortedItems: allItems, sortConfig, handleSort } = useSortedList(
+    unsortedItems,
+    { key: 'position', direction: 'ascending' },
+    { groupByType: false }
+  );
   const { selection, setSelection, setLastSelectedItem, handleItemSelect, handleClearSelection } = useItemSelection(allItems);
     
   const isAllSelected =
@@ -175,6 +208,18 @@ export function DataroomPage() {
     });
   }, [setSearchParams]);
 
+  const updateSearchParam = useCallback((key, value) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (value === null || value === undefined || value === '') {
+        next.delete(key);
+      } else {
+        next.set(key, value);
+      }
+      return next;
+    });
+  }, [setSearchParams]);
+
   useEffect(() => {
     setCurrentFolderId(searchParams.get('folder'));
   }, [searchParams]);
@@ -189,6 +234,30 @@ export function DataroomPage() {
       });
     }
   }, [dataroom, currentDataroomFolder, setBreadcrumbData, handleBreadcrumbNavigate]);
+
+  useEffect(() => {
+    if (!dataroom) return;
+    setDataroomName(dataroom.name || '');
+    setBrandingForm({
+      brandPrimaryColor: dataroom.brand_primary_color || '',
+      brandSecondaryColor: dataroom.brand_secondary_color || '',
+      brandAccentColor: dataroom.brand_accent_color || '',
+    });
+    setBrandingBannerFile(null);
+    setRemoveBrandingBanner(false);
+    setBrandingPreviewUrl(null);
+    setShowFileIndex(Boolean(dataroom.show_file_index));
+  }, [dataroom]);
+
+  useEffect(() => {
+    if (!brandingBannerFile) {
+      setBrandingPreviewUrl(null);
+      return;
+    }
+    const objUrl = URL.createObjectURL(brandingBannerFile);
+    setBrandingPreviewUrl(objUrl);
+    return () => URL.revokeObjectURL(objUrl);
+  }, [brandingBannerFile]);
 
   const handleAddContent = async ({ document_ids, folder_ids }) => {
     try {
@@ -328,11 +397,10 @@ export function DataroomPage() {
 
   const handleToggleStar = useCallback(async (id, type) => {
     const isFolder = type === 'folder';
-    const items = isFolder ? folders : documents;
-    const setItems = isFolder ? setFolders : setDocuments;
+    const currentList = isFolder ? folders : documents;
     const updateApiCall = isFolder ? updateDataroomFolder : updateDataroomDocument;
 
-    const originalItem = items.find(item => item.id === id);
+    const originalItem = currentList.find(item => item.id === id);
     if (!originalItem) {
       console.error('Item to star/unstar not found in state.');
       return;
@@ -373,6 +441,96 @@ export function DataroomPage() {
     } finally {
       setItemToRemove(null);
     }
+  };
+
+  const handleSaveGeneral = async () => {
+    setIsSavingGeneral(true);
+    try {
+      const response = await updateDataroomBranding(dataroomId, {
+        name: dataroomName,
+      });
+      setDataroom(response.data);
+      toast.success('Dataroom name updated.');
+    } catch (error) {
+      // Error toast handled by interceptor
+    } finally {
+      setIsSavingGeneral(false);
+    }
+  };
+
+  const handleSaveBanner = async () => {
+    setIsSavingBanner(true);
+    try {
+      const response = await updateDataroomBranding(dataroomId, {
+        bannerFile: brandingBannerFile,
+        removeBanner: removeBrandingBanner,
+      });
+      setDataroom(response.data);
+      setBrandingBannerFile(null);
+      setRemoveBrandingBanner(false);
+      toast.success('Banner updated.');
+    } catch (error) {
+      // Error toast handled by interceptor
+    } finally {
+      setIsSavingBanner(false);
+    }
+  };
+
+  const handleSaveColors = async () => {
+    setIsSavingColors(true);
+    try {
+      const response = await updateDataroomBranding(dataroomId, {
+        brandPrimaryColor: brandingForm.brandPrimaryColor,
+        brandSecondaryColor: brandingForm.brandSecondaryColor,
+        brandAccentColor: brandingForm.brandAccentColor,
+      });
+      setDataroom(response.data);
+      toast.success('Theme colors updated.');
+    } catch (error) {
+      // Error toast handled by interceptor
+    } finally {
+      setIsSavingColors(false);
+    }
+  };
+
+  const handleToggleShowFileIndex = async (checked) => {
+    setShowFileIndex(checked);
+    try {
+      const response = await updateDataroomBranding(dataroomId, {
+        showFileIndex: checked,
+      });
+      setDataroom(response.data);
+      toast.success('Display settings updated.');
+    } catch (error) {
+      setShowFileIndex((prev) => !prev);
+      // Error toast handled by interceptor
+    }
+  };
+
+  const handleConfirmReorderItems = async (orderedItems) => {
+    try {
+      await reorderDataroomItems(dataroomId, {
+        parent_id: currentFolderId || null,
+        ordered_items: orderedItems.map((item) => ({ type: item.type, id: item.id })),
+      });
+      toast.success('Display order updated.');
+      setIsReorderDialogOpen(false);
+      fetchContent();
+    } catch (error) {
+      // Error toast handled by interceptor
+    }
+  };
+
+  const handleBrandColorChange = (field, value) => {
+    setBrandingForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleApplyPreset = (preset) => {
+    setBrandingForm({
+      brandPrimaryColor: preset.primary,
+      brandSecondaryColor: preset.secondary,
+      brandAccentColor: preset.accent,
+    });
   };
 
 
@@ -420,12 +578,17 @@ export function DataroomPage() {
   }
 
   const hasContent = documents.length > 0 || folders.length > 0;
+  const dataroomThemeStyle = {
+    '--dataroom-primary': dataroom.brand_primary_color || '#111827',
+    '--dataroom-secondary': dataroom.brand_secondary_color || '#4b5563',
+    '--dataroom-accent': dataroom.brand_accent_color || '#1f2937',
+  };
 
   return (
-    <div className="container mx-auto p-4 md:p-6">
+    <div className="container mx-auto p-4 md:p-6" style={dataroomThemeStyle}>
       <header className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">{dataroom.name}</h1>
+          <h1 className="text-2xl font-semibold" style={{ color: 'var(--dataroom-primary)' }}>{dataroom.name}</h1>
         </div>
         <div className="flex items-center gap-2">
           {activeTab === 'documents' && (
@@ -454,13 +617,41 @@ export function DataroomPage() {
         </div>
       </header>
 
-      <Tabs value={activeTab} onValueChange={(tab) => setSearchParams({ tab })} className="mt-4">
+      {dataroom.branding_banner && (
+        <section className="mb-6 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
+          <img
+            src={dataroom.branding_banner}
+            alt={`${dataroom.name} banner`}
+            className="h-40 w-full object-cover md:h-56"
+          />
+        </section>
+      )}
+
+      <Tabs value={activeTab} onValueChange={(tab) => updateSearchParam('tab', tab)} className="mt-4">
         <TabsList>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="links">Links and Permissions</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
         <TabsContent value="documents" className="mt-6">
           <div className="mb-4">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {currentFolderId && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const parentId = currentDataroomFolder?.parent || null;
+                      updateSearchParam('folder', parentId);
+                    }}
+                  >
+                    <ArrowLeft className="mr-1 h-4 w-4" />
+                    Back to parent
+                  </Button>
+                )}
+              </div>
+            </div>
             {selection.documents.length > 0 || selection.folders.length > 0 ? (
               <SelectionActionBar
                 selectedDocumentsCount={selection.documents.length}
@@ -472,13 +663,22 @@ export function DataroomPage() {
               />
             ) : (
               <div className="flex min-h-[48px] items-center">
-                <Button
-                  variant={showStarredOnly ? "secondary" : "ghost"}
+              <Button
+                variant={showStarredOnly ? "secondary" : "ghost"}
                   size="sm"
                   onClick={() => setShowStarredOnly(prev => !prev)}
                 >
                   <Star className="mr-2 h-4 w-4" />
                   Starred
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-2"
+                  onClick={() => setIsReorderDialogOpen(true)}
+                  disabled={!hasContent}
+                >
+                  Reorder
                 </Button>
               </div>
             )}
@@ -502,6 +702,8 @@ export function DataroomPage() {
               loading={isLoading}
               isReadOnly={false}
               showActions={true}
+              themed={true}
+              showIndex={showFileIndex}
               onItemClick={handleItemClick}
               onItemSelect={handleItemSelect}
               selectedDocuments={selection.documents}
@@ -536,6 +738,233 @@ export function DataroomPage() {
               contextType="dataroom"
             />
           </div>
+        </TabsContent>
+        <TabsContent value="settings" className="mt-6">
+          <section className="space-y-8">
+            <div className="pb-6 border-b border-gray-200 dark:border-gray-800">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold">General</h3>
+                <Button size="sm" onClick={handleSaveGeneral} disabled={isSavingGeneral}>
+                  {isSavingGeneral ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
+              <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">Rename this dataroom.</p>
+              <div className="max-w-md">
+                <Label htmlFor="dataroom-name">Dataroom Name</Label>
+                <Input
+                  id="dataroom-name"
+                  value={dataroomName}
+                  onChange={(e) => setDataroomName(e.target.value)}
+                  placeholder="Enter dataroom name"
+                />
+              </div>
+            </div>
+
+            <div className="pb-6 border-b border-gray-200 dark:border-gray-800">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Banner Image</h3>
+                <Button size="sm" onClick={handleSaveBanner} disabled={isSavingBanner}>
+                  {isSavingBanner ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
+              <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">
+                Display a client-specific banner at the top of the dataroom page.
+              </p>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <input
+                    ref={bannerFileInputRef}
+                    id="dataroom-banner"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setBrandingBannerFile(file);
+                      if (file) setRemoveBrandingBanner(false);
+                    }}
+                  />
+                  <div className="mt-2 flex items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => bannerFileInputRef.current?.click()}
+                    >
+                      Choose Banner
+                    </Button>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {brandingBannerFile ? brandingBannerFile.name : 'No file selected'}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    Recommended: wide image (for example 1600x400), JPG/PNG.
+                  </p>
+                  {(dataroom.branding_banner || brandingBannerFile) && (
+                    <div className="mt-3 flex gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setBrandingBannerFile(null);
+                          setRemoveBrandingBanner(true);
+                        }}
+                      >
+                        Remove Banner
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <Label>Preview</Label>
+                  <div className="mt-2 overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">
+                    {removeBrandingBanner ? (
+                      <div className="flex h-28 items-center justify-center text-xs text-gray-500">
+                        Banner will be removed after saving.
+                      </div>
+                    ) : (brandingBannerFile || dataroom.branding_banner) ? (
+                      <img
+                        src={brandingPreviewUrl || dataroom.branding_banner}
+                        alt="Banner preview"
+                        className="h-28 w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-28 items-center justify-center text-xs text-gray-500">
+                        No banner uploaded.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pb-6 border-b border-gray-200 dark:border-gray-800">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Theme Colors</h3>
+                <Button size="sm" onClick={handleSaveColors} disabled={isSavingColors}>
+                  {isSavingColors ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
+              <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">
+                Apply brand colors to dataroom headers, lists, and accents.
+              </p>
+              <div className="mb-4">
+                <Label>Preset Palettes</Label>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {BRAND_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      className="flex items-center gap-2 rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700"
+                      onClick={() => handleApplyPreset(preset)}
+                      title={`Apply ${preset.name}`}
+                    >
+                      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: preset.primary }} />
+                      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: preset.secondary }} />
+                      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: preset.accent }} />
+                      <span>{preset.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div>
+                  <Label htmlFor="brand-primary">Primary Color</Label>
+                  <Input
+                    id="brand-primary-picker"
+                    type="color"
+                    className="mb-2 h-10 p-1"
+                    value={brandingForm.brandPrimaryColor || '#111827'}
+                    onChange={(e) => handleBrandColorChange('brandPrimaryColor', e.target.value)}
+                  />
+                  <Input
+                    id="brand-primary"
+                    placeholder="#112233"
+                    value={brandingForm.brandPrimaryColor}
+                    onChange={(e) => handleBrandColorChange('brandPrimaryColor', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="brand-secondary">Secondary Color</Label>
+                  <Input
+                    id="brand-secondary-picker"
+                    type="color"
+                    className="mb-2 h-10 p-1"
+                    value={brandingForm.brandSecondaryColor || '#4b5563'}
+                    onChange={(e) => handleBrandColorChange('brandSecondaryColor', e.target.value)}
+                  />
+                  <Input
+                    id="brand-secondary"
+                    placeholder="#445566"
+                    value={brandingForm.brandSecondaryColor}
+                    onChange={(e) => handleBrandColorChange('brandSecondaryColor', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="brand-accent">Accent Color</Label>
+                  <Input
+                    id="brand-accent-picker"
+                    type="color"
+                    className="mb-2 h-10 p-1"
+                    value={brandingForm.brandAccentColor || '#1f2937'}
+                    onChange={(e) => handleBrandColorChange('brandAccentColor', e.target.value)}
+                  />
+                  <Input
+                    id="brand-accent"
+                    placeholder="#778899AA"
+                    value={brandingForm.brandAccentColor}
+                    onChange={(e) => handleBrandColorChange('brandAccentColor', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <Label>Live Preview</Label>
+                <div className="mt-2 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
+                  <div
+                    className="px-4 py-3"
+                    style={{ backgroundColor: brandingForm.brandPrimaryColor || '#111827', color: '#ffffff' }}
+                  >
+                    Preview Header
+                  </div>
+                  <div className="p-4">
+                    <p style={{ color: brandingForm.brandSecondaryColor || '#4b5563' }}>
+                      Secondary text preview for dataroom descriptions.
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="mt-3"
+                      style={{
+                        backgroundColor: brandingForm.brandAccentColor || '#1f2937',
+                        color: '#ffffff',
+                      }}
+                    >
+                      Accent Button
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Display</h3>
+              </div>
+              <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">
+                Configure dataroom list display behavior.
+              </p>
+              <div className="flex items-center justify-between rounded border border-gray-200 p-3 dark:border-gray-700">
+                <div>
+                  <p className="text-sm font-medium">Display File Index</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Show numeric index next to files/folders.</p>
+                </div>
+                <Switch checked={showFileIndex} onCheckedChange={handleToggleShowFileIndex} />
+              </div>
+            </div>
+          </section>
         </TabsContent>
       </Tabs>
       <LinkSheet
@@ -578,6 +1007,13 @@ export function DataroomPage() {
         onConfirm={handleMoveItems}
         dataroomId={dataroomId}
         selectedFolderIds={selection.folders}
+      />
+      <DataroomReorderItemsDialog
+        isOpen={isReorderDialogOpen}
+        onOpenChange={setIsReorderDialogOpen}
+        items={reorderableItems}
+        onConfirm={handleConfirmReorderItems}
+        currentFolderName={currentDataroomFolder?.name || null}
       />
       <ConfirmationDialog
         isOpen={isRemoveContentDialogOpen}
