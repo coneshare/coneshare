@@ -141,7 +141,12 @@ describe('ShareLinkViewerPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Preview Viewer')).toBeInTheDocument();
     });
-    expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', null, null);
+    expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', {
+      previewToken: null,
+      accessToken: null,
+      documentId: null,
+      parentId: null,
+    });
     expect(api.createViewSession).toHaveBeenCalledWith({ share_link: 'link_abc' });
   });
 
@@ -155,6 +160,31 @@ describe('ShareLinkViewerPage', () => {
       expect(screen.getByText('Preview Viewer')).toBeInTheDocument();
     });
 
-    expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', null, 'my-secret-token');
+    expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', {
+      previewToken: null,
+      accessToken: 'my-secret-token',
+      documentId: null,
+      parentId: null,
+    });
+  });
+
+  it('passes parent_id from URL to API call for dataroom scope', async () => {
+    api.getShareLinkViewData.mockResolvedValue({
+      data: { link_type: 'dataroom', id: 'dr1', name: 'Room', items: [], breadcrumbs: [], link_settings: { id: 'link_abc' } },
+    });
+    api.createViewSession.mockResolvedValue({ data: mockViewData });
+
+    renderComponent('/view/test-slug?parent_id=folder-123');
+
+    await waitFor(() => {
+      expect(api.getShareLinkViewData).toHaveBeenCalled();
+    });
+
+    expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', {
+      previewToken: null,
+      accessToken: null,
+      documentId: null,
+      parentId: 'folder-123',
+    });
   });
 });
