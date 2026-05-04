@@ -62,6 +62,22 @@ EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() in ('true', '1',
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@coneshare.com')
+SERVER_EMAIL = os.environ.get('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
+
+# Comma-separated list of admin recipients for Django error emails.
+# Format: "Alice:alice@example.com,Bob:bob@example.com" or "ops@example.com,dev@example.com"
+ADMINS_ENV = os.environ.get('ADMINS', '').strip()
+ADMINS = []
+if ADMINS_ENV:
+    for raw_item in ADMINS_ENV.split(','):
+        item = raw_item.strip()
+        if not item:
+            continue
+        if ':' in item:
+            name, email = item.split(':', 1)
+            ADMINS.append((name.strip(), email.strip()))
+        else:
+            ADMINS.append(('', item))
 
 # Database Configuration
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
