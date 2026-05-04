@@ -513,7 +513,10 @@ class ShareLinkViewDataView(APIView):
             }
 
             # To avoid N+1 queries during recursion, fetch the whole folder hierarchy for the dataroom.
-            all_dataroom_folders = list(DataroomFolder.objects.filter(dataroom=dataroom).values('id', 'parent_id'))
+            all_dataroom_folders = list(
+                DataroomFolder.objects.filter(dataroom=dataroom).values('id', 'parent_id', 'name')
+            )
+            folder_map = {str(f['id']): f for f in all_dataroom_folders}
             
             # Recursively find all children of invisible folders.
             # This loop continues until no new descendants of invisible folders are found.
@@ -543,34 +546,40 @@ class ShareLinkViewDataView(APIView):
             visible_folder_ids = [s.dataroom_folder_id for s in dataroom_link_settings if s.dataroom_folder_id]
             visible_folder_ids_set = set(visible_folder_ids)
 
-            current_parent = None
+            current_parent_id = None
             if parent_id:
-                try:
-                    requested_parent = DataroomFolder.objects.get(id=parent_id, dataroom=dataroom)
-                except DataroomFolder.DoesNotExist:
+                requested_parent = folder_map.get(str(parent_id))
+                if not requested_parent:
                     return Response(
                         {"detail": "You do not have permission to view this folder through this link."},
                         status=status.HTTP_403_FORBIDDEN
                     )
-                if requested_parent.id not in visible_folder_ids_set:
+                if requested_parent['id'] not in visible_folder_ids_set:
                     return Response(
                         {"detail": "You do not have permission to view this folder through this link."},
                         status=status.HTTP_403_FORBIDDEN
                     )
-                current_parent = requested_parent
+                current_parent_id = requested_parent['id']
 
             breadcrumbs = []
-            if current_parent:
+            if current_parent_id:
                 ancestors = []
-                node = current_parent
-                while node:
-                    if node.id not in visible_folder_ids_set:
+                node_id = str(current_parent_id)
+                while node_id:
+                    node = folder_map.get(node_id)
+                    if not node:
                         return Response(
                             {"detail": "You do not have permission to view this folder through this link."},
                             status=status.HTTP_403_FORBIDDEN
                         )
-                    ancestors.append({'id': node.id, 'name': node.name})
-                    node = node.parent
+                    if node['id'] not in visible_folder_ids_set:
+                        return Response(
+                            {"detail": "You do not have permission to view this folder through this link."},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+                    ancestors.append({'id': node['id'], 'name': node['name']})
+                    parent_node_id = node.get('parent_id')
+                    node_id = str(parent_node_id) if parent_node_id else None
                 breadcrumbs = list(reversed(ancestors))
 
             # Create a map for quick lookup of settings in serializers
@@ -583,9 +592,9 @@ class ShareLinkViewDataView(APIView):
             # Fetch only direct children within the requested scope.
             folders_qs = DataroomFolder.objects.filter(id__in=visible_folder_ids)
             docs_qs = DataroomDocument.objects.filter(id__in=visible_doc_ids).select_related('document', 'folder')
-            if current_parent:
-                folders_qs = folders_qs.filter(parent=current_parent)
-                docs_qs = docs_qs.filter(folder=current_parent)
+            if current_parent_id:
+                folders_qs = folders_qs.filter(parent_id=current_parent_id)
+                docs_qs = docs_qs.filter(folder_id=current_parent_id)
             else:
                 folders_qs = folders_qs.filter(parent__isnull=True)
                 docs_qs = docs_qs.filter(folder__isnull=True)
@@ -604,7 +613,7 @@ class ShareLinkViewDataView(APIView):
             order_rows = list(
                 DataroomItemOrder.objects.filter(
                     dataroom=dataroom,
-                    parent_folder=current_parent,
+                    parent_folder_id=current_parent_id,
                 ).order_by('position', 'created_at', 'id')
             )
             if order_rows:
@@ -643,7 +652,7 @@ class ShareLinkViewDataView(APIView):
                 'brand_primary_color': dataroom.brand_primary_color,
                 'brand_secondary_color': dataroom.brand_secondary_color,
                 'brand_accent_color': dataroom.brand_accent_color,
-                'current_parent_id': current_parent.id if current_parent else None,
+                'current_parent_id': current_parent_id,
                 'breadcrumbs': breadcrumbs,
                 'items': merged_items,
                 'link_settings': {
