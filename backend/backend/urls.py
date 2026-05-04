@@ -23,7 +23,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from core.views import (CustomTokenObtainPairView, LogoutView, RegisterView,
-                          SetPasswordView)
+                        SetPasswordView)
 
 
 urlpatterns = [
@@ -51,6 +51,6 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
-# This catch-all route serves the React app for any non-API path.
-# It must be the last URL pattern in the list.
-urlpatterns.append(re_path(r'^(?:.*)/?$', TemplateView.as_view(template_name="index.html")))
+# This catch-all route serves the React app for non-API paths only.
+# It must be the last URL pattern in the list so API 404s are not swallowed.
+urlpatterns.append(re_path(r'^(?!api/).*$', TemplateView.as_view(template_name="index.html")))
