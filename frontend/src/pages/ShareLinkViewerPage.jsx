@@ -16,6 +16,10 @@ export function ShareLinkViewerPage() {
   const [searchParams] = useSearchParams();
   const previewToken = searchParams.get('previewToken');
   const accessToken = searchParams.get('accessToken');
+  const viewSessionIdFromUrl = searchParams.get('view_session_id');
+  const dataroomVisitIdFromUrl = searchParams.get('dataroom_visit_id');
+  const documentIdFromUrl = searchParams.get('document_id');
+  const parentIdFromUrl = searchParams.get('parent_id');
 
   const [viewData, setViewData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,10 +48,6 @@ export function ShareLinkViewerPage() {
   const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
 
   useEffect(() => {
-    const viewSessionIdFromUrl = searchParams.get('view_session_id');
-    const dataroomVisitIdFromUrl = searchParams.get('dataroom_visit_id');
-    const documentIdFromUrl = searchParams.get('document_id');
-
     let isCancelled = false;
     const fetchData = async () => {
       setIsLoading(true);
@@ -63,6 +63,7 @@ export function ShareLinkViewerPage() {
           previewToken,
           accessToken,
           documentId: documentIdFromUrl,
+          parentId: documentIdFromUrl ? null : parentIdFromUrl,
         });
         if (!isCancelled) {
           setViewData(response.data);
@@ -102,7 +103,18 @@ export function ShareLinkViewerPage() {
     return () => {
       isCancelled = true;
     };
-  }, [slug, searchParams, previewToken, accessToken, refetchTrigger]);
+  }, [
+    slug,
+    previewToken,
+    accessToken,
+    viewSessionIdFromUrl,
+    dataroomVisitIdFromUrl,
+    documentIdFromUrl,
+    // Intentionally excluded:
+    // `parentIdFromUrl` changes are handled by DataroomViewer scoped fetches
+    // so we avoid full-page reload/flicker during folder navigation.
+    refetchTrigger,
+  ]);
 
   if (isLoading) {
     return (
@@ -153,7 +165,6 @@ export function ShareLinkViewerPage() {
   const isPreviewable = viewData && PREVIEWABLE_TYPES.includes(viewData.type);
   const canDownload = Boolean(viewData?.link_settings?.allow_download);
 
-  const documentIdFromUrl = searchParams.get('document_id');
   let downloadUrl = `/api/v1/links/${slug}/download-file/`;
   if (documentIdFromUrl) {
     downloadUrl += `?document_id=${documentIdFromUrl}`;

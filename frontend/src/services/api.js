@@ -252,11 +252,15 @@ export const getShareLinkViewSessions = (linkId, page = 1) =>
 
 export const generateShareLinkPreview = (id) => api.post(`/share-links/${id}/preview/`);
 
-export const getShareLinkViewData = (slug, { previewToken = null, accessToken = null, documentId = null } = {}) => {
+export const getShareLinkViewData = (
+  slug,
+  { previewToken = null, accessToken = null, documentId = null, parentId = null } = {}
+) => {
   const params = {};
   if (previewToken) params.previewToken = previewToken;
   if (accessToken) params.accessToken = accessToken;
   if (documentId) params.document_id = documentId;
+  if (parentId) params.parent_id = parentId;
   return api.get(`/links/${slug}/view-data/`, { params });
 };
 
