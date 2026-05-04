@@ -50,6 +50,7 @@ This roadmap reflects the current implementation in this repository as of **2026
 - **Per-item link permissions**: `ShareLinkDataroomSetting` supports visibility/download/watermark per file/folder for each link.
 - **Dataroom activity views**: dataroom-scoped view sessions endpoint and UI tab.
 - **Branding and presentation controls**: per-dataroom banner + theme colors, mixed item ordering API/UI, and optional file index display.
+- **Public scoped navigation**: share-link dataroom `view-data` supports folder-scope loading by `parent_id` with server breadcrumbs and scope-level sibling ordering.
 
 ### 6) Workflow Automations
 - **Destinations**: Slack, Discord, WeChat Work, Feishu, and generic webhook destination model.
