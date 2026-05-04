@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.utils.text import get_valid_filename
 from rest_framework import status
 
-from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
+from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
 from documents.models import (Document, DocumentPage, DocumentVersion)
 from sharelinks.models import (DataroomVisit, EmailVerificationToken, PageView,
                                PreviewSession, ShareLink,
@@ -641,12 +641,145 @@ class TestDataroomVisitTracking:
         data = response.json()
         
         # The parent folder and its children (subfolder and document) should not be present
-        folder_names = {f['name'] for f in data['folders']}
-        doc_names = {d['document_name'] for d in data['documents']}
-        
-        assert "Parent Folder" not in folder_names
-        assert "Subfolder" not in folder_names
-        assert "Secret.pdf" not in doc_names
+        item_names = {item.get('name') for item in data['items']}
+
+        assert "Parent Folder" not in item_names
+        assert "Subfolder" not in item_names
+        assert "Secret.pdf" not in item_names
+
+    def test_get_dataroom_link_data_root_scope_returns_only_root_direct_children(
+        self, public_client, user, organization, document_factory
+    ):
+        dataroom = Dataroom.objects.create(name="Test Dataroom", created_by=user, organization=organization)
+        root_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Root Folder")
+        child_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Child Folder", parent=root_folder)
+        root_doc = document_factory(name="Root Doc.pdf")
+        child_doc = document_factory(name="Child Doc.pdf")
+        DataroomDocument.objects.create(dataroom=dataroom, document=root_doc, folder=None)
+        DataroomDocument.objects.create(dataroom=dataroom, document=child_doc, folder=child_folder)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        response = public_client.get(f'/api/v1/links/{link.slug}/view-data/')
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        assert data['current_parent_id'] is None
+        assert data['breadcrumbs'] == []
+        item_names = {item['name'] for item in data['items']}
+        assert item_names == {"Root Folder", "Root Doc.pdf"}
+
+    def test_get_dataroom_link_data_nested_scope_returns_direct_children(
+        self, public_client, user, organization, document_factory
+    ):
+        dataroom = Dataroom.objects.create(name="Test Dataroom", created_by=user, organization=organization)
+        parent = DataroomFolder.objects.create(dataroom=dataroom, name="Parent")
+        child_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Child Folder", parent=parent)
+        child_doc = document_factory(name="Child Doc.pdf")
+        grandchild_doc = document_factory(name="Grandchild Doc.pdf")
+        child_ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=child_doc, folder=parent)
+        DataroomDocument.objects.create(dataroom=dataroom, document=grandchild_doc, folder=child_folder)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        response = public_client.get(f'/api/v1/links/{link.slug}/view-data/?parent_id={parent.id}')
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        assert data['current_parent_id'] == str(parent.id)
+        assert data['breadcrumbs'] == [{'id': str(parent.id), 'name': 'Parent'}]
+        ids = {(item['type'], item['id']) for item in data['items']}
+        assert ('folder', str(child_folder.id)) in ids
+        assert ('document', str(child_ddoc.id)) in ids
+        assert len(ids) == 2
+
+    def test_get_dataroom_link_data_rejects_foreign_or_invisible_parent_id(
+        self, public_client, user, organization, document_factory
+    ):
+        dataroom = Dataroom.objects.create(name="Test Dataroom", created_by=user, organization=organization)
+        visible_parent = DataroomFolder.objects.create(dataroom=dataroom, name="Visible")
+        invisible_parent = DataroomFolder.objects.create(dataroom=dataroom, name="Invisible")
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+        invisible_setting = ShareLinkDataroomSetting.objects.get(
+            share_link=link,
+            dataroom_folder=invisible_parent,
+        )
+        invisible_setting.is_visible = False
+        invisible_setting.save(update_fields=['is_visible'])
+
+        other_dataroom = Dataroom.objects.create(name="Other", created_by=user, organization=organization)
+        foreign_folder = DataroomFolder.objects.create(dataroom=other_dataroom, name="Foreign")
+
+        response_invisible = public_client.get(
+            f'/api/v1/links/{link.slug}/view-data/?parent_id={invisible_parent.id}'
+        )
+        assert response_invisible.status_code == status.HTTP_403_FORBIDDEN
+
+        response_foreign = public_client.get(
+            f'/api/v1/links/{link.slug}/view-data/?parent_id={foreign_folder.id}'
+        )
+        assert response_foreign.status_code == status.HTTP_403_FORBIDDEN
+
+        # sanity check: visible parent should still be allowed
+        response_visible = public_client.get(
+            f'/api/v1/links/{link.slug}/view-data/?parent_id={visible_parent.id}'
+        )
+        assert response_visible.status_code == status.HTTP_200_OK
+
+    def test_get_dataroom_link_data_scope_ordering_uses_item_order_and_fallback(
+        self, public_client, user, organization, document_factory
+    ):
+        dataroom = Dataroom.objects.create(name="Test Dataroom", created_by=user, organization=organization)
+        doc_a = document_factory(name="A.pdf")
+        doc_b = document_factory(name="B.pdf")
+        ddoc_a = DataroomDocument.objects.create(dataroom=dataroom, document=doc_a)
+        ddoc_b = DataroomDocument.objects.create(dataroom=dataroom, document=doc_b)
+        folder_a = DataroomFolder.objects.create(dataroom=dataroom, name="Folder A")
+        folder_b = DataroomFolder.objects.create(dataroom=dataroom, name="Folder B")
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        # Only create order rows for a subset. Remaining items should still be returned via fallback.
+        DataroomItemOrder.objects.create(
+            dataroom=dataroom,
+            parent_folder=None,
+            item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
+            dataroom_document=ddoc_b,
+            position=0,
+        )
+        DataroomItemOrder.objects.create(
+            dataroom=dataroom,
+            parent_folder=None,
+            item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
+            folder=folder_a,
+            position=1,
+        )
+
+        response = public_client.get(f'/api/v1/links/{link.slug}/view-data/')
+        assert response.status_code == status.HTTP_200_OK
+        items = response.json()['items']
+
+        assert (items[0]['type'], items[0]['id']) == ('document', str(ddoc_b.id))
+        assert (items[1]['type'], items[1]['id']) == ('folder', str(folder_a.id))
+        returned = {(item['type'], item['id']) for item in items}
+        assert ('document', str(ddoc_a.id)) in returned
+        assert ('folder', str(folder_b.id)) in returned
+
+    def test_get_dataroom_link_data_includes_nested_breadcrumbs(
+        self, public_client, user, organization
+    ):
+        dataroom = Dataroom.objects.create(name="Test Dataroom", created_by=user, organization=organization)
+        level1 = DataroomFolder.objects.create(dataroom=dataroom, name="Level 1")
+        level2 = DataroomFolder.objects.create(dataroom=dataroom, name="Level 2", parent=level1)
+        level3 = DataroomFolder.objects.create(dataroom=dataroom, name="Level 3", parent=level2)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        response = public_client.get(f'/api/v1/links/{link.slug}/view-data/?parent_id={level3.id}')
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data['current_parent_id'] == str(level3.id)
+        assert data['breadcrumbs'] == [
+            {'id': str(level1.id), 'name': 'Level 1'},
+            {'id': str(level2.id), 'name': 'Level 2'},
+            {'id': str(level3.id), 'name': 'Level 3'},
+        ]
 
     def test_get_document_from_dataroom_link_returns_item_specific_settings(self, public_client, user, dataroom, document):
         """

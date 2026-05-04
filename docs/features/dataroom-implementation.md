@@ -100,15 +100,19 @@ Enables discussions between data room owners and external viewers about specific
 
 ---
 
-## Part 2: Implementation Plan
+## Part 2: Implementation Plan (Historical)
+
+Status note:
+- The phases below describe the original execution plan and are now largely completed.
+- Current implementation status is tracked in Part 6 and Part 7.
 
 The feature will be built in three phases.
 
 ### Phase 1: Backend API for Dataroom Management
 
 1.  **Create Dataroom CRUD API**:
-    -   Implement serializers for `Dataroom` and related models in `backend/dataroom/serializers.py`.
-    -   Create a `DataroomViewSet` in `backend/dataroom/views.py` to handle CRUD operations.
+    -   Implement serializers for `Dataroom` and related models in `backend/datarooms/serializers.py`.
+    -   Create a `DataroomViewSet` in `backend/datarooms/views.py` to handle CRUD operations.
 2.  **Implement Content Management API**:
     -   Add a custom action to the `DataroomViewSet` (e.g., `POST /api/v1/datarooms/{id}/add-content/`) that accepts a list of existing `document_ids` and `folder_ids` to populate the dataroom.
     -   Implement endpoints for managing the dataroom's internal structure (creating/renaming `DataroomFolder`, removing items).
@@ -224,9 +228,15 @@ This section aligns this document with the current codebase so new work can be p
 
 ---
 
-## Part 7: Issue #152 Extension Plan (Branding, Ordering, UI Optimization)
+## Part 7: Issue #152 Alignment (Branding, Ordering, UI Optimization)
 
-### Goals
+### Status
+
+- Branding fields and validations are implemented on `Dataroom` (`branding_banner`, `brand_primary_color`, `brand_secondary_color`, `brand_accent_color`).
+- Mixed folder/document ordering is implemented via `DataroomItemOrder` (scoped by `dataroom` + `parent_folder`), not per-row `position` fields on `DataroomFolder`/`DataroomDocument`.
+- Public dataroom share-link viewer now supports scoped folder loading (`parent_id`) and server-provided breadcrumbs.
+
+### Ongoing Goals
 
 - Add per-dataroom branding (logo + theme colors).
 - Add owner-controlled manual ordering for dataroom folders/documents.
@@ -244,14 +254,13 @@ This section aligns this document with the current codebase so new work can be p
 Design note:
 - Keep these fields dataroom-scoped for now, but group naming under `brand_*` to allow future layering with organization branding/custom domains.
 
-#### Manual ordering fields
+#### Manual ordering model
 
-- Add `position` (integer, indexed) to:
-  - `DataroomFolder` (ordered within same `dataroom` + `parent`)
-  - `DataroomDocument` (ordered within same `dataroom` + `folder`)
-- Add DB constraints/indexes to support deterministic ordering and performant fetches.
-- Migration backfill:
-  - initialize `position` by current `created_at`, fallback to `id` order.
+- Use `DataroomItemOrder` rows to represent sibling ordering within one scope:
+  - scope key: (`dataroom`, `parent_folder`)
+  - target: one of `folder` or `dataroom_document`
+  - deterministic rank: `position`
+- Keep ordering logic out of `DataroomFolder` and `DataroomDocument` rows.
 
 ### 2. Backend API and Permission Updates
 
@@ -259,10 +268,9 @@ Design note:
 - Add update validations:
   - color format (`#RRGGBB` / optional `#RRGGBBAA` if approved)
   - logo content type and size limits.
-- Add owner-only reorder endpoints:
-  - `POST /api/v1/datarooms/{id}/reorder-folders/`
-  - `POST /api/v1/datarooms/{id}/reorder-documents/`
-- Reorder payload should accept explicit ordered IDs scoped to one container level.
+- Use owner-only reorder endpoint:
+  - `POST /api/v1/datarooms/{id}/reorder-items/`
+- Payload accepts explicit ordered mixed item IDs (`folder` + `document`) scoped to one container level.
 - Enforce strict scope checks:
   - all IDs must belong to target dataroom and same parent/folder context.
   - non-owners receive 403.
@@ -310,8 +318,7 @@ Design note:
 
 ### 6. Delivery Sequence
 
-1. Schema migrations (`brand_*`, `position`) and model constraints.
-2. Serializer/viewset updates + reorder endpoints.
-3. Frontend API client additions + branding UI.
-4. Frontend reorder UX + performance improvements.
-5. Full regression and targeted tests.
+1. Continue performance hardening for large dataroom trees/scopes.
+2. Expand regression coverage for scoped public viewer navigation (`parent_id` + breadcrumbs).
+3. Refine reorder UX and failure rollback behavior.
+4. Add enterprise controls where roadmap marks gaps (org share policy, broader audit logs).
