@@ -268,6 +268,29 @@ class TestViewSessionViewSet:
         view_session = ViewSession.objects.first()
         assert view_session.ip_address == real_ip
 
+    @patch('sharelinks.views.settings.GEOIP')
+    def test_create_view_handles_geoip_city_none(self, mock_geoip, public_client, share_link):
+        """GeoIP may return city=None; this must not cause DB IntegrityError."""
+        mock_geoip.city.return_value = {
+            'city': None,
+            'country_name': 'China',
+            'latitude': 34.7732,
+            'longitude': 113.722,
+        }
+
+        response = public_client.post(
+            '/api/v1/view-sessions/',
+            {'share_link': share_link.id},
+            REMOTE_ADDR='39.184.107.177'
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        view_session = ViewSession.objects.get(id=response.data['id'])
+        assert view_session.city == ''
+        assert view_session.country == 'China'
+        assert view_session.latitude == 34.7732
+        assert view_session.longitude == 113.722
+
     def test_record_download(self, public_client, share_link):
         """Test that a download can be recorded for a view session."""
         # 1. Create a View session

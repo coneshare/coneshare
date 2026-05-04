@@ -1708,8 +1708,8 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
             user_agent=user_agent,
             viewer=viewer,
             viewer_email=viewer_email,
-            country=location_data.get('country_name', ''),
-            city=location_data.get('city', ''),
+            country=location_data.get('country_name') or '',
+            city=location_data.get('city') or '',
             latitude=location_data.get('latitude'),
             longitude=location_data.get('longitude')
         )

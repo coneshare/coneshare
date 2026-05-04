@@ -128,7 +128,7 @@ export function DraggableItem({
           </button>
         )}
       </div>
-      <div className="w-[20%] truncate">
+      <div className="w-[20%] truncate" style={themed ? { color: "var(--dataroom-secondary)" } : undefined}>
         {item.created_by?.name || "Me"}
         {item.uploader_info && (
           <Tooltip>
@@ -145,12 +145,12 @@ export function DraggableItem({
           </Tooltip>
         )}        
       </div>
-      <div className="w-[20%]">
+      <div className="w-[20%]" style={themed ? { color: "var(--dataroom-secondary)" } : undefined}>
         {item.updated_at
           ? formatDistanceToNow(new Date(item.updated_at), { addSuffix: true })
           : "—"}
       </div>
-      <div className="w-[10%]">
+      <div className="w-[10%]" style={themed ? { color: "var(--dataroom-secondary)" } : undefined}>
         {type === "document"
           ? formatBytes(item.file_size)
           : "—"}
