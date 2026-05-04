@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import {
   FolderIcon,
   HomeIcon,
@@ -9,10 +9,11 @@ import {
   DownloadIcon,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { formatBytes } from '../../lib/formatters';
 import { Button } from '../ui/Button';
-import { downloadDataroomFolder, recordDataroomVisit } from '../../services/api';
+import { downloadDataroomFolder, getShareLinkViewData, recordDataroomVisit } from '../../services/api';
 
 function DocumentItemIcon({ type }) {
   const commonProps = { className: "h-5 w-5", style: { color: 'var(--viewer-secondary)' } };
@@ -77,7 +78,10 @@ function ListItem({ item, onItemClick, onDownloadClick, showIndex = false, index
 }
 
 export function DataroomViewer({ data, slug, viewId }) {
-  const [currentFolderId, setCurrentFolderId] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [scopeData, setScopeData] = useState(data);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const parentIdFromUrl = searchParams.get('parent_id');
 
   const handleDownloadFolder = async (folder) => {
     toast.info(`Preparing to download "${folder.name}"...`);
@@ -120,7 +124,7 @@ export function DataroomViewer({ data, slug, viewId }) {
     link.href = downloadUrl;
     // The browser will handle the 'download' attribute for same-origin URLs.
     // The backend should set 'Content-Disposition' header for this to work robustly.
-    link.setAttribute('download', doc.document_name);
+    link.setAttribute('download', doc.name || doc.document_name);
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -134,36 +138,45 @@ export function DataroomViewer({ data, slug, viewId }) {
     }
   };
 
-  const allItems = useMemo(() => (Array.isArray(data.items) ? data.items : []), [data.items]);
+  const allItems = Array.isArray(scopeData.items) ? scopeData.items : [];
+  const breadcrumbs = Array.isArray(scopeData.breadcrumbs) ? scopeData.breadcrumbs : [];
 
-  const itemsById = useMemo(() => {
-    const map = new Map();
-    allItems.forEach(item => map.set(item.id, item));
-    return map;
-  }, [allItems]);
-
-  const currentFolder = useMemo(() => {
-    return currentFolderId ? itemsById.get(currentFolderId) : null;
-  }, [currentFolderId, itemsById]);
-
-  const itemsInCurrentFolder = useMemo(() => {
-    return allItems
-      .filter(item => (item.parent || null) === currentFolderId)
-      .sort((a, b) => {
-        if ((a.position ?? 0) !== (b.position ?? 0)) return (a.position ?? 0) - (b.position ?? 0);
-        return String(a.id).localeCompare(String(b.id));
-      });
-  }, [allItems, currentFolderId]);
-
-  const breadcrumbs = useMemo(() => {
-    const crumbs = [];
-    let folder = currentFolder;
-    while (folder) {
-      crumbs.unshift(folder);
-      folder = folder.parent ? itemsById.get(folder.parent) : null;
+  // `updateUrl=false` is used for popstate/back-forward sync to avoid writing
+  // a new history entry while we are already replaying history.
+  const navigateToScope = async (parentId, { updateUrl = true } = {}) => {
+    setIsNavigating(true);
+    try {
+      const response = await getShareLinkViewData(slug, { parentId });
+      setScopeData(response.data);
+      if (updateUrl) {
+        // User-initiated navigation updates URL so folder scopes are shareable
+        // and browser history can step through navigation.
+        const nextParams = new URLSearchParams(searchParams);
+        if (parentId) {
+          nextParams.set('parent_id', parentId);
+        } else {
+          nextParams.delete('parent_id');
+        }
+        setSearchParams(nextParams);
+      }
+    } catch (err) {
+      console.error('Failed to load folder scope:', err);
+      toast.error('Could not load folder. Please try again.');
+    } finally {
+      setIsNavigating(false);
     }
-    return crumbs;
-  }, [currentFolder, itemsById]);
+  };
+
+  useEffect(() => {
+    const currentParentId = scopeData?.current_parent_id ? String(scopeData.current_parent_id) : null;
+    const normalizedUrlParentId = parentIdFromUrl || null;
+    if (normalizedUrlParentId === currentParentId) {
+      return;
+    }
+    // URL changed via Back/Forward. Refresh scope data only; do not mutate URL/history.
+    navigateToScope(normalizedUrlParentId, { updateUrl: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parentIdFromUrl, slug]);
 
   const handleItemClick = async (item) => {
     if (item.type === 'folder') {
@@ -173,7 +186,7 @@ export function DataroomViewer({ data, slug, viewId }) {
           console.error('Failed to record folder visit:', err);
         });
       }
-      setCurrentFolderId(item.id);
+      navigateToScope(item.id);
     } else {
       // 1. Open a blank window IMMEDIATELY to satisfy Safari's user gesture rule
       const newTab = window.open('about:blank', '_blank');
@@ -206,23 +219,23 @@ export function DataroomViewer({ data, slug, viewId }) {
   };
 
   const themeStyle = {
-    '--viewer-primary': data.brand_primary_color || '#111827',
-    '--viewer-secondary': data.brand_secondary_color || '#4b5563',
-    '--viewer-accent': data.brand_accent_color || '#1f2937',
+    '--viewer-primary': scopeData.brand_primary_color || '#111827',
+    '--viewer-secondary': scopeData.brand_secondary_color || '#4b5563',
+    '--viewer-accent': scopeData.brand_accent_color || '#1f2937',
   };
 
   return (
     <div className="flex h-screen w-screen flex-col bg-gray-50" style={themeStyle}>
       <header className="flex flex-shrink-0 items-center justify-between border-b bg-white p-4">
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--viewer-primary)' }}>{data.name}</h1>
+        <h1 className="text-xl font-semibold" style={{ color: 'var(--viewer-primary)' }}>{scopeData.name}</h1>
         <a href="/" className="flex items-center gap-2 rounded-md p-2 font-semibold" style={{ color: 'var(--viewer-primary)' }}>
           <img src="/logo.svg" alt="Coneshare logo" className="h-6 w-6" />
           <span>Coneshare</span>
         </a>
       </header>
-      {data.branding_banner && (
+      {scopeData.branding_banner && (
         <section className="flex-shrink-0 border-b bg-white">
-          <img src={data.branding_banner} alt={`${data.name} banner`} className="h-32 w-full object-cover md:h-44" />
+          <img src={scopeData.branding_banner} alt={`${scopeData.name} banner`} className="h-32 w-full object-cover md:h-44" />
         </section>
       )}
 
@@ -230,7 +243,7 @@ export function DataroomViewer({ data, slug, viewId }) {
         <ol className="flex items-center space-x-2 text-sm" style={{ color: 'var(--viewer-secondary)' }}>
           <li>
             <button
-              onClick={() => setCurrentFolderId(null)}
+              onClick={() => navigateToScope(null)}
               className="flex items-center gap-2"
               style={{ color: 'var(--viewer-secondary)' }}
             >
@@ -242,7 +255,7 @@ export function DataroomViewer({ data, slug, viewId }) {
             <li key={crumb.id} className="flex items-center">
               <ChevronRight className="h-4 w-4" style={{ color: 'var(--viewer-secondary)' }} />
               <button
-                onClick={() => setCurrentFolderId(crumb.id)}
+                onClick={() => navigateToScope(crumb.id)}
                 className="ml-2"
                 style={{ color: 'var(--viewer-secondary)' }}
               >
@@ -261,7 +274,7 @@ export function DataroomViewer({ data, slug, viewId }) {
             backgroundColor: 'color-mix(in srgb, var(--viewer-secondary) 8%, white)',
           }}
         >
-          {data.show_file_index && <div className="w-10">#</div>}
+          {scopeData.show_file_index && <div className="w-10">#</div>}
           <div className="w-8" />
           <div className="w-[50%] pr-4">Name</div>
           <div className="w-[20%]">Last Modified</div>
@@ -269,18 +282,23 @@ export function DataroomViewer({ data, slug, viewId }) {
           <div className="w-[10%] text-right">Actions</div>
         </div>
         <div className="divide-y">
-          {itemsInCurrentFolder.map((item, idx) => (
+          {allItems.map((item, idx) => (
             <ListItem
               key={item.id}
               item={item}
               onItemClick={handleItemClick}
               onDownloadClick={handleDownloadClick}
-              showIndex={Boolean(data.show_file_index)}
+              showIndex={Boolean(scopeData.show_file_index)}
               index={idx + 1}
             />
           ))}
         </div>
-        {itemsInCurrentFolder.length === 0 && (
+        {isNavigating && (
+          <div className="p-4 text-center text-sm" style={{ color: 'var(--viewer-secondary)' }}>
+            Loading...
+          </div>
+        )}
+        {!isNavigating && allItems.length === 0 && (
           <div className="p-12 text-center" style={{ color: 'var(--viewer-secondary)' }}>This folder is empty.</div>
         )}
       </main>

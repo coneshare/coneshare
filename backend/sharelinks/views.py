@@ -502,6 +502,7 @@ class ShareLinkViewDataView(APIView):
         # Case 3: Fetching the content list for a dataroom link.
         elif link.dataroom:
             dataroom = link.dataroom
+            parent_id = request.query_params.get('parent_id')
             all_settings = link.dataroom_settings.select_related(
                 'dataroom_document__folder'
             ).all()
@@ -538,6 +539,40 @@ class ShareLinkViewDataView(APIView):
                 )
             ]
 
+            visible_doc_ids = [s.dataroom_document_id for s in dataroom_link_settings if s.dataroom_document_id]
+            visible_folder_ids = [s.dataroom_folder_id for s in dataroom_link_settings if s.dataroom_folder_id]
+            visible_folder_ids_set = set(visible_folder_ids)
+
+            current_parent = None
+            if parent_id:
+                try:
+                    requested_parent = DataroomFolder.objects.get(id=parent_id, dataroom=dataroom)
+                except DataroomFolder.DoesNotExist:
+                    return Response(
+                        {"detail": "You do not have permission to view this folder through this link."},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+                if requested_parent.id not in visible_folder_ids_set:
+                    return Response(
+                        {"detail": "You do not have permission to view this folder through this link."},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+                current_parent = requested_parent
+
+            breadcrumbs = []
+            if current_parent:
+                ancestors = []
+                node = current_parent
+                while node:
+                    if node.id not in visible_folder_ids_set:
+                        return Response(
+                            {"detail": "You do not have permission to view this folder through this link."},
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+                    ancestors.append({'id': node.id, 'name': node.name})
+                    node = node.parent
+                breadcrumbs = list(reversed(ancestors))
+
             # Create a map for quick lookup of settings in serializers
             settings_map = {}
             for s in dataroom_link_settings:
@@ -545,61 +580,59 @@ class ShareLinkViewDataView(APIView):
                 if key:
                     settings_map[key] = {'allow_download': s.allow_download, 'enable_watermark': s.enable_watermark}
 
-            visible_doc_ids = [s.dataroom_document_id for s in dataroom_link_settings if s.dataroom_document_id]
-            visible_folder_ids = [s.dataroom_folder_id for s in dataroom_link_settings if s.dataroom_folder_id]
-
-            # Fetch all visible documents and folders to construct the hierarchy
-            all_docs = DataroomDocument.objects.filter(id__in=visible_doc_ids).select_related('document', 'folder').order_by('created_at', 'id')
-            all_folders = DataroomFolder.objects.filter(id__in=visible_folder_ids).order_by('created_at', 'id')
+            # Fetch only direct children within the requested scope.
+            folders_qs = DataroomFolder.objects.filter(id__in=visible_folder_ids)
+            docs_qs = DataroomDocument.objects.filter(id__in=visible_doc_ids).select_related('document', 'folder')
+            if current_parent:
+                folders_qs = folders_qs.filter(parent=current_parent)
+                docs_qs = docs_qs.filter(folder=current_parent)
+            else:
+                folders_qs = folders_qs.filter(parent__isnull=True)
+                docs_qs = docs_qs.filter(folder__isnull=True)
+            scope_folders = list(folders_qs.order_by('created_at', 'id'))
+            scope_docs = list(docs_qs.order_by('created_at', 'id'))
 
             # Use context to pass settings to serializers
             serializer_context = {'request': request, 'settings_map': settings_map}
-            serialized_docs = PublicDataroomDocumentSerializer(all_docs, many=True, context=serializer_context).data
-            serialized_folders = PublicDataroomFolderSerializer(all_folders, many=True, context=serializer_context).data
-
-            if dataroom.show_file_index:
-                order_rows = DataroomItemOrder.objects.filter(dataroom=dataroom)
-                order_map = {}
-                for row in order_rows:
-                    if row.folder_id:
-                        order_map[("folder", str(row.folder_id))] = row.position
-                    elif row.dataroom_document_id:
-                        order_map[("document", str(row.dataroom_document_id))] = row.position
-            else:
-                order_map = {}
+            serialized_docs = PublicDataroomDocumentSerializer(scope_docs, many=True, context=serializer_context).data
+            serialized_folders = PublicDataroomFolderSerializer(scope_folders, many=True, context=serializer_context).data
 
             merged_items = (
-                [
-                    {
-                        'type': 'folder',
-                        **item,
-                        'position': order_map.get(("folder", str(item["id"])), 0),
-                    }
-                    for item in serialized_folders
-                ] +
-                [
-                    {
-                        'type': 'document',
-                        **item,
-                        'position': order_map.get(("document", str(item["id"])), 0),
-                    }
-                    for item in serialized_docs
-                ]
+                [{'type': 'folder', **item} for item in serialized_folders] +
+                [{'type': 'document', **item} for item in serialized_docs]
             )
-            items_by_scope = {}
-            for item in merged_items:
-                scope_key = str(item.get('parent') or '')
-                items_by_scope.setdefault(scope_key, []).append(item)
-
-            # TODO: Replace this flat payload ordering step with scoped loading by `parent_id`
-            # so each request only returns one folder scope. See:
-            # plans/sharelink-view-data-scoped-folder-endpoint.md
-            for scope_items in items_by_scope.values():
-                scope_items.sort(key=lambda i: (i.get('position', 0), i.get('updated_at', ''), i.get('id', '')))
-
-            merged_items = items_by_scope.get('', [])
-            for scope_key in sorted(k for k in items_by_scope.keys() if k != ''):
-                merged_items.extend(items_by_scope[scope_key])
+            order_rows = list(
+                DataroomItemOrder.objects.filter(
+                    dataroom=dataroom,
+                    parent_folder=current_parent,
+                ).order_by('position', 'created_at', 'id')
+            )
+            if order_rows:
+                item_map = {(item['type'], str(item['id'])): item for item in merged_items}
+                ordered_items = []
+                used_keys = set()
+                for row in order_rows:
+                    if row.item_type == DataroomItemOrder.ITEM_TYPE_FOLDER and row.folder_id:
+                        key = ('folder', str(row.folder_id))
+                    elif row.item_type == DataroomItemOrder.ITEM_TYPE_DOCUMENT and row.dataroom_document_id:
+                        key = ('document', str(row.dataroom_document_id))
+                    else:
+                        continue
+                    item = item_map.get(key)
+                    if item:
+                        ordered_items.append({**item, 'position': row.position})
+                        used_keys.add(key)
+                remaining_items = [
+                    item for item in merged_items if (item['type'], str(item['id'])) not in used_keys
+                ]
+                remaining_items.sort(key=lambda i: (i.get('updated_at', ''), str(i.get('id', ''))))
+                next_position = (max((i.get('position', 0) for i in ordered_items), default=-1) + 1)
+                for idx, item in enumerate(remaining_items):
+                    ordered_items.append({**item, 'position': next_position + idx})
+                merged_items = ordered_items
+            else:
+                merged_items.sort(key=lambda i: (i.get('updated_at', ''), str(i.get('id', ''))))
+                merged_items = [{**item, 'position': idx} for idx, item in enumerate(merged_items)]
 
             response_data = {
                 'link_type': 'dataroom',
@@ -610,8 +643,8 @@ class ShareLinkViewDataView(APIView):
                 'brand_primary_color': dataroom.brand_primary_color,
                 'brand_secondary_color': dataroom.brand_secondary_color,
                 'brand_accent_color': dataroom.brand_accent_color,
-                'documents': serialized_docs,
-                'folders': serialized_folders,
+                'current_parent_id': current_parent.id if current_parent else None,
+                'breadcrumbs': breadcrumbs,
                 'items': merged_items,
                 'link_settings': {
                     'id': link.id,
