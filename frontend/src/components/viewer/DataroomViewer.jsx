@@ -1,32 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  FolderIcon,
   HomeIcon,
   ChevronRight,
-  FileImageIcon,
-  FileTextIcon,
-  FileQuestion,
   DownloadIcon,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { formatBytes } from '../../lib/formatters';
+import { FileTypeIcon } from '../documents/FileTypeIcon';
 import { Button } from '../ui/Button';
 import { downloadDataroomFolder, getShareLinkViewData, recordDataroomVisit } from '../../services/api';
-
-function DocumentItemIcon({ type }) {
-  const commonProps = { className: "h-5 w-5", style: { color: 'var(--viewer-secondary)' } };
-  switch (type) {
-    case 'pdf':
-    case 'document':
-      return <FileTextIcon {...commonProps} />;
-    case 'image':
-      return <FileImageIcon {...commonProps} />;
-    default:
-      return <FileQuestion {...commonProps} />;
-  }
-}
 
 function ListItem({ item, onItemClick, onDownloadClick, showIndex = false, index = null }) {
   const isFolder = item.type === 'folder';
@@ -40,11 +24,11 @@ function ListItem({ item, onItemClick, onDownloadClick, showIndex = false, index
     >
       {showIndex && <div className="w-10 text-xs" style={{ color: 'var(--viewer-secondary)' }}>{index}</div>}
       <div className="flex w-8 items-center justify-center">
-        {isFolder ? (
-          <FolderIcon className="h-5 w-5" style={{ color: 'var(--viewer-accent)' }} />
-        ) : (
-          <DocumentItemIcon type={item.document_type} />
-        )}
+        <FileTypeIcon
+          type={isFolder ? 'folder' : item.document_type}
+          className="h-5 w-5"
+          palette="viewer"
+        />
       </div>
       <button
         onClick={() => onItemClick(item)}

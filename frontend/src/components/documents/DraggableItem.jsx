@@ -1,10 +1,11 @@
 import { formatDistanceToNow } from "date-fns";
-import { FileIcon, FolderIcon, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import { formatBytes } from "../../lib/formatters";
 import { ActionsDropdown } from "./ActionsDropdown";
+import { FileTypeIcon } from "./FileTypeIcon";
 import { Checkbox } from "../ui/Checkbox";
 import { Badge } from "../ui/Badge";
 import {
@@ -103,11 +104,11 @@ export function DraggableItem({
         </div>
       )}
       <div className="flex w-[40%] items-center gap-2 truncate">
-        {type === "folder" ? (
-          <FolderIcon className="h-5 w-5 text-gray-500" style={themed ? { color: "var(--dataroom-secondary)" } : undefined} />
-        ) : (
-          <FileIcon className="h-5 w-5 text-gray-500" style={themed ? { color: "var(--dataroom-secondary)" } : undefined} />
-        )}
+        <FileTypeIcon
+          type={type === "folder" ? "folder" : item.document_type || "document"}
+          className="h-5 w-5"
+          palette={themed ? "dataroom" : "default"}
+        />
         <span className="truncate font-medium" style={themed ? { color: "var(--dataroom-primary)" } : undefined}>{item.name}</span>
         {showActions && !isReadOnly && (
           <button

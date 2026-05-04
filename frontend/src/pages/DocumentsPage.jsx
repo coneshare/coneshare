@@ -51,7 +51,8 @@ function DocumentsPage() {
   const combinedItems = useMemo(() => {
     let combined = [
       ...folders.map((f) => ({ ...f, type: "folder" })),
-      ...documents.map((d) => ({ ...d, type: "document" })),
+      // Preserve original file type for icon rendering while normalizing row type.
+      ...documents.map((d) => ({ ...d, type: "document", document_type: d.type })),
     ];
 
     if (showStarredOnly) {
