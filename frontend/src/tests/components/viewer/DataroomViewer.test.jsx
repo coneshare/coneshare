@@ -77,6 +77,30 @@ describe('DataroomViewer', () => {
     expect(screen.queryByText('Root Document')).not.toBeInTheDocument();
   });
 
+  it('sends only one scoped request when navigating into a folder', async () => {
+    api.getShareLinkViewData.mockResolvedValue({
+      data: {
+        ...mockDataroomData,
+        breadcrumbs: [{ id: 'folder1', name: 'Sub Folder A' }],
+        current_parent_id: 'folder1',
+        items: [
+          { type: 'document', id: 'doc2', document_id: 'doc-file-2', name: 'Sub Folder Document', document_type: 'pdf', updated_at: new Date().toISOString(), file_size: 2048, allow_download: true },
+        ],
+      },
+    });
+
+    renderComponent();
+
+    fireEvent.click(screen.getByRole('button', { name: /sub folder a/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Sub Folder Document')).toBeInTheDocument();
+    });
+
+    expect(api.getShareLinkViewData).toHaveBeenCalledTimes(1);
+    expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', { parentId: 'folder1' });
+  });
+
   it('navigates back to root using the breadcrumb', async () => {
     api.getShareLinkViewData
       .mockResolvedValueOnce({

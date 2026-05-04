@@ -147,26 +147,13 @@ export function DataroomViewer({ data, slug, viewId }) {
     setScopeData(data);
   }, [data]);
 
-  // `updateUrl=false` is used for popstate/back-forward sync to avoid writing
-  // a new history entry while we are already replaying history.
-  const navigateToScope = useCallback(async (parentId, { updateUrl = true } = {}) => {
+  const fetchScopeData = useCallback(async (parentId) => {
     const requestId = ++requestRef.current;
     setIsNavigating(true);
     try {
       const response = await getShareLinkViewData(slug, { parentId });
       if (requestId !== requestRef.current) return;
       setScopeData(response.data);
-      if (updateUrl) {
-        // User-initiated navigation updates URL so folder scopes are shareable
-        // and browser history can step through navigation.
-        const nextParams = new URLSearchParams(searchParams);
-        if (parentId) {
-          nextParams.set('parent_id', parentId);
-        } else {
-          nextParams.delete('parent_id');
-        }
-        setSearchParams(nextParams);
-      }
     } catch (err) {
       if (requestId !== requestRef.current) return;
       console.error('Failed to load folder scope:', err);
@@ -175,7 +162,18 @@ export function DataroomViewer({ data, slug, viewId }) {
       if (requestId !== requestRef.current) return;
       setIsNavigating(false);
     }
-  }, [searchParams, setSearchParams, slug]);
+  }, [slug]);
+
+  // User-initiated navigation updates URL; fetching is centralized in the URL-sync effect.
+  const navigateToScope = useCallback((parentId) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (parentId) {
+      nextParams.set('parent_id', parentId);
+    } else {
+      nextParams.delete('parent_id');
+    }
+    setSearchParams(nextParams);
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     const currentParentId = scopeData?.current_parent_id ? String(scopeData.current_parent_id) : null;
@@ -183,9 +181,9 @@ export function DataroomViewer({ data, slug, viewId }) {
     if (normalizedUrlParentId === currentParentId) {
       return;
     }
-    // URL changed via Back/Forward. Refresh scope data only; do not mutate URL/history.
-    navigateToScope(normalizedUrlParentId, { updateUrl: false });
-  }, [navigateToScope, parentIdFromUrl, scopeData?.current_parent_id]);
+    // URL changed via click/back-forward. Refresh scope data for the target URL state.
+    fetchScopeData(normalizedUrlParentId);
+  }, [fetchScopeData, parentIdFromUrl, scopeData?.current_parent_id]);
 
   const handleItemClick = async (item) => {
     if (item.type === 'folder') {
@@ -290,21 +288,31 @@ export function DataroomViewer({ data, slug, viewId }) {
           <div className="w-[10%]">Size</div>
           <div className="w-[10%] text-right">Actions</div>
         </div>
-        <div className="divide-y">
-          {allItems.map((item, idx) => (
-            <ListItem
-              key={item.id}
-              item={item}
-              onItemClick={handleItemClick}
-              onDownloadClick={handleDownloadClick}
-              showIndex={Boolean(scopeData.show_file_index)}
-              index={idx + 1}
-            />
-          ))}
-        </div>
-        {isNavigating && (
-          <div className="p-4 text-center text-sm" style={{ color: 'var(--viewer-secondary)' }}>
-            Loading...
+        {isNavigating ? (
+          <div className="divide-y">
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <div key={idx} className="flex w-full items-center px-4 py-2">
+                {scopeData.show_file_index && <div className="w-10"><div className="h-3 w-4 animate-pulse rounded bg-gray-200" /></div>}
+                <div className="w-8"><div className="h-4 w-4 animate-pulse rounded bg-gray-200" /></div>
+                <div className="w-[50%] pr-4"><div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" /></div>
+                <div className="w-[20%]"><div className="h-4 w-2/3 animate-pulse rounded bg-gray-200" /></div>
+                <div className="w-[10%]"><div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" /></div>
+                <div className="w-[10%] text-right"><div className="ml-auto h-4 w-4 animate-pulse rounded bg-gray-200" /></div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="divide-y">
+            {allItems.map((item, idx) => (
+              <ListItem
+                key={item.id}
+                item={item}
+                onItemClick={handleItemClick}
+                onDownloadClick={handleDownloadClick}
+                showIndex={Boolean(scopeData.show_file_index)}
+                index={idx + 1}
+              />
+            ))}
           </div>
         )}
         {!isNavigating && allItems.length === 0 && (
