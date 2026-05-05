@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { features, solutions } from '../lib/content';
+import { features, solutions, integrations } from '../lib/content';
 import { ChevronDown, Menu, X } from 'lucide-react';
 
 function NavDropdown({ title, href, items }) {
@@ -54,14 +54,23 @@ function NavDropdown({ title, href, items }) {
           className="absolute left-1/2 -translate-x-1/2 bg-white shadow-lg rounded-lg mt-2 py-2 w-80 z-10 ring-1 ring-black ring-opacity-5"
         >
           {items.map((item) => (
-            <Link
-              key={item.slug}
-              href={`${href}/${item.slug}`}
-              onClick={() => setIsOpen(false)}
-              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-            >
-              {item.menuName}
-            </Link>
+            item.type === 'group' ? (
+              <div key={item.key || item.label} className="px-4 py-2">
+                {item.label && (
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{item.label}</p>
+                )}
+                {item.divider && <div className="mt-2 border-t border-gray-200" />}
+              </div>
+            ) : (
+              <Link
+                key={item.slug}
+                href={item.isAlternative ? '/alternatives/docsend' : `${href}/${item.slug}`}
+                onClick={() => setIsOpen(false)}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                {item.menuName}
+              </Link>
+            )
           ))}
         </div>
       )}
@@ -151,6 +160,17 @@ function ResourceDropdown({ title, items }) {
 
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const integrationMenuItems = [
+    { type: 'group', key: 'self-hosted', label: 'Self-hosted' },
+    integrations.find((item) => item.slug === 'nextcloud'),
+    { type: 'group', key: 'cloud-divider', divider: true },
+    { type: 'group', key: 'cloud', label: 'Cloud Storage' },
+    integrations.find((item) => item.slug === 'google-drive'),
+    integrations.find((item) => item.slug === 'dropbox'),
+    { type: 'group', key: 'compare-divider', divider: true },
+    { type: 'group', key: 'compare', label: 'Compare' },
+    { slug: 'docsend', menuName: 'DocSend Alternative', isAlternative: true },
+  ].filter(Boolean);
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-20">
@@ -173,6 +193,10 @@ export function Header() {
 
           {/* Desktop Nav */}
           <div className="hidden md:flex md:items-center md:gap-x-4">
+            <Link href="/nextcloud-vdr" className="text-sm font-medium text-gray-500 hover:text-gray-900">
+              Nextcloud VDR
+            </Link>
+            <NavDropdown title="Works with" href="/integrations" items={integrationMenuItems} />
             <NavDropdown title="Features" href="/features" items={features} />
             <NavDropdown title="Use Cases" href="/solutions" items={solutions} />
             <Link href="/blog" className="text-sm font-medium text-gray-500 hover:text-gray-900">
@@ -211,6 +235,51 @@ export function Header() {
       {isMobileMenuOpen && (
         <div className="md:hidden bg-white shadow-lg" id="mobile-menu">
           <div className="space-y-4 px-4 pb-4 pt-4">
+            <div>
+              <Link
+                href="/nextcloud-vdr"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+              >
+                Nextcloud VDR
+              </Link>
+            </div>
+            <div className="border-t border-gray-200 pt-4">
+              <h3 className="px-3 text-xs font-semibold uppercase text-gray-500 tracking-wider">Works with</h3>
+              <div className="mt-2 space-y-1">
+                {integrations
+                  .filter((item) => item.slug === 'nextcloud')
+                  .map((item) => (
+                  <Link
+                    key={item.slug}
+                    href={`/integrations/${item.slug}`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                  >
+                    {item.menuName} <span className="text-xs text-gray-500">(Self-hosted)</span>
+                  </Link>
+                  ))}
+                {integrations
+                  .filter((item) => item.slug === 'google-drive' || item.slug === 'dropbox')
+                  .map((item) => (
+                    <Link
+                      key={item.slug}
+                      href={`/integrations/${item.slug}`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                    >
+                      {item.menuName}
+                    </Link>
+                  ))}
+                <Link
+                  href="/alternatives/docsend"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                >
+                  DocSend Alternative <span className="text-xs text-gray-500">(Compare)</span>
+                </Link>
+              </div>
+            </div>
             <div>
               <h3 className="px-3 text-xs font-semibold uppercase text-gray-500 tracking-wider">Features</h3>
               <div className="mt-2 space-y-1">
