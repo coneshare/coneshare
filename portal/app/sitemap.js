@@ -1,4 +1,4 @@
-import { features, solutions } from '../lib/content';
+import { features, solutions, integrations } from '../lib/content';
 import { getAllBlogPosts, getAllCategories, getAllTags, getEffectiveCategory, slugifyTerm } from '../lib/blog';
 
 export const dynamic = 'force-static';
@@ -21,6 +21,10 @@ export default async function sitemap() {
 
   const solutionRoutes = solutions.map((solution) => ({
     url: `${URL}/solutions/${solution.slug}`,
+    lastModified: new Date(),
+  }));
+  const integrationRoutes = integrations.map((integration) => ({
+    url: `${URL}/integrations/${integration.slug}`,
     lastModified: new Date(),
   }));
 
@@ -53,10 +57,20 @@ export default async function sitemap() {
     ),
   }));
 
-  const routes = ['', '/features', '/solutions', '/blog', '/privacy-policy', '/terms', '/demo'].map((route) => ({
+  const routes = [
+    '',
+    '/features',
+    '/solutions',
+    '/blog',
+    '/privacy-policy',
+    '/terms',
+    '/demo',
+    '/nextcloud-vdr',
+    '/alternatives/docsend',
+  ].map((route) => ({
     url: `${URL}${route}`,
     lastModified: new Date(),
   }));
 
-  return [...routes, ...featureRoutes, ...solutionRoutes, ...blogRoutes, ...categoryRoutes, ...tagRoutes];
+  return [...routes, ...featureRoutes, ...solutionRoutes, ...integrationRoutes, ...blogRoutes, ...categoryRoutes, ...tagRoutes];
 }

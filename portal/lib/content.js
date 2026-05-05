@@ -218,7 +218,7 @@ export const features = [
     content: (
       <div>
         <h3 className="text-xl font-semibold mb-4">Total Data Sovereignty</h3>
-        <p className="mb-4">With no reliance on third-party services, you have complete control over your data, ensuring compliance with regulations like GDPR and HIPAA.</p>
+        <p className="mb-4">With no reliance on third-party services, you have complete control over your data, supporting internal compliance objectives for frameworks like GDPR and HIPAA.</p>
         <h3 className="text-xl font-semibold mb-4">Containerized Deployment</h3>
         <p>Deploy the entire stack with ease using the provided Docker Compose configuration, giving you a production-ready system in minutes.</p>
       </div>
@@ -547,5 +547,90 @@ export const solutions = [
         <p>{'Drive smarter conversations and improve deal execution with evidence-backed context.'}</p>
       </div>
     )
+  },
+  {
+    slug: 'secure-external-sharing',
+    name: 'Secure External Sharing',
+    menuName: 'Secure External Sharing',
+    description: 'Share sensitive documents externally with stronger access control, clearer visibility, and safer workflow governance.',
+    icon: ShieldCheck,
+    quote: 'We needed external sharing that stayed controlled without forcing a storage migration.',
+    problem: 'Sensitive documents are often shared through plain links with limited visibility and inconsistent controls.',
+    trigger: 'External stakeholders need access to confidential files across legal, procurement, or diligence workflows.',
+    action: 'Coneshare applies secure link controls, tracks engagement context, and routes key sharing events to internal teams.',
+    outcome: 'Teams reduce uncontrolled distribution risk and operate external sharing workflows with stronger confidence.',
+    bestFor: 'Legal, security, and enterprise operations teams',
+    primarySignal: 'Controlled-access events and external viewer activity',
+    successMetric: 'Lower external sharing risk with stronger governance signals',
+    storyTags: ['Security', 'External sharing', 'Governance', 'Legal ops', 'Enterprise'],
+    resultHighlights: [
+      { value: 'Stronger', label: 'external sharing control posture' },
+      { value: 'Clearer', label: 'visibility into viewer activity' },
+      { value: 'Safer', label: 'coordination on sensitive documents' },
+    ],
+    storySections: [
+      {
+        title: 'When external sharing outgrows plain links',
+        body: 'As legal and enterprise workflows scale, teams need more than basic links. They need consistent controls, visibility, and operational handoff paths around sensitive documents.',
+      },
+      {
+        title: 'Applying policy-oriented sharing controls',
+        body: 'Coneshare adds controls such as passwords, expirations, verification requirements, and download restrictions so distribution policy can be enforced more consistently.',
+      },
+      {
+        title: 'Adding visibility for safer decisions',
+        body: 'Teams can review external engagement context and route meaningful events internally, improving response quality when sensitive files are accessed or revisited.',
+      },
+      {
+        title: 'Operating with stronger governance signals',
+        body: 'Instead of ad hoc sharing decisions, organizations get a repeatable external-sharing workflow that better aligns security and business execution needs.',
+      },
+    ],
+    keywords: ['secure external sharing', 'controlled document access', 'enterprise document governance'],
+    relatedSlugs: ['deal-visibility', 'engagement-visibility'],
+    selfHostedWhy: 'External sharing workflows can run under your deployment model and infrastructure control requirements.',
+    workflowSteps: [
+      'Apply policy-oriented controls to external links.',
+      'Share sensitive files through controlled distribution paths.',
+      'Monitor external engagement context for governance decisions.',
+      'Route critical events to legal, security, or operations teams.',
+    ],
+    proof: {
+      src: '/screenshots/feat-sharing.png',
+      alt: 'Secure sharing controls and external access workflow',
+      caption: 'Controlled sharing settings reduce risk in sensitive external workflows.',
+    },
+    docsUrl: 'https://docs.coneshare.com/en/',
+    content: (
+      <div>
+        <h3 className="text-xl font-semibold mb-4">Problem</h3>
+        <p className="mb-4">{'Sensitive external sharing often relies on plain links that lack consistent controls and visibility.'}</p>
+        <h3 className="text-xl font-semibold mb-4">Trigger → Action</h3>
+        <p className="mb-4">{'Coneshare enforces stronger sharing controls and surfaces engagement context so internal teams can respond with better governance.'}</p>
+        <h3 className="text-xl font-semibold mb-4">Outcome</h3>
+        <p>{'Operate external document sharing with more control, visibility, and confidence.'}</p>
+      </div>
+    )
+  },
+];
+
+export const integrations = [
+  {
+    slug: 'nextcloud',
+    name: 'Nextcloud',
+    menuName: 'Nextcloud',
+    description: 'Add a secure, trackable data room layer on top of your self-hosted Nextcloud storage.',
+  },
+  {
+    slug: 'google-drive',
+    name: 'Google Drive',
+    menuName: 'Google Drive',
+    description: 'Add controlled sharing and engagement visibility on top of existing Google Drive files.',
+  },
+  {
+    slug: 'dropbox',
+    name: 'Dropbox',
+    menuName: 'Dropbox',
+    description: 'Keep Dropbox as storage while adding secure distribution, tracking, and workflow automation.',
   },
 ];

@@ -7,8 +7,8 @@ import { Footer } from '../components/Footer';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'Coneshare: Real-Time Document Tracking and Workflow Automation',
-  description: 'Track document views and downloads in real time, trigger Slack and webhook workflows instantly, and keep secure sharing on your own infrastructure.',
+  title: 'Coneshare: Document Control and Intelligence Layer',
+  description: 'Turn existing storage into a secure, trackable data room with controlled sharing, engagement visibility, and workflow automation.',
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },

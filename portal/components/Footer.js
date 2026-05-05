@@ -3,10 +3,13 @@ export function Footer() {
     {
       title: 'Product',
       links: [
+        { label: 'Nextcloud VDR', href: '/nextcloud-vdr' },
+        { label: 'Nextcloud Integration', href: '/integrations/nextcloud' },
+        { label: 'Google Drive Integration', href: '/integrations/google-drive' },
+        { label: 'Dropbox Integration', href: '/integrations/dropbox' },
         { label: 'Features', href: '/features' },
         { label: 'Solutions', href: '/solutions' },
-        { label: 'Documentation', href: 'https://docs.coneshare.com/en/', external: true },
-        { label: 'Request Demo', href: '/demo' },
+
       ],
     },
     {
@@ -15,11 +18,13 @@ export function Footer() {
         { label: 'Blog', href: '/blog' },
         { label: 'Community Forum', href: 'https://github.com/orgs/coneshare/discussions', external: true },
         { label: 'Contribute', href: 'https://github.com/coneshare/coneshare', external: true },
+        { label: 'Documentation', href: 'https://docs.coneshare.com/en/', external: true },
       ],
     },
     {
       title: 'Company',
       links: [
+        { label: 'Request Demo', href: '/demo' },
         { label: 'Contact Sales', href: 'mailto:sales@coneshare.com' },
         { label: 'Support', href: 'mailto:dev@coneshare.com' },
       ],
