@@ -178,5 +178,37 @@ describe("API Service Interceptors", () => {
       // Verify new token was stored.
       expect(localStorage.getItem("access_token")).toBe("new_access_token");
     });
+
+    it("should not redirect to login for wrong share-link password (public flow 401)", async () => {
+      const originalError = {
+        response: {
+          status: 401,
+          data: { message: "Invalid password.", protectionType: "password" },
+        },
+        config: { url: "/links/test-slug/verify-password/" },
+      };
+      mockAdapter.mockRejectedValue(originalError);
+
+      await expect(api.post("/links/test-slug/verify-password/", { password: "wrong" })).rejects.toBe(originalError);
+
+      expect(axios.post).not.toHaveBeenCalled();
+      expect(window.location.href).toBe("");
+    });
+
+    it("should not refresh or redirect for any 401 carrying public protectionType", async () => {
+      const originalError = {
+        response: {
+          status: 401,
+          data: { message: "Password required", protectionType: "password" },
+        },
+        config: { url: "/links/test-slug/any-public-endpoint/" },
+      };
+      mockAdapter.mockRejectedValue(originalError);
+
+      await expect(api.get("/links/test-slug/any-public-endpoint/")).rejects.toBe(originalError);
+
+      expect(axios.post).not.toHaveBeenCalled();
+      expect(window.location.href).toBe("");
+    });
   });
 });

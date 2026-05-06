@@ -41,23 +41,21 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    const isPasswordProtectPrompt =
+    const isPublicProtectionError =
+      error.response?.status === 401 &&
+      ['password', 'email'].includes(error.response?.data?.protectionType);
+
+    const isInitialPasswordPrompt =
       error.response?.status === 401 &&
       originalRequest.url.includes('/view-data/') &&
       error.response?.data?.protectionType === 'password';
-
-    const isEmailProtectPrompt =
-      error.response?.status === 401 &&
-      originalRequest.url.includes('/view-data/') &&
-      error.response?.data?.protectionType === 'email';
           
     // Check if the error is 401, not a retry, and not from a token-related endpoint or public link protect prompt
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
       !originalRequest.url.includes('/token') &&
-      !isPasswordProtectPrompt &&
-      !isEmailProtectPrompt
+      !isPublicProtectionError
     ) {
       if (isRefreshing) {
         // If a refresh is already in progress, queue this request
@@ -114,7 +112,7 @@ api.interceptors.response.use(
       error.message;
 
     // Avoid showing a toast for the initial password prompt on the viewer page.
-    if (!isPasswordProtectPrompt && errorMessage) {
+    if (!isInitialPasswordPrompt && errorMessage) {
       toast.error(errorMessage);
     }
 
