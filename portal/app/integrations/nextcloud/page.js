@@ -154,6 +154,7 @@ export default function NextcloudIntegrationPage() {
           <div className="prose prose-lg max-w-none text-gray-700">
             <h2 className="text-gray-900">Related setups</h2>
             <ul>
+              <li><Link href="https://docs.coneshare.com/en/nextcloud-integration-guide/" target="_blank" rel="noopener noreferrer">Nextcloud integration guide</Link></li>
               <li><Link href="/integrations/google-drive">Compare with Google Drive integration</Link></li>
               <li><Link href="/integrations/dropbox">Compare with Dropbox integration</Link></li>
             </ul>

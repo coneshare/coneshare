@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 export const metadata = {
   title: 'Nextcloud VDR: Build a Secure Data Room on Nextcloud | Coneshare',
@@ -130,10 +131,30 @@ export default function NextcloudVdrPage() {
             <li>
               <strong>2. Connect Nextcloud to Coneshare</strong>
               <p className="mt-1">Import files into controlled sharing workflows without storage migration.</p>
+              <div className="mt-4">
+                <Image
+                  src="/screenshots/feat-cloud-import.png"
+                  alt="Nextcloud and cloud storage connection flow for importing files into Coneshare"
+                  width={1200}
+                  height={750}
+                  className="rounded-xl border border-gray-200 shadow-sm"
+                />
+                <p className="mt-2 text-sm text-gray-500">Connect existing storage and import files without replacing your storage model.</p>
+              </div>
             </li>
             <li>
               <strong>3. Apply VDR controls</strong>
               <p className="mt-1">Set passwords, expirations, email verification, download restrictions, and watermarking.</p>
+              <div className="mt-4">
+                <Image
+                  src="/screenshots/feat-sharing.png"
+                  alt="Secure link controls for password protection, expiration, and verification settings"
+                  width={1200}
+                  height={750}
+                  className="rounded-xl border border-gray-200 shadow-sm"
+                />
+                <p className="mt-2 text-sm text-gray-500">Apply distribution controls before sharing sensitive files externally.</p>
+              </div>
             </li>
             <li>
               <strong>4. Share securely</strong>
@@ -142,6 +163,16 @@ export default function NextcloudVdrPage() {
             <li>
               <strong>5. Track engagement</strong>
               <p className="mt-1">Monitor views, revisits, timing, and page-level attention patterns.</p>
+              <div className="mt-4">
+                <Image
+                  src="/screenshots/feat-analytics.png"
+                  alt="Document engagement analytics with viewer activity and page-level behavior insights"
+                  width={1200}
+                  height={750}
+                  className="rounded-xl border border-gray-200 shadow-sm"
+                />
+                <p className="mt-2 text-sm text-gray-500">Use engagement visibility to prioritize follow-ups with better timing.</p>
+              </div>
             </li>
             <li>
               <strong>6. Act on insights</strong>
@@ -190,6 +221,11 @@ export default function NextcloudVdrPage() {
         <section className="mx-auto mt-12 max-w-4xl">
           <div className="prose prose-lg max-w-none text-gray-700">
             <h2 className="text-gray-900">Use cases</h2>
+            <h3>Secure external sharing</h3>
+            <p>
+              Share sensitive documents with stronger access controls and clearer visibility into external engagement behavior.
+              See <Link href="/solutions/secure-external-sharing">secure external sharing workflow</Link>.
+            </p>
             <h3>Fundraising data room</h3>
             <p>Share investor materials securely and track revisit behavior to prioritize follow-up timing.</p>
             <h3>M&amp;A and due diligence</h3>

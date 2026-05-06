@@ -70,9 +70,13 @@ export default async function BlogPage() {
               <p className="mt-4 text-base leading-7 text-gray-600">{post.description}</p>
               <div className="mt-6 flex flex-wrap gap-2">
                 {(post.tags || []).map((tag) => (
-                  <span key={tag} className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600">
+                  <Link
+                    key={tag}
+                    href={`/blog/tag/${slugifyTerm(tag)}`}
+                    className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600 hover:border-gray-300"
+                  >
                     {tag}
-                  </span>
+                  </Link>
                 ))}
               </div>
               <p className="mt-6">

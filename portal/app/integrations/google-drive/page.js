@@ -132,6 +132,7 @@ export default function GoogleDriveIntegrationPage() {
           <div className="prose prose-lg max-w-none text-gray-700">
             <h2 className="text-gray-900">Related setups</h2>
             <ul>
+              <li><Link href="https://docs.coneshare.com/en/google-drive-integration-guide/" target="_blank" rel="noopener noreferrer">Google Drive integration guide</Link></li>
               <li>Need full infrastructure control? <Link href="/integrations/nextcloud">See Nextcloud integration</Link></li>
               <li>Using Dropbox too? <Link href="/integrations/dropbox">Compare Dropbox integration</Link></li>
             </ul>

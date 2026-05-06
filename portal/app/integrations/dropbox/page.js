@@ -133,6 +133,7 @@ export default function DropboxIntegrationPage() {
           <div className="prose prose-lg max-w-none text-gray-700">
             <h2 className="text-gray-900">Related setups</h2>
             <ul>
+              <li><Link href="https://docs.coneshare.com/en/dropbox-integration-guide/" target="_blank" rel="noopener noreferrer">Dropbox integration guide</Link></li>
               <li><Link href="/integrations/google-drive">Compare with Google Drive integration</Link></li>
               <li><Link href="/alternatives/docsend">Looking for a DocSend alternative?</Link></li>
             </ul>

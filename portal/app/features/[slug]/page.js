@@ -98,32 +98,37 @@ export default async function FeatureDetailPage({ params }) {
           </div>
 
           {feature.workflowSteps && (
-            <div className="mt-10 rounded-2xl border border-gray-200 bg-gray-50 p-8">
+            <section className="mt-12">
               <h2 className="text-2xl font-bold tracking-tight text-gray-900">Typical Workflow</h2>
-              <ol className="mt-6 list-decimal space-y-3 pl-5 text-base leading-7 text-gray-700">
-                {feature.workflowSteps.map((step) => (
-                  <li key={step}>{step}</li>
+              <ol className="mt-6 space-y-6 border-l border-gray-200 pl-6">
+                {feature.workflowSteps.map((step, index) => (
+                  <li key={step} className="relative text-base leading-7 text-gray-700">
+                    <span className="absolute -left-[35px] top-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-xs font-semibold text-white">
+                      {index + 1}
+                    </span>
+                    {step}
+                  </li>
                 ))}
               </ol>
-            </div>
+            </section>
           )}
 
           {relatedUseCases.length > 0 && (
-            <div className="mt-10 rounded-2xl border border-gray-200 bg-white px-8 py-8">
+            <section className="mt-12">
               <h2 className="text-xl font-bold tracking-tight text-gray-900">Related Use Cases</h2>
               <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {relatedUseCases.map((item) => (
                   <Link
                     key={item.slug}
                     href={`/solutions/${item.slug}`}
-                    className="rounded-lg border border-gray-200 px-4 py-4 hover:border-gray-300"
+                    className="rounded-lg bg-gray-50 px-5 py-5 transition-colors hover:bg-gray-100"
                   >
                     <p className="text-sm font-semibold text-gray-900">{item.name}</p>
                     <p className="mt-2 text-sm text-gray-600">{item.description}</p>
                   </Link>
                 ))}
               </div>
-            </div>
+            </section>
           )}
 
           <div className="mt-14 rounded-2xl bg-gray-900 px-8 py-10 text-white">
