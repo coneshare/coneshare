@@ -264,6 +264,9 @@ export const getShareLinkViewData = (
   return api.get(`/links/${slug}/view-data/`, { params });
 };
 
+export const getShareLinkPublicMeta = (slug) =>
+  api.get(`/links/${slug}/public-meta/`);
+
 export const verifyShareLinkPassword = (slug, password) =>
   api.post(`/links/${slug}/verify-password/`, { password });
 

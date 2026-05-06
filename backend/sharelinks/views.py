@@ -171,6 +171,39 @@ def _get_active_share_link(slug: str) -> ShareLink:
     return link
 
 
+def _build_share_link_public_meta(link: ShareLink) -> dict:
+    owner = link.created_by
+    owner_name = (owner.name or "").strip() or "Shared by owner"
+    owner_avatar_url = None
+    if owner.avatar and hasattr(owner.avatar, 'url'):
+        owner_avatar_url = urljoin(settings.SITE_DOMAIN, owner.avatar.url)
+
+    owner_email = owner.email or ""
+    owner_email_masked = ""
+    if owner_email and '@' in owner_email:
+        local, domain = owner_email.split('@', 1)
+        if local:
+            owner_email_masked = f"{local[0]}***@{domain}"
+
+    target_name = ""
+    target_type = "document"
+    if link.document:
+        target_name = link.document.name
+    elif link.dataroom:
+        target_type = "dataroom"
+        target_name = link.dataroom.name
+
+    return {
+        "slug": link.slug,
+        "target_type": target_type,
+        "target_name": target_name,
+        "owner_name": owner_name,
+        "owner_email_masked": owner_email_masked,
+        "owner_avatar_url": owner_avatar_url,
+        "organization_name": owner.organization.name if owner.organization else "",
+    }
+
+
 @extend_schema(tags=['sharelinks'])
 class ShareLinkTemplateViewSet(viewsets.ModelViewSet):
     queryset = ShareLinkTemplate.objects.all()
@@ -680,6 +713,21 @@ class PerSlugScopedRateThrottle(ScopedRateThrottle):
             'scope': self.scope,
             'ident': f"{ident}:{slug}"
         }
+
+
+@extend_schema(tags=['sharelinks'])
+class ShareLinkPublicMetaView(APIView):
+    """Provides safe public metadata for password/email pre-access screens."""
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(responses={200: dict, 404: dict})
+    def get(self, request, slug, *args, **kwargs):
+        try:
+            link = _get_active_share_link(slug)
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(_build_share_link_public_meta(link), status=status.HTTP_200_OK)
 
 
 @extend_schema(tags=['sharelinks'])
