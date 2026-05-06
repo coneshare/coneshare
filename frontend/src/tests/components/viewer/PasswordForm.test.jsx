@@ -25,12 +25,26 @@ describe('PasswordForm', () => {
   });
 
   const renderComponent = () => {
-    return render(<PasswordForm slug={slug} onSuccess={mockOnSuccess} />);
+    return render(
+      <PasswordForm
+        slug={slug}
+        onSuccess={mockOnSuccess}
+        publicMeta={{
+          owner_name: 'Alice Owner',
+          owner_email_masked: 'a***@example.com',
+          target_type: 'document',
+          target_name: 'Pitch Deck',
+        }}
+      />
+    );
   };
 
   it('should render the form with all elements', () => {
     renderComponent();
-    expect(screen.getByText('Password Required')).toBeInTheDocument();
+    expect(screen.getByText('Alice Owner')).toBeInTheDocument();
+    expect(screen.getByText('a***@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Alice Owner (a***@example.com) shared "Pitch Deck"')).toBeInTheDocument();
+    expect(screen.getByText('Please enter the password to continue.')).toBeInTheDocument();
     expect(screen.getByLabelText('Password')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
   });
@@ -81,5 +95,10 @@ describe('PasswordForm', () => {
 
     // onSuccess should not have been called
     expect(mockOnSuccess).not.toHaveBeenCalled();
+  });
+
+  it('shows fallback heading when publicMeta is unavailable', () => {
+    render(<PasswordForm slug={slug} onSuccess={mockOnSuccess} publicMeta={null} />);
+    expect(screen.getByRole('heading', { name: 'Password Required' })).toBeInTheDocument();
   });
 });

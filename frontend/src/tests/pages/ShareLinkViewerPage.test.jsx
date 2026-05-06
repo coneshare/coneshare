@@ -8,18 +8,20 @@ vi.mock('../../services/api');
 
 // Mock child components to isolate the page component
 vi.mock('../../components/viewer/PasswordForm', () => ({
-  PasswordForm: ({ onSuccess }) => (
+  PasswordForm: ({ onSuccess, publicMeta }) => (
     <div>
       <span>Password Form</span>
+      <span>{publicMeta?.owner_name || ''}</span>
       <button onClick={onSuccess}>Submit Password</button>
     </div>
   ),
 }));
 
 vi.mock('../../components/viewer/EmailForm', () => ({
-  EmailForm: ({ onSuccess }) => (
+  EmailForm: ({ onSuccess, publicMeta }) => (
     <div>
       <span>Email Form</span>
+      <span>{publicMeta?.owner_name || ''}</span>
       <button onClick={onSuccess}>Submit Email</button>
     </div>
   ),
@@ -49,6 +51,9 @@ describe('ShareLinkViewerPage', () => {
   const mockViewData = {
     id: 'view_123',
   };
+  const mockPublicMeta = {
+    owner_name: 'Alice Owner',
+  };
 
   const renderComponent = (route) => {
     return render(
@@ -61,6 +66,7 @@ describe('ShareLinkViewerPage', () => {
   };
 
   it('shows loading state initially', () => {
+    api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
     api.getShareLinkViewData.mockReturnValue(new Promise(() => {})); // Never resolves
     renderComponent('/view/test-slug');
     // Find skeletons by checking for the animation class
@@ -69,6 +75,7 @@ describe('ShareLinkViewerPage', () => {
   });
 
   it('shows error message on API failure', async () => {
+    api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
     api.getShareLinkViewData.mockRejectedValue({
       response: { data: { message: 'This link is expired.' } },
     });
@@ -82,6 +89,7 @@ describe('ShareLinkViewerPage', () => {
   });
 
   it('renders PasswordForm when protectionType is password', async () => {
+    api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
     api.getShareLinkViewData.mockRejectedValue({
       response: { status: 401, data: { protectionType: 'password' } },
     });
@@ -91,9 +99,11 @@ describe('ShareLinkViewerPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Password Form')).toBeInTheDocument();
     });
+    expect(screen.getByText('Alice Owner')).toBeInTheDocument();
   });
 
   it('renders EmailForm when protectionType is email', async () => {
+    api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
     api.getShareLinkViewData.mockRejectedValue({
       response: { status: 401, data: { protectionType: 'email' } },
     });
@@ -103,9 +113,11 @@ describe('ShareLinkViewerPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Email Form')).toBeInTheDocument();
     });
+    expect(screen.getByText('Alice Owner')).toBeInTheDocument();
   });
 
   it('fetches data again after successful password submission', async () => {
+    api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
     // Initial load fails with password protection
     api.getShareLinkViewData.mockRejectedValueOnce({
       response: { status: 401, data: { protectionType: 'password' } },
@@ -133,6 +145,7 @@ describe('ShareLinkViewerPage', () => {
   });
 
   it('fetches data successfully and renders the viewer', async () => {
+    api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
     api.getShareLinkViewData.mockResolvedValue({ data: mockDocumentData });
     api.createViewSession.mockResolvedValue({ data: mockViewData });
 
@@ -151,6 +164,7 @@ describe('ShareLinkViewerPage', () => {
   });
 
   it('passes accessToken from URL to API call', async () => {
+    api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
     api.getShareLinkViewData.mockResolvedValue({ data: mockDocumentData });
     api.createViewSession.mockResolvedValue({ data: mockViewData });
 
@@ -169,6 +183,7 @@ describe('ShareLinkViewerPage', () => {
   });
 
   it('passes parent_id from URL to API call for dataroom scope', async () => {
+    api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
     api.getShareLinkViewData.mockResolvedValue({
       data: { link_type: 'dataroom', id: 'dr1', name: 'Room', items: [], breadcrumbs: [], link_settings: { id: 'link_abc' } },
     });

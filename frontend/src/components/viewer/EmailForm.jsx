@@ -4,8 +4,9 @@ import { requestShareLinkAccess } from '../../services/api';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
+import { AccessOwnerCard } from './AccessOwnerCard';
 
-export function EmailForm({ slug, onSuccess }) {
+export function EmailForm({ slug, onSuccess, publicMeta = null }) {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
@@ -45,8 +46,11 @@ export function EmailForm({ slug, onSuccess }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
       <div className="w-full max-w-sm rounded-lg bg-white p-8 shadow-md dark:bg-gray-800">
-        <h1 className="mb-2 text-center text-2xl font-bold dark:text-white">Email Required</h1>
-        <p className="mb-6 text-center text-sm text-gray-600 dark:text-gray-400">
+        <AccessOwnerCard publicMeta={publicMeta} />
+        {!publicMeta ? (
+          <h1 className="mb-2 text-left text-2xl font-bold dark:text-white">Email Required</h1>
+        ) : null}
+        <p className="mb-6 text-left text-sm text-gray-600 dark:text-gray-400">
           Please enter your email address to continue.
         </p>
         <form onSubmit={handleSubmit} className="space-y-6">

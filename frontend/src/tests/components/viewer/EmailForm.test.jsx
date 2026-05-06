@@ -16,12 +16,26 @@ describe('EmailForm', () => {
   });
 
   const renderComponent = () => {
-    return render(<EmailForm slug={slug} onSuccess={mockOnSuccess} />);
+    return render(
+      <EmailForm
+        slug={slug}
+        onSuccess={mockOnSuccess}
+        publicMeta={{
+          owner_name: 'Alice Owner',
+          owner_email_masked: 'a***@example.com',
+          target_type: 'dataroom',
+          target_name: 'Deal Room',
+        }}
+      />
+    );
   };
 
   it('renders the email form correctly', () => {
     renderComponent();
-    expect(screen.getByRole('heading', { name: /email required/i })).toBeInTheDocument();
+    expect(screen.getByText('Alice Owner')).toBeInTheDocument();
+    expect(screen.getByText('a***@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Alice Owner (a***@example.com) invited you to the dataroom "Deal Room"')).toBeInTheDocument();
+    expect(screen.getByText('Please enter your email address to continue.')).toBeInTheDocument();
     expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /continue/i })).toBeInTheDocument();
   });
@@ -92,5 +106,10 @@ describe('EmailForm', () => {
     // The global interceptor will show the toast, so we don't check for it here.
     expect(mockOnSuccess).not.toHaveBeenCalled();
     expect(submitButton).not.toBeDisabled();
+  });
+
+  it('shows fallback heading when publicMeta is unavailable', () => {
+    render(<EmailForm slug={slug} onSuccess={mockOnSuccess} publicMeta={null} />);
+    expect(screen.getByRole('heading', { name: 'Email Required' })).toBeInTheDocument();
   });
 });

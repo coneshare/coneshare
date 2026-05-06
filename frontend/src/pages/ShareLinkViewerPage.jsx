@@ -7,7 +7,7 @@ import { ViewerToolbar } from '../components/viewer/ViewerToolbar';
 import { PreviewViewer } from '../components/documents/PreviewViewer';
 import { DataroomViewer } from '../components/viewer/DataroomViewer';
 import { Skeleton } from '../components/ui/Skeleton';
-import { getShareLinkViewData, createViewSession } from '../services/api';
+import { getShareLinkViewData, createViewSession, getShareLinkPublicMeta } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { formatBytes } from '../lib/formatters';
 
@@ -22,6 +22,7 @@ export function ShareLinkViewerPage() {
   const parentIdFromUrl = searchParams.get('parent_id');
 
   const [viewData, setViewData] = useState(null);
+  const [publicMeta, setPublicMeta] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [protectionType, setProtectionType] = useState(null);
@@ -46,6 +47,28 @@ export function ShareLinkViewerPage() {
 
   const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.1, 3));
   const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const fetchPublicMeta = async () => {
+      try {
+        const response = await getShareLinkPublicMeta(slug);
+        if (!isCancelled) {
+          setPublicMeta(response.data);
+        }
+      } catch {
+        if (!isCancelled) {
+          setPublicMeta(null);
+        }
+      }
+    };
+
+    fetchPublicMeta();
+    return () => {
+      isCancelled = true;
+    };
+  }, [slug]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -132,6 +155,7 @@ export function ShareLinkViewerPage() {
       <PasswordForm
         slug={slug}
         onSuccess={() => setRefetchTrigger((c) => c + 1)}
+        publicMeta={publicMeta}
       />
     );
   }
@@ -141,6 +165,7 @@ export function ShareLinkViewerPage() {
       <EmailForm
         slug={slug}
         onSuccess={() => setRefetchTrigger((c) => c + 1)}
+        publicMeta={publicMeta}
       />
     );
   }

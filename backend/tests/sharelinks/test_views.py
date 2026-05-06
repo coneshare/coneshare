@@ -1035,6 +1035,22 @@ class TestShareLinkPasswordProtection:
         response = public_client.post(url, data)
         assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
 
+    def test_public_meta_returns_owner_info(self, public_client, share_link):
+        url = f'/api/v1/links/{share_link.slug}/public-meta/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        payload = response.json()
+        assert payload['slug'] == share_link.slug
+        expected_owner_name = (share_link.created_by.name or "").strip() or "Shared by owner"
+        assert payload['owner_name'] == expected_owner_name
+        assert 'owner_email_masked' in payload
+        assert payload['organization_name'] == share_link.created_by.organization.name
+
+    def test_public_meta_for_unknown_slug_returns_404(self, public_client):
+        response = public_client.get('/api/v1/links/non-existent/public-meta/')
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
 
 @pytest.mark.django_db
 class TestShareLinkViewSet:
