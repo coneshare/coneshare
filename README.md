@@ -100,15 +100,6 @@ Coneshare is built for teams who:
 
 ---
 
-## What’s New in v1.2
-
-- Activity-based workflow automation from document and data room events
-- Slack and webhook integrations for real-time team awareness
-- Delivery logs with retry and replay for reliable event handling
-- Multi-destination delivery for parallel team/system updates
-
----
-
 ## Quick Start (build from source)
 
 Run Coneshare locally and connect it to your storage:
