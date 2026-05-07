@@ -1,6 +1,24 @@
 # Changelog
 
 
+## [1.3.0](https://github.com/coneshare/coneshare/compare/v1.2.1...v1.3.0) (2026-05-06)
+
+
+### Features
+
+* **datarooms:** add settings to set dataroom branding and reorder ([93ff31d](https://github.com/coneshare/coneshare/commit/93ff31dc516297b19fcf4db037253583ad54bad5))
+* **frontend:** update file type icons ([faeca0f](https://github.com/coneshare/coneshare/commit/faeca0f7ad727d602a4851aeb510297c74ee2fe0))
+* **sharelinks:** show masked owner info on protected access dialogs ([faae29f](https://github.com/coneshare/coneshare/commit/faae29fc1ddbde9d50c1b614dc066ea505469324))
+* **sharelinks:** return scoped items in share link viewer ([5388f8d](https://github.com/coneshare/coneshare/commit/5388f8d1fac949d444d8f50e6756faf18ccaf370))
+
+
+### Bug Fixes
+
+* **backend:** return 404 for missing APIs, not frontend template rendering ([d841c2a](https://github.com/coneshare/coneshare/commit/d841c2ab109388d0e038fd9d482a73a411d4be74))
+* **sharelinks:** harden public access UX and 401 protection handling ([beb24ea](https://github.com/coneshare/coneshare/commit/beb24ea996dcf178680d2cdec526bd1116f123c8))
+* fix GeoIP return None city issue ([d336b0c](https://github.com/coneshare/coneshare/commit/d336b0c63e8769255a8b656e5d993f1ff22259fd))
+
+
 ## [1.2.1](https://github.com/coneshare/coneshare/compare/v1.2.0...v1.2.1) (2026-04-20)
 
 
