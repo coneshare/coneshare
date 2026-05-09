@@ -33,7 +33,7 @@ from datarooms.serializers import (PublicDataroomDocumentSerializer,
                                    PublicDataroomFolderSerializer)
 from documents.fileserver import fileserver_client
 from documents.models import DocumentPage
-from documents.views import StandardResultsSetPagination, _prepare_pages_data
+from documents.views import StandardResultsSetPagination, prepare_pages_data
 from automations.tasks import dispatch_automation_event_task
 from .models import (DataroomVisit, EmailVerificationToken, PreviewSession,
                      ShareLink, ShareLinkDataroomSetting, ShareLinkTemplate,
@@ -47,6 +47,22 @@ from .serializers import (DataroomVisitSerializer, PageViewRecordSerializer,
 from .tasks import send_view_notification_email_task
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_dataroom_document_setting(link: ShareLink, requested_dataroom_document_id: str, visible_only: bool = True):
+    """
+    Resolve the per-link setting row for one dataroom item.
+
+    `requested_dataroom_document_id` must be a DataroomDocument.id (not Document.id).
+    """
+    base_qs = link.dataroom_settings.select_related('dataroom_document__document')
+    if visible_only:
+        # Public document/page/download endpoints should only operate on visible items.
+        base_qs = base_qs.filter(is_visible=True)
+
+    # Use .get() intentionally: this should be unique per (share_link, dataroom_document).
+    # DoesNotExist is handled by callers as a permission failure.
+    return base_qs.get(dataroom_document_id=requested_dataroom_document_id)
 
 
 def _to_iso_datetime(value):
@@ -412,7 +428,7 @@ class ShareLinkViewDataView(APIView):
             request.session['authorized_share_links'] = authorized_links
 
         # If all checks pass, proceed to fetch and return data based on link type.
-        dataroom_document_id = request.query_params.get('document_id')
+        dataroom_document_id = request.query_params.get('dataroom_document_id')
 
         document_to_return = None
         dataroom_setting = None  # To hold the setting if it's a dataroom link
@@ -421,12 +437,13 @@ class ShareLinkViewDataView(APIView):
             try:
                 # Security check: ensure the requested document is part of this dataroom
                 # and is visible according to the link's settings.
-                setting = link.dataroom_settings.get(
-                    dataroom_document__document_id=dataroom_document_id,
-                    is_visible=True
+                setting = _resolve_dataroom_document_setting(
+                    link, dataroom_document_id, visible_only=True
                 )
                 document_to_return = setting.dataroom_document.document
                 dataroom_setting = setting
+            except serializers.ValidationError as e:
+                return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
             except ShareLinkDataroomSetting.DoesNotExist:
                 return Response({"detail": "You do not have permission to view this document through this link."}, status=status.HTTP_403_FORBIDDEN)
 
@@ -486,10 +503,13 @@ class ShareLinkViewDataView(APIView):
                 allow_download = dataroom_setting.allow_download
                 enable_watermark = dataroom_setting.enable_watermark
 
-            pages_data = _prepare_pages_data(
+            pages_data = prepare_pages_data(
                 document,
                 primary_version,
                 share_link=link,
+                dataroom_document_id=(
+                    dataroom_setting.dataroom_document_id if dataroom_setting else None
+                ),
                 enable_watermark_override=(
                     dataroom_setting.enable_watermark if dataroom_setting else None
                 ),
@@ -500,7 +520,10 @@ class ShareLinkViewDataView(APIView):
             if is_watermarked:
                 base_url = f"/api/v1/links/{link.slug}/download-file/"
                 if link.dataroom:
-                    download_url = urljoin(settings.SITE_DOMAIN, f"{base_url}?document_id={document.id}")
+                    download_url = urljoin(
+                        settings.SITE_DOMAIN,
+                        f"{base_url}?dataroom_document_id={dataroom_setting.dataroom_document_id}"
+                    )
                 else:
                     download_url = urljoin(settings.SITE_DOMAIN, base_url)
             elif document.type == 'image' and pages_data:
@@ -937,14 +960,14 @@ class ShareLinkPageView(APIView):
 
         document = None
         if link.dataroom:
-            document_id = request.query_params.get('document_id')
-            if not document_id:
-                return Response({"message": "Document ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+            dataroom_document_id = request.query_params.get('dataroom_document_id')
+            if not dataroom_document_id:
+                return Response({"message": "dataroom_document_id is required."}, status=status.HTTP_400_BAD_REQUEST)
             try:
-                setting = link.dataroom_settings.get(
-                    dataroom_document__document_id=document_id, is_visible=True
-                )
+                setting = _resolve_dataroom_document_setting(link, dataroom_document_id, visible_only=True)
                 document = setting.dataroom_document.document
+            except serializers.ValidationError as e:
+                return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
             except ShareLinkDataroomSetting.DoesNotExist:
                 return Response({"message": "You do not have permission to view this document."}, status=status.HTTP_403_FORBIDDEN)
         elif link.document:
@@ -1020,18 +1043,17 @@ class WatermarkedPageRenderView(APIView):
         document = None
         watermark_enabled_for_item = False
         if link.dataroom:
-            document_id = request.query_params.get('document_id')
-            if not document_id:
-                return Response({"message": "Document ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+            dataroom_document_id = request.query_params.get('dataroom_document_id')
+            if not dataroom_document_id:
+                return Response({"message": "dataroom_document_id is required."}, status=status.HTTP_400_BAD_REQUEST)
             try:
                 # Security check: ensure the requested document is part of this dataroom
                 # and is visible according to the link's settings.
-                setting = link.dataroom_settings.get(
-                    dataroom_document__document_id=document_id,
-                    is_visible=True
-                )
+                setting = _resolve_dataroom_document_setting(link, dataroom_document_id, visible_only=True)
                 document = setting.dataroom_document.document
                 watermark_enabled_for_item = setting.enable_watermark
+            except serializers.ValidationError as e:
+                return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
             except ShareLinkDataroomSetting.DoesNotExist:
                 return Response({"message": "You do not have permission to view this document."}, status=status.HTTP_403_FORBIDDEN)
         elif link.document:
@@ -1344,18 +1366,20 @@ class ShareLinkFileDownloadView(APIView):
         enable_watermark = False
 
         if link.dataroom:
-            document_id = request.query_params.get('document_id')
-            if not document_id:
-                return Response({"message": "Document ID is required for dataroom downloads."}, status=status.HTTP_400_BAD_REQUEST)
+            dataroom_document_id = request.query_params.get('dataroom_document_id')
+            if not dataroom_document_id:
+                return Response({"message": "dataroom_document_id is required for dataroom downloads."}, status=status.HTTP_400_BAD_REQUEST)
 
             try:
-                setting = link.dataroom_settings.get(
-                    dataroom_document__document_id=document_id,
-                    is_visible=True
-                )
+                setting = _resolve_dataroom_document_setting(link, dataroom_document_id, visible_only=True)
                 document = setting.dataroom_document.document
                 allow_download = setting.allow_download
                 enable_watermark = setting.enable_watermark
+            except serializers.ValidationError as e:
+                return Response(
+                    {"message": e.detail.get("detail", "Invalid document selection.")},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             except ShareLinkDataroomSetting.DoesNotExist:
                 return Response({"message": "You do not have permission to download this document through this link."}, status=status.HTTP_403_FORBIDDEN)
 
@@ -1629,7 +1653,7 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
         try:
             view_session = ViewSession.objects.get(pk=pk)
             share_link = view_session.share_link
-            document_id = request.data.get('document_id')
+            dataroom_document_id = request.data.get('dataroom_document_id')
             extra_payload = {
                 'view_session_id': str(view_session.id),
                 'viewer_email': view_session.viewer_email,
@@ -1638,9 +1662,9 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
             if share_link.document:
                 extra_payload['document_id'] = str(share_link.document_id)
                 extra_payload['document_name'] = share_link.document.name
-            elif share_link.dataroom_id and document_id:
+            elif share_link.dataroom_id and dataroom_document_id:
                 setting = share_link.dataroom_settings.filter(
-                    dataroom_document__document_id=document_id,
+                    dataroom_document_id=dataroom_document_id,
                     is_visible=True,
                 ).select_related('dataroom_document__document').first()
                 if setting:

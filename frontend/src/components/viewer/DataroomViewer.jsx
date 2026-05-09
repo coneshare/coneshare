@@ -150,7 +150,7 @@ export function DataroomViewer({ data, slug, viewId }) {
 
   const handleDownloadDocument = (doc) => {
     // This constructs a URL to the existing single-file download endpoint.
-    const params = new URLSearchParams({ document_id: doc.document_id });
+    const params = new URLSearchParams({ dataroom_document_id: doc.id });
     if (viewId) {
       params.set('view_session_id', viewId);
     }
@@ -243,7 +243,7 @@ export function DataroomViewer({ data, slug, viewId }) {
           const visitResponse = await recordDataroomVisit(viewId, { dataroomDocumentId: item.id });
           const dataroomVisitId = visitResponse.data.id;
           // Construct the URL for the new tab.
-          const url = `/view/${slug}?document_id=${item.document_id}&view_session_id=${viewId}&dataroom_visit_id=${dataroomVisitId}`;
+          const url = `/view/${slug}?dataroom_document_id=${item.id}&view_session_id=${viewId}&dataroom_visit_id=${dataroomVisitId}`;
 
           // 2. Update the already-opened window with the actual URL
           newTab.location.href = url;
@@ -254,7 +254,7 @@ export function DataroomViewer({ data, slug, viewId }) {
         }
       } else {
         // Fallback for the case where viewId is not ready, though it should be.
-        newTab.location.href = `/view/${slug}?document_id=${item.document_id}`;
+        newTab.location.href = `/view/${slug}?dataroom_document_id=${item.id}`;
       }
     }
   };

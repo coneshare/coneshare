@@ -157,7 +157,7 @@ describe('ShareLinkViewerPage', () => {
     expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', {
       previewToken: null,
       accessToken: null,
-      documentId: null,
+      dataroomDocumentId: null,
       parentId: null,
     });
     expect(api.createViewSession).toHaveBeenCalledWith({ share_link: 'link_abc' });
@@ -177,7 +177,7 @@ describe('ShareLinkViewerPage', () => {
     expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', {
       previewToken: null,
       accessToken: 'my-secret-token',
-      documentId: null,
+      dataroomDocumentId: null,
       parentId: null,
     });
   });
@@ -198,7 +198,7 @@ describe('ShareLinkViewerPage', () => {
     expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', {
       previewToken: null,
       accessToken: null,
-      documentId: null,
+      dataroomDocumentId: null,
       parentId: 'folder-123',
     });
   });

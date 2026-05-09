@@ -252,12 +252,12 @@ export const generateShareLinkPreview = (id) => api.post(`/share-links/${id}/pre
 
 export const getShareLinkViewData = (
   slug,
-  { previewToken = null, accessToken = null, documentId = null, parentId = null } = {}
+  { previewToken = null, accessToken = null, dataroomDocumentId = null, parentId = null } = {}
 ) => {
   const params = {};
   if (previewToken) params.previewToken = previewToken;
   if (accessToken) params.accessToken = accessToken;
-  if (documentId) params.document_id = documentId;
+  if (dataroomDocumentId) params.dataroom_document_id = dataroomDocumentId;
   if (parentId) params.parent_id = parentId;
   return api.get(`/links/${slug}/view-data/`, { params });
 };
@@ -273,8 +273,11 @@ export const requestShareLinkAccess = (slug, email) =>
 
 export const createViewSession = (data) => api.post('/view-sessions/', data);
 
-export const recordDownload = (viewSessionId, documentId = null) =>
-  api.post(`/view-sessions/${viewSessionId}/record-download/`, documentId ? { document_id: documentId } : {});
+export const recordDownload = (viewSessionId, dataroomDocumentId = null) =>
+  api.post(
+    `/view-sessions/${viewSessionId}/record-download/`,
+    dataroomDocumentId ? { dataroom_document_id: dataroomDocumentId } : {}
+  );
 
 export const recordDataroomVisit = (viewId, { dataroomDocumentId, dataroomFolderId }) => {
   const payload = {};
