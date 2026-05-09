@@ -163,22 +163,6 @@ export function DataroomPage() {
   );
   const { selection, setSelection, setLastSelectedItem, handleItemSelect, handleClearSelection } = useItemSelection(allItems);
     
-  const isAllSelected =
-    (documents.length > 0 || folders.length > 0) &&
-    selection.documents.length === documents.length &&
-    selection.folders.length === folders.length;
-
-  const handleSelectAll = (checked) => {
-    if (checked) {
-      setSelection({
-        documents: documents.map((d) => d.id),
-        folders: folders.map((f) => f.id),
-      });
-    } else {
-      handleClearSelection();
-    }
-  };
-    
   useEffect(() => {
     if (activeTab === 'links') {
       fetchLinks();
@@ -710,8 +694,6 @@ export function DataroomPage() {
               selectedFolders={selection.folders}
               onSort={handleSort}
               sortConfig={sortConfig}
-              onSelectAll={handleSelectAll}
-              isAllSelected={isAllSelected}
               onRename={handleRenameItem}
               onDelete={handleRemoveItem}
               onToggleStar={handleToggleStar}

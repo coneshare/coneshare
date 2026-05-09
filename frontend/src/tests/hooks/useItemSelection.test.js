@@ -10,7 +10,7 @@ describe('useItemSelection', () => {
     { id: 'd2', name: 'Doc B', type: 'document' },
   ];
 
-  it('should handle single item selection and deselection', () => {
+  it('should use single-click to select one item', () => {
     const { result } = renderHook(() => useItemSelection(mockItems));
 
     act(() => {
@@ -21,12 +21,12 @@ describe('useItemSelection', () => {
     act(() => {
       result.current.handleItemSelect('d1', 'document');
     });
-    expect(result.current.selection).toEqual({ documents: ['d1'], folders: ['f1'] });
+    expect(result.current.selection).toEqual({ documents: ['d1'], folders: [] });
 
     act(() => {
-      result.current.handleItemSelect('f1', 'folder');
+      result.current.handleItemSelect('f1', 'folder', { ctrlKey: true });
     });
-    expect(result.current.selection).toEqual({ documents: ['d1'], folders: [] });
+    expect(result.current.selection).toEqual({ documents: ['d1'], folders: ['f1'] });
   });
 
   it('should clear selection', () => {
@@ -34,7 +34,7 @@ describe('useItemSelection', () => {
 
     act(() => {
       result.current.handleItemSelect('f1', 'folder');
-      result.current.handleItemSelect('d2', 'document');
+      result.current.handleItemSelect('d2', 'document', { ctrlKey: true });
     });
     expect(result.current.selection).toEqual({ documents: ['d2'], folders: ['f1'] });
 
@@ -70,5 +70,21 @@ describe('useItemSelection', () => {
       result.current.handleItemSelect('f1', 'folder', { shiftKey: true });
     });
     expect(result.current.selection).toEqual({ documents: ['d1'], folders: ['f1', 'f2'] });
+  });
+
+  it('should merge range with meta/ctrl + shift', () => {
+    const { result } = renderHook(() => useItemSelection(mockItems));
+
+    act(() => {
+      result.current.handleItemSelect('f1', 'folder');
+    });
+    act(() => {
+      result.current.handleItemSelect('d2', 'document', { ctrlKey: true });
+    });
+    act(() => {
+      result.current.handleItemSelect('d1', 'document', { shiftKey: true, ctrlKey: true });
+    });
+
+    expect(result.current.selection).toEqual({ documents: ['d2', 'd1'], folders: ['f1'] });
   });
 });

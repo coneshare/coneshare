@@ -223,22 +223,6 @@ function DocumentsPage() {
   }, [documents, folders]);  
 
 
-  const handleSelectAll = (checked) => {
-    if (checked) {
-      setSelection({
-        documents: documents.map((d) => d.id),
-        folders: folders.map((f) => f.id),
-      });
-    } else {
-      handleClearSelection();
-    }
-  };
-
-  const isAllSelected =
-    (documents.length > 0 || folders.length > 0) &&
-    selection.documents.length === documents.length &&
-    selection.folders.length === folders.length;
-
   const handleBulkDelete = async () => {
     const { documents: docIds, folders: folderIds } = selection;
     const results = await Promise.all([
@@ -572,8 +556,6 @@ function DocumentsPage() {
         onClearSelection={handleClearSelection}
         onSort={handleSort}
         sortConfig={sortConfig}
-        onSelectAll={handleSelectAll}
-        isAllSelected={isAllSelected}
         onToggleStar={handleToggleStar}
         onDownload={handleDownload}
         onCopy={handleCopy}

@@ -6,7 +6,6 @@ import { cn } from "../../lib/utils";
 import { formatBytes } from "../../lib/formatters";
 import { ActionsDropdown } from "./ActionsDropdown";
 import { FileTypeIcon } from "./FileTypeIcon";
-import { Checkbox } from "../ui/Checkbox";
 import { Badge } from "../ui/Badge";
 import {
   Tooltip,
@@ -36,20 +35,9 @@ export function DraggableItem({
 }) {
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const handleCheckboxClick = (e) => {
+  const handleNameClick = (e) => {
     e.stopPropagation();
-    onSelect(id, type, e);
-  };
-
-  const handleClick = (e) => {
-    e.stopPropagation();
-    // If a child component (like a dropdown menu item) has already handled this
-    // event by calling `preventDefault`, do not proceed with navigation.
-    if (e.defaultPrevented) {
-      return;
-    }
 
     if (onItemClick) {
       onItemClick(item, type);
@@ -63,41 +51,38 @@ export function DraggableItem({
     }
   };
 
+  const handleRowClick = (e) => {
+    if (!onSelect) return;
+    onSelect(id, type, e);
+  };
+
+  const handleRowMouseDown = (e) => {
+    // Prevent native browser text selection only for range-selection gesture.
+    if (e.shiftKey) {
+      e.preventDefault();
+    }
+  };
+
   return (
     <div
-      onClick={handleClick}
+      onClick={handleRowClick}
+      onMouseDown={handleRowMouseDown}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       data-testid={`draggable-item-${id}`}
       className={cn(
         "flex w-full cursor-pointer items-center px-4 py-2 text-sm transition-colors",
-        !themed && "hover:bg-gray-50 dark:hover:bg-gray-900/50",
-        !themed && isSelected && "bg-blue-50 dark:bg-blue-900/20"
+        !themed && !isSelected && "hover:bg-gray-50 dark:hover:bg-gray-900/50",
+        !themed && isSelected && "bg-blue-100 dark:bg-blue-900/40"
       )}
       style={themed ? {
         backgroundColor: isSelected
-          ? "color-mix(in srgb, var(--dataroom-primary) 12%, transparent)"
+          ? "color-mix(in srgb, var(--dataroom-primary) 22%, transparent)"
           : isHovered
             ? "color-mix(in srgb, var(--dataroom-secondary) 10%, transparent)"
             : "transparent",
       } : undefined}
     >
-      <div className="w-8">
-        {!isReadOnly && (
-          <div
-            className={cn(
-              "transition-opacity",
-              isSelected || isHovered || isMenuOpen ? "opacity-100" : "opacity-0"
-            )}
-            onClick={handleCheckboxClick}
-          >
-            <Checkbox
-              checked={isSelected}
-              aria-label={`Select ${item.name}`}
-            />
-          </div>
-        )}
-      </div>
       {showIndex && (
         <div className="w-12 text-xs text-gray-500">
           {itemIndex}
@@ -106,10 +91,17 @@ export function DraggableItem({
       <div className="flex w-[40%] items-center gap-2 truncate">
         <FileTypeIcon
           type={type === "folder" ? "folder" : item.document_type || "document"}
-          className="h-5 w-5"
+          className="h-5 w-5 shrink-0"
           palette={themed ? "dataroom" : "default"}
         />
-        <span className="truncate font-medium" style={themed ? { color: "var(--dataroom-primary)" } : undefined}>{item.name}</span>
+        <button
+          type="button"
+          className="truncate font-medium text-left hover:underline"
+          style={themed ? { color: "var(--dataroom-primary)" } : undefined}
+          onClick={handleNameClick}
+        >
+          {item.name}
+        </button>
         {showActions && !isReadOnly && (
           <button
             data-star-button
@@ -159,10 +151,7 @@ export function DraggableItem({
       <div className="w-16">
         {showActions && !isReadOnly && (
           <div
-            className={cn(
-              "ml-auto flex justify-end transition-opacity",
-              isSelected || isHovered || isMenuOpen ? "opacity-100" : "opacity-0"
-            )}
+            className="ml-auto flex justify-end"
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
           >
@@ -173,7 +162,6 @@ export function DraggableItem({
               onDelete={onDelete}
               onShare={onShare}
               onRequestFiles={onRequestFiles}
-              onOpenChange={setIsMenuOpen}
               onDownload={onDownload}
               onCopy={onCopy}
             />

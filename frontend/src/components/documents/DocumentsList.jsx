@@ -33,8 +33,6 @@ export function DocumentsList({
   onClearSelection,
   onSort,
   sortConfig,
-  onSelectAll,
-  isAllSelected,
   onToggleStar,
   isReadOnly = false,
   showActions = true,
@@ -76,6 +74,12 @@ export function DocumentsList({
     },
     [onItemSelect]
   );
+
+  const handleContainerClick = (event) => {
+    if (event.target === event.currentTarget) {
+      onClearSelection?.();
+    }
+  };
 
 
   const internalHandleRename = (item) => setItemToRename(item);
@@ -122,6 +126,7 @@ export function DocumentsList({
         {...getRootProps({
           className:
             "relative border-y border-gray-200 dark:border-gray-800",
+          onClick: handleContainerClick,
         })}
       >
           <input {...getInputProps()} />
@@ -139,8 +144,6 @@ export function DocumentsList({
             <DocumentsListHeader
               onSort={onSort}
               sortConfig={sortConfig}
-              onSelectAll={onSelectAll}
-              isAllSelected={isAllSelected}
               themed={themed}
               showIndex={showIndex}
             />

@@ -684,12 +684,14 @@ describe('DocumentsPage', () => {
 
         expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
 
-        await user.click(screen.getByLabelText('Select Folder One'));
+        await user.click(screen.getByText('Folder One').closest('[data-testid^="draggable-item-"]'));
 
         const actionBar = await screen.findByRole('button', { name: 'Clear Selection' }).then(btn => btn.closest('div'));
         expect(actionBar).toHaveTextContent('1 folder selected');
 
-        await user.click(screen.getByLabelText('Select Document One'));
+        await user.keyboard('{Meta>}');
+        await user.click(screen.getByText('Document One').closest('[data-testid^="draggable-item-"]'));
+        await user.keyboard('{/Meta}');
         expect(actionBar).toHaveTextContent('1 document, 1 folder selected');      
     });
 
@@ -702,8 +704,7 @@ describe('DocumentsPage', () => {
         
         expect(itemRow).not.toHaveClass('bg-blue-50');
 
-        const checkbox = screen.getByLabelText('Select Folder One');
-        await user.click(checkbox);
+        await user.click(itemRow);
         
         expect(itemRow).toHaveClass('bg-blue-50');
     });
@@ -714,20 +715,20 @@ describe('DocumentsPage', () => {
 
         await screen.findByText('Folder One');
 
-        const folderOneCheckbox = screen.getByLabelText('Select Folder One');
-        const documentOneCheckbox = screen.getByLabelText('Select Document One');
+        const folderOneRow = screen.getByText('Folder One').closest('[data-testid^="draggable-item-"]');
+        const documentOneRow = screen.getByText('Document One').closest('[data-testid^="draggable-item-"]');
 
-        await user.click(folderOneCheckbox);
+        await user.click(folderOneRow);
 
         await user.keyboard('{Shift>}');
-        await user.click(documentOneCheckbox);
+        await user.click(documentOneRow);
         await user.keyboard('{/Shift}');
 
         // This selects Folder One, Folder Two, and Document One (2 folders, 1 document)
         const actionBar = screen.getByRole('button', { name: 'Clear Selection' }).closest('div');
         expect(actionBar).toHaveTextContent('1 document, 2 folders selected');
 
-        expect(folderOneCheckbox).toBeChecked();
+        expect(folderOneRow).toHaveClass('bg-blue-50');
     });
 
     it('should handle bulk delete action', async () => {
@@ -735,8 +736,10 @@ describe('DocumentsPage', () => {
         renderComponent();
         await screen.findByText('Folder One');
 
-        await user.click(screen.getByLabelText('Select Folder Two'));
-        await user.click(screen.getByLabelText('Select Document Two'));
+        await user.click(screen.getByText('Folder Two').closest('[data-testid^="draggable-item-"]'));
+        await user.keyboard('{Meta>}');
+        await user.click(screen.getByText('Document Two').closest('[data-testid^="draggable-item-"]'));
+        await user.keyboard('{/Meta}');
 
         const bulkDeleteButton = screen.getByRole('button', { name: /delete/i });
         await user.click(bulkDeleteButton);
@@ -795,8 +798,10 @@ describe('DocumentsPage', () => {
         await screen.findByText('Folder One');
 
         // Select 'Folder One' and 'Document One' to move
-        await user.click(screen.getByLabelText('Select Folder One'));
-        await user.click(screen.getByLabelText('Select Document One'));      
+        await user.click(screen.getByText('Folder One').closest('[data-testid^="draggable-item-"]'));
+        await user.keyboard('{Meta>}');
+        await user.click(screen.getByText('Document One').closest('[data-testid^="draggable-item-"]'));
+        await user.keyboard('{/Meta}');
 
         // Click the "Move" button in the action bar
         const moveButton = screen.getByRole('button', { name: /move/i });
