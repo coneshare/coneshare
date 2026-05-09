@@ -78,7 +78,7 @@ class TestEventDispatchIntegration:
             organization=organization,
             created_by=user,
         )
-        DataroomDocument.objects.create(
+        ddoc = DataroomDocument.objects.create(
             dataroom=dataroom,
             document=document,
             name='Visible Dataroom Doc',
@@ -92,7 +92,7 @@ class TestEventDispatchIntegration:
 
         response = public_client.post(
             f'/api/v1/view-sessions/{view_session.id}/record-download/',
-            {'document_id': str(document.id)},
+            {'dataroom_document_id': str(ddoc.id)},
             format='json',
         )
 
@@ -134,7 +134,7 @@ class TestEventDispatchIntegration:
             name='Dataroom Link',
         )
 
-        response = public_client.get(f'/api/v1/links/{link.slug}/view-data/?document_id={document.id}')
+        response = public_client.get(f'/api/v1/links/{link.slug}/view-data/?dataroom_document_id={ddoc.id}')
 
         assert response.status_code == status.HTTP_200_OK
         event_types = [call.args[0] for call in mock_delay.call_args_list]
@@ -154,7 +154,7 @@ class TestEventDispatchIntegration:
             organization=organization,
             created_by=user,
         )
-        DataroomDocument.objects.create(
+        ddoc = DataroomDocument.objects.create(
             dataroom=dataroom,
             document=image_document_with_content,
             name='Downloadable Doc',
@@ -167,7 +167,7 @@ class TestEventDispatchIntegration:
         view_session = ViewSession.objects.create(share_link=link)
 
         response = public_client.get(
-            f'/api/v1/links/{link.slug}/download-file/?document_id={image_document_with_content.id}&view_session_id={view_session.id}'
+            f'/api/v1/links/{link.slug}/download-file/?dataroom_document_id={ddoc.id}&view_session_id={view_session.id}'
         )
 
         assert response.status_code in {status.HTTP_200_OK, status.HTTP_302_FOUND}
@@ -188,7 +188,7 @@ class TestEventDispatchIntegration:
             organization=organization,
             created_by=user,
         )
-        DataroomDocument.objects.create(
+        ddoc = DataroomDocument.objects.create(
             dataroom=dataroom,
             document=image_document_with_content,
             name='Downloadable Doc',
@@ -204,7 +204,7 @@ class TestEventDispatchIntegration:
         )
 
         response = public_client.get(
-            f'/api/v1/links/{link.slug}/download-file/?document_id={image_document_with_content.id}&view_session_id={view_session.id}'
+            f'/api/v1/links/{link.slug}/download-file/?dataroom_document_id={ddoc.id}&view_session_id={view_session.id}'
         )
 
         assert response.status_code in {status.HTTP_200_OK, status.HTTP_302_FOUND}

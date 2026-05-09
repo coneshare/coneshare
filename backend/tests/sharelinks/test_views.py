@@ -823,7 +823,7 @@ class TestDataroomVisitTracking:
         setting.save()
 
         # 3. Request the document through the dataroom link.
-        url = f"/api/v1/links/{link.slug}/view-data/?document_id={document.id}"
+        url = f"/api/v1/links/{link.slug}/view-data/?dataroom_document_id={ddoc.id}"
         response = public_client.get(url)
 
         # 4. Assertions.
@@ -832,6 +832,31 @@ class TestDataroomVisitTracking:
         assert "link_settings" in data
         assert data['link_settings']['allow_download'] is False  # Should reflect the specific setting
 
+    def test_get_dataroom_document_by_document_id_is_rejected(
+        self, public_client, user, dataroom, document
+    ):
+        """Document.id is not accepted for dataroom document queries."""
+        folder_a = DataroomFolder.objects.create(dataroom=dataroom, name="Folder A")
+        folder_b = DataroomFolder.objects.create(dataroom=dataroom, name="Folder B")
+        DataroomDocument.objects.create(dataroom=dataroom, document=document, folder=folder_a)
+        DataroomDocument.objects.create(dataroom=dataroom, document=document, folder=folder_b)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        response = public_client.get(f"/api/v1/links/{link.slug}/view-data/?dataroom_document_id={document.id}")
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_get_dataroom_document_by_dataroom_item_id_is_unambiguous(
+        self, public_client, user, dataroom, document
+    ):
+        folder_a = DataroomFolder.objects.create(dataroom=dataroom, name="Folder A")
+        folder_b = DataroomFolder.objects.create(dataroom=dataroom, name="Folder B")
+        first_item = DataroomDocument.objects.create(dataroom=dataroom, document=document, folder=folder_a)
+        DataroomDocument.objects.create(dataroom=dataroom, document=document, folder=folder_b)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        response = public_client.get(f"/api/v1/links/{link.slug}/view-data/?dataroom_document_id={first_item.id}")
+        assert response.status_code == status.HTTP_200_OK
+
     @override_settings(SITE_DOMAIN="http://test.coneshare.com")
     def test_get_dataroom_document_with_watermark_returns_correct_download_url(self, public_client, user, dataroom, document):
         """
@@ -839,7 +864,7 @@ class TestDataroomVisitTracking:
         a download_url with the correct document_id query parameter.
         """
         # 1. Setup dataroom with content and a watermarked link.
-        DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document)
         link = ShareLink.objects.create(
             dataroom=dataroom,
             created_by=user,
@@ -848,7 +873,7 @@ class TestDataroomVisitTracking:
         )
 
         # 2. Request the document through the dataroom link.
-        url = f"/api/v1/links/{link.slug}/view-data/?document_id={document.id}"
+        url = f"/api/v1/links/{link.slug}/view-data/?dataroom_document_id={ddoc.id}"
         response = public_client.get(url)
 
         # 3. Assertions.
@@ -856,7 +881,7 @@ class TestDataroomVisitTracking:
         data = response.json()
         assert "download_url" in data
         
-        expected_url = f"http://test.coneshare.com/api/v1/links/{link.slug}/download-file/?document_id={document.id}"
+        expected_url = f"http://test.coneshare.com/api/v1/links/{link.slug}/download-file/?dataroom_document_id={ddoc.id}"
         assert data['download_url'] == expected_url
 
     @override_settings(SITE_DOMAIN="http://test.coneshare.com")
@@ -878,11 +903,11 @@ class TestDataroomVisitTracking:
         setting.enable_watermark = False
         setting.save(update_fields=["enable_watermark"])
 
-        response = public_client.get(f"/api/v1/links/{link.slug}/view-data/?document_id={image_document_with_content.id}")
+        response = public_client.get(f"/api/v1/links/{link.slug}/view-data/?dataroom_document_id={ddoc.id}")
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["link_settings"]["enable_watermark"] is False
-        assert data["pages"][0]["url"] == f"http://test.coneshare.com/api/v1/links/{link.slug}/page/1/?document_id={image_document_with_content.id}"
+        assert data["pages"][0]["url"] == f"http://test.coneshare.com/api/v1/links/{link.slug}/page/1/?dataroom_document_id={ddoc.id}"
 
     def test_render_page_rejects_dataroom_document_when_item_watermark_is_disabled(
         self, public_client, user, dataroom, image_document_with_content
@@ -912,7 +937,7 @@ class TestDataroomVisitTracking:
         session.save()
 
         response = public_client.get(
-            f"/api/v1/links/{link.slug}/render-page/1/?document_id={image_document_with_content.id}"
+            f"/api/v1/links/{link.slug}/render-page/1/?dataroom_document_id={ddoc.id}"
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert response.json()["message"] == "Watermarking is not enabled for this file."
@@ -1597,7 +1622,7 @@ class TestShareLinkPageView:
         Test that a page for a document within a dataroom can be successfully retrieved.
         """
         client = APIClient()
-        DataroomDocument.objects.create(dataroom=dataroom, document=document_with_pages)
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document_with_pages)
         link = ShareLink.objects.create(
             dataroom=dataroom,
             created_by=user,
@@ -1609,7 +1634,7 @@ class TestShareLinkPageView:
         assert response_verify.status_code == status.HTTP_200_OK
 
         mock_fs_download_url.return_value = "http://test.coneshare.com/files/download/some-token"
-        url = f'/api/v1/links/{link.slug}/page/1/?document_id={document_with_pages.id}'
+        url = f'/api/v1/links/{link.slug}/page/1/?dataroom_document_id={ddoc.id}'
         response = client.get(url)
 
         assert response.status_code == status.HTTP_302_FOUND
@@ -2068,9 +2093,9 @@ class TestWatermarkingViews:
         mock_requests_get.return_value = mock_response
 
         link = dataroom_with_watermarked_link['link']
-        document = dataroom_with_watermarked_link['document']
+        ddoc = dataroom_with_watermarked_link['ddoc']
 
-        url = f'/api/v1/links/{link.slug}/render-page/1/?document_id={document.id}'
+        url = f'/api/v1/links/{link.slug}/render-page/1/?dataroom_document_id={ddoc.id}'
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -2115,8 +2140,9 @@ class TestWatermarkingViews:
 
         link = dataroom_with_watermarked_link['link']
         document = dataroom_with_watermarked_link['document']
+        ddoc = dataroom_with_watermarked_link['ddoc']
 
-        url = f'/api/v1/links/{link.slug}/download-file/?document_id={document.id}'
+        url = f'/api/v1/links/{link.slug}/download-file/?dataroom_document_id={ddoc.id}'
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -2127,7 +2153,6 @@ class TestWatermarkingViews:
     def test_download_watermarked_file_from_dataroom_permission_denied(self, public_client, dataroom_with_watermarked_link):
         """Test download is denied if dataroom item setting is allow_download=False."""
         link = dataroom_with_watermarked_link['link']
-        document = dataroom_with_watermarked_link['document']
         ddoc = dataroom_with_watermarked_link['ddoc']
 
         # Override setting for this item
@@ -2135,26 +2160,26 @@ class TestWatermarkingViews:
         setting.allow_download = False
         setting.save()
 
-        url = f'/api/v1/links/{link.slug}/download-file/?document_id={document.id}'
+        url = f'/api/v1/links/{link.slug}/download-file/?dataroom_document_id={ddoc.id}'
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert "not allowed for this item" in response.data['message']
 
     def test_download_watermarked_file_from_dataroom_missing_doc_id(self, public_client, dataroom_with_watermarked_link):
-        """Test that calling the download endpoint for a dataroom link without a document_id fails."""
+        """Test that calling the download endpoint for a dataroom link without a dataroom_document_id fails."""
         link = dataroom_with_watermarked_link['link']
         url = f'/api/v1/links/{link.slug}/download-file/'
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert "Document ID is required" in response.data['message']
+        assert "dataroom_document_id is required" in response.data['message']
 
     def test_download_watermarked_file_from_dataroom_invalid_doc_id(self, public_client, dataroom_with_watermarked_link):
         """Test that downloading with a document_id not in the dataroom link fails."""
         link = dataroom_with_watermarked_link['link']
         invalid_doc_id = 'doc_00000000000000000000000000'
-        url = f'/api/v1/links/{link.slug}/download-file/?document_id={invalid_doc_id}'
+        url = f'/api/v1/links/{link.slug}/download-file/?dataroom_document_id={invalid_doc_id}'
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
@@ -2163,7 +2188,6 @@ class TestWatermarkingViews:
     def test_download_from_dataroom_denied_if_not_visible(self, public_client, dataroom_with_watermarked_link):
         """Test download is denied if dataroom document is not visible, even if download is allowed."""
         link = dataroom_with_watermarked_link['link']
-        document = dataroom_with_watermarked_link['document']
         ddoc = dataroom_with_watermarked_link['ddoc']
 
         # Override setting for this item to be invisible, but downloadable
@@ -2173,7 +2197,7 @@ class TestWatermarkingViews:
         setting.save()
 
         # Attacker tries to download it directly
-        download_url = f'/api/v1/links/{link.slug}/download-file/?document_id={document.id}'
+        download_url = f'/api/v1/links/{link.slug}/download-file/?dataroom_document_id={ddoc.id}'
         response = public_client.get(download_url)
 
         # Before the fix, this would be 200 OK. After, it should be 403 Forbidden.

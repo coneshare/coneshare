@@ -147,7 +147,7 @@ describe('DataroomViewer', () => {
     fireEvent.click(screen.getByTitle('Download "Root Document"'));
 
     const anchor = appendSpy.mock.calls[0][0];
-    expect(anchor.href).toContain('/api/v1/links/test-slug/download-file/?document_id=doc-file-1&view_session_id=view-123');
+    expect(anchor.href).toContain('/api/v1/links/test-slug/download-file/?dataroom_document_id=doc1&view_session_id=view-123');
 
     appendSpy.mockRestore();
     removeSpy.mockRestore();

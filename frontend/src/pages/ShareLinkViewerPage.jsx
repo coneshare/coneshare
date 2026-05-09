@@ -18,7 +18,7 @@ export function ShareLinkViewerPage() {
   const accessToken = searchParams.get('accessToken');
   const viewSessionIdFromUrl = searchParams.get('view_session_id');
   const dataroomVisitIdFromUrl = searchParams.get('dataroom_visit_id');
-  const documentIdFromUrl = searchParams.get('document_id');
+  const dataroomDocumentIdFromUrl = searchParams.get('dataroom_document_id');
   const parentIdFromUrl = searchParams.get('parent_id');
 
   const [viewData, setViewData] = useState(null);
@@ -85,8 +85,8 @@ export function ShareLinkViewerPage() {
         const response = await getShareLinkViewData(slug, {
           previewToken,
           accessToken,
-          documentId: documentIdFromUrl,
-          parentId: documentIdFromUrl ? null : parentIdFromUrl,
+          dataroomDocumentId: dataroomDocumentIdFromUrl,
+          parentId: dataroomDocumentIdFromUrl ? null : parentIdFromUrl,
         });
         if (!isCancelled) {
           setViewData(response.data);
@@ -132,7 +132,7 @@ export function ShareLinkViewerPage() {
     accessToken,
     viewSessionIdFromUrl,
     dataroomVisitIdFromUrl,
-    documentIdFromUrl,
+    dataroomDocumentIdFromUrl,
     // Intentionally excluded:
     // `parentIdFromUrl` changes are handled by DataroomViewer scoped fetches
     // so we avoid full-page reload/flicker during folder navigation.
@@ -191,8 +191,8 @@ export function ShareLinkViewerPage() {
   const canDownload = Boolean(viewData?.link_settings?.allow_download);
 
   let downloadUrl = `/api/v1/links/${slug}/download-file/`;
-  if (documentIdFromUrl) {
-    downloadUrl += `?document_id=${documentIdFromUrl}`;
+  if (dataroomDocumentIdFromUrl) {
+    downloadUrl += `?dataroom_document_id=${dataroomDocumentIdFromUrl}`;
   }
 
   if (viewData && (viewData.download_only || !isPreviewable)) {
@@ -261,7 +261,7 @@ export function ShareLinkViewerPage() {
             allowDownload={viewData.link_settings.allow_download}
             downloadUrl={downloadUrl}
             downloadFileName={viewData.name}
-            downloadDocumentId={documentIdFromUrl || null}
+            downloadDocumentId={dataroomDocumentIdFromUrl || null}
             onFullScreen={handleFullScreen}
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}

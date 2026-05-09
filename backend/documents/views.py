@@ -485,7 +485,13 @@ class DocumentVersionUploadFinalizeView(APIView):
         return Response(doc_serializer.data, status=status.HTTP_202_ACCEPTED)
 
 
-def _prepare_pages_data(document, primary_version, share_link=None, enable_watermark_override=None):
+def prepare_pages_data(
+    document,
+    primary_version,
+    share_link=None,
+    dataroom_document_id=None,
+    enable_watermark_override=None
+):
     """
     Prepares a list of page data with absolute URLs for a given document version.
     Handles both image types and paginated document types.
@@ -508,7 +514,7 @@ def _prepare_pages_data(document, primary_version, share_link=None, enable_water
             base_url_part = "render-page" if is_watermarked else "page"
             page_url = f"/api/v1/links/{share_link.slug}/{base_url_part}/1/"
             if share_link.dataroom:
-                page_url += f"?document_id={document.id}"
+                page_url += f"?dataroom_document_id={dataroom_document_id}"
             absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
         else:
             absolute_url = fileserver_client.generate_download_url(primary_version.original_storage_key, is_internal=False)
@@ -527,7 +533,7 @@ def _prepare_pages_data(document, primary_version, share_link=None, enable_water
                 base_url_part = "render-page" if is_watermarked else "page"
                 page_url = f"/api/v1/links/{share_link.slug}/{base_url_part}/{page.page_number}/"
                 if share_link.dataroom:
-                    page_url += f"?document_id={document.id}"
+                    page_url += f"?dataroom_document_id={dataroom_document_id}"
                 absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
             else:
                 absolute_url = fileserver_client.generate_download_url(page.storage_key, is_internal=False)
@@ -642,7 +648,7 @@ class DocumentPreviewDataView(APIView):
             )
 
         # Content Processing and Response Shaping
-        pages_data = _prepare_pages_data(document, primary_version)
+        pages_data = prepare_pages_data(document, primary_version)
 
         response_data = {
             "id": document.id,
