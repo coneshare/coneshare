@@ -1,8 +1,6 @@
 import { ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "../ui/Button";
-import { Checkbox } from "../ui/Checkbox";
 import { cn } from "../../lib/utils";
-import { useState } from "react";
 
 const columns = [
   { key: "name", label: "Name", className: "w-[40%]" },
@@ -14,34 +12,14 @@ const columns = [
 export function DocumentsListHeader({
   onSort,
   sortConfig,
-  onSelectAll,
-  isAllSelected,
   themed = false,
   showIndex = false,
 }) {
-  const [isHovered, setIsHovered] = useState(false);
-
   return (
     <div
       className="flex items-center border-b border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-500 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-400"
       style={themed ? { color: "var(--dataroom-secondary)" } : undefined}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="w-8">
-        <div
-          className={cn(
-            "transition-opacity",
-            isAllSelected || isHovered ? "opacity-100" : "opacity-0"
-          )}
-        >
-          <Checkbox
-            checked={isAllSelected}
-            onCheckedChange={onSelectAll}
-            aria-label="Select all items"
-          />
-        </div>
-      </div>
       {showIndex && <div className="w-12">#</div>}
       {columns.map(({ key, label, className }) => (
         <div key={key} className={cn("flex items-center", className)}>

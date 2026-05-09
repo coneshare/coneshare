@@ -277,8 +277,8 @@ describe('DataroomPage', () => {
             renderComponent();
 
             // Select item
-            const docCheckbox = await screen.findByLabelText('Select Root Document');
-            await user.click(docCheckbox);
+            const docRow = await screen.findByText('Root Document').then(el => el.closest('[data-testid^="draggable-item-"]'));
+            await user.click(docRow);
             
             // Open move dialog
             const moveButton = await screen.findByRole('button', { name: /^move$/i });
@@ -312,10 +312,12 @@ describe('DataroomPage', () => {
             renderComponent();
 
             // Select items
-            const docCheckbox = await screen.findByLabelText('Select Root Document');
-            await user.click(docCheckbox);
-            const folderCheckbox = screen.getByLabelText('Select Sub Folder');
-            await user.click(folderCheckbox);
+            const docRow = await screen.findByText('Root Document').then(el => el.closest('[data-testid^="draggable-item-"]'));
+            await user.click(docRow);
+            await user.keyboard('{Meta>}');
+            const folderRow = screen.getByText('Sub Folder').closest('[data-testid^="draggable-item-"]');
+            await user.click(folderRow);
+            await user.keyboard('{/Meta}');
             
             // Click delete button
             const deleteButton = screen.getByRole('button', { name: /^remove$/i });
@@ -489,13 +491,15 @@ describe('DataroomPage', () => {
     
             expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
     
-            const folderCheckbox = screen.getByLabelText('Select Sub Folder');
-            await user.click(folderCheckbox);
+            const folderRow = screen.getByText('Sub Folder').closest('[data-testid^="draggable-item-"]');
+            await user.click(folderRow);
             
             expect(await screen.findByText(/1 folder selected/)).toBeInTheDocument();
     
-            const docCheckbox = screen.getByLabelText('Select Root Document');
-            await user.click(docCheckbox);
+            await user.keyboard('{Meta>}');
+            const docRow = screen.getByText('Root Document').closest('[data-testid^="draggable-item-"]');
+            await user.click(docRow);
+            await user.keyboard('{/Meta}');
     
             expect(await screen.findByText(/1 document, 1 folder selected/)).toBeInTheDocument();
     
@@ -505,34 +509,27 @@ describe('DataroomPage', () => {
             expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
         });
 
-        it('should select all items when header checkbox is clicked', async () => {
+        it('should support additive multi-select with meta key', async () => {
             const user = userEvent.setup();
             renderComponent();
-    
-            await screen.findByText('Sub Folder');
-    
-            // The select-all checkbox is in the header
-            const selectAllCheckbox = screen.getByLabelText('Select all items');
-    
-            // Click to select all
-            await user.click(selectAllCheckbox);
-    
-            // Verify action bar appears with correct count (1 doc, 1 folder from mockDataroomRoot)
+
+            const folderRow = await screen.findByText('Sub Folder').then(el => el.closest('[data-testid^="draggable-item-"]'));
+            await user.click(folderRow);
+            await user.keyboard('{Meta>}');
+            const docRow = screen.getByText('Root Document').closest('[data-testid^="draggable-item-"]');
+            await user.click(docRow);
+            await user.keyboard('{/Meta}');
+
             const actionBar = await screen.findByText(/selected/);
             expect(actionBar).toHaveTextContent('1 document, 1 folder selected');
-    
-            // Click again to deselect all
-            await user.click(selectAllCheckbox);
-            
-            expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
         });
     
         it('should open move dialog when move is clicked', async () => {
             const user = userEvent.setup();
             renderComponent();
     
-            const folderCheckbox = await screen.findByLabelText('Select Sub Folder');
-            await user.click(folderCheckbox);
+            const folderRow = await screen.findByText('Sub Folder').then(el => el.closest('[data-testid^="draggable-item-"]'));
+            await user.click(folderRow);
     
             const moveButton = await screen.findByRole('button', { name: /^move$/i });
             await user.click(moveButton);
