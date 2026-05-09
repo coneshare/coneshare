@@ -204,8 +204,10 @@ Part 1: Backend Implementation
 Part 2: Frontend Implementation
 
  1 Update the Dataroom Viewer UI
-    • A "Download" action/button will be added to each folder item in the DataroomViewer.jsx component.
-    • This action will only be visible or enabled if the allow_download property for that folder (provided by the existing /view-data/ endpoint) is True.
+    • Use an always-visible actions ("three dots") button for each row in `DataroomViewer.jsx` (no hover-only reveal).
+    • Actions include:
+      - `View` (always shown)
+      - `Download` (shown only when `allow_download` is `True` for the item)
  2 Create a New API Service Function
     • A new function, downloadDataroomFolder(slug, folderId), will be added to frontend/src/services/api.js.
     • This function will make a GET request to the new backend endpoint and must be configured to handle a blob response type instead of JSON.

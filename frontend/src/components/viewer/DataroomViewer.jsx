@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
   HomeIcon,
   ChevronRight,
   DownloadIcon,
+  MoreHorizontal,
+  Eye,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useSearchParams } from 'react-router-dom';
@@ -14,48 +17,95 @@ import { downloadDataroomFolder, getShareLinkViewData, recordDataroomVisit } fro
 
 function ListItem({ item, onItemClick, onDownloadClick, showIndex = false, index = null }) {
   const isFolder = item.type === 'folder';
+  const mobileMeta = [
+    item.updated_at ? formatDistanceToNow(new Date(item.updated_at), { addSuffix: true }) : null,
+    !isFolder && typeof item.file_size === 'number' ? formatBytes(item.file_size) : null,
+  ].filter(Boolean).join(' • ');
   return (
     <div
-      className="group flex w-full items-center px-4 py-2 text-left text-sm transition-colors hover:bg-[var(--viewer-row-hover-bg)]"
+      className="flex w-full items-center px-3 py-2 text-left text-sm transition-colors sm:px-4 hover:bg-[var(--viewer-row-hover-bg)]"
       style={{
         color: 'var(--viewer-primary)',
         '--viewer-row-hover-bg': 'color-mix(in srgb, var(--viewer-secondary) 10%, transparent)',
       }}
     >
-      {showIndex && <div className="w-10 text-xs" style={{ color: 'var(--viewer-secondary)' }}>{index}</div>}
-      <div className="flex w-8 items-center justify-center">
+      {showIndex && <div className="hidden w-10 text-xs sm:block" style={{ color: 'var(--viewer-secondary)' }}>{index}</div>}
+      <div className="flex w-7 shrink-0 items-center justify-center sm:w-8">
         <FileTypeIcon
           type={isFolder ? 'folder' : item.document_type}
-          className="h-5 w-5"
+          className="h-5 w-5 shrink-0"
           palette="viewer"
         />
       </div>
-      <button
-        onClick={() => onItemClick(item)}
-        className="w-[50%] truncate pr-4 text-left font-medium"
-        title={item.name || item.document_name}
-      >
-        {item.name || item.document_name}
-      </button>
-      <div className="w-[20%] text-sm" style={{ color: 'var(--viewer-secondary)' }}>
+      <div className="min-w-0 flex-1 pr-2 sm:pr-4">
+        <button
+          onClick={() => onItemClick(item)}
+          className="w-full truncate text-left font-medium"
+          title={item.name || item.document_name}
+        >
+          {item.name || item.document_name}
+        </button>
+        {mobileMeta && (
+          <div className="mt-0.5 truncate text-xs sm:hidden" style={{ color: 'var(--viewer-secondary)' }}>
+            {mobileMeta}
+          </div>
+        )}
+      </div>
+      <div className="hidden w-[20%] text-sm sm:block" style={{ color: 'var(--viewer-secondary)' }}>
         {item.updated_at && formatDistanceToNow(new Date(item.updated_at), { addSuffix: true })}
       </div>
-      <div className="w-[10%] text-sm" style={{ color: 'var(--viewer-secondary)' }}>
+      <div className="hidden w-[10%] text-sm sm:block" style={{ color: 'var(--viewer-secondary)' }}>
         {!isFolder && typeof item.file_size === 'number' ? formatBytes(item.file_size) : '—'}
       </div>
-      <div className="w-[10%] text-right">
-        {item.allow_download && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 opacity-0 group-hover:opacity-100"
-            style={{ color: 'var(--viewer-accent)' }}
-            onClick={() => onDownloadClick(item)}
-            title={`Download "${item.name || item.document_name}"`}
+      <div className="ml-1 w-9 shrink-0 text-right sm:ml-0 sm:w-[10%]">
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              style={{ color: 'var(--viewer-accent)' }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              aria-label={`Actions for ${item.name || item.document_name}`}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content
+            className="z-20 w-40 origin-top-right rounded-md bg-white p-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+            sideOffset={5}
+            align="end"
+            onCloseAutoFocus={(e) => e.preventDefault()}
           >
-            <DownloadIcon className="h-4 w-4" />
-          </Button>
-        )}
+            <DropdownMenu.Item
+              onSelect={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onItemClick(item);
+              }}
+              className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+            >
+              <Eye className="h-4 w-4" aria-hidden="true" />
+              <span>View</span>
+            </DropdownMenu.Item>
+            {item.allow_download && (
+              <DropdownMenu.Item
+                onSelect={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onDownloadClick(item);
+                }}
+                className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+              >
+                <DownloadIcon className="h-4 w-4" aria-hidden="true" />
+                <span>Download</span>
+              </DropdownMenu.Item>
+            )}
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
       </div>
     </div>
   );
@@ -217,11 +267,11 @@ export function DataroomViewer({ data, slug, viewId }) {
 
   return (
     <div className="flex h-screen w-screen flex-col bg-gray-50" style={themeStyle}>
-      <header className="flex flex-shrink-0 items-center justify-between border-b bg-white p-4">
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--viewer-primary)' }}>{scopeData.name}</h1>
-        <a href="/" className="flex items-center gap-2 rounded-md p-2 font-semibold" style={{ color: 'var(--viewer-primary)' }}>
+      <header className="flex flex-shrink-0 items-center justify-between border-b bg-white p-3 sm:p-4">
+        <h1 className="mr-2 truncate text-base font-semibold sm:text-xl" style={{ color: 'var(--viewer-primary)' }}>{scopeData.name}</h1>
+        <a href="/" className="flex shrink-0 items-center gap-2 rounded-md p-2 font-semibold" style={{ color: 'var(--viewer-primary)' }}>
           <img src="/logo.svg" alt="Coneshare logo" className="h-6 w-6" />
-          <span>Coneshare</span>
+          <span className="hidden sm:inline">Coneshare</span>
         </a>
       </header>
       {scopeData.branding_banner && (
@@ -230,8 +280,8 @@ export function DataroomViewer({ data, slug, viewId }) {
         </section>
       )}
 
-      <nav className="flex-shrink-0 border-b bg-white px-4 py-2">
-        <ol className="flex items-center space-x-2 text-sm" style={{ color: 'var(--viewer-secondary)' }}>
+      <nav className="flex-shrink-0 border-b bg-white px-3 py-2 sm:px-4">
+        <ol className="flex items-center space-x-2 overflow-x-auto whitespace-nowrap text-sm" style={{ color: 'var(--viewer-secondary)' }}>
           <li>
             <button
               onClick={() => navigateToScope(null)}
@@ -259,18 +309,18 @@ export function DataroomViewer({ data, slug, viewId }) {
 
       <main className="flex-1 overflow-y-auto border-t">
         <div
-          className="flex w-full items-center border-b px-4 py-2 text-xs font-medium"
+          className="flex w-full items-center border-b px-3 py-2 text-xs font-medium sm:px-4"
           style={{
             color: 'var(--viewer-secondary)',
             backgroundColor: 'color-mix(in srgb, var(--viewer-secondary) 8%, white)',
           }}
         >
-          {scopeData.show_file_index && <div className="w-10">#</div>}
-          <div className="w-8" />
-          <div className="w-[50%] pr-4">Name</div>
-          <div className="w-[20%]">Last Modified</div>
-          <div className="w-[10%]">Size</div>
-          <div className="w-[10%] text-right">Actions</div>
+          {scopeData.show_file_index && <div className="hidden w-10 sm:block">#</div>}
+          <div className="w-7 sm:w-8" />
+          <div className="min-w-0 flex-1 pr-2 sm:pr-4">Name</div>
+          <div className="hidden w-[20%] sm:block">Last Modified</div>
+          <div className="hidden w-[10%] sm:block">Size</div>
+          <div className="w-9 shrink-0 text-right sm:w-[10%]">Actions</div>
         </div>
         {isNavigating ? (
           <div className="divide-y">
