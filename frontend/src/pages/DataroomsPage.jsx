@@ -117,7 +117,7 @@ export function DataroomsPage() {
                       <span>Rename</span>
                     </DropdownMenu.Item>
                     <DropdownMenu.Item
-                      onClick={() => toast.info('Share functionality coming soon!')}
+                      onClick={() => navigate(`/datarooms/${dataroom.id}?tab=links&openCreateLink=true`)}
                       className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
                     >
                       <Share2 className="mr-2 h-4 w-4" />

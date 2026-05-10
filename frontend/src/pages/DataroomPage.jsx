@@ -180,6 +180,22 @@ export function DataroomPage() {
       fetchViews();
     }
   }, [activeTab, fetchLinks, fetchViews]);  
+
+  useEffect(() => {
+    const shouldOpenCreateLink = searchParams.get('openCreateLink') === 'true';
+    if (!shouldOpenCreateLink || activeTab !== 'links') {
+      return;
+    }
+
+    setEditingLink(null);
+    setIsLinkSheetOpen(true);
+
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('openCreateLink');
+      return next;
+    }, { replace: true });
+  }, [activeTab, searchParams, setSearchParams]);
     
   useEffect(() => {
     // Reset selection when folder changes
