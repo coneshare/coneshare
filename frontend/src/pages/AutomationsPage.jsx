@@ -26,6 +26,37 @@ import {
   DialogTitle,
 } from '../components/ui/Dialog';
 
+const stringifyErrorValue = (value) => {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return value.map(stringifyErrorValue).filter(Boolean).join(' ');
+  if (typeof value === 'object') {
+    return Object.entries(value)
+      .map(([key, val]) => `${key}: ${stringifyErrorValue(val)}`)
+      .filter(Boolean)
+      .join(' | ');
+  }
+  return String(value);
+};
+
+const getApiErrorMessage = (error) => {
+  const data = error?.response?.data;
+  if (!data) return error?.message || 'Unknown error.';
+  const detail = stringifyErrorValue(data.detail);
+  if (detail) return detail;
+  const nonField = stringifyErrorValue(data.non_field_errors);
+  if (nonField) return nonField;
+  const body = stringifyErrorValue(data);
+  if (body) return body;
+  return error?.message || 'Unknown error.';
+};
+
+const handleActionError = (title, error) => {
+  const description = getApiErrorMessage(error);
+  toast.error(title, { description });
+  console.error(error);
+};
+
 export function AutomationsPage() {
   const [automations, setAutomations] = useState([]);
   const [destinations, setDestinations] = useState([]);
@@ -64,7 +95,7 @@ export function AutomationsPage() {
       setAutomations(automationsRes.data || []);
       setDestinations(destinationsRes.data || []);
     } catch (error) {
-      console.error(error);
+      handleActionError('Failed to load automations data.', error);
     } finally {
       if (!silent) {
         setIsInitialLoading(false);
@@ -107,7 +138,7 @@ export function AutomationsPage() {
       });
       setDeliveriesData(response.data || { results: [], count: 0 });
     } catch (error) {
-      console.error(error);
+      handleActionError('Failed to load delivery logs.', error);
     }
   }, [selectedRuleIdForLogs, selectedDestinationIdForLogs, logsCurrentPage]);
 
@@ -123,7 +154,7 @@ export function AutomationsPage() {
       setShareLinks(response.data || []);
       setHasFetchedShareLinks(true);
     } catch (error) {
-      console.error(error);
+      handleActionError('Failed to load share links.', error);
     } finally {
       setIsLoadingShareLinks(false);
     }
@@ -137,7 +168,7 @@ export function AutomationsPage() {
       setDatarooms(response.data || []);
       setHasFetchedDatarooms(true);
     } catch (error) {
-      console.error(error);
+      handleActionError('Failed to load datarooms.', error);
     } finally {
       setIsLoadingDatarooms(false);
     }
@@ -160,7 +191,8 @@ export function AutomationsPage() {
       toast.success('Automation created.');
       await Promise.all([fetchCoreData({ silent: true }), fetchDeliveries()]);
     } catch (error) {
-      console.error(error);
+      handleActionError('Failed to create automation.', error);
+      throw error;
     } finally {
       setIsSavingAutomation(false);
     }
@@ -173,7 +205,8 @@ export function AutomationsPage() {
       toast.success('Destination saved.');
       await Promise.all([fetchCoreData({ silent: true }), fetchDeliveries()]);
     } catch (error) {
-      console.error(error);
+      handleActionError('Failed to save destination.', error);
+      throw error;
     } finally {
       setIsSavingDestination(false);
     }
@@ -185,7 +218,7 @@ export function AutomationsPage() {
       toast.success(`Automation ${automation.is_active ? 'disabled' : 'enabled'}.`);
       await Promise.all([fetchCoreData({ silent: true }), fetchDeliveries()]);
     } catch (error) {
-      console.error(error);
+      handleActionError('Failed to update automation state.', error);
     }
   };
 
@@ -195,7 +228,7 @@ export function AutomationsPage() {
       toast.success('Automation deleted.');
       await Promise.all([fetchCoreData({ silent: true }), fetchDeliveries()]);
     } catch (error) {
-      console.error(error);
+      handleActionError('Failed to delete automation.', error);
     }
   };
 
@@ -214,7 +247,8 @@ export function AutomationsPage() {
       setEditingAutomation(null);
       await Promise.all([fetchCoreData({ silent: true }), fetchDeliveries()]);
     } catch (error) {
-      console.error(error);
+      handleActionError('Failed to update automation.', error);
+      throw error;
     } finally {
       setIsSavingAutomation(false);
     }
@@ -226,7 +260,7 @@ export function AutomationsPage() {
       toast.success('Destination deleted.');
       await Promise.all([fetchCoreData({ silent: true }), fetchDeliveries()]);
     } catch (error) {
-      console.error(error);
+      handleActionError('Failed to delete destination.', error);
     }
   };
 
@@ -245,7 +279,8 @@ export function AutomationsPage() {
       setEditingDestination(null);
       await Promise.all([fetchCoreData({ silent: true }), fetchDeliveries()]);
     } catch (error) {
-      console.error(error);
+      handleActionError('Failed to update destination.', error);
+      throw error;
     } finally {
       setIsSavingDestination(false);
     }
@@ -258,7 +293,7 @@ export function AutomationsPage() {
       toast.success('Replay queued.');
       await fetchDeliveries();
     } catch (error) {
-      console.error(error);
+      handleActionError('Failed to replay delivery.', error);
     } finally {
       setReplayingId(null);
     }

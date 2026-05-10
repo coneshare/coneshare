@@ -4,7 +4,7 @@ import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
 import { ShareIcon, Star, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
-import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, removeContentFromDataroom, updateDataroomFolder, updateDataroomDocument, updateDataroomBranding, reorderDataroomItems } from '../services/api';
+import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, removeContentFromDataroom, updateDataroomFolder, updateDataroomDocument, updateDataroomBranding, reorderDataroomItems, deleteDataroom } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
@@ -26,6 +26,14 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
 import { Switch } from '../components/ui/Switch';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/Dialog';
 
 const BRAND_PRESETS = [
   { name: 'Slate', primary: '#1f2937', secondary: '#4b5563', accent: '#111827' },
@@ -78,6 +86,9 @@ export function DataroomPage() {
   const [isSavingBanner, setIsSavingBanner] = useState(false);
   const [isSavingColors, setIsSavingColors] = useState(false);
   const [showFileIndex, setShowFileIndex] = useState(true);
+  const [isDeleteDataroomDialogOpen, setIsDeleteDataroomDialogOpen] = useState(false);
+  const [deleteConfirmationName, setDeleteConfirmationName] = useState('');
+  const [isDeletingDataroom, setIsDeletingDataroom] = useState(false);
   const bannerFileInputRef = useRef(null);
     
   const fetchContent = useCallback(async () => {
@@ -169,6 +180,22 @@ export function DataroomPage() {
       fetchViews();
     }
   }, [activeTab, fetchLinks, fetchViews]);  
+
+  useEffect(() => {
+    const shouldOpenCreateLink = searchParams.get('openCreateLink') === 'true';
+    if (!shouldOpenCreateLink || activeTab !== 'links') {
+      return;
+    }
+
+    setEditingLink(null);
+    setIsLinkSheetOpen(true);
+
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('openCreateLink');
+      return next;
+    }, { replace: true });
+  }, [activeTab, searchParams, setSearchParams]);
     
   useEffect(() => {
     // Reset selection when folder changes
@@ -515,6 +542,29 @@ export function DataroomPage() {
       brandSecondaryColor: preset.secondary,
       brandAccentColor: preset.accent,
     });
+  };
+
+  const handleOpenDeleteDataroomDialog = () => {
+    setDeleteConfirmationName('');
+    setIsDeleteDataroomDialogOpen(true);
+  };
+
+  const handleDeleteDataroom = async () => {
+    if (deleteConfirmationName !== dataroom.name) {
+      return;
+    }
+
+    setIsDeletingDataroom(true);
+    try {
+      await deleteDataroom(dataroomId);
+      toast.success(`Dataroom "${dataroom.name}" deleted successfully.`);
+      setIsDeleteDataroomDialogOpen(false);
+      navigate('/datarooms');
+    } catch (error) {
+      // Error toast handled by interceptor
+    } finally {
+      setIsDeletingDataroom(false);
+    }
   };
 
 
@@ -946,6 +996,18 @@ export function DataroomPage() {
                 <Switch checked={showFileIndex} onCheckedChange={handleToggleShowFileIndex} />
               </div>
             </div>
+
+            <div className="rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-900/60 dark:bg-red-950/20">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-red-700 dark:text-red-300">Danger Zone</h3>
+                <Button variant="destructive" size="sm" onClick={handleOpenDeleteDataroomDialog}>
+                  Delete Dataroom
+                </Button>
+              </div>
+              <p className="text-sm text-red-700/90 dark:text-red-200/90">
+                Permanently delete this dataroom and remove its links and contained structure. This action cannot be undone.
+              </p>
+            </div>
           </section>
         </TabsContent>
       </Tabs>
@@ -1022,6 +1084,57 @@ export function DataroomPage() {
         description={`Are you sure you want to remove this item from the dataroom? This will not delete the original file.`}
         confirmText="Remove"
       />
+      <Dialog
+        open={isDeleteDataroomDialogOpen}
+        onOpenChange={(isOpen) => {
+          setIsDeleteDataroomDialogOpen(isOpen);
+          if (!isOpen) {
+            setDeleteConfirmationName('');
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Delete Dataroom</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. To confirm, type the dataroom name exactly:
+              {' '}
+              <span className="font-semibold text-foreground">{dataroom.name}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Label htmlFor="confirm-delete-dataroom-name">Dataroom name</Label>
+            <Input
+              id="confirm-delete-dataroom-name"
+              value={deleteConfirmationName}
+              onChange={(e) => setDeleteConfirmationName(e.target.value)}
+              placeholder={dataroom.name}
+              autoComplete="off"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsDeleteDataroomDialogOpen(false);
+                setDeleteConfirmationName('');
+              }}
+              disabled={isDeletingDataroom}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDeleteDataroom}
+              disabled={isDeletingDataroom || deleteConfirmationName !== dataroom.name}
+            >
+              {isDeletingDataroom ? 'Deleting...' : 'Delete Dataroom'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
