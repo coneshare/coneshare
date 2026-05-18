@@ -559,48 +559,29 @@ class ShareLinkViewDataView(APIView):
         elif link.dataroom:
             dataroom = link.dataroom
             parent_id = request.query_params.get('parent_id')
-            all_settings = link.dataroom_settings.select_related(
-                'dataroom_document__folder'
-            ).all()
-
-            # Find all folders explicitly set to be invisible.
-            invisible_folder_ids = {
-                s.dataroom_folder_id for s in all_settings if s.dataroom_folder_id and not s.is_visible
-            }
-
-            # To avoid N+1 queries during recursion, fetch the whole folder hierarchy for the dataroom.
             all_dataroom_folders = list(
                 DataroomFolder.objects.filter(dataroom=dataroom).values('id', 'parent_id', 'name')
             )
             folder_map = {str(f['id']): f for f in all_dataroom_folders}
-            
-            # Recursively find all children of invisible folders.
-            # This loop continues until no new descendants of invisible folders are found.
-            # TODO: this iterative approach can be less efficient than a database-native
-            # recursive Common Table Expression (CTE).
-            while True:
-                newly_found_ids = {
-                    f['id'] for f in all_dataroom_folders
-                    if f['parent_id'] in invisible_folder_ids and f['id'] not in invisible_folder_ids
-                }
-                if not newly_found_ids:
-                    break
-                invisible_folder_ids.update(newly_found_ids)
+            folder_visibility_rows = link.dataroom_settings.filter(
+                dataroom_folder__isnull=False,
+            ).values('dataroom_folder_id', 'is_visible')
+            folder_visibility_map = {
+                str(row['dataroom_folder_id']): row['is_visible']
+                for row in folder_visibility_rows
+            }
 
-            # Filter the settings to get the final list of truly visible items.
-            dataroom_link_settings = [
-                s for s in all_settings if (
-                    s.is_visible and
-                    # A document is not visible if its parent folder is in the invisible set.
-                    not (s.dataroom_document and s.dataroom_document.folder_id in invisible_folder_ids) and
-                    # A folder is not visible if it's in the invisible set itself.
-                    not (s.dataroom_folder_id and s.dataroom_folder_id in invisible_folder_ids)
-                )
-            ]
-
-            visible_doc_ids = [s.dataroom_document_id for s in dataroom_link_settings if s.dataroom_document_id]
-            visible_folder_ids = [s.dataroom_folder_id for s in dataroom_link_settings if s.dataroom_folder_id]
-            visible_folder_ids_set = set(visible_folder_ids)
+            def _is_folder_path_visible(folder_id):
+                node_id = str(folder_id) if folder_id else None
+                while node_id:
+                    if not folder_visibility_map.get(node_id, False):
+                        return False
+                    node = folder_map.get(node_id)
+                    if not node:
+                        return False
+                    parent_node_id = node.get('parent_id')
+                    node_id = str(parent_node_id) if parent_node_id else None
+                return True
 
             current_parent_id = None
             if parent_id:
@@ -610,7 +591,7 @@ class ShareLinkViewDataView(APIView):
                         {"detail": "You do not have permission to view this folder through this link."},
                         status=status.HTTP_403_FORBIDDEN
                     )
-                if requested_parent['id'] not in visible_folder_ids_set:
+                if not _is_folder_path_visible(requested_parent['id']):
                     return Response(
                         {"detail": "You do not have permission to view this folder through this link."},
                         status=status.HTTP_403_FORBIDDEN
@@ -633,24 +614,64 @@ class ShareLinkViewDataView(APIView):
                     node_id = str(parent_node_id) if parent_node_id else None
                 breadcrumbs = list(reversed(ancestors))
 
-            # Create a map for quick lookup of settings in serializers
-            settings_map = {}
-            for s in dataroom_link_settings:
-                key = s.dataroom_document_id or s.dataroom_folder_id
-                if key:
-                    settings_map[key] = {'allow_download': s.allow_download, 'enable_watermark': s.enable_watermark}
-
             # Fetch only direct children within the requested scope.
-            folders_qs = DataroomFolder.objects.filter(id__in=visible_folder_ids)
-            docs_qs = DataroomDocument.objects.filter(id__in=visible_doc_ids).select_related('document', 'folder')
+            folders_qs = DataroomFolder.objects.filter(dataroom=dataroom)
+            docs_qs = DataroomDocument.objects.filter(dataroom=dataroom).select_related('document', 'folder')
             if current_parent_id:
                 folders_qs = folders_qs.filter(parent_id=current_parent_id)
                 docs_qs = docs_qs.filter(folder_id=current_parent_id)
             else:
                 folders_qs = folders_qs.filter(parent__isnull=True)
                 docs_qs = docs_qs.filter(folder__isnull=True)
-            scope_folders = list(folders_qs.order_by('created_at', 'id'))
-            scope_docs = list(docs_qs.order_by('created_at', 'id'))
+
+            folder_settings = {
+                str(row['dataroom_folder_id']): {
+                    'allow_download': row['allow_download'],
+                    'enable_watermark': row['enable_watermark'],
+                    'is_visible': row['is_visible'],
+                }
+                for row in link.dataroom_settings.filter(
+                    dataroom_folder_id__in=folders_qs.values_list('id', flat=True)
+                ).values('dataroom_folder_id', 'is_visible', 'allow_download', 'enable_watermark')
+            }
+            doc_settings = {
+                str(row['dataroom_document_id']): {
+                    'allow_download': row['allow_download'],
+                    'enable_watermark': row['enable_watermark'],
+                    'is_visible': row['is_visible'],
+                }
+                for row in link.dataroom_settings.filter(
+                    dataroom_document_id__in=docs_qs.values_list('id', flat=True)
+                ).values('dataroom_document_id', 'is_visible', 'allow_download', 'enable_watermark')
+            }
+
+            scope_folders = [
+                folder for folder in folders_qs.order_by('created_at', 'id')
+                if folder_settings.get(str(folder.id), {}).get('is_visible', False)
+                and _is_folder_path_visible(folder.id)
+            ]
+            scope_docs = [
+                doc for doc in docs_qs.order_by('created_at', 'id')
+                if doc_settings.get(str(doc.id), {}).get('is_visible', False)
+            ]
+
+            # Create a map for quick lookup of settings in serializers
+            settings_map = {
+                **{
+                    folder.id: {
+                        'allow_download': folder_settings[str(folder.id)]['allow_download'],
+                        'enable_watermark': folder_settings[str(folder.id)]['enable_watermark'],
+                    }
+                    for folder in scope_folders
+                },
+                **{
+                    doc.id: {
+                        'allow_download': doc_settings[str(doc.id)]['allow_download'],
+                        'enable_watermark': doc_settings[str(doc.id)]['enable_watermark'],
+                    }
+                    for doc in scope_docs
+                }
+            }
 
             # Use context to pass settings to serializers
             serializer_context = {'request': request, 'settings_map': settings_map}

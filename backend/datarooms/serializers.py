@@ -75,9 +75,19 @@ class DataroomFolderSerializer(serializers.ModelSerializer):
         Returns a list of ancestor folders, from the root down to the
         immediate parent.
         """
-        # TODO: N+1 query problem!
-        # To optimize this, consider using a single recursive Common Table Expression (CTE) query.
-        # This would fetch all ancestors in a single database roundtrip.
+        folder_parent_map = self.context.get('dataroom_folder_parent_map')
+        if folder_parent_map:
+            ancestors = []
+            node_id = str(obj.parent_id) if obj.parent_id else None
+            while node_id:
+                parent = folder_parent_map.get(node_id)
+                if not parent:
+                    break
+                ancestors.append({'id': parent['id'], 'name': parent['name']})
+                parent_id = parent.get('parent_id')
+                node_id = str(parent_id) if parent_id else None
+            return list(reversed(ancestors))
+
         ancestors = []
         parent = obj.parent
         while parent:
@@ -128,6 +138,20 @@ class DataroomDetailSerializer(serializers.ModelSerializer):
     def get_items(self, obj):
         request = self.context.get('request')
         use_full_content = bool(request and request.query_params.get('content') == 'full')
+        folder_parent_map = None
+        if use_full_content:
+            folder_parent_map = {
+                str(row['id']): {
+                    'id': row['id'],
+                    'name': row['name'],
+                    'parent_id': row['parent_id'],
+                }
+                for row in obj.folders.values('id', 'name', 'parent_id')
+            }
+        serializer_context = {**self.context}
+        if folder_parent_map is not None:
+            serializer_context['dataroom_folder_parent_map'] = folder_parent_map
+
         if request and request.query_params.get('content') == 'full':
             folders = obj.folders.all().order_by('created_at', 'id')
             documents = obj.documents.all().select_related('document', 'document__created_by').order_by('created_at', 'id')
@@ -144,11 +168,11 @@ class DataroomDetailSerializer(serializers.ModelSerializer):
             )
             if scope_rows and len(scope_rows) == (len(folders_list) + len(documents_list)):
                 folder_data_map = {
-                    str(folder.id): DataroomFolderSerializer(folder, context=self.context).data
+                    str(folder.id): DataroomFolderSerializer(folder, context=serializer_context).data
                     for folder in folders_list
                 }
                 document_data_map = {
-                    str(document.id): DataroomDocumentSerializer(document, context=self.context).data
+                    str(document.id): DataroomDocumentSerializer(document, context=serializer_context).data
                     for document in documents_list
                 }
                 ordered_items = []
@@ -164,13 +188,13 @@ class DataroomDetailSerializer(serializers.ModelSerializer):
             merged.append({
                 'type': 'folder',
                 'created_at': folder.created_at,
-                'data': DataroomFolderSerializer(folder, context=self.context).data,
+                'data': DataroomFolderSerializer(folder, context=serializer_context).data,
             })
         for document in documents_list:
             merged.append({
                 'type': 'document',
                 'created_at': document.created_at,
-                'data': DataroomDocumentSerializer(document, context=self.context).data,
+                'data': DataroomDocumentSerializer(document, context=serializer_context).data,
             })
 
         merged.sort(key=lambda i: (i['type'] != 'folder', i['created_at'], i['data']['id']))

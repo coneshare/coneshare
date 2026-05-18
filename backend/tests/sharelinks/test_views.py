@@ -4,7 +4,9 @@ from datetime import timedelta
 from rest_framework.test import APIClient
 
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from django.utils.text import get_valid_filename
 from rest_framework import status
@@ -803,6 +805,36 @@ class TestDataroomVisitTracking:
             {'id': str(level2.id), 'name': 'Level 2'},
             {'id': str(level3.id), 'name': 'Level 3'},
         ]
+
+    def test_get_dataroom_link_data_large_scope_perf_smoke(
+        self, public_client, user, organization, document_factory
+    ):
+        dataroom = Dataroom.objects.create(name="Perf Dataroom", created_by=user, organization=organization)
+        root = DataroomFolder.objects.create(dataroom=dataroom, name="Root")
+
+        for i in range(120):
+            DataroomFolder.objects.create(dataroom=dataroom, name=f"Folder {i}", parent=root)
+        for i in range(180):
+            doc = document_factory(name=f"Doc {i}.pdf")
+            DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=root)
+
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        # Mark one child folder invisible to keep visibility-path logic active.
+        hidden_folder = DataroomFolder.objects.filter(dataroom=dataroom, parent=root).first()
+        hidden_setting = ShareLinkDataroomSetting.objects.get(share_link=link, dataroom_folder=hidden_folder)
+        hidden_setting.is_visible = False
+        hidden_setting.save(update_fields=["is_visible"])
+
+        with CaptureQueriesContext(connection) as captured:
+            response = public_client.get(f'/api/v1/links/{link.slug}/view-data/?parent_id={root.id}')
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["current_parent_id"] == str(root.id)
+        assert data["breadcrumbs"] == [{"id": str(root.id), "name": "Root"}]
+        # Smoke threshold: ensure scoped listing does not explode with fixture size.
+        assert len(captured) <= 20
 
     def test_get_document_from_dataroom_link_returns_item_specific_settings(self, public_client, user, dataroom, document):
         """
