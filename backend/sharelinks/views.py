@@ -636,6 +636,10 @@ class ShareLinkViewDataView(APIView):
             else:
                 folders_qs = folders_qs.filter(parent__isnull=True)
                 docs_qs = docs_qs.filter(folder__isnull=True)
+            scoped_folders = list(folders_qs.order_by('created_at', 'id'))
+            scoped_docs = list(docs_qs.order_by('created_at', 'id'))
+            scoped_folder_ids = [folder.id for folder in scoped_folders]
+            scoped_doc_ids = [doc.id for doc in scoped_docs]
 
             folder_settings = {
                 str(row['dataroom_folder_id']): {
@@ -644,7 +648,7 @@ class ShareLinkViewDataView(APIView):
                     'is_visible': row['is_visible'],
                 }
                 for row in link.dataroom_settings.filter(
-                    dataroom_folder_id__in=folders_qs.values_list('id', flat=True)
+                    dataroom_folder_id__in=scoped_folder_ids
                 ).values('dataroom_folder_id', 'is_visible', 'allow_download', 'enable_watermark')
             }
             doc_settings = {
@@ -654,17 +658,16 @@ class ShareLinkViewDataView(APIView):
                     'is_visible': row['is_visible'],
                 }
                 for row in link.dataroom_settings.filter(
-                    dataroom_document_id__in=docs_qs.values_list('id', flat=True)
+                    dataroom_document_id__in=scoped_doc_ids
                 ).values('dataroom_document_id', 'is_visible', 'allow_download', 'enable_watermark')
             }
 
             scope_folders = [
-                folder for folder in folders_qs.order_by('created_at', 'id')
+                folder for folder in scoped_folders
                 if folder_settings.get(str(folder.id), {}).get('is_visible', False)
-                and _is_folder_path_visible(folder.id)
             ]
             scope_docs = [
-                doc for doc in docs_qs.order_by('created_at', 'id')
+                doc for doc in scoped_docs
                 if doc_settings.get(str(doc.id), {}).get('is_visible', False)
             ]
 
