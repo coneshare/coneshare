@@ -14,6 +14,7 @@ import { formatBytes } from '../../lib/formatters';
 import { FileTypeIcon } from '../documents/FileTypeIcon';
 import { Button } from '../ui/Button';
 import { downloadDataroomFolder, getShareLinkViewData, recordDataroomVisit } from '../../services/api';
+import { DATAROOM_VIEWER_PAGE_SIZE } from '../../constants/pagination';
 
 function ListItem({ item, onItemClick, onDownloadClick, showIndex = false, index = null }) {
   const isFolder = item.type === 'folder';
@@ -115,6 +116,7 @@ export function DataroomViewer({ data, slug, viewId }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [scopeData, setScopeData] = useState(data);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const requestRef = useRef(0);
   const parentIdFromUrl = searchParams.get('parent_id');
 
@@ -181,20 +183,36 @@ export function DataroomViewer({ data, slug, viewId }) {
     setScopeData(data);
   }, [data]);
 
-  const fetchScopeData = useCallback(async (parentId) => {
+  const fetchScopeData = useCallback(async (parentId, options = {}) => {
+    const { append = false, offset = 0 } = options;
     const requestId = ++requestRef.current;
-    setIsNavigating(true);
+    if (append) {
+      setIsLoadingMore(true);
+    } else {
+      setIsNavigating(true);
+    }
     try {
-      const response = await getShareLinkViewData(slug, { parentId });
+      const response = await getShareLinkViewData(slug, { parentId, limit: DATAROOM_VIEWER_PAGE_SIZE, offset });
       if (requestId !== requestRef.current) return;
-      setScopeData(response.data);
+      if (append) {
+        setScopeData((prev) => ({
+          ...response.data,
+          items: [...(prev?.items || []), ...(response.data.items || [])],
+        }));
+      } else {
+        setScopeData(response.data);
+      }
     } catch (err) {
       if (requestId !== requestRef.current) return;
       console.error('Failed to load folder scope:', err);
       toast.error('Could not load folder. Please try again.');
     } finally {
       if (requestId !== requestRef.current) return;
-      setIsNavigating(false);
+      if (append) {
+        setIsLoadingMore(false);
+      } else {
+        setIsNavigating(false);
+      }
     }
   }, [slug]);
 
@@ -218,6 +236,13 @@ export function DataroomViewer({ data, slug, viewId }) {
     // URL changed via click/back-forward. Refresh scope data for the target URL state.
     fetchScopeData(normalizedUrlParentId);
   }, [fetchScopeData, parentIdFromUrl, scopeData?.current_parent_id]);
+
+  const handleLoadMore = useCallback(() => {
+    const nextOffset = scopeData?.pagination?.next_offset;
+    if (nextOffset === null || nextOffset === undefined) return;
+    const normalizedUrlParentId = parentIdFromUrl || null;
+    fetchScopeData(normalizedUrlParentId, { append: true, offset: nextOffset });
+  }, [scopeData?.pagination?.next_offset, parentIdFromUrl, fetchScopeData]);
 
   const handleItemClick = async (item) => {
     if (item.type === 'folder') {
@@ -347,6 +372,17 @@ export function DataroomViewer({ data, slug, viewId }) {
                 index={idx + 1}
               />
             ))}
+            {scopeData?.pagination?.has_more && (
+              <div className="flex justify-center py-4">
+                <Button
+                  variant="outline"
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                >
+                  {isLoadingMore ? 'Loading...' : 'Load more'}
+                </Button>
+              </div>
+            )}
           </div>
         )}
         {!isNavigating && allItems.length === 0 && (

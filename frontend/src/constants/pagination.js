@@ -1,0 +1,1 @@
+export const DATAROOM_VIEWER_PAGE_SIZE = 40;

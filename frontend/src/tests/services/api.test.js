@@ -1,5 +1,7 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import api from "../../services/api";
+import { getShareLinkViewData } from "../../services/api";
+import { DATAROOM_VIEWER_PAGE_SIZE } from "../../constants/pagination";
 import axios from "axios";
 
 // Mock axios. The factory ensures that when api.js calls axios.create(), it gets
@@ -209,6 +211,40 @@ describe("API Service Interceptors", () => {
 
       expect(axios.post).not.toHaveBeenCalled();
       expect(window.location.href).toBe("");
+    });
+  });
+
+  describe("Share Link View Data Params", () => {
+    it("should include limit and offset when provided", async () => {
+      mockAdapter.mockResolvedValue({ data: { ok: true } });
+
+      await getShareLinkViewData("slug-1", {
+        parentId: "folder-1",
+        limit: DATAROOM_VIEWER_PAGE_SIZE,
+        offset: DATAROOM_VIEWER_PAGE_SIZE * 2,
+      });
+
+      const requestConfig = mockAdapter.mock.calls[0][0];
+      expect(requestConfig.url).toBe("/links/slug-1/view-data/");
+      expect(requestConfig.params).toEqual({
+        parent_id: "folder-1",
+        limit: DATAROOM_VIEWER_PAGE_SIZE,
+        offset: DATAROOM_VIEWER_PAGE_SIZE * 2,
+      });
+    });
+
+    it("should omit limit and offset when not provided", async () => {
+      mockAdapter.mockResolvedValue({ data: { ok: true } });
+
+      await getShareLinkViewData("slug-2", {
+        parentId: "folder-2",
+      });
+
+      const requestConfig = mockAdapter.mock.calls[0][0];
+      expect(requestConfig.url).toBe("/links/slug-2/view-data/");
+      expect(requestConfig.params).toEqual({
+        parent_id: "folder-2",
+      });
     });
   });
 });

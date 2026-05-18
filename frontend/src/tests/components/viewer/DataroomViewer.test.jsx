@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { DataroomViewer } from '../../../components/viewer/DataroomViewer';
 import * as api from '../../../services/api';
+import { DATAROOM_VIEWER_PAGE_SIZE } from '../../../constants/pagination';
 
 vi.mock('../../../services/api', () => ({
   getShareLinkViewData: vi.fn(),
@@ -64,14 +65,18 @@ describe('DataroomViewer', () => {
     expect(screen.queryByText('Sub Folder Document')).not.toBeInTheDocument();
 
     // Click on the sub-folder
-    const subFolderButton = screen.getByRole('button', { name: /sub folder a/i });
+    const subFolderButton = screen.getByTitle('Sub Folder A');
     fireEvent.click(subFolderButton);
 
     // Now, the document inside the sub-folder should be visible
     await waitFor(() => {
       expect(screen.getByText('Sub Folder Document')).toBeInTheDocument();
     });
-    expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', { parentId: 'folder1' });
+    expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', {
+      parentId: 'folder1',
+      limit: DATAROOM_VIEWER_PAGE_SIZE,
+      offset: 0,
+    });
 
     // The root document should no longer be visible
     expect(screen.queryByText('Root Document')).not.toBeInTheDocument();
@@ -91,14 +96,18 @@ describe('DataroomViewer', () => {
 
     renderComponent();
 
-    fireEvent.click(screen.getByRole('button', { name: /sub folder a/i }));
+    fireEvent.click(screen.getByTitle('Sub Folder A'));
 
     await waitFor(() => {
       expect(screen.getByText('Sub Folder Document')).toBeInTheDocument();
     });
 
     expect(api.getShareLinkViewData).toHaveBeenCalledTimes(1);
-    expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', { parentId: 'folder1' });
+    expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', {
+      parentId: 'folder1',
+      limit: DATAROOM_VIEWER_PAGE_SIZE,
+      offset: 0,
+    });
   });
 
   it('navigates back to root using the breadcrumb', async () => {
@@ -120,7 +129,7 @@ describe('DataroomViewer', () => {
     renderComponent();
 
     // Navigate into the sub-folder
-    const subFolderButton = screen.getByRole('button', { name: /sub folder a/i });
+    const subFolderButton = screen.getByTitle('Sub Folder A');
     fireEvent.click(subFolderButton);
     await waitFor(() => {
       expect(screen.getByText('Sub Folder Document')).toBeInTheDocument();
@@ -135,21 +144,82 @@ describe('DataroomViewer', () => {
       expect(screen.getByText('Sub Folder A')).toBeInTheDocument();
       expect(screen.queryByText('Sub Folder Document')).not.toBeInTheDocument();
     });
-    expect(api.getShareLinkViewData).toHaveBeenLastCalledWith('test-slug', { parentId: null });
+    expect(api.getShareLinkViewData).toHaveBeenLastCalledWith('test-slug', {
+      parentId: null,
+      limit: DATAROOM_VIEWER_PAGE_SIZE,
+      offset: 0,
+    });
   });
 
-  it('includes view_session_id when downloading a dataroom document', () => {
+  it('loads next page with next_offset when clicking Load more', async () => {
+    const initialData = {
+      ...mockDataroomData,
+      current_parent_id: null,
+      pagination: {
+        limit: DATAROOM_VIEWER_PAGE_SIZE,
+        offset: 0,
+        count: 41,
+        has_more: true,
+        next_offset: DATAROOM_VIEWER_PAGE_SIZE,
+      },
+    };
+    const page2Doc = {
+      type: 'document',
+      id: 'doc-last',
+      document_id: 'doc-last-file',
+      name: 'Last Page Doc',
+      document_type: 'pdf',
+      updated_at: new Date().toISOString(),
+      file_size: 512,
+      allow_download: true,
+    };
+    api.getShareLinkViewData.mockResolvedValueOnce({
+      data: {
+        ...mockDataroomData,
+        items: [page2Doc],
+        pagination: {
+          limit: DATAROOM_VIEWER_PAGE_SIZE,
+          offset: DATAROOM_VIEWER_PAGE_SIZE,
+          count: 41,
+          has_more: false,
+          next_offset: null,
+        },
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/view/test-slug']}>
+        <DataroomViewer data={initialData} slug="test-slug" />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /load more/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Last Page Doc')).toBeInTheDocument();
+    });
+
+    expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', {
+      parentId: null,
+      limit: DATAROOM_VIEWER_PAGE_SIZE,
+      offset: DATAROOM_VIEWER_PAGE_SIZE,
+    });
+  });
+
+  it('includes view_session_id when downloading a dataroom document', async () => {
     const appendSpy = vi.spyOn(document.body, 'appendChild');
-    const removeSpy = vi.spyOn(document.body, 'removeChild');
 
     renderComponent({ viewId: 'view-123' });
 
-    fireEvent.click(screen.getByTitle('Download "Root Document"'));
+    fireEvent.pointerDown(screen.getByLabelText(/actions for root document/i));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /download/i }));
 
-    const anchor = appendSpy.mock.calls[0][0];
+    const anchor = appendSpy.mock.calls
+      .map(([node]) => node)
+      .find((node) => node?.tagName === 'A');
+    expect(anchor).toBeTruthy();
     expect(anchor.href).toContain('/api/v1/links/test-slug/download-file/?dataroom_document_id=doc1&view_session_id=view-123');
 
     appendSpy.mockRestore();
-    removeSpy.mockRestore();
   });
 });

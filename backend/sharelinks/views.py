@@ -48,6 +48,9 @@ from .tasks import send_view_notification_email_task
 
 logger = logging.getLogger(__name__)
 
+DATAROOM_VIEWDATA_DEFAULT_LIMIT = 40
+DATAROOM_VIEWDATA_MAX_LIMIT = 200
+
 
 def _resolve_dataroom_document_setting(link: ShareLink, requested_dataroom_document_id: str, visible_only: bool = True):
     """
@@ -559,48 +562,39 @@ class ShareLinkViewDataView(APIView):
         elif link.dataroom:
             dataroom = link.dataroom
             parent_id = request.query_params.get('parent_id')
-            all_settings = link.dataroom_settings.select_related(
-                'dataroom_document__folder'
-            ).all()
-
-            # Find all folders explicitly set to be invisible.
-            invisible_folder_ids = {
-                s.dataroom_folder_id for s in all_settings if s.dataroom_folder_id and not s.is_visible
-            }
-
-            # To avoid N+1 queries during recursion, fetch the whole folder hierarchy for the dataroom.
+            try:
+                limit = int(request.query_params.get('limit', DATAROOM_VIEWDATA_DEFAULT_LIMIT))
+            except (TypeError, ValueError):
+                limit = DATAROOM_VIEWDATA_DEFAULT_LIMIT
+            try:
+                offset = int(request.query_params.get('offset', 0))
+            except (TypeError, ValueError):
+                offset = 0
+            limit = max(1, min(limit, DATAROOM_VIEWDATA_MAX_LIMIT))
+            offset = max(0, offset)
             all_dataroom_folders = list(
                 DataroomFolder.objects.filter(dataroom=dataroom).values('id', 'parent_id', 'name')
             )
             folder_map = {str(f['id']): f for f in all_dataroom_folders}
-            
-            # Recursively find all children of invisible folders.
-            # This loop continues until no new descendants of invisible folders are found.
-            # TODO: this iterative approach can be less efficient than a database-native
-            # recursive Common Table Expression (CTE).
-            while True:
-                newly_found_ids = {
-                    f['id'] for f in all_dataroom_folders
-                    if f['parent_id'] in invisible_folder_ids and f['id'] not in invisible_folder_ids
-                }
-                if not newly_found_ids:
-                    break
-                invisible_folder_ids.update(newly_found_ids)
+            folder_visibility_rows = link.dataroom_settings.filter(
+                dataroom_folder__isnull=False,
+            ).values('dataroom_folder_id', 'is_visible')
+            folder_visibility_map = {
+                str(row['dataroom_folder_id']): row['is_visible']
+                for row in folder_visibility_rows
+            }
 
-            # Filter the settings to get the final list of truly visible items.
-            dataroom_link_settings = [
-                s for s in all_settings if (
-                    s.is_visible and
-                    # A document is not visible if its parent folder is in the invisible set.
-                    not (s.dataroom_document and s.dataroom_document.folder_id in invisible_folder_ids) and
-                    # A folder is not visible if it's in the invisible set itself.
-                    not (s.dataroom_folder_id and s.dataroom_folder_id in invisible_folder_ids)
-                )
-            ]
-
-            visible_doc_ids = [s.dataroom_document_id for s in dataroom_link_settings if s.dataroom_document_id]
-            visible_folder_ids = [s.dataroom_folder_id for s in dataroom_link_settings if s.dataroom_folder_id]
-            visible_folder_ids_set = set(visible_folder_ids)
+            def _is_folder_path_visible(folder_id):
+                node_id = str(folder_id) if folder_id else None
+                while node_id:
+                    if not folder_visibility_map.get(node_id, False):
+                        return False
+                    node = folder_map.get(node_id)
+                    if not node:
+                        return False
+                    parent_node_id = node.get('parent_id')
+                    node_id = str(parent_node_id) if parent_node_id else None
+                return True
 
             current_parent_id = None
             if parent_id:
@@ -610,7 +604,7 @@ class ShareLinkViewDataView(APIView):
                         {"detail": "You do not have permission to view this folder through this link."},
                         status=status.HTTP_403_FORBIDDEN
                     )
-                if requested_parent['id'] not in visible_folder_ids_set:
+                if not _is_folder_path_visible(requested_parent['id']):
                     return Response(
                         {"detail": "You do not have permission to view this folder through this link."},
                         status=status.HTTP_403_FORBIDDEN
@@ -633,24 +627,67 @@ class ShareLinkViewDataView(APIView):
                     node_id = str(parent_node_id) if parent_node_id else None
                 breadcrumbs = list(reversed(ancestors))
 
-            # Create a map for quick lookup of settings in serializers
-            settings_map = {}
-            for s in dataroom_link_settings:
-                key = s.dataroom_document_id or s.dataroom_folder_id
-                if key:
-                    settings_map[key] = {'allow_download': s.allow_download, 'enable_watermark': s.enable_watermark}
-
             # Fetch only direct children within the requested scope.
-            folders_qs = DataroomFolder.objects.filter(id__in=visible_folder_ids)
-            docs_qs = DataroomDocument.objects.filter(id__in=visible_doc_ids).select_related('document', 'folder')
+            folders_qs = DataroomFolder.objects.filter(dataroom=dataroom)
+            docs_qs = DataroomDocument.objects.filter(dataroom=dataroom).select_related('document', 'folder')
             if current_parent_id:
                 folders_qs = folders_qs.filter(parent_id=current_parent_id)
                 docs_qs = docs_qs.filter(folder_id=current_parent_id)
             else:
                 folders_qs = folders_qs.filter(parent__isnull=True)
                 docs_qs = docs_qs.filter(folder__isnull=True)
-            scope_folders = list(folders_qs.order_by('created_at', 'id'))
-            scope_docs = list(docs_qs.order_by('created_at', 'id'))
+            scoped_folders = list(folders_qs.order_by('created_at', 'id'))
+            scoped_docs = list(docs_qs.order_by('created_at', 'id'))
+            scoped_folder_ids = [folder.id for folder in scoped_folders]
+            scoped_doc_ids = [doc.id for doc in scoped_docs]
+
+            folder_settings = {
+                str(row['dataroom_folder_id']): {
+                    'allow_download': row['allow_download'],
+                    'enable_watermark': row['enable_watermark'],
+                    'is_visible': row['is_visible'],
+                }
+                for row in link.dataroom_settings.filter(
+                    dataroom_folder_id__in=scoped_folder_ids
+                ).values('dataroom_folder_id', 'is_visible', 'allow_download', 'enable_watermark')
+            }
+            doc_settings = {
+                str(row['dataroom_document_id']): {
+                    'allow_download': row['allow_download'],
+                    'enable_watermark': row['enable_watermark'],
+                    'is_visible': row['is_visible'],
+                }
+                for row in link.dataroom_settings.filter(
+                    dataroom_document_id__in=scoped_doc_ids
+                ).values('dataroom_document_id', 'is_visible', 'allow_download', 'enable_watermark')
+            }
+
+            scope_folders = [
+                folder for folder in scoped_folders
+                if folder_settings.get(str(folder.id), {}).get('is_visible', False)
+            ]
+            scope_docs = [
+                doc for doc in scoped_docs
+                if doc_settings.get(str(doc.id), {}).get('is_visible', False)
+            ]
+
+            # Create a map for quick lookup of settings in serializers
+            settings_map = {
+                **{
+                    folder.id: {
+                        'allow_download': folder_settings[str(folder.id)]['allow_download'],
+                        'enable_watermark': folder_settings[str(folder.id)]['enable_watermark'],
+                    }
+                    for folder in scope_folders
+                },
+                **{
+                    doc.id: {
+                        'allow_download': doc_settings[str(doc.id)]['allow_download'],
+                        'enable_watermark': doc_settings[str(doc.id)]['enable_watermark'],
+                    }
+                    for doc in scope_docs
+                }
+            }
 
             # Use context to pass settings to serializers
             serializer_context = {'request': request, 'settings_map': settings_map}
@@ -694,6 +731,18 @@ class ShareLinkViewDataView(APIView):
                 merged_items.sort(key=lambda i: (i.get('updated_at', ''), str(i.get('id', ''))))
                 merged_items = [{**item, 'position': idx} for idx, item in enumerate(merged_items)]
 
+            # NOTE: Pagination is currently applied in-memory after assembling
+            # and ordering the full visible scope. This keeps behavior simple
+            # and stable for mixed folder/document ordering.
+            #
+            # Future optimization path:
+            # 1) page IDs from DB in scope order (prefer DataroomItemOrder),
+            # 2) fetch only page targets + their settings,
+            # 3) preserve the same response contract.
+            total_count = len(merged_items)
+            paginated_items = merged_items[offset: offset + limit]
+            next_offset = offset + limit if (offset + limit) < total_count else None
+
             response_data = {
                 'link_type': 'dataroom',
                 'id': dataroom.id,
@@ -705,7 +754,16 @@ class ShareLinkViewDataView(APIView):
                 'brand_accent_color': dataroom.brand_accent_color,
                 'current_parent_id': current_parent_id,
                 'breadcrumbs': breadcrumbs,
-                'items': merged_items,
+                'items': paginated_items,
+                'pagination': {
+                    # Contract intentionally mirrors common limit/offset APIs.
+                    # This allows frontend load-more without assuming page numbers.
+                    'limit': limit,
+                    'offset': offset,
+                    'count': total_count,
+                    'has_more': next_offset is not None,
+                    'next_offset': next_offset,
+                },
                 'link_settings': {
                     'id': link.id,
                     'allow_download': link.allow_download,

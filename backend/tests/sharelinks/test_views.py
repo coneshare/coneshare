@@ -4,7 +4,9 @@ from datetime import timedelta
 from rest_framework.test import APIClient
 
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from django.utils.text import get_valid_filename
 from rest_framework import status
@@ -14,6 +16,7 @@ from documents.models import (Document, DocumentPage, DocumentVersion)
 from sharelinks.models import (DataroomVisit, EmailVerificationToken, PageView,
                                PreviewSession, ShareLink,
                                ShareLinkDataroomSetting, ViewSession)
+from sharelinks.views import DATAROOM_VIEWDATA_DEFAULT_LIMIT
 import zipfile
 from io import BytesIO
 try:
@@ -714,6 +717,55 @@ class TestDataroomVisitTracking:
         assert ('document', str(child_ddoc.id)) in ids
         assert len(ids) == 2
 
+    def test_get_dataroom_link_data_uses_safe_default_pagination(
+        self, public_client, user, organization, document_factory
+    ):
+        dataroom = Dataroom.objects.create(name="Paged Dataroom", created_by=user, organization=organization)
+        for i in range(60):
+            doc = document_factory(name=f"Doc {i}.pdf")
+            DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=None)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        response = public_client.get(f'/api/v1/links/{link.slug}/view-data/')
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        assert len(data['items']) == DATAROOM_VIEWDATA_DEFAULT_LIMIT
+        assert data['pagination']['limit'] == DATAROOM_VIEWDATA_DEFAULT_LIMIT
+        assert data['pagination']['offset'] == 0
+        assert data['pagination']['count'] == 60
+        assert data['pagination']['has_more'] is True
+        assert data['pagination']['next_offset'] == DATAROOM_VIEWDATA_DEFAULT_LIMIT
+
+    def test_get_dataroom_link_data_nested_scope_pagination_limit_and_offset(
+        self, public_client, user, organization, document_factory
+    ):
+        dataroom = Dataroom.objects.create(name="Nested Paged Dataroom", created_by=user, organization=organization)
+        parent = DataroomFolder.objects.create(dataroom=dataroom, name="Parent")
+        for i in range(35):
+            doc = document_factory(name=f"Nested Doc {i}.pdf")
+            DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=parent)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        response_page_1 = public_client.get(
+            f'/api/v1/links/{link.slug}/view-data/?parent_id={parent.id}&limit=20&offset=0'
+        )
+        assert response_page_1.status_code == status.HTTP_200_OK
+        data_page_1 = response_page_1.json()
+        assert len(data_page_1['items']) == 20
+        assert data_page_1['pagination']['count'] == 35
+        assert data_page_1['pagination']['next_offset'] == 20
+
+        response_page_2 = public_client.get(
+            f'/api/v1/links/{link.slug}/view-data/?parent_id={parent.id}&limit=20&offset=20'
+        )
+        assert response_page_2.status_code == status.HTTP_200_OK
+        data_page_2 = response_page_2.json()
+        assert len(data_page_2['items']) == 15
+        assert data_page_2['pagination']['count'] == 35
+        assert data_page_2['pagination']['has_more'] is False
+        assert data_page_2['pagination']['next_offset'] is None
+
     def test_get_dataroom_link_data_rejects_foreign_or_invisible_parent_id(
         self, public_client, user, organization, document_factory
     ):
@@ -803,6 +855,36 @@ class TestDataroomVisitTracking:
             {'id': str(level2.id), 'name': 'Level 2'},
             {'id': str(level3.id), 'name': 'Level 3'},
         ]
+
+    def test_get_dataroom_link_data_large_scope_perf_smoke(
+        self, public_client, user, organization, document_factory
+    ):
+        dataroom = Dataroom.objects.create(name="Perf Dataroom", created_by=user, organization=organization)
+        root = DataroomFolder.objects.create(dataroom=dataroom, name="Root")
+
+        for i in range(120):
+            DataroomFolder.objects.create(dataroom=dataroom, name=f"Folder {i}", parent=root)
+        for i in range(180):
+            doc = document_factory(name=f"Doc {i}.pdf")
+            DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=root)
+
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        # Mark one child folder invisible to keep visibility-path logic active.
+        hidden_folder = DataroomFolder.objects.filter(dataroom=dataroom, parent=root).first()
+        hidden_setting = ShareLinkDataroomSetting.objects.get(share_link=link, dataroom_folder=hidden_folder)
+        hidden_setting.is_visible = False
+        hidden_setting.save(update_fields=["is_visible"])
+
+        with CaptureQueriesContext(connection) as captured:
+            response = public_client.get(f'/api/v1/links/{link.slug}/view-data/?parent_id={root.id}')
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["current_parent_id"] == str(root.id)
+        assert data["breadcrumbs"] == [{"id": str(root.id), "name": "Root"}]
+        # Smoke threshold: ensure scoped listing does not explode with fixture size.
+        assert len(captured) <= 20
 
     def test_get_document_from_dataroom_link_returns_item_specific_settings(self, public_client, user, dataroom, document):
         """
