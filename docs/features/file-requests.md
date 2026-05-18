@@ -84,6 +84,14 @@ Required checks on public endpoints:
 6. Finalize idempotency guard to prevent duplicate `Document` creation.
 7. Rate limiting and abuse controls on public endpoints.
 
+File type enforcement specifics:
+
+- `allowed_file_types` is enforced server-side in both:
+  - `POST /api/v1/public/file-requests/{slug}/request-upload/`
+  - `POST /api/v1/public/file-requests/{slug}/finalize-upload/` (defense-in-depth)
+- Matching is case-insensitive and normalizes values with or without leading dot.
+- Invalid file types return `400` with a clear message including the normalized allowed list.
+
 ---
 
 ## 3. Automation Integration

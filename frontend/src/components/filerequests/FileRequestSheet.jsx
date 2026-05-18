@@ -20,11 +20,30 @@ import {
 } from '../../services/api';
 import { ROOT_FOLDER_NAME } from '../../lib/constants';
 
+const normalizeFileType = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return null;
+  return normalized.startsWith('.') ? normalized : `.${normalized}`;
+};
+
+const parseAllowedFileTypes = (rawValue) => {
+  if (!rawValue || !rawValue.trim()) return null;
+
+  const normalized = rawValue
+    .split(',')
+    .map((item) => normalizeFileType(item))
+    .filter(Boolean);
+
+  if (normalized.length === 0) return null;
+  return [...new Set(normalized)];
+};
+
 export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest, onSuccess }) {
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
   const [maxFileSize, setMaxFileSize] = useState('');
+  const [allowedFileTypes, setAllowedFileTypes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFolderLoading, setIsFolderLoading] = useState(true);
   const isEditing = !!currentRequest;
@@ -42,12 +61,14 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
         setMessage(currentRequest.message || '');
         setExpiresAt(expiresAtValue);
         setMaxFileSize(currentRequest.max_file_size ? String(currentRequest.max_file_size / (1024 * 1024)) : '');
+        setAllowedFileTypes(Array.isArray(currentRequest.allowed_file_types) ? currentRequest.allowed_file_types.join(', ') : '');
       } else {
         // Reset for create mode
         setName('');
         setMessage('');
         setExpiresAt('');
         setMaxFileSize('');
+        setAllowedFileTypes('');
         setDestinationFolder(folder || null);
       }
       setIsFolderLoading(true);
@@ -70,6 +91,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
         folder: folderId,
         expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
         max_file_size: maxFileSize ? parseInt(maxFileSize, 10) * 1024 * 1024 : null,
+        allowed_file_types: parseAllowedFileTypes(allowedFileTypes),
       };
 
       if (isEditing) {
@@ -147,6 +169,18 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
               onChange={(e) => setMaxFileSize(e.target.value)}
               placeholder="e.g., 10 for 10MB"
             />
+          </div>
+          <div>
+            <Label htmlFor="allowed_file_types">Allowed File Types (Optional)</Label>
+            <Input
+              id="allowed_file_types"
+              value={allowedFileTypes}
+              onChange={(e) => setAllowedFileTypes(e.target.value)}
+              placeholder="e.g., .pdf, docx, xlsx"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Comma-separated extensions. Matching is case-insensitive and values are normalized (for example, `pdf` becomes `.pdf`).
+            </p>
           </div>
           </div>
         </form>

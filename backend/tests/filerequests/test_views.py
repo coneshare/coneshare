@@ -158,6 +158,48 @@ class TestPublicFileRequestViews:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "exceeds the maximum allowed" in response.data['detail']
 
+    def test_request_upload_url_disallowed_file_type(self, public_client, file_request):
+        """Test request fails if file extension is not allowed by file request policy."""
+        file_request.allowed_file_types = ['pdf', '.docx']
+        file_request.save(update_fields=['allowed_file_types'])
+
+        url = f'/api/v1/public/file-requests/{file_request.slug}/request-upload/'
+        data = {'file_name': 'archive.zip', 'file_size': 123}
+        response = public_client.post(url, data)
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "File type not allowed" in response.data['detail']
+        assert ".pdf" in response.data['detail']
+        assert ".docx" in response.data['detail']
+
+    @patch('filerequests.views.fileserver_client.generate_upload_url')
+    def test_request_upload_url_allowed_file_type_normalized(self, mock_generate_url, public_client, file_request):
+        """Test extension checks are case-insensitive and normalize missing leading dot."""
+        file_request.allowed_file_types = ['pdf', '.docx']
+        file_request.save(update_fields=['allowed_file_types'])
+        mock_generate_url.return_value = "http://fileserver/upload/token"
+
+        url = f'/api/v1/public/file-requests/{file_request.slug}/request-upload/'
+        data = {'file_name': 'Quarterly.PDF', 'file_size': 12345}
+        response = public_client.post(url, data)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['upload_url'] == "http://fileserver/upload/token"
+
+    @patch('filerequests.views.fileserver_client.generate_upload_url')
+    def test_request_upload_url_allows_multi_part_extension(self, mock_generate_url, public_client, file_request):
+        """Test file names are matched against full allowed extension suffixes (e.g., .tar.gz)."""
+        file_request.allowed_file_types = ['.tar.gz']
+        file_request.save(update_fields=['allowed_file_types'])
+        mock_generate_url.return_value = "http://fileserver/upload/token"
+
+        url = f'/api/v1/public/file-requests/{file_request.slug}/request-upload/'
+        data = {'file_name': 'backup.TAR.GZ', 'file_size': 4096}
+        response = public_client.post(url, data)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['upload_url'] == "http://fileserver/upload/token"
+
     @patch('filerequests.views.check_user_quota_on_upload')
     def test_request_upload_url_exceeds_user_quota(self, mock_check_quota, public_client, file_request):
         """Test request fails if owner's quota is exceeded."""
@@ -226,3 +268,54 @@ class TestPublicFileRequestViews:
         assert payload['visitor_city'] is None
         assert payload['visitor_latitude'] is None
         assert payload['visitor_longitude'] is None
+
+    def test_finalize_upload_disallowed_file_type(self, public_client, file_request):
+        """Test finalize is blocked when file extension violates allowed_file_types."""
+        file_request.allowed_file_types = ['.pdf']
+        file_request.save(update_fields=['allowed_file_types'])
+        url = f'/api/v1/public/file-requests/{file_request.slug}/finalize-upload/'
+        data = {
+            'storage_key': 'some-key',
+            'unique_name': 'payload.exe',
+            'file_size': 54321,
+            'content_type': 'application/octet-stream',
+            'uploader_name': 'John Doe',
+            'uploader_email': 'john.doe@example.com',
+        }
+
+        response = public_client.post(url, data)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "File type not allowed" in response.data['detail']
+        assert Document.objects.count() == 0
+        assert UploadedFile.objects.count() == 0
+
+    @patch('documents.services.generate_pdf_pages_task.delay')
+    @patch('filerequests.views.dispatch_automation_event_task.delay')
+    @patch('filerequests.views.transaction.on_commit', side_effect=lambda fn: fn())
+    def test_finalize_upload_allows_multi_part_extension(
+        self,
+        _mock_on_commit,
+        mock_dispatch_automation,
+        mock_task_delay,
+        public_client,
+        file_request,
+    ):
+        """Test finalize accepts full suffix matches like .tar.gz."""
+        file_request.allowed_file_types = ['tar.gz']
+        file_request.save(update_fields=['allowed_file_types'])
+        url = f'/api/v1/public/file-requests/{file_request.slug}/finalize-upload/'
+        data = {
+            'storage_key': 'some-key',
+            'unique_name': 'archive.tar.gz',
+            'file_size': 54321,
+            'content_type': 'application/gzip',
+            'uploader_name': 'John Doe',
+            'uploader_email': 'john.doe@example.com',
+        }
+
+        response = public_client.post(url, data)
+        assert response.status_code == status.HTTP_202_ACCEPTED
+        assert Document.objects.count() == 1
+        assert UploadedFile.objects.count() == 1
+        mock_task_delay.assert_not_called()
+        mock_dispatch_automation.assert_called_once()

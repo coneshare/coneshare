@@ -12,6 +12,19 @@ import { Progress } from '../components/ui/Progress';
 import { formatBytes } from '../lib/formatters';
 import { cn } from '../lib/utils';
 
+const normalizeExtension = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return null;
+  return normalized.startsWith('.') ? normalized : `.${normalized}`;
+};
+
+const getAllowedExtensions = (allowedFileTypes) => {
+  if (!Array.isArray(allowedFileTypes) || allowedFileTypes.length === 0) {
+    return [];
+  }
+  return [...new Set(allowedFileTypes.map(normalizeExtension).filter(Boolean))];
+};
+
 export function PublicUploadPage() {
   const { slug } = useParams();
   const [fileRequest, setFileRequest] = useState(null);
@@ -23,6 +36,7 @@ export function PublicUploadPage() {
   const [uploaderEmail, setUploaderEmail] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
+  const [uploadErrors, setUploadErrors] = useState({});
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -41,7 +55,32 @@ export function PublicUploadPage() {
   }, [slug]);
 
   const addFiles = (newFiles) => {
-    setFiles((prevFiles) => [...prevFiles, ...Array.from(newFiles)]);
+    const incomingFiles = Array.from(newFiles);
+    const allowedExtensions = getAllowedExtensions(fileRequest?.allowed_file_types);
+
+    if (allowedExtensions.length === 0) {
+      setFiles((prevFiles) => [...prevFiles, ...incomingFiles]);
+      return;
+    }
+
+    const accepted = [];
+    const rejected = [];
+    for (const file of incomingFiles) {
+      const normalizedName = String(file.name || '').trim().toLowerCase();
+      const isAllowed = allowedExtensions.some((allowedExtension) => normalizedName.endsWith(allowedExtension));
+      if (isAllowed) {
+        accepted.push(file);
+      } else {
+        rejected.push(file.name);
+      }
+    }
+
+    if (accepted.length > 0) {
+      setFiles((prevFiles) => [...prevFiles, ...accepted]);
+    }
+    if (rejected.length > 0) {
+      toast.error(`These files are not allowed: ${rejected.join(', ')}. Allowed types: ${allowedExtensions.join(', ')}`);
+    }
   };
 
   const handleDragOver = (e) => {
@@ -69,6 +108,12 @@ export function PublicUploadPage() {
   };
 
   const removeFile = (fileToRemove) => {
+    const fileId = fileToRemove.name + fileToRemove.size;
+    setUploadErrors((prev) => {
+      const next = { ...prev };
+      delete next[fileId];
+      return next;
+    });
     setFiles((prevFiles) => prevFiles.filter((file) => file !== fileToRemove));
   };
 
@@ -89,6 +134,7 @@ export function PublicUploadPage() {
     }
 
     setIsUploading(true);
+    setUploadErrors({});
 
     const uploadPromises = files.map(async (file) => {
       const fileId = file.name + file.size;
@@ -122,6 +168,7 @@ export function PublicUploadPage() {
       } catch (err) {
         const errorMessage = err.response?.data?.detail || 'Upload failed.';
         toast.error(`Error uploading ${file.name}: ${errorMessage}`);
+        setUploadErrors((prev) => ({ ...prev, [fileId]: errorMessage }));
         setUploadProgress((prev) => ({ ...prev, [fileId]: 'error' }));
         return { success: false, error: errorMessage };
       }
@@ -143,6 +190,9 @@ export function PublicUploadPage() {
   if (error) {
     return <div className="flex h-screen items-center justify-center text-red-500">{error}</div>;
   }
+
+  const allowedExtensions = getAllowedExtensions(fileRequest?.allowed_file_types);
+  const fileInputAccept = allowedExtensions.join(',');
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4 dark:bg-gray-900">
@@ -216,12 +266,15 @@ export function PublicUploadPage() {
                         className="relative cursor-pointer rounded-md bg-white font-medium text-indigo-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:text-indigo-500 dark:bg-transparent"
                       >
                         <span>Choose files</span>
-                        <input id="file-upload" name="file-upload" type="file" multiple className="sr-only" onChange={handleFileChange} disabled={isUploading} />
+                        <input id="file-upload" name="file-upload" type="file" multiple accept={fileInputAccept || undefined} className="sr-only" onChange={handleFileChange} disabled={isUploading} />
                       </label>
                       <p className="pl-1">or drag and drop</p>
                     </div>
                     {fileRequest.max_file_size && (
                       <p className="text-xs text-gray-500">Max file size: {formatBytes(fileRequest.max_file_size)}</p>
+                    )}
+                    {allowedExtensions.length > 0 && (
+                      <p className="text-xs text-gray-500">Allowed file types: {allowedExtensions.join(', ')}</p>
                     )}
                   </div>
                 </div>
@@ -239,7 +292,7 @@ export function PublicUploadPage() {
                           <p className="truncate text-sm font-medium">{file.name}</p>
                           <p className="text-xs text-muted-foreground">{formatBytes(file.size)}</p>
                           {isUploading && progress !== 'error' && <Progress value={progress || 0} className="mt-1 h-1.5" />}
-                          {progress === 'error' && <p className="text-xs text-red-500">Upload failed</p>}
+                          {progress === 'error' && <p className="text-xs text-red-500">{uploadErrors[fileId] || 'Upload failed'}</p>}
                         </div>
                         {!isUploading && (
                           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeFile(file)}>

@@ -1,0 +1,153 @@
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import axios from 'axios';
+
+import { PublicUploadPage } from '../../pages/PublicUploadPage';
+import * as api from '../../services/api';
+
+vi.mock('../../services/api', () => ({
+  getPublicFileRequest: vi.fn(),
+  requestPublicUpload: vi.fn(),
+  finalizePublicUpload: vi.fn(),
+}));
+
+vi.mock('axios', () => ({
+  default: {
+    put: vi.fn(),
+  },
+}));
+
+const toastError = vi.fn();
+vi.mock('sonner', () => ({
+  Toaster: () => null,
+  toast: {
+    error: (...args) => toastError(...args),
+  },
+}));
+
+describe('PublicUploadPage', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    api.getPublicFileRequest.mockResolvedValue({
+      data: {
+        name: 'Upload Docs',
+        owner_name: 'Owner',
+        max_file_size: 10000000,
+        allowed_file_types: ['pdf', '.docx'],
+        message: '',
+      },
+    });
+    api.requestPublicUpload.mockResolvedValue({
+      data: {
+        upload_url: 'https://upload.example.com',
+        storage_key: 'org/key',
+        unique_name: 'Quarterly.PDF',
+      },
+    });
+    api.finalizePublicUpload.mockResolvedValue({ data: { detail: 'ok' } });
+    axios.put.mockResolvedValue({});
+  });
+
+  const renderPage = () =>
+    render(
+      <MemoryRouter initialEntries={['/upload/test-slug']}>
+        <Routes>
+          <Route path="/upload/:slug" element={<PublicUploadPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+  it('shows normalized allowed types and sets file input accept', async () => {
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Upload Docs')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Allowed file types: .pdf, .docx')).toBeInTheDocument();
+    const fileInput = container.querySelector('input[type="file"]');
+    expect(fileInput).toHaveAttribute('accept', '.pdf,.docx');
+  });
+
+  it('blocks disallowed file extension before upload request', async () => {
+    const { container } = renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Upload Docs')).toBeInTheDocument();
+    });
+
+    const fileInput = container.querySelector('input[type="file"]');
+    const badFile = new File(['x'], 'malware.exe', { type: 'application/octet-stream' });
+    fireEvent.change(fileInput, { target: { files: [badFile] } });
+
+    expect(toastError).toHaveBeenCalledWith(
+      expect.stringContaining('These files are not allowed: malware.exe. Allowed types: .pdf, .docx')
+    );
+    expect(screen.queryByText('malware.exe')).not.toBeInTheDocument();
+    expect(api.requestPublicUpload).not.toHaveBeenCalled();
+  });
+
+  it('uploads allowed extension case-insensitively and passes server error detail through', async () => {
+    api.requestPublicUpload.mockRejectedValueOnce({
+      response: {
+        data: {
+          detail: 'File type not allowed. Allowed file types: .pdf, .docx.',
+        },
+      },
+    });
+
+    const { container } = renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('Upload Docs')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText('Your Name'), { target: { value: 'Jane' } });
+    fireEvent.change(screen.getByLabelText('Your Email'), { target: { value: 'jane@example.com' } });
+
+    const fileInput = container.querySelector('input[type="file"]');
+    const allowedUppercaseFile = new File(['pdf'], 'Quarterly.PDF', { type: 'application/pdf' });
+    fireEvent.change(fileInput, { target: { files: [allowedUppercaseFile] } });
+    expect(screen.getByText('Quarterly.PDF')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Upload 1 File\(s\)/i }));
+
+    await waitFor(() => {
+      expect(api.requestPublicUpload).toHaveBeenCalledWith('test-slug', {
+        file_name: 'Quarterly.PDF',
+        file_size: allowedUppercaseFile.size,
+      });
+    });
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith(
+        expect.stringContaining('Error uploading Quarterly.PDF: File type not allowed.')
+      );
+      expect(screen.getByText('File type not allowed. Allowed file types: .pdf, .docx.')).toBeInTheDocument();
+    });
+  });
+
+  it('accepts multi-part allowed extension in client-side precheck', async () => {
+    api.getPublicFileRequest.mockResolvedValueOnce({
+      data: {
+        name: 'Upload Docs',
+        owner_name: 'Owner',
+        max_file_size: 10000000,
+        allowed_file_types: ['.tar.gz'],
+        message: '',
+      },
+    });
+
+    const { container } = renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('Upload Docs')).toBeInTheDocument();
+    });
+
+    const fileInput = container.querySelector('input[type="file"]');
+    const archive = new File(['x'], 'backup.TAR.GZ', { type: 'application/gzip' });
+    fireEvent.change(fileInput, { target: { files: [archive] } });
+
+    expect(screen.getByText('backup.TAR.GZ')).toBeInTheDocument();
+    expect(toastError).not.toHaveBeenCalledWith(expect.stringContaining('These files are not allowed'));
+  });
+});
