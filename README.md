@@ -100,9 +100,18 @@ Coneshare is built for teams who:
 
 ---
 
-## Quick Start (build from source)
+## Quick Start
 
-Run Coneshare locally and connect it to your storage:
+Choose your path first:
+
+- **Self-hosted deployment (recommended for first-time operators):**
+  - Use **[coneshare-compose](https://github.com/coneshare/coneshare-compose)** for installation, runtime, and operations.
+- **Contribute to Coneshare source code:**
+  - Use the local source build flow below.
+
+### Source Build (Local Dev for Contributors)
+
+Run Coneshare locally for development and contribution:
 
 ```bash
 git clone git@github.com:coneshare/coneshare.git
@@ -111,16 +120,33 @@ cp .env.template .env
 make build
 make up
 make migrate
-````
+```
 
-Then open:
+### First-Run Verification Checklist
 
-* Frontend: [http://localhost:5173](http://localhost:5173)
-* API: [http://localhost:8000/api/v1/](http://localhost:8000/api/v1/)
+After `make up` and `make migrate`, verify the basics before configuring storage integrations:
 
-For production setup:
+- Frontend is reachable at [http://localhost:5173](http://localhost:5173)
+- API responds at [http://localhost:8000/api/v1/](http://localhost:8000/api/v1/)
+- Core services are up (`backend`, `frontend`, `core`, `redis`, `celery`)
+- Local files are persisted under the project data/storage volumes configured by `docker-compose.yml`
+- Smoke test:
+  - Upload one document
+  - Create a share link
+  - Open that link in a private/incognito window and confirm view access works
 
-* **[https://github.com/coneshare/coneshare-compose](https://github.com/coneshare/coneshare-compose)**
+### Troubleshooting First Install
+
+- `.env` and `SITE_DOMAIN` mismatch:
+  - Confirm `.env` exists (copied from `.env.template`) and `SITE_DOMAIN` matches how you access the app locally.
+- Backend cannot reach `core` service:
+  - Check service names/ports in `docker-compose.yml` and inspect backend/core logs for connection errors.
+- Redis/Celery issues (background jobs not running):
+  - Confirm both `redis` and `celery` containers are running; then check Celery worker logs.
+- Local storage path/permission issues:
+  - Verify mounted storage paths exist and are writable by container processes.
+- Where to look first:
+  - Run `make logs` from repo root, then focus on `backend`, `core`, and `celery` error lines first.
 
 ---
 
