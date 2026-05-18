@@ -31,6 +31,38 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
+def _normalize_allowed_extension(value):
+    normalized = str(value or "").strip().lower()
+    if not normalized:
+        return None
+    if not normalized.startswith('.'):
+        normalized = f'.{normalized}'
+    return normalized
+
+
+def _validate_allowed_file_types(file_request, file_name):
+    if not file_request.allowed_file_types:
+        return None
+
+    allowed = {
+        normalized for normalized in
+        (_normalize_allowed_extension(item) for item in file_request.allowed_file_types)
+        if normalized
+    }
+    if not allowed:
+        return None
+
+    normalized_file_name = str(file_name or "").strip().lower()
+    if any(normalized_file_name.endswith(allowed_extension) for allowed_extension in allowed):
+        return None
+
+    allowed_text = ", ".join(sorted(allowed))
+    return (
+        f"File type not allowed. Allowed file types: {allowed_text}. "
+        "Matching is case-insensitive and accepts values with or without a leading dot."
+    )
+
+
 @extend_schema(tags=['filerequests'])
 class FileRequestViewSet(viewsets.ModelViewSet):
     """
@@ -124,6 +156,9 @@ class FileRequestUploadRequestView(APIView):
         # Validate against link constraints
         if file_request.max_file_size and file_size > file_request.max_file_size:
             return Response({"detail": "File size exceeds the maximum allowed for this link."}, status=status.HTTP_400_BAD_REQUEST)
+        file_type_error = _validate_allowed_file_types(file_request=file_request, file_name=file_name)
+        if file_type_error:
+            return Response({"detail": file_type_error}, status=status.HTTP_400_BAD_REQUEST)
 
         # Validate against owner's quota
         try:
@@ -176,6 +211,12 @@ class FileRequestUploadFinalizeView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         validated_data = serializer.validated_data
+        file_type_error = _validate_allowed_file_types(
+            file_request=file_request,
+            file_name=validated_data['unique_name'],
+        )
+        if file_type_error:
+            return Response({"detail": file_type_error}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             with transaction.atomic():

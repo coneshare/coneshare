@@ -3148,7 +3148,9 @@ paths:
   /api/v1/public/file-requests/{slug}/finalize-upload/:
     post:
       operationId: v1_public_file_requests_finalize_upload_create
-      description: Finalizes a document upload made via a file request link.
+      description: Finalizes a document upload made via a file request link. Also
+        enforces allowed_file_types server-side (case-insensitive, with or without
+        leading dot) as defense-in-depth.
       parameters:
       - in: path
         name: slug
@@ -3186,7 +3188,9 @@ paths:
               schema:
                 type: object
                 additionalProperties: {}
-          description: ''
+          description: Bad request (for example expired request, invalid payload,
+            file too large, or disallowed file type). Disallowed file type responses
+            include the allowed extension list.
         '404':
           content:
             application/json:
@@ -3205,7 +3209,8 @@ paths:
     post:
       operationId: v1_public_file_requests_request_upload_create
       description: 'Handles the first step of a public upload: requesting a pre-signed
-        URL.'
+        URL. Enforces allowed_file_types server-side (case-insensitive, with or
+        without leading dot).'
       parameters:
       - in: path
         name: slug
@@ -3242,7 +3247,9 @@ paths:
               schema:
                 type: object
                 additionalProperties: {}
-          description: ''
+          description: Bad request (for example expired request, invalid payload,
+            file too large, storage limit reached, or disallowed file type). Disallowed
+            file type responses include the allowed extension list.
         '404':
           content:
             application/json:
