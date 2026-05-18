@@ -48,6 +48,9 @@ from .tasks import send_view_notification_email_task
 
 logger = logging.getLogger(__name__)
 
+DATAROOM_VIEWDATA_DEFAULT_LIMIT = 40
+DATAROOM_VIEWDATA_MAX_LIMIT = 200
+
 
 def _resolve_dataroom_document_setting(link: ShareLink, requested_dataroom_document_id: str, visible_only: bool = True):
     """
@@ -559,6 +562,16 @@ class ShareLinkViewDataView(APIView):
         elif link.dataroom:
             dataroom = link.dataroom
             parent_id = request.query_params.get('parent_id')
+            try:
+                limit = int(request.query_params.get('limit', DATAROOM_VIEWDATA_DEFAULT_LIMIT))
+            except (TypeError, ValueError):
+                limit = DATAROOM_VIEWDATA_DEFAULT_LIMIT
+            try:
+                offset = int(request.query_params.get('offset', 0))
+            except (TypeError, ValueError):
+                offset = 0
+            limit = max(1, min(limit, DATAROOM_VIEWDATA_MAX_LIMIT))
+            offset = max(0, offset)
             all_dataroom_folders = list(
                 DataroomFolder.objects.filter(dataroom=dataroom).values('id', 'parent_id', 'name')
             )
@@ -715,6 +728,18 @@ class ShareLinkViewDataView(APIView):
                 merged_items.sort(key=lambda i: (i.get('updated_at', ''), str(i.get('id', ''))))
                 merged_items = [{**item, 'position': idx} for idx, item in enumerate(merged_items)]
 
+            # NOTE: Pagination is currently applied in-memory after assembling
+            # and ordering the full visible scope. This keeps behavior simple
+            # and stable for mixed folder/document ordering.
+            #
+            # Future optimization path:
+            # 1) page IDs from DB in scope order (prefer DataroomItemOrder),
+            # 2) fetch only page targets + their settings,
+            # 3) preserve the same response contract.
+            total_count = len(merged_items)
+            paginated_items = merged_items[offset: offset + limit]
+            next_offset = offset + limit if (offset + limit) < total_count else None
+
             response_data = {
                 'link_type': 'dataroom',
                 'id': dataroom.id,
@@ -726,7 +751,16 @@ class ShareLinkViewDataView(APIView):
                 'brand_accent_color': dataroom.brand_accent_color,
                 'current_parent_id': current_parent_id,
                 'breadcrumbs': breadcrumbs,
-                'items': merged_items,
+                'items': paginated_items,
+                'pagination': {
+                    # Contract intentionally mirrors common limit/offset APIs.
+                    # This allows frontend load-more without assuming page numbers.
+                    'limit': limit,
+                    'offset': offset,
+                    'count': total_count,
+                    'has_more': next_offset is not None,
+                    'next_offset': next_offset,
+                },
                 'link_settings': {
                     'id': link.id,
                     'allow_download': link.allow_download,

@@ -252,13 +252,22 @@ export const generateShareLinkPreview = (id) => api.post(`/share-links/${id}/pre
 
 export const getShareLinkViewData = (
   slug,
-  { previewToken = null, accessToken = null, dataroomDocumentId = null, parentId = null } = {}
+  {
+    previewToken = null,
+    accessToken = null,
+    dataroomDocumentId = null,
+    parentId = null,
+    limit = null,
+    offset = null,
+  } = {}
 ) => {
   const params = {};
   if (previewToken) params.previewToken = previewToken;
   if (accessToken) params.accessToken = accessToken;
   if (dataroomDocumentId) params.dataroom_document_id = dataroomDocumentId;
   if (parentId) params.parent_id = parentId;
+  if (limit !== null && limit !== undefined) params.limit = limit;
+  if (offset !== null && offset !== undefined) params.offset = offset;
   return api.get(`/links/${slug}/view-data/`, { params });
 };
 
