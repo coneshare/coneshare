@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { toast, Toaster } from 'sonner';
 import { UploadCloud, File as FileIcon, X, CheckCircle } from 'lucide-react';
@@ -27,6 +27,8 @@ const getAllowedExtensions = (allowedFileTypes) => {
 
 export function PublicUploadPage() {
   const { slug } = useParams();
+  const [searchParams] = useSearchParams();
+  const isEmbedMode = searchParams.get('embed') === '1';
   const [fileRequest, setFileRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -195,9 +197,15 @@ export function PublicUploadPage() {
   const fileInputAccept = allowedExtensions.join(',');
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4 dark:bg-gray-900">
+    <div
+      data-testid="public-upload-shell"
+      className={cn(
+        'flex flex-col items-center justify-center p-4',
+        isEmbedMode ? 'min-h-0 bg-transparent p-2' : 'min-h-screen bg-gray-50 dark:bg-gray-900'
+      )}
+    >
       <Toaster richColors />
-      <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
+      <div className={cn('w-full max-w-lg rounded-lg bg-white p-6 dark:bg-gray-800', !isEmbedMode && 'shadow-md')}>
         {uploadSuccess ? (
           <div className="text-center">
             <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
