@@ -49,9 +49,9 @@ describe('PublicUploadPage', () => {
     axios.put.mockResolvedValue({});
   });
 
-  const renderPage = () =>
+  const renderPage = (url = '/upload/test-slug') =>
     render(
-      <MemoryRouter initialEntries={['/upload/test-slug']}>
+      <MemoryRouter initialEntries={[url]}>
         <Routes>
           <Route path="/upload/:slug" element={<PublicUploadPage />} />
         </Routes>
@@ -149,5 +149,18 @@ describe('PublicUploadPage', () => {
 
     expect(screen.getByText('backup.TAR.GZ')).toBeInTheDocument();
     expect(toastError).not.toHaveBeenCalledWith(expect.stringContaining('These files are not allowed'));
+  });
+
+  it('enables compact shell when embed=1 is present', async () => {
+    renderPage('/upload/test-slug?embed=1');
+
+    await waitFor(() => {
+      expect(screen.getByText('Upload Docs')).toBeInTheDocument();
+    });
+
+    const shell = screen.getByTestId('public-upload-shell');
+    expect(shell.className).toContain('min-h-0');
+    expect(shell.className).toContain('bg-transparent');
+    expect(shell.className).not.toContain('min-h-screen');
   });
 });

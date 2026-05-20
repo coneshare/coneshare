@@ -60,6 +60,7 @@ export default async function sitemap() {
   const routes = [
     '',
     '/features',
+    '/features/file-request-embed',
     '/solutions',
     '/blog',
     '/privacy-policy',

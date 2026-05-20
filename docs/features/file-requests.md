@@ -137,7 +137,31 @@ Key behavior:
 2. Execute request-upload -> direct upload -> finalize flow.
 3. Show progress/error/success states per file.
 
-### 4.3 Document list attribution
+### 4.3 Embed mode (website intake)
+
+File request public upload pages can be embedded on external websites via iframe.
+
+Example snippet:
+
+```html
+<iframe
+  src="https://your-coneshare-domain/upload/<file_request_slug>?embed=1"
+  title="Secure file upload"
+  width="100%"
+  height="760"
+  style="border:0;max-width:720px"
+  loading="lazy"
+  referrerpolicy="strict-origin-when-cross-origin">
+</iframe>
+```
+
+Upload behavior remains the same 3-step backend flow:
+
+1. `POST /api/v1/public/file-requests/{slug}/request-upload/`
+2. Direct upload to returned pre-signed URL
+3. `POST /api/v1/public/file-requests/{slug}/finalize-upload/`
+
+### 4.4 Document list attribution
 
 - `frontend/src/components/documents/DraggableItem.jsx` (or current equivalent row component)
 - Render external uploader attribution using `metadata.uploader_info` when present.
@@ -149,6 +173,63 @@ Key behavior:
 1. Folder selection moved from simple dropdown concept to reusable folder-browser interaction.
 2. File-request public uploads follow the same high-level upload pattern used elsewhere in Coneshare.
 3. Attribution model intentionally keeps ownership internal while exposing uploader identity metadata.
+4. Embed mode is presentation-level only; backend validation rules are unchanged.
+
+---
+
+## 5.1 Security headers for embedding
+
+Most deployments terminate HTTPS on an external reverse proxy in front of Coneshare.
+That front proxy should be treated as the source of truth for embed headers.
+In production, do not depend on editing container-internal runtime Nginx config files.
+
+Recommended policy:
+
+- Default all routes to non-embeddable.
+- Allow embedding only on `/upload/*` using CSP `frame-ancestors` with explicit origins.
+- Remove/override upstream `X-Frame-Options` on `/upload/*` if upstream sends `DENY`.
+
+External Nginx reverse-proxy example:
+
+```nginx
+# Default: deny framing for all routes
+location / {
+  proxy_pass http://coneshare_upstream;
+  add_header X-Frame-Options "DENY" always;
+  add_header Content-Security-Policy "frame-ancestors 'none'" always;
+}
+
+# Embed-enabled upload route only
+location ~ ^/upload/ {
+  proxy_pass http://coneshare_upstream;
+
+  # Upstream may send restrictive headers; remove them for this route.
+  proxy_hide_header X-Frame-Options;
+  proxy_hide_header Content-Security-Policy;
+
+  # Explicit allowlist for trusted embed origins
+  add_header Content-Security-Policy "frame-ancestors 'self' https://www.example.com https://portal.partner.com" always;
+}
+```
+
+Why this works with React Router:
+
+- `/upload/<slug>` is a client-side React route, but the browser still first requests that URL from the server.
+- Nginx serves `index.html` for that path (via `try_files`), and response headers are evaluated before React renders.
+- Therefore frame/embed policy must be correct on the HTTP response for `/upload/<slug>`, not only in frontend code.
+
+Deployment caveats:
+
+- Route matching must match the deployed URL structure. If Coneshare is mounted under a prefix (for example `/app/upload/<slug>`), adjust proxy location/match rules accordingly.
+- Final behavior is determined by the edge response headers seen by the browser. If an upstream layer still returns `X-Frame-Options: DENY`, embedding will fail even with a permissive CSP.
+- In reverse-proxy setups, explicitly remove or override upstream `X-Frame-Options` and `Content-Security-Policy` on the embed-enabled upload route, then set the final route-scoped CSP at the edge.
+
+Operator constraints:
+
+- Use explicit HTTPS origins in production.
+- Avoid wildcard origins.
+- Keep non-upload routes non-embeddable.
+- Backend validations remain unchanged (active/expiry/type/size/quota/storage binding).
 
 ---
 
