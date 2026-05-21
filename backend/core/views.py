@@ -1,13 +1,16 @@
 from django.contrib.auth import get_user_model, logout
 from django.contrib.auth.signals import user_logged_in
+from django.core.exceptions import ValidationError
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.conf import settings
 from django.core.cache import cache
 from django.db import connections
 from django.db import transaction
+from django.db import IntegrityError
 from django.db.utils import OperationalError
 from django.utils.encoding import force_bytes
+from django.utils import timezone
 from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -135,35 +138,41 @@ class SignupRequestView(APIView):
             status=status.HTTP_202_ACCEPTED
         )
 
-        user = User.objects.filter(email=email).first()
-        if not user:
-            organization = Organization.objects.first()
-            if not organization:
-                return Response(
-                    {"detail": "Server is not configured with a default organization."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-            user = User.objects.create_user(
-                username=email,
-                email=email,
-                password=serializer.validated_data['password'],
-                name=serializer.validated_data.get('name', ''),
-                organization=organization,
-                is_active=False,
-            )
-        elif not user.is_active:
-            user.set_password(serializer.validated_data['password'])
-            user.name = serializer.validated_data.get('name', '')
-            user.save(update_fields=['password', 'name', 'updated_at'])
-        else:
-            return accepted_response
+        try:
+            with transaction.atomic():
+                user = User.objects.select_for_update().filter(email=email).first()
+                if not user:
+                    organization = Organization.objects.first()
+                    if not organization:
+                        return Response(
+                            {"detail": "Server is not configured with a default organization."},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                        )
+                    user = User.objects.create_user(
+                        username=email,
+                        email=email,
+                        password=serializer.validated_data['password'],
+                        name=serializer.validated_data.get('name', ''),
+                        organization=organization,
+                        is_active=False,
+                    )
+                elif not user.is_active:
+                    user.set_password(serializer.validated_data['password'])
+                    user.name = serializer.validated_data.get('name', '')
+                    user.updated_at = timezone.now()
+                    user.save(update_fields=['password', 'name', 'updated_at'])
+                else:
+                    return accepted_response
 
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = signup_activation_token_generator.make_token(user)
-        verify_url = f"{settings.SITE_DOMAIN.rstrip('/')}/signup/verify?uid={uid}&token={token}"
-        transaction.on_commit(
-            lambda: send_signup_verification_email_task.delay(email=email, verify_url=verify_url)
-        )
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                token = signup_activation_token_generator.make_token(user)
+                verify_url = f"{settings.SITE_DOMAIN.rstrip('/')}/signup/verify?uid={uid}&token={token}"
+                transaction.on_commit(
+                    lambda: send_signup_verification_email_task.delay(email=email, verify_url=verify_url)
+                )
+        except IntegrityError:
+            # Concurrent request may create the same email first.
+            return accepted_response
 
         return accepted_response
 
@@ -190,7 +199,7 @@ class SignupVerifyView(APIView):
             try:
                 user_id = force_str(urlsafe_base64_decode(uid))
                 user = User.objects.select_for_update().get(pk=user_id)
-            except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            except (TypeError, ValueError, OverflowError, ValidationError, User.DoesNotExist):
                 return Response({"detail": "Invalid verification link."}, status=status.HTTP_400_BAD_REQUEST)
 
             if user.is_active:
@@ -199,6 +208,7 @@ class SignupVerifyView(APIView):
                 return Response({"detail": "Invalid verification link."}, status=status.HTTP_400_BAD_REQUEST)
 
             user.is_active = True
+            user.updated_at = timezone.now()
             user.save(update_fields=['is_active', 'updated_at'])
 
         refresh = RefreshToken.for_user(user)
