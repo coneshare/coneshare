@@ -278,7 +278,7 @@ class PublicSettingsView(APIView):
     @extend_schema(responses={200: PublicSettingsResponseSerializer})
     def get(self, request):
         return Response({
-            'enable_public_signup': bool(get_dynamic_setting('ENABLE_PUBLIC_SIGNUP'))
+            'enable_public_signup': get_dynamic_setting('ENABLE_PUBLIC_SIGNUP')
         }, status=status.HTTP_200_OK)
 
 

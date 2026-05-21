@@ -1,99 +1,232 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AdminNav } from '../components/admin/AdminNav';
+import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Skeleton } from '../components/ui/Skeleton';
+import { Switch } from '../components/ui/Switch';
 import { Textarea } from '../components/ui/Textarea';
 import * as api from '../services/api';
 
-function SkeletonRow() {
+const SETTING_GROUPS = [
+  { key: 'general', label: 'General', help: 'Core behavior and account lifecycle controls.' },
+  { key: 'quota', label: 'Quota', help: 'Limits for preview, upload, and cloud import operations.' },
+  { key: 'cloud', label: 'Cloud Integrations', help: 'Provider credentials and import mapping settings.' },
+  { key: 'security', label: 'Security', help: 'Authentication and public access controls.' },
+  { key: 'other', label: 'Other', help: 'Uncategorized settings.' },
+];
+
+const SETTING_GROUP_BY_KEY = {
+  ENABLE_PUBLIC_SIGNUP: 'security',
+  MAX_PREVIEW_FILE_SIZE_MB: 'quota',
+  MAX_PREVIEW_PAGES: 'quota',
+  FILE_SIZE_QUOTA_MB: 'quota',
+  MAX_FILES_PER_UPLOAD: 'quota',
+  CLOUD_IMPORT_MAX_SIZE_MB: 'quota',
+  ENABLED_CLOUD_PROVIDERS: 'cloud',
+  CLOUD_IMPORT_FOLDER_MAPPING: 'cloud',
+  DROPBOX_APP_KEY: 'cloud',
+  DROPBOX_APP_SECRET: 'cloud',
+  GOOGLE_DRIVE_CLIENT_ID: 'cloud',
+  GOOGLE_DRIVE_CLIENT_SECRET: 'cloud',
+  NEXT_CLOUD_HOST: 'cloud',
+  NEXT_CLOUD_CLIENT_ID: 'cloud',
+  NEXT_CLOUD_CLIENT_SECRET: 'cloud',
+};
+
+const humanizeKey = (key) =>
+  key
+    .toLowerCase()
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
+const isSecretKey = (key) => key.includes('SECRET') || key.includes('KEY');
+
+const normalizeValueForCompare = (valueType, value) => {
+  if (valueType === 'json') {
+    try {
+      return JSON.stringify(value);
+    } catch (_err) {
+      return '';
+    }
+  }
+  return String(value);
+};
+
+const groupSettings = (settings) => {
+  const grouped = SETTING_GROUPS.reduce((acc, group) => {
+    acc[group.key] = [];
+    return acc;
+  }, {});
+
+  settings.forEach((setting) => {
+    const groupKey = SETTING_GROUP_BY_KEY[setting.key] || 'other';
+    grouped[groupKey].push(setting);
+  });
+
+  return SETTING_GROUPS.map((group) => ({
+    ...group,
+    settings: grouped[group.key],
+  })).filter((group) => group.settings.length > 0);
+};
+
+function SettingSkeletonCard() {
   return (
-    <tr className="border-b">
-      <td className="p-4 align-top">
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-1/3" />
-          <Skeleton className="h-3 w-2/3" />
-        </div>
-      </td>
-      <td className="w-1/2 p-4 align-top">
-        <Skeleton className="h-10 w-full" />
-      </td>
-      <td className="p-4 align-top">
-        <Skeleton className="h-10 w-20" />
-      </td>
-    </tr>
+    <div className="rounded-lg border bg-card p-4">
+      <div className="mb-4 space-y-2">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-3 w-72" />
+      </div>
+      <Skeleton className="mb-4 h-10 w-full" />
+      <div className="flex justify-end gap-2">
+        <Skeleton className="h-9 w-20" />
+        <Skeleton className="h-9 w-20" />
+      </div>
+    </div>
   );
 }
 
-function SettingRow({ setting, onSave }) {
+function SettingCard({ setting, onSave }) {
   const [value, setValue] = useState(setting.value);
+  const [jsonText, setJsonText] = useState(
+    setting.value_type === 'json' ? JSON.stringify(setting.value, null, 2) : ''
+  );
+  const [showSecret, setShowSecret] = useState(false);
+  const [validationError, setValidationError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const isTextArea =
-    setting.value.length > 80 ||
-    setting.value.includes('\n') ||
-    ['ENABLED_CLOUD_PROVIDERS', 'CLOUD_IMPORT_FOLDER_MAPPING'].includes(
-      setting.key
-    );
+
+  const isBoolean = setting.value_type === 'bool';
+  const isInteger = setting.value_type === 'int';
+  const isJson = setting.value_type === 'json';
+  const isSecret = !isJson && setting.value_type === 'string' && isSecretKey(setting.key);
+
+  const isDirty = isJson
+    ? jsonText !== JSON.stringify(setting.value, null, 2)
+    : normalizeValueForCompare(setting.value_type, value) !==
+      normalizeValueForCompare(setting.value_type, setting.value);
+
+  const handleReset = () => {
+    setValue(setting.value);
+    if (isJson) setJsonText(JSON.stringify(setting.value, null, 2));
+    setValidationError('');
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
+    setValidationError('');
+
+    let payload = value;
+    if (isJson) {
+      try {
+        payload = JSON.parse(jsonText);
+      } catch (_error) {
+        setValidationError('Invalid JSON format.');
+        setIsSaving(false);
+        return;
+      }
+    }
+
     try {
-      await onSave(setting.key, value);
-      toast.success(`Setting '${setting.key}' updated successfully.`);
-    } catch (error) {
-      setValue(setting.value); // Revert on failure
+      await onSave(setting.key, payload);
+      toast.success(`Saved ${humanizeKey(setting.key)}.`);
+    } catch (_error) {
+      setValue(setting.value);
+      if (isJson) setJsonText(JSON.stringify(setting.value, null, 2));
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <tr className="border-b">
-      <td className="p-4 align-top">
-        <div className="font-semibold">{setting.key}</div>
-        <div className="text-sm text-muted-foreground">
-          {setting.description}
+    <div className="rounded-lg border bg-card p-4">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <h4 className="text-sm font-semibold text-foreground">
+            {humanizeKey(setting.key)}{' '}
+            <span className="font-mono text-xs text-muted-foreground/80">({setting.key})</span>
+          </h4>
+          <p className="mt-1 text-sm text-muted-foreground">{setting.description}</p>
         </div>
-      </td>
-      <td className="w-1/2 p-4 align-top">
-        {isTextArea ? (
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-[11px] uppercase tracking-wide">
+            {setting.value_type}
+          </Badge>
+          {isDirty && (
+            <Badge variant="secondary" className="text-[11px]">
+              Unsaved
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      <div className="mb-3">
+        {isBoolean ? (
+          <div className="flex items-center justify-between rounded-md border px-3 py-2">
+            <span className="text-sm text-muted-foreground">{value ? 'Enabled' : 'Disabled'}</span>
+            <Switch checked={Boolean(value)} onCheckedChange={(checked) => setValue(Boolean(checked))} />
+          </div>
+        ) : isJson ? (
           <Textarea
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            rows={4}
+            value={jsonText}
+            onChange={(e) => setJsonText(e.target.value)}
+            rows={8}
             className="font-mono text-sm"
           />
         ) : (
           <Input
+            type={isInteger ? 'number' : showSecret ? 'text' : isSecret ? 'password' : 'text'}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e) => {
+              if (isInteger) {
+                setValue(e.target.value === '' ? '' : Number(e.target.value));
+                return;
+              }
+              setValue(e.target.value);
+            }}
             className="font-mono text-sm"
           />
         )}
-      </td>
-      <td className="p-4 align-top">
-        <Button
-          onClick={handleSave}
-          disabled={isSaving || value === setting.value}
-        >
+
+        {isSecret && (
+          <button
+            type="button"
+            className="mt-2 text-xs text-muted-foreground underline-offset-4 hover:underline"
+            onClick={() => setShowSecret((prev) => !prev)}
+          >
+            {showSecret ? 'Hide value' : 'Reveal value'}
+          </button>
+        )}
+
+        {validationError && (
+          <p className="mt-2 text-sm text-red-600 dark:text-red-400">{validationError}</p>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={handleReset} disabled={!isDirty || isSaving}>
+          Reset
+        </Button>
+        <Button onClick={handleSave} disabled={!isDirty || isSaving}>
           {isSaving ? 'Saving...' : 'Save'}
         </Button>
-      </td>
-    </tr>
+      </div>
+    </div>
   );
 }
 
 export function AdminSettingsPage() {
   const [settings, setSettings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchSettings = async () => {
       try {
         const response = await api.getAdminSettings();
-        setSettings(response.data);
-      } catch (error) {
+        setSettings(response.data.map((item) => ({ ...item, baseline_value: item.value })));
+      } catch (_error) {
         // Error toast is handled by the global interceptor
       } finally {
         setIsLoading(false);
@@ -104,40 +237,84 @@ export function AdminSettingsPage() {
 
   const handleSaveSetting = async (key, value) => {
     const response = await api.updateAdminSetting(key, value);
-    // Update local state to reflect the saved value without a full refetch
     setSettings((prevSettings) =>
       prevSettings.map((s) =>
-        s.key === key ? { ...s, value: response.data.value } : s
+        s.key === key
+          ? {
+              ...s,
+              value: response.data.value,
+              baseline_value: response.data.value,
+              raw_value: response.data.raw_value,
+              value_type: response.data.value_type,
+            }
+          : s
       )
     );
   };
 
+  const filteredSettings = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return settings.filter((setting) => {
+      return (
+        q.length === 0 ||
+        setting.key.toLowerCase().includes(q) ||
+        setting.description.toLowerCase().includes(q) ||
+        humanizeKey(setting.key).toLowerCase().includes(q)
+      );
+    });
+  }, [settings, searchQuery]);
+
+  const grouped = useMemo(() => groupSettings(filteredSettings), [filteredSettings]);
+
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto max-w-6xl py-6">
       <AdminNav />
-      <h2 className="mb-4 text-2xl font-bold">Application Settings</h2>
-      <div className="overflow-hidden rounded-lg border">
-        <table className="min-w-full">
-          <thead className="bg-muted/50">
-            <tr className="border-b">
-              <th className="p-4 text-left font-semibold">Setting</th>
-              <th className="p-4 text-left font-semibold">Value</th>
-              <th className="p-4 text-left font-semibold">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading
-              ? [...Array(8)].map((_, i) => <SkeletonRow key={i} />)
-              : settings.map((setting) => (
-                  <SettingRow
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Application Settings</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Manage system behavior by category with typed controls.</p>
+        </div>
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search settings..."
+            className="sm:w-72"
+          />
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[...Array(6)].map((_, idx) => (
+            <SettingSkeletonCard key={idx} />
+          ))}
+        </div>
+      ) : grouped.length === 0 ? (
+        <div className="rounded-lg border bg-card p-8 text-center text-sm text-muted-foreground">
+          No settings match your filters.
+        </div>
+      ) : (
+        <div className="space-y-8">
+          {grouped.map((group) => (
+            <section key={group.key} className="space-y-3">
+              <div>
+                <h3 className="text-lg font-semibold">{group.label}</h3>
+                <p className="text-sm text-muted-foreground">{group.help}</p>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                {group.settings.map((setting) => (
+                  <SettingCard
                     key={setting.key}
                     setting={setting}
                     onSave={handleSaveSetting}
                   />
                 ))}
-          </tbody>
-        </table>
-      </div>
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -8,6 +8,8 @@ from rest_framework.response import Response
 
 from documents.views import StandardResultsSetPagination
 from .models import AppConfiguration, LoginActivity
+from .settings_registry import (DEFAULT_SETTINGS, coerce_to_typed_value,
+                                deserialize_db_value, serialize_typed_to_db_value)
 from .serializers import (AppConfigurationSerializer, LoginActivitySerializer,
                           UserSerializer)
 
@@ -22,26 +24,8 @@ class IsAdmin(permissions.BasePermission):
         return request.user.is_authenticated and request.user.role == 'admin'
 
 
-# This dictionary defines metadata for dynamic application settings, such as
-# their description and whether they are stored as JSON. It should be kept in
-# sync with the default values defined in `backend/settings.py`.
-DEFAULT_SETTINGS = {
-    'MAX_PREVIEW_FILE_SIZE_MB': {'description': 'Max file size in MB for preview generation. Files larger than this will be marked as download-only.', 'is_json': False},
-    'MAX_PREVIEW_PAGES': {'description': 'Maximum number of pages for document preview. Documents with more pages will be available for download only.', 'is_json': False},
-    'FILE_SIZE_QUOTA_MB': {'description': 'Per-user file size quota in MB. 0 means unlimited.', 'is_json': False},
-    'MAX_FILES_PER_UPLOAD': {'description': 'Maximum number of files allowed in a single upload operation.', 'is_json': False},
-    'ENABLED_CLOUD_PROVIDERS': {'description': 'JSON list of enabled cloud providers (e.g., ["dropbox"]).', 'is_json': True},
-    'CLOUD_IMPORT_FOLDER_MAPPING': {'description': 'JSON mapping of provider IDs to default folder names.', 'is_json': True},
-    'CLOUD_IMPORT_MAX_SIZE_MB': {'description': 'Max file size in MB for cloud imports.', 'is_json': False},
-    'DROPBOX_APP_KEY': {'description': 'API Key for Dropbox integration.', 'is_json': False},
-    'DROPBOX_APP_SECRET': {'description': 'API Secret for Dropbox integration.', 'is_json': False},
-    'GOOGLE_DRIVE_CLIENT_ID': {'description': 'Client ID for Google Drive integration.', 'is_json': False},
-    'GOOGLE_DRIVE_CLIENT_SECRET': {'description': 'Client Secret for Google Drive integration.', 'is_json': False},
-    'NEXT_CLOUD_HOST': {'description': 'Host URL for Nextcloud (e.g., https://cloud.example.com).', 'is_json': False},
-    'NEXT_CLOUD_CLIENT_ID': {'description': 'Client ID for Nextcloud integration.', 'is_json': False},
-    'NEXT_CLOUD_CLIENT_SECRET': {'description': 'Client Secret for Nextcloud integration.', 'is_json': False},
-    'ENABLE_PUBLIC_SIGNUP': {'description': 'Enable public signup with email verification.', 'is_json': False},
-}
+class AdminSettingUpdateSerializer(serializers.Serializer):
+    value = serializers.JSONField()
 
 
 class AdminSettingsViewSet(viewsets.ModelViewSet):
@@ -59,18 +43,23 @@ class AdminSettingsViewSet(viewsets.ModelViewSet):
         
         results = []
         for key, config in DEFAULT_SETTINGS.items():
+            setting_type = config['type']
+            default_value = getattr(settings, key)
             if key in existing_settings:
                 obj = existing_settings[key]
-                value = obj.value
+                value = deserialize_db_value(setting_type, obj.value, default_value)
+                raw_value = obj.value
                 description = obj.description
             else:
-                default_value = getattr(settings, key)
-                value = json.dumps(default_value) if config.get('is_json') else str(default_value)
+                value = default_value
+                raw_value = serialize_typed_to_db_value(setting_type, default_value)
                 description = config['description']
-            
+
             results.append({
                 'key': key,
                 'value': value,
+                'raw_value': raw_value,
+                'value_type': setting_type,
                 'description': description
             })
 
@@ -82,20 +71,31 @@ class AdminSettingsViewSet(viewsets.ModelViewSet):
         if key not in DEFAULT_SETTINGS:
             return Response({'detail': 'Setting not found.'}, status=status.HTTP_404_NOT_FOUND)
             
-        serializer = self.get_serializer(data=request.data, partial=True)
+        serializer = AdminSettingUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         value = serializer.validated_data.get('value')
-        
+
         config = DEFAULT_SETTINGS[key]
         description = config['description']
+        setting_type = config['type']
+        try:
+            coerced_value = coerce_to_typed_value(setting_type, value)
+        except (ValueError, TypeError):
+            raise serializers.ValidationError({'value': f'Invalid value for type {setting_type}.'})
+        stored_value = serialize_typed_to_db_value(setting_type, coerced_value)
 
         obj, created = AppConfiguration.objects.update_or_create(
             key=key,
-            defaults={'value': value, 'description': description}
+            defaults={'value': stored_value, 'description': description}
         )
-        
-        response_serializer = self.get_serializer(obj)
-        return Response(response_serializer.data)
+
+        return Response({
+            'key': key,
+            'value': deserialize_db_value(setting_type, obj.value, getattr(settings, key)),
+            'raw_value': obj.value,
+            'value_type': setting_type,
+            'description': description,
+        })
 
 
 class AdminUserViewSet(viewsets.ModelViewSet):
