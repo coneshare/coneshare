@@ -1,11 +1,27 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.urls import reverse
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from rest_framework import status
 
-from core.models import LoginActivity
+from core.models import AppConfiguration, LoginActivity, Organization
+from core.tokens import signup_activation_token_generator
 
 User = get_user_model()
+
+
+def _set_public_signup(enabled: bool):
+    AppConfiguration.objects.update_or_create(
+        key='ENABLE_PUBLIC_SIGNUP',
+        defaults={
+            'value': 'true' if enabled else 'false',
+            'description': 'Enable public signup with email verification.',
+        }
+    )
+    cache.delete('app_config:ENABLE_PUBLIC_SIGNUP')
+    cache.clear()
 
 
 # @pytest.mark.django_db
@@ -187,3 +203,141 @@ class TestLoginActivitySignal:
         public_client.post(url, login_data)
 
         assert LoginActivity.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_signup_request_rejected_when_disabled(public_client):
+    _set_public_signup(False)
+    response = public_client.post(reverse('signup_request'), {
+        'email': 'newuser@example.com',
+        'password': 'StrongPassword123!',
+        'name': 'New User',
+    })
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+@pytest.mark.django_db
+def test_signup_request_creates_inactive_user_and_sends_email(public_client, monkeypatch):
+    _set_public_signup(True)
+    calls = {'count': 0}
+
+    def _fake_delay(*args, **kwargs):
+        calls['count'] += 1
+        return None
+
+    monkeypatch.setattr('core.views.transaction.on_commit', lambda fn: fn())
+    monkeypatch.setattr('core.views.send_signup_verification_email_task.delay', _fake_delay)
+
+    response = public_client.post(reverse('signup_request'), {
+        'email': 'newuser@example.com',
+        'password': 'StrongPassword123!',
+        'name': 'New User',
+    })
+
+    assert response.status_code == status.HTTP_202_ACCEPTED
+    created_user = User.objects.get(email='newuser@example.com')
+    assert created_user.is_active is False
+    assert created_user.organization is not None
+    assert calls['count'] == 1
+
+
+@pytest.mark.django_db
+def test_signup_request_refreshes_existing_inactive_user(public_client):
+    _set_public_signup(True)
+    org = Organization.objects.first()
+    user = User.objects.create_user(
+        email='verifyme@example.com',
+        username='verifyme@example.com',
+        organization=org,
+        password='StrongPassword123!',
+        name='Old Name',
+        is_active=False,
+    )
+    old_password_hash = user.password
+
+    response = public_client.post(reverse('signup_request'), {
+        'email': 'verifyme@example.com',
+        'password': 'NewStrongPassword123!',
+        'name': 'Verify Me',
+    })
+    assert response.status_code == status.HTTP_202_ACCEPTED
+    user.refresh_from_db()
+    assert user.name == 'Verify Me'
+    assert user.password != old_password_hash
+    assert user.check_password('NewStrongPassword123!')
+
+
+@pytest.mark.django_db
+def test_signup_verify_activates_user_and_returns_jwt(public_client):
+    _set_public_signup(True)
+    org = Organization.objects.first()
+    user = User.objects.create_user(
+        email='verifyme@example.com',
+        username='verifyme@example.com',
+        organization=org,
+        password='StrongPassword123!',
+        name='Verify Me',
+        is_active=False,
+    )
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = signup_activation_token_generator.make_token(user)
+
+    response = public_client.post(reverse('signup_verify'), {'uid': uid, 'token': token})
+    assert response.status_code == status.HTTP_200_OK
+    user.refresh_from_db()
+    assert user.is_active is True
+    assert 'access' in response.data
+    assert 'refresh' in response.data
+
+
+@pytest.mark.django_db
+def test_signup_verify_rejects_invalid_token(public_client):
+    _set_public_signup(True)
+    org = Organization.objects.first()
+    user = User.objects.create_user(
+        email='expired@example.com',
+        username='expired@example.com',
+        organization=org,
+        password='StrongPassword123!',
+        is_active=False,
+    )
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+
+    response = public_client.post(reverse('signup_verify'), {'uid': uid, 'token': 'invalid-token'})
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert 'invalid' in response.data['detail'].lower()
+
+
+@pytest.mark.django_db
+def test_signup_verify_rejects_reused_token(public_client):
+    _set_public_signup(True)
+    org = Organization.objects.first()
+    user = User.objects.create_user(
+        email='reused@example.com',
+        username='reused@example.com',
+        organization=org,
+        password='StrongPassword123!',
+        is_active=False,
+    )
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = signup_activation_token_generator.make_token(user)
+
+    first_response = public_client.post(reverse('signup_verify'), {'uid': uid, 'token': token})
+    assert first_response.status_code == status.HTTP_200_OK
+
+    second_response = public_client.post(reverse('signup_verify'), {'uid': uid, 'token': token})
+    assert second_response.status_code == status.HTTP_400_BAD_REQUEST
+    assert 'already verified' in second_response.data['detail'].lower()
+
+
+@pytest.mark.django_db
+def test_public_settings_returns_signup_toggle(public_client):
+    _set_public_signup(False)
+    response = public_client.get(reverse('public_settings'))
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data['enable_public_signup'] is False
+
+    _set_public_signup(True)
+    response = public_client.get(reverse('public_settings'))
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data['enable_public_signup'] is True
