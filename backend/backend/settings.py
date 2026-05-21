@@ -192,6 +192,7 @@ REST_FRAMEWORK = {
         'anon': '1000/day',
         'user': '10000/day',
         'password_verify': '10/min',
+        'signup': '5/min',
         'health_check': '1000/min',
     }
 }
@@ -446,6 +447,9 @@ GOOGLE_DRIVE_CLIENT_SECRET = ''
 NEXT_CLOUD_HOST = ''  # e.g., 'https://cloud.example.com'
 NEXT_CLOUD_CLIENT_ID = ''
 NEXT_CLOUD_CLIENT_SECRET = ''
+
+# Public signup toggle.
+ENABLE_PUBLIC_SIGNUP = False
 
 
 # Path to the TTF/OTF font file to be used for watermarking.

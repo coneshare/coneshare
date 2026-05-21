@@ -1,11 +1,13 @@
 import api from './api';
 
+const storeTokens = (data) => {
+  if (data.access) localStorage.setItem('access_token', data.access);
+  if (data.refresh) localStorage.setItem('refresh_token', data.refresh);
+};
+
 const login = async (email, password) => {
   const response = await api.post('/token/', { email, password });
-  if (response.data.access && response.data.refresh) {
-    localStorage.setItem('access_token', response.data.access);
-    localStorage.setItem('refresh_token', response.data.refresh);
-  }
+  storeTokens(response.data);
   return response.data;
 };
 
@@ -25,7 +27,26 @@ const logout = async () => {
   }
 };
 
+const requestSignup = async ({ email, password, name = '' }) => {
+  const response = await api.post('/signup/', { email, password, name });
+  return response.data;
+};
+
+const verifySignup = async ({ uid, token }) => {
+  const response = await api.post('/signup/verify/', { uid, token });
+  storeTokens(response.data);
+  return response.data;
+};
+
+const getPublicSettings = async () => {
+  const response = await api.get('/public/settings/');
+  return response.data;
+};
+
 export const authService = {
   login,
   logout,
+  requestSignup,
+  verifySignup,
+  getPublicSettings,
 };
