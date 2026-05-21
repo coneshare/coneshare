@@ -117,6 +117,37 @@ class ChangePasswordSerializer(serializers.Serializer):
         return value
 
 
+class SignupRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+    name = serializers.CharField(required=False, allow_blank=True, max_length=255)
+
+    def validate_email(self, value):
+        return value.strip().lower()
+
+    def validate_password(self, value):
+        try:
+            password_validation.validate_password(value)
+        except ValidationError as e:
+            raise serializers.ValidationError(list(e.messages))
+        return value
+
+
+class SignupVerifySerializer(serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+
+
+class SignupRequestAcceptedSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+
+
+class SignupVerifyResponseSerializer(serializers.Serializer):
+    user = UserSerializer()
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+
+
 class LoginActivitySerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source='user.email', read_only=True)
     user_name = serializers.CharField(source='user.name', read_only=True)

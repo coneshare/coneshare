@@ -40,6 +40,7 @@ DEFAULT_SETTINGS = {
     'NEXT_CLOUD_HOST': {'description': 'Host URL for Nextcloud (e.g., https://cloud.example.com).', 'is_json': False},
     'NEXT_CLOUD_CLIENT_ID': {'description': 'Client ID for Nextcloud integration.', 'is_json': False},
     'NEXT_CLOUD_CLIENT_SECRET': {'description': 'Client Secret for Nextcloud integration.', 'is_json': False},
+    'ENABLE_PUBLIC_SIGNUP': {'description': 'Enable public signup with email verification.', 'is_json': False},
 }
 
 
