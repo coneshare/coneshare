@@ -15,6 +15,8 @@ import { DocumentPage } from './pages/DocumentPage';
 import DocumentsPage from './pages/DocumentsPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
+import { SignupPage } from './pages/SignupPage';
+import { SignupVerifyPage } from './pages/SignupVerifyPage';
 import PasswordSettingsPage from './pages/PasswordSettingsPage';
 import { PublicUploadPage } from './pages/PublicUploadPage';
 import { ShareLinkAnalyticsPage } from './pages/ShareLinkAnalyticsPage';
@@ -33,6 +35,8 @@ function App() {
       <UploadProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/signup/verify" element={<SignupVerifyPage />} />
           <Route path="/view/:slug" element={<ShareLinkViewerPage />} />
           <Route path="/upload/:slug" element={<PublicUploadPage />} />
           <Route path="/auth/:providerName/callback" element={<CloudAuthCallbackPage />} />

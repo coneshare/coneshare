@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { Link } from 'react-router-dom'
 import { authService } from '../services/authService'
 import { APP_DISPLAY_VERSION } from '../lib/constants'
 
@@ -9,6 +10,25 @@ function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [showSignupLink, setShowSignupLink] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadPublicSettings = async () => {
+      try {
+        const data = await authService.getPublicSettings()
+        if (mounted) setShowSignupLink(Boolean(data?.enable_public_signup))
+      } catch (_err) {
+        if (mounted) setShowSignupLink(false)
+      }
+    }
+
+    loadPublicSettings()
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -85,6 +105,15 @@ function LoginPage() {
             </button>
           </div>
         </form>
+        {showSignupLink && (
+          <p className="text-center text-sm text-gray-600 dark:text-gray-400">
+            New to Coneshare?{' '}
+            <Link className="font-medium text-indigo-600 hover:text-indigo-500" to="/signup">
+              Create an account
+            </Link>
+          </p>
+        )}
+
         {APP_DISPLAY_VERSION && (
           <p className="text-center text-xs text-gray-500 dark:text-gray-400">
             {`ver-${APP_DISPLAY_VERSION}`}
