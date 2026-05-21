@@ -21,6 +21,7 @@ describe("LoginPage", () => {
   beforeEach(() => {
     // Reset mocks before each test
     vi.resetAllMocks();
+    authService.getPublicSettings.mockResolvedValue({ enable_public_signup: false });
   });
 
   const renderComponent = () => {
@@ -87,6 +88,24 @@ describe("LoginPage", () => {
     });
 
     expect(mockedNavigate).not.toHaveBeenCalled();
+  });
+
+  it("shows signup link when public signup is enabled", async () => {
+    authService.getPublicSettings.mockResolvedValue({ enable_public_signup: true });
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: /create an account/i })).toBeInTheDocument();
+    });
+  });
+
+  it("hides signup link when public signup is disabled", async () => {
+    authService.getPublicSettings.mockResolvedValue({ enable_public_signup: false });
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.queryByRole('link', { name: /create an account/i })).not.toBeInTheDocument();
+    });
   });
 
   it("disables the submit button while loading", async () => {
