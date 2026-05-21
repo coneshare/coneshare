@@ -1,9 +1,8 @@
-import json
-
 from django.conf import settings
 from django.core.cache import cache
 
 from .models import AppConfiguration
+from .settings_registry import DEFAULT_SETTINGS, deserialize_db_value, infer_setting_type
 
 
 def get_dynamic_setting(key: str):
@@ -28,14 +27,5 @@ def get_dynamic_setting(key: str):
 
     # At this point, value_str is from the DB (via cache or direct query)
     default_value = getattr(settings, key)
-
-    try:
-        default_type = type(default_value)
-        if default_type is bool:
-            return value_str.lower() in ('true', '1', 't')
-        if default_type in (list, dict):
-            return json.loads(value_str)
-        return default_type(value_str)
-    except (ValueError, TypeError, json.JSONDecodeError):
-        # If casting DB value fails, return the hardcoded default
-        return default_value
+    setting_type = DEFAULT_SETTINGS.get(key, {}).get('type') or infer_setting_type(default_value)
+    return deserialize_db_value(setting_type, value_str, default_value)

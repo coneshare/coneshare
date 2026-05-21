@@ -1,7 +1,7 @@
 import pytest
 from rest_framework import status
 
-from core.models import User
+from core.models import AppConfiguration, User
 
 
 @pytest.mark.django_db
@@ -102,3 +102,36 @@ class TestAdminUserViewSetProtection:
         # The new check should be for last admin.
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert 'Cannot delete the last active admin' in response.json()['detail']
+
+
+@pytest.mark.django_db
+class TestAdminSettingsTypedValues:
+    def test_list_settings_includes_value_type(self, admin_api_client):
+        response = admin_api_client.get('/api/v1/admin/settings/')
+        assert response.status_code == status.HTTP_200_OK
+        settings_by_key = {item['key']: item for item in response.json()}
+        assert settings_by_key['ENABLE_PUBLIC_SIGNUP']['value_type'] == 'bool'
+        assert isinstance(settings_by_key['ENABLE_PUBLIC_SIGNUP']['value'], bool)
+        assert settings_by_key['MAX_FILES_PER_UPLOAD']['value_type'] == 'int'
+        assert isinstance(settings_by_key['MAX_FILES_PER_UPLOAD']['value'], int)
+
+    def test_update_bool_setting_accepts_boolean_and_persists_canonical_value(self, admin_api_client):
+        response = admin_api_client.patch(
+            '/api/v1/admin/settings/ENABLE_PUBLIC_SIGNUP/',
+            {'value': True},
+            format='json',
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()['value'] is True
+        assert response.json()['value_type'] == 'bool'
+        db_value = AppConfiguration.objects.get(key='ENABLE_PUBLIC_SIGNUP').value
+        assert db_value == 'true'
+
+    def test_update_int_setting_rejects_invalid_type(self, admin_api_client):
+        response = admin_api_client.patch(
+            '/api/v1/admin/settings/MAX_FILES_PER_UPLOAD/',
+            {'value': 'not-an-int'},
+            format='json',
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'value' in response.json()
