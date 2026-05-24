@@ -1,6 +1,19 @@
 # Changelog
 
 
+## [1.3.2](https://github.com/coneshare/coneshare/compare/v1.3.1...v1.3.2) (2026-05-21)
+
+
+### Improvements
+
+* **auth:** add configurable sign-up controls ([c298741](https://github.com/coneshare/coneshare/commit/c298741aff3dfdbbbbdf2b6646785eb7fbedd075))
+* **filerequests:** embeding file request page ([5a397b9](https://github.com/coneshare/coneshare/commit/5a397b940dcb995431061459f3c6eb2f82c4a1bb))
+* **filerequests:** enforce upload type policy and expose frontend controls ([6026ef8](https://github.com/coneshare/coneshare/commit/6026ef8cee42e3c5b49596c58fb565cfb8720b93))
+* **settings:** add typed dynamic settings and redesign admin settings UI ([c383451](https://github.com/coneshare/coneshare/commit/c3834519a53ed6e1aa106984cc209cca521a7182))
+* **datarooms:** add safe default pagination and viewer load-more ([d0df9ed](https://github.com/coneshare/coneshare/commit/d0df9edb25a470868a52a4f6ddc77f309956cfca))
+* **datarooms:** optimize scoped view-data queries and ancestor lookup ([40a45ef](https://github.com/coneshare/coneshare/commit/40a45ef120b2a3426f8a34a22af0790534a5124b))
+* **sharelinks:** avoid redundant scope queryset evaluations ([69208dc](https://github.com/coneshare/coneshare/commit/69208dcd29c6c5e7ed44d98f05c55c28550c098c))
+
 ## [1.3.1](https://github.com/coneshare/coneshare/compare/v1.3.0...v1.3.1) (2026-05-10)
 
 
