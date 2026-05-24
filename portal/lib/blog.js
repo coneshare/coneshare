@@ -37,6 +37,7 @@ export async function getAllBlogPosts() {
 
   return posts
     .filter(Boolean)
+    .filter((post) => post.published !== false)
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 

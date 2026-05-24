@@ -1,0 +1,192 @@
+export const metadata = {
+  title: 'How to Receive Large Files from Clients Securely (Self-Hosted Guide): A Better Alternative to Email Attachments',
+  description:
+    'A practical guide for business and IT teams to receive large files securely with File Request links, including policy controls, expiration, auditability, and automated notifications.',
+  date: '2026-05-24',
+  category: 'Guides',
+  tags: [
+    'Self-Hosted',
+    'File Requests',
+    'Document Security',
+    'Secure Sharing',
+    'Client Collaboration',
+  ],
+};
+
+## Why “Client Large-File Intake” Keeps Breaking
+
+Many teams invest heavily in outbound sharing, but inbound file collection from external parties is still handled with fragile processes:
+
+- Email attachments hit size limits
+- Clients use temporary transfer links that expire or get forwarded
+- Internal teams manually move and rename files, creating version chaos
+- Security and management teams cannot easily answer who uploaded what, and when
+
+If your workflows involve legal documents, fundraising materials, bids, design assets, or compliance records, these gaps quickly become delivery and risk problems.
+
+## Core Approach: Use Secure File Request Links Instead of Large Email Attachments
+
+A more reliable model is to create a controlled **[File Request](/features/file-requests)** link and let external collaborators upload through that entry point.
+
+At a business level, the process is straightforward:
+
+1. Your team creates and shares a controlled intake link.
+2. External collaborators submit files and required identity details.
+3. Files land in the target business folder with traceable upload records.
+
+Key benefits:
+
+- Controlled intake entry (instead of scattered tools)
+- Controlled destination (files go to the right folder)
+- Controlled policies (size, type, validity window)
+- Controlled traceability (uploader identity, time, file metadata)
+
+## Step-by-Step: Secure Large-File Intake for Enterprises
+
+### 1) Create a File Request and Bind It to a Target Folder
+
+Create a File Request internally and define the exact destination folder (for example, “Project A / Client Submissions / Source Files”).
+
+This avoids “collect first, sort later” manual work.
+
+### 2) Configure Upload Policies Before Rollout
+
+Set at least these controls:
+
+- Expiration time: avoid permanently open public intake links
+- Max file size: prevent oversized uploads from consuming quota
+- Allowed file types: permit only business-required formats (for example `pdf/docx/xlsx/zip`)
+
+This shifts security from cleanup to prevention.
+
+### 3) Share the Upload Link (or Embed It in Your Intake Page)
+
+You can send the link directly to clients or embed it in your website submission page, customer portal, or project workspace.
+
+Embedding works especially well for high-frequency intake because users do not need to switch tools.
+
+## Embedding: Put the Intake Entry Directly on Your Website or Portal
+
+For enterprise IT and management teams, embedding is less about UI and more about governance:
+
+- One external intake entry point on your own web properties
+- One internal policy and audit standard across business units
+- One brand-consistent experience that reduces collaboration friction
+
+Common rollout patterns:
+
+- Embed on a website “Submit Materials” page
+- Show project-specific intake entries inside customer portals
+- Use dedicated submission pages for bids/events
+
+You can also try a live example upload page:
+https://app.coneshare.com/upload/ivfCKN814UtMHL_ZEOpETA
+This link is created by a demo account, and users can sign in to that demo account to review uploaded results.
+
+Here is a live embed preview directly in this article:
+
+<iframe
+  src="https://app.coneshare.com/upload/ivfCKN814UtMHL_ZEOpETA?embed=1"
+  title="Coneshare file request embed demo"
+  width="100%"
+  height="760"
+  style={{ border: 0, maxWidth: '720px' }}
+  loading="lazy"
+  referrerPolicy="strict-origin-when-cross-origin"
+/>
+
+Before going live, focus on these three controls:
+
+- Allow embedding only on trusted domains (allowlist)
+- Deny embedding by default on unrelated pages
+- Manage embedding security headers centrally at the front reverse proxy
+
+If your frontend or portal team needs a reusable snippet:
+
+```html
+<iframe
+  src="https://app.coneshare.com/upload/ivfCKN814UtMHL_ZEOpETA?embed=1"
+  title="Secure file upload"
+  width="100%"
+  height="760"
+  style="border:0;max-width:720px"
+  loading="lazy"
+  referrerpolicy="strict-origin-when-cross-origin">
+</iframe>
+```
+
+### 4) External User Uploads Files
+
+The uploader typically provides basic identity fields (name and email) and submits files.
+
+No account registration is required on your system, which reduces friction.
+
+### 5) Files Are Stored with Uploader Attribution
+
+After upload, files are routed to the predefined folder with uploader attribution for audit, review, and follow-up.
+
+### 6) Trigger Notifications and Next Actions
+
+You can send automated notifications (for example via Slack/Webhook) so sales, legal, or project owners can act immediately.
+
+## Security Control Checklist (Recommended Defaults)
+
+For production use, make sure your intake process includes:
+
+- Expirable/deactivatable request links
+- Server-side file type validation (not frontend-only)
+- Server-side file size limits and quota checks
+- Rate limiting and baseline abuse protection on public intake endpoints
+- Binding checks between intake requests and authorized destination folders
+
+For high-sensitivity environments, add:
+
+- Stricter domain and embed-origin controls
+- Audit-log retention and alerting policies
+- Incident handling workflows for suspicious uploads
+
+## Comparison: Common Large-File Intake Options
+
+| Option | Fit for Large Files | Security Control | Auditability | Collaboration UX |
+|---|---|---|---|---|
+| Email attachments | Low (size limits) | Low | Low | Medium |
+| Temporary transfer links | Medium | Medium (vendor-dependent) | Low to Medium | High |
+| Self-hosted File Request links | High | High | High | High |
+
+For teams that need stable operations, compliance alignment, and clear audit trails, the File Request model is generally more sustainable.
+
+## Typical Business Use Cases
+
+- Sales / presales: requirement docs, procurement sheets, bid attachments
+- Legal / finance: contracts, due-diligence files, reconciliation attachments
+- Fundraising / M&A: structured intake for data-room supplements
+- Design / media: large asset packages and multi-version deliveries
+
+## Go-Live Checklist for IT and Management Teams
+
+Before rollout, align on:
+
+- Who can create external intake requests
+- Baseline default policies (type, size, expiration)
+- Which roles/systems receive upload notifications
+- File and log retention windows
+- Response playbooks for misuploads, malicious files, or leaked links
+
+## Conclusion: Turn “Client Large-File Uploads” into a Standardized Secure Intake Process
+
+Large-file intake should not remain an ad hoc workaround. It should be a configurable, auditable, and automatable process.
+
+If your team already collaborates externally on documents, the next step is to operationalize file requests as a standard workflow:
+
+1. Unified intake entry
+2. Unified policy enforcement
+3. Unified archiving and traceability
+4. Unified handoff to downstream teams
+
+This reduces business friction while keeping security and compliance overhead manageable.
+
+## Recommended Next Steps
+
+- Pilot one File Request template in a real workflow (for example, “Client Material Submission”)
+- Standardize defaults for file types, size limits, and expiration
+- Connect upload-success events to team notification channels and validate end-to-end response time
