@@ -6,7 +6,7 @@ from datetime import timedelta
 
 from core.models import Organization
 from documents.models import Document, Folder
-from filerequests.models import FileRequest, UploadedFile
+from filerequests.models import FileRequest, SecurityThreatEvent, UploadedFile
 
 pytestmark = pytest.mark.django_db
 
@@ -216,8 +216,10 @@ class TestPublicFileRequestViews:
     @patch('documents.services.generate_pdf_pages_task.delay')
     @patch('filerequests.views.dispatch_automation_event_task.delay')
     @patch('filerequests.views.transaction.on_commit', side_effect=lambda fn: fn())
+    @patch('filerequests.views.scan_storage_key_or_raise')
     def test_finalize_upload_success_and_creates_document(
         self,
+        _mock_scan,
         _mock_on_commit,
         mock_dispatch_automation,
         mock_task_delay,
@@ -263,7 +265,7 @@ class TestPublicFileRequestViews:
         assert payload['document_id'] == str(doc.id)
         assert payload['uploaded_by_email'] == 'john.doe@example.com'
         assert payload['event_datetime'] is not None
-        assert payload['visitor_ip'] is None
+        assert payload['visitor_ip'] is not None
         assert payload['visitor_country'] is None
         assert payload['visitor_city'] is None
         assert payload['visitor_latitude'] is None
@@ -292,8 +294,10 @@ class TestPublicFileRequestViews:
     @patch('documents.services.generate_pdf_pages_task.delay')
     @patch('filerequests.views.dispatch_automation_event_task.delay')
     @patch('filerequests.views.transaction.on_commit', side_effect=lambda fn: fn())
+    @patch('filerequests.views.scan_storage_key_or_raise')
     def test_finalize_upload_allows_multi_part_extension(
         self,
+        _mock_scan,
         _mock_on_commit,
         mock_dispatch_automation,
         mock_task_delay,
@@ -319,3 +323,129 @@ class TestPublicFileRequestViews:
         assert UploadedFile.objects.count() == 1
         mock_task_delay.assert_not_called()
         mock_dispatch_automation.assert_called_once()
+
+    @patch('filerequests.views.scan_storage_key_or_raise')
+    @patch('documents.services.generate_pdf_pages_task.delay')
+    @patch('filerequests.views.dispatch_automation_event_task.delay')
+    @patch('filerequests.views.fileserver_client.delete_file')
+    def test_finalize_upload_rejects_malicious_file(
+        self,
+        mock_delete_file,
+        mock_dispatch_automation,
+        _mock_task_delay,
+        mock_scan,
+        public_client,
+        file_request,
+    ):
+        """Test finalize rejects files flagged by malware scanner."""
+        from documents.malware_scan import MalwareDetectedError
+        mock_scan.side_effect = MalwareDetectedError(
+            "Upload blocked: security scan detected a potentially malicious file."
+        )
+
+        url = f'/api/v1/public/file-requests/{file_request.slug}/finalize-upload/'
+        data = {
+            'storage_key': 'malicious-key',
+            'unique_name': 'final-doc.pdf',
+            'file_size': 54321,
+            'content_type': 'application/pdf',
+            'uploader_name': 'John Doe',
+            'uploader_email': 'john.doe@example.com',
+        }
+
+        response = public_client.post(url, data)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "security scan detected" in response.data['detail']
+        assert Document.objects.count() == 0
+        assert UploadedFile.objects.count() == 0
+        assert SecurityThreatEvent.objects.count() == 1
+        threat = SecurityThreatEvent.objects.first()
+        assert threat.event_type == SecurityThreatEvent.EventType.MALWARE_DETECTED
+        assert threat.severity == SecurityThreatEvent.Severity.HIGH
+        assert threat.storage_cleanup_status == SecurityThreatEvent.StorageCleanupStatus.DELETED
+        assert threat.storage_cleanup_at is not None
+        assert threat.storage_cleanup_error == ''
+        mock_delete_file.assert_called_once_with('malicious-key')
+        mock_dispatch_automation.assert_called_once()
+        event_type, payload = mock_dispatch_automation.call_args.args
+        assert event_type == 'file_request_malware_detected'
+        assert payload['file_request_id'] == str(file_request.id)
+        assert payload['uploaded_file_name'] == 'final-doc.pdf'
+        assert payload['threat_event_id'] == str(threat.id)
+
+    @patch('filerequests.views.scan_storage_key_or_raise')
+    @patch('documents.services.generate_pdf_pages_task.delay')
+    @patch('filerequests.views.dispatch_automation_event_task.delay')
+    @patch('filerequests.views.fileserver_client.delete_file')
+    def test_finalize_upload_malicious_file_cleanup_failure_is_recorded(
+        self,
+        mock_delete_file,
+        mock_dispatch_automation,
+        _mock_task_delay,
+        mock_scan,
+        public_client,
+        file_request,
+    ):
+        from documents.malware_scan import MalwareDetectedError
+        mock_scan.side_effect = MalwareDetectedError(
+            "Upload blocked: security scan detected a potentially malicious file."
+        )
+        mock_delete_file.side_effect = Exception('delete failed')
+
+        url = f'/api/v1/public/file-requests/{file_request.slug}/finalize-upload/'
+        data = {
+            'storage_key': 'malicious-key-2',
+            'unique_name': 'final-doc.pdf',
+            'file_size': 54321,
+            'content_type': 'application/pdf',
+            'uploader_name': 'John Doe',
+            'uploader_email': 'john.doe@example.com',
+        }
+
+        response = public_client.post(url, data)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert SecurityThreatEvent.objects.count() == 1
+        threat = SecurityThreatEvent.objects.first()
+        assert threat.storage_cleanup_status == SecurityThreatEvent.StorageCleanupStatus.FAILED
+        assert 'delete failed' in threat.storage_cleanup_error
+        mock_dispatch_automation.assert_called_once()
+
+    @patch('filerequests.views.scan_storage_key_or_raise')
+    @patch('filerequests.views.dispatch_automation_event_task.delay')
+    def test_finalize_upload_scanner_unavailable_dispatches_security_event(
+        self,
+        mock_dispatch_automation,
+        mock_scan,
+        public_client,
+        file_request,
+    ):
+        from documents.malware_scan import MalwareScannerUnavailableError
+        mock_scan.side_effect = MalwareScannerUnavailableError(
+            "Upload could not be verified by security scanner. Please try again later."
+        )
+
+        url = f'/api/v1/public/file-requests/{file_request.slug}/finalize-upload/'
+        data = {
+            'storage_key': 'scanner-down-key',
+            'unique_name': 'final-doc.pdf',
+            'file_size': 54321,
+            'content_type': 'application/pdf',
+            'uploader_name': 'John Doe',
+            'uploader_email': 'john.doe@example.com',
+        }
+
+        response = public_client.post(url, data)
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert "security scanner" in response.data['detail']
+        assert Document.objects.count() == 0
+        assert UploadedFile.objects.count() == 0
+        assert SecurityThreatEvent.objects.count() == 1
+        threat = SecurityThreatEvent.objects.first()
+        assert threat.event_type == SecurityThreatEvent.EventType.SCAN_FAILED
+        assert threat.severity == SecurityThreatEvent.Severity.MEDIUM
+        assert threat.storage_cleanup_status == SecurityThreatEvent.StorageCleanupStatus.PENDING
+        mock_dispatch_automation.assert_called_once()
+        event_type, payload = mock_dispatch_automation.call_args.args
+        assert event_type == 'file_request_scan_failed'
+        assert payload['file_request_id'] == str(file_request.id)
+        assert payload['threat_event_id'] == str(threat.id)

@@ -13,6 +13,7 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@echo "  up              - Start all services in detached mode"
+	@echo "  up.malware      - Start services with malware profile (includes clamav)"
 	@echo "  down            - Stop and remove all services"
 	@echo "  build           - Build or rebuild services"
 	@echo "  portal    - Build the static portal site"
@@ -39,6 +40,10 @@ help:
 .PHONY: up
 up:
 	COMPOSE_PROJECT_NAME=coneshare docker-compose up -d
+
+.PHONY: up.malware
+up.malware:
+	COMPOSE_PROJECT_NAME=coneshare docker-compose --profile malware up -d
 
 .PHONY: down
 down:

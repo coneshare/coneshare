@@ -127,6 +127,70 @@ describe('PublicUploadPage', () => {
     });
   });
 
+  it('shows a friendly malware-scan error message', async () => {
+    api.finalizePublicUpload.mockRejectedValueOnce({
+      response: {
+        status: 400,
+        data: {
+          detail: 'Upload blocked: security scan detected a potentially malicious file.',
+        },
+      },
+    });
+
+    const { container } = renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('Upload Docs')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText('Your Name'), { target: { value: 'Jane' } });
+    fireEvent.change(screen.getByLabelText('Your Email'), { target: { value: 'jane@example.com' } });
+
+    const fileInput = container.querySelector('input[type="file"]');
+    const file = new File(['pdf'], 'Quarterly.PDF', { type: 'application/pdf' });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Upload 1 File\(s\)/i }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith(
+        expect.stringContaining('Error uploading Quarterly.PDF: This file was blocked by our security scan.')
+      );
+      expect(screen.getByText('This file was blocked by our security scan. Please remove it and upload a different file.')).toBeInTheDocument();
+    });
+  });
+
+  it('shows a friendly scanner-unavailable error message', async () => {
+    api.finalizePublicUpload.mockRejectedValueOnce({
+      response: {
+        status: 503,
+        data: {
+          detail: 'Upload could not be verified by security scanner. Please try again later.',
+        },
+      },
+    });
+
+    const { container } = renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('Upload Docs')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText('Your Name'), { target: { value: 'Jane' } });
+    fireEvent.change(screen.getByLabelText('Your Email'), { target: { value: 'jane@example.com' } });
+
+    const fileInput = container.querySelector('input[type="file"]');
+    const file = new File(['pdf'], 'Quarterly.PDF', { type: 'application/pdf' });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Upload 1 File\(s\)/i }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith(
+        expect.stringContaining('Error uploading Quarterly.PDF: Uploads are temporarily unavailable because the security scanner is offline.')
+      );
+      expect(screen.getByText('Uploads are temporarily unavailable because the security scanner is offline. Please try again later.')).toBeInTheDocument();
+    });
+  });
+
   it('accepts multi-part allowed extension in client-side precheck', async () => {
     api.getPublicFileRequest.mockResolvedValueOnce({
       data: {

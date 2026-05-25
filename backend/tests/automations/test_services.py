@@ -122,6 +122,40 @@ def test_dispatch_creates_delivery_for_file_request_uploaded_event(user):
     assert delivery.event_type == 'file_request_uploaded'
 
 
+def test_dispatch_creates_delivery_for_file_request_malware_detected_event(user):
+    destination = AutomationDestination.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name='File Request Security Destination',
+        destination_type='webhook',
+        endpoint_url='https://example.com/file-request-security',
+    )
+    rule = AutomationRule.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name='File Request Security Rule',
+        scope_type='global',
+        subscribed_events=['file_request_malware_detected'],
+        actions=[{'type': 'notify_destination'}],
+    )
+    rule.destinations.add(destination)
+
+    created_count = dispatch_automation_event(
+        event_type='file_request_malware_detected',
+        payload={
+            'organization_id': str(user.organization.id),
+            'owner_user_id': str(user.id),
+            'file_request_id': 'fr-1',
+            'uploaded_by_email': 'uploader@example.com',
+            'uploaded_file_name': 'invoice.exe',
+        },
+    )
+
+    assert created_count == 1
+    delivery = AutomationDelivery.objects.get()
+    assert delivery.event_type == 'file_request_malware_detected'
+
+
 def test_dispatch_ignores_inactive_rule_or_destination(user):
     inactive_destination = AutomationDestination.objects.create(
         organization=user.organization,
