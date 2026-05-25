@@ -102,11 +102,11 @@ export default function BlogToc() {
               <li key={item.id}>
                 <a
                   href={`#${item.id}`}
-                  className={`flex items-start gap-2 rounded-md py-1 text-sm leading-6 transition-colors ${
+                  className={`flex items-start gap-2 rounded-md py-1 text-xs leading-5 transition-colors ${
                     item.level === 'h3' ? 'pl-4' : ''
                   } ${
                     activeId === item.id
-                      ? 'bg-gray-100 font-semibold text-gray-900'
+                      ? 'bg-gray-100 text-gray-900'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
                 >
