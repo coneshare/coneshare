@@ -4,6 +4,7 @@ const NAV_LINKS = [
   { to: '/admin/settings', label: 'Settings' },
   { to: '/admin/users', label: 'Users' },
   { to: '/admin/login-activity', label: 'Login Activity' },
+  { to: '/admin/security-alerts', label: 'Security Alerts' },
 ];
 
 export function AdminNav() {

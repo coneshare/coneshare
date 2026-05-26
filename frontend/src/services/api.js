@@ -470,5 +470,12 @@ export const createAdminUser = (data) => api.post('/admin/users/', data);
 export const updateAdminUser = (id, data) => api.patch(`/admin/users/${id}/`, data);
 export const deleteAdminUser = (id) => api.delete(`/admin/users/${id}/`);
 export const getAdminLoginActivities = (page = 1) => api.get(`/admin/login-activities/?page=${page}`);
+export const getAdminSecurityThreatEvents = ({ page = 1, status = '', severity = '', eventType = '' } = {}) => {
+  const params = { page };
+  if (status) params.status = status;
+  if (severity) params.severity = severity;
+  if (eventType) params.event_type = eventType;
+  return api.get('/admin/security-threat-events/', { params });
+};
     
 export default api;
