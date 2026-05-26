@@ -9,6 +9,8 @@ ALLOWED_AUTOMATION_EVENTS = {
     'document_downloaded',
     'email_identified',
     'file_request_uploaded',
+    'file_request_malware_detected',
+    'file_request_scan_failed',
 }
 
 
@@ -97,8 +99,15 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 f'Unsupported subscribed events: {invalid_events}. Allowed events: {sorted(allowed_events)}'
             )
-        if 'file_request_uploaded' in subscribed_events and scope_type != AutomationRule.ScopeType.GLOBAL:
-            raise serializers.ValidationError('file_request_uploaded is only supported for global scope rules.')
+        file_request_global_only_events = {
+            'file_request_uploaded',
+            'file_request_malware_detected',
+            'file_request_scan_failed',
+        }
+        if any(event in subscribed_events for event in file_request_global_only_events) and scope_type != AutomationRule.ScopeType.GLOBAL:
+            raise serializers.ValidationError(
+                'file_request_uploaded, file_request_malware_detected, and file_request_scan_failed are only supported for global scope rules.'
+            )
 
         return attrs
 

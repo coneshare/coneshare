@@ -54,6 +54,13 @@ CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', SITE_DOMAIN).split
 CORE_API_URL = os.environ.get('CORE_API_URL', 'http://core:8080')
 INTERNAL_API_TOKEN = os.environ.get('INTERNAL_API_TOKEN')
 
+# Malware Scan (ClamAV)
+MALWARE_SCAN_ENABLED = os.environ.get('MALWARE_SCAN_ENABLED', 'false').lower() in ('true', '1', 't')
+CLAMAV_HOST = os.environ.get('CLAMAV_HOST', 'clamav')
+CLAMAV_PORT = int(os.environ.get('CLAMAV_PORT', 3310))
+MALWARE_SCAN_TIMEOUT_MS = int(os.environ.get('MALWARE_SCAN_TIMEOUT_MS', 10000))
+MALWARE_SCAN_FAIL_MODE = os.environ.get('MALWARE_SCAN_FAIL_MODE', 'closed')
+
 # Email Configuration (for sending password resets, etc.)
 EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = os.environ.get('EMAIL_HOST')

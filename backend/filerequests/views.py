@@ -1,5 +1,7 @@
 import logging
 
+from geoip2.errors import AddressNotFoundError
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Count
 from django.utils import timezone
@@ -10,7 +12,7 @@ from rest_framework.views import APIView
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema
 
-from documents.fileserver import fileserver_client
+from backend.utils import get_client_ip
 from documents.views import StandardResultsSetPagination
 from documents.services import (
     QuotaExceededError,
@@ -19,8 +21,14 @@ from documents.services import (
     _get_unique_document_name,
     generate_storage_key,
 )
+from documents.fileserver import fileserver_client
+from documents.malware_scan import (
+    MalwareDetectedError,
+    MalwareScannerUnavailableError,
+    scan_storage_key_or_raise,
+)
 from automations.tasks import dispatch_automation_event_task
-from .models import FileRequest, UploadedFile
+from .models import FileRequest, SecurityThreatEvent, UploadedFile
 from .serializers import (
     FileRequestSerializer,
     FileRequestDetailSerializer,
@@ -61,6 +69,27 @@ def _validate_allowed_file_types(file_request, file_name):
         f"File type not allowed. Allowed file types: {allowed_text}. "
         "Matching is case-insensitive and accepts values with or without a leading dot."
     )
+
+
+def _get_visitor_context(request):
+    location_data = {}
+    visitor_ip = get_client_ip(request)
+
+    if visitor_ip and settings.GEOIP:
+        try:
+            location_data = settings.GEOIP.city(visitor_ip)
+        except AddressNotFoundError:
+            pass
+        except Exception as e:
+            logger.error("GeoIP2 lookup failed for file request upload: %s", e)
+
+    return {
+        'visitor_ip': visitor_ip or None,
+        'visitor_country': location_data.get('country_name') or None,
+        'visitor_city': location_data.get('city') or None,
+        'visitor_latitude': location_data.get('latitude'),
+        'visitor_longitude': location_data.get('longitude'),
+    }
 
 
 @extend_schema(tags=['filerequests'])
@@ -211,6 +240,20 @@ class FileRequestUploadFinalizeView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         validated_data = serializer.validated_data
+        visitor_context = _get_visitor_context(request)
+        security_event_payload = {
+            'organization_id': str(file_request.created_by.organization_id),
+            'owner_user_id': str(file_request.created_by_id),
+            'file_request_id': str(file_request.id),
+            'file_request_slug': file_request.slug,
+            'folder_id': str(file_request.folder_id),
+            'uploaded_by_name': validated_data['uploader_name'],
+            'uploaded_by_email': validated_data['uploader_email'],
+            'uploaded_file_name': validated_data['unique_name'],
+            'uploaded_file_size': validated_data['file_size'],
+            'event_datetime': timezone.now().isoformat(),
+            **visitor_context,
+        }
         file_type_error = _validate_allowed_file_types(
             file_request=file_request,
             file_name=validated_data['unique_name'],
@@ -219,6 +262,7 @@ class FileRequestUploadFinalizeView(APIView):
             return Response({"detail": file_type_error}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            scan_storage_key_or_raise(validated_data['storage_key'])
             with transaction.atomic():
                 document = create_document_from_upload(
                     requesting_user=file_request.created_by,
@@ -255,15 +299,85 @@ class FileRequestUploadFinalizeView(APIView):
                     'uploaded_file_name': document.name,
                     'uploaded_file_size': validated_data['file_size'],
                     'event_datetime': timezone.now().isoformat(),
-                    'visitor_ip': None,
-                    'visitor_country': None,
-                    'visitor_city': None,
-                    'visitor_latitude': None,
-                    'visitor_longitude': None,
+                    **visitor_context,
                 }
                 transaction.on_commit(
                     lambda: dispatch_automation_event_task.delay('file_request_uploaded', payload)
                 )
+        except MalwareDetectedError as e:
+            threat_event = SecurityThreatEvent.objects.create(
+                organization=file_request.created_by.organization,
+                owner_user=file_request.created_by,
+                file_request=file_request,
+                event_type=SecurityThreatEvent.EventType.MALWARE_DETECTED,
+                severity=SecurityThreatEvent.Severity.HIGH,
+                storage_key=validated_data['storage_key'],
+                file_name=validated_data['unique_name'],
+                file_size=validated_data['file_size'],
+                content_type=validated_data['content_type'],
+                uploader_name=validated_data['uploader_name'],
+                uploader_email=validated_data['uploader_email'],
+                scanner_message=str(e),
+            )
+            try:
+                fileserver_client.delete_file(validated_data['storage_key'])
+                threat_event.storage_cleanup_status = SecurityThreatEvent.StorageCleanupStatus.DELETED
+                threat_event.storage_cleanup_at = timezone.now()
+                threat_event.save(update_fields=['storage_cleanup_status', 'storage_cleanup_at'])
+            except Exception as cleanup_error:
+                logger.error(
+                    "Failed to delete malicious uploaded object for file request %s storage_key=%s: %s",
+                    file_request.slug,
+                    validated_data['storage_key'],
+                    cleanup_error,
+                )
+                threat_event.storage_cleanup_status = SecurityThreatEvent.StorageCleanupStatus.FAILED
+                threat_event.storage_cleanup_error = str(cleanup_error)
+                threat_event.save(update_fields=['storage_cleanup_status', 'storage_cleanup_error'])
+            malware_payload = {
+                **security_event_payload,
+                'threat_event_id': str(threat_event.id),
+                'scan_error': str(e),
+            }
+            dispatch_automation_event_task.delay('file_request_malware_detected', malware_payload)
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except MalwareScannerUnavailableError as e:
+            threat_event = SecurityThreatEvent.objects.create(
+                organization=file_request.created_by.organization,
+                owner_user=file_request.created_by,
+                file_request=file_request,
+                event_type=SecurityThreatEvent.EventType.SCAN_FAILED,
+                severity=SecurityThreatEvent.Severity.MEDIUM,
+                storage_key=validated_data['storage_key'],
+                file_name=validated_data['unique_name'],
+                file_size=validated_data['file_size'],
+                content_type=validated_data['content_type'],
+                uploader_name=validated_data['uploader_name'],
+                uploader_email=validated_data['uploader_email'],
+                scanner_message=str(e),
+            )
+            try:
+                fileserver_client.delete_file(validated_data['storage_key'])
+                threat_event.storage_cleanup_status = SecurityThreatEvent.StorageCleanupStatus.DELETED
+                threat_event.storage_cleanup_at = timezone.now()
+                threat_event.save(update_fields=['storage_cleanup_status', 'storage_cleanup_at'])
+            except Exception as cleanup_error:
+                logger.error(
+                    "Failed to delete unscanned uploaded object for file request %s storage_key=%s: %s",
+                    file_request.slug,
+                    validated_data['storage_key'],
+                    cleanup_error,
+                )
+                threat_event.storage_cleanup_status = SecurityThreatEvent.StorageCleanupStatus.FAILED
+                threat_event.storage_cleanup_error = str(cleanup_error)
+                threat_event.save(update_fields=['storage_cleanup_status', 'storage_cleanup_error'])
+            scanner_failed_payload = {
+                **security_event_payload,
+                'threat_event_id': str(threat_event.id),
+                'scan_error': str(e),
+            }
+            dispatch_automation_event_task.delay('file_request_scan_failed', scanner_failed_payload)
+            return Response({"detail": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         except Exception as e:
             logger.error(f"Failed to finalize document upload for file request {slug}: {e}")
             return Response(

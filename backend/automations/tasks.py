@@ -62,6 +62,18 @@ def _build_request_payload(delivery: AutomationDelivery) -> dict:
             text += f" | file={uploaded_file_name}"
         if file_request_slug:
             text += f" | file_request={file_request_slug}"
+    elif event_type == 'file_request_malware_detected':
+        text = f"[Coneshare] {event_type} | uploader={uploaded_by_name}<{uploaded_by_email}>"
+        if uploaded_file_name:
+            text += f" | file={uploaded_file_name}"
+        if file_request_slug:
+            text += f" | file_request={file_request_slug}"
+    elif event_type == 'file_request_scan_failed':
+        text = f"[Coneshare] {event_type} | uploader={uploaded_by_name}<{uploaded_by_email}>"
+        if uploaded_file_name:
+            text += f" | file={uploaded_file_name}"
+        if file_request_slug:
+            text += f" | file_request={file_request_slug}"
     else:
         text = f"[Coneshare] {event_type} | viewer={viewer_email}"
         if share_link_id:
