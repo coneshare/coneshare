@@ -25,6 +25,20 @@ const getAllowedExtensions = (allowedFileTypes) => {
   return [...new Set(allowedFileTypes.map(normalizeExtension).filter(Boolean))];
 };
 
+const getFriendlyUploadError = (err) => {
+  const status = err?.response?.status;
+  const detail = err?.response?.data?.detail;
+  const text = String(detail || '').toLowerCase();
+
+  if (status === 400 && text.includes('security scan detected')) {
+    return 'This file was blocked by our security scan. Please remove it and upload a different file.';
+  }
+  if (status === 503 && text.includes('security scanner')) {
+    return 'Uploads are temporarily unavailable because the security scanner is offline. Please try again later.';
+  }
+  return detail || 'Upload failed.';
+};
+
 export function PublicUploadPage() {
   const { slug } = useParams();
   const [searchParams] = useSearchParams();
@@ -168,7 +182,7 @@ export function PublicUploadPage() {
         });
         return { success: true };
       } catch (err) {
-        const errorMessage = err.response?.data?.detail || 'Upload failed.';
+        const errorMessage = getFriendlyUploadError(err);
         toast.error(`Error uploading ${file.name}: ${errorMessage}`);
         setUploadErrors((prev) => ({ ...prev, [fileId]: errorMessage }));
         setUploadProgress((prev) => ({ ...prev, [fileId]: 'error' }));
