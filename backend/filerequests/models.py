@@ -2,7 +2,7 @@ import secrets
 
 from django.db import models
 
-from core.models import BaseModel, User
+from core.models import BaseModel, Organization, User
 from documents.models import Document, Folder
 
 
@@ -45,3 +45,51 @@ class UploadedFile(BaseModel):
 
     def __str__(self):
         return f"'{self.document.name}' uploaded by {self.uploader_email} for request '{self.file_request.name}'"
+
+
+class SecurityThreatEvent(BaseModel):
+    """
+    Audit record for file-request upload security incidents.
+    """
+    class EventType(models.TextChoices):
+        MALWARE_DETECTED = 'malware_detected', 'Malware Detected'
+        SCAN_FAILED = 'scan_failed', 'Scanner Failed'
+
+    class Severity(models.TextChoices):
+        HIGH = 'high', 'High'
+        MEDIUM = 'medium', 'Medium'
+
+    class Status(models.TextChoices):
+        NEW = 'new', 'New'
+        ACKNOWLEDGED = 'acknowledged', 'Acknowledged'
+        RESOLVED = 'resolved', 'Resolved'
+
+    class StorageCleanupStatus(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        DELETED = 'deleted', 'Deleted'
+        FAILED = 'failed', 'Failed'
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='security_threat_events')
+    owner_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='security_threat_events')
+    file_request = models.ForeignKey(FileRequest, on_delete=models.CASCADE, related_name='security_threat_events')
+    event_type = models.CharField(max_length=32, choices=EventType.choices)
+    severity = models.CharField(max_length=16, choices=Severity.choices)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.NEW)
+    storage_key = models.CharField(max_length=1024, blank=True)
+    file_name = models.CharField(max_length=255, blank=True)
+    file_size = models.BigIntegerField(null=True, blank=True)
+    content_type = models.CharField(max_length=255, blank=True)
+    uploader_name = models.CharField(max_length=255, blank=True)
+    uploader_email = models.EmailField(blank=True)
+    scanner_engine = models.CharField(max_length=64, default='clamav')
+    scanner_message = models.TextField(blank=True)
+    storage_cleanup_status = models.CharField(
+        max_length=16,
+        choices=StorageCleanupStatus.choices,
+        default=StorageCleanupStatus.PENDING,
+    )
+    storage_cleanup_at = models.DateTimeField(null=True, blank=True)
+    storage_cleanup_error = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.event_type} for {self.file_request.slug} ({self.created_at})"

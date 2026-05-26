@@ -1,7 +1,10 @@
 import pytest
 from rest_framework import status
 
-from core.models import AppConfiguration, User
+from core.models import AppConfiguration, Organization, User
+from documents.models import Folder
+from filerequests.models import FileRequest
+from filerequests.models import SecurityThreatEvent
 
 
 @pytest.mark.django_db
@@ -135,3 +138,81 @@ class TestAdminSettingsTypedValues:
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert 'value' in response.json()
+
+
+@pytest.mark.django_db
+class TestAdminSecurityThreatEventsViewSet:
+    def test_list_security_threat_events_scoped_to_org(self, admin_api_client, admin_user, file_request):
+        own_event = SecurityThreatEvent.objects.create(
+            organization=admin_user.organization,
+            owner_user=admin_user,
+            file_request=file_request,
+            event_type=SecurityThreatEvent.EventType.MALWARE_DETECTED,
+            severity=SecurityThreatEvent.Severity.HIGH,
+            status=SecurityThreatEvent.Status.NEW,
+            file_name='malware.exe',
+            uploader_email='bad@example.com',
+            scanner_message='FOUND',
+        )
+
+        other_org = Organization.objects.create(name='Other Org Threats')
+        other_org_admin = User.objects.create_user(
+            username='other-org-admin@example.com',
+            email='other-org-admin@example.com',
+            password='password',
+            role='admin',
+            organization=other_org,
+        )
+        other_org_root = Folder.objects.get_root_for_org(other_org)
+        other_org_file_request = FileRequest.objects.create(
+            name='Other Org Request',
+            folder=other_org_root,
+            created_by=other_org_admin,
+        )
+        SecurityThreatEvent.objects.create(
+            organization=other_org,
+            owner_user=other_org_admin,
+            file_request=other_org_file_request,
+            event_type=SecurityThreatEvent.EventType.SCAN_FAILED,
+            severity=SecurityThreatEvent.Severity.MEDIUM,
+            status=SecurityThreatEvent.Status.NEW,
+            file_name='unknown.pdf',
+            uploader_email='other@example.com',
+            scanner_message='timeout',
+        )
+
+        response = admin_api_client.get('/api/v1/admin/security-threat-events/')
+        assert response.status_code == status.HTTP_200_OK
+        results = response.json()['results']
+        assert len(results) == 1
+        assert results[0]['id'] == str(own_event.id)
+        assert results[0]['file_request_slug'] == file_request.slug
+
+    def test_filter_security_threat_events(self, admin_api_client, admin_user, file_request):
+        SecurityThreatEvent.objects.create(
+            organization=admin_user.organization,
+            owner_user=admin_user,
+            file_request=file_request,
+            event_type=SecurityThreatEvent.EventType.MALWARE_DETECTED,
+            severity=SecurityThreatEvent.Severity.HIGH,
+            status=SecurityThreatEvent.Status.NEW,
+        )
+        SecurityThreatEvent.objects.create(
+            organization=admin_user.organization,
+            owner_user=admin_user,
+            file_request=file_request,
+            event_type=SecurityThreatEvent.EventType.SCAN_FAILED,
+            severity=SecurityThreatEvent.Severity.MEDIUM,
+            status=SecurityThreatEvent.Status.RESOLVED,
+        )
+
+        response = admin_api_client.get('/api/v1/admin/security-threat-events/?severity=high&status=new')
+        assert response.status_code == status.HTTP_200_OK
+        results = response.json()['results']
+        assert len(results) == 1
+        assert results[0]['severity'] == 'high'
+        assert results[0]['status'] == 'new'
+
+    def test_non_admin_cannot_list_security_threat_events(self, api_client):
+        response = api_client.get('/api/v1/admin/security-threat-events/')
+        assert response.status_code == status.HTTP_403_FORBIDDEN

@@ -15,7 +15,11 @@ Use Docker-based workflows from the repository root unless you are iterating ins
 - `make up` / `make down`: start/stop the full stack.
 - `make migrate`: run Django migrations.
 - `make test`: run backend pytest suite in container.
+- Targeted backend test in container (example):
+  - `COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend pytest -q tests/filerequests/test_views.py`
 - `make test.front`: run frontend Vitest suite in container.
+- Targeted frontend test in container (example):
+  - `COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run src/tests/pages/PublicUploadPage.test.jsx`
 - `make lint.portal`: run portal ESLint.
 - `make logs`: follow service logs.
 
@@ -30,6 +34,7 @@ Local package commands:
 - Keep app/domain modules cohesive (serializers, views, models grouped per Django app).
 
 ## Testing Guidelines
+- Migration workflow note: do not auto-generate migration files in agent changes; schema migration files are created/run manually by the maintainer.
 - Backend: `pytest` + `pytest-django`; test discovery from `backend/tests` and `backend/bdd` (`test_*.py`, `*_tests.py`).
 - Frontend: `vitest` + Testing Library; place tests under `frontend/src/tests/**` and use `*.test.jsx|js`.
 - E2E: Playwright specs in `e2e/tests/`.
