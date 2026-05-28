@@ -27,3 +27,4 @@ psycopg[binary]==3.2.13
 openapi-spec-validator==0.7.1
 
 gunicorn==23.0.0
+sentry-sdk==2.60.0

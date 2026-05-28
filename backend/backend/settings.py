@@ -18,7 +18,10 @@ import sys
 from urllib.parse import urlparse
 
 import dj_database_url
+import sentry_sdk
 from django.contrib.gis.geoip2 import GeoIP2
+from sentry_sdk.integrations.celery import CeleryIntegration
+from sentry_sdk.integrations.django import DjangoIntegration
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -97,6 +100,24 @@ DATABASES = {
 
 # Log Level Configuration
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
+
+# Error Monitoring (Sentry)
+SENTRY_DSN = os.environ.get('SENTRY_DSN', '').strip()
+SENTRY_ENVIRONMENT = os.environ.get('SENTRY_ENVIRONMENT', 'development' if DEBUG else 'production')
+SENTRY_RELEASE = os.environ.get('SENTRY_RELEASE', 'rolling')
+SENTRY_SEND_DEFAULT_PII = os.environ.get('SENTRY_SEND_DEFAULT_PII', 'false').lower() in ('true', '1', 't')
+
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            DjangoIntegration(),
+            CeleryIntegration(),
+        ],
+        environment=SENTRY_ENVIRONMENT,
+        release=SENTRY_RELEASE,
+        send_default_pii=SENTRY_SEND_DEFAULT_PII,
+    )
 
 
 # Redis base URL from environment (should not include database number)
