@@ -283,6 +283,10 @@ LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
 
+# Timezone used only for user-facing timestamp display in notifications.
+# Internal Django/Celery timestamps remain UTC.
+DISPLAY_TIME_ZONE = os.environ.get('DISPLAY_TIME_ZONE') or TIME_ZONE
+
 USE_I18N = True
 
 USE_TZ = True

@@ -4,9 +4,12 @@ import json
 import logging
 from datetime import timedelta
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import requests
 from celery import shared_task
+from django.conf import settings
+from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 
 from .models import AutomationDelivery
@@ -39,55 +42,133 @@ def _build_headers(delivery: AutomationDelivery, request_payload: dict) -> dict:
     return headers
 
 
+def _display_actor(name: str | None, email: str | None, fallback: str = 'Anonymous') -> str:
+    name = (name or '').strip()
+    email = (email or '').strip()
+    if name and email:
+        return f'{name} <{email}>'
+    if email:
+        return email
+    if name:
+        return name
+    return fallback
+
+
+def _target_description(payload: dict) -> str:
+    document_name = payload.get('document_name')
+    dataroom_name = payload.get('dataroom_name')
+    dataroom_folder_name = payload.get('dataroom_folder_name')
+
+    if document_name:
+        return f'document "{document_name}"'
+    if dataroom_folder_name and dataroom_name:
+        return f'folder "{dataroom_folder_name}" in dataroom "{dataroom_name}"'
+    if dataroom_folder_name:
+        return f'folder "{dataroom_folder_name}"'
+    if dataroom_name:
+        return f'dataroom "{dataroom_name}"'
+    return 'item'
+
+
+def _format_event_time(value: str | None) -> str | None:
+    if not value:
+        return None
+
+    parsed = parse_datetime(value)
+    if not parsed:
+        return value
+    if timezone.is_naive(parsed):
+        parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
+
+    try:
+        display_timezone = ZoneInfo(settings.DISPLAY_TIME_ZONE)
+    except ZoneInfoNotFoundError:
+        display_timezone = ZoneInfo('UTC')
+
+    return timezone.localtime(parsed, display_timezone).strftime('%b %-d, %Y, %-I:%M %p')
+
+
+def _approximate_location(payload: dict) -> str | None:
+    city = (payload.get('visitor_city') or '').strip()
+    country = (payload.get('visitor_country') or '').strip()
+
+    if city and country:
+        return f'{city}, {country}'
+    if city:
+        return city
+    if country:
+        return country
+    return None
+
+
+def _append_event_details(message: str, payload: dict) -> str:
+    details = []
+    event_time = _format_event_time(payload.get('event_datetime'))
+    location = _approximate_location(payload)
+
+    if event_time:
+        details.append(f'Time: {event_time}')
+    if location:
+        details.append(f'Approximate location: {location}')
+
+    if not details:
+        return message
+    return f'{message}\n' + '\n'.join(details)
+
+
+def _build_event_text(delivery: AutomationDelivery) -> str:
+    payload = delivery.payload or {}
+    event_type = delivery.event_type
+
+    viewer = _display_actor(None, payload.get('viewer_email'))
+    target = _target_description(payload)
+
+    if event_type == 'document_viewed':
+        return _append_event_details(f'Your shared {target} was viewed by {viewer}.', payload)
+
+    if event_type == 'dataroom_opened':
+        return _append_event_details(f'Your shared {target} was opened by {viewer}.', payload)
+
+    if event_type == 'document_downloaded':
+        return _append_event_details(f'Your shared {target} was downloaded by {viewer}.', payload)
+
+    if event_type == 'email_identified':
+        return _append_event_details(f'{viewer} identified their email address for your shared {target}.', payload)
+
+    uploader = _display_actor(
+        payload.get('uploaded_by_name'),
+        payload.get('uploaded_by_email'),
+        fallback='Unknown uploader',
+    )
+    uploaded_file_name = payload.get('uploaded_file_name')
+    file_request_name = payload.get('file_request_name') or payload.get('file_request_slug')
+    file_request_text = f' to file request "{file_request_name}"' if file_request_name else ''
+    file_text = f' "{uploaded_file_name}"' if uploaded_file_name else ''
+
+    if event_type == 'file_request_uploaded':
+        return _append_event_details(f'{uploader} uploaded{file_text}{file_request_text}.', payload)
+
+    if event_type == 'file_request_malware_detected':
+        return _append_event_details(
+            f'Malware was detected in uploaded file{file_text}{file_request_text} from {uploader}.',
+            payload,
+        )
+
+    if event_type == 'file_request_scan_failed':
+        return _append_event_details(
+            f'Malware scanning failed for uploaded file{file_text}{file_request_text} from {uploader}.',
+            payload,
+        )
+
+    return _append_event_details(f'Coneshare automation event "{event_type}" was triggered for {target}.', payload)
+
+
 def _build_request_payload(delivery: AutomationDelivery) -> dict:
     destination_type = delivery.destination.destination_type
     endpoint_url = (delivery.destination.endpoint_url or '').lower()
 
     event_type = delivery.event_type
-    share_link_id = delivery.payload.get('share_link_id')
-    dataroom_id = delivery.payload.get('dataroom_id')
-    dataroom_name = delivery.payload.get('dataroom_name')
-    dataroom_folder_id = delivery.payload.get('dataroom_folder_id')
-    dataroom_folder_name = delivery.payload.get('dataroom_folder_name')
-    document_name = delivery.payload.get('document_name')
-    viewer_email = delivery.payload.get('viewer_email') or 'anonymous'
-    uploaded_by_email = delivery.payload.get('uploaded_by_email') or 'anonymous'
-    uploaded_by_name = delivery.payload.get('uploaded_by_name') or 'unknown'
-    uploaded_file_name = delivery.payload.get('uploaded_file_name')
-    file_request_slug = delivery.payload.get('file_request_slug')
-
-    if event_type == 'file_request_uploaded':
-        text = f"[Coneshare] {event_type} | uploader={uploaded_by_name}<{uploaded_by_email}>"
-        if uploaded_file_name:
-            text += f" | file={uploaded_file_name}"
-        if file_request_slug:
-            text += f" | file_request={file_request_slug}"
-    elif event_type == 'file_request_malware_detected':
-        text = f"[Coneshare] {event_type} | uploader={uploaded_by_name}<{uploaded_by_email}>"
-        if uploaded_file_name:
-            text += f" | file={uploaded_file_name}"
-        if file_request_slug:
-            text += f" | file_request={file_request_slug}"
-    elif event_type == 'file_request_scan_failed':
-        text = f"[Coneshare] {event_type} | uploader={uploaded_by_name}<{uploaded_by_email}>"
-        if uploaded_file_name:
-            text += f" | file={uploaded_file_name}"
-        if file_request_slug:
-            text += f" | file_request={file_request_slug}"
-    else:
-        text = f"[Coneshare] {event_type} | viewer={viewer_email}"
-        if share_link_id:
-            text += f" | link={share_link_id}"
-        if document_name:
-            text += f" | document={document_name}"
-        if dataroom_id:
-            text += f" | dataroom={dataroom_id}"
-        if dataroom_name:
-            text += f" | dataroom_name={dataroom_name}"
-        if dataroom_folder_id:
-            text += f" | folder={dataroom_folder_id}"
-        if dataroom_folder_name:
-            text += f" | folder_name={dataroom_folder_name}"
+    text = _build_event_text(delivery)
 
     if destination_type == 'slack':
         # Slack incoming webhook requires "text" at minimum.
