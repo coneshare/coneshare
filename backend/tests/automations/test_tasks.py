@@ -95,8 +95,37 @@ def test_deliver_task_builds_slack_payload_with_text(mock_request, user, share_l
     assert 'json' in kwargs
     assert isinstance(kwargs['json'], dict)
     assert 'text' in kwargs['json']
+    assert kwargs['json']['text'] == 'Your shared document "Pitch Deck.pdf" was viewed by buyer@example.com.'
     assert 'buyer@example.com' in kwargs['json']['text']
     assert 'Pitch Deck.pdf' in kwargs['json']['text']
+
+
+@patch('automations.tasks.requests.request')
+def test_deliver_task_adds_time_and_approximate_location_to_chat_text(mock_request, settings, user, share_link):
+    settings.DISPLAY_TIME_ZONE = 'Asia/Shanghai'
+    delivery = _make_delivery(user, share_link)
+    delivery.destination.destination_type = 'slack'
+    delivery.destination.save(update_fields=['destination_type'])
+    delivery.payload = {
+        'organization_id': str(user.organization.id),
+        'share_link_id': str(share_link.id),
+        'document_name': 'Pitch Deck.pdf',
+        'viewer_email': 'buyer@example.com',
+        'event_datetime': '2026-05-28T14:30:00+00:00',
+        'visitor_city': 'Shanghai',
+        'visitor_country': 'China',
+    }
+    delivery.save(update_fields=['payload'])
+    mock_request.return_value = DummyResponse(status_code=200, text='ok')
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    _, kwargs = mock_request.call_args
+    text = kwargs['json']['text']
+    assert text.startswith('Your shared document "Pitch Deck.pdf" was viewed by buyer@example.com.')
+    assert '\nTime: May 28, 2026, 10:30 PM' in text
+    assert 'Asia/Shanghai' not in text
+    assert '\nApproximate location: Shanghai, China' in text
 
 
 @patch('automations.tasks.requests.request')
@@ -121,6 +150,7 @@ def test_deliver_task_builds_file_request_uploaded_text(mock_request, user, shar
 
     _, kwargs = mock_request.call_args
     assert 'text' in kwargs['json']
+    assert kwargs['json']['text'] == 'John Doe <john.doe@example.com> uploaded "nda.pdf" to file request "upload-abc".'
     assert 'john.doe@example.com' in kwargs['json']['text']
     assert 'nda.pdf' in kwargs['json']['text']
     assert 'upload-abc' in kwargs['json']['text']
@@ -147,6 +177,7 @@ def test_deliver_task_builds_file_request_malware_detected_text(mock_request, us
 
     _, kwargs = mock_request.call_args
     assert 'text' in kwargs['json']
+    assert kwargs['json']['text'] == 'Malware was detected in uploaded file "virus.exe" to file request "upload-abc" from John Doe <john.doe@example.com>.'
     assert 'john.doe@example.com' in kwargs['json']['text']
     assert 'virus.exe' in kwargs['json']['text']
     assert 'upload-abc' in kwargs['json']['text']
@@ -300,7 +331,7 @@ def test_deliver_task_builds_discord_payload_for_empty_viewer_email(mock_request
 
     _, kwargs = mock_request.call_args
     assert kwargs['json']['content']
-    assert 'anonymous' in kwargs['json']['content']
+    assert 'Anonymous' in kwargs['json']['content']
 
 
 @patch('automations.tasks.requests.request')
@@ -325,7 +356,7 @@ def test_deliver_task_includes_dataroom_folder_name_in_text(mock_request, user, 
 
     _, kwargs = mock_request.call_args
     assert 'text' in kwargs['json']
-    assert 'folder_name=Financials' in kwargs['json']['text']
+    assert kwargs['json']['text'] == 'Your shared folder "Financials" in dataroom "project b" was downloaded by b@b.com.'
 
 
 @patch('automations.tasks.deliver_automation_delivery_task.apply_async')
