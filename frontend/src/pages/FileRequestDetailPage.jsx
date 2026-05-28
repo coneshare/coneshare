@@ -141,42 +141,60 @@ export function FileRequestDetailPage() {
               <p>No files have been uploaded to this link yet.</p>
             </div>
           ) : (
-            fileRequest.uploaded_files.map((file) => (
-              <div key={file.id} className="flex w-full items-center border-b px-4 py-2 text-sm">
-                <div className="w-[30%] truncate font-medium">
-                  <Link to={`/documents/${file.document_id}`} className="hover:underline">
-                    {file.document_name}
-                  </Link>
-                </div>
-                <div className="w-[20%] truncate">
-                  {file.folder_name === ROOT_FOLDER_NAME ? (
-                    <Link to="/documents" className="hover:underline">
-                      Root
-                    </Link>
-                  ) : (
-                    <Link to={`/documents/folders/${file.folder_id}`} className="hover:underline">
-                      {file.folder_name}
-                    </Link>
+            fileRequest.uploaded_files.map((file) => {
+              const submittedFields = file.submitted_fields || {};
+              const submittedEntries = Object.entries(submittedFields);
+              return (
+                <div key={file.id} className="border-b">
+                  <div className="flex w-full items-center px-4 py-2 text-sm">
+                    <div className="w-[30%] truncate font-medium">
+                      <Link to={`/documents/${file.document_id}`} className="hover:underline">
+                        {file.document_name}
+                      </Link>
+                    </div>
+                    <div className="w-[20%] truncate">
+                      {file.folder_name === ROOT_FOLDER_NAME ? (
+                        <Link to="/documents" className="hover:underline">
+                          Root
+                        </Link>
+                      ) : (
+                        <Link to={`/documents/folders/${file.folder_id}`} className="hover:underline">
+                          {file.folder_name}
+                        </Link>
+                      )}
+                    </div>
+                    <div className="w-[15%] truncate">{file.uploader_name}</div>
+                    <div className="w-[15%] truncate">{file.uploader_email}</div>
+                    <div className="w-[15%]">
+                      {formatDistanceToNow(new Date(file.created_at), { addSuffix: true })}
+                    </div>
+                    <div className="w-[5%] flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleDownload(file.document_id, file.document_name)}
+                        title={`Download ${file.document_name}`}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  {submittedEntries.length > 0 && (
+                    <div className="grid grid-cols-1 gap-2 bg-muted/20 px-4 pb-3 pl-[30%] text-xs sm:grid-cols-2">
+                      {submittedEntries.map(([fieldId, value]) => (
+                        <div key={fieldId} className="min-w-0">
+                          <span className="font-medium text-muted-foreground">
+                            {value.label}:
+                          </span>{' '}
+                          <span className="break-words">{String(value.value)}</span>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <div className="w-[15%] truncate">{file.uploader_name}</div>
-                <div className="w-[15%] truncate">{file.uploader_email}</div>
-                <div className="w-[15%]">
-                  {formatDistanceToNow(new Date(file.created_at), { addSuffix: true })}
-                </div>
-                <div className="w-[5%] flex justify-end">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => handleDownload(file.document_id, file.document_name)}
-                    title={`Download ${file.document_name}`}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

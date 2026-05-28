@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
 import { Progress } from '../components/ui/Progress';
+import { Textarea } from '../components/ui/Textarea';
 import { formatBytes } from '../lib/formatters';
 import { cn } from '../lib/utils';
 
@@ -50,6 +51,8 @@ export function PublicUploadPage() {
   const [files, setFiles] = useState([]);
   const [uploaderName, setUploaderName] = useState('');
   const [uploaderEmail, setUploaderEmail] = useState('');
+  const [customFieldValues, setCustomFieldValues] = useState({});
+  const [customFieldErrors, setCustomFieldErrors] = useState({});
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
   const [uploadErrors, setUploadErrors] = useState({});
@@ -149,8 +152,22 @@ export function PublicUploadPage() {
       return;
     }
 
+    const missingRequired = {};
+    for (const field of fileRequest?.custom_fields || []) {
+      const value = customFieldValues[field.id];
+      if (field.required && (value === undefined || value === null || value === '')) {
+        missingRequired[field.id] = `${field.label} is required.`;
+      }
+    }
+    if (Object.keys(missingRequired).length > 0) {
+      setCustomFieldErrors(missingRequired);
+      toast.error('Please complete the required fields.');
+      return;
+    }
+
     setIsUploading(true);
     setUploadErrors({});
+    setCustomFieldErrors({});
 
     const uploadPromises = files.map(async (file) => {
       const fileId = file.name + file.size;
@@ -179,9 +196,14 @@ export function PublicUploadPage() {
           content_type: file.type,
           uploader_name: uploaderName,
           uploader_email: uploaderEmail,
+          custom_field_values: customFieldValues,
         });
         return { success: true };
       } catch (err) {
+        const fieldErrors = err?.response?.data?.custom_field_values;
+        if (fieldErrors && typeof fieldErrors === 'object') {
+          setCustomFieldErrors(fieldErrors);
+        }
         const errorMessage = getFriendlyUploadError(err);
         toast.error(`Error uploading ${file.name}: ${errorMessage}`);
         setUploadErrors((prev) => ({ ...prev, [fileId]: errorMessage }));
@@ -209,6 +231,75 @@ export function PublicUploadPage() {
 
   const allowedExtensions = getAllowedExtensions(fileRequest?.allowed_file_types);
   const fileInputAccept = allowedExtensions.join(',');
+  const customFields = Array.isArray(fileRequest?.custom_fields) ? fileRequest.custom_fields : [];
+
+  const updateCustomFieldValue = (fieldId, value) => {
+    setCustomFieldValues((prev) => ({ ...prev, [fieldId]: value }));
+    setCustomFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next[fieldId];
+      return next;
+    });
+  };
+
+  const renderCustomField = (field) => {
+    const fieldId = `custom-${field.id}`;
+    const value = customFieldValues[field.id] ?? (field.type === 'checkbox' ? false : '');
+    const errorText = customFieldErrors[field.id];
+
+    return (
+      <div key={field.id}>
+        <Label htmlFor={fieldId}>
+          {field.label}
+          {field.required ? <span className="text-red-500"> *</span> : null}
+        </Label>
+        {field.type === 'textarea' ? (
+          <Textarea
+            id={fieldId}
+            value={value}
+            onChange={(e) => updateCustomFieldValue(field.id, e.target.value)}
+            placeholder={field.placeholder || ''}
+            disabled={isUploading}
+            rows={3}
+          />
+        ) : field.type === 'select' ? (
+          <select
+            id={fieldId}
+            value={value}
+            onChange={(e) => updateCustomFieldValue(field.id, e.target.value)}
+            disabled={isUploading}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="">Select...</option>
+            {(field.options || []).map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        ) : field.type === 'checkbox' ? (
+          <label className="mt-2 flex items-center gap-2 text-sm">
+            <input
+              id={fieldId}
+              type="checkbox"
+              checked={Boolean(value)}
+              onChange={(e) => updateCustomFieldValue(field.id, e.target.checked)}
+              disabled={isUploading}
+            />
+            <span>{field.placeholder || field.label}</span>
+          </label>
+        ) : (
+          <Input
+            id={fieldId}
+            type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+            value={value}
+            onChange={(e) => updateCustomFieldValue(field.id, e.target.value)}
+            placeholder={field.placeholder || ''}
+            disabled={isUploading}
+          />
+        )}
+        {errorText && <p className="mt-1 text-xs text-red-600">{errorText}</p>}
+      </div>
+    );
+  };
 
   return (
     <div
@@ -266,6 +357,12 @@ export function PublicUploadPage() {
                   />
                 </div>
               </div>
+
+              {customFields.length > 0 && (
+                <div className="space-y-4 rounded-md border p-3">
+                  {customFields.map(renderCustomField)}
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="file-upload" className="block text-sm font-medium text-gray-700 dark:text-gray-300">

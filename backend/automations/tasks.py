@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 MAX_DELIVERY_ATTEMPTS = 3
 BASE_RETRY_SECONDS = 60
 RESPONSE_EXCERPT_LIMIT = 1000
+MAX_CHAT_CUSTOM_FIELD_LINES = 5
 
 
 def _build_signature(secret: str, payload: dict) -> str:
@@ -116,6 +117,23 @@ def _append_event_details(message: str, payload: dict) -> str:
     return f'{message}\n' + '\n'.join(details)
 
 
+def _append_custom_field_summary(message: str, payload: dict) -> str:
+    values = payload.get('custom_field_values')
+    if not isinstance(values, dict) or not values:
+        return message
+
+    lines = []
+    for key, value in list(values.items())[:MAX_CHAT_CUSTOM_FIELD_LINES]:
+        label = str(key).replace('_', ' ').strip().title() or key
+        lines.append(f'{label}: {value}')
+
+    remaining_count = len(values) - len(lines)
+    if remaining_count > 0:
+        lines.append(f'Additional fields: {remaining_count}')
+
+    return f'{message}\n' + '\n'.join(lines)
+
+
 def _build_event_text(delivery: AutomationDelivery) -> str:
     payload = delivery.payload or {}
     event_type = delivery.event_type
@@ -146,7 +164,8 @@ def _build_event_text(delivery: AutomationDelivery) -> str:
     file_text = f' "{uploaded_file_name}"' if uploaded_file_name else ''
 
     if event_type == 'file_request_uploaded':
-        return _append_event_details(f'{uploader} uploaded{file_text}{file_request_text}.', payload)
+        message = f'{uploader} uploaded{file_text}{file_request_text}.'
+        return _append_event_details(_append_custom_field_summary(message, payload), payload)
 
     if event_type == 'file_request_malware_detected':
         return _append_event_details(

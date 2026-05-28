@@ -127,6 +127,49 @@ describe('PublicUploadPage', () => {
     });
   });
 
+  it('renders custom fields and submits values on finalize', async () => {
+    api.getPublicFileRequest.mockResolvedValueOnce({
+      data: {
+        name: 'Upload Docs',
+        owner_name: 'Owner',
+        max_file_size: 10000000,
+        allowed_file_types: ['pdf'],
+        message: '',
+        custom_fields: [
+          { id: 'case_number', label: 'Case Number', type: 'text', required: true },
+          { id: 'document_type', label: 'Document Type', type: 'select', required: true, options: ['Invoice', 'Contract'] },
+        ],
+      },
+    });
+
+    const { container } = renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('Upload Docs')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText('Your Name'), { target: { value: 'Jane' } });
+    fireEvent.change(screen.getByLabelText('Your Email'), { target: { value: 'jane@example.com' } });
+    fireEvent.change(screen.getByLabelText('Case Number *'), { target: { value: 'CASE-001' } });
+    fireEvent.change(screen.getByLabelText('Document Type *'), { target: { value: 'Contract' } });
+
+    const fileInput = container.querySelector('input[type="file"]');
+    const file = new File(['pdf'], 'Quarterly.PDF', { type: 'application/pdf' });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    fireEvent.click(screen.getByRole('button', { name: /Upload 1 File\(s\)/i }));
+
+    await waitFor(() => {
+      expect(api.finalizePublicUpload).toHaveBeenCalledWith(
+        'test-slug',
+        expect.objectContaining({
+          custom_field_values: {
+            case_number: 'CASE-001',
+            document_type: 'Contract',
+          },
+        })
+      );
+    });
+  });
+
   it('shows a friendly malware-scan error message', async () => {
     api.finalizePublicUpload.mockRejectedValueOnce({
       response: {
