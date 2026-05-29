@@ -23,6 +23,11 @@ class FileRequest(BaseModel):
     allowed_file_types = models.JSONField(
         null=True, blank=True, help_text="List of allowed file extensions, e.g., ['.pdf', '.docx']"
     )
+    custom_fields = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Optional public intake field schema for this file request.",
+    )
 
     def __str__(self):
         return f"File Request for {self.folder.name} by {self.created_by.email}"
@@ -42,6 +47,7 @@ class UploadedFile(BaseModel):
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='uploaded_via_file_request')
     uploader_name = models.CharField(max_length=255)
     uploader_email = models.EmailField()
+    submitted_fields = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return f"'{self.document.name}' uploaded by {self.uploader_email} for request '{self.file_request.name}'"

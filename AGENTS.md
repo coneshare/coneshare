@@ -34,7 +34,7 @@ Local package commands:
 - Keep app/domain modules cohesive (serializers, views, models grouped per Django app).
 
 ## Testing Guidelines
-- Migration workflow note: do not auto-generate migration files in agent changes; schema migration files are created/run manually by the maintainer.
+- Migration workflow note: do not create migration files unless explicitly requested or supplied by the maintainer. When schema changes need migrations, call that out in the final summary.
 - Backend: `pytest` + `pytest-django`; test discovery from `backend/tests` and `backend/bdd` (`test_*.py`, `*_tests.py`).
 - Frontend: `vitest` + Testing Library; place tests under `frontend/src/tests/**` and use `*.test.jsx|js`.
 - E2E: Playwright specs in `e2e/tests/`.

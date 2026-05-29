@@ -26,6 +26,56 @@ class TestFileRequestViewSet:
         assert response.data['folder_name'] == "__root__"
         assert FileRequest.objects.count() == 1
 
+    def test_create_file_request_with_custom_fields(self, api_client, user, organization):
+        root_folder = Folder.objects.get_root_for_org(organization)
+        data = {
+            "name": "Case Intake",
+            "folder": str(root_folder.id),
+            "custom_fields": [
+                {
+                    "id": "case_number",
+                    "label": "Case Number",
+                    "type": "text",
+                    "required": True,
+                    "placeholder": "CASE-2026-001",
+                },
+                {
+                    "id": "document_type",
+                    "label": "Document Type",
+                    "type": "select",
+                    "required": True,
+                    "options": ["Invoice", "Contract"],
+                },
+            ],
+        }
+
+        response = api_client.post('/api/v1/file-requests/', data, format='json')
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data['custom_fields'][0]['id'] == 'case_number'
+        assert response.data['custom_fields'][1]['options'] == ["Invoice", "Contract"]
+
+    def test_create_file_request_rejects_invalid_custom_field_schema(self, api_client, user, organization):
+        root_folder = Folder.objects.get_root_for_org(organization)
+        data = {
+            "name": "Bad Intake",
+            "folder": str(root_folder.id),
+            "custom_fields": [
+                {
+                    "id": "document_type",
+                    "label": "Document Type",
+                    "type": "select",
+                    "required": True,
+                    "options": [],
+                },
+            ],
+        }
+
+        response = api_client.post('/api/v1/file-requests/', data, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "requires at least one option" in str(response.data)
+
     def test_create_file_request_for_other_user_folder_fails(self, api_client, user2, organization):
         """Test a user cannot create a file request for a folder they don't own."""
         other_user_folder = Folder.objects.create(name="User2 Folder", created_by=user2, organization=organization)
@@ -105,6 +155,23 @@ class TestPublicFileRequestViews:
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data['name'] == "Public Name"
+
+    def test_get_public_details_includes_custom_fields(self, public_client, file_request):
+        file_request.custom_fields = [
+            {
+                "id": "case_number",
+                "label": "Case Number",
+                "type": "text",
+                "required": True,
+            }
+        ]
+        file_request.save(update_fields=['custom_fields'])
+
+        url = f'/api/v1/public/file-requests/{file_request.slug}/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['custom_fields'][0]['id'] == 'case_number'
 
     def test_get_public_details_inactive(self, public_client, file_request):
         """Test an inactive file request returns 404."""
@@ -270,6 +337,201 @@ class TestPublicFileRequestViews:
         assert payload['visitor_city'] is None
         assert payload['visitor_latitude'] is None
         assert payload['visitor_longitude'] is None
+
+    @patch('documents.services.generate_pdf_pages_task.delay')
+    @patch('filerequests.views.dispatch_automation_event_task.delay')
+    @patch('filerequests.views.transaction.on_commit', side_effect=lambda fn: fn())
+    @patch('filerequests.views.scan_storage_key_or_raise')
+    def test_finalize_upload_persists_custom_field_values(
+        self,
+        _mock_scan,
+        _mock_on_commit,
+        _mock_dispatch_automation,
+        _mock_task_delay,
+        api_client,
+        public_client,
+        file_request,
+    ):
+        file_request.custom_fields = [
+            {"id": "case_number", "label": "Case Number", "type": "text", "required": True},
+            {"id": "document_type", "label": "Document Type", "type": "select", "required": True, "options": ["Contract", "Invoice"]},
+            {"id": "due_date", "label": "Due Date", "type": "date", "required": False},
+        ]
+        file_request.save(update_fields=['custom_fields'])
+
+        url = f'/api/v1/public/file-requests/{file_request.slug}/finalize-upload/'
+        data = {
+            'storage_key': 'some-key',
+            'unique_name': 'final-doc.pdf',
+            'file_size': 54321,
+            'content_type': 'application/pdf',
+            'uploader_name': 'John Doe',
+            'uploader_email': 'john.doe@example.com',
+            'custom_field_values': {
+                'case_number': ' CASE-2026-001 ',
+                'document_type': 'Contract',
+                'due_date': '2026-05-28',
+            },
+        }
+
+        response = public_client.post(url, data, format='json')
+
+        assert response.status_code == status.HTTP_202_ACCEPTED
+        uploaded_file = UploadedFile.objects.get()
+        expected_values = {
+            'case_number': 'CASE-2026-001',
+            'document_type': 'Contract',
+            'due_date': '2026-05-28',
+        }
+        expected_snapshot = {
+            'case_number': {'label': 'Case Number', 'type': 'text', 'value': 'CASE-2026-001'},
+            'document_type': {'label': 'Document Type', 'type': 'select', 'value': 'Contract'},
+            'due_date': {'label': 'Due Date', 'type': 'date', 'value': '2026-05-28'},
+        }
+        assert uploaded_file.submitted_fields == expected_snapshot
+        assert uploaded_file.document.metadata['file_request_fields'] == uploaded_file.submitted_fields
+
+        detail_response = api_client.get(f'/api/v1/file-requests/{file_request.id}/')
+        assert detail_response.status_code == status.HTTP_200_OK
+        assert detail_response.data['uploaded_files'][0]['submitted_fields'] == uploaded_file.submitted_fields
+        _event_type, payload = _mock_dispatch_automation.call_args.args
+        assert payload['custom_field_values'] == expected_values
+
+    def test_finalize_upload_rejects_missing_required_custom_field(self, public_client, file_request):
+        file_request.custom_fields = [
+            {"id": "case_number", "label": "Case Number", "type": "text", "required": True},
+        ]
+        file_request.save(update_fields=['custom_fields'])
+
+        url = f'/api/v1/public/file-requests/{file_request.slug}/finalize-upload/'
+        data = {
+            'storage_key': 'some-key',
+            'unique_name': 'final-doc.pdf',
+            'file_size': 54321,
+            'content_type': 'application/pdf',
+            'uploader_name': 'John Doe',
+            'uploader_email': 'john.doe@example.com',
+            'custom_field_values': {},
+        }
+
+        response = public_client.post(url, data, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data['custom_field_values']['case_number'] == 'Case Number is required.'
+        assert Document.objects.count() == 0
+        assert UploadedFile.objects.count() == 0
+
+    def test_finalize_upload_rejects_required_checkbox_when_false(self, public_client, file_request):
+        file_request.custom_fields = [
+            {"id": "confirm_accuracy", "label": "Confirm Accuracy", "type": "checkbox", "required": True},
+        ]
+        file_request.save(update_fields=['custom_fields'])
+
+        url = f'/api/v1/public/file-requests/{file_request.slug}/finalize-upload/'
+        data = {
+            'storage_key': 'some-key',
+            'unique_name': 'final-doc.pdf',
+            'file_size': 54321,
+            'content_type': 'application/pdf',
+            'uploader_name': 'John Doe',
+            'uploader_email': 'john.doe@example.com',
+            'custom_field_values': {'confirm_accuracy': False},
+        }
+
+        response = public_client.post(url, data, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data['custom_field_values']['confirm_accuracy'] == 'Confirm Accuracy must be checked.'
+        assert Document.objects.count() == 0
+        assert UploadedFile.objects.count() == 0
+
+    def test_finalize_upload_rejects_boolean_for_number_field(self, public_client, file_request):
+        file_request.custom_fields = [
+            {"id": "invoice_total", "label": "Invoice Total", "type": "number", "required": True},
+        ]
+        file_request.save(update_fields=['custom_fields'])
+
+        url = f'/api/v1/public/file-requests/{file_request.slug}/finalize-upload/'
+        data = {
+            'storage_key': 'some-key',
+            'unique_name': 'final-doc.pdf',
+            'file_size': 54321,
+            'content_type': 'application/pdf',
+            'uploader_name': 'John Doe',
+            'uploader_email': 'john.doe@example.com',
+            'custom_field_values': {'invoice_total': True},
+        }
+
+        response = public_client.post(url, data, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data['custom_field_values']['invoice_total'] == 'Invoice Total must be a valid number.'
+        assert Document.objects.count() == 0
+        assert UploadedFile.objects.count() == 0
+
+    @pytest.mark.parametrize('non_finite_value', ['NaN', 'Infinity', '-Infinity'])
+    def test_finalize_upload_rejects_non_finite_number_field(self, public_client, file_request, non_finite_value):
+        file_request.custom_fields = [
+            {"id": "invoice_total", "label": "Invoice Total", "type": "number", "required": True},
+        ]
+        file_request.save(update_fields=['custom_fields'])
+
+        url = f'/api/v1/public/file-requests/{file_request.slug}/finalize-upload/'
+        data = {
+            'storage_key': 'some-key',
+            'unique_name': 'final-doc.pdf',
+            'file_size': 54321,
+            'content_type': 'application/pdf',
+            'uploader_name': 'John Doe',
+            'uploader_email': 'john.doe@example.com',
+            'custom_field_values': {'invoice_total': non_finite_value},
+        }
+
+        response = public_client.post(url, data, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data['custom_field_values']['invoice_total'] == 'Invoice Total must be a finite number.'
+        assert Document.objects.count() == 0
+        assert UploadedFile.objects.count() == 0
+
+    @patch('documents.services.generate_pdf_pages_task.delay')
+    @patch('filerequests.views.dispatch_automation_event_task.delay')
+    @patch('filerequests.views.transaction.on_commit', side_effect=lambda fn: fn())
+    @patch('filerequests.views.scan_storage_key_or_raise')
+    def test_finalize_upload_allows_optional_checkbox_when_false(
+        self,
+        _mock_scan,
+        _mock_on_commit,
+        _mock_dispatch_automation,
+        _mock_task_delay,
+        public_client,
+        file_request,
+    ):
+        file_request.custom_fields = [
+            {"id": "subscribe_updates", "label": "Subscribe Updates", "type": "checkbox", "required": False},
+        ]
+        file_request.save(update_fields=['custom_fields'])
+
+        url = f'/api/v1/public/file-requests/{file_request.slug}/finalize-upload/'
+        data = {
+            'storage_key': 'some-key',
+            'unique_name': 'final-doc.pdf',
+            'file_size': 54321,
+            'content_type': 'application/pdf',
+            'uploader_name': 'John Doe',
+            'uploader_email': 'john.doe@example.com',
+            'custom_field_values': {'subscribe_updates': False},
+        }
+
+        response = public_client.post(url, data, format='json')
+
+        assert response.status_code == status.HTTP_202_ACCEPTED
+        uploaded_file = UploadedFile.objects.get()
+        assert uploaded_file.submitted_fields['subscribe_updates'] == {
+            'label': 'Subscribe Updates',
+            'type': 'checkbox',
+            'value': False,
+        }
 
     def test_finalize_upload_disallowed_file_type(self, public_client, file_request):
         """Test finalize is blocked when file extension violates allowed_file_types."""
