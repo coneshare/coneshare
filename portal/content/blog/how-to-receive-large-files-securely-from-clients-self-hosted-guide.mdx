@@ -95,28 +95,9 @@ Here is a live embed preview directly in this article:
   referrerPolicy="strict-origin-when-cross-origin"
 />
 
-Before going live, focus on these three controls:
-
-- Allow embedding only on trusted domains (allowlist)
-- Deny embedding by default on unrelated pages
-- Manage embedding security headers centrally at the front reverse proxy
-
 For the full reverse-proxy setup guide, see:
 [Configure File Request Embedding Behind a Reverse Proxy](https://docs.coneshare.com/en/file-request-embedding/)
 
-If your frontend or portal team needs a reusable snippet:
-
-```html
-<iframe
-  src="https://app.coneshare.com/upload/ivfCKN814UtMHL_ZEOpETA?embed=1"
-  title="Secure file upload"
-  width="100%"
-  height="760"
-  style="border:0;max-width:720px"
-  loading="lazy"
-  referrerpolicy="strict-origin-when-cross-origin">
-</iframe>
-```
 
 ### 4) External User Uploads Files
 
@@ -132,21 +113,6 @@ After upload, files are routed to the predefined folder with uploader attributio
 
 You can send automated notifications (for example via Slack/Webhook) so sales, legal, or project owners can act immediately.
 
-## Security Control Checklist (Recommended Defaults)
-
-For production use, make sure your intake process includes:
-
-- Expirable/deactivatable request links
-- Server-side file type validation (not frontend-only)
-- Server-side file size limits and quota checks
-- Rate limiting and baseline abuse protection on public intake endpoints
-- Binding checks between intake requests and authorized destination folders
-
-For high-sensitivity environments, add:
-
-- Stricter domain and embed-origin controls
-- Audit-log retention and alerting policies
-- Incident handling workflows for suspicious uploads
 
 ## Comparison: Common Large-File Intake Options
 
