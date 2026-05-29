@@ -9,7 +9,11 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+.bash_history
+.python_history
 .Python
+.ctx/
+.pki/
 build/
 !backend/docker.dist/build
 develop-eggs/
@@ -59,6 +63,8 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+db.sqlite3-shm
+db.sqlite3-wal
 backend/media/**
 !backend/media/.gitkeep
 
