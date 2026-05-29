@@ -35,8 +35,9 @@ File Requests lets authenticated users create secure public upload links for ext
 Core flow:
 
 1. Internal user creates a file request linked to a destination folder.
-2. External uploader opens public link, provides name/email, uploads file(s).
-3. Uploaded files appear in target folder with uploader attribution.
+2. Internal user optionally configures custom intake fields for project/case/order metadata.
+3. External uploader opens public link, provides name/email, completes intake fields, and uploads file(s).
+4. Uploaded files appear in target folder with uploader attribution and captured intake metadata.
 
 ---
 
@@ -52,8 +53,34 @@ Core flow:
 
 - `filerequests.FileRequest` stores link config:
   - `slug`, `folder`, `created_by`, optional `expires_at`, `max_file_size`, etc.
+  - `custom_fields`: optional JSON schema for public intake fields.
+- `filerequests.UploadedFile` stores the upload/link relation:
+  - `uploader_name`, `uploader_email`
+  - `submitted_fields`: submission-time snapshots of custom field labels/types/values.
 - `documents.Document.metadata.uploader_info` stores external uploader attribution.
+- `documents.Document.metadata.file_request_fields` stores the same custom field snapshot as `UploadedFile.submitted_fields`.
 - `Document.created_by` remains set to file-request owner (internal user).
+
+Custom field snapshot shape:
+
+```json
+{
+  "case_number": {
+    "label": "Case Number",
+    "type": "text",
+    "value": "CASE-2026-001"
+  },
+  "document_type": {
+    "label": "Document Type",
+    "type": "select",
+    "value": "Contract"
+  }
+}
+```
+
+Rationale:
+- Historical upload records remain understandable if the file request schema is renamed or removed later.
+- Automation/webhook payloads still use flat `custom_field_values` for easier integration consumption.
 
 ### 2.3 API contract
 
@@ -64,9 +91,9 @@ Management API (authenticated):
 
 Public API (unauthenticated):
 
+- `GET /api/v1/public/file-requests/{slug}/`
 - `POST /api/v1/public/file-requests/{slug}/request-upload/`
 - `POST /api/v1/public/file-requests/{slug}/finalize-upload/`
-- optional read endpoint for public page data (if implemented in current UI flow)
 
 Upload transport:
 
@@ -92,6 +119,16 @@ File type enforcement specifics:
 - Matching is case-insensitive and normalizes values with or without leading dot.
 - Invalid file types return `400` with a clear message including the normalized allowed list.
 
+Custom intake validation:
+
+- Supported field types: `text`, `textarea`, `select`, `date`, `number`, `checkbox`.
+- Field schema is validated on management create/update.
+- Submitted values are validated during finalize.
+- Required checkbox fields must be checked (`true`).
+- Number fields reject boolean values.
+- Unknown submitted field IDs are rejected.
+- Values are normalized before persistence and automation dispatch.
+
 ---
 
 ## 3. Automation Integration
@@ -104,8 +141,12 @@ On successful finalize:
   - `folder_id`, `document_id`
   - `uploaded_by_name`, `uploaded_by_email`
   - `uploaded_file_name`, `uploaded_file_size`, `uploaded_at`
+  - `custom_field_values` as flat key/value metadata for integrations
 
 This supports routing to automations destinations (webhook/Slack/WeChat/FeiShu/Discord).
+
+Generic webhooks receive the raw event payload including `custom_field_values`.
+Chat destinations include a bounded, readable summary of custom field values.
 
 ---
 
@@ -124,18 +165,23 @@ Key behavior:
 1. Create/edit file request in sheet UI.
 2. Select destination folder via `FolderBrowser`.
 3. Keep folder selection visible/editable during create and edit.
+4. Configure optional custom intake fields.
+5. Custom field IDs are generated from labels as machine-friendly slugs, with duplicate suffixes as needed.
 
 ### 4.2 Public uploader UI
 
-Suggested page:
+Page:
 
-- `frontend/src/pages/PublicFileRequestUploadPage.jsx` (route `/upload/:slug`)
+- `frontend/src/pages/PublicUploadPage.jsx` (route `/upload/:slug`)
 
 Key behavior:
 
 1. Collect uploader name/email (required).
-2. Execute request-upload -> direct upload -> finalize flow.
-3. Show progress/error/success states per file.
+2. Render configured custom fields from the public file request metadata.
+3. Collect custom field values once per upload session.
+4. Execute request-upload -> direct upload -> finalize flow.
+5. Submit the same `custom_field_values` with each file finalize call.
+6. Show progress/error/success states per file.
 
 ### 4.3 Embed mode (website intake)
 
@@ -174,10 +220,21 @@ Upload behavior remains the same 3-step backend flow:
 2. File-request public uploads follow the same high-level upload pattern used elsewhere in Coneshare.
 3. Attribution model intentionally keeps ownership internal while exposing uploader identity metadata.
 4. Embed mode is presentation-level only; backend validation rules are unchanged.
+5. Custom intake fields are implemented as V1 structured metadata capture.
+6. Submitted field snapshots are persisted per uploaded file to preserve historical context.
+7. Automation payloads include flat `custom_field_values`; chat notifications render a bounded readable summary.
+
+### 5.1 Current Custom Intake Field Limitations
+
+- Custom fields are collected once per upload session and applied to every finalized file.
+- There is no per-file metadata UI yet.
+- There is no conditional field logic.
+- There is no dedicated field-key editor; keys are generated from labels.
+- There is no advanced routing/filtering based on custom fields yet.
 
 ---
 
-## 5.1 Security headers for embedding
+## 5.2 Security headers for embedding
 
 Most deployments terminate HTTPS on an external reverse proxy in front of Coneshare.
 That front proxy should be treated as the source of truth for embed headers.
@@ -239,14 +296,32 @@ Backend:
 
 - management API authz tests
 - public request/finalize validation tests
+- custom field schema validation tests
+- custom field submission validation tests
+- custom field persistence/retrieval tests
 - expiry/active-state tests
 - quota/size/type enforcement tests
 - finalize idempotency + storage-key binding tests
 - automation event emission-on-commit tests
+- automation payload/chat text tests for custom field metadata
 
 Frontend:
 
 - file request create/edit form tests
+- custom field builder tests
 - folder selection tests
 - public upload flow tests (success/failure/retry)
+- public custom field rendering/submission tests
 - uploader attribution rendering tests
+- file request detail custom field snapshot rendering tests
+
+---
+
+## 7. Future Improvements
+
+- Add per-file custom metadata collection for uploads where each file needs distinct context.
+- Add a visible field-key editor for admins who need stable integration keys.
+- Add custom field values to exports/search/filtering.
+- Add automation conditions/routing based on custom field values.
+- Add field reordering and richer field descriptions/help text.
+- Add optional field templates for common workflows such as case intake, invoice collection, and order fulfillment.

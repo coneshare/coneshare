@@ -34,6 +34,8 @@ from .serializers import (
     FileRequestDetailSerializer,
     PublicFileRequestSerializer,
     FileRequestUploadFinalizeSerializer,
+    build_custom_field_snapshot,
+    validate_custom_field_values,
 )
 
 logger = logging.getLogger(__name__)
@@ -240,6 +242,18 @@ class FileRequestUploadFinalizeView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         validated_data = serializer.validated_data
+        try:
+            custom_field_values = validate_custom_field_values(
+                file_request.custom_fields,
+                validated_data.get('custom_field_values') or {},
+            )
+            custom_field_snapshot = build_custom_field_snapshot(
+                file_request.custom_fields,
+                custom_field_values,
+            )
+        except serializers.ValidationError as e:
+            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
+
         visitor_context = _get_visitor_context(request)
         security_event_payload = {
             'organization_id': str(file_request.created_by.organization_id),
@@ -277,7 +291,8 @@ class FileRequestUploadFinalizeView(APIView):
                     'uploader_info': {
                         'name': validated_data['uploader_name'],
                         'email': validated_data['uploader_email'],
-                    }
+                    },
+                    'file_request_fields': custom_field_snapshot,
                 }
                 document.save(update_fields=['metadata'])
                 # Create the link record
@@ -285,7 +300,8 @@ class FileRequestUploadFinalizeView(APIView):
                     file_request=file_request,
                     document=document,
                     uploader_name=validated_data['uploader_name'],
-                    uploader_email=validated_data['uploader_email']
+                    uploader_email=validated_data['uploader_email'],
+                    submitted_fields=custom_field_snapshot,
                 )
                 payload = {
                     'organization_id': str(file_request.created_by.organization_id),
@@ -298,6 +314,7 @@ class FileRequestUploadFinalizeView(APIView):
                     'uploaded_by_email': validated_data['uploader_email'],
                     'uploaded_file_name': document.name,
                     'uploaded_file_size': validated_data['file_size'],
+                    'custom_field_values': custom_field_values,
                     'event_datetime': timezone.now().isoformat(),
                     **visitor_context,
                 }
