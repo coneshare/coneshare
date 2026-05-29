@@ -115,4 +115,85 @@ describe('FileRequestSheet', () => {
     });
     expect(onSuccess).toHaveBeenCalled();
   });
+
+  it('submits custom intake field schema on create', async () => {
+    const onSuccess = vi.fn();
+    render(
+      <FileRequestSheet
+        isOpen
+        onOpenChange={vi.fn()}
+        folder={null}
+        currentRequest={null}
+        onSuccess={onSuccess}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('Name (Visible to public)'), {
+      target: { value: 'Request A' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Add Field/i }));
+    fireEvent.change(screen.getByLabelText('Label'), {
+      target: { value: 'Document Type' },
+    });
+    fireEvent.change(screen.getByLabelText('Type'), {
+      target: { value: 'select' },
+    });
+    fireEvent.change(screen.getByLabelText('Options'), {
+      target: { value: 'Invoice, Contract' },
+    });
+    fireEvent.click(screen.getByLabelText('Required'));
+
+    fireEvent.click(screen.getByRole('button', { name: /Create Link/i }));
+
+    await waitFor(() => {
+      expect(createFileRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          custom_fields: [
+            expect.objectContaining({
+              id: 'document_type',
+              label: 'Document Type',
+              type: 'select',
+              required: true,
+              options: ['Invoice', 'Contract'],
+            }),
+          ],
+        })
+      );
+    });
+  });
+
+  it('deduplicates slugified custom field ids', async () => {
+    render(
+      <FileRequestSheet
+        isOpen
+        onOpenChange={vi.fn()}
+        folder={null}
+        currentRequest={null}
+        onSuccess={vi.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('Name (Visible to public)'), {
+      target: { value: 'Request A' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Add Field/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Add Field/i }));
+
+    const labels = screen.getAllByLabelText('Label');
+    fireEvent.change(labels[0], { target: { value: 'Case Number' } });
+    fireEvent.change(labels[1], { target: { value: 'Case Number' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Create Link/i }));
+
+    await waitFor(() => {
+      expect(createFileRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          custom_fields: [
+            expect.objectContaining({ id: 'case_number' }),
+            expect.objectContaining({ id: 'case_number_2' }),
+          ],
+        })
+      );
+    });
+  });
 });
