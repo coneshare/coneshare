@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth import get_user_model, logout
 from django.contrib.auth.signals import user_logged_in
 from django.core.exceptions import ValidationError
@@ -32,6 +34,7 @@ from core.tokens import signup_activation_token_generator
 
 User = get_user_model()
 
+logger = logging.getLogger(__name__)
 
 class IsSelf(permissions.BasePermission):
     """
@@ -299,12 +302,14 @@ class HealthCheckView(APIView):
         responses={200: HealthResponseSerializer, 503: HealthResponseSerializer},
     )
     def get(self, request, *args, **kwargs):
+        logger.debug('enter health check .. ')
         db_ok = False
         try:
             connections['default'].cursor()
             db_ok = True
         except OperationalError:
             pass
+        logger.debug('db checked')
 
         redis_ok = False
         try:
@@ -312,11 +317,13 @@ class HealthCheckView(APIView):
             redis_ok = cache.get('__health_check__') == '1'
         except Exception:
             pass
+        logger.debug('redis checked')
 
         health_status = {
             'database': 'ok' if db_ok else 'error',
             'redis': 'ok' if redis_ok else 'error'
         }
+        logger.debug('finish health check.')
 
         if db_ok and redis_ok:
             return Response(health_status, status=status.HTTP_200_OK)
