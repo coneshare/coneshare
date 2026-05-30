@@ -6,6 +6,7 @@
 - [Coneshare Data Model](./coneshare-data-model.md)
 - [Coneshare Owner Share Link Preview](./coneshare-owner-share-link-preview.md)
 - [Coneshare Internal Document Preview Logic](./coneshare-internal-document-preview.md)
+- [Coneshare Share Link Q&A](./share-link-qna.md)
 - [ShareLink Password Encryption and Key Management](./strategy/share-link-password-encryption-key-management.md)
 
 ## Out of scope
@@ -13,6 +14,7 @@
 - Dataroom-specific view-data payload differences beyond shared principles.
 - Watermark rendering implementation details inside viewer components.
 - BI/reporting aggregation beyond `ViewSession` creation in the viewing flow.
+- Q&A thread/message API details; see [Coneshare Share Link Q&A](./share-link-qna.md).
 
 ## Design decisions
 - Decision: Use a two-request model (shell route + secure view-data API).

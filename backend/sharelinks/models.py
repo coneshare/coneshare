@@ -182,6 +182,106 @@ class ViewSession(models.Model):
         ordering = ['-viewed_at']
 
 
+class QnAThread(BaseModel):
+    STATUS_OPEN = "open"
+    STATUS_CLOSED = "closed"
+    STATUS_CHOICES = (
+        (STATUS_OPEN, "Open"),
+        (STATUS_CLOSED, "Closed"),
+    )
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="qna_threads")
+    share_link = models.ForeignKey("ShareLink", on_delete=models.CASCADE, related_name="qna_threads")
+    dataroom = models.ForeignKey("datarooms.Dataroom", on_delete=models.CASCADE, null=True, blank=True, related_name="qna_threads")
+    document = models.ForeignKey("documents.Document", on_delete=models.CASCADE, null=True, blank=True, related_name="qna_threads")
+    dataroom_document = models.ForeignKey("datarooms.DataroomDocument", on_delete=models.CASCADE, null=True, blank=True, related_name="qna_threads")
+    dataroom_folder = models.ForeignKey("datarooms.DataroomFolder", on_delete=models.CASCADE, null=True, blank=True, related_name="qna_threads")
+    subject = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_OPEN)
+    created_by_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="qna_threads_created")
+    created_by_viewer = models.ForeignKey("Viewer", on_delete=models.SET_NULL, null=True, blank=True, related_name="qna_threads_created")
+    created_by_view_session = models.ForeignKey("ViewSession", on_delete=models.SET_NULL, null=True, blank=True, related_name="qna_threads_created")
+
+    class Meta:
+        ordering = ["-updated_at", "-created_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    (
+                        Q(document__isnull=False)
+                        & Q(dataroom__isnull=True)
+                        & Q(dataroom_document__isnull=True)
+                        & Q(dataroom_folder__isnull=True)
+                    )
+                    | (
+                        Q(document__isnull=True)
+                        & Q(dataroom__isnull=False)
+                        & Q(dataroom_document__isnull=True)
+                        & Q(dataroom_folder__isnull=True)
+                    )
+                    | (
+                        Q(document__isnull=True)
+                        & Q(dataroom__isnull=False)
+                        & Q(dataroom_document__isnull=False)
+                        & Q(dataroom_folder__isnull=True)
+                    )
+                    | (
+                        Q(document__isnull=True)
+                        & Q(dataroom__isnull=False)
+                        & Q(dataroom_document__isnull=True)
+                        & Q(dataroom_folder__isnull=False)
+                    )
+                ),
+                name="qna_thread_exactly_one_context",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        Q(created_by_user__isnull=False)
+                        & Q(created_by_view_session__isnull=True)
+                    )
+                    | (
+                        Q(created_by_user__isnull=True)
+                        & Q(created_by_view_session__isnull=False)
+                    )
+                ),
+                name="qna_thread_exactly_one_creator_type",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.subject[:80]} ({self.status})"
+
+
+class QnAMessage(BaseModel):
+    thread = models.ForeignKey(QnAThread, on_delete=models.CASCADE, related_name="messages")
+    body = models.TextField()
+    sent_by_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="qna_messages_sent")
+    sent_by_viewer = models.ForeignKey("Viewer", on_delete=models.SET_NULL, null=True, blank=True, related_name="qna_messages_sent")
+    sent_by_view_session = models.ForeignKey("ViewSession", on_delete=models.SET_NULL, null=True, blank=True, related_name="qna_messages_sent")
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    (
+                        Q(sent_by_user__isnull=False)
+                        & Q(sent_by_view_session__isnull=True)
+                    )
+                    | (
+                        Q(sent_by_user__isnull=True)
+                        & Q(sent_by_view_session__isnull=False)
+                    )
+                ),
+                name="qna_message_exactly_one_sender_type",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Message on {self.thread_id}"
+
+
 class PageView(models.Model):
     """
     Records a granular page view event within a single viewing session (ViewSession).

@@ -17,12 +17,12 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.http import quote_etag
 from django.utils.text import get_valid_filename
-from rest_framework import permissions, serializers, status, viewsets
+from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound, APIException
+from rest_framework.exceptions import NotFound, APIException, PermissionDenied
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
-from django.db.models import F
+from django.db.models import F, Q
 from geoip2.errors import AddressNotFoundError
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
@@ -36,10 +36,15 @@ from documents.models import DocumentPage
 from documents.views import StandardResultsSetPagination, prepare_pages_data
 from automations.tasks import dispatch_automation_event_task
 from .models import (DataroomVisit, EmailVerificationToken, PreviewSession,
-                     ShareLink, ShareLinkDataroomSetting, ShareLinkTemplate,
-                     Viewer, ViewSession)
+                     QnAMessage, QnAThread, ShareLink,
+                     ShareLinkDataroomSetting, ShareLinkTemplate, Viewer,
+                     ViewSession)
 from .serializers import (DataroomVisitSerializer, PageViewRecordSerializer,
                           RecordVisitSerializer,
+                          QnAMessageCreateSerializer, QnAMessageSerializer,
+                          QnAOwnerThreadCreateSerializer,
+                          QnAThreadCreateSerializer, QnAThreadSerializer,
+                          QnAThreadStatusUpdateSerializer,
                           ShareLinkDataroomSettingUpdateSerializer,
                           ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
                           ShareLinkTemplateSerializer, ShareLinkSerializer,
@@ -221,6 +226,151 @@ def _build_share_link_public_meta(link: ShareLink) -> dict:
         "owner_avatar_url": owner_avatar_url,
         "organization_name": owner.organization.name if owner.organization else "",
     }
+
+
+def _get_share_link_organization(link: ShareLink):
+    if link.document_id:
+        return link.document.organization
+    if link.dataroom_id:
+        return link.dataroom.organization
+    return None
+
+
+def _is_dataroom_folder_path_visible(link: ShareLink, folder: DataroomFolder | None) -> bool:
+    if not folder:
+        return True
+
+    folder_rows = DataroomFolder.objects.filter(dataroom=link.dataroom).values('id', 'parent_id')
+    folder_parent_map = {
+        str(row['id']): str(row['parent_id']) if row['parent_id'] else None
+        for row in folder_rows
+    }
+    visibility_rows = link.dataroom_settings.filter(
+        dataroom_folder__isnull=False,
+    ).values('dataroom_folder_id', 'is_visible')
+    visibility_map = {
+        str(row['dataroom_folder_id']): row['is_visible']
+        for row in visibility_rows
+    }
+
+    node_id = str(folder.id)
+    while node_id:
+        if not visibility_map.get(node_id, False):
+            return False
+        node_id = folder_parent_map.get(node_id)
+    return True
+
+
+def _resolve_qna_context_for_link(link: ShareLink, dataroom_document_id=None, dataroom_folder_id=None):
+    """
+    Resolve and permission-check a Q&A context for a public share link.
+    Raises DRF ValidationError for malformed context and PermissionDenied-style
+    APIException for inaccessible context.
+    """
+    if link.document_id:
+        if dataroom_document_id or dataroom_folder_id:
+            raise serializers.ValidationError(
+                "Dataroom context fields are not valid for a document share link."
+            )
+        return {'document': link.document}
+
+    if not link.dataroom_id:
+        raise serializers.ValidationError("This link does not point to a valid Q&A target.")
+
+    if dataroom_document_id and dataroom_folder_id:
+        raise serializers.ValidationError(
+            "Only one of 'dataroom_document_id' or 'dataroom_folder_id' can be provided."
+        )
+
+    if not dataroom_document_id and not dataroom_folder_id:
+        return {'dataroom': link.dataroom}
+
+    if dataroom_document_id:
+        setting = link.dataroom_settings.filter(
+            dataroom_document_id=dataroom_document_id,
+            is_visible=True,
+        ).select_related('dataroom_document__document', 'dataroom_document__folder').first()
+        if not setting or not _is_dataroom_folder_path_visible(link, setting.dataroom_document.folder):
+            raise PermissionDenied("You do not have permission to access Q&A for this document.")
+        return {
+            'dataroom': link.dataroom,
+            'dataroom_document': setting.dataroom_document,
+        }
+
+    setting = link.dataroom_settings.filter(
+        dataroom_folder_id=dataroom_folder_id,
+        is_visible=True,
+    ).select_related('dataroom_folder').first()
+    if not setting or not _is_dataroom_folder_path_visible(link, setting.dataroom_folder):
+        raise PermissionDenied("You do not have permission to access Q&A for this folder.")
+    return {
+        'dataroom': link.dataroom,
+        'dataroom_folder': setting.dataroom_folder,
+    }
+
+
+def _get_authorized_qna_view_session(request, link: ShareLink, view_session_id: str | None):
+    if not view_session_id:
+        raise serializers.ValidationError({"view_session_id": "This field is required."})
+
+    if link.expires_at and link.expires_at < timezone.now():
+        raise PermissionDenied("This link has expired.")
+
+    auth_status = request.session.get('authorized_share_links', {}).get(str(link.id), {})
+    if link.password and not auth_status.get('password_verified'):
+        raise PermissionDenied("Password verification is required before using Q&A.")
+    if link.requires_email and not auth_status.get('email_verified'):
+        raise PermissionDenied("Email verification is required before using Q&A.")
+
+    view_session = ViewSession.objects.select_related('viewer', 'share_link').filter(
+        id=view_session_id,
+        share_link=link,
+    ).first()
+    if not view_session:
+        raise serializers.ValidationError({"view_session_id": "Invalid view session for this share link."})
+    return view_session
+
+
+def _get_thread_context_filter(link: ShareLink, context: dict):
+    if link.document_id:
+        return Q(document=link.document)
+    if context.get('dataroom_document'):
+        return Q(dataroom_document=context['dataroom_document'])
+    if context.get('dataroom_folder'):
+        return Q(dataroom_folder=context['dataroom_folder'])
+    return Q(
+        dataroom=context['dataroom'],
+        dataroom_document__isnull=True,
+        dataroom_folder__isnull=True,
+    )
+
+
+def _build_qna_event_payload(thread: QnAThread, message: QnAMessage | None = None, sender_type: str | None = None) -> dict:
+    payload = {
+        'thread_id': str(thread.id),
+        'thread_subject': thread.subject,
+        'thread_status': thread.status,
+        'sender_type': sender_type,
+    }
+
+    if message:
+        payload['message_id'] = str(message.id)
+    if thread.dataroom_document_id:
+        payload['dataroom_document_id'] = str(thread.dataroom_document_id)
+        payload['document_id'] = str(thread.dataroom_document.document_id)
+        payload['document_name'] = thread.dataroom_document.name or thread.dataroom_document.document.name
+    if thread.dataroom_folder_id:
+        payload['dataroom_folder_id'] = str(thread.dataroom_folder_id)
+        payload['dataroom_folder_name'] = thread.dataroom_folder.name
+    if thread.created_by_view_session_id:
+        payload['view_session_id'] = str(thread.created_by_view_session_id)
+    if message and message.sent_by_view_session_id:
+        payload['view_session_id'] = str(message.sent_by_view_session_id)
+        payload['viewer_email'] = message.sent_by_view_session.viewer_email
+    elif thread.created_by_view_session_id:
+        payload['viewer_email'] = thread.created_by_view_session.viewer_email
+
+    return payload
 
 
 @extend_schema(tags=['sharelinks'])
@@ -809,6 +959,324 @@ class ShareLinkPublicMetaView(APIView):
             return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
 
         return Response(_build_share_link_public_meta(link), status=status.HTTP_200_OK)
+
+
+@extend_schema(tags=['sharelinks'])
+class ShareLinkQnAThreadListCreateView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def _get_context_from_request(self, link, request):
+        return _resolve_qna_context_for_link(
+            link,
+            dataroom_document_id=request.data.get('dataroom_document_id') or request.query_params.get('dataroom_document_id'),
+            dataroom_folder_id=request.data.get('dataroom_folder_id') or request.query_params.get('dataroom_folder_id'),
+        )
+
+    def get(self, request, slug, *args, **kwargs):
+        try:
+            link = _get_active_share_link(slug)
+            _get_authorized_qna_view_session(request, link, request.query_params.get('view_session_id'))
+            context = self._get_context_from_request(link, request)
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
+        except serializers.ValidationError as e:
+            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
+        except PermissionDenied as e:
+            return Response({"detail": str(e.detail)}, status=status.HTTP_403_FORBIDDEN)
+
+        queryset = (
+            QnAThread.objects.filter(share_link=link)
+            .filter(_get_thread_context_filter(link, context))
+            .select_related(
+                'share_link', 'dataroom', 'document', 'dataroom_document__document',
+                'dataroom_folder', 'created_by_user', 'created_by_viewer',
+                'created_by_view_session',
+            )
+            .prefetch_related('messages__sent_by_user', 'messages__sent_by_viewer', 'messages__sent_by_view_session')
+        )
+        serializer = QnAThreadSerializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, slug, *args, **kwargs):
+        serializer = QnAThreadCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            link = _get_active_share_link(slug)
+            view_session = _get_authorized_qna_view_session(
+                request,
+                link,
+                serializer.validated_data.get('view_session_id'),
+            )
+            context = _resolve_qna_context_for_link(
+                link,
+                dataroom_document_id=serializer.validated_data.get('dataroom_document_id'),
+                dataroom_folder_id=serializer.validated_data.get('dataroom_folder_id'),
+            )
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
+        except serializers.ValidationError as e:
+            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
+        except PermissionDenied as e:
+            return Response({"detail": str(e.detail)}, status=status.HTTP_403_FORBIDDEN)
+
+        organization = _get_share_link_organization(link)
+        viewer = view_session.viewer
+        if not viewer and view_session.viewer_email and organization:
+            viewer, _ = Viewer.objects.get_or_create(
+                organization=organization,
+                email=view_session.viewer_email,
+            )
+            view_session.viewer = viewer
+            view_session.save(update_fields=['viewer'])
+
+        with transaction.atomic():
+            thread = QnAThread.objects.create(
+                organization=organization,
+                share_link=link,
+                created_by_viewer=viewer,
+                created_by_view_session=view_session,
+                subject=serializer.validated_data['subject'],
+                **context,
+            )
+            message = QnAMessage.objects.create(
+                thread=thread,
+                body=serializer.validated_data['body'],
+                sent_by_viewer=viewer,
+                sent_by_view_session=view_session,
+            )
+
+        _dispatch_automation_event(
+            link,
+            'qna_thread_created',
+            _build_qna_event_payload(thread, message, sender_type='viewer'),
+            view_session=view_session,
+        )
+        response = QnAThreadSerializer(thread, context={'request': request})
+        return Response(response.data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(tags=['sharelinks'])
+class ShareLinkQnAMessageListCreateView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def _get_thread_for_viewer(self, request, slug, thread_id, view_session_id):
+        link = _get_active_share_link(slug)
+        view_session = _get_authorized_qna_view_session(request, link, view_session_id)
+        thread = (
+            QnAThread.objects.filter(id=thread_id, share_link=link)
+            .select_related(
+                'share_link', 'dataroom', 'document', 'dataroom_document__document',
+                'dataroom_document__folder', 'dataroom_folder',
+            )
+            .first()
+        )
+        if not thread:
+            raise NotFound(detail="Q&A thread not found.")
+
+        if link.dataroom_id:
+            if thread.dataroom_document_id:
+                _resolve_qna_context_for_link(link, dataroom_document_id=thread.dataroom_document_id)
+            elif thread.dataroom_folder_id:
+                _resolve_qna_context_for_link(link, dataroom_folder_id=thread.dataroom_folder_id)
+        return link, view_session, thread
+
+    def get(self, request, slug, thread_id, *args, **kwargs):
+        try:
+            _, _, thread = self._get_thread_for_viewer(
+                request,
+                slug,
+                thread_id,
+                request.query_params.get('view_session_id'),
+            )
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
+        except serializers.ValidationError as e:
+            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
+        except PermissionDenied as e:
+            return Response({"detail": str(e.detail)}, status=status.HTTP_403_FORBIDDEN)
+
+        queryset = thread.messages.select_related('sent_by_user', 'sent_by_viewer', 'sent_by_view_session')
+        serializer = QnAMessageSerializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, slug, thread_id, *args, **kwargs):
+        serializer = QnAMessageCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            link, view_session, thread = self._get_thread_for_viewer(
+                request,
+                slug,
+                thread_id,
+                serializer.validated_data.get('view_session_id'),
+            )
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
+        except serializers.ValidationError as e:
+            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
+        except PermissionDenied as e:
+            return Response({"detail": str(e.detail)}, status=status.HTTP_403_FORBIDDEN)
+
+        if thread.status == QnAThread.STATUS_CLOSED:
+            return Response({"detail": "This Q&A thread is closed."}, status=status.HTTP_403_FORBIDDEN)
+
+        organization = _get_share_link_organization(link)
+        viewer = view_session.viewer
+        if not viewer and view_session.viewer_email and organization:
+            viewer, _ = Viewer.objects.get_or_create(
+                organization=organization,
+                email=view_session.viewer_email,
+            )
+            view_session.viewer = viewer
+            view_session.save(update_fields=['viewer'])
+
+        message = QnAMessage.objects.create(
+            thread=thread,
+            body=serializer.validated_data['body'],
+            sent_by_viewer=viewer,
+            sent_by_view_session=view_session,
+        )
+        thread.save(update_fields=['updated_at'])
+        _dispatch_automation_event(
+            link,
+            'qna_message_created',
+            _build_qna_event_payload(thread, message, sender_type='viewer'),
+            view_session=view_session,
+        )
+        response = QnAMessageSerializer(message, context={'request': request})
+        return Response(response.data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(tags=['sharelinks'])
+class QnAThreadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    serializer_class = QnAThreadSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = (
+            QnAThread.objects.filter(organization=self.request.user.organization)
+            .select_related(
+                'share_link', 'dataroom', 'document', 'dataroom_document__document',
+                'dataroom_folder', 'created_by_user', 'created_by_viewer',
+                'created_by_view_session',
+            )
+            .prefetch_related('messages__sent_by_user', 'messages__sent_by_viewer', 'messages__sent_by_view_session')
+        )
+        if self.request.user.role != 'admin':
+            queryset = queryset.filter(
+                Q(share_link__created_by=self.request.user)
+                | Q(document__created_by=self.request.user)
+                | Q(dataroom__created_by=self.request.user)
+            )
+
+        share_link_id = self.request.query_params.get('share_link_id')
+        document_id = self.request.query_params.get('document_id')
+        dataroom_id = self.request.query_params.get('dataroom_id')
+        thread_status = self.request.query_params.get('status')
+        if share_link_id:
+            queryset = queryset.filter(share_link_id=share_link_id)
+        if document_id:
+            queryset = queryset.filter(document_id=document_id)
+        if dataroom_id:
+            queryset = queryset.filter(dataroom_id=dataroom_id)
+        if thread_status:
+            queryset = queryset.filter(status=thread_status)
+        return queryset
+
+    def _get_manageable_share_link(self, share_link_id):
+        queryset = ShareLink.objects.select_related('document', 'dataroom', 'created_by').filter(
+            id=share_link_id,
+            created_by__organization=self.request.user.organization,
+        )
+        if self.request.user.role != 'admin':
+            queryset = queryset.filter(created_by=self.request.user)
+        link = queryset.first()
+        if not link:
+            raise NotFound(detail="Share link not found.")
+        return link
+
+    def create(self, request, *args, **kwargs):
+        serializer = QnAOwnerThreadCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            link = self._get_manageable_share_link(serializer.validated_data['share_link_id'])
+            context = _resolve_qna_context_for_link(
+                link,
+                dataroom_document_id=serializer.validated_data.get('dataroom_document_id'),
+                dataroom_folder_id=serializer.validated_data.get('dataroom_folder_id'),
+            )
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
+        except serializers.ValidationError as e:
+            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
+        except PermissionDenied as e:
+            return Response({"detail": str(e.detail)}, status=status.HTTP_403_FORBIDDEN)
+
+        with transaction.atomic():
+            thread = QnAThread.objects.create(
+                organization=self.request.user.organization,
+                share_link=link,
+                created_by_user=self.request.user,
+                subject=serializer.validated_data['subject'],
+                **context,
+            )
+            message = QnAMessage.objects.create(
+                thread=thread,
+                body=serializer.validated_data['body'],
+                sent_by_user=self.request.user,
+            )
+
+        _dispatch_automation_event(
+            link,
+            'qna_thread_created',
+            _build_qna_event_payload(thread, message, sender_type='user'),
+        )
+        return Response(QnAThreadSerializer(thread, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+    def partial_update(self, request, *args, **kwargs):
+        thread = self.get_object()
+        serializer = QnAThreadStatusUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        new_status = serializer.validated_data['status']
+        old_status = thread.status
+        if old_status != new_status:
+            thread.status = new_status
+            thread.save(update_fields=['status', 'updated_at'])
+            event_type = 'qna_thread_closed' if new_status == QnAThread.STATUS_CLOSED else 'qna_thread_reopened'
+            _dispatch_automation_event(
+                thread.share_link,
+                event_type,
+                _build_qna_event_payload(thread, sender_type='user'),
+            )
+
+        return Response(QnAThreadSerializer(thread, context={'request': request}).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='messages')
+    def create_message(self, request, pk=None):
+        thread = self.get_object()
+        serializer = QnAMessageCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        message = QnAMessage.objects.create(
+            thread=thread,
+            body=serializer.validated_data['body'],
+            sent_by_user=self.request.user,
+        )
+        thread.save(update_fields=['updated_at'])
+        _dispatch_automation_event(
+            thread.share_link,
+            'qna_message_created',
+            _build_qna_event_payload(thread, message, sender_type='user'),
+        )
+        return Response(QnAMessageSerializer(message, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
 @extend_schema(tags=['sharelinks'])

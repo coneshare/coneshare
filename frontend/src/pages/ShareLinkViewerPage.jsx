@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { FileDown } from 'lucide-react';
+import { FileDown, MessageCircle } from 'lucide-react';
 import { PasswordForm } from '../components/viewer/PasswordForm';
 import { EmailForm } from '../components/viewer/EmailForm';
 import { ViewerToolbar } from '../components/viewer/ViewerToolbar';
 import { PreviewViewer } from '../components/documents/PreviewViewer';
 import { DataroomViewer } from '../components/viewer/DataroomViewer';
+import { QnAPanel } from '../components/viewer/QnAPanel';
 import { Skeleton } from '../components/ui/Skeleton';
 import { getShareLinkViewData, createViewSession, getShareLinkPublicMeta } from '../services/api';
 import { Button } from '../components/ui/Button';
@@ -29,6 +30,7 @@ export function ShareLinkViewerPage() {
   const [refetchTrigger, setRefetchTrigger] = useState(0);
   const [viewId, setViewId] = useState(null);
   const [dataroomVisitId, setDataroomVisitId] = useState(null);
+  const [isQnaOpen, setIsQnaOpen] = useState(false);
   const viewerRef = useRef(null);
 
   // Document-specific state must be declared at the top level, before any conditional returns.
@@ -275,6 +277,25 @@ export function ShareLinkViewerPage() {
             onPageChange={setCurrentPage}
             viewId={viewId}
             dataroomVisitId={dataroomVisitId}
+          />
+          <Button
+            type="button"
+            className="absolute bottom-6 right-6 z-20 h-12 rounded-full px-4 shadow-lg"
+            onClick={() => setIsQnaOpen(true)}
+            disabled={!viewId}
+            aria-label="Open Q&A"
+            title="Open Q&A"
+          >
+            <MessageCircle className="h-5 w-5" />
+            <span className="ml-2 font-semibold">Q&amp;A</span>
+          </Button>
+          <QnAPanel
+            open={isQnaOpen}
+            onOpenChange={setIsQnaOpen}
+            slug={slug}
+            viewId={viewId}
+            dataroomDocumentId={dataroomDocumentIdFromUrl || null}
+            contextLabel={viewData.name}
           />
         </>
       )}

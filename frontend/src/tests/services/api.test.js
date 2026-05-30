@@ -1,6 +1,15 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import api from "../../services/api";
-import { getShareLinkViewData } from "../../services/api";
+import {
+  createOwnerQnaMessage,
+  createPublicQnaMessage,
+  createPublicQnaThread,
+  getOwnerQnaThreads,
+  getPublicQnaMessages,
+  getPublicQnaThreads,
+  getShareLinkViewData,
+  updateOwnerQnaThreadStatus,
+} from "../../services/api";
 import { DATAROOM_VIEWER_PAGE_SIZE } from "../../constants/pagination";
 import axios from "axios";
 
@@ -245,6 +254,105 @@ describe("API Service Interceptors", () => {
       expect(requestConfig.params).toEqual({
         parent_id: "folder-2",
       });
+    });
+  });
+
+  describe("Share Link Q&A Params", () => {
+    it("should include context when fetching public Q&A threads", async () => {
+      mockAdapter.mockResolvedValue({ data: [] });
+
+      await getPublicQnaThreads("slug-1", {
+        viewSessionId: "view-1",
+        dataroomDocumentId: "ddoc-1",
+      });
+
+      const requestConfig = mockAdapter.mock.calls[0][0];
+      expect(requestConfig.url).toBe("/links/slug-1/qna-threads/");
+      expect(requestConfig.params).toEqual({
+        view_session_id: "view-1",
+        dataroom_document_id: "ddoc-1",
+      });
+    });
+
+    it("should send context when creating public Q&A threads", async () => {
+      mockAdapter.mockResolvedValue({ data: { id: "thread-1" } });
+
+      await createPublicQnaThread("slug-1", {
+        viewSessionId: "view-1",
+        subject: "Subject",
+        body: "Body",
+        dataroomFolderId: "folder-1",
+      });
+
+      const requestConfig = mockAdapter.mock.calls[0][0];
+      expect(requestConfig.url).toBe("/links/slug-1/qna-threads/");
+      expect(JSON.parse(requestConfig.data)).toEqual({
+        view_session_id: "view-1",
+        subject: "Subject",
+        body: "Body",
+        dataroom_folder_id: "folder-1",
+      });
+    });
+
+    it("should include view session when fetching public Q&A messages", async () => {
+      mockAdapter.mockResolvedValue({ data: [] });
+
+      await getPublicQnaMessages("slug-1", "thread-1", { viewSessionId: "view-1" });
+
+      const requestConfig = mockAdapter.mock.calls[0][0];
+      expect(requestConfig.url).toBe("/links/slug-1/qna-threads/thread-1/messages/");
+      expect(requestConfig.params).toEqual({ view_session_id: "view-1" });
+    });
+
+    it("should post public Q&A replies", async () => {
+      mockAdapter.mockResolvedValue({ data: { id: "msg-1" } });
+
+      await createPublicQnaMessage("slug-1", "thread-1", {
+        viewSessionId: "view-1",
+        body: "Reply",
+      });
+
+      const requestConfig = mockAdapter.mock.calls[0][0];
+      expect(requestConfig.url).toBe("/links/slug-1/qna-threads/thread-1/messages/");
+      expect(JSON.parse(requestConfig.data)).toEqual({
+        view_session_id: "view-1",
+        body: "Reply",
+      });
+    });
+  });
+
+  describe("Owner Q&A Params", () => {
+    it("should fetch owner Q&A threads with document and status filters", async () => {
+      mockAdapter.mockResolvedValue({ data: [] });
+
+      await getOwnerQnaThreads({ documentId: "doc-1", status: "open" });
+
+      const requestConfig = mockAdapter.mock.calls[0][0];
+      expect(requestConfig.url).toBe("/qna-threads/");
+      expect(requestConfig.params).toEqual({
+        document_id: "doc-1",
+        status: "open",
+      });
+    });
+
+    it("should patch owner Q&A thread status", async () => {
+      mockAdapter.mockResolvedValue({ data: { id: "thread-1", status: "closed" } });
+
+      await updateOwnerQnaThreadStatus("thread-1", "closed");
+
+      const requestConfig = mockAdapter.mock.calls[0][0];
+      expect(requestConfig.url).toBe("/qna-threads/thread-1/");
+      expect(JSON.parse(requestConfig.data)).toEqual({ status: "closed" });
+    });
+
+    it("should post owner Q&A replies", async () => {
+      mockAdapter.mockResolvedValue({ data: { id: "msg-1" } });
+
+      await createOwnerQnaMessage("thread-1", "Owner reply");
+
+      const requestConfig = mockAdapter.mock.calls[0][0];
+      expect(requestConfig.url).toBe("/qna-threads/thread-1/messages/");
+      expect(JSON.parse(requestConfig.data)).toEqual({ body: "Owner reply" });
     });
   });
 });
