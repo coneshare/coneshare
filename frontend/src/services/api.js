@@ -280,6 +280,73 @@ export const verifyShareLinkPassword = (slug, password) =>
 export const requestShareLinkAccess = (slug, email) =>
   api.post(`/links/${slug}/request-access/`, { email });
 
+export const getPublicQnaThreads = (
+  slug,
+  {
+    viewSessionId,
+    dataroomDocumentId = null,
+    dataroomFolderId = null,
+  } = {}
+) => {
+  const params = {};
+  if (viewSessionId) params.view_session_id = viewSessionId;
+  if (dataroomDocumentId) params.dataroom_document_id = dataroomDocumentId;
+  if (dataroomFolderId) params.dataroom_folder_id = dataroomFolderId;
+  return api.get(`/links/${slug}/qna-threads/`, { params });
+};
+
+export const createPublicQnaThread = (
+  slug,
+  {
+    viewSessionId,
+    subject,
+    body,
+    dataroomDocumentId = null,
+    dataroomFolderId = null,
+  }
+) => {
+  const payload = {
+    view_session_id: viewSessionId,
+    subject,
+    body,
+  };
+  if (dataroomDocumentId) payload.dataroom_document_id = dataroomDocumentId;
+  if (dataroomFolderId) payload.dataroom_folder_id = dataroomFolderId;
+  return api.post(`/links/${slug}/qna-threads/`, payload);
+};
+
+export const getPublicQnaMessages = (slug, threadId, { viewSessionId } = {}) => {
+  const params = {};
+  if (viewSessionId) params.view_session_id = viewSessionId;
+  return api.get(`/links/${slug}/qna-threads/${threadId}/messages/`, { params });
+};
+
+export const createPublicQnaMessage = (slug, threadId, { viewSessionId, body }) =>
+  api.post(`/links/${slug}/qna-threads/${threadId}/messages/`, {
+    view_session_id: viewSessionId,
+    body,
+  });
+
+export const getOwnerQnaThreads = ({
+  documentId = null,
+  dataroomId = null,
+  shareLinkId = null,
+  status = null,
+} = {}) => {
+  const params = {};
+  if (documentId) params.document_id = documentId;
+  if (dataroomId) params.dataroom_id = dataroomId;
+  if (shareLinkId) params.share_link_id = shareLinkId;
+  if (status && status !== 'all') params.status = status;
+  return api.get('/qna-threads/', { params });
+};
+
+export const updateOwnerQnaThreadStatus = (threadId, status) =>
+  api.patch(`/qna-threads/${threadId}/`, { status });
+
+export const createOwnerQnaMessage = (threadId, body) =>
+  api.post(`/qna-threads/${threadId}/messages/`, { body });
+
 export const createViewSession = (data) => api.post('/view-sessions/', data);
 
 export const recordDownload = (viewSessionId, dataroomDocumentId = null) =>

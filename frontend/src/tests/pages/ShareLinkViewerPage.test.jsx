@@ -35,6 +35,16 @@ vi.mock('../../components/viewer/ViewerToolbar', () => ({
   ViewerToolbar: () => <div>Viewer Toolbar</div>,
 }));
 
+vi.mock('../../components/viewer/QnAPanel', () => ({
+  QnAPanel: ({ open, dataroomDocumentId, contextLabel }) => (
+    <div data-testid="qna-panel">
+      {open ? 'Q&A Open' : 'Q&A Closed'}
+      <span>{dataroomDocumentId || 'document-context'}</span>
+      <span>{contextLabel}</span>
+    </div>
+  ),
+}));
+
 describe('ShareLinkViewerPage', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -43,6 +53,7 @@ describe('ShareLinkViewerPage', () => {
   const mockDocumentData = {
     id: 'doc_123',
     name: 'Test Document',
+    type: 'pdf',
     num_pages: 3,
     pages: [{ page_number: 1, url: '/page1.png' }],
     link_settings: { id: 'link_abc', allow_download: true },
@@ -201,5 +212,38 @@ describe('ShareLinkViewerPage', () => {
       dataroomDocumentId: null,
       parentId: 'folder-123',
     });
+  });
+
+  it('opens Q&A panel for a document share link after view session exists', async () => {
+    api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
+    api.getShareLinkViewData.mockResolvedValue({ data: mockDocumentData });
+    api.createViewSession.mockResolvedValue({ data: mockViewData });
+
+    renderComponent('/view/test-slug');
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/open q&a/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText(/open q&a/i));
+
+    expect(screen.getByTestId('qna-panel')).toHaveTextContent('Q&A Open');
+    expect(screen.getByTestId('qna-panel')).toHaveTextContent('document-context');
+    expect(screen.getByTestId('qna-panel')).toHaveTextContent('Test Document');
+  });
+
+  it('passes dataroom document id into Q&A panel for dataroom document view', async () => {
+    api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
+    api.getShareLinkViewData.mockResolvedValue({ data: mockDocumentData });
+
+    renderComponent('/view/test-slug?dataroom_document_id=ddoc-123&view_session_id=view-123');
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/open q&a/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText(/open q&a/i));
+
+    expect(screen.getByTestId('qna-panel')).toHaveTextContent('ddoc-123');
   });
 });

@@ -6,6 +6,7 @@ import {
   DownloadIcon,
   MoreHorizontal,
   Eye,
+  MessageCircle,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useSearchParams } from 'react-router-dom';
@@ -13,10 +14,11 @@ import { toast } from 'sonner';
 import { formatBytes } from '../../lib/formatters';
 import { FileTypeIcon } from '../documents/FileTypeIcon';
 import { Button } from '../ui/Button';
+import { QnAPanel } from './QnAPanel';
 import { downloadDataroomFolder, getShareLinkViewData, recordDataroomVisit } from '../../services/api';
 import { DATAROOM_VIEWER_PAGE_SIZE } from '../../constants/pagination';
 
-function ListItem({ item, onItemClick, onDownloadClick, showIndex = false, index = null }) {
+function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = false, index = null }) {
   const isFolder = item.type === 'folder';
   const mobileMeta = [
     item.updated_at ? formatDistanceToNow(new Date(item.updated_at), { addSuffix: true }) : null,
@@ -105,6 +107,17 @@ function ListItem({ item, onItemClick, onDownloadClick, showIndex = false, index
                 <span>Download</span>
               </DropdownMenu.Item>
             )}
+            <DropdownMenu.Item
+              onSelect={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onQnaClick(item);
+              }}
+              className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+            >
+              <MessageCircle className="h-4 w-4" aria-hidden="true" />
+              <span>Q&amp;A</span>
+            </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
       </div>
@@ -117,6 +130,7 @@ export function DataroomViewer({ data, slug, viewId }) {
   const [scopeData, setScopeData] = useState(data);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [qnaContext, setQnaContext] = useState(null);
   const requestRef = useRef(0);
   const parentIdFromUrl = searchParams.get('parent_id');
 
@@ -173,6 +187,25 @@ export function DataroomViewer({ data, slug, viewId }) {
     } else {
       handleDownloadDocument(item);
     }
+  };
+
+  const handleQnaClick = (item) => {
+    setQnaContext({
+      id: item.id,
+      type: item.type,
+      label: item.name || item.document_name,
+    });
+  };
+
+  const handleCurrentScopeQnaClick = () => {
+    const currentFolderId = scopeData?.current_parent_id || null;
+    setQnaContext({
+      id: currentFolderId,
+      type: currentFolderId ? 'folder' : 'dataroom',
+      label: currentFolderId
+        ? breadcrumbs[breadcrumbs.length - 1]?.name || scopeData.name
+        : scopeData.name,
+    });
   };
 
   const allItems = Array.isArray(scopeData.items) ? scopeData.items : [];
@@ -294,10 +327,24 @@ export function DataroomViewer({ data, slug, viewId }) {
     <div className="flex h-screen w-screen flex-col bg-gray-50" style={themeStyle}>
       <header className="flex flex-shrink-0 items-center justify-between border-b bg-white p-3 sm:p-4">
         <h1 className="mr-2 truncate text-base font-semibold sm:text-xl" style={{ color: 'var(--viewer-primary)' }}>{scopeData.name}</h1>
-        <a href="/" className="flex shrink-0 items-center gap-2 rounded-md p-2 font-semibold" style={{ color: 'var(--viewer-primary)' }}>
-          <img src="/logo.svg" alt="Coneshare logo" className="h-6 w-6" />
-          <span className="hidden sm:inline">Coneshare</span>
-        </a>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-9 rounded-full px-3"
+            onClick={handleCurrentScopeQnaClick}
+            disabled={!viewId}
+            aria-label="Open Q&A for current folder"
+            title="Open Q&A for current folder"
+          >
+            <MessageCircle className="h-4 w-4" />
+            <span className="ml-2 font-semibold">Q&amp;A</span>
+          </Button>
+          <a href="/" className="flex items-center gap-2 rounded-md p-2 font-semibold" style={{ color: 'var(--viewer-primary)' }}>
+            <img src="/logo.svg" alt="Coneshare logo" className="h-6 w-6" />
+            <span className="hidden sm:inline">Coneshare</span>
+          </a>
+        </div>
       </header>
       {scopeData.branding_banner && (
         <section className="flex-shrink-0 border-b bg-white">
@@ -368,6 +415,7 @@ export function DataroomViewer({ data, slug, viewId }) {
                 item={item}
                 onItemClick={handleItemClick}
                 onDownloadClick={handleDownloadClick}
+                onQnaClick={handleQnaClick}
                 showIndex={Boolean(scopeData.show_file_index)}
                 index={idx + 1}
               />
@@ -389,6 +437,17 @@ export function DataroomViewer({ data, slug, viewId }) {
           <div className="p-12 text-center" style={{ color: 'var(--viewer-secondary)' }}>This folder is empty.</div>
         )}
       </main>
+      <QnAPanel
+        open={Boolean(qnaContext)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setQnaContext(null);
+        }}
+        slug={slug}
+        viewId={viewId}
+        dataroomDocumentId={qnaContext?.type === 'document' ? qnaContext.id : null}
+        dataroomFolderId={qnaContext?.type === 'folder' ? qnaContext.id : null}
+        contextLabel={qnaContext?.label || scopeData.name}
+      />
 
     </div>
   );

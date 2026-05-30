@@ -26,6 +26,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
 import { Switch } from '../components/ui/Switch';
+import { OwnerQnAManager } from '../components/qna/OwnerQnAManager';
 import {
   Dialog,
   DialogContent,
@@ -665,6 +666,7 @@ export function DataroomPage() {
         <TabsList>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="links">Links and Permissions</TabsTrigger>
+          <TabsTrigger value="qna">Q&amp;A</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
         <TabsContent value="documents" className="mt-6">
@@ -770,6 +772,9 @@ export function DataroomPage() {
               contextType="dataroom"
             />
           </div>
+        </TabsContent>
+        <TabsContent value="qna" className="mt-6">
+          <OwnerQnAManager dataroomId={dataroomId} />
         </TabsContent>
         <TabsContent value="settings" className="mt-6">
           <section className="space-y-8">
