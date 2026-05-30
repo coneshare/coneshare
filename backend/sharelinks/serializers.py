@@ -5,6 +5,7 @@ from rest_framework import serializers
 from core.models import Organization
 from datarooms.models import Dataroom
 from .models import (DataroomVisit, PageView, ShareLink,
+                     QnAMessage, QnAThread,
                      ShareLinkDataroomSetting, ShareLinkTemplate, Viewer,
                      ViewSession)
 from .services import (_get_unique_dataroom_share_link_name,
@@ -322,3 +323,112 @@ class ShareLinkTemplateSerializer(serializers.ModelSerializer):
 
 class ShareLinkPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
+
+
+class QnAMessageSerializer(serializers.ModelSerializer):
+    sender_type = serializers.SerializerMethodField()
+    sender_email = serializers.SerializerMethodField()
+    sender_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = QnAMessage
+        fields = [
+            'id', 'thread', 'body', 'sender_type', 'sender_email', 'sender_name',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = fields
+
+    def get_sender_type(self, obj) -> str:
+        return 'user' if obj.sent_by_user_id else 'viewer'
+
+    def get_sender_email(self, obj) -> str:
+        if obj.sent_by_user:
+            return obj.sent_by_user.email
+        if obj.sent_by_viewer:
+            return obj.sent_by_viewer.email
+        if obj.sent_by_view_session:
+            return obj.sent_by_view_session.viewer_email
+        return ''
+
+    def get_sender_name(self, obj) -> str:
+        if obj.sent_by_user:
+            return obj.sent_by_user.name or obj.sent_by_user.email
+        return self.get_sender_email(obj) or 'Viewer'
+
+
+class QnAThreadSerializer(serializers.ModelSerializer):
+    messages = QnAMessageSerializer(many=True, read_only=True)
+    context_type = serializers.SerializerMethodField()
+    context_name = serializers.SerializerMethodField()
+    created_by_type = serializers.SerializerMethodField()
+    created_by_email = serializers.SerializerMethodField()
+
+    class Meta:
+        model = QnAThread
+        fields = [
+            'id', 'organization', 'share_link', 'dataroom', 'document',
+            'dataroom_document', 'dataroom_folder', 'context_type', 'context_name',
+            'subject', 'status', 'created_by_type', 'created_by_email',
+            'created_at', 'updated_at', 'messages'
+        ]
+        read_only_fields = fields
+
+    def get_context_type(self, obj) -> str:
+        if obj.dataroom_document_id:
+            return 'dataroom_document'
+        if obj.dataroom_folder_id:
+            return 'dataroom_folder'
+        if obj.dataroom_id:
+            return 'dataroom'
+        return 'document'
+
+    def get_context_name(self, obj) -> str:
+        if obj.dataroom_document:
+            return obj.dataroom_document.name or obj.dataroom_document.document.name
+        if obj.dataroom_folder:
+            return obj.dataroom_folder.name
+        if obj.dataroom:
+            return obj.dataroom.name
+        if obj.document:
+            return obj.document.name
+        return ''
+
+    def get_created_by_type(self, obj) -> str:
+        return 'user' if obj.created_by_user_id else 'viewer'
+
+    def get_created_by_email(self, obj) -> str:
+        if obj.created_by_user:
+            return obj.created_by_user.email
+        if obj.created_by_viewer:
+            return obj.created_by_viewer.email
+        if obj.created_by_view_session:
+            return obj.created_by_view_session.viewer_email
+        return ''
+
+
+class QnAThreadCreateSerializer(serializers.Serializer):
+    subject = serializers.CharField()
+    body = serializers.CharField()
+    view_session_id = serializers.CharField(required=False, allow_blank=True)
+    dataroom_document_id = serializers.CharField(required=False, allow_blank=True)
+    dataroom_folder_id = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, data):
+        doc_id = data.get('dataroom_document_id')
+        folder_id = data.get('dataroom_folder_id')
+        if doc_id and folder_id:
+            raise serializers.ValidationError("Only one of 'dataroom_document_id' or 'dataroom_folder_id' can be provided.")
+        return data
+
+
+class QnAMessageCreateSerializer(serializers.Serializer):
+    body = serializers.CharField()
+    view_session_id = serializers.CharField(required=False, allow_blank=True)
+
+
+class QnAOwnerThreadCreateSerializer(QnAThreadCreateSerializer):
+    share_link_id = serializers.CharField()
+
+
+class QnAThreadStatusUpdateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=[QnAThread.STATUS_OPEN, QnAThread.STATUS_CLOSED])
