@@ -153,6 +153,21 @@ def _build_event_text(delivery: AutomationDelivery) -> str:
     if event_type == 'email_identified':
         return _append_event_details(f'{viewer} identified their email address for your shared {target}.', payload)
 
+    thread_subject = payload.get('thread_subject') or 'Q&A thread'
+    sender_type = payload.get('sender_type') or 'user'
+
+    if event_type == 'qna_thread_created':
+        return _append_event_details(f'{viewer if sender_type == "viewer" else "A team member"} opened Q&A thread "{thread_subject}" on your shared {target}.', payload)
+
+    if event_type == 'qna_message_created':
+        return _append_event_details(f'{viewer if sender_type == "viewer" else "A team member"} replied to Q&A thread "{thread_subject}" on your shared {target}.', payload)
+
+    if event_type == 'qna_thread_closed':
+        return _append_event_details(f'Q&A thread "{thread_subject}" was closed on your shared {target}.', payload)
+
+    if event_type == 'qna_thread_reopened':
+        return _append_event_details(f'Q&A thread "{thread_subject}" was reopened on your shared {target}.', payload)
+
     uploader = _display_actor(
         payload.get('uploaded_by_name'),
         payload.get('uploaded_by_email'),

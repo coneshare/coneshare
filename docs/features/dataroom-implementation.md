@@ -5,11 +5,13 @@
 - [Coneshare Technology Stack](../strategy/coneshare-techstack.md)
 - [Coneshare Data Model](../coneshare-data-model.md)
 - [Coneshare Dataroom Ownership and Department Scope](../strategy/dataroom-ownership-and-department-scope.md)
+- [Coneshare Share Link Q&A](./share-link-qna.md)
 
 ## Out of scope
 - Department ownership model changes (departments remain scoping/filtering constructs).
 - Re-architecture of share link core beyond dataroom compatibility requirements.
-- Production-grade Q&A and audit workflows beyond foundational schema prep.
+- Production-grade audit workflows beyond foundational schema prep.
+- Q&A workflows are covered separately as a share-link scoped feature; see [Coneshare Share Link Q&A](./share-link-qna.md).
 - Non-dataroom sharing feature redesigns unrelated to this implementation plan.
 
 ## Design decisions
@@ -84,6 +86,8 @@ Records significant events in the system for administrative review.
 -   `related_dataroom`: Foreign Key to `Dataroom` (nullable)
 
 #### `QnAThread` & `QnAMessage`
+Historical note: Q&A should now be treated as a share-link scoped feature that supports both single-document share links and dataroom share links. The current proposed model and permission rules live in [Coneshare Share Link Q&A](./share-link-qna.md). The older dataroom-only shape below is retained as background context, not as the implementation target.
+
 Enables discussions between data room owners and external viewers about specific documents.
 -   **`QnAThread`**:
     -   `dataroom`: Foreign Key to `Dataroom`
