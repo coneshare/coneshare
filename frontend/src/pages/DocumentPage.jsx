@@ -12,6 +12,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { LinkSheet } from '../components/links/LinkSheet';
 import { DocumentPreviewModal } from '../components/documents/DocumentPreviewModal';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
+import { OwnerQnAManager } from '../components/qna/OwnerQnAManager';
 
 export function DocumentPage() {
   const { documentId } = useParams();
@@ -330,6 +331,7 @@ export function DocumentPage() {
           onPageChange={setCurrentPage}
           pageSize={10}
         />
+        <OwnerQnAManager documentId={documentId} />
       </div>
       <LinkSheet
         isOpen={isLinkSheetOpen}
