@@ -292,6 +292,7 @@ class HealthCheckView(APIView):
     Used by Docker for health checks.
     """
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'health_check'
 
     class HealthResponseSerializer(serializers.Serializer):
