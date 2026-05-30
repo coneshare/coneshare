@@ -4,8 +4,13 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 
 from datarooms.models import DataroomDocument, DataroomFolder
 from documents.models import Document
-from sharelinks.models import ShareLink, ViewSession
-from sharelinks.serializers import ShareLinkSerializer
+from sharelinks.models import QnAMessage, QnAThread, ShareLink, ViewSession
+from sharelinks.serializers import (
+    QnAMessageSerializer,
+    QnAThreadCreateSerializer,
+    QnAThreadSerializer,
+    ShareLinkSerializer,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -247,3 +252,106 @@ class TestShareLinkSerializer:
         assert 'dataroom_settings' in data
         assert len(data['dataroom_settings']) == 2
         assert 'is_visible' in data['dataroom_settings'][0]
+
+
+class TestQnASerializers:
+    def test_qna_thread_serializer_for_document_context(self, share_link, user):
+        thread = QnAThread.objects.create(
+            organization=user.organization,
+            share_link=share_link,
+            document=share_link.document,
+            subject="Question about document",
+            created_by_user=user,
+        )
+        QnAMessage.objects.create(
+            thread=thread,
+            body="Initial answer",
+            sent_by_user=user,
+        )
+
+        data = QnAThreadSerializer(thread).data
+
+        assert data['id'] == str(thread.id)
+        assert data['context_type'] == 'document'
+        assert data['context_name'] == share_link.document.name
+        assert data['created_by_type'] == 'user'
+        assert data['created_by_email'] == user.email
+        assert data['status'] == QnAThread.STATUS_OPEN
+        assert len(data['messages']) == 1
+        assert data['messages'][0]['body'] == 'Initial answer'
+
+    def test_qna_thread_serializer_for_dataroom_folder_context(self, dataroom, user):
+        folder = DataroomFolder.objects.create(dataroom=dataroom, name="Questions Folder")
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+        view_session = ViewSession.objects.create(
+            share_link=link,
+            viewer_email='viewer@example.com',
+        )
+        thread = QnAThread.objects.create(
+            organization=user.organization,
+            share_link=link,
+            dataroom=dataroom,
+            dataroom_folder=folder,
+            subject="Folder question",
+            created_by_view_session=view_session,
+        )
+
+        data = QnAThreadSerializer(thread).data
+
+        assert data['context_type'] == 'dataroom_folder'
+        assert data['context_name'] == 'Questions Folder'
+        assert data['created_by_type'] == 'viewer'
+        assert data['created_by_email'] == 'viewer@example.com'
+
+    def test_qna_thread_serializer_for_dataroom_root_context(self, dataroom, user):
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+        thread = QnAThread.objects.create(
+            organization=user.organization,
+            share_link=link,
+            dataroom=dataroom,
+            subject="Room question",
+            created_by_user=user,
+        )
+
+        data = QnAThreadSerializer(thread).data
+
+        assert data['context_type'] == 'dataroom'
+        assert data['context_name'] == dataroom.name
+
+    def test_qna_message_serializer_for_viewer_sender(self, share_link, user):
+        view_session = ViewSession.objects.create(
+            share_link=share_link,
+            viewer_email='viewer@example.com',
+        )
+        thread = QnAThread.objects.create(
+            organization=user.organization,
+            share_link=share_link,
+            document=share_link.document,
+            subject="Thread",
+            created_by_view_session=view_session,
+        )
+        message = QnAMessage.objects.create(
+            thread=thread,
+            body="Viewer message",
+            sent_by_view_session=view_session,
+        )
+
+        data = QnAMessageSerializer(message).data
+
+        assert data['sender_type'] == 'viewer'
+        assert data['sender_email'] == 'viewer@example.com'
+        assert data['sender_name'] == 'viewer@example.com'
+
+    def test_qna_thread_create_serializer_rejects_both_dataroom_contexts(self):
+        serializer = QnAThreadCreateSerializer(
+            data={
+                'subject': 'Invalid',
+                'body': 'Invalid',
+                'view_session_id': 'session-1',
+                'dataroom_document_id': 'doc-1',
+                'dataroom_folder_id': 'folder-1',
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert 'non_field_errors' in serializer.errors
