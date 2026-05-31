@@ -101,6 +101,21 @@ describe("DocumentsList", () => {
     const dialogTitle = await screen.findByRole('heading', { name: /delete "Test Document 1"\?/i });
     expect(dialogTitle).toBeInTheDocument();
   });
+
+  it("should render a Views tooltip trigger", () => {
+    render(
+      <DocumentsList
+        allItems={mockDocuments}
+        loading={false}
+        onDataRefresh={() => {}}
+        sortConfig={{ key: "name", direction: "ascending" }}
+        viewsTooltip="Direct views from this document's own share links."
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Views" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "About Views" })).toBeInTheDocument();
+  });
 });
 
 describe("DocumentsList with external handlers", () => {

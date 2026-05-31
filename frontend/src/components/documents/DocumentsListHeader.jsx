@@ -1,12 +1,18 @@
-import { ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUp, ArrowDown, Info } from "lucide-react";
 import { Button } from "../ui/Button";
 import { cn } from "../../lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "../ui/Tooltip";
 
 const columns = [
-  { key: "name", label: "Name", className: "w-[40%]" },
-  { key: "owner", label: "Owner", className: "w-[20%]" },
-  { key: "updated_at", label: "Last Modified", className: "w-[20%]" },
+  { key: "name", label: "Name", className: "w-[34%]" },
+  { key: "owner", label: "Owner", className: "w-[18%]" },
+  { key: "updated_at", label: "Last Modified", className: "w-[18%]" },
   { key: "file_size", label: "Size", className: "w-[10%]" },
+  { key: "view_count", label: "Views", className: "w-[10%]" },
 ];
 
 export function DocumentsListHeader({
@@ -14,6 +20,7 @@ export function DocumentsListHeader({
   sortConfig,
   themed = false,
   showIndex = false,
+  viewsTooltip = "Views recorded for this item.",
 }) {
   return (
     <div
@@ -36,6 +43,22 @@ export function DocumentsListHeader({
                 <ArrowDown className="ml-2 h-4 w-4" />
               ))}            
           </Button>
+          {key === "view_count" && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="ml-1 rounded p-1 text-gray-400 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary dark:hover:text-gray-200"
+                  aria-label="About Views"
+                >
+                  <Info className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-56">
+                {viewsTooltip}
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
       ))}
       <div className="ml-auto w-16" /> {/* For actions dropdown placeholder */}

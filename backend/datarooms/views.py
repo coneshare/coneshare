@@ -1,6 +1,7 @@
 import logging
 
 from django.db import transaction
+from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.decorators import action
@@ -354,7 +355,9 @@ class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
         return DataroomDocumentSerializer
 
     def get_queryset(self):
-        return self.queryset.filter(dataroom__created_by=self.request.user)
+        return self.queryset.filter(dataroom__created_by=self.request.user).annotate(
+            dataroom_view_count=Count('dataroomvisit', distinct=True)
+        )
 
     def perform_update(self, serializer):
         instance = self.get_object()
@@ -392,7 +395,9 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         # Custom logic to include sub-folders and documents
         sub_folders = instance.children.all().order_by('created_at', 'id')
-        documents = DataroomDocument.objects.filter(folder=instance).select_related('document', 'document__created_by').order_by('created_at', 'id')
+        documents = DataroomDocument.objects.filter(folder=instance).select_related('document', 'document__created_by').annotate(
+            dataroom_view_count=Count('dataroomvisit', distinct=True)
+        ).order_by('created_at', 'id')
 
         data = self.get_serializer(instance).data
         sub_folder_data = DataroomFolderSerializer(sub_folders, many=True).data

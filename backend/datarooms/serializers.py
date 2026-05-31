@@ -2,6 +2,7 @@ from rest_framework import serializers
 import re
 from urllib.parse import urljoin
 from django.conf import settings
+from django.db.models import Count
 
 from .models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
 
@@ -104,12 +105,14 @@ class DataroomDocumentSerializer(serializers.ModelSerializer):
     created_by = serializers.PrimaryKeyRelatedField(source='document.created_by', read_only=True)
     folder = serializers.PrimaryKeyRelatedField(read_only=True)
     name = serializers.SerializerMethodField()
+    dataroom_view_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = DataroomDocument
         fields = [
             'id', 'name', 'document_id', 'document_type', 'created_at',
-            'file_size', 'updated_at', 'created_by', 'folder', 'is_starred'
+            'file_size', 'updated_at', 'created_by', 'folder', 'is_starred',
+            'dataroom_view_count'
         ]
 
     def get_name(self, obj):
@@ -154,10 +157,14 @@ class DataroomDetailSerializer(serializers.ModelSerializer):
 
         if request and request.query_params.get('content') == 'full':
             folders = obj.folders.all().order_by('created_at', 'id')
-            documents = obj.documents.all().select_related('document', 'document__created_by').order_by('created_at', 'id')
+            documents = obj.documents.all().select_related('document', 'document__created_by').annotate(
+                dataroom_view_count=Count('dataroomvisit', distinct=True)
+            ).order_by('created_at', 'id')
         else:
             folders = obj.folders.filter(parent__isnull=True).order_by('created_at', 'id')
-            documents = obj.documents.filter(folder__isnull=True).select_related('document', 'document__created_by').order_by('created_at', 'id')
+            documents = obj.documents.filter(folder__isnull=True).select_related('document', 'document__created_by').annotate(
+                dataroom_view_count=Count('dataroomvisit', distinct=True)
+            ).order_by('created_at', 'id')
         folders_list = list(folders)
         documents_list = list(documents)
 

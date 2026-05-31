@@ -6,7 +6,7 @@ from rest_framework import status
 
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
 from documents.models import Document, Folder
-from sharelinks.models import ShareLink, ViewSession
+from sharelinks.models import DataroomVisit, ShareLink, ViewSession
 
 pytestmark = pytest.mark.django_db
 
@@ -74,8 +74,11 @@ class TestDataroomViewSet:
     def test_retrieve_dataroom_detail(self, api_client, dataroom, document):
         """Test retrieving a specific dataroom's contents."""
         # Add a document and a folder to the dataroom root
-        DataroomDocument.objects.create(dataroom=dataroom, document=document, folder=None, name=document.name)
+        dataroom_document = DataroomDocument.objects.create(dataroom=dataroom, document=document, folder=None, name=document.name)
         DataroomFolder.objects.create(dataroom=dataroom, name="Subfolder", parent=None)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=dataroom.created_by)
+        session = ViewSession.objects.create(share_link=link)
+        DataroomVisit.objects.create(view_session=session, dataroom_document=dataroom_document)
 
         response = api_client.get(f'/api/v1/datarooms/{dataroom.id}/')
         assert response.status_code == status.HTTP_200_OK
@@ -85,6 +88,7 @@ class TestDataroomViewSet:
         assert len(data['items']) == 2
         assert data['items'][0]['type'] == 'folder'
         assert data['items'][1]['type'] == 'document'
+        assert data['items'][1]['dataroom_view_count'] == 1
 
     def test_cannot_access_other_users_dataroom_folders(self, api_client, user2, organization):
         """A user cannot list or retrieve folders from a dataroom created by another user."""
@@ -534,7 +538,12 @@ class TestDataroomFolderViewSet:
         """Test retrieving a folder's contents, including subfolders and documents."""
         parent_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Parent")
         DataroomFolder.objects.create(dataroom=dataroom, name="Sub", parent=parent_folder)
-        DataroomDocument.objects.create(dataroom=dataroom, document=document, folder=parent_folder, name=document.name)
+        dataroom_document = DataroomDocument.objects.create(dataroom=dataroom, document=document, folder=parent_folder, name=document.name)
+        direct_link = ShareLink.objects.create(document=document, created_by=dataroom.created_by)
+        ViewSession.objects.create(share_link=direct_link)
+        dataroom_link = ShareLink.objects.create(dataroom=dataroom, created_by=dataroom.created_by)
+        dataroom_session = ViewSession.objects.create(share_link=dataroom_link)
+        DataroomVisit.objects.create(view_session=dataroom_session, dataroom_document=dataroom_document)
 
         url = f'/api/v1/dataroom-folders/{parent_folder.id}/'
         response = api_client.get(url)
@@ -546,9 +555,11 @@ class TestDataroomFolderViewSet:
         assert data['sub_folders'][0]['name'] == "Sub"
         assert len(data['documents']) == 1
         assert data['documents'][0]['name'] == document.name
+        assert data['documents'][0]['dataroom_view_count'] == 1
         assert len(data['items']) == 2
         assert data['items'][0]['type'] == 'folder'
         assert data['items'][1]['type'] == 'document'
+        assert data['items'][1]['dataroom_view_count'] == 1
 
     def test_rename_folder_success(self, api_client, dataroom):
         """Test renaming a dataroom folder successfully."""

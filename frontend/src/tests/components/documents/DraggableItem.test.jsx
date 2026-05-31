@@ -20,6 +20,7 @@ const mockDocument = {
   created_by: { name: "Test User" },
   updated_at: new Date().toISOString(),
   file_size: 12345,
+  view_count: 7,
   is_starred: false,
 };
 
@@ -70,6 +71,25 @@ describe("DraggableItem", () => {
     renderDraggableItem({ onSelect });
     await user.click(screen.getByTestId(`draggable-item-${mockDocument.id}`));
     expect(onSelect).toHaveBeenCalled();
+  });
+
+  it("should render document view count", () => {
+    renderDraggableItem();
+    expect(screen.getByText("7")).toBeInTheDocument();
+  });
+
+  it("should render folder view count as unavailable", () => {
+    renderDraggableItem({
+      id: "folder_123",
+      type: "folder",
+      item: {
+        id: "folder_123",
+        name: "Test Folder",
+        updated_at: new Date().toISOString(),
+      },
+    });
+
+    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 
   it("should not navigate when rename menu item is clicked", async () => {

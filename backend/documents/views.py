@@ -683,7 +683,7 @@ class FolderViewSet(viewsets.ModelViewSet):
         logging.debug(f'folders: {sub_folders}')
         documents = list(folder.documents.filter(created_by=request.user).prefetch_related(
             'versions', 'share_links', 'share_links__view_sessions'
-        ))
+        ).annotate(share_link_view_count=Count('share_links__view_sessions', distinct=True)))
         logging.debug(f'documents: {documents}')
 
         sub_folders_serializer = FolderSerializer(sub_folders, many=True)
@@ -783,7 +783,9 @@ class DocumentViewSet(viewsets.ModelViewSet):
         return self.queryset.filter(
             organization=self.request.user.organization,
             created_by=self.request.user
-        ).select_related('folder').prefetch_related(
+        ).select_related('folder').annotate(
+            share_link_view_count=Count('share_links__view_sessions', distinct=True)
+        ).prefetch_related(
             'versions', 'share_links', 'share_links__view_sessions'
         )
 

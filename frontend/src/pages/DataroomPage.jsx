@@ -152,6 +152,7 @@ export function DataroomPage() {
       name: item.name,
       type: item.type,
       position: item.position,
+      view_count: item.type === 'document' ? item.dataroom_view_count ?? 0 : null,
     }));
     if (showStarredOnly) {
       return normalized.filter((item) => item.is_starred);
@@ -749,6 +750,7 @@ export function DataroomPage() {
               onRename={handleRenameItem}
               onDelete={handleRemoveItem}
               onToggleStar={handleToggleStar}
+              viewsTooltip="Views from opening this item inside this dataroom."
             />
           )}
         </TabsContent>

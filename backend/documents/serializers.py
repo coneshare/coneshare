@@ -154,6 +154,7 @@ class DocumentSerializer(serializers.ModelSerializer):
     versions = DocumentVersionSerializer(many=True, read_only=True)
     share_links = serializers.SerializerMethodField()
     uploader_info = serializers.SerializerMethodField()
+    share_link_view_count = serializers.IntegerField(read_only=True)
     # parent folder this document belongs to.
     # TODO: we may need to explict pass parent folder to this serialier for performance consideration.
     # XXX: why default=RootFolderDefault()? Even though required=False tells the serializer that the client does not
@@ -173,7 +174,7 @@ class DocumentSerializer(serializers.ModelSerializer):
             'id', 'organization', 'folder', 'name', 'description', 'status',
             'status_message', 'storage_key', 'original_storage_key', 'type', 'content_type',
             'num_pages', 'file_size', 'download_only', 'assistant_enabled', 'is_starred', 'created_by',
-            'created_at', 'updated_at', 'versions', 'share_links', 'uploader_info'
+            'created_at', 'updated_at', 'versions', 'share_links', 'uploader_info', 'share_link_view_count'
         ]
         read_only_fields = [
             'id', 'organization', 'created_by', 'created_at', 'updated_at'
