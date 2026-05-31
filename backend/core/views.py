@@ -17,6 +17,7 @@ from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
@@ -121,6 +122,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 @extend_schema(tags=['core'])
 class SignupRequestView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'signup'
 
     @extend_schema(
