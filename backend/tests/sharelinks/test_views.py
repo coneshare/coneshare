@@ -6,6 +6,7 @@ from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test import override_settings
+from rest_framework.settings import api_settings
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from django.utils.text import get_valid_filename
@@ -1131,14 +1132,14 @@ class TestShareLinkPasswordProtection:
         """Test that the password verification endpoint is rate-limited."""
         url = f'/api/v1/links/{share_link_with_password.slug}/verify-password/'
         data = {'password': 'wrong-password'}
+        configured_limit = int(api_settings.DEFAULT_THROTTLE_RATES['password_verify'].split('/')[0])
 
-        # The rate limit is 10/min.
-        for i in range(10):
+        for i in range(configured_limit):
             response = public_client.post(url, data)
-            # The first 10 attempts should be unauthorized but not rate-limited.
+            # Attempts inside the configured throttle window should fail auth, not rate limit.
             assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-        # The 11th attempt should be rate-limited.
+        # The next attempt should be rate-limited.
         response = public_client.post(url, data)
         assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
 
