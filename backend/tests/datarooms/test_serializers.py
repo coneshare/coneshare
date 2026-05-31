@@ -8,6 +8,7 @@ from datarooms.models import DataroomDocument, DataroomFolder, DataroomItemOrder
 from datarooms.serializers import (
     AddContentSerializer,
     DataroomDetailSerializer,
+    DataroomDocumentSerializer,
     DataroomFolderSerializer,
     DataroomSerializer,
     MoveDataroomContentSerializer,
@@ -119,6 +120,15 @@ class TestDataroomFolderSerializer:
         assert data["name"] == "My Folder"
         assert data["dataroom"] == str(dataroom.id)
         assert data["parent"] is None
+
+
+class TestDataroomDocumentSerializer:
+    def test_dataroom_view_count_defaults_to_zero_without_annotation(self, dataroom, document, serializer_context):
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name)
+
+        serializer = DataroomDocumentSerializer(instance=ddoc, context=serializer_context)
+
+        assert serializer.data["dataroom_view_count"] == 0
 
 
 class TestAddContentSerializer:

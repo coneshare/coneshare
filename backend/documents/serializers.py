@@ -154,6 +154,7 @@ class DocumentSerializer(serializers.ModelSerializer):
     versions = DocumentVersionSerializer(many=True, read_only=True)
     share_links = serializers.SerializerMethodField()
     uploader_info = serializers.SerializerMethodField()
+    share_link_view_count = serializers.SerializerMethodField()
     # parent folder this document belongs to.
     # TODO: we may need to explict pass parent folder to this serialier for performance consideration.
     # XXX: why default=RootFolderDefault()? Even though required=False tells the serializer that the client does not
@@ -173,7 +174,7 @@ class DocumentSerializer(serializers.ModelSerializer):
             'id', 'organization', 'folder', 'name', 'description', 'status',
             'status_message', 'storage_key', 'original_storage_key', 'type', 'content_type',
             'num_pages', 'file_size', 'download_only', 'assistant_enabled', 'is_starred', 'created_by',
-            'created_at', 'updated_at', 'versions', 'share_links', 'uploader_info'
+            'created_at', 'updated_at', 'versions', 'share_links', 'uploader_info', 'share_link_view_count'
         ]
         read_only_fields = [
             'id', 'organization', 'created_by', 'created_at', 'updated_at'
@@ -188,6 +189,21 @@ class DocumentSerializer(serializers.ModelSerializer):
 
     def get_uploader_info(self, obj):
         return obj.metadata.get('uploader_info', None)
+
+    def get_share_link_view_count(self, obj):
+        annotated_count = getattr(obj, 'share_link_view_count', None)
+        if annotated_count is not None:
+            return annotated_count
+
+        prefetched = getattr(obj, '_prefetched_objects_cache', {})
+        prefetched_links = prefetched.get('share_links')
+        if prefetched_links is not None:
+            return sum(
+                len(getattr(link, '_prefetched_objects_cache', {}).get('view_sessions', []))
+                for link in prefetched_links
+            )
+
+        return obj.share_links.filter(view_sessions__isnull=False).count()
 
     def create(self, validated_data):
         request = self.context['request']
