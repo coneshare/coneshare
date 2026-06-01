@@ -165,4 +165,23 @@ describe('QnAPanel', () => {
     expect(screen.getByText(/this thread is closed/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/send reply/i)).not.toBeInTheDocument();
   });
+
+  it('closes from the panel close button', async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    api.getPublicQnaThreads.mockResolvedValue({ data: [] });
+
+    renderPanel({ onOpenChange });
+
+    await user.click(screen.getByLabelText(/close q&a/i));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('does not render or load threads when closed', () => {
+    renderPanel({ open: false });
+
+    expect(screen.queryByLabelText(/q&a panel/i)).not.toBeInTheDocument();
+    expect(api.getPublicQnaThreads).not.toHaveBeenCalled();
+  });
 });

@@ -199,13 +199,20 @@ export function DataroomViewer({ data, slug, viewId }) {
 
   const handleCurrentScopeQnaClick = () => {
     const currentFolderId = scopeData?.current_parent_id || null;
-    setQnaContext({
+    const nextContext = {
       id: currentFolderId,
       type: currentFolderId ? 'folder' : 'dataroom',
       label: currentFolderId
         ? breadcrumbs[breadcrumbs.length - 1]?.name || scopeData.name
         : scopeData.name,
-    });
+    };
+    setQnaContext((current) => (
+      current
+        && current.id === nextContext.id
+        && current.type === nextContext.type
+        ? null
+        : nextContext
+    ));
   };
 
   const allItems = Array.isArray(scopeData.items) ? scopeData.items : [];
@@ -322,9 +329,18 @@ export function DataroomViewer({ data, slug, viewId }) {
     '--viewer-secondary': scopeData.brand_secondary_color || '#4b5563',
     '--viewer-accent': scopeData.brand_accent_color || '#1f2937',
   };
+  const currentFolderId = scopeData?.current_parent_id || null;
+  const isCurrentScopeQnaOpen = Boolean(
+    qnaContext
+      && qnaContext.type === (currentFolderId ? 'folder' : 'dataroom')
+      && qnaContext.id === currentFolderId
+  );
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-gray-50" style={themeStyle}>
+    <div
+      className={`flex h-screen w-screen flex-col bg-gray-50 transition-[padding] duration-200 ${qnaContext ? 'lg:pr-[28rem]' : ''}`}
+      style={themeStyle}
+    >
       <header className="flex flex-shrink-0 items-center justify-between border-b bg-white p-3 sm:p-4">
         <h1 className="mr-2 truncate text-base font-semibold sm:text-xl" style={{ color: 'var(--viewer-primary)' }}>{scopeData.name}</h1>
         <div className="flex shrink-0 items-center gap-2">
@@ -334,8 +350,8 @@ export function DataroomViewer({ data, slug, viewId }) {
             className="h-9 rounded-full px-3"
             onClick={handleCurrentScopeQnaClick}
             disabled={!viewId}
-            aria-label="Open Q&A for current folder"
-            title="Open Q&A for current folder"
+            aria-label={isCurrentScopeQnaOpen ? 'Close Q&A for current folder' : 'Open Q&A for current folder'}
+            title={isCurrentScopeQnaOpen ? 'Close Q&A for current folder' : 'Open Q&A for current folder'}
           >
             <MessageCircle className="h-4 w-4" />
             <span className="ml-2 font-semibold">Q&amp;A</span>

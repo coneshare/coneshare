@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Lock, MessageCircle, Send } from 'lucide-react';
+import { CheckCircle2, Lock, MessageCircle, Send, X } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import {
@@ -10,13 +10,6 @@ import {
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '../ui/Sheet';
 import { Textarea } from '../ui/Textarea';
 
 function messageSenderLabel(message) {
@@ -135,18 +128,35 @@ export function QnAPanel({
 
   const isClosed = selectedThread?.status === 'closed';
 
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col p-0 sm:max-w-xl">
-        <SheetHeader className="border-b px-5 py-4">
-          <SheetTitle className="flex items-center gap-2">
-            <MessageCircle className="h-5 w-5" />
-            Q&A
-          </SheetTitle>
-          <SheetDescription className="truncate">{contextLabel}</SheetDescription>
-        </SheetHeader>
+  if (!open) return null;
 
-        <div className="grid min-h-0 flex-1 grid-rows-[auto,1fr,auto]">
+  return (
+    <aside
+      className="fixed inset-y-0 right-0 z-30 flex w-full flex-col border-l bg-white shadow-xl sm:max-w-xl lg:w-[28rem]"
+      aria-label="Q&A panel"
+    >
+      <header className="border-b px-5 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+              <MessageCircle className="h-5 w-5" />
+              Q&A
+            </h2>
+            <p className="truncate text-sm text-gray-500">{contextLabel}</p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => onOpenChange(false)}
+            aria-label="Close Q&A"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </header>
+
+      <div className="grid min-h-0 flex-1 grid-rows-[auto,1fr,auto]">
           <section className="border-b p-4">
             <form className="space-y-3" onSubmit={handleCreateThread}>
               <Input
@@ -258,8 +268,7 @@ export function QnAPanel({
               </form>
             )}
           </section>
-        </div>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </aside>
   );
 }
