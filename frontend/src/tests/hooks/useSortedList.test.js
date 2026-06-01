@@ -68,4 +68,33 @@ describe('useSortedList', () => {
         'Document B',
     ]);
   });
+
+  it('should sort by view count numerically', () => {
+    const viewItems = [
+      { name: 'Low Views', type: 'document', view_count: 1 },
+      { name: 'High Views', type: 'document', view_count: 9 },
+      { name: 'No Views', type: 'document', view_count: 0 },
+    ];
+    const { result } = renderHook(() => useSortedList(viewItems));
+
+    act(() => {
+      result.current.handleSort('view_count');
+    });
+
+    expect(result.current.sortedItems.map(item => item.name)).toEqual([
+      'No Views',
+      'Low Views',
+      'High Views',
+    ]);
+
+    act(() => {
+      result.current.handleSort('view_count');
+    });
+
+    expect(result.current.sortedItems.map(item => item.name)).toEqual([
+      'High Views',
+      'Low Views',
+      'No Views',
+    ]);
+  });
 });
