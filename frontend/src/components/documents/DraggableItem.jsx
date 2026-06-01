@@ -62,6 +62,7 @@ export function DraggableItem({
       e.preventDefault();
     }
   };
+  const viewCount = item.view_count ?? item.share_link_view_count ?? item.dataroom_view_count ?? 0;
 
   return (
     <div
@@ -88,7 +89,7 @@ export function DraggableItem({
           {itemIndex}
         </div>
       )}
-      <div className="flex w-[40%] items-center gap-2 truncate">
+      <div className="flex w-[34%] items-center gap-2 truncate">
         <FileTypeIcon
           type={type === "folder" ? "folder" : item.document_type || "document"}
           className="h-5 w-5 shrink-0"
@@ -121,7 +122,7 @@ export function DraggableItem({
           </button>
         )}
       </div>
-      <div className="w-[20%] truncate" style={themed ? { color: "var(--dataroom-secondary)" } : undefined}>
+      <div className="w-[18%] truncate" style={themed ? { color: "var(--dataroom-secondary)" } : undefined}>
         {item.created_by?.name || "Me"}
         {item.uploader_info && (
           <Tooltip>
@@ -138,7 +139,7 @@ export function DraggableItem({
           </Tooltip>
         )}        
       </div>
-      <div className="w-[20%]" style={themed ? { color: "var(--dataroom-secondary)" } : undefined}>
+      <div className="w-[18%]" style={themed ? { color: "var(--dataroom-secondary)" } : undefined}>
         {item.updated_at
           ? formatDistanceToNow(new Date(item.updated_at), { addSuffix: true })
           : "—"}
@@ -148,7 +149,10 @@ export function DraggableItem({
           ? formatBytes(item.file_size)
           : "—"}
       </div>
-      <div className="w-16">
+      <div className="w-[10%]" style={themed ? { color: "var(--dataroom-secondary)" } : undefined}>
+        {type === "document" ? viewCount : "—"}
+      </div>
+      <div className="ml-auto w-16">
         {showActions && !isReadOnly && (
           <div
             className="ml-auto flex justify-end"

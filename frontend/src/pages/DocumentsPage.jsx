@@ -52,7 +52,12 @@ function DocumentsPage() {
     let combined = [
       ...folders.map((f) => ({ ...f, type: "folder" })),
       // Preserve original file type for icon rendering while normalizing row type.
-      ...documents.map((d) => ({ ...d, type: "document", document_type: d.type })),
+      ...documents.map((d) => ({
+        ...d,
+        type: "document",
+        document_type: d.type,
+        view_count: d.share_link_view_count ?? 0,
+      })),
     ];
 
     if (showStarredOnly) {
@@ -561,6 +566,7 @@ function DocumentsPage() {
         onCopy={handleCopy}
         onShare={handleShare}
         onRequestFiles={handleRequestFiles}
+        viewsTooltip="Direct views from this document's own share links."
       />
       </div>
     </TooltipProvider>

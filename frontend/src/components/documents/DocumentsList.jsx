@@ -8,16 +8,18 @@ import { Skeleton } from "../ui/Skeleton";
 import { DocumentsListHeader } from "./DocumentsListHeader";
 import { DraggableItem } from "./DraggableItem";
 import { EmptyDocuments } from "./EmptyDocuments";
+import { TooltipProvider } from "../ui/Tooltip";
 
-function ReadOnlyHeader() {
+function ReadOnlyHeader({ showIndex = false }) {
   return (
     <div className="flex w-full items-center border-b border-gray-200 px-4 py-2 text-xs font-medium uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
-      <div className="w-8" />
-      <div className="w-[40%]">Name</div>
-      <div className="w-[20%]">Owner</div>
-      <div className="w-[20%]">Last Modified</div>
+      {showIndex && <div className="w-12">#</div>}
+      <div className="w-[34%]">Name</div>
+      <div className="w-[18%]">Owner</div>
+      <div className="w-[18%]">Last Modified</div>
       <div className="w-[10%]">Size</div>
-      <div className="w-16" />
+      <div className="w-[10%]" title="Views recorded for this item.">Views</div>
+      <div className="ml-auto w-16" />
     </div>
   );
 }
@@ -45,6 +47,7 @@ export function DocumentsList({
   onCopy,
   themed = false,
   showIndex = false,
+  viewsTooltip = "Views recorded for this item.",
 }) {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [itemToRename, setItemToRename] = useState(null);
@@ -103,7 +106,7 @@ export function DocumentsList({
   };
 
   return (
-    <>
+    <TooltipProvider>
       {!onDelete && itemToDelete && (
         <ConfirmationDialog
           isOpen={!!itemToDelete}
@@ -139,13 +142,14 @@ export function DocumentsList({
           )}
 
           {isReadOnly ? (
-            <ReadOnlyHeader />
+            <ReadOnlyHeader showIndex={showIndex} />
           ) : (
             <DocumentsListHeader
               onSort={onSort}
               sortConfig={sortConfig}
               themed={themed}
               showIndex={showIndex}
+              viewsTooltip={viewsTooltip}
             />
           )}
           {loading ? (
@@ -193,6 +197,6 @@ export function DocumentsList({
             </div>
           )}
         </div>
-    </>
+    </TooltipProvider>
   );
 }

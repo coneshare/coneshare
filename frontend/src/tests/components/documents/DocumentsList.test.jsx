@@ -6,8 +6,9 @@ import { DocumentsList } from "../../../components/documents/DocumentsList";
 
 // Mock child components and hooks to isolate the DocumentsList component
 vi.mock("../../../components/documents/DraggableItem", () => ({
-  DraggableItem: ({ item, onRename, onDelete }) => (
+  DraggableItem: ({ item, onRename, onDelete, showIndex, itemIndex }) => (
     <div>
+      {showIndex && <span data-testid={`row-index-${item.id}`}>{itemIndex}</span>}
       <span>{item.name}</span>
       <button onClick={() => onRename(item)}>Rename {item.type}</button>
       <button onClick={() => onDelete(item)}>Delete {item.type}</button>
@@ -100,6 +101,50 @@ describe("DocumentsList", () => {
 
     const dialogTitle = await screen.findByRole('heading', { name: /delete "Test Document 1"\?/i });
     expect(dialogTitle).toBeInTheDocument();
+  });
+
+  it("should render a Views tooltip trigger", () => {
+    render(
+      <DocumentsList
+        allItems={mockDocuments}
+        loading={false}
+        onDataRefresh={() => {}}
+        sortConfig={{ key: "name", direction: "ascending" }}
+        viewsTooltip="Direct views from this document's own share links."
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Views" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "About Views" })).toBeInTheDocument();
+  });
+
+  it("should render the read-only index header when showIndex is enabled", () => {
+    render(
+      <DocumentsList
+        allItems={mockDocuments}
+        loading={false}
+        isReadOnly
+        showIndex
+        sortConfig={{ key: "name", direction: "ascending" }}
+      />
+    );
+
+    expect(screen.getByText("#")).toBeInTheDocument();
+    expect(screen.getByTestId("row-index-doc1")).toHaveTextContent("1");
+  });
+
+  it("should not render a read-only leading index header when showIndex is disabled", () => {
+    render(
+      <DocumentsList
+        allItems={mockDocuments}
+        loading={false}
+        isReadOnly
+        sortConfig={{ key: "name", direction: "ascending" }}
+      />
+    );
+
+    expect(screen.queryByText("#")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("row-index-doc1")).not.toBeInTheDocument();
   });
 });
 

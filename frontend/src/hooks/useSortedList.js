@@ -30,7 +30,7 @@ export function useSortedList(
         return (new Date(aVal) - new Date(bVal)) * dir;
       }
 
-      if (key === 'file_size') {
+      if (key === 'file_size' || key === 'view_count') {
         return ((aVal || 0) - (bVal || 0)) * dir;
       }
 
