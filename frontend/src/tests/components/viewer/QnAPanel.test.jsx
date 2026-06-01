@@ -27,6 +27,7 @@ describe('QnAPanel', () => {
   );
 
   it('loads and renders existing threads', async () => {
+    const onThreadCountChange = vi.fn();
     api.getPublicQnaThreads.mockResolvedValue({
       data: [
         {
@@ -48,7 +49,7 @@ describe('QnAPanel', () => {
       ],
     });
 
-    renderPanel();
+    renderPanel({ onThreadCountChange });
 
     await waitFor(() => {
       expect(screen.getAllByText('Existing question').length).toBeGreaterThan(0);
@@ -59,6 +60,7 @@ describe('QnAPanel', () => {
       dataroomDocumentId: null,
       dataroomFolderId: null,
     });
+    expect(onThreadCountChange).toHaveBeenCalledWith(1);
   });
 
   it('creates a thread with dataroom context', async () => {
@@ -83,7 +85,8 @@ describe('QnAPanel', () => {
       },
     });
 
-    renderPanel({ dataroomDocumentId: 'ddoc-1' });
+    const onThreadCountChange = vi.fn();
+    renderPanel({ dataroomDocumentId: 'ddoc-1', onThreadCountChange });
 
     await user.type(screen.getByLabelText(/question subject/i), 'New subject');
     await user.type(screen.getByLabelText(/question message/i), 'New message');
@@ -99,6 +102,7 @@ describe('QnAPanel', () => {
       });
     });
     expect(screen.getAllByText('New subject').length).toBeGreaterThan(0);
+    expect(onThreadCountChange).toHaveBeenLastCalledWith(1);
   });
 
   it('replies to an open thread', async () => {

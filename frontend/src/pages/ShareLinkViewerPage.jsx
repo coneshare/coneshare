@@ -8,7 +8,12 @@ import { PreviewViewer } from '../components/documents/PreviewViewer';
 import { DataroomViewer } from '../components/viewer/DataroomViewer';
 import { QnAPanel } from '../components/viewer/QnAPanel';
 import { Skeleton } from '../components/ui/Skeleton';
-import { getShareLinkViewData, createViewSession, getShareLinkPublicMeta } from '../services/api';
+import {
+  createViewSession,
+  getPublicQnaSummary,
+  getShareLinkPublicMeta,
+  getShareLinkViewData,
+} from '../services/api';
 import { Button } from '../components/ui/Button';
 import { formatBytes } from '../lib/formatters';
 
@@ -31,6 +36,7 @@ export function ShareLinkViewerPage() {
   const [viewId, setViewId] = useState(null);
   const [dataroomVisitId, setDataroomVisitId] = useState(null);
   const [isQnaOpen, setIsQnaOpen] = useState(false);
+  const [qnaThreadCount, setQnaThreadCount] = useState(0);
   const viewerRef = useRef(null);
 
   // Document-specific state must be declared at the top level, before any conditional returns.
@@ -141,6 +147,36 @@ export function ShareLinkViewerPage() {
     refetchTrigger,
   ]);
 
+  useEffect(() => {
+    let isCancelled = false;
+    const fetchQnaThreadCount = async () => {
+      if (!viewId || !viewData || viewData.link_type === 'dataroom') {
+        setQnaThreadCount(0);
+        return;
+      }
+
+      try {
+        const response = await getPublicQnaSummary(slug, {
+          viewSessionId: viewId,
+          dataroomDocumentId: dataroomDocumentIdFromUrl || null,
+        });
+        if (!isCancelled) {
+          setQnaThreadCount(response.data?.thread_count || 0);
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('Failed to load Q&A thread count:', error);
+          setQnaThreadCount(0);
+        }
+      }
+    };
+
+    fetchQnaThreadCount();
+    return () => {
+      isCancelled = true;
+    };
+  }, [slug, viewId, viewData, dataroomDocumentIdFromUrl]);
+
   if (isLoading) {
     return (
       <div className="h-screen w-screen bg-gray-50 p-8">
@@ -191,6 +227,9 @@ export function ShareLinkViewerPage() {
   const PREVIEWABLE_TYPES = ['image', 'pdf', 'document'];
   const isPreviewable = viewData && PREVIEWABLE_TYPES.includes(viewData.type);
   const canDownload = Boolean(viewData?.link_settings?.allow_download);
+  const qnaButtonLabel = `${isQnaOpen ? 'Close Q&A' : 'Open Q&A'}${
+    qnaThreadCount > 0 ? `, ${qnaThreadCount} threads` : ''
+  }`;
 
   let downloadUrl = `/api/v1/links/${slug}/download-file/`;
   if (dataroomDocumentIdFromUrl) {
@@ -286,11 +325,19 @@ export function ShareLinkViewerPage() {
             className={`absolute bottom-6 z-20 h-12 rounded-full px-4 shadow-lg transition-[right] duration-200 ${isQnaOpen ? 'right-6 lg:right-[29.5rem]' : 'right-6'}`}
             onClick={() => setIsQnaOpen((current) => !current)}
             disabled={!viewId}
-            aria-label={isQnaOpen ? 'Close Q&A' : 'Open Q&A'}
-            title={isQnaOpen ? 'Close Q&A' : 'Open Q&A'}
+            aria-label={qnaButtonLabel}
+            title={qnaButtonLabel}
           >
             <MessageCircle className="h-5 w-5" />
             <span className="ml-2 font-semibold">Q&amp;A</span>
+            {qnaThreadCount > 0 && (
+              <span
+                className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 text-xs font-semibold text-primary"
+                aria-hidden="true"
+              >
+                {qnaThreadCount}
+              </span>
+            )}
           </Button>
           <QnAPanel
             open={isQnaOpen}
@@ -299,6 +346,7 @@ export function ShareLinkViewerPage() {
             viewId={viewId}
             dataroomDocumentId={dataroomDocumentIdFromUrl || null}
             contextLabel={viewData.name}
+            onThreadCountChange={setQnaThreadCount}
           />
         </>
       )}

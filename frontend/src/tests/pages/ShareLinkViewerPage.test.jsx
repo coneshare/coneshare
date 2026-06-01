@@ -48,6 +48,7 @@ vi.mock('../../components/viewer/QnAPanel', () => ({
 describe('ShareLinkViewerPage', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    api.getPublicQnaSummary.mockResolvedValue({ data: { thread_count: 0 } });
   });
 
   const mockDocumentData = {
@@ -230,6 +231,23 @@ describe('ShareLinkViewerPage', () => {
     expect(screen.getByTestId('qna-panel')).toHaveTextContent('Q&A Open');
     expect(screen.getByTestId('qna-panel')).toHaveTextContent('document-context');
     expect(screen.getByTestId('qna-panel')).toHaveTextContent('Test Document');
+  });
+
+  it('displays document Q&A thread count on the Q&A button', async () => {
+    api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
+    api.getShareLinkViewData.mockResolvedValue({ data: mockDocumentData });
+    api.createViewSession.mockResolvedValue({ data: mockViewData });
+    api.getPublicQnaSummary.mockResolvedValue({ data: { thread_count: 2, open_thread_count: 2, message_count: 3 } });
+
+    renderComponent('/view/test-slug');
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Open Q&A, 2 threads' })).toBeInTheDocument();
+    });
+    expect(api.getPublicQnaSummary).toHaveBeenCalledWith('test-slug', {
+      viewSessionId: 'view_123',
+      dataroomDocumentId: null,
+    });
   });
 
   it('passes dataroom document id into Q&A panel for dataroom document view', async () => {

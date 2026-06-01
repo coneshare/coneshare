@@ -22,7 +22,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, APIException, PermissionDenied
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
-from django.db.models import F, Q
+from django.db.models import Count, F, Q
 from geoip2.errors import AddressNotFoundError
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
@@ -1064,6 +1064,40 @@ class ShareLinkQnAThreadListCreateView(APIView):
         )
         response = QnAThreadSerializer(thread, context={'request': request})
         return Response(response.data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(tags=['sharelinks'])
+class ShareLinkQnASummaryView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, slug, *args, **kwargs):
+        # TODO: Normalize Q&A errors through DRF's exception handler so public
+        # Q&A endpoints consistently return {"detail": ...} payloads.
+        try:
+            link = _get_active_share_link(slug)
+            _get_authorized_qna_view_session(request, link, request.query_params.get('view_session_id'))
+            context = _resolve_qna_context_for_link(
+                link,
+                dataroom_document_id=request.query_params.get('dataroom_document_id'),
+                dataroom_folder_id=request.query_params.get('dataroom_folder_id'),
+            )
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
+        except serializers.ValidationError as e:
+            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
+        except PermissionDenied as e:
+            return Response({"detail": str(e.detail)}, status=status.HTTP_403_FORBIDDEN)
+
+        summary = (
+            QnAThread.objects.filter(share_link=link)
+            .filter(_get_thread_context_filter(link, context))
+            .aggregate(
+                thread_count=Count('id', distinct=True),
+                open_thread_count=Count('id', filter=Q(status=QnAThread.STATUS_OPEN), distinct=True),
+                message_count=Count('messages', distinct=True),
+            )
+        )
+        return Response(summary, status=status.HTTP_200_OK)
 
 
 @extend_schema(tags=['sharelinks'])
