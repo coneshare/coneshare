@@ -4,6 +4,7 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 
 from documents.models import Document, Folder
 from documents.serializers import DocumentSerializer, FolderSerializer
+from sharelinks.models import ShareLink, ViewSession
 
 pytestmark = pytest.mark.django_db
 
@@ -132,3 +133,32 @@ class TestDocumentSerializer:
         assert data['folder'] is not None
         assert data['folder']['id'] == str(parent_folder.id)
         assert data['folder']['name'] == "Parent"
+
+    def test_share_link_view_count_falls_back_for_unannotated_document(self, user, organization, serializer_context):
+        doc = Document.objects.create(
+            organization=organization,
+            name="Unannotated Doc",
+            created_by=user,
+        )
+        link = ShareLink.objects.create(document=doc, created_by=user)
+        ViewSession.objects.create(share_link=link)
+        ViewSession.objects.create(share_link=link)
+
+        serializer = DocumentSerializer(instance=doc, context=serializer_context)
+
+        assert serializer.data['share_link_view_count'] == 2
+
+    def test_share_link_view_count_fallback_queries_database(self, user, organization, serializer_context, django_assert_num_queries):
+        doc = Document.objects.create(
+            organization=organization,
+            name="Fallback Count Doc",
+            created_by=user,
+        )
+        link = ShareLink.objects.create(document=doc, created_by=user)
+        ViewSession.objects.create(share_link=link)
+
+        doc_from_db = Document.objects.get(pk=doc.pk)
+
+        serializer = DocumentSerializer(instance=doc_from_db, context=serializer_context)
+        with django_assert_num_queries(1):
+            assert serializer.get_share_link_view_count(doc_from_db) == 1

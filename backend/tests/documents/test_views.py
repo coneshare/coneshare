@@ -639,6 +639,30 @@ def test_list_folder_contents_includes_share_link_views(api_client, user, organi
 
 
 @pytest.mark.django_db
+def test_list_folder_contents_includes_direct_share_link_view_count(api_client, user, organization, dataroom):
+    """Document lists expose direct share-link view counts without mixing in dataroom visits."""
+    from datarooms.models import DataroomDocument
+    from sharelinks.models import DataroomVisit
+
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+    doc = Document.objects.create(name="Doc with direct views", organization=organization, created_by=user, folder=root_folder)
+    direct_link = ShareLink.objects.create(document=doc, created_by=user)
+    ViewSession.objects.create(share_link=direct_link, viewer_email="viewer1@test.com")
+    ViewSession.objects.create(share_link=direct_link, viewer_email="viewer2@test.com")
+
+    dataroom_doc = DataroomDocument.objects.create(dataroom=dataroom, document=doc, name=doc.name)
+    dataroom_link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+    dataroom_session = ViewSession.objects.create(share_link=dataroom_link, viewer_email="viewer3@test.com")
+    DataroomVisit.objects.create(view_session=dataroom_session, dataroom_document=dataroom_doc)
+
+    response = api_client.get('/api/v1/folders/')
+
+    assert response.status_code == status.HTTP_200_OK
+    document_data = response.json()['documents'][0]
+    assert document_data['share_link_view_count'] == 2
+
+
+@pytest.mark.django_db
 def test_list_documents_is_scoped_to_user_and_root_only(api_client, user, user2, organization):
     """Test retrieving documents is scoped to the user and only returns root-level documents."""
     folder = Folder.objects.create(organization=organization, created_by=user, name="Test Folder")
@@ -662,6 +686,28 @@ def test_list_documents_is_scoped_to_user_and_root_only(api_client, user, user2,
     assert response.status_code == status.HTTP_200_OK
     assert len(response.data) == 1
     assert response.data[0]['name'] == "My Root Document"
+    assert response.data[0]['share_link_view_count'] == 0
+
+
+@pytest.mark.django_db
+def test_list_documents_includes_direct_share_link_view_count(api_client, user, organization):
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+    doc = Document.objects.create(
+        name="Viewed Document",
+        organization=organization,
+        created_by=user,
+        folder=root_folder,
+    )
+    link = ShareLink.objects.create(document=doc, created_by=user)
+    ViewSession.objects.create(share_link=link, viewer_email="viewer1@test.com")
+    ViewSession.objects.create(share_link=link, viewer_email="viewer2@test.com")
+
+    response = api_client.get('/api/v1/documents/')
+
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 1
+    assert response.data[0]['id'] == str(doc.id)
+    assert response.data[0]['share_link_view_count'] == 2
 
 
 @pytest.mark.django_db
