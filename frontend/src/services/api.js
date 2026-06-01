@@ -295,6 +295,21 @@ export const getPublicQnaThreads = (
   return api.get(`/links/${slug}/qna-threads/`, { params });
 };
 
+export const getPublicQnaSummary = (
+  slug,
+  {
+    viewSessionId,
+    dataroomDocumentId = null,
+    dataroomFolderId = null,
+  } = {}
+) => {
+  const params = {};
+  if (viewSessionId) params.view_session_id = viewSessionId;
+  if (dataroomDocumentId) params.dataroom_document_id = dataroomDocumentId;
+  if (dataroomFolderId) params.dataroom_folder_id = dataroomFolderId;
+  return api.get(`/links/${slug}/qna-summary/`, { params });
+};
+
 export const createPublicQnaThread = (
   slug,
   {

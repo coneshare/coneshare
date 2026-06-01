@@ -34,6 +34,7 @@ export function QnAPanel({
   dataroomDocumentId = null,
   dataroomFolderId = null,
   contextLabel = 'Q&A',
+  onThreadCountChange,
 }) {
   const [threads, setThreads] = useState([]);
   const [selectedThreadId, setSelectedThreadId] = useState(null);
@@ -60,6 +61,7 @@ export function QnAPanel({
       });
       const nextThreads = Array.isArray(response.data) ? response.data : [];
       setThreads(nextThreads);
+      onThreadCountChange?.(nextThreads.length);
       setSelectedThreadId((currentId) => {
         if (currentId && nextThreads.some((thread) => thread.id === currentId)) return currentId;
         return nextThreads[0]?.id || null;
@@ -92,7 +94,11 @@ export function QnAPanel({
         dataroomDocumentId,
         dataroomFolderId,
       });
-      setThreads((prev) => [response.data, ...prev]);
+      setThreads((prev) => {
+        const nextThreads = [response.data, ...prev];
+        onThreadCountChange?.(nextThreads.length);
+        return nextThreads;
+      });
       setSelectedThreadId(response.data.id);
       resetComposer();
       toast.success('Question sent.');

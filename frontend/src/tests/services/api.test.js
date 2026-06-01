@@ -6,6 +6,7 @@ import {
   createPublicQnaThread,
   getOwnerQnaThreads,
   getPublicQnaMessages,
+  getPublicQnaSummary,
   getPublicQnaThreads,
   getShareLinkViewData,
   updateOwnerQnaThreadStatus,
@@ -271,6 +272,22 @@ describe("API Service Interceptors", () => {
       expect(requestConfig.params).toEqual({
         view_session_id: "view-1",
         dataroom_document_id: "ddoc-1",
+      });
+    });
+
+    it("should include context when fetching public Q&A summary", async () => {
+      mockAdapter.mockResolvedValue({ data: { thread_count: 2 } });
+
+      await getPublicQnaSummary("slug-1", {
+        viewSessionId: "view-1",
+        dataroomFolderId: "folder-1",
+      });
+
+      const requestConfig = mockAdapter.mock.calls[0][0];
+      expect(requestConfig.url).toBe("/links/slug-1/qna-summary/");
+      expect(requestConfig.params).toEqual({
+        view_session_id: "view-1",
+        dataroom_folder_id: "folder-1",
       });
     });
 

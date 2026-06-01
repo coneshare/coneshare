@@ -7,6 +7,7 @@ import { DATAROOM_VIEWER_PAGE_SIZE } from '../../../constants/pagination';
 
 vi.mock('../../../services/api', () => ({
   getShareLinkViewData: vi.fn(),
+  getPublicQnaSummary: vi.fn(),
   downloadDataroomFolder: vi.fn(),
   recordDataroomVisit: vi.fn(),
 }));
@@ -35,6 +36,7 @@ describe('DataroomViewer', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     api.recordDataroomVisit.mockResolvedValue({ data: { id: 'visit_1' } });
+    api.getPublicQnaSummary.mockResolvedValue({ data: { thread_count: 0 } });
   });
 
   const mockDataroomData = {
@@ -258,6 +260,22 @@ describe('DataroomViewer', () => {
     expect(screen.getByTestId('qna-panel')).toHaveAttribute('data-document-id', '');
     expect(screen.getByTestId('qna-panel')).toHaveAttribute('data-folder-id', '');
     expect(screen.getByTestId('qna-panel')).toHaveTextContent('Test Dataroom');
+  });
+
+  it('displays current scope Q&A thread count in the header action', async () => {
+    api.getPublicQnaSummary.mockResolvedValueOnce({
+      data: { thread_count: 2, open_thread_count: 2, message_count: 4 },
+    });
+
+    renderComponent({ viewId: 'view-123' });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Open Q&A for current folder, 2 threads' })).toBeInTheDocument();
+    });
+    expect(api.getPublicQnaSummary).toHaveBeenCalledWith('test-slug', {
+      viewSessionId: 'view-123',
+      dataroomFolderId: null,
+    });
   });
 
   it('opens Q&A panel for the current dataroom folder from the header action', () => {

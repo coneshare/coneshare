@@ -15,7 +15,12 @@ import { formatBytes } from '../../lib/formatters';
 import { FileTypeIcon } from '../documents/FileTypeIcon';
 import { Button } from '../ui/Button';
 import { QnAPanel } from './QnAPanel';
-import { downloadDataroomFolder, getShareLinkViewData, recordDataroomVisit } from '../../services/api';
+import {
+  downloadDataroomFolder,
+  getPublicQnaSummary,
+  getShareLinkViewData,
+  recordDataroomVisit,
+} from '../../services/api';
 import { DATAROOM_VIEWER_PAGE_SIZE } from '../../constants/pagination';
 
 function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = false, index = null }) {
@@ -131,6 +136,7 @@ export function DataroomViewer({ data, slug, viewId }) {
   const [isNavigating, setIsNavigating] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [qnaContext, setQnaContext] = useState(null);
+  const [currentScopeQnaThreadCount, setCurrentScopeQnaThreadCount] = useState(0);
   const requestRef = useRef(0);
   const parentIdFromUrl = searchParams.get('parent_id');
 
@@ -217,11 +223,42 @@ export function DataroomViewer({ data, slug, viewId }) {
 
   const allItems = Array.isArray(scopeData.items) ? scopeData.items : [];
   const breadcrumbs = Array.isArray(scopeData.breadcrumbs) ? scopeData.breadcrumbs : [];
+  const currentFolderId = scopeData?.current_parent_id || null;
 
   // Keep local scope state aligned with parent-provided data refreshes.
   useEffect(() => {
     setScopeData(data);
   }, [data]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    const fetchCurrentScopeQnaThreadCount = async () => {
+      if (!viewId) {
+        setCurrentScopeQnaThreadCount(0);
+        return;
+      }
+
+      try {
+        const response = await getPublicQnaSummary(slug, {
+          viewSessionId: viewId,
+          dataroomFolderId: currentFolderId,
+        });
+        if (!isCancelled) {
+          setCurrentScopeQnaThreadCount(response.data?.thread_count || 0);
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('Failed to load current scope Q&A thread count:', error);
+          setCurrentScopeQnaThreadCount(0);
+        }
+      }
+    };
+
+    fetchCurrentScopeQnaThreadCount();
+    return () => {
+      isCancelled = true;
+    };
+  }, [slug, viewId, currentFolderId]);
 
   const fetchScopeData = useCallback(async (parentId, options = {}) => {
     const { append = false, offset = 0 } = options;
@@ -329,12 +366,14 @@ export function DataroomViewer({ data, slug, viewId }) {
     '--viewer-secondary': scopeData.brand_secondary_color || '#4b5563',
     '--viewer-accent': scopeData.brand_accent_color || '#1f2937',
   };
-  const currentFolderId = scopeData?.current_parent_id || null;
   const isCurrentScopeQnaOpen = Boolean(
     qnaContext
       && qnaContext.type === (currentFolderId ? 'folder' : 'dataroom')
       && qnaContext.id === currentFolderId
   );
+  const currentScopeQnaButtonLabel = `${isCurrentScopeQnaOpen ? 'Close' : 'Open'} Q&A for current folder${
+    currentScopeQnaThreadCount > 0 ? `, ${currentScopeQnaThreadCount} threads` : ''
+  }`;
 
   return (
     <div
@@ -350,11 +389,19 @@ export function DataroomViewer({ data, slug, viewId }) {
             className="h-9 rounded-full px-3"
             onClick={handleCurrentScopeQnaClick}
             disabled={!viewId}
-            aria-label={isCurrentScopeQnaOpen ? 'Close Q&A for current folder' : 'Open Q&A for current folder'}
-            title={isCurrentScopeQnaOpen ? 'Close Q&A for current folder' : 'Open Q&A for current folder'}
+            aria-label={currentScopeQnaButtonLabel}
+            title={currentScopeQnaButtonLabel}
           >
             <MessageCircle className="h-4 w-4" />
             <span className="ml-2 font-semibold">Q&amp;A</span>
+            {currentScopeQnaThreadCount > 0 && (
+              <span
+                className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground"
+                aria-hidden="true"
+              >
+                {currentScopeQnaThreadCount}
+              </span>
+            )}
           </Button>
           <a href="/" className="flex items-center gap-2 rounded-md p-2 font-semibold" style={{ color: 'var(--viewer-primary)' }}>
             <img src="/logo.svg" alt="Coneshare logo" className="h-6 w-6" />
@@ -463,6 +510,15 @@ export function DataroomViewer({ data, slug, viewId }) {
         dataroomDocumentId={qnaContext?.type === 'document' ? qnaContext.id : null}
         dataroomFolderId={qnaContext?.type === 'folder' ? qnaContext.id : null}
         contextLabel={qnaContext?.label || scopeData.name}
+        onThreadCountChange={(count) => {
+          if (
+            qnaContext
+            && qnaContext.type === (currentFolderId ? 'folder' : 'dataroom')
+            && qnaContext.id === currentFolderId
+          ) {
+            setCurrentScopeQnaThreadCount(count);
+          }
+        }}
       />
 
     </div>

@@ -63,6 +63,41 @@ def test_document_link_viewer_can_create_and_list_qna_thread(public_client, shar
     assert list_response.data[0]['id'] == str(thread.id)
 
 
+def test_document_link_viewer_can_fetch_qna_summary(public_client, share_link):
+    view_session = ViewSession.objects.create(
+        share_link=share_link,
+        viewer_email='viewer@example.com',
+    )
+    open_thread = QnAThread.objects.create(
+        organization=share_link.document.organization,
+        share_link=share_link,
+        document=share_link.document,
+        subject='Open question',
+        created_by_view_session=view_session,
+    )
+    closed_thread = QnAThread.objects.create(
+        organization=share_link.document.organization,
+        share_link=share_link,
+        document=share_link.document,
+        subject='Closed question',
+        status=QnAThread.STATUS_CLOSED,
+        created_by_view_session=view_session,
+    )
+    QnAMessage.objects.create(thread=open_thread, body='One', sent_by_view_session=view_session)
+    QnAMessage.objects.create(thread=closed_thread, body='Two', sent_by_view_session=view_session)
+
+    response = public_client.get(
+        f'/api/v1/links/{share_link.slug}/qna-summary/?view_session_id={view_session.id}'
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data == {
+        'thread_count': 2,
+        'open_thread_count': 1,
+        'message_count': 2,
+    }
+
+
 def test_viewer_cannot_use_view_session_from_another_share_link(public_client, share_link, document, user):
     other_link = ShareLink.objects.create(
         document=document,
@@ -162,6 +197,44 @@ def test_dataroom_viewer_can_create_and_list_root_qna_thread(public_client, data
     assert list_response.status_code == status.HTTP_200_OK
     assert len(list_response.data) == 1
     assert list_response.data[0]['id'] == str(thread.id)
+
+
+def test_dataroom_qna_summary_is_scoped_to_folder_context(public_client, dataroom, user):
+    link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+    view_session = ViewSession.objects.create(share_link=link)
+    folder = DataroomFolder.objects.create(dataroom=dataroom, name='Folder')
+    ShareLinkDataroomSetting.objects.get_or_create(
+        share_link=link,
+        dataroom_folder=folder,
+        defaults={'is_visible': True, 'allow_download': True, 'enable_watermark': False},
+    )
+    folder_thread = QnAThread.objects.create(
+        organization=user.organization,
+        share_link=link,
+        dataroom=dataroom,
+        dataroom_folder=folder,
+        subject='Folder question',
+        created_by_view_session=view_session,
+    )
+    QnAMessage.objects.create(thread=folder_thread, body='Folder message', sent_by_view_session=view_session)
+    QnAThread.objects.create(
+        organization=user.organization,
+        share_link=link,
+        dataroom=dataroom,
+        subject='Root question',
+        created_by_view_session=view_session,
+    )
+
+    response = public_client.get(
+        f'/api/v1/links/{link.slug}/qna-summary/?view_session_id={view_session.id}&dataroom_folder_id={folder.id}'
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data == {
+        'thread_count': 1,
+        'open_thread_count': 1,
+        'message_count': 1,
+    }
 
 
 def test_dataroom_viewer_cannot_create_qna_for_invisible_document(
