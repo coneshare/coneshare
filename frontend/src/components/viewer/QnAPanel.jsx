@@ -138,7 +138,7 @@ export function QnAPanel({
 
   return (
     <aside
-      className="fixed inset-y-0 right-0 z-30 flex w-full flex-col border-l bg-white shadow-xl sm:max-w-xl lg:w-[28rem]"
+      className="fixed inset-y-0 right-0 z-30 flex w-full flex-col border-l bg-white shadow-xl sm:max-w-xl lg:w-[34rem] lg:max-w-none xl:w-[38rem]"
       aria-label="Q&A panel"
     >
       <header className="border-b px-5 py-4">
@@ -238,7 +238,7 @@ export function QnAPanel({
                           <span className="truncate font-medium text-gray-700">{messageSenderLabel(message)}</span>
                           <span className="shrink-0">{formatRelativeTime(message.created_at)}</span>
                         </div>
-                        <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">{message.body}</p>
+                        <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-800 [overflow-wrap:anywhere]">{message.body}</p>
                       </article>
                     ))}
                   </div>

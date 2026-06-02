@@ -377,7 +377,7 @@ export function DataroomViewer({ data, slug, viewId }) {
 
   return (
     <div
-      className={`flex h-screen w-screen flex-col bg-gray-50 transition-[padding] duration-200 ${qnaContext ? 'lg:pr-[28rem]' : ''}`}
+      className={`flex h-screen w-screen flex-col bg-gray-50 transition-[padding] duration-200 ${qnaContext ? 'lg:pr-[34rem] xl:pr-[38rem]' : ''}`}
       style={themeStyle}
     >
       <header className="flex flex-shrink-0 items-center justify-between border-b bg-white p-3 sm:p-4">

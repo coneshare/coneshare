@@ -288,7 +288,7 @@ export function ShareLinkViewerPage() {
   return (
     <div
       ref={viewerRef}
-      className={`relative h-screen w-screen bg-gray-50 transition-[padding] duration-200 ${isQnaOpen ? 'lg:pr-[28rem]' : ''}`}
+      className={`relative h-screen w-screen bg-gray-50 transition-[padding] duration-200 ${isQnaOpen ? 'lg:pr-[34rem] xl:pr-[38rem]' : ''}`}
     >
       <div className="absolute left-6 top-4 z-10">
         <a
@@ -322,7 +322,7 @@ export function ShareLinkViewerPage() {
           />
           <Button
             type="button"
-            className={`absolute bottom-6 z-20 h-12 rounded-full px-4 shadow-lg transition-[right] duration-200 ${isQnaOpen ? 'right-6 lg:right-[29.5rem]' : 'right-6'}`}
+            className={`absolute bottom-6 z-20 h-12 rounded-full px-4 shadow-lg transition-[right] duration-200 ${isQnaOpen ? 'right-6 lg:right-[35.5rem] xl:right-[39.5rem]' : 'right-6'}`}
             onClick={() => setIsQnaOpen((current) => !current)}
             disabled={!viewId}
             aria-label={qnaButtonLabel}

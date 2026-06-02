@@ -370,7 +370,7 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null, shareLin
                       <span className="truncate font-medium text-gray-700">{senderLabel(message)}</span>
                       <span className="shrink-0">{formatRelativeTime(message.created_at)}</span>
                     </div>
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">{message.body}</p>
+                    <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-800 [overflow-wrap:anywhere]">{message.body}</p>
                   </article>
                 ))}
               </div>
