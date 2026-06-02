@@ -1,6 +1,22 @@
 # Changelog
 
 
+## [1.4.0](https://github.com/coneshare/coneshare/compare/v1.3.2...v1.4.0) (2026-06-02)
+
+
+### Features
+
+* **sharelinks:** show share link view counts in document lists ([eeec127](https://github.com/coneshare/coneshare/commit/eeec127238eda4de877dcc283739e955b24500ae))
+* **filerequests:** add custom intake fields ([4fbcd3a](https://github.com/coneshare/coneshare/commit/4fbcd3aaba5e75042a88143b1d5c64d9d24b54d1))
+* **filerequests:** add virus scan to upload documents ([44505b7](https://github.com/coneshare/coneshare/commit/44505b7e40a4fbaacd697914f8849a8f46299d45))
+* **sharelinks:** add Q&A in dataroom and document link ([406208a](https://github.com/coneshare/coneshare/commit/406208a1def4c6f45853d7bea5a5d339ef9b52ab))
+* **logging:** support Sentry integration ([d0800ac](https://github.com/coneshare/coneshare/commit/d0800ac2ea7b02ca11c7dabd34c09a491a6dec68))
+
+### Bug Fixes
+
+* **automation:** make event message more friendly ([b49acce](https://github.com/coneshare/coneshare/commit/b49acce5903e484ce92eae099b4fd1e7ff403678))
+* **backend:** fix health check throttle ([dc59c58](https://github.com/coneshare/coneshare/commit/dc59c58effb105ffdb34f874cd6b0df9877199bf))
+
 ## [1.3.2](https://github.com/coneshare/coneshare/compare/v1.3.1...v1.3.2) (2026-05-21)
 
 
