@@ -331,7 +331,7 @@ export function DocumentPage() {
           onPageChange={setCurrentPage}
           pageSize={10}
         />
-        <OwnerQnAManager documentId={documentId} />
+        <OwnerQnAManager documentId={documentId} shareLinks={document.share_links || []} />
       </div>
       <LinkSheet
         isOpen={isLinkSheetOpen}

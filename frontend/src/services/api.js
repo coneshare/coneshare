@@ -359,6 +359,23 @@ export const getOwnerQnaThreads = ({
 export const updateOwnerQnaThreadStatus = (threadId, status) =>
   api.patch(`/qna-threads/${threadId}/`, { status });
 
+export const createOwnerQnaThread = ({
+  shareLinkId,
+  subject,
+  body,
+  dataroomDocumentId = null,
+  dataroomFolderId = null,
+}) => {
+  const payload = {
+    share_link_id: shareLinkId,
+    subject,
+    body,
+  };
+  if (dataroomDocumentId) payload.dataroom_document_id = dataroomDocumentId;
+  if (dataroomFolderId) payload.dataroom_folder_id = dataroomFolderId;
+  return api.post('/qna-threads/', payload);
+};
+
 export const createOwnerQnaMessage = (threadId, body) =>
   api.post(`/qna-threads/${threadId}/messages/`, { body });
 

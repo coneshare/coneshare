@@ -6,6 +6,7 @@ import * as api from '../../../services/api';
 
 vi.mock('../../../services/api', () => ({
   getOwnerQnaThreads: vi.fn(),
+  createOwnerQnaThread: vi.fn(),
   createOwnerQnaMessage: vi.fn(),
   updateOwnerQnaThreadStatus: vi.fn(),
 }));
@@ -75,6 +76,85 @@ describe('OwnerQnAManager', () => {
       expect(api.createOwnerQnaMessage).toHaveBeenCalledWith('thread-1', 'Owner answer');
     });
     expect(screen.getByText('Owner answer')).toBeInTheDocument();
+  });
+
+  it('starts an owner-created Q&A thread for a share link', async () => {
+    const user = userEvent.setup();
+    const createdThread = {
+      ...thread,
+      id: 'thread-owner',
+      subject: 'Owner started topic',
+      messages: [
+        {
+          id: 'msg-owner',
+          body: 'Please review this section.',
+          sender_type: 'user',
+          sender_name: 'Owner',
+          created_at: new Date().toISOString(),
+        },
+      ],
+    };
+    api.getOwnerQnaThreads.mockResolvedValue({ data: [] });
+    api.createOwnerQnaThread.mockResolvedValue({ data: createdThread });
+
+    render(
+      <OwnerQnAManager
+        documentId="doc-1"
+        shareLinks={[{ id: 'link-1', name: 'Investor link' }]}
+      />
+    );
+
+    await screen.findByText('No Q&A threads found.');
+    expect(screen.queryByLabelText('Owner Q&A subject')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Start Q&A' }));
+    await user.type(screen.getByLabelText('Owner Q&A subject'), 'Owner started topic');
+    await user.type(screen.getByLabelText('Owner Q&A first message'), 'Please review this section.');
+    await user.click(screen.getByRole('button', { name: 'Start Q&A' }));
+
+    await waitFor(() => {
+      expect(api.createOwnerQnaThread).toHaveBeenCalledWith({
+        shareLinkId: 'link-1',
+        subject: 'Owner started topic',
+        body: 'Please review this section.',
+      });
+    });
+    expect(screen.getAllByText('Owner started topic').length).toBeGreaterThan(0);
+    expect(screen.getByText('Please review this section.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Owner Q&A subject')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start Q&A' })).toBeInTheDocument();
+  });
+
+  it('disables owner-created Q&A when no share links exist', async () => {
+    const user = userEvent.setup();
+    api.getOwnerQnaThreads.mockResolvedValue({ data: [] });
+
+    render(<OwnerQnAManager documentId="doc-1" />);
+
+    await screen.findByText('No Q&A threads found.');
+    await user.click(screen.getByRole('button', { name: 'Start Q&A' }));
+    expect(screen.getByLabelText('Owner Q&A share link')).toBeDisabled();
+    expect(screen.getByLabelText('Owner Q&A subject')).toBeDisabled();
+    expect(screen.getByPlaceholderText('Create a share link before starting Q&A')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Start Q&A' })).toBeDisabled();
+  });
+
+  it('selects the first available share link by default', async () => {
+    const user = userEvent.setup();
+    api.getOwnerQnaThreads.mockResolvedValue({ data: [] });
+
+    render(
+      <OwnerQnAManager
+        dataroomId="dr-1"
+        shareLinks={[
+          { id: 'link-1', name: 'First room link' },
+          { id: 'link-2', name: 'Second room link' },
+        ]}
+      />
+    );
+
+    await screen.findByText('No Q&A threads found.');
+    await user.click(screen.getByRole('button', { name: 'Start Q&A' }));
+    expect(screen.getByLabelText('Owner Q&A share link')).toHaveValue('link-1');
   });
 
   it('closes an open thread', async () => {
@@ -169,5 +249,62 @@ describe('OwnerQnAManager', () => {
     await waitFor(() => {
       expect(screen.getByText('No Q&A threads found.')).toBeInTheDocument();
     });
+  });
+
+  it('ignores stale thread loads when a newer context request finishes first', async () => {
+    let resolveFirstLoad;
+    let resolveSecondLoad;
+    const newerThread = {
+      ...thread,
+      id: 'thread-newer',
+      subject: 'Newer context question',
+      messages: [
+        {
+          ...thread.messages[0],
+          id: 'msg-newer',
+          body: 'This belongs to the newer context.',
+        },
+      ],
+    };
+    api.getOwnerQnaThreads
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveFirstLoad = resolve;
+      }))
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveSecondLoad = resolve;
+      }));
+
+    const { rerender } = render(<OwnerQnAManager documentId="doc-1" />);
+
+    await waitFor(() => {
+      expect(api.getOwnerQnaThreads).toHaveBeenCalledWith({
+        documentId: 'doc-1',
+        dataroomId: null,
+        status: 'open',
+      });
+    });
+
+    rerender(<OwnerQnAManager documentId="doc-2" />);
+
+    await waitFor(() => {
+      expect(api.getOwnerQnaThreads).toHaveBeenCalledWith({
+        documentId: 'doc-2',
+        dataroomId: null,
+        status: 'open',
+      });
+    });
+
+    resolveSecondLoad({ data: [newerThread] });
+
+    await waitFor(() => {
+      expect(screen.getByText('This belongs to the newer context.')).toBeInTheDocument();
+    });
+
+    resolveFirstLoad({ data: [thread] });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Can you clarify this clause?')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('This belongs to the newer context.')).toBeInTheDocument();
   });
 });

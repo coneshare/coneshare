@@ -1257,11 +1257,24 @@ class QnAThreadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
 
         try:
             link = self._get_manageable_share_link(serializer.validated_data['share_link_id'])
-            context = _resolve_qna_context_for_link(
-                link,
-                dataroom_document_id=serializer.validated_data.get('dataroom_document_id'),
-                dataroom_folder_id=serializer.validated_data.get('dataroom_folder_id'),
-            )
+            # Owner-created threads are intentionally limited to the current
+            # document or dataroom page. Item-level dataroom context remains a
+            # viewer-only workflow until owner item-level Q&A is designed.
+            if (
+                serializer.validated_data.get('dataroom_document_id')
+                or serializer.validated_data.get('dataroom_folder_id')
+            ):
+                raise serializers.ValidationError(
+                    {'message': 'Owner-created Q&A threads must use the share link root context.'}
+                )
+            if link.document_id:
+                context = {'document': link.document}
+            elif link.dataroom_id:
+                context = {'dataroom': link.dataroom}
+            else:
+                raise serializers.ValidationError(
+                    {'message': 'Share link is not attached to a document or dataroom.'}
+                )
         except NotFound as e:
             return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
         except serializers.ValidationError as e:

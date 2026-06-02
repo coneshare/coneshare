@@ -2,6 +2,7 @@ import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import api from "../../services/api";
 import {
   createOwnerQnaMessage,
+  createOwnerQnaThread,
   createPublicQnaMessage,
   createPublicQnaThread,
   getOwnerQnaThreads,
@@ -370,6 +371,24 @@ describe("API Service Interceptors", () => {
       const requestConfig = mockAdapter.mock.calls[0][0];
       expect(requestConfig.url).toBe("/qna-threads/thread-1/messages/");
       expect(JSON.parse(requestConfig.data)).toEqual({ body: "Owner reply" });
+    });
+
+    it("should post owner-created Q&A threads", async () => {
+      mockAdapter.mockResolvedValue({ data: { id: "thread-1" } });
+
+      await createOwnerQnaThread({
+        shareLinkId: "link-1",
+        subject: "Owner question",
+        body: "Please review this.",
+      });
+
+      const requestConfig = mockAdapter.mock.calls[0][0];
+      expect(requestConfig.url).toBe("/qna-threads/");
+      expect(JSON.parse(requestConfig.data)).toEqual({
+        share_link_id: "link-1",
+        subject: "Owner question",
+        body: "Please review this.",
+      });
     });
   });
 });
