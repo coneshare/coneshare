@@ -118,7 +118,7 @@ function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = 
                 e.stopPropagation();
                 onQnaClick(item);
               }}
-              className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+              className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-700 dark:hover:bg-gray-100 dark:focus:bg-gray-100"
             >
               <MessageCircle className="h-4 w-4" aria-hidden="true" />
               <span>Q&amp;A</span>
@@ -386,7 +386,7 @@ export function DataroomViewer({ data, slug, viewId }) {
           <Button
             type="button"
             variant="outline"
-            className="h-9 rounded-full px-3"
+            className="h-9 rounded-full bg-white px-3 text-gray-900 hover:bg-gray-100 hover:text-gray-900 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 dark:hover:text-gray-900"
             onClick={handleCurrentScopeQnaClick}
             disabled={!viewId}
             aria-label={currentScopeQnaButtonLabel}
