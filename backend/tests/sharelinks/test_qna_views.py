@@ -383,6 +383,98 @@ def test_owner_can_close_and_reopen_thread(api_client, share_link, user):
     assert thread.status == QnAThread.STATUS_OPEN
 
 
+@patch('sharelinks.views.dispatch_automation_event_task.delay')
+def test_owner_can_create_document_qna_thread(mock_delay, api_client, share_link, user):
+    response = api_client.post(
+        '/api/v1/qna-threads/',
+        {
+            'share_link_id': str(share_link.id),
+            'subject': 'Owner-started question',
+            'body': 'Please review this before diligence.',
+        },
+        format='json',
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    thread = QnAThread.objects.get()
+    message = QnAMessage.objects.get()
+    assert thread.share_link == share_link
+    assert thread.document == share_link.document
+    assert thread.dataroom is None
+    assert thread.created_by_user == user
+    assert message.thread == thread
+    assert message.sent_by_user == user
+    assert response.data['context_type'] == 'document'
+    assert response.data['messages'][0]['body'] == 'Please review this before diligence.'
+    mock_delay.assert_called_once()
+    event_type, payload = mock_delay.call_args.args
+    assert event_type == 'qna_thread_created'
+    assert payload['sender_type'] == 'user'
+    assert payload['thread_subject'] == 'Owner-started question'
+
+
+def test_owner_can_create_dataroom_root_qna_thread(api_client, dataroom, user):
+    link = ShareLink.objects.create(dataroom=dataroom, created_by=user, name='Room Link')
+
+    response = api_client.post(
+        '/api/v1/qna-threads/',
+        {
+            'share_link_id': str(link.id),
+            'subject': 'Room-level owner question',
+            'body': 'This is about the whole room.',
+        },
+        format='json',
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    thread = QnAThread.objects.get()
+    assert thread.share_link == link
+    assert thread.dataroom == dataroom
+    assert thread.dataroom_document is None
+    assert thread.dataroom_folder is None
+    assert response.data['context_type'] == 'dataroom'
+    assert response.data['context_name'] == dataroom.name
+
+
+def test_owner_cannot_create_qna_thread_for_other_users_share_link(api_client, share_link, user2):
+    share_link.created_by = user2
+    share_link.save(update_fields=['created_by'])
+
+    response = api_client.post(
+        '/api/v1/qna-threads/',
+        {
+            'share_link_id': str(share_link.id),
+            'subject': 'Wrong owner',
+            'body': 'This should not be accepted.',
+        },
+        format='json',
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert QnAThread.objects.count() == 0
+
+
+def test_owner_create_qna_thread_rejects_dataroom_item_context(api_client, dataroom, user, organization):
+    document = _create_ready_document(user, organization, 'Item.pdf')
+    ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document)
+    link = ShareLink.objects.create(dataroom=dataroom, created_by=user, name='Room Link')
+
+    response = api_client.post(
+        '/api/v1/qna-threads/',
+        {
+            'share_link_id': str(link.id),
+            'dataroom_document_id': str(ddoc.id),
+            'subject': 'Item-level owner question',
+            'body': 'Phase one should reject this context.',
+        },
+        format='json',
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.data['message'] == 'Owner-created Q&A threads must use the share link root context.'
+    assert QnAThread.objects.count() == 0
+
+
 def test_owner_can_filter_qna_threads_by_document(api_client, share_link, user, organization):
     other_document = _create_ready_document(user, organization, 'Other.pdf')
     other_link = ShareLink.objects.create(

@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Lock, MessageCircle, RefreshCw, Send } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CheckCircle2, Lock, MessageCircle, Plus, RefreshCw, Send, X } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import {
   createOwnerQnaMessage,
+  createOwnerQnaThread,
   getOwnerQnaThreads,
   updateOwnerQnaThreadStatus,
 } from '../../services/api';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
+import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
 
 function formatRelativeTime(value) {
@@ -31,13 +34,29 @@ function contextLabel(thread) {
   return 'Document';
 }
 
-export function OwnerQnAManager({ documentId = null, dataroomId = null }) {
+function shareLinkLabel(link, index) {
+  return link.name || link.slug || `Share link ${index + 1}`;
+}
+
+const EMPTY_SHARE_LINKS = [];
+
+export function OwnerQnAManager({ documentId = null, dataroomId = null, shareLinks = EMPTY_SHARE_LINKS }) {
   const [threads, setThreads] = useState([]);
   const [selectedThreadId, setSelectedThreadId] = useState(null);
   const [statusFilter, setStatusFilter] = useState('open');
   const [isLoading, setIsLoading] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isCreatingThread, setIsCreatingThread] = useState(false);
+  const [selectedShareLinkId, setSelectedShareLinkId] = useState('');
+  const [newSubject, setNewSubject] = useState('');
+  const [newBody, setNewBody] = useState('');
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
   const [replyBody, setReplyBody] = useState('');
+  const loadRequestIdRef = useRef(0);
+
+  const availableShareLinks = useMemo(() => (
+    Array.isArray(shareLinks) ? shareLinks.filter((link) => link?.id) : []
+  ), [shareLinks]);
 
   const selectedThread = useMemo(() => {
     if (!selectedThreadId) return null;
@@ -46,6 +65,8 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null }) {
   const isSelectedThreadClosed = selectedThread?.status === 'closed';
 
   const loadThreads = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
     setIsLoading(true);
     try {
       const response = await getOwnerQnaThreads({
@@ -53,6 +74,7 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null }) {
         dataroomId,
         status: statusFilter,
       });
+      if (requestId !== loadRequestIdRef.current) return;
       const nextThreads = Array.isArray(response.data) ? response.data : [];
       setThreads(nextThreads);
       setSelectedThreadId((currentId) => (
@@ -61,9 +83,12 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null }) {
           : nextThreads[0]?.id || null
       ));
     } catch (error) {
+      if (requestId !== loadRequestIdRef.current) return;
       console.error('Failed to load Q&A threads:', error);
     } finally {
-      setIsLoading(false);
+      if (requestId === loadRequestIdRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [documentId, dataroomId, statusFilter]);
 
@@ -75,7 +100,47 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null }) {
     setThreads([]);
     setSelectedThreadId(null);
     setReplyBody('');
+    setNewSubject('');
+    setNewBody('');
+    setIsCreateOpen(false);
   }, [documentId, dataroomId]);
+
+  useEffect(() => {
+    setSelectedShareLinkId((currentId) => (
+      currentId && availableShareLinks.some((link) => link.id === currentId)
+        ? currentId
+        : availableShareLinks[0]?.id || ''
+    ));
+  }, [availableShareLinks]);
+
+  const handleCreateThread = async (event) => {
+    event.preventDefault();
+    if (!selectedShareLinkId || !newSubject.trim() || !newBody.trim()) return;
+    setIsCreatingThread(true);
+    try {
+      const response = await createOwnerQnaThread({
+        shareLinkId: selectedShareLinkId,
+        subject: newSubject.trim(),
+        body: newBody.trim(),
+      });
+      const createdThread = response.data;
+      setThreads((prev) => (
+        statusFilter === 'closed'
+          ? [createdThread]
+          : [createdThread, ...prev.filter((thread) => thread.id !== createdThread.id)]
+      ));
+      setSelectedThreadId(createdThread.id);
+      if (statusFilter === 'closed') setStatusFilter('open');
+      setNewSubject('');
+      setNewBody('');
+      setIsCreateOpen(false);
+      toast.success('Q&A thread started.');
+    } catch (error) {
+      console.error('Failed to start Q&A thread:', error);
+    } finally {
+      setIsCreatingThread(false);
+    }
+  };
 
   const handleReply = async (event) => {
     event.preventDefault();
@@ -146,11 +211,94 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null }) {
               </button>
             ))}
           </div>
+          <Button
+            type="button"
+            variant={isCreateOpen ? 'outline' : 'default'}
+            size="sm"
+            onClick={() => setIsCreateOpen((value) => !value)}
+            aria-expanded={isCreateOpen}
+            aria-controls="owner-qna-create-form"
+          >
+            {isCreateOpen ? (
+              <>
+                <X className="mr-2 h-4 w-4" />
+                Cancel
+              </>
+            ) : (
+              <>
+                <Plus className="mr-2 h-4 w-4" />
+                Start Q&amp;A
+              </>
+            )}
+          </Button>
           <Button type="button" variant="outline" size="icon" onClick={loadThreads} disabled={isLoading} aria-label="Refresh Q&A">
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </div>
+
+      {isCreateOpen ? (
+        <form id="owner-qna-create-form" className="space-y-3 rounded-md border bg-white p-4" onSubmit={handleCreateThread}>
+          <div className="grid gap-3 md:grid-cols-[220px,1fr]">
+            <div>
+              <label htmlFor="owner-qna-share-link" className="mb-1 block text-xs font-medium text-gray-600">
+                Share link
+              </label>
+              <Select
+                id="owner-qna-share-link"
+                aria-label="Owner Q&A share link"
+                value={selectedShareLinkId}
+                onChange={(event) => setSelectedShareLinkId(event.target.value)}
+                disabled={availableShareLinks.length === 0 || isCreatingThread}
+              >
+                {availableShareLinks.length === 0 ? (
+                  <option value="">No share links</option>
+                ) : (
+                  availableShareLinks.map((link, index) => (
+                    <option key={link.id} value={link.id}>
+                      {shareLinkLabel(link, index)}
+                    </option>
+                  ))
+                )}
+              </Select>
+            </div>
+            <div>
+              <label htmlFor="owner-qna-subject" className="mb-1 block text-xs font-medium text-gray-600">
+                Subject
+              </label>
+              <Input
+                id="owner-qna-subject"
+                aria-label="Owner Q&A subject"
+                value={newSubject}
+                onChange={(event) => setNewSubject(event.target.value)}
+                placeholder="Start a contextual Q&A thread"
+                disabled={availableShareLinks.length === 0 || isCreatingThread}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Textarea
+              aria-label="Owner Q&A first message"
+              value={newBody}
+              onChange={(event) => setNewBody(event.target.value)}
+              placeholder={
+                availableShareLinks.length === 0
+                  ? 'Create a share link before starting Q&A'
+                  : 'Write the first message'
+              }
+              disabled={availableShareLinks.length === 0 || isCreatingThread}
+              className="min-h-[64px]"
+            />
+            <Button
+              type="submit"
+              disabled={!selectedShareLinkId || !newSubject.trim() || !newBody.trim() || isCreatingThread}
+              className="self-end"
+            >
+              Start Q&amp;A
+            </Button>
+          </div>
+        </form>
+      ) : null}
 
       <div className="grid min-h-[440px] overflow-hidden rounded-md border bg-white md:grid-cols-[280px,1fr]">
         <div className="border-b md:border-b-0 md:border-r">

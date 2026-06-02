@@ -177,11 +177,16 @@ export function DataroomPage() {
   const { selection, setSelection, setLastSelectedItem, handleItemSelect, handleClearSelection } = useItemSelection(allItems);
     
   useEffect(() => {
-    if (activeTab === 'links') {
+    if (activeTab === 'links' || activeTab === 'qna') {
       fetchLinks();
+    }
+  }, [activeTab, fetchLinks]);
+
+  useEffect(() => {
+    if (activeTab === 'links') {
       fetchViews();
     }
-  }, [activeTab, fetchLinks, fetchViews]);  
+  }, [activeTab, fetchViews]);  
 
   useEffect(() => {
     const shouldOpenCreateLink = searchParams.get('openCreateLink') === 'true';
@@ -776,7 +781,7 @@ export function DataroomPage() {
           </div>
         </TabsContent>
         <TabsContent value="qna" className="mt-6">
-          <OwnerQnAManager dataroomId={dataroomId} />
+          <OwnerQnAManager dataroomId={dataroomId} shareLinks={links} />
         </TabsContent>
         <TabsContent value="settings" className="mt-6">
           <section className="space-y-8">
