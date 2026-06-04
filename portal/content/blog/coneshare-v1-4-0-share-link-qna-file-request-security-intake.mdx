@@ -1,0 +1,154 @@
+export const metadata = {
+  title: 'Coneshare V1.4: Safer, More Structured External Collaboration',
+  description:
+    'Coneshare V1.4 adds share-link Q&A, malware scanning for secure file requests, and custom intake fields for structured document collection.',
+  date: '2026-06-04',
+  category: 'Releases',
+  tags: [
+    'Share Links',
+    'Q&A',
+    'File Requests',
+    'Security',
+    'Automations',
+  ],
+};
+
+## External Collaboration Breaks When Context Leaves the Document
+
+Most document workflows break down the moment collaboration starts.
+
+Reviewers send questions through email and Slack. Clients upload files without the project, case, or invoice details needed to process them. Security teams worry about externally submitted documents entering internal systems unchecked.
+
+Coneshare V1.4 addresses those problems with three improvements for secure file sharing, dataroom collaboration, and structured document collection:
+
+- share link Q&A for contextual owner/viewer discussion;
+- malware scanning for public file-request uploads;
+- custom intake fields for secure file request workflows.
+
+Coneshare works as a control and intelligence layer on top of existing storage systems like Nextcloud, Google Drive, and Dropbox.
+
+V1.4 continues that direction by keeping review conversations, upload security, and intake metadata closer to the document workflow itself.
+
+## What’s New in V1.4
+
+- Share-link scoped Q&A for single-document links and virtual dataroom links.
+- Malware scanning for public secure file request uploads.
+- Custom intake fields for collecting structured metadata from uploaders.
+
+## 1) Keep Review Questions Attached to the Document
+
+Shared documents often create long email chains that become detached from the document being reviewed.
+
+Coneshare V1.4 introduces share-link Q&A, allowing owners and external viewers to discuss documents directly inside the shared-link experience.
+
+For single-document share links, viewers can ask questions in the document context.
+
+For dataroom share links, Q&A is attached to the visible dataroom document or folder being reviewed.
+
+This keeps discussion closer to the material being reviewed, reducing the need to move sensitive context into email threads or chat channels.
+
+It also turns viewer questions into part of the engagement history. In investor reviews, buyer diligence, customer security reviews, or legal workflows, the questions people ask can reveal what they care about, where they are blocked, and which documents need more explanation.
+
+Q&A threads support:
+
+- owner and viewer replies;
+- open and closed states;
+- timestamped message history;
+- owner/admin moderation through close and reopen controls.
+
+Access follows the same share-link and viewer-session gates used for viewing. In datarooms, Q&A entry points only appear for items the viewer can access through that specific share link.
+
+## 2) Block Risky Public Uploads Before They Become Documents
+
+Public file request links are useful because they let external collaborators, customers, vendors, and partners submit documents without getting internal accounts.
+
+They also create an ingestion point into your workspace.
+
+V1.4 adds a virus scan gate to the public file-request finalize flow, so externally uploaded files can be scanned before Coneshare creates the final document record.
+
+When scanning is enabled, public file-request uploads are checked through the malware scanner before completion:
+
+- clean files continue through the normal upload flow;
+- detected malware is blocked before a document record is created;
+- scanner outages can fail closed and ask the uploader to try again later.
+
+Security events are persisted for audit review and emitted through the existing automation pipeline.
+
+New automation events include:
+
+- `file_request_malware_detected`;
+- `file_request_scan_failed`.
+
+This gives operators a path to notify teams in Slack, Discord or webhook destinations when a public upload is blocked or scanning fails.
+
+## 3) Capture the Metadata You Need at Upload Time
+
+Generic upload links often produce incomplete submissions.
+
+A client may upload the right file but omit the case number. A vendor may send an invoice without the purchase order. A customer may submit security evidence without naming the control or request it belongs to.
+
+V1.4 adds custom intake fields to file requests, turning a secure file request into a structured document request workflow.
+
+Internal users can configure fields that external uploaders complete before submitting files. For example, an accounting team can require an invoice number, vendor name, and payment period before accepting uploaded invoices.
+
+This is useful for workflows like client document collection, legal intake, invoice submission, procurement packets, and case-based uploads.
+
+Supported field types include:
+
+- text;
+- textarea;
+- select;
+- date;
+- number;
+- checkbox.
+
+Submitted values are saved with the uploaded file and also copied into the document metadata, so the context remains available after the upload is complete.
+
+Coneshare stores a submission-time snapshot of each field label, type, and value. That means historical uploads remain understandable even if the file-request form changes later.
+
+Automation payloads also include flat `custom_field_values`, making it easier to send structured upload context to downstream systems.
+
+## Example Workflows
+
+### Investor Dataroom Reviews
+
+Investors can ask questions directly inside the dataroom while founders maintain a complete review history tied to the relevant folders and documents.
+
+This keeps diligence questions closer to the material being reviewed and gives teams additional context about reviewer intent.
+
+### Customer Security Reviews
+
+Prospects reviewing security documentation can ask questions without moving discussions into scattered email threads.
+
+Security and sales teams can respond in context while preserving the history of what was asked, answered, closed, and reopened.
+
+### Client Document Collection
+
+Clients can upload documents through a secure file request while providing required project, case, order, or invoice metadata.
+
+Malware scanning protects the internal workspace, while custom intake fields make each submission easier to route, understand, and automate.
+
+## Why This Release Matters
+
+V1.4 strengthens external collaboration in three practical ways:
+
+- **Faster reviews:** Q&A keeps questions tied to the exact shared document, dataroom folder, or dataroom document.
+- **Safer collection:** public file-request uploads can be scanned before they become workspace documents.
+- **Better context:** custom fields turn file requests into structured collection workflows instead of generic upload links.
+
+Together, these improvements make Coneshare more useful for real-world review and collection workflows where communication, security, and metadata all matter.
+
+Teams can now receive files from external parties, capture the business context behind those files, scan uploads for risk, and discuss shared materials without leaving the controlled share-link and file-request experience.
+
+## Also Included in V1.4
+
+V1.4 also includes reliability and usability improvements across share links, file requests, and automations. For full technical details, see the [release changelog](https://docs.coneshare.com/en/release-notes/).
+
+V1.4.0 is available now for [self-hosted deployments](https://docs.coneshare.com/en/).
+
+## Next Steps
+
+- Upgrade to V1.4.0.
+- Add Q&A to the share links where external reviewers need a direct discussion channel.
+- Enable malware scanning for public file requests if your deployment requires stricter external upload controls.
+- Add custom intake fields to file requests that need project, client, case, order, or invoice metadata.
