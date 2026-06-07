@@ -28,10 +28,10 @@ export default function TermsOfServicePage() {
           <h2 className="text-gray-900">2. Intellectual Property Rights</h2>
           <p>
             The Site and its original content, features, and functionality are and will remain the
-            exclusive property of Coneshare, Inc. and its licensors. The Site is protected by copyright,
+            exclusive property of Coneshare and its licensors. The Site is protected by copyright,
             trademark, and other laws of both the United States and foreign countries. Our trademarks and
             trade dress may not be used in connection with any product or service without the prior
-            written consent of Coneshare, Inc.
+            written consent of Coneshare.
           </p>
 
           <h2 className="text-gray-900">3. User Representations</h2>
@@ -84,7 +84,7 @@ export default function TermsOfServicePage() {
             the Site, please contact us at:
           </p>
           <p>
-            Coneshare, Inc.
+            Coneshare
             <br />
             Email: dev@coneshare.com
           </p>

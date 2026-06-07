@@ -15,7 +15,7 @@ export default function PrivacyPolicyPage() {
           </p>
 
           <p>
-            Coneshare, Inc. ("we," "us," or "our") is committed to protecting your privacy. This Privacy
+            Coneshare ("we," "us," or "our") is committed to protecting your privacy. This Privacy
             Policy explains how we collect, use, disclose, and safeguard your information when you visit our
             website, including any other media form, media channel, mobile website, or mobile application
             related or connected thereto (collectively, the "Site").
@@ -74,7 +74,7 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-gray-900">Contact Us</h2>
           <p>If you have questions or comments about this Privacy Policy, please contact us at:</p>
           <p>
-            Coneshare, Inc.
+            Coneshare
             <br />
             Email: dev@coneshare.com
           </p>

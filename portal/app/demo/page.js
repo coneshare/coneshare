@@ -15,6 +15,7 @@ export default function DemoPage() {
   };
 
   const demoUrl = 'https://app.coneshare.com';
+  const signupUrl = 'https://app.coneshare.com/signup';
   const demoEmail = 'demo@coneshare.com';
   const demoPassword = 'demo';
 
@@ -79,6 +80,10 @@ export default function DemoPage() {
               </Link>
             </div>
             <div className="border-t border-gray-200 pt-5 text-center text-sm">
+              <Link href={signupUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-gray-900 hover:text-gray-700">
+                Create your own account
+              </Link>
+              <span className="mx-2 text-gray-400">•</span>
               <Link href="/features" className="font-semibold text-gray-900 hover:text-gray-700">
                 Explore features
               </Link>

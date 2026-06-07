@@ -63,6 +63,7 @@ export default async function sitemap() {
     '/features/file-request-embed',
     '/solutions',
     '/blog',
+    '/about',
     '/privacy-policy',
     '/terms',
     '/demo',

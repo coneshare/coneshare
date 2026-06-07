@@ -9,6 +9,7 @@ export function Footer() {
         { label: 'Dropbox Integration', href: '/integrations/dropbox' },
         { label: 'Features', href: '/features' },
         { label: 'Solutions', href: '/solutions' },
+        { label: 'Get Started', href: 'https://app.coneshare.com/signup', external: true },
 
       ],
     },
@@ -19,14 +20,17 @@ export function Footer() {
         { label: 'Community Forum', href: 'https://github.com/orgs/coneshare/discussions', external: true },
         { label: 'Contribute', href: 'https://github.com/coneshare/coneshare', external: true },
         { label: 'Documentation', href: 'https://docs.coneshare.com/en/', external: true },
+        { label: 'API Reference', href: 'https://app.coneshare.com/api/schema/swagger/', external: true },
       ],
     },
     {
       title: 'Company',
       links: [
-        { label: 'Request Demo', href: '/demo' },
+        { label: 'About', href: '/about' },
+        { label: 'Live Demo', href: '/demo' },
         { label: 'Contact Sales', href: 'mailto:sales@coneshare.com' },
         { label: 'Support', href: 'mailto:dev@coneshare.com' },
+        { label: 'Security Contact', href: 'mailto:dev@coneshare.com' },
       ],
     },
     {
@@ -79,7 +83,7 @@ export function Footer() {
         </div>
 
         <div className="flex flex-col gap-3 pt-6 text-xs text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>&copy; 2026 Coneshare, Ltd. All rights reserved.</p>
+          <p>&copy; 2026 Coneshare. All rights reserved.</p>
           <p>Need procurement or security review support? Contact sales@coneshare.com.</p>
         </div>
       </div>

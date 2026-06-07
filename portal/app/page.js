@@ -59,6 +59,8 @@ export default function HomePage() {
             <div className="mt-16 sm:mt-20">
               <Carousel images={workflowImages} />
             </div>
+
+    {/*
             <div className="mx-auto mt-12 grid max-w-5xl grid-cols-1 gap-5 sm:grid-cols-3">
               <div className="rounded-xl border border-gray-200 bg-white p-5 text-left">
                 <p className="text-sm font-semibold text-gray-900">Control Layer</p>
@@ -71,6 +73,41 @@ export default function HomePage() {
               <div className="rounded-xl border border-gray-200 bg-white p-5 text-left">
                 <p className="text-sm font-semibold text-gray-900">Action Layer</p>
                 <p className="mt-2 text-sm text-gray-600">Route high-signal events to Slack, webhooks, and internal systems for fast follow-up.</p>
+              </div>
+            </div>
+     */}
+
+          </div>
+        </div>
+      </div>
+
+      {/* Why Coneshare Section */}
+      <div className="bg-white py-20 sm:py-24">
+        <div className="mx-auto max-w-5xl px-6 lg:px-8">
+          <div className="grid gap-10 lg:grid-cols-12 lg:items-start">
+            <div className="lg:col-span-5">
+              <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">Why Coneshare Exists</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+                Storage is not the same as controlled distribution
+              </h2>
+            </div>
+            <div className="space-y-5 text-base leading-7 text-gray-600 lg:col-span-7">
+              <p>
+                Cloud drives are good at holding files, but sensitive external sharing often needs stronger controls,
+                clearer viewer context, and a workflow for what happens after someone opens a document.
+              </p>
+              <p>
+                Coneshare is built for teams that want those controls without moving every file into another vendor stack.
+                Keep Nextcloud, Google Drive, or Dropbox as the storage layer, then add secure links, data rooms,
+                engagement visibility, and event-driven follow-up on top.
+              </p>
+              <div className="flex flex-wrap gap-4 pt-2">
+                <Link href="/about" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
+                  Read the product story <span aria-hidden="true">→</span>
+                </Link>
+                <Link href="/demo" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
+                  Try the live demo <span aria-hidden="true">→</span>
+                </Link>
               </div>
             </div>
           </div>

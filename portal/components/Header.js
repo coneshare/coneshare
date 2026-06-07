@@ -80,21 +80,31 @@ function NavDropdown({ title, href, items }) {
 
 const resources = [
   {
+    key: 'about',
+    name: 'About',
+    href: '/about',
+  },
+  {
     key: 'docs',
     name: 'Docs',
     href: 'https://docs.coneshare.com/en/',
+    external: true,
   },
   {
     key: 'forum',
     name: 'Forum',
     href: 'https://github.com/orgs/coneshare/discussions',
+    external: true,
   },
   {
     key: 'contribute',
     name: 'Contribute',
     href: 'https://github.com/coneshare/coneshare',
+    external: true,
   },
 ];
+
+const signupUrl = 'https://app.coneshare.com/signup';
 
 function ResourceDropdown({ title, items }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -143,8 +153,7 @@ function ResourceDropdown({ title, items }) {
             <Link
               key={item.key}
               href={item.href}
-              target="_blank"
-              rel="noopener noreferrer"
+              {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
               onClick={() => setIsOpen(false)}
               className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
             >
@@ -198,16 +207,23 @@ export function Header() {
             </Link>
             <NavDropdown title="Works with" href="/integrations" items={integrationMenuItems} />
             <NavDropdown title="Features" href="/features" items={features} />
-            <NavDropdown title="Use Cases" href="/solutions" items={solutions} />
             <Link href="/blog" className="text-sm font-medium text-gray-500 hover:text-gray-900">
               Blog
             </Link>
             <ResourceDropdown title="Resources" items={resources} />
             <Link
               href="/demo"
+              className="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-900 shadow-sm hover:bg-gray-50"
+            >
+              Live Demo
+            </Link>
+            <Link
+              href={signupUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center justify-center rounded-md border border-transparent bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-800"
             >
-              Request Demo
+              Get Started
             </Link>
           </div>
 
@@ -314,6 +330,13 @@ export function Header() {
               <Link href="/blog" className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900">
                 Blog
               </Link>
+              <Link
+                href="/about"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+              >
+                About
+              </Link>
             </div>
             <div className="border-t border-gray-200 pt-4">
               <h3 className="px-3 text-xs font-semibold uppercase text-gray-500 tracking-wider">Resources</h3>
@@ -322,8 +345,7 @@ export function Header() {
                   <Link
                     key={item.key}
                     href={item.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                     className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                   >
                     {item.name}
@@ -335,9 +357,18 @@ export function Header() {
                <Link
                   href="/demo"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="block w-full text-center rounded-md border border-transparent bg-gray-900 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-gray-800"
+                  className="block w-full text-center rounded-md border border-gray-300 px-4 py-2 text-base font-medium text-gray-900 shadow-sm hover:bg-gray-50"
                 >
-                  Request Demo
+                  Live Demo
+                </Link>
+               <Link
+                  href={signupUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="mt-3 block w-full text-center rounded-md border border-transparent bg-gray-900 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-gray-800"
+                >
+                  Get Started
                 </Link>
             </div>
           </div>
