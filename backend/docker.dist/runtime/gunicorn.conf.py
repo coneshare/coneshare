@@ -5,7 +5,7 @@ import multiprocessing
 bind = '127.0.0.1:9998'
 
 # Number of worker processes
-workers = multiprocessing.cpu_count() * 2 + 1
+workers = multiprocessing.cpu_count()
 
 # Number of threads per worker process
 threads = 2
