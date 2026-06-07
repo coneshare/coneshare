@@ -1,0 +1,156 @@
+export const metadata = {
+  title: 'Why Self-Hosted VDR Matters',
+  description:
+    'A product perspective on why self-hosted virtual data rooms matter for sensitive document workflows, infrastructure ownership, auditability, and enterprise integration.',
+  date: '2026-06-07',
+  category: 'Self-Hosting',
+  tags: [
+    'Self-Hosting',
+    'Virtual Data Rooms',
+    'Document Sharing',
+    'Security',
+    'Enterprise Integration',
+    'Data Rooms',
+  ],
+};
+
+Virtual data rooms are often described as secure places to share files.
+
+That description is accurate, but incomplete. For serious workflows, a VDR is not just a folder with permissions. It is part of an operating boundary: where sensitive documents live, who can access them, what activity is recorded, which systems receive those signals, and how the organization proves that the process was controlled.
+
+That is why self-hosted VDR matters.
+
+## The real question is control
+
+Most teams already have a storage system they trust. It may be Nextcloud, Google Drive, Dropbox, object storage, a private file server, or a mix of internal systems. Those systems are usually where files are created, reviewed, classified, and retained.
+
+The problem starts when files need to leave the internal workspace.
+
+Fundraising, diligence, legal review, procurement, board reporting, security review, and enterprise sales all require external access. A simple cloud link can move the file, but it rarely gives the organization enough control over distribution, visibility, revocation, watermarking, audit context, or downstream workflow.
+
+A hosted VDR can solve some of those problems, but it often creates another one: the sensitive workflow moves into another vendor-controlled environment.
+
+For some teams, that tradeoff is acceptable. For others, it is the wrong trust boundary.
+
+## Sensitive workflows need an infrastructure boundary
+
+Self-hosting matters when the organization needs to define where file content, metadata, access logs, activity events, and integration payloads are allowed to exist.
+
+That boundary can matter for several reasons:
+
+- data residency requirements;
+- customer or regulator expectations;
+- private-network deployment requirements;
+- internal security review;
+- incident response and audit needs;
+- integration with existing identity, logging, and workflow systems.
+
+In these environments, the VDR is not just a user-facing application. It becomes part of the security and operations architecture.
+
+A self-hosted VDR lets the organization operate the sharing layer within its own infrastructure model. The files, database, event history, and deployment controls can stay closer to the systems the team already governs.
+
+## The VDR layer should not force a storage migration
+
+One reason many VDR rollouts feel heavy is that they ask teams to move documents into yet another storage system.
+
+That can create friction:
+
+- files get duplicated;
+- ownership becomes unclear;
+- retention policy becomes harder to enforce;
+- teams lose the structure they already maintain;
+- internal and external workflows drift apart.
+
+For many organizations, the better model is a VDR layer on top of existing storage. The storage system remains the source of truth. The VDR adds controlled distribution, secure links, data room permissions, watermarking, viewer activity, and automation around the external workflow.
+
+This is the model Coneshare is built around: keep the storage layer, add the control and intelligence layer.
+
+## Auditability is part of the product, not a report at the end
+
+Sensitive document sharing needs evidence.
+
+Who had access? Which link was used? Was the recipient verified? Did the file get downloaded? Was the document revisited before a meeting? Did a watermark apply? Which system received the event? Was the internal team notified?
+
+These questions should not be answered manually after the fact. The product should capture operational context as the workflow happens.
+
+That matters for compliance and security, but it also matters for ordinary business execution. A deal team, legal team, founder, account owner, or procurement team needs to understand external engagement while the process is still active.
+
+Self-hosting strengthens this model because the audit trail can live within the same infrastructure and governance boundary as the rest of the process.
+
+## Enterprise workflows need APIs, not just dashboards
+
+A VDR that only works through its own interface is limited.
+
+Enterprise document workflows often need to connect to internal systems:
+
+- CRM and deal operations;
+- legal intake and matter systems;
+- security monitoring and audit tools;
+- Slack or internal communication channels;
+- workflow engines and approval systems;
+- customer portals and file request flows.
+
+This is where APIs matter. The VDR should expose sharing, activity, and automation capabilities so teams can integrate document workflows into the systems they already use.
+
+For example, a document view can become a Slack notification, a webhook event, a CRM update, a security review signal, or a trigger for a follow-up process. A file request can become part of a client intake workflow. A data room event can be routed into an internal audit or reporting pipeline.
+
+The value is not just that the product has integrations. The value is that the organization can make document activity operational.
+
+## Self-hosted does not mean isolated
+
+Self-hosted software is sometimes framed as disconnected software that lives in a corner of the infrastructure.
+
+That is the wrong model.
+
+A good self-hosted VDR should be inspectable, deployable, and integratable. It should run within the customer's boundary while still connecting to the internal systems that make the workflow useful.
+
+That means clear deployment patterns, documented APIs, event delivery, webhook support, and enough product surface for teams to evaluate before committing.
+
+Self-hosted should mean ownership, not isolation.
+
+## Open source makes the trust boundary inspectable
+
+Self-hosted answers one question: where does the system run?
+
+Open source answers another: can the team understand what the system actually does?
+
+Both matter for a serious VDR workflow. If a platform is handling sensitive documents, access rules, viewer activity, webhook delivery, and internal integrations, teams should not have to rely only on product claims. They should be able to inspect the code, review the architecture, understand deployment behavior, and validate whether the system fits their security model.
+
+Open source also changes the adoption risk. A team can evaluate the product more deeply before committing, adapt deployment to local requirements, and keep more control over long-term operating choices. That matters especially when the VDR becomes part of internal security, legal, sales, or diligence workflows.
+
+For Coneshare, open source is not a marketing label. It is part of the product model: self-hosted deployment, inspectable code, documented APIs, and integration points that teams can reason about directly.
+
+## When self-hosted VDR is the right choice
+
+Self-hosted VDR is usually worth considering when:
+
+- the documents are sensitive enough that infrastructure ownership matters;
+- external sharing needs stronger controls than a plain storage link;
+- activity logs and access history need to remain inside a governed boundary;
+- the team needs to integrate document activity into internal systems;
+- storage migration would create operational or compliance friction;
+- the team wants inspectable source code instead of a closed vendor black box;
+- security review requires more than vendor claims and marketing pages.
+
+It may not be necessary for casual file sharing. If a normal cloud link is enough, a VDR layer can be too much process.
+
+But for high-stakes workflows, the question is different. The organization is not just asking, "Can we send this file?" It is asking, "Can we control, observe, and operate this sharing process in a way that matches our risk?"
+
+That is where self-hosted VDR matters.
+
+## How Coneshare approaches this
+
+Coneshare is built as a document control and intelligence layer on top of existing storage.
+
+The goal is not to replace every storage system. The goal is to make sensitive external sharing more controlled, more observable, and easier to integrate with internal operations.
+
+That means:
+
+- self-hosted deployment for infrastructure ownership;
+- support for storage workflows such as Nextcloud, Google Drive, and Dropbox;
+- secure links, data rooms, file requests, and dynamic watermarking;
+- activity visibility across views, downloads, revisits, and data room behavior;
+- automation through Slack, webhooks, and APIs;
+- open-source code that teams can inspect before adopting.
+
+If you want to inspect the product surface first, start with the [live demo](/demo). If you want to understand the deployment and integration model, review the [documentation](https://docs.coneshare.com/en/) and [API reference](https://app.coneshare.com/api/schema/swagger/).
