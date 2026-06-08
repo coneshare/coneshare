@@ -4,7 +4,7 @@ import Image from 'next/image';
 export const metadata = {
   title: 'Nextcloud VDR: Build a Secure Data Room on Nextcloud | Coneshare',
   description:
-    'Learn how to create a Nextcloud VDR. Add secure sharing, document tracking, and workflow actions on top of Nextcloud without moving your data.',
+    'Learn how to create a Nextcloud VDR workflow with secure sharing, document tracking, and workflow actions.',
   keywords: [
     'nextcloud vdr',
     'nextcloud data room',
@@ -55,7 +55,7 @@ export default function NextcloudVdrPage() {
         acceptedAnswer: {
           '@type': 'Answer',
           text:
-            'You can add a control and intelligence layer like Coneshare to track views, revisits, and engagement behavior while keeping storage in Nextcloud.',
+            'You can add a control and intelligence layer like Coneshare to track views, revisits, and engagement behavior for selected external sharing workflows.',
         },
       },
     ],
@@ -70,8 +70,8 @@ export default function NextcloudVdrPage() {
             Build a secure VDR on Nextcloud with full control and visibility
           </h1>
           <p className="mt-6 text-lg leading-8 text-gray-600">
-            Turn Nextcloud storage into a virtual data room with secure sharing, document tracking, and workflow actions.
-            No storage migration required.
+            Keep your Nextcloud workflow and add virtual data room capabilities for secure sharing, document tracking,
+            and workflow actions.
           </p>
           <p className="mt-3 text-base text-gray-600">Know who viewed what, when they engaged, and what to do next.</p>
           <div className="mt-10 flex items-center justify-center gap-5">
@@ -115,8 +115,8 @@ export default function NextcloudVdrPage() {
           <div className="prose prose-lg max-w-none text-gray-700">
             <h2 className="text-gray-900">Add a VDR layer to Nextcloud</h2>
             <p>
-              Coneshare extends Nextcloud with secure sharing controls, engagement visibility, and workflow actions while keeping
-              your storage model in place.
+              Coneshare adds secure sharing controls, engagement visibility, and workflow actions to selected
+              Nextcloud-based external sharing workflows.
             </p>
           </div>
         </section>
@@ -130,7 +130,7 @@ export default function NextcloudVdrPage() {
             </li>
             <li>
               <strong>2. Connect Nextcloud to Coneshare</strong>
-              <p className="mt-1">Import files into controlled sharing workflows without storage migration.</p>
+              <p className="mt-1">Import selected files into controlled sharing workflows.</p>
               <div className="mt-4">
                 <Image
                   src="/screenshots/feat-cloud-import.png"
@@ -139,7 +139,7 @@ export default function NextcloudVdrPage() {
                   height={750}
                   className="rounded-xl border border-gray-200 shadow-sm"
                 />
-                <p className="mt-2 text-sm text-gray-500">Connect existing storage and import files without replacing your storage model.</p>
+                <p className="mt-2 text-sm text-gray-500">Connect existing storage workflows and import selected files for controlled external sharing.</p>
               </div>
             </li>
             <li>
@@ -239,7 +239,7 @@ export default function NextcloudVdrPage() {
           <div className="prose prose-lg max-w-none text-gray-700">
             <h2 className="text-gray-900">Why teams choose Coneshare for Nextcloud VDR workflows</h2>
             <ul>
-              <li>No storage migration required</li>
+              <li>Works with existing Nextcloud-based storage workflows</li>
               <li>Self-hosted architecture and infrastructure control</li>
               <li>Purpose-built for high-stakes sharing workflows</li>
               <li>Document intelligence layer beyond storage</li>
@@ -277,7 +277,7 @@ export default function NextcloudVdrPage() {
         <section className="mx-auto mt-12 max-w-4xl rounded-2xl bg-gray-900 px-8 py-10 text-center text-white">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Turn Nextcloud into a complete virtual data room</h2>
           <p className="mt-4 text-base text-gray-200">
-            Add secure sharing, visibility, and workflow actions without changing your storage model.
+            Keep your Nextcloud workflow and add secure sharing, visibility, and workflow actions.
           </p>
           <div className="mt-8 flex items-center justify-center gap-6">
             <Link href="/demo" className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-100">

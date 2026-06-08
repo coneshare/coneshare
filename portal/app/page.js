@@ -38,11 +38,11 @@ export default function HomePage() {
                 Turn your cloud storage into a secure, trackable data room
               </h1>
               <p className="mt-6 text-lg leading-8 text-gray-600">
-                Coneshare adds controlled sharing, visibility, and action workflows on top of Nextcloud, Google Drive, and Dropbox.
-                Keep your storage stack. Add the VDR layer your workflows are missing.
+                Coneshare helps teams keep existing storage workflows while adding controlled sharing, visibility,
+                and action workflows for external document distribution.
               </p>
               <p className="mt-3 text-sm font-medium text-gray-500">
-                No migration required. Works with your existing infrastructure.
+                Keep your storage workflow. Add secure links, data rooms, tracking, and automation.
               </p>
               <div className="mt-10 flex items-center justify-center gap-x-6">
                 <Link
@@ -97,9 +97,9 @@ export default function HomePage() {
                 clearer viewer context, and a workflow for what happens after someone opens a document.
               </p>
               <p>
-                Coneshare is built for teams that want those controls without moving every file into another vendor stack.
-                Keep Nextcloud, Google Drive, or Dropbox as the storage layer, then add secure links, data rooms,
-                engagement visibility, and event-driven follow-up on top.
+                Coneshare is built for teams that want those controls without replacing their existing storage workflow.
+                Import selected files into a controlled distribution layer, then add secure links, data rooms,
+                engagement visibility, and event-driven follow-up.
               </p>
               <div className="flex flex-wrap gap-4 pt-2">
                 <Link href="/about" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
@@ -120,7 +120,7 @@ export default function HomePage() {
           <div className="mx-auto max-w-2xl lg:text-center">
             <h2 className="text-base font-semibold leading-7 text-gray-900">Core Features</h2>
             <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Add a VDR layer without replacing storage
+              Add VDR workflows without replacing your storage workflow
             </p>
             <p className="mt-6 text-lg leading-8 text-gray-600">
               Start with secure control over shared links and data rooms, then add engagement intelligence and workflow actions on top of your current stack.

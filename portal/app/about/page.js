@@ -13,7 +13,7 @@ const principles = [
   {
     title: 'Keep storage ownership clear',
     body:
-      'Many teams already have a storage system they trust. Coneshare is designed to add a control and intelligence layer without forcing a storage migration.',
+      'Many teams already have a storage workflow they trust. Coneshare adds a controlled distribution layer for selected external sharing workflows without forcing a full storage migration.',
   },
   {
     title: 'Build in the open',
@@ -93,7 +93,7 @@ export default function AboutPage() {
               <div>
                 <h3 className="text-base font-semibold text-gray-900">Coneshare is a good fit for</h3>
                 <ul className="mt-4 space-y-3 text-sm leading-6 text-gray-600">
-                  <li>Teams using Nextcloud, Google Drive, or Dropbox as their source of truth.</li>
+                  <li>Teams already using Nextcloud, Google Drive, or Dropbox in their document workflow.</li>
                   <li>Organizations that need VDR-style controls without moving files into a new storage system.</li>
                   <li>Fundraising, diligence, legal, procurement, and sales workflows where viewer context matters.</li>
                   <li>Security-conscious teams that want self-hosted deployment and infrastructure ownership.</li>

@@ -3,7 +3,7 @@ import Link from 'next/link';
 export const metadata = {
   title: 'Google Drive Integration: Secure Sharing and Tracking | Coneshare',
   description:
-    'Enhance Google Drive with secure sharing, document tracking, and workflow automation while keeping your files in Drive.',
+    'Enhance Google Drive workflows with secure sharing, document tracking, and workflow automation.',
   keywords: [
     'google drive integration',
     'google drive secure sharing',
@@ -22,11 +22,11 @@ export default function GoogleDriveIntegrationPage() {
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">Google Drive Integration</p>
           <h1 className="mt-3 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-            Keep Google Drive as your storage. Add control and visibility when sharing matters.
+            Keep your Google Drive workflow. Add control and visibility when sharing matters.
           </h1>
           <p className="mt-6 text-lg leading-8 text-gray-600">
-            Coneshare adds a secure distribution and tracking layer on top of Google Drive so you can understand what happens
-            after sharing a document.
+            Coneshare adds a secure distribution and tracking layer for selected Google Drive files so you can understand
+            what happens after sharing a document.
           </p>
           <div className="mt-10 flex items-center justify-center gap-5">
             <Link href="/demo" className="rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800">
@@ -60,9 +60,9 @@ export default function GoogleDriveIntegrationPage() {
         <section className="mx-auto mt-12 max-w-4xl">
           <h2 className="text-2xl font-bold tracking-tight text-gray-900">How this integration works</h2>
           <ul className="mt-5 space-y-3 text-base leading-7 text-gray-700">
-            <li>Files remain stored in Google Drive</li>
-            <li>Coneshare connects as an external sharing and tracking layer</li>
-            <li>No storage migration or duplication required</li>
+            <li>Google Drive remains part of your document workflow</li>
+            <li>Coneshare imports selected files for external sharing and tracking</li>
+            <li>No full storage migration required</li>
           </ul>
           <p className="mt-6 text-base leading-7 text-gray-700">Coneshare handles secure links, access control, engagement tracking, and workflow triggers.</p>
         </section>
@@ -88,7 +88,7 @@ export default function GoogleDriveIntegrationPage() {
         <section className="mx-auto mt-12 max-w-4xl">
           <h2 className="text-2xl font-bold tracking-tight text-gray-900">Workflow</h2>
           <ol className="mt-6 space-y-5 text-base leading-7 text-gray-700">
-            <li><strong>1. Connect Google Drive</strong>: link existing storage.</li>
+            <li><strong>1. Connect Google Drive</strong>: link your existing document workflow.</li>
             <li><strong>2. Apply sharing controls</strong>: configure secure access rules.</li>
             <li><strong>3. Share documents</strong>: generate trackable links.</li>
             <li><strong>4. Track and respond</strong>: monitor engagement and follow up.</li>
@@ -141,7 +141,7 @@ export default function GoogleDriveIntegrationPage() {
 
         <section className="mx-auto mt-12 max-w-4xl rounded-2xl bg-gray-900 px-8 py-10 text-center text-white">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">When sharing becomes high-stakes, upgrade your workflow</h2>
-          <p className="mt-4 text-base text-gray-200">Keep Google Drive. Add control, visibility, and action.</p>
+          <p className="mt-4 text-base text-gray-200">Keep your Google Drive workflow. Add control, visibility, and action.</p>
           <div className="mt-8 flex items-center justify-center gap-6">
             <Link href="/demo" className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-100">
               View live demo

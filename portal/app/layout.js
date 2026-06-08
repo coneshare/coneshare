@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
   title: 'Coneshare: Document Control and Intelligence Layer',
-  description: 'Turn existing storage into a secure, trackable data room with controlled sharing, engagement visibility, and workflow automation.',
+  description: 'Keep your storage workflow and add secure, trackable data rooms with controlled sharing, engagement visibility, and workflow automation.',
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },

@@ -3,7 +3,7 @@ import Link from 'next/link';
 export const metadata = {
   title: 'Nextcloud Integration: Secure Document Sharing and Tracking Layer | Coneshare',
   description:
-    'Connect Nextcloud to Coneshare to add secure sharing, document tracking, and workflow automation without moving your data.',
+    'Connect Nextcloud to Coneshare to add secure sharing, document tracking, and workflow automation to external document workflows.',
   keywords: [
     'nextcloud integration',
     'nextcloud secure sharing integration',
@@ -25,8 +25,8 @@ export default function NextcloudIntegrationPage() {
             Connect Nextcloud to add secure sharing, tracking, and workflows
           </h1>
           <p className="mt-6 text-lg leading-8 text-gray-600">
-            Coneshare works as a layer on top of your existing Nextcloud, adding controlled distribution and visibility
-            without changing your storage.
+            Coneshare works with your existing Nextcloud workflow, adding controlled distribution and visibility
+            for selected external sharing workflows.
           </p>
           <div className="mt-10 flex items-center justify-center gap-5">
             <Link href="/demo" className="rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800">
@@ -45,16 +45,16 @@ export default function NextcloudIntegrationPage() {
               Nextcloud already provides strong storage and access control. This integration adds the missing layer for external sharing:
               controlled distribution, engagement visibility, and event-driven workflows.
             </p>
-            <p><strong>Instead of replacing Nextcloud, Coneshare extends it.</strong></p>
+            <p><strong>Instead of replacing Nextcloud, Coneshare adds controlled external sharing workflows around it.</strong></p>
           </div>
         </div>
 
         <section className="mx-auto mt-12 max-w-4xl">
           <h2 className="text-2xl font-bold tracking-tight text-gray-900">How it fits your architecture</h2>
           <ul className="mt-5 space-y-3 text-base leading-7 text-gray-700">
-            <li>Files remain stored in Nextcloud</li>
-            <li>Coneshare connects as an integration layer</li>
-            <li>No storage duplication or migration required</li>
+            <li>Nextcloud remains part of your document workflow</li>
+            <li>Coneshare imports selected files for controlled external sharing</li>
+            <li>No full storage migration required</li>
             <li>Existing collaboration workflows remain unchanged</li>
           </ul>
           <p className="mt-6 text-base leading-7 text-gray-700">Coneshare handles secure link generation, access control enforcement, engagement tracking, and workflow triggers.</p>
@@ -163,7 +163,7 @@ export default function NextcloudIntegrationPage() {
 
         <section className="mx-auto mt-12 max-w-4xl rounded-2xl bg-gray-900 px-8 py-10 text-center text-white">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Add secure sharing and visibility to Nextcloud</h2>
-          <p className="mt-4 text-base text-gray-200">Extend your existing storage with control, tracking, and workflow actions.</p>
+          <p className="mt-4 text-base text-gray-200">Keep your Nextcloud workflow and add control, tracking, and workflow actions.</p>
           <div className="mt-8 flex items-center justify-center gap-6">
             <Link href="/demo" className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-100">
               View live demo

@@ -34,7 +34,7 @@ For some teams, that tradeoff is acceptable. For others, it is the wrong trust b
 
 ## Sensitive workflows need an infrastructure boundary
 
-Self-hosting matters when the organization needs to define where file content, metadata, access logs, activity events, and integration payloads are allowed to exist.
+Self-hosting matters when the organization needs to define where file content, metadata, access logs, activity events are allowed to exist.
 
 That boundary can matter for several reasons:
 
@@ -61,9 +61,9 @@ That can create friction:
 - teams lose the structure they already maintain;
 - internal and external workflows drift apart.
 
-For many organizations, the better model is a VDR layer on top of existing storage. The storage system remains the source of truth. The VDR adds controlled distribution, secure links, data room permissions, watermarking, viewer activity, and automation around the external workflow.
+For many organizations, the better model is to keep the existing storage workflow and use a dedicated layer for controlled external sharing. The VDR handles secure links, data room permissions, watermarking, viewer activity, and automation around the external workflow.
 
-This is the model Coneshare is built around: keep the storage layer, add the control and intelligence layer.
+This is the model Coneshare is built around: keep your storage workflow, then add controlled sharing, data rooms, tracking, and automation.
 
 ## Auditability is part of the product, not a report at the end
 
@@ -140,7 +140,7 @@ That is where self-hosted VDR matters.
 
 ## How Coneshare approaches this
 
-Coneshare is built as a document control and intelligence layer on top of existing storage.
+Coneshare is built as a document control and intelligence layer for teams that already have storage workflows in place.
 
 The goal is not to replace every storage system. The goal is to make sensitive external sharing more controlled, more observable, and easier to integrate with internal operations.
 

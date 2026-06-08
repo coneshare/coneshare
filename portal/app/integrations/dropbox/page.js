@@ -3,7 +3,7 @@ import Link from 'next/link';
 export const metadata = {
   title: 'Dropbox Integration: Controlled Sharing and Tracking | Coneshare',
   description:
-    'Extend Dropbox with secure sharing, document tracking, and workflow automation. Add visibility and control without changing storage.',
+    'Extend Dropbox workflows with secure sharing, document tracking, and workflow automation.',
   keywords: [
     'dropbox integration',
     'dropbox secure sharing',
@@ -25,7 +25,7 @@ export default function DropboxIntegrationPage() {
             Use Dropbox for collaboration. Add control when sharing externally.
           </h1>
           <p className="mt-6 text-lg leading-8 text-gray-600">
-            Coneshare adds a control and intelligence layer on top of Dropbox, turning shared-document activity into actionable signals.
+            Coneshare adds a control and intelligence layer for selected Dropbox files, turning shared-document activity into actionable signals.
           </p>
           <div className="mt-10 flex items-center justify-center gap-5">
             <Link href="/demo" className="rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800">
@@ -59,9 +59,9 @@ export default function DropboxIntegrationPage() {
         <section className="mx-auto mt-12 max-w-4xl">
           <h2 className="text-2xl font-bold tracking-tight text-gray-900">How this integration works</h2>
           <ul className="mt-5 space-y-3 text-base leading-7 text-gray-700">
-            <li>Files remain stored in Dropbox</li>
-            <li>Coneshare connects without replacing storage</li>
-            <li>No storage migration required</li>
+            <li>Dropbox remains part of your document workflow</li>
+            <li>Coneshare imports selected files for controlled external sharing</li>
+            <li>No full storage migration required</li>
           </ul>
           <p className="mt-6 text-base leading-7 text-gray-700">Coneshare handles controlled sharing, engagement tracking, and workflow automation.</p>
         </section>
@@ -87,7 +87,7 @@ export default function DropboxIntegrationPage() {
         <section className="mx-auto mt-12 max-w-4xl">
           <h2 className="text-2xl font-bold tracking-tight text-gray-900">Workflow</h2>
           <ol className="mt-6 space-y-5 text-base leading-7 text-gray-700">
-            <li><strong>1. Connect Dropbox</strong>: link your existing files.</li>
+            <li><strong>1. Connect Dropbox</strong>: link your existing document workflow.</li>
             <li><strong>2. Apply controls</strong>: configure secure sharing rules.</li>
             <li><strong>3. Share externally</strong>: generate controlled, trackable links.</li>
             <li><strong>4. Track and act</strong>: monitor engagement and trigger actions.</li>
@@ -142,7 +142,7 @@ export default function DropboxIntegrationPage() {
 
         <section className="mx-auto mt-12 max-w-4xl rounded-2xl bg-gray-900 px-8 py-10 text-center text-white">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Turn Dropbox sharing into actionable insight</h2>
-          <p className="mt-4 text-base text-gray-200">Add control, visibility, and workflows on top of your existing storage.</p>
+          <p className="mt-4 text-base text-gray-200">Keep your Dropbox workflow and add control, visibility, and workflows.</p>
           <div className="mt-8 flex items-center justify-center gap-6">
             <Link href="/demo" className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-100">
               View live demo

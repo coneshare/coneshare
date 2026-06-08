@@ -5,7 +5,7 @@ const SITE_URL = 'https://www.coneshare.com';
 
 export const metadata = {
   title: 'Features | Coneshare',
-  description: 'Explore Coneshare features that add secure control, engagement intelligence, and workflow actions on top of your existing storage.',
+  description: 'Explore Coneshare features that add secure control, engagement intelligence, and workflow actions to existing document workflows.',
   keywords: [
     'document control and intelligence layer',
     'nextcloud vdr layer',
@@ -23,7 +23,7 @@ export const metadata = {
 const layerGroups = [
   {
     title: 'Control Layer',
-    description: 'Add controlled sharing on top of your storage for sensitive external distribution.',
+    description: 'Add controlled sharing for sensitive external distribution.',
     slugs: ['secure-sharing', 'dynamic-watermarking', 'file-requests'],
   },
   {
@@ -85,8 +85,8 @@ export default function FeaturesPage() {
             A control and intelligence layer for your documents
           </p>
           <p className="mt-6 text-lg leading-8 text-gray-600">
-            Coneshare works on top of Nextcloud, Google Drive, and Dropbox. Keep files where they are and add control,
-            visibility, and workflow actions without replacing your storage stack.
+            Coneshare works with Nextcloud, Google Drive, and Dropbox workflows. Keep your storage workflow and add
+            control, visibility, and workflow actions for external distribution.
           </p>
           <div className="mt-8 flex items-center justify-center gap-6 text-sm font-semibold">
             <Link href="/integrations/nextcloud" className="text-gray-900 hover:text-gray-700">Nextcloud integration</Link>

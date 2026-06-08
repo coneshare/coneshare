@@ -15,7 +15,7 @@ export const features = [
       'Set password, verification, and expiration controls on shared links.',
       'Share deck or dataroom content with external recipients.',
       'Recipients access only what their permission scope allows.',
-      'Team updates files without breaking active share links.',
+      'Team uploads new versions without breaking active share links.',
     ],
     icon: ShieldCheck,
     content: (
@@ -25,7 +25,7 @@ export const features = [
         <Image src="/screenshots/feat-sharing.png" alt="Screenshot of creating a secure share link" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
 
         <h3 className="text-xl font-semibold mb-4">Live Document Updates</h3>
-        <p>Update files without breaking links. Every shared link points to the latest version, so recipients always see current content without resending links.</p>
+        <p>Upload new versions without breaking links. Every shared link points to the latest Coneshare version, so recipients see updated content without resending links.</p>
         <Image src="/screenshots/feat-sharing2.png" alt="Screenshot of creating a secure share link" width={1200} height={750} className="my-6 rounded-lg shadow-lg border" />
       </div>
     )
@@ -619,18 +619,18 @@ export const integrations = [
     slug: 'nextcloud',
     name: 'Nextcloud',
     menuName: 'Nextcloud',
-    description: 'Add a secure, trackable data room layer on top of your self-hosted Nextcloud storage.',
+    description: 'Use Nextcloud as part of your storage workflow while adding secure, trackable data room capabilities.',
   },
   {
     slug: 'google-drive',
     name: 'Google Drive',
     menuName: 'Google Drive',
-    description: 'Add controlled sharing and engagement visibility on top of existing Google Drive files.',
+    description: 'Add controlled sharing and engagement visibility to Google Drive document workflows.',
   },
   {
     slug: 'dropbox',
     name: 'Dropbox',
     menuName: 'Dropbox',
-    description: 'Keep Dropbox as storage while adding secure distribution, tracking, and workflow automation.',
+    description: 'Keep Dropbox in your workflow while adding secure distribution, tracking, and workflow automation.',
   },
 ];

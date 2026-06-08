@@ -46,7 +46,7 @@ export default function DocsendAlternativePage() {
         acceptedAnswer: {
           '@type': 'Answer',
           text:
-            'With Coneshare, you can keep your existing storage model and add sharing controls and tracking workflows on top.',
+            'With Coneshare, you can keep your existing storage workflow and add controlled sharing, tracking, and data room workflows for selected external distribution.',
         },
       },
       {
@@ -70,8 +70,8 @@ export default function DocsendAlternativePage() {
             A DocSend alternative for secure, trackable document sharing
           </h1>
           <p className="mt-6 text-lg leading-8 text-gray-600">
-            Coneshare adds secure sharing, document tracking, and data room workflows on top of your existing storage without
-            requiring a separate SaaS document repository.
+            Coneshare lets teams keep existing storage workflows while adding secure sharing, document tracking, and
+            data room workflows for controlled external distribution.
           </p>
           <p className="mt-3 text-base text-gray-600">Works with Google Drive, Dropbox, and Nextcloud.</p>
           <div className="mt-10 flex items-center justify-center gap-5">
@@ -105,7 +105,7 @@ export default function DocsendAlternativePage() {
               <li>Secure link-based sharing with granular controls</li>
               <li>Document tracking and engagement visibility</li>
               <li>Virtual data room organization and access workflows</li>
-              <li>Compatibility with existing storage systems</li>
+              <li>Compatibility with existing storage workflows</li>
               <li>Deployment and data control options</li>
             </ul>
           </div>
@@ -115,8 +115,8 @@ export default function DocsendAlternativePage() {
           <div className="prose prose-lg max-w-none text-gray-700">
             <h2 className="text-gray-900">Coneshare takes a different approach</h2>
             <p>
-              You do not need to replace storage. You need to control distribution and understand engagement after sharing.
-              Coneshare operates as a control and intelligence layer above existing storage.
+              You do not need to replace your storage workflow. You need to control distribution and understand engagement
+              after sharing. Coneshare adds a control and intelligence layer for selected external document workflows.
             </p>
             <p>
               If you are Nextcloud-first, start with the <Link href="/nextcloud-vdr">Nextcloud VDR page</Link>. You can also review
@@ -178,7 +178,7 @@ export default function DocsendAlternativePage() {
                 <tr>
                   <td className="px-4 py-3 text-gray-700">Storage workflow</td>
                   <td className="px-4 py-3 text-gray-700">Upload into separate SaaS workspace</td>
-                  <td className="px-4 py-3 text-gray-700">Layer on top of existing storage workflows</td>
+                  <td className="px-4 py-3 text-gray-700">Controlled distribution layer for existing storage workflows</td>
                 </tr>
                 <tr>
                   <td className="px-4 py-3 text-gray-700">Flexibility</td>
@@ -220,7 +220,7 @@ export default function DocsendAlternativePage() {
             </p>
             <h3>Can I use my existing storage with a DocSend alternative?</h3>
             <p>
-              With Coneshare, you can keep existing storage workflows and add secure distribution controls and tracking on top.
+              With Coneshare, you can keep existing storage workflows and add secure distribution controls and tracking for selected external sharing.
             </p>
             <h3>Is Coneshare self-hosted?</h3>
             <p>
@@ -233,7 +233,7 @@ export default function DocsendAlternativePage() {
         <section className="mx-auto mt-12 max-w-4xl rounded-2xl border border-gray-200 bg-gray-50 p-8">
           <h2 className="text-2xl font-bold tracking-tight text-gray-900">Using Nextcloud?</h2>
           <p className="mt-4 text-base leading-7 text-gray-700">
-            Coneshare adds VDR-style sharing, document tracking, and workflow actions on top of Nextcloud.
+            Coneshare adds VDR-style sharing, document tracking, and workflow actions to Nextcloud-based document workflows.
           </p>
           <p className="mt-6">
             <Link href="/nextcloud-vdr" className="text-sm font-semibold text-gray-900 hover:text-gray-700">
@@ -244,7 +244,7 @@ export default function DocsendAlternativePage() {
 
         <section className="mx-auto mt-12 max-w-4xl rounded-2xl bg-gray-900 px-8 py-10 text-center text-white">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Looking for a DocSend alternative?</h2>
-          <p className="mt-4 text-base text-gray-200">Keep your data model. Add control, visibility, and workflows.</p>
+          <p className="mt-4 text-base text-gray-200">Keep your storage workflow. Add control, visibility, and workflows.</p>
           <div className="mt-8 flex items-center justify-center gap-6">
             <Link href="/demo" className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-100">
               View live demo
