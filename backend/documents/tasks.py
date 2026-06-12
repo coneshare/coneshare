@@ -26,6 +26,16 @@ def convert_office_to_pdf_task(version_id):
         version = DocumentVersion.objects.select_related('document').get(id=version_id)
         document = version.document
 
+        if version.has_pages:
+            version.render_status = DocumentVersion.RENDER_READY
+            version.render_error = ''
+            version.save(update_fields=['render_status', 'render_error', 'updated_at'])
+            return
+
+        version.render_status = DocumentVersion.RENDER_PROCESSING
+        version.render_error = ''
+        version.save(update_fields=['render_status', 'render_error', 'updated_at'])
+
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_dir_path = Path(temp_dir)
             
@@ -63,7 +73,7 @@ def convert_office_to_pdf_task(version_id):
             version.storage_key = new_storage_key
             version.content_type = 'application/pdf'
             version.type = 'pdf'
-            version.save()
+            version.save(update_fields=['storage_key', 'content_type', 'type', 'updated_at'])
             
             # 5. Trigger the next stage of processing
             generate_pdf_pages_task.delay(version.id)
@@ -71,9 +81,10 @@ def convert_office_to_pdf_task(version_id):
     except DocumentVersion.DoesNotExist:
         return
     except Exception as e:
-        if 'document' in locals():
-            document.status = 'error'
-            document.save()
+        if 'version' in locals():
+            version.render_status = DocumentVersion.RENDER_FAILED
+            version.render_error = str(e)[:1000]
+            version.save(update_fields=['render_status', 'render_error', 'updated_at'])
         logger.error(f"Error converting document version {version_id}: {e}")
 
 
@@ -90,6 +101,16 @@ def generate_pdf_pages_task(version_id):
         return  # Or log an error
 
     try:
+        if version.has_pages:
+            version.render_status = DocumentVersion.RENDER_READY
+            version.render_error = ''
+            version.save(update_fields=['render_status', 'render_error', 'updated_at'])
+            return
+
+        version.render_status = DocumentVersion.RENDER_PROCESSING
+        version.render_error = ''
+        version.save(update_fields=['render_status', 'render_error', 'updated_at'])
+
         # 1. Fetch PDF from storage
         download_url = fileserver_client.generate_download_url(version.storage_key)
         response = requests.get(download_url)
@@ -102,14 +123,18 @@ def generate_pdf_pages_task(version_id):
 
         max_pages = get_dynamic_setting('MAX_PREVIEW_PAGES')
         if page_count > max_pages:
-            document.status = 'ready'
-            document.num_pages = page_count
-            document.download_only = True
-            document.status_message = "Document has too many pages to generate a preview."
-            document.save()
-
+            version.refresh_from_db(fields=['is_primary'])
             version.num_pages = page_count
-            version.save()
+            version.render_status = DocumentVersion.RENDER_FAILED
+            version.render_error = "Document has too many pages to generate a preview."
+            version.save(update_fields=['num_pages', 'render_status', 'render_error', 'updated_at'])
+
+            if version.is_primary:
+                document.status = 'ready'
+                document.num_pages = page_count
+                document.status_message = "Document has too many pages to generate a preview."
+                document.save(update_fields=['status', 'num_pages', 'status_message', 'updated_at'])
+
             logger.info(f"Skipping page generation for document {document.id}, page count ({page_count}) > {max_pages}.")
             return
 
@@ -118,6 +143,7 @@ def generate_pdf_pages_task(version_id):
 
         # 3. Save page images and create DB records
         base_path, _ = os.path.splitext(version.original_storage_key)
+        version.pages.all().delete()
         for i, image in enumerate(images):
             page_num = i + 1
             page_storage_key = f"{base_path}_page_{page_num}.png"
@@ -137,20 +163,27 @@ def generate_pdf_pages_task(version_id):
 
         # 4. Finalize status and metadata
         num_pages = len(images)
+        version.refresh_from_db(fields=['is_primary'])
         version.num_pages = num_pages
         version.has_pages = True
-        version.is_primary = True  # This is the first version
-        version.save()
+        version.render_status = DocumentVersion.RENDER_READY
+        version.render_error = ''
+        version.save(update_fields=[
+            'num_pages', 'has_pages', 'render_status', 'render_error', 'updated_at'
+        ])
 
-        document.num_pages = num_pages
-        document.storage_key = version.storage_key
-        document.status = 'ready'
-        document.save()
+        if version.is_primary:
+            document.num_pages = num_pages
+            document.storage_key = version.storage_key
+            document.status = 'ready'
+            document.status_message = ''
+            document.save(update_fields=[
+                'num_pages', 'storage_key', 'status', 'status_message', 'updated_at'
+            ])
 
     except Exception as e:
-        # Basic error handling: mark document as failed and log
-        if 'document' in locals():
-            document.status = 'error'
-            document.save()
+        version.render_status = DocumentVersion.RENDER_FAILED
+        version.render_error = str(e)[:1000]
+        version.save(update_fields=['render_status', 'render_error', 'updated_at'])
         # Consider more robust logging in a real application
         logger.error(f"Error processing document version {version_id}: {e}")

@@ -322,8 +322,8 @@ class TestPublicFileRequestViews:
         assert uploaded_file.uploader_name == 'John Doe'
         assert uploaded_file.uploader_email == 'john.doe@example.com'
 
-        # The service should have triggered a processing task
-        mock_task_delay.assert_called_once()
+        # Preview rendering is deferred until first preview access.
+        mock_task_delay.assert_not_called()
         mock_dispatch_automation.assert_called_once()
         event_type, payload = mock_dispatch_automation.call_args.args
         assert event_type == 'file_request_uploaded'
