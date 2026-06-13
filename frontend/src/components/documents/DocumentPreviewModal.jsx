@@ -8,6 +8,13 @@ import {
 } from '../ui/Dialog';
 import { Skeleton } from '../ui/Skeleton';
 import { PreviewViewer } from './PreviewViewer';
+import {
+  hasRenderablePages,
+  isPreviewPending,
+  PreviewStatePanel,
+} from './PreviewStatePanel';
+
+const PREVIEW_POLL_INTERVAL_MS = 3000;
 
 export function DocumentPreviewModal({ documentId, isOpen, onOpenChange }) {
   const [documentData, setDocumentData] = useState(null);
@@ -22,13 +29,22 @@ export function DocumentPreviewModal({ documentId, isOpen, onOpenChange }) {
 
     let isCancelled = false;
 
-    const fetchPreviewData = async () => {
-      setIsLoading(true);
+    let pollTimer = null;
+
+    const fetchPreviewData = async ({ showLoading = false } = {}) => {
+      if (showLoading) {
+        setIsLoading(true);
+      }
       setError(null);
       try {
         const response = await getDocumentPreviewData(documentId);
         if (!isCancelled) {
           setDocumentData(response.data);
+          if (isPreviewPending(response.data)) {
+            pollTimer = window.setTimeout(() => {
+              fetchPreviewData();
+            }, PREVIEW_POLL_INTERVAL_MS);
+          }
         }
       } catch (err) {
         if (!isCancelled) {
@@ -42,10 +58,11 @@ export function DocumentPreviewModal({ documentId, isOpen, onOpenChange }) {
       }
     };
 
-    fetchPreviewData();
+    fetchPreviewData({ showLoading: true });
 
     return () => {
       isCancelled = true;
+      window.clearTimeout(pollTimer);
     };
   }, [isOpen, documentId]);
 
@@ -66,11 +83,17 @@ export function DocumentPreviewModal({ documentId, isOpen, onOpenChange }) {
             </div>
           )}
           {error && <p className="text-center text-red-500">{error}</p>}
-          {documentData && (
+          {documentData && hasRenderablePages(documentData) && (
             <PreviewViewer
               documentData={documentData}
               zoomLevel={1}
               onPageChange={() => null}
+            />
+          )}
+          {documentData && !hasRenderablePages(documentData) && !error && (
+            <PreviewStatePanel
+              documentData={documentData}
+              allowDownload={Boolean(documentData.download_url)}
             />
           )}
         </div>

@@ -1,8 +1,13 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { LazyImage } from './LazyImage';
 import { recordPageView } from '../../services/api';
 
 export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId, dataroomVisitId }) {
+  const pages = useMemo(
+    () => (Array.isArray(documentData?.pages) ? documentData.pages : []),
+    [documentData?.pages]
+  );
+  const documentIdentity = documentData?.id ?? documentData?.document_id ?? documentData?.name ?? null;
   const [scrollContainer, setScrollContainer] = useState(null);
   const pageRefs = useRef(new Map());
   const visibilityRatiosRef = useRef(new Map());
@@ -87,7 +92,7 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId, d
   }, [sendTrackingData]);
 
   useEffect(() => {
-    if (!scrollContainer) return;
+    if (!scrollContainer || !documentIdentity) return;
 
     // Always start a newly loaded document at the first page.
     scrollContainer.scrollTop = 0;
@@ -95,6 +100,12 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId, d
     timeOnPageRef.current = 0;
     visibilityRatiosRef.current.clear();
     onPageChange(1);
+  }, [documentIdentity, onPageChange, scrollContainer]);
+
+  useEffect(() => {
+    if (!scrollContainer) return;
+
+    visibilityRatiosRef.current.clear();
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -139,7 +150,7 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId, d
       });
       observer.disconnect();
     };
-  }, [documentData.pages, onPageChange, sendTrackingData, scrollContainer]);
+  }, [pages, onPageChange, sendTrackingData, scrollContainer]);
 
   return (
     <div
@@ -150,7 +161,7 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId, d
         className="mx-auto flex w-fit origin-top flex-col items-center space-y-4 p-4 transition-transform duration-200"
         style={{ transform: `scale(${zoomLevel})` }}
       >
-        {documentData.pages.map((page) => (
+        {pages.map((page) => (
           <div
             key={page.page_number}
             ref={(node) => {

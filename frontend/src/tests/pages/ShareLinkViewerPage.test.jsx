@@ -1,5 +1,5 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ShareLinkViewerPage } from '../../pages/ShareLinkViewerPage';
 import * as api from '../../services/api';
@@ -48,7 +48,12 @@ vi.mock('../../components/viewer/QnAPanel', () => ({
 describe('ShareLinkViewerPage', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.useRealTimers();
     api.getPublicQnaSummary.mockResolvedValue({ data: { thread_count: 0 } });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   const mockDocumentData = {
@@ -173,6 +178,48 @@ describe('ShareLinkViewerPage', () => {
       parentId: null,
     });
     expect(api.createViewSession).toHaveBeenCalledWith({ share_link: 'link_abc' });
+  });
+
+  it('keeps polling after a background preview poll fails', async () => {
+    vi.useFakeTimers();
+    const pendingDocumentData = {
+      ...mockDocumentData,
+      pages: [],
+      preview_status: 'processing',
+      render_status: 'queued',
+      download_url: '/download/test.pdf',
+    };
+
+    api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
+    api.getShareLinkViewData
+      .mockResolvedValueOnce({ data: pendingDocumentData })
+      .mockRejectedValueOnce({ response: { status: 502, data: { message: 'Bad Gateway' } } })
+      .mockResolvedValueOnce({ data: pendingDocumentData });
+    api.createViewSession.mockResolvedValue({ data: mockViewData });
+
+    renderComponent('/view/test-slug');
+
+    await waitFor(() => {
+      expect(screen.getByText('This may take a moment for large documents.')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(3000);
+    });
+    await waitFor(() => {
+      expect(api.getShareLinkViewData).toHaveBeenCalledTimes(2);
+    });
+
+    expect(screen.queryByText(/error/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Bad Gateway')).not.toBeInTheDocument();
+    expect(screen.getByText('This may take a moment for large documents.')).toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(3000);
+    });
+    await waitFor(() => {
+      expect(api.getShareLinkViewData).toHaveBeenCalledTimes(3);
+    });
   });
 
   it('passes accessToken from URL to API call', async () => {
