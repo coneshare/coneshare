@@ -453,6 +453,39 @@ class TestShareLinkViewDataView:
 
         mock_fs_download_url.assert_called_once_with("path/to/original.pdf", is_internal=False)
 
+    @patch('sharelinks.views.enqueue_server_preview_render')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_get_share_link_data_hides_download_url_when_downloads_disabled(
+        self, mock_fs_download_url, mock_enqueue_preview, public_client, share_link
+    ):
+        """Pending lazy previews must not expose original-file URLs when downloads are disabled."""
+        share_link.allow_download = False
+        share_link.save()
+
+        document = share_link.document
+        document.type = 'pdf'
+        document.content_type = 'application/pdf'
+        document.download_only = False
+        document.save()
+
+        primary_version = document.versions.get(is_primary=True)
+        primary_version.original_storage_key = "path/to/original.pdf"
+        primary_version.storage_key = "path/to/original.pdf"
+        primary_version.type = 'pdf'
+        primary_version.render_status = DocumentVersion.RENDER_NOT_GENERATED
+        primary_version.has_pages = False
+        primary_version.save()
+        mock_enqueue_preview.return_value = DocumentVersion.RENDER_QUEUED
+
+        response = public_client.get(f'/api/v1/links/{share_link.slug}/view-data/')
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["preview_status"] == "processing"
+        assert data["download_url"] is None
+        mock_enqueue_preview.assert_called_once_with(primary_version)
+        mock_fs_download_url.assert_not_called()
+
     @override_settings(SITE_DOMAIN="http://test.coneshare.com")
     def test_get_share_link_data_for_image_document(self, public_client, image_document_with_content, user):
         """
@@ -914,6 +947,42 @@ class TestDataroomVisitTracking:
         data = response.json()
         assert "link_settings" in data
         assert data['link_settings']['allow_download'] is False  # Should reflect the specific setting
+
+    @patch('sharelinks.views.enqueue_server_preview_render')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_get_dataroom_document_hides_download_url_when_item_downloads_disabled(
+        self, mock_fs_download_url, mock_enqueue_preview, public_client, user, dataroom, document
+    ):
+        """Dataroom item-specific download restrictions apply to lazy preview fallbacks."""
+        document.type = 'pdf'
+        document.content_type = 'application/pdf'
+        document.download_only = False
+        document.save()
+
+        primary_version = document.versions.get(is_primary=True)
+        primary_version.original_storage_key = "path/to/original.pdf"
+        primary_version.storage_key = "path/to/original.pdf"
+        primary_version.type = 'pdf'
+        primary_version.render_status = DocumentVersion.RENDER_NOT_GENERATED
+        primary_version.has_pages = False
+        primary_version.save()
+
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user, allow_download=True)
+        setting = link.dataroom_settings.get(dataroom_document=ddoc)
+        setting.allow_download = False
+        setting.save()
+        mock_enqueue_preview.return_value = DocumentVersion.RENDER_QUEUED
+
+        response = public_client.get(f"/api/v1/links/{link.slug}/view-data/?dataroom_document_id={ddoc.id}")
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["preview_status"] == "processing"
+        assert data["link_settings"]["allow_download"] is False
+        assert data["download_url"] is None
+        mock_enqueue_preview.assert_called_once_with(primary_version)
+        mock_fs_download_url.assert_not_called()
 
     def test_get_dataroom_document_by_document_id_is_rejected(
         self, public_client, user, dataroom, document

@@ -6,6 +6,7 @@ from documents.services import (
     create_document_from_upload,
     delete_document_and_files,
     copy_document,
+    enqueue_server_preview_render,
     QuotaExceededError,
 )
 
@@ -28,7 +29,7 @@ class TestCreateDocumentFromUpload:
         assert Document.objects.count() == 1
         created_document = Document.objects.first()
         assert created_document == document
-        assert created_document.status == 'processing'
+        assert created_document.status == 'ready'
         assert created_document.name == 'test.pdf'
         assert created_document.created_by == user
 
@@ -39,9 +40,75 @@ class TestCreateDocumentFromUpload:
         assert version.version_number == 1
         assert version.original_storage_key == f"{user.organization.id}/mock_path.pdf"
         assert version.file_size == 123
+        assert version.render_status == DocumentVersion.RENDER_NOT_GENERATED
+        assert version.has_pages is False
 
-        # 3. Assert that the Celery task was called once with the new version's ID
+        # 3. Assert that preview rendering is deferred until first preview access.
+        mock_task_delay.assert_not_called()
+
+
+@pytest.mark.django_db
+class TestEnqueueServerPreviewRender:
+    @patch('documents.services.generate_pdf_pages_task.delay')
+    def test_enqueue_updates_in_memory_render_state(self, mock_task_delay, user):
+        document = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="queued.pdf",
+            status='ready',
+            type='pdf',
+            content_type='application/pdf',
+            download_only=False,
+        )
+        version = DocumentVersion.objects.create(
+            document=document,
+            version_number=1,
+            original_storage_key="queued.pdf",
+            storage_key="queued.pdf",
+            type='pdf',
+            is_primary=True,
+            render_status=DocumentVersion.RENDER_NOT_GENERATED,
+            render_error="stale error",
+        )
+
+        render_status = enqueue_server_preview_render(version)
+
+        assert render_status == DocumentVersion.RENDER_QUEUED
+        assert version.render_status == DocumentVersion.RENDER_QUEUED
+        assert version.render_error == ''
         mock_task_delay.assert_called_once_with(version.id)
+
+    def test_enqueue_refreshes_render_error_when_concurrent_update_wins(self, user):
+        document = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="failed.pdf",
+            status='ready',
+            type='pdf',
+            content_type='application/pdf',
+            download_only=False,
+        )
+        version = DocumentVersion.objects.create(
+            document=document,
+            version_number=1,
+            original_storage_key="failed.pdf",
+            storage_key="failed.pdf",
+            type='pdf',
+            is_primary=True,
+            render_status=DocumentVersion.RENDER_NOT_GENERATED,
+            render_error='',
+        )
+
+        DocumentVersion.objects.filter(pk=version.pk).update(
+            render_status=DocumentVersion.RENDER_FAILED,
+            render_error="Conversion failed.",
+        )
+
+        render_status = enqueue_server_preview_render(version)
+
+        assert render_status == DocumentVersion.RENDER_FAILED
+        assert version.render_status == DocumentVersion.RENDER_FAILED
+        assert version.render_error == "Conversion failed."
 
 
 

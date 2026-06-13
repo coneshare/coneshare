@@ -923,23 +923,36 @@ def test_get_document_preview_data_not_ready(api_client, user):
     )
     response = api_client.get(f'/api/v1/documents/{doc.id}/preview-data/')
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert "still processing" in response.json()['detail']
+    assert "not ready" in response.json()['detail']
 
 
 @pytest.mark.django_db
 @override_settings(MAX_PREVIEW_PAGES=10)
 def test_get_document_preview_data_too_many_pages(api_client, user):
-    """Test getting preview data for a document with more pages than the configured limit."""
+    """Test preview data reports render failure when preview generation exceeded page limits."""
     doc = Document.objects.create(
         organization=user.organization,
         created_by=user,
         name="large_doc.pdf",
         status='ready',
-        num_pages=11
+        num_pages=11,
+        type='pdf',
+        content_type='application/pdf',
+    )
+    DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        is_primary=True,
+        original_storage_key="large_doc.pdf",
+        storage_key="large_doc.pdf",
+        type='pdf',
+        render_status=DocumentVersion.RENDER_FAILED,
+        render_error="Document has too many pages to generate a preview.",
     )
     response = api_client.get(f'/api/v1/documents/{doc.id}/preview-data/')
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.json()['detail'] == "This document has too many pages for an in-browser preview."
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()['preview_status'] == "failed"
+    assert response.json()['render_error'] == "Document has too many pages to generate a preview."
 
 
 @pytest.mark.django_db
@@ -1066,14 +1079,15 @@ class TestDocumentVersionUploadViews:
         doc.refresh_from_db()
         initial_version.refresh_from_db()
 
-        assert doc.status == 'processing'
+        assert doc.status == 'ready'
         assert doc.versions.count() == 2
 
         new_version = doc.versions.get(version_number=2)
         assert new_version.is_primary is True
         assert initial_version.is_primary is False
+        assert new_version.render_status == DocumentVersion.RENDER_NOT_GENERATED
 
-        mock_task_delay.assert_called_once_with(new_version.id)
+        mock_task_delay.assert_not_called()
 
     def test_upload_version_for_other_user_doc_permission_denied(self, api_client, user2):
         """Test a user cannot upload a new version to another user's document."""

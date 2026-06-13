@@ -119,7 +119,8 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
         model = DocumentVersion
         fields = [
             'id', 'version_number', 'file_size', 'num_pages',
-            'is_primary', 'has_pages', 'pages', 'created_at'
+            'is_primary', 'has_pages', 'render_status', 'render_error',
+            'pages', 'created_at'
         ]
         read_only_fields = fields
 

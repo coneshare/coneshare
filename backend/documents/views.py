@@ -32,6 +32,9 @@ from .services import (
     delete_folder_and_contents,
     generate_storage_key,
     copy_document,
+    enqueue_server_preview_render,
+    preview_mode_for_version,
+    preview_status_for_render_status,
 )
 
 
@@ -601,7 +604,13 @@ class DocumentPreviewDataView(APIView):
         name = serializers.CharField()
         type = serializers.CharField()
         num_pages = serializers.IntegerField(allow_null=True)
+        preview_mode = serializers.CharField()
+        preview_status = serializers.CharField()
+        render_status = serializers.CharField()
+        render_error = serializers.CharField(allow_blank=True, allow_null=True)
         pages = serializers.ListField(child=serializers.DictField())
+        pdf_url = serializers.CharField(allow_null=True)
+        download_url = serializers.CharField(allow_null=True)
 
     @extend_schema(
         responses={200: DocumentPreviewResponseSerializer, 400: dict, 404: dict},
@@ -620,22 +629,9 @@ class DocumentPreviewDataView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Handle documents that are not ready for preview
-        if document.status == 'processing':
-            return Response(
-                {"detail": "Document is still processing. Please wait and try again."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        elif document.status != 'ready':
+        if document.status != 'ready':
              return Response(
                 {"detail": "Document is not ready for preview."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        max_pages = get_dynamic_setting('MAX_PREVIEW_PAGES')
-        if document.num_pages and document.num_pages > max_pages:
-            return Response(
-                {"detail": "This document has too many pages for an in-browser preview."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -647,15 +643,39 @@ class DocumentPreviewDataView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        preview_mode = preview_mode_for_version(primary_version)
+        render_status = enqueue_server_preview_render(primary_version)
+
+        preview_status = preview_status_for_render_status(render_status)
+
         # Content Processing and Response Shaping
-        pages_data = prepare_pages_data(document, primary_version)
+        pages_data = []
+        if preview_mode == 'image' or render_status == 'ready':
+            pages_data = prepare_pages_data(document, primary_version)
+
+        download_url = None
+        if preview_mode == 'image' and pages_data:
+            download_url = pages_data[0]['url']
+        elif primary_version.original_storage_key:
+            try:
+                download_url = fileserver_client.generate_download_url(
+                    primary_version.original_storage_key, is_internal=False
+                )
+            except APIException:
+                download_url = None
 
         response_data = {
             "id": document.id,
             "name": document.name,
             "type": document.type,
             "num_pages": document.num_pages,
+            "preview_mode": preview_mode,
+            "preview_status": preview_status,
+            "render_status": render_status,
+            "render_error": primary_version.render_error,
             "pages": pages_data,
+            "pdf_url": None,
+            "download_url": download_url,
         }
 
         return Response(response_data, status=status.HTTP_200_OK)

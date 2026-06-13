@@ -91,6 +91,22 @@ class DocumentVersion(BaseModel):
     """
     Enables version control for a Document. Each version tracks a specific file state.
     """
+    RENDER_NOT_APPLICABLE = 'not_applicable'
+    RENDER_NOT_GENERATED = 'not_generated'
+    RENDER_QUEUED = 'queued'
+    RENDER_PROCESSING = 'processing'
+    RENDER_READY = 'ready'
+    RENDER_FAILED = 'failed'
+
+    RENDER_STATUS_CHOICES = [
+        (RENDER_NOT_APPLICABLE, 'Not applicable'),
+        (RENDER_NOT_GENERATED, 'Not generated'),
+        (RENDER_QUEUED, 'Queued'),
+        (RENDER_PROCESSING, 'Processing'),
+        (RENDER_READY, 'Ready'),
+        (RENDER_FAILED, 'Failed'),
+    ]
+
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='versions')
     version_number = models.IntegerField()
     storage_key = models.CharField(max_length=1024, blank=True)  # Key for the file to be processed into pages (e.g., a PDF).
@@ -104,6 +120,13 @@ class DocumentVersion(BaseModel):
     is_primary = models.BooleanField(default=False)
     is_vertical = models.BooleanField(default=True)
     has_pages = models.BooleanField(default=False)
+    render_status = models.CharField(
+        max_length=20,
+        choices=RENDER_STATUS_CHOICES,
+        default=RENDER_NOT_APPLICABLE,
+        db_index=True,
+    )
+    render_error = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f'{self.document.name} v{self.version_number}'

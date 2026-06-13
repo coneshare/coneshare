@@ -25,6 +25,7 @@ OFFICE_MIMETYPES = [
 ]
 IMAGE_MIMETYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 PDF_MIMETYPE = 'application/pdf'
+SERVER_RENDERABLE_TYPES = {'document', 'pdf'}
 
 
 class QuotaExceededError(Exception):
@@ -71,7 +72,7 @@ def _get_doc_type_from_content_type(content_type: str) -> str:
 def _route_document_for_processing(document: Document, version: DocumentVersion, file_size: int, content_type: str):
     """
     Routes a document/version for processing based on type and size.
-    Updates the parent document's state and triggers the appropriate async task.
+    Updates file availability and records server-rendered preview state.
     """
     max_preview_file_size_mb = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
     max_size_bytes = max_preview_file_size_mb * 1024 * 1024
@@ -86,24 +87,139 @@ def _route_document_for_processing(document: Document, version: DocumentVersion,
     document.content_type = content_type
     document.file_size = file_size
 
-    # Trigger task or set status to ready
+    version.render_error = ''
+
+    # The file itself is ready after upload. Heavy server-rendered preview
+    # generation is deferred until the first preview request.
     if is_previewable:
         if doc_type == 'image':
             document.status = 'ready'
             document.num_pages = 1
             version.num_pages = 1
             version.has_pages = True
+            version.render_status = DocumentVersion.RENDER_NOT_APPLICABLE
             version.save()
         else:  # Office or PDF
-            document.status = 'processing'
-            if doc_type == 'document':
-                convert_office_to_pdf_task.delay(version.id)
-            elif doc_type == 'pdf':
-                generate_pdf_pages_task.delay(version.id)
+            document.status = 'ready'
+            version.has_pages = False
+            version.render_status = DocumentVersion.RENDER_NOT_GENERATED
+            version.save(update_fields=['has_pages', 'render_status', 'render_error', 'updated_at'])
     else:  # Download only
         document.status = 'ready'
+        version.has_pages = False
+        version.render_status = DocumentVersion.RENDER_NOT_APPLICABLE
+        version.save(update_fields=['has_pages', 'render_status', 'render_error', 'updated_at'])
 
     document.save()
+
+
+def is_server_renderable_version(version: DocumentVersion) -> bool:
+    """
+    Return whether this version can use the server page-image renderer.
+
+    Check both document.type and version.type because they can diverge during
+    Office conversion: the user-facing document remains "document", while the
+    processed version may become "pdf" after LibreOffice conversion. A
+    download-only document is excluded even if its MIME family is renderable;
+    upload routing uses download_only for unsupported files and files larger
+    than MAX_PREVIEW_FILE_SIZE_MB, and future capability flags may also use it
+    to keep Office/PDF files out of the heavy preview pipeline.
+    """
+    document = version.document
+    return (
+        document.type in SERVER_RENDERABLE_TYPES
+        and version.type in SERVER_RENDERABLE_TYPES
+        and not document.download_only
+    )
+
+
+def get_effective_render_status(version: DocumentVersion) -> str:
+    """
+    Normalize persisted render fields into the status the preview API should expose.
+
+    has_pages wins because page-image assets are the server renderer's usable
+    output. If those assets exist, preview can proceed even if render_status is
+    stale from older rows, migrations, or interrupted task updates. The fallback
+    to not_generated is defensive for incomplete legacy/test objects; persisted
+    rows should normally have a non-empty render_status from the model default.
+    """
+    if version.has_pages:
+        return DocumentVersion.RENDER_READY
+    if not is_server_renderable_version(version):
+        return DocumentVersion.RENDER_NOT_APPLICABLE
+    return version.render_status
+
+
+def preview_mode_for_version(version: DocumentVersion) -> str:
+    """Choose the viewer mode from document type and server-render eligibility."""
+    document = version.document
+    if document.download_only:
+        return 'download_only'
+    if document.type == 'image':
+        return 'image'
+    if is_server_renderable_version(version):
+        return 'server_pages'
+    return 'download_only'
+
+
+def preview_status_for_render_status(render_status: str) -> str:
+    """Map internal render lifecycle values to coarse frontend preview states."""
+    if render_status in {
+        DocumentVersion.RENDER_QUEUED,
+        DocumentVersion.RENDER_PROCESSING,
+    }:
+        return 'processing'
+    if render_status == DocumentVersion.RENDER_READY:
+        return 'ready'
+    if render_status == DocumentVersion.RENDER_FAILED:
+        return 'failed'
+    if render_status == DocumentVersion.RENDER_NOT_GENERATED:
+        return 'not_generated'
+    return 'not_applicable'
+
+
+def enqueue_server_preview_render(version: DocumentVersion) -> str:
+    """
+    Ensure server page-image generation is queued when this version needs it.
+
+    This is safe to call for any preview request: ready, failed, processing,
+    queued, download-only, and image versions are returned as-is. Only
+    not_generated server-renderable versions attempt the conditional update.
+    That update is the idempotency boundary for concurrent first views.
+
+    Returns the effective render status after the enqueue attempt or race
+    resolution. Keeps the passed model instance synchronized for callers that
+    also read render_error or render_status while shaping the response.
+    """
+    render_status = get_effective_render_status(version)
+    if render_status != DocumentVersion.RENDER_NOT_GENERATED:
+        return render_status
+
+    # Atomically claim the render job. Only the first concurrent preview request
+    # that still sees not_generated should transition the row and enqueue work.
+    updated = DocumentVersion.objects.filter(
+        pk=version.pk,
+        render_status=DocumentVersion.RENDER_NOT_GENERATED,
+    ).update(
+        render_status=DocumentVersion.RENDER_QUEUED,
+        render_error='',
+    )
+
+    if updated:
+        # QuerySet.update() bypasses this Python model instance, so keep it in
+        # sync for callers that shape the API response from the same object.
+        version.render_status = DocumentVersion.RENDER_QUEUED
+        version.render_error = ''
+        if version.type == 'document':
+            convert_office_to_pdf_task.delay(version.id)
+        elif version.type == 'pdf':
+            generate_pdf_pages_task.delay(version.id)
+        return DocumentVersion.RENDER_QUEUED
+
+    # Another request or worker changed the row first. Refresh only the fields
+    # needed to compute the effective status and expose an accurate error.
+    version.refresh_from_db(fields=['render_status', 'has_pages', 'render_error'])
+    return get_effective_render_status(version)
 
 
 def _get_unique_document_name(requesting_user, folder, original_name: str) -> str:

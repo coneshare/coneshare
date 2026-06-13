@@ -33,6 +33,11 @@ from datarooms.serializers import (PublicDataroomDocumentSerializer,
                                    PublicDataroomFolderSerializer)
 from documents.fileserver import fileserver_client
 from documents.models import DocumentPage
+from documents.services import (
+    enqueue_server_preview_render,
+    preview_mode_for_version,
+    preview_status_for_render_status,
+)
 from documents.views import StandardResultsSetPagination, prepare_pages_data
 from automations.tasks import dispatch_automation_event_task
 from .models import (DataroomVisit, EmailVerificationToken, PreviewSession,
@@ -653,6 +658,11 @@ class ShareLinkViewDataView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            preview_mode = preview_mode_for_version(primary_version)
+            render_status = enqueue_server_preview_render(primary_version)
+
+            preview_status = preview_status_for_render_status(render_status)
+
             # Determine the correct settings to use (link vs. item-specific)
             allow_download = link.allow_download
             enable_watermark = link.enable_watermark
@@ -661,38 +671,41 @@ class ShareLinkViewDataView(APIView):
                 allow_download = dataroom_setting.allow_download
                 enable_watermark = dataroom_setting.enable_watermark
 
-            pages_data = prepare_pages_data(
-                document,
-                primary_version,
-                share_link=link,
-                dataroom_document_id=(
-                    dataroom_setting.dataroom_document_id if dataroom_setting else None
-                ),
-                enable_watermark_override=(
-                    dataroom_setting.enable_watermark if dataroom_setting else None
-                ),
-            )
+            pages_data = []
+            if preview_mode == 'image' or render_status == 'ready':
+                pages_data = prepare_pages_data(
+                    document,
+                    primary_version,
+                    share_link=link,
+                    dataroom_document_id=(
+                        dataroom_setting.dataroom_document_id if dataroom_setting else None
+                    ),
+                    enable_watermark_override=(
+                        dataroom_setting.enable_watermark if dataroom_setting else None
+                    ),
+                )
 
             download_url = None
             is_watermarked = enable_watermark and link.watermark_text
-            if is_watermarked:
-                base_url = f"/api/v1/links/{link.slug}/download-file/"
-                if link.dataroom:
-                    download_url = urljoin(
-                        settings.SITE_DOMAIN,
-                        f"{base_url}?dataroom_document_id={dataroom_setting.dataroom_document_id}"
-                    )
-                else:
-                    download_url = urljoin(settings.SITE_DOMAIN, base_url)
-            elif document.type == 'image' and pages_data:
-                # For images, the download URL is the same as the single page's URL.
-                download_url = pages_data[0]['url']
-            elif primary_version and primary_version.original_storage_key:
-                try:
-                    download_url = fileserver_client.generate_download_url(primary_version.original_storage_key, is_internal=False)
-                except APIException:
-                    # If file server is down, we can't generate a download URL.
-                    download_url = None
+            if allow_download:
+                if is_watermarked:
+                    base_url = f"/api/v1/links/{link.slug}/download-file/"
+                    if link.dataroom:
+                        download_url = urljoin(
+                            settings.SITE_DOMAIN,
+                            f"{base_url}?dataroom_document_id={dataroom_setting.dataroom_document_id}"
+                        )
+                    else:
+                        download_url = urljoin(settings.SITE_DOMAIN, base_url)
+                elif document.type == 'image' and pages_data:
+                    # For images, the download URL is the same as the single page's URL.
+                    download_url = pages_data[0]['url']
+                elif primary_version and primary_version.original_storage_key:
+                    try:
+                        download_url = fileserver_client.generate_download_url(primary_version.original_storage_key, is_internal=False)
+                    except APIException:
+                        # If file server is down, we can't generate a download URL.
+                        download_url = None
 
             response_data = {
                 "link_type": "document",
@@ -702,7 +715,12 @@ class ShareLinkViewDataView(APIView):
                 "num_pages": document.num_pages,
                 "download_only": document.download_only,
                 "file_size": primary_version.file_size if primary_version else None,
+                "preview_mode": preview_mode,
+                "preview_status": preview_status,
+                "render_status": render_status,
+                "render_error": primary_version.render_error,
                 "pages": pages_data,
+                "pdf_url": None,
                 "download_url": download_url,
                 "link_settings": {
                     "id": link.id,
