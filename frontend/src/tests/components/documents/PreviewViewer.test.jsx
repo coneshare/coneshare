@@ -86,6 +86,64 @@ describe('PreviewViewer', () => {
     expect(screen.getByAltText('Page 3')).toBeInTheDocument();
   });
 
+  it('should not reset scroll when the same document receives a fresh pages array', () => {
+    const documentData = {
+      id: 'doc_1',
+      name: 'Document 1',
+      pages: [
+        { page_number: 1, url: '/page1.png' },
+        { page_number: 2, url: '/page2.png' },
+      ],
+    };
+    const { container, rerender } = renderComponent({ documentData });
+    const scrollContainer = container.firstChild;
+    scrollContainer.scrollTop = 420;
+    mockOnPageChange.mockClear();
+
+    rerender(
+      <PreviewViewer
+        documentData={{
+          ...documentData,
+          pages: [...documentData.pages],
+        }}
+        zoomLevel={1}
+        onPageChange={mockOnPageChange}
+        viewId={null}
+      />
+    );
+
+    expect(scrollContainer.scrollTop).toBe(420);
+    expect(mockOnPageChange).not.toHaveBeenCalledWith(1);
+  });
+
+  it('should reset scroll when the document identity changes', () => {
+    const documentData = {
+      id: 'doc_1',
+      name: 'Document 1',
+      pages: [{ page_number: 1, url: '/page1.png' }],
+    };
+    const { container, rerender } = renderComponent({ documentData });
+    const scrollContainer = container.firstChild;
+    scrollContainer.scrollTop = 420;
+    mockOnPageChange.mockClear();
+
+    rerender(
+      <PreviewViewer
+        documentData={{
+          id: 'doc_2',
+          name: 'Document 2',
+          pages: [{ page_number: 1, url: '/other-page1.png' }],
+        }}
+        zoomLevel={1}
+        onPageChange={mockOnPageChange}
+        viewId={null}
+      />
+    );
+
+    expect(scrollContainer.scrollTop).toBe(0);
+    expect(mockOnPageChange).toHaveBeenCalledWith(1);
+  });
+
   it('should call onPageChange when a new page becomes visible', () => {
     renderComponent();
     triggerIntersection(2);
