@@ -3,6 +3,68 @@
 from django.db import migrations, models
 
 
+SERVER_RENDERABLE_TYPES = {'document', 'pdf'}
+
+
+
+def backfill_render_status(apps, schema_editor):
+    """
+    Backfill behavior:
+
+      - has_pages=True -> ready
+      - server-renderable PDF/Office, not download-only, document.status='ready' -> not_generated
+      - document.status='error' -> failed, copying document.status_message into render_error if empty
+      - document.status='uploading' -> queued
+      - document.status='processing' -> processing
+      - images, download-only, unsupported, oversized, or otherwise non-server-renderable -> not_applicable
+    """
+    DocumentVersion = apps.get_model('documents', 'DocumentVersion')
+
+    versions = DocumentVersion.objects.select_related('document').only(
+        'id',
+        'has_pages',
+        'type',
+        'render_status',
+        'render_error',
+        'document__type',
+        'document__status',
+        'document__status_message',
+        'document__download_only',
+    )
+
+    for version in versions.iterator():
+        document = version.document
+        render_error = version.render_error or ''
+
+        if version.has_pages:
+            render_status = 'ready'
+        elif (
+            document.type in SERVER_RENDERABLE_TYPES
+            and version.type in SERVER_RENDERABLE_TYPES
+            and not document.download_only
+        ):
+            if document.status == 'ready':
+                render_status = 'not_generated'
+            elif document.status == 'error':
+                render_status = 'failed'
+                render_error = render_error or document.status_message or ''
+            elif document.status == 'uploading':
+                render_status = 'queued'
+            elif document.status == 'processing':
+                render_status = 'processing'
+            else:
+                render_status = 'not_generated'
+        else:
+            render_status = 'not_applicable'
+
+        update_fields = ['render_status']
+        version.render_status = render_status
+        if render_error != (version.render_error or ''):
+            version.render_error = render_error
+            update_fields.append('render_error')
+        version.save(update_fields=update_fields)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -19,5 +81,9 @@ class Migration(migrations.Migration):
             model_name='documentversion',
             name='render_status',
             field=models.CharField(choices=[('not_applicable', 'Not applicable'), ('not_generated', 'Not generated'), ('queued', 'Queued'), ('processing', 'Processing'), ('ready', 'Ready'), ('failed', 'Failed')], db_index=True, default='not_applicable', max_length=20),
+        ),
+        migrations.RunPython(
+            backfill_render_status,
+            reverse_code=migrations.RunPython.noop,
         ),
     ]

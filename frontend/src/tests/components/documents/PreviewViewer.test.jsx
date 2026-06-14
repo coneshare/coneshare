@@ -172,7 +172,7 @@ describe('PreviewViewer', () => {
 
     expect(api.recordPageView).toHaveBeenCalledTimes(1);
     expect(api.recordPageView).toHaveBeenCalledWith(
-      { view: viewId, page_number: 1, duration_seconds: 5 },
+      { view_session: viewId, page_number: 1, duration_seconds: 5 },
       false
     );
   });
@@ -252,7 +252,7 @@ describe('PreviewViewer', () => {
 
     expect(api.recordPageView).toHaveBeenCalledTimes(1);
     expect(api.recordPageView).toHaveBeenCalledWith(
-      { view: viewId, page_number: 1, duration_seconds: 10 },
+      { view_session: viewId, page_number: 1, duration_seconds: 10 },
       false
     );
     expect(mockOnPageChange).toHaveBeenCalledWith(2);
@@ -263,11 +263,12 @@ describe('PreviewViewer', () => {
     });
 
     // Change to page 3
+    triggerIntersection(2, false, 0);
     triggerIntersection(3);
 
     expect(api.recordPageView).toHaveBeenCalledTimes(2);
     expect(api.recordPageView).toHaveBeenCalledWith(
-      { view: viewId, page_number: 2, duration_seconds: 5 },
+      { view_session: viewId, page_number: 2, duration_seconds: 5 },
       false
     );
   });
@@ -283,7 +284,7 @@ describe('PreviewViewer', () => {
 
     expect(api.recordPageView).toHaveBeenCalledTimes(1);
     expect(api.recordPageView).toHaveBeenCalledWith(
-      { view: viewId, page_number: 1, duration_seconds: 7 },
+      { view_session: viewId, page_number: 1, duration_seconds: 7 },
       false
     );
   });

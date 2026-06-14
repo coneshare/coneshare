@@ -204,22 +204,18 @@ describe('ShareLinkViewerPage', () => {
     });
 
     await act(async () => {
-      vi.advanceTimersByTime(3000);
+      await vi.advanceTimersByTimeAsync(3000);
     });
-    await waitFor(() => {
-      expect(api.getShareLinkViewData).toHaveBeenCalledTimes(2);
-    });
+    expect(api.getShareLinkViewData).toHaveBeenCalledTimes(2);
 
     expect(screen.queryByText(/error/i)).not.toBeInTheDocument();
     expect(screen.queryByText('Bad Gateway')).not.toBeInTheDocument();
     expect(screen.getByText('This may take a moment for large documents.')).toBeInTheDocument();
 
     await act(async () => {
-      vi.advanceTimersByTime(3000);
+      await vi.advanceTimersByTimeAsync(3000);
     });
-    await waitFor(() => {
-      expect(api.getShareLinkViewData).toHaveBeenCalledTimes(3);
-    });
+    expect(api.getShareLinkViewData).toHaveBeenCalledTimes(3);
   });
 
   it('passes accessToken from URL to API call', async () => {

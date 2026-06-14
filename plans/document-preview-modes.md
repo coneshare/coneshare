@@ -804,12 +804,15 @@ Backfill `render_status` from existing data:
 | Existing state | `render_status` |
 | --- | --- |
 | `version.has_pages = true` | `ready` |
-| image document with `document.status = ready` | `ready` |
-| `document.download_only = true` | `unavailable` |
-| `document.status = processing` | `processing` |
-| `document.status = error` | `failed` |
-| `document.status = uploading` | `queued` |
-| ready PDF/Office without pages | `not_generated` |
+| server-renderable PDF/Office, `document.download_only = false`, `document.status = ready`, without pages | `not_generated` |
+| server-renderable PDF/Office, `document.download_only = false`, `document.status = processing` | `processing` |
+| server-renderable PDF/Office, `document.download_only = false`, `document.status = uploading` | `queued` |
+| server-renderable PDF/Office, `document.download_only = false`, `document.status = error` | `failed` |
+| image documents | `not_applicable` |
+| `document.download_only = true` | `not_applicable` |
+| unsupported, oversized, or otherwise non-server-renderable versions | `not_applicable` |
+
+When backfilling `failed`, copy `document.status_message` into `render_error` if `render_error` is empty. Use the current model statuses (`not_applicable`, not `unavailable`).
 
 Django migration execution is already once-only. Applied migrations are recorded in the `django_migrations` table, so repeated `python manage.py migrate` runs will not re-run the same `RunPython` operation.
 
