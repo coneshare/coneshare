@@ -3,6 +3,8 @@ import mimetypes
 import logging
 import requests
 import uuid
+
+from django.conf import settings
 from django.db import transaction
 from django.db.models import F, Sum
 from rest_framework.exceptions import APIException
@@ -126,11 +128,20 @@ def is_server_renderable_version(version: DocumentVersion) -> bool:
     to keep Office/PDF files out of the heavy preview pipeline.
     """
     document = version.document
-    return (
-        document.type in SERVER_RENDERABLE_TYPES
-        and version.type in SERVER_RENDERABLE_TYPES
-        and not document.download_only
-    )
+    
+    if document.download_only:
+        return False
+        
+    if document.type not in SERVER_RENDERABLE_TYPES or version.type not in SERVER_RENDERABLE_TYPES:
+        return False
+        
+    if settings.PDF_PREVIEW_ENGINE != 'server_pages':
+        return False
+        
+    if document.type == 'document' and not settings.ENABLE_OFFICE_PREVIEW:
+        return False
+        
+    return True
 
 
 def get_effective_render_status(version: DocumentVersion) -> str:
@@ -157,8 +168,13 @@ def preview_mode_for_version(version: DocumentVersion) -> str:
         return 'download_only'
     if document.type == 'image':
         return 'image'
+        
+    if document.type == 'pdf' and settings.PDF_PREVIEW_ENGINE == 'pdfjs':
+        return 'client_pdf'
+        
     if is_server_renderable_version(version):
         return 'server_pages'
+        
     return 'download_only'
 
 
@@ -614,3 +630,17 @@ def process_imported_file(document: Document, file_data: dict):
         )
         if user:
             User.objects.filter(pk=user.pk).update(total_document_size=F('total_document_size') + file_size)
+
+
+def get_client_pdf_url(version: DocumentVersion) -> str | None:
+    """Generates a download URL for client-side PDF rendering if possible."""
+    if not version or not version.original_storage_key:
+        return None
+    
+    try:
+        return fileserver_client.generate_download_url(
+            version.original_storage_key, is_internal=False
+        )
+    except APIException as e:
+        logger.warning(f"Failed to generate client PDF URL for version {version.id}: {e}")
+        return None

@@ -35,6 +35,7 @@ from .services import (
     enqueue_server_preview_render,
     preview_mode_for_version,
     preview_status_for_render_status,
+    get_client_pdf_url,
 )
 
 
@@ -647,6 +648,8 @@ class DocumentPreviewDataView(APIView):
         render_status = enqueue_server_preview_render(primary_version)
 
         preview_status = preview_status_for_render_status(render_status)
+        if preview_mode == 'client_pdf':
+            preview_status = 'ready'
 
         # Content Processing and Response Shaping
         pages_data = []
@@ -664,6 +667,10 @@ class DocumentPreviewDataView(APIView):
             except APIException:
                 download_url = None
 
+        pdf_url = None
+        if preview_mode == 'client_pdf':
+            pdf_url = get_client_pdf_url(primary_version)
+
         response_data = {
             "id": document.id,
             "name": document.name,
@@ -674,7 +681,7 @@ class DocumentPreviewDataView(APIView):
             "render_status": render_status,
             "render_error": primary_version.render_error,
             "pages": pages_data,
-            "pdf_url": None,
+            "pdf_url": pdf_url,
             "download_url": download_url,
         }
 

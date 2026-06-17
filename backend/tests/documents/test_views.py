@@ -9,6 +9,7 @@ from rest_framework.exceptions import APIException
 
 from core.models import Organization
 from documents.models import (Document, DocumentPage, DocumentVersion, Folder)
+from documents.services import QuotaExceededError
 from sharelinks.models import (ShareLink, ViewSession)
 
 User = get_user_model()
@@ -862,6 +863,7 @@ def test_get_document_preview_data_for_image_document(
 
 @pytest.mark.django_db
 @override_settings(SITE_DOMAIN="http://test.coneshare.com")
+@override_settings(PDF_PREVIEW_ENGINE='server_pages')
 @patch('documents.views.fileserver_client.generate_download_url')
 def test_get_document_preview_data_success(mock_fs_download_url, api_client, user):
     """Test successfully retrieving document preview data."""
@@ -927,7 +929,7 @@ def test_get_document_preview_data_not_ready(api_client, user):
 
 
 @pytest.mark.django_db
-@override_settings(MAX_PREVIEW_PAGES=10)
+@override_settings(MAX_PREVIEW_PAGES=10, PDF_PREVIEW_ENGINE='server_pages')
 def test_get_document_preview_data_too_many_pages(api_client, user):
     """Test preview data reports render failure when preview generation exceeded page limits."""
     doc = Document.objects.create(
@@ -1225,7 +1227,6 @@ class TestDocumentViewSet:
     @patch('documents.views.copy_document')
     def test_copy_document_api_quota_exceeded(self, mock_copy_document, api_client, document):
         """Test that the API returns a 400 if QuotaExceededError is raised."""
-        from documents.services import QuotaExceededError
         mock_copy_document.side_effect = QuotaExceededError("Quota exceeded")
 
         response = api_client.post(f'/api/v1/documents/{document.id}/copy/')
@@ -1469,3 +1470,36 @@ class TestQuotaAndSizeTracking:
     #     response_fail = api_client.post(request_url, request_data_fail)
     #     assert response_fail.status_code == status.HTTP_400_BAD_REQUEST
     #     assert "exceed your storage quota" in response_fail.data['detail']
+
+@pytest.mark.django_db
+@patch('documents.views.fileserver_client.generate_download_url')
+def test_get_document_preview_data_client_pdf(mock_fs_download_url, api_client, user):
+    """Test getting preview data for a PDF when PDF.js engine is used."""
+    mock_fs_download_url.return_value = "https://mock.fileserver/client_pdf.pdf"
+    
+    doc = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="test_client.pdf",
+        status="ready",
+        type="pdf",
+        content_type="application/pdf",
+        download_only=False,
+    )
+    DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        type="pdf",
+        is_primary=True,
+        original_storage_key="test_client.pdf",
+        render_status="not_generated",
+    )
+
+    with override_settings(PDF_PREVIEW_ENGINE='pdfjs'):
+        response = api_client.get(f'/api/v1/documents/{doc.id}/preview-data/')
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data['preview_mode'] == 'client_pdf'
+    assert data['preview_status'] == 'ready'
+    assert data['pdf_url'] == 'https://mock.fileserver/client_pdf.pdf'

@@ -13,6 +13,7 @@ export function ViewerToolbar({
   totalPages,
   viewId,
   downloadDocumentId = null,
+  previewMode = 'server_pages',
 }) {
   const handleDownload = () => {
     if (viewId && downloadUrl) {
@@ -37,17 +38,19 @@ export function ViewerToolbar({
           <Maximize className="h-5 w-5" />
         </Button>
 
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={onZoomOut} title="Zoom out">
-            <ZoomOut className="h-5 w-5" />
-          </Button>
-          <span className="min-w-[4rem] text-center text-sm font-medium text-gray-700">
-            {currentPage} / {totalPages}
-          </span>
-          <Button variant="ghost" size="icon" onClick={onZoomIn} title="Zoom in">
-            <ZoomIn className="h-5 w-5" />
-          </Button>
-        </div>
+        {previewMode !== 'client_pdf' && (
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={onZoomOut} title="Zoom out">
+              <ZoomOut className="h-5 w-5" />
+            </Button>
+            <span className="min-w-[4rem] text-center text-sm font-medium text-gray-700">
+              {currentPage} / {totalPages}
+            </span>
+            <Button variant="ghost" size="icon" onClick={onZoomIn} title="Zoom in">
+              <ZoomIn className="h-5 w-5" />
+            </Button>
+          </div>
+        )}
 
         {allowDownload && (
           <div className="flex items-center gap-1 border-l pl-1">
