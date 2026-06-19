@@ -70,15 +70,17 @@ func main() {
 	// Internal API routes, protected by a shared token
 	r.Route("/internal/v1", func(r chi.Router) {
 		r.Use(AuthMiddleware(config.InternalAPIToken))
-		r.Post("/generate-upload-url", generateURLHandler("upload"))
-		r.Post("/generate-download-url", generateURLHandler("download"))
+		r.Post("/generate-upload-url", generateURLHandler("upload", 1*time.Hour))
+		r.Post("/generate-download-url", generateURLHandler("download", 1*time.Hour))
+		r.Post("/generate-preview-url", generateURLHandler("preview", 5*time.Minute))
 		r.Post("/delete-file", deleteFileHandler(config))
 		r.Post("/copy-file", copyFileHandler(config))
 	})
 
 	// Public routes for file handling
 	r.Put("/files/upload/{token}", handleUpload(config))
-	r.Get("/files/download/{token}", handleDownload(config))
+	r.Get("/files/download/{token}", handleDownload(config, "attachment"))
+	r.Get("/files/preview/{token}", handleDownload(config, "inline"))
 
 	log.Printf("Starting file server on port %s", config.ServerPort)
 	if err := http.ListenAndServe(":"+config.ServerPort, r); err != nil {
@@ -94,7 +96,7 @@ func loadConfig() Config {
 	}
 }
 
-func generateURLHandler(action string) http.HandlerFunc {
+func generateURLHandler(action string, expiryDuration time.Duration) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var reqBody URLRequest
 		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
@@ -107,7 +109,7 @@ func generateURLHandler(action string) http.HandlerFunc {
 		}
 
 		token := uuid.New().String()
-		expiry := time.Now().Add(1 * time.Hour)
+		expiry := time.Now().Add(expiryDuration)
 
 		storeLock.Lock()
 		tokenStore[token] = TokenInfo{
@@ -311,7 +313,7 @@ func copyFileHandler(config Config) http.HandlerFunc {
 	}
 }
 
-func handleDownload(config Config) http.HandlerFunc {
+func handleDownload(config Config, disposition string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := chi.URLParam(r, "token")
 
@@ -347,7 +349,7 @@ func handleDownload(config Config) http.HandlerFunc {
 
 		safeName := url.PathEscape(filepath.Base(filePath))
 		w.Header().Set("Content-Disposition",
-			fmt.Sprintf(`attachment; filename*=UTF-8''%s`, safeName))
+			fmt.Sprintf(`%s; filename*=UTF-8''%s`, disposition, safeName))
 		http.ServeFile(w, r, filePath)
 	}
 }

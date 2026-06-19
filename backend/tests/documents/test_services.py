@@ -1,5 +1,6 @@
 from unittest.mock import patch, MagicMock
 import pytest
+from django.test import override_settings
 
 from documents.models import Document, DocumentVersion, DocumentPage
 from documents.services import (
@@ -8,6 +9,8 @@ from documents.services import (
     copy_document,
     enqueue_server_preview_render,
     QuotaExceededError,
+    preview_mode_for_version,
+    is_server_renderable_version,
 )
 
 
@@ -71,12 +74,13 @@ class TestEnqueueServerPreviewRender:
             render_error="stale error",
         )
 
-        render_status = enqueue_server_preview_render(version)
-
-        assert render_status == DocumentVersion.RENDER_QUEUED
-        assert version.render_status == DocumentVersion.RENDER_QUEUED
-        assert version.render_error == ''
-        mock_task_delay.assert_called_once_with(version.id)
+        with override_settings(PDF_PREVIEW_ENGINE='server_pages'):
+            render_status = enqueue_server_preview_render(version)
+     
+            assert render_status == DocumentVersion.RENDER_QUEUED
+            assert version.render_status == DocumentVersion.RENDER_QUEUED
+            assert version.render_error == ''
+            mock_task_delay.assert_called_once_with(version.id)
 
     def test_enqueue_refreshes_render_error_when_concurrent_update_wins(self, user):
         document = Document.objects.create(
@@ -104,11 +108,12 @@ class TestEnqueueServerPreviewRender:
             render_error="Conversion failed.",
         )
 
-        render_status = enqueue_server_preview_render(version)
-
-        assert render_status == DocumentVersion.RENDER_FAILED
-        assert version.render_status == DocumentVersion.RENDER_FAILED
-        assert version.render_error == "Conversion failed."
+        with override_settings(PDF_PREVIEW_ENGINE='server_pages'):
+            render_status = enqueue_server_preview_render(version)
+     
+            assert render_status == DocumentVersion.RENDER_FAILED
+            assert version.render_status == DocumentVersion.RENDER_FAILED
+            assert version.render_error == "Conversion failed."
 
 
 
@@ -190,7 +195,6 @@ class TestCopyDocumentService:
     def test_copy_document_respects_quota(self, mock_get_setting, mock_route_for_processing, mock_copy_file, user, document):
         """Test that copy_document fails if user quota is exceeded."""
         # Arrange
-        from django.test import override_settings
         original_doc = document
         original_doc.file_size = 2 * 1024 * 1024  # 2MB
         original_doc.save()
@@ -223,3 +227,57 @@ class TestCopyDocumentService:
         assert 'uploader_info' not in new_doc.metadata
         assert 'other_key' in new_doc.metadata
         assert new_doc.metadata['other_key'] == 'value'
+
+
+@pytest.mark.django_db
+class TestPreviewModeServices:
+    def test_is_server_renderable_version_client_pdf(self, user):
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            type='pdf',
+            download_only=False,
+        )
+        version = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            type='pdf',
+            is_primary=True,
+        )
+        
+        with override_settings(PDF_PREVIEW_ENGINE='pdfjs'):
+            assert not is_server_renderable_version(version)
+
+    def test_preview_mode_for_version_client_pdf(self, user):
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            type='pdf',
+            download_only=False,
+        )
+        version = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            type='pdf',
+            is_primary=True,
+        )
+        
+        with override_settings(PDF_PREVIEW_ENGINE='pdfjs'):
+            assert preview_mode_for_version(version) == 'client_pdf'
+            
+    def test_preview_mode_for_version_office_disabled(self, user):
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            type='document',
+            download_only=False,
+        )
+        version = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            type='document',
+            is_primary=True,
+        )
+        
+        with override_settings(PDF_PREVIEW_ENGINE='server_pages', ENABLE_OFFICE_PREVIEW=False):
+            assert preview_mode_for_version(version) == 'download_only'

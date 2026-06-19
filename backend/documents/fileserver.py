@@ -54,6 +54,15 @@ class FileServerClient:
             return urljoin(self.base_url, relative_url)
         return urljoin(settings.SITE_DOMAIN, relative_url)
 
+    def generate_preview_url(self, storage_key: str, is_internal: bool = True) -> str:
+        """Requests a temporary URL for inline previewing a file."""
+        data = {'storage_key': storage_key}
+        response_data = self._post('/internal/v1/generate-preview-url', data)
+        relative_url = response_data.get('url')
+        if is_internal:
+            return urljoin(self.base_url, relative_url)
+        return urljoin(settings.SITE_DOMAIN, relative_url)
+
     def delete_file(self, storage_key: str):
         """Requests deletion of a file from the file server."""
         data = {'storage_key': storage_key}

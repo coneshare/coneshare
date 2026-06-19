@@ -414,6 +414,28 @@ class TestShareLinkViewDataView:
         return document
 
     @override_settings(SITE_DOMAIN="http://test.coneshare.com")
+    def test_get_share_link_data_with_watermark_direct_document(self, public_client, share_link, document_with_pages):
+        """
+        Test that requesting a direct document share link with a watermark enabled
+        does not crash with a NameError due to the viewer_email variable.
+        """
+        # Setup: Enable watermark on a direct document link
+        share_link.enable_watermark = True
+        share_link.watermark_text = "Test Watermark {{email}}"
+        share_link.save()
+
+        # Action: Request the view data
+        # This will crash with a NameError if viewer_email is not defined in the direct document path.
+        response = public_client.get(f'/api/v1/links/{share_link.slug}/view-data/')
+
+        # Assertions
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data['link_settings']['enable_watermark'] is True
+        assert data['link_settings']['watermark_text'] == "Test Watermark {{email}}"
+        assert data['link_settings']['resolved_watermark_text'] == "Test Watermark N/A"
+
+    @override_settings(SITE_DOMAIN="http://test.coneshare.com")
     def test_get_share_link_data_success(self, public_client, share_link, document_with_pages):
         """
         Test successful retrieval of public share link data, ensuring it
@@ -475,16 +497,18 @@ class TestShareLinkViewDataView:
         primary_version.render_status = DocumentVersion.RENDER_NOT_GENERATED
         primary_version.has_pages = False
         primary_version.save()
+        mock_fs_download_url.return_value = 'https://...'
         mock_enqueue_preview.return_value = DocumentVersion.RENDER_QUEUED
 
-        response = public_client.get(f'/api/v1/links/{share_link.slug}/view-data/')
+        with override_settings(PDF_PREVIEW_ENGINE='server_pages'):
+            response = public_client.get(f'/api/v1/links/{share_link.slug}/view-data/')
 
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert data["preview_status"] == "processing"
-        assert data["download_url"] is None
-        mock_enqueue_preview.assert_called_once_with(primary_version)
-        mock_fs_download_url.assert_not_called()
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["preview_status"] == "processing"
+            assert data["download_url"] is None
+            mock_enqueue_preview.assert_called_once_with(primary_version)
+            mock_fs_download_url.assert_not_called()
 
     @override_settings(SITE_DOMAIN="http://test.coneshare.com")
     def test_get_share_link_data_for_image_document(self, public_client, image_document_with_content, user):
@@ -972,17 +996,19 @@ class TestDataroomVisitTracking:
         setting = link.dataroom_settings.get(dataroom_document=ddoc)
         setting.allow_download = False
         setting.save()
+        mock_fs_download_url.return_value = 'https://...'
         mock_enqueue_preview.return_value = DocumentVersion.RENDER_QUEUED
 
-        response = public_client.get(f"/api/v1/links/{link.slug}/view-data/?dataroom_document_id={ddoc.id}")
-
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert data["preview_status"] == "processing"
-        assert data["link_settings"]["allow_download"] is False
-        assert data["download_url"] is None
-        mock_enqueue_preview.assert_called_once_with(primary_version)
-        mock_fs_download_url.assert_not_called()
+        with override_settings(PDF_PREVIEW_ENGINE='server_pages'):
+            response = public_client.get(f"/api/v1/links/{link.slug}/view-data/?dataroom_document_id={ddoc.id}")
+     
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["preview_status"] == "processing"
+            assert data["link_settings"]["allow_download"] is False
+            assert data["download_url"] is None
+            mock_enqueue_preview.assert_called_once_with(primary_version)
+            mock_fs_download_url.assert_not_called()
 
     def test_get_dataroom_document_by_document_id_is_rejected(
         self, public_client, user, dataroom, document
