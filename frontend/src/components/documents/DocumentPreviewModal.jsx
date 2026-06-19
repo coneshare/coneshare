@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { getDocumentPreviewData } from '../../services/api';
 import {
   Dialog,
@@ -14,6 +14,8 @@ import {
   PreviewStatePanel,
 } from './PreviewStatePanel';
 import { PdfJsViewer } from './PdfJsViewer';
+import { ViewerToolbar } from '../viewer/ViewerToolbar';
+import { printPdf, printImages } from '../../lib/print';
 
 const PREVIEW_POLL_INTERVAL_MS = 3000;
 
@@ -22,14 +24,34 @@ export function DocumentPreviewModal({ documentId, isOpen, onOpenChange }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Document states for preview navigation and zoom inside the modal
+  const [currentPage, setCurrentPage] = useState(1);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  
+  const modalViewerRef = useRef(null);
+  const viewerComponentRef = useRef(null);
+
+  // Synchronize totalPages when documentData resolves
+  useEffect(() => {
+    if (documentData) {
+      setTotalPages(documentData.num_pages || (documentData.pages?.length || 1));
+    }
+  }, [documentData]);
+
+  const handleDocumentLoad = useCallback(({ numPages }) => {
+    setTotalPages(numPages);
+  }, []);
+
   useEffect(() => {
     if (!isOpen || !documentId) {
       setDocumentData(null);
+      setCurrentPage(1);
+      setZoomLevel(1);
       return;
     }
 
     let isCancelled = false;
-
     let pollTimer = null;
 
     const fetchPreviewData = async ({ showLoading = false } = {}) => {
@@ -67,6 +89,39 @@ export function DocumentPreviewModal({ documentId, isOpen, onOpenChange }) {
     };
   }, [isOpen, documentId]);
 
+  const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.1, 3));
+  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
+  const handleFitWidth = () => setZoomLevel(1);
+  
+  const handlePageChange = (pageNumber) => {
+    viewerComponentRef.current?.goToPage(pageNumber);
+  };
+
+  const handleFullScreen = () => {
+    if (modalViewerRef.current) {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        modalViewerRef.current.requestFullscreen();
+      }
+    }
+  };
+
+  const handlePrint = () => {
+    if (!documentData) return;
+
+    if (documentData.preview_mode === 'client_pdf') {
+      printPdf(documentData.pdf_preview_url);
+    } else {
+      if (documentData.download_url && documentData.type === 'pdf') {
+        printPdf(documentData.download_url);
+      } else {
+        const imageUrls = documentData.pages?.map((p) => p.url) || [];
+        printImages(imageUrls);
+      }
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="h-[90vh] max-w-4xl">
@@ -75,7 +130,7 @@ export function DocumentPreviewModal({ documentId, isOpen, onOpenChange }) {
             {documentData ? documentData.name : 'Document Preview'}
           </DialogTitle>
         </DialogHeader>
-        <div className="h-[calc(90vh-80px)] py-4">
+        <div ref={modalViewerRef} className="relative h-[calc(90vh-80px)] py-4 overflow-hidden">
           {isLoading && (
             <div className="space-y-4">
               <Skeleton className="h-24 w-full" />
@@ -84,15 +139,42 @@ export function DocumentPreviewModal({ documentId, isOpen, onOpenChange }) {
             </div>
           )}
           {error && <p className="text-center text-red-500">{error}</p>}
+          {documentData && (hasRenderablePages(documentData) || documentData.preview_mode === 'client_pdf') && !isLoading && !error && (
+            <ViewerToolbar
+              allowDownload={Boolean(documentData.download_url)}
+              downloadUrl={documentData.download_url}
+              downloadFileName={documentData.name}
+              onFullScreen={handleFullScreen}
+              onZoomIn={handleZoomIn}
+              onZoomOut={handleZoomOut}
+              zoomLevel={zoomLevel}
+              onFitWidth={handleFitWidth}
+              onPageChange={handlePageChange}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              viewId={null}
+              previewMode={documentData.preview_mode}
+              onPrint={handlePrint}
+            />
+          )}
+
           {documentData && hasRenderablePages(documentData) && documentData.preview_mode !== 'client_pdf' && (
             <PreviewViewer
+              ref={viewerComponentRef}
               documentData={documentData}
-              zoomLevel={1}
-              onPageChange={() => null}
+              zoomLevel={zoomLevel}
+              onPageChange={setCurrentPage}
             />
           )}
           {documentData && documentData.preview_mode === 'client_pdf' && (
-            <PdfJsViewer pdfUrl={documentData.pdf_preview_url} title={documentData.name} />
+            <PdfJsViewer
+              ref={viewerComponentRef}
+              pdfUrl={documentData.pdf_preview_url}
+              title={documentData.name}
+              zoomLevel={zoomLevel}
+              onPageChange={setCurrentPage}
+              onDocumentLoad={handleDocumentLoad}
+            />
           )}
           {documentData && !hasRenderablePages(documentData) && documentData.preview_mode !== 'client_pdf' && !error && (
             <PreviewStatePanel

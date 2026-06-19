@@ -1,3 +1,5 @@
+globalThis.DOMMatrix = class DOMMatrix {};
+
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
@@ -29,6 +31,10 @@ vi.mock('../../components/viewer/EmailForm', () => ({
 
 vi.mock('../../components/documents/PreviewViewer', () => ({
   PreviewViewer: () => <div>Preview Viewer</div>,
+}));
+
+vi.mock('../../components/documents/PdfJsViewer', () => ({
+  PdfJsViewer: () => <div>PdfJs Viewer</div>,
 }));
 
 vi.mock('../../components/viewer/ViewerToolbar', () => ({
@@ -194,17 +200,24 @@ describe('ShareLinkViewerPage', () => {
     api.getShareLinkViewData
       .mockResolvedValueOnce({ data: pendingDocumentData })
       .mockRejectedValueOnce({ response: { status: 502, data: { message: 'Bad Gateway' } } })
-      .mockResolvedValueOnce({ data: pendingDocumentData });
+      .mockResolvedValue({ data: mockDocumentData });
     api.createViewSession.mockResolvedValue({ data: mockViewData });
 
     renderComponent('/view/test-slug');
 
-    await waitFor(() => {
-      expect(screen.getByText('This may take a moment for large documents.')).toBeInTheDocument();
+    // Flush initial mock promises
+    await act(async () => {
+      await Promise.resolve();
     });
 
+    expect(screen.getByText('This may take a moment for large documents.')).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    // Flush the second fetch promise
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(3000);
+      await Promise.resolve();
     });
     expect(api.getShareLinkViewData).toHaveBeenCalledTimes(2);
 
@@ -212,8 +225,12 @@ describe('ShareLinkViewerPage', () => {
     expect(screen.queryByText('Bad Gateway')).not.toBeInTheDocument();
     expect(screen.getByText('This may take a moment for large documents.')).toBeInTheDocument();
 
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    // Flush the third fetch promise
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(3000);
+      await Promise.resolve();
     });
     expect(api.getShareLinkViewData).toHaveBeenCalledTimes(3);
   });

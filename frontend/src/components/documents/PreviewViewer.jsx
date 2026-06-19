@@ -1,8 +1,8 @@
-import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
+import { useEffect, useRef, useCallback, useMemo, useState, forwardRef, useImperativeHandle } from 'react';
 import { LazyImage } from './LazyImage';
 import { recordPageView } from '../../services/api';
 
-export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId, dataroomVisitId }) {
+export const PreviewViewer = forwardRef(({ documentData, zoomLevel, onPageChange, viewId, dataroomVisitId }, ref) => {
   const pages = useMemo(
     () => (Array.isArray(documentData?.pages) ? documentData.pages : []),
     [documentData?.pages]
@@ -38,6 +38,16 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId, d
     },
     [viewId, dataroomVisitId]
   );
+
+  // Expose goToPage ref
+  useImperativeHandle(ref, () => ({
+    goToPage: (pageNumber) => {
+      const pageEl = pageRefs.current.get(pageNumber);
+      if (pageEl) {
+        pageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }));
 
   useEffect(() => {
     const tick = () => {
@@ -158,7 +168,7 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId, d
       className="h-full overflow-y-auto bg-gray-100 dark:bg-gray-800"
     >
       <div
-        className="mx-auto flex w-fit origin-top flex-col items-center space-y-4 p-4 transition-transform duration-200"
+        className="mx-auto flex w-fit origin-top flex-col items-center space-y-4 p-4 pb-24 transition-transform duration-200"
         style={{ transform: `scale(${zoomLevel})` }}
       >
         {pages.map((page) => (
@@ -184,4 +194,6 @@ export function PreviewViewer({ documentData, zoomLevel, onPageChange, viewId, d
       </div>
     </div>
   );
-}
+});
+
+PreviewViewer.displayName = 'PreviewViewer';

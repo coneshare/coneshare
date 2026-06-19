@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { FileDown, MessageCircle } from 'lucide-react';
 import { PasswordForm } from '../components/viewer/PasswordForm';
@@ -8,6 +8,7 @@ import { PreviewViewer } from '../components/documents/PreviewViewer';
 import { PdfJsViewer } from '../components/documents/PdfJsViewer';
 import { DataroomViewer } from '../components/viewer/DataroomViewer';
 import { QnAPanel } from '../components/viewer/QnAPanel';
+import { printPdf, printImages } from '../lib/print';
 import { Skeleton } from '../components/ui/Skeleton';
 import {
   hasRenderablePages,
@@ -50,10 +51,23 @@ export function ShareLinkViewerPage() {
   const hasLoadedViewDataRef = useRef(false);
   const viewIdRef = useRef(null);
   const viewDataRef = useRef(null);
+  const viewerComponentRef = useRef(null);
 
   // Document-specific state must be declared at the top level, before any conditional returns.
   const [currentPage, setCurrentPage] = useState(1);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Synchronize totalPages with viewData when it loads
+  useEffect(() => {
+    if (viewData) {
+      setTotalPages(viewData.num_pages || (viewData.pages?.length || 1));
+    }
+  }, [viewData]);
+
+  const handleDocumentLoad = useCallback(({ numPages }) => {
+    setTotalPages(numPages);
+  }, []);
 
   const handleFullScreen = () => {
     if (viewerRef.current) {
@@ -67,6 +81,10 @@ export function ShareLinkViewerPage() {
 
   const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.1, 3));
   const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
+  const handleFitWidth = () => setZoomLevel(1);
+  const handlePageChange = (pageNumber) => {
+    viewerComponentRef.current?.goToPage(pageNumber);
+  };
 
   useEffect(() => {
     viewIdRef.current = viewId;
@@ -232,6 +250,57 @@ export function ShareLinkViewerPage() {
       isCancelled = true;
     };
   }, [slug, viewId, viewData, dataroomDocumentIdFromUrl]);
+
+  // Keyboard navigation shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't trigger shortcuts if user is typing in an input/textarea
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
+        return;
+      }
+
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const nextPage = Math.min(currentPage + 1, totalPages);
+        if (nextPage !== currentPage) {
+          viewerComponentRef.current?.goToPage(nextPage);
+        }
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const prevPage = Math.max(currentPage - 1, 1);
+        if (prevPage !== currentPage) {
+          viewerComponentRef.current?.goToPage(prevPage);
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === '=') {
+        e.preventDefault();
+        setZoomLevel((prev) => Math.min(prev + 0.1, 3));
+      } else if ((e.ctrlKey || e.metaKey) && e.key === '-') {
+        e.preventDefault();
+        setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
+      } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+        e.preventDefault();
+        setZoomLevel(1);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentPage, totalPages]);
+
+  const handlePrint = () => {
+    if (!viewData) return;
+
+    if (viewData.preview_mode === 'client_pdf') {
+      printPdf(viewData.pdf_preview_url);
+    } else {
+      if (viewData.link_settings?.allow_download && viewData.type === 'pdf') {
+        printPdf(downloadUrl);
+      } else {
+        const imageUrls = viewData.pages?.map((p) => p.url) || [];
+        printImages(imageUrls);
+      }
+    }
+  };
 
   if (isLoading) {
     return (
@@ -410,13 +479,18 @@ export function ShareLinkViewerPage() {
             onFullScreen={handleFullScreen}
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
+            zoomLevel={zoomLevel}
+            onFitWidth={handleFitWidth}
+            onPageChange={handlePageChange}
             currentPage={currentPage}
-            totalPages={viewData.num_pages}
+            totalPages={totalPages}
             viewId={viewId}
             previewMode={viewData.preview_mode}
+            onPrint={handlePrint}
           />
           {viewData.preview_mode === 'client_pdf' ? (
             <PdfJsViewer
+              ref={viewerComponentRef}
               pdfUrl={viewData.pdf_preview_url}
               title={viewData.name}
               viewId={viewId}
@@ -428,9 +502,11 @@ export function ShareLinkViewerPage() {
               }
               zoomLevel={zoomLevel}
               onPageChange={setCurrentPage}
+              onDocumentLoad={handleDocumentLoad}
             />
           ) : (
             <PreviewViewer
+              ref={viewerComponentRef}
               documentData={viewData}
               zoomLevel={zoomLevel}
               onPageChange={setCurrentPage}
