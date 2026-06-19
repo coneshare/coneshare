@@ -13,6 +13,7 @@ import {
   isPreviewPending,
   PreviewStatePanel,
 } from './PreviewStatePanel';
+import { PdfJsViewer } from './PdfJsViewer';
 
 const PREVIEW_POLL_INTERVAL_MS = 3000;
 
@@ -83,14 +84,17 @@ export function DocumentPreviewModal({ documentId, isOpen, onOpenChange }) {
             </div>
           )}
           {error && <p className="text-center text-red-500">{error}</p>}
-          {documentData && hasRenderablePages(documentData) && (
+          {documentData && hasRenderablePages(documentData) && documentData.preview_mode !== 'client_pdf' && (
             <PreviewViewer
               documentData={documentData}
               zoomLevel={1}
               onPageChange={() => null}
             />
           )}
-          {documentData && !hasRenderablePages(documentData) && !error && (
+          {documentData && documentData.preview_mode === 'client_pdf' && (
+            <PdfJsViewer pdfUrl={documentData.pdf_preview_url} title={documentData.name} />
+          )}
+          {documentData && !hasRenderablePages(documentData) && documentData.preview_mode !== 'client_pdf' && !error && (
             <PreviewStatePanel
               documentData={documentData}
               allowDownload={Boolean(documentData.download_url)}

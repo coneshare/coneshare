@@ -5,6 +5,7 @@ import { PasswordForm } from '../components/viewer/PasswordForm';
 import { EmailForm } from '../components/viewer/EmailForm';
 import { ViewerToolbar } from '../components/viewer/ViewerToolbar';
 import { PreviewViewer } from '../components/documents/PreviewViewer';
+import { PdfJsViewer } from '../components/documents/PdfJsViewer';
 import { DataroomViewer } from '../components/viewer/DataroomViewer';
 import { QnAPanel } from '../components/viewer/QnAPanel';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -283,7 +284,7 @@ export function ShareLinkViewerPage() {
   const isPreviewable = viewData && PREVIEWABLE_TYPES.includes(viewData.type);
   const canDownload = Boolean(viewData?.link_settings?.allow_download);
   const canRenderPages = hasRenderablePages(viewData);
-  const showPreviewState = viewData && isPreviewable && !viewData.download_only && !canRenderPages;
+  const showPreviewState = viewData && isPreviewable && !viewData.download_only && !canRenderPages && viewData.preview_mode !== 'client_pdf';
   const qnaButtonLabel = `${isQnaOpen ? 'Close Q&A' : 'Open Q&A'}${
     qnaThreadCount > 0 ? `, ${qnaThreadCount} threads` : ''
   }`;
@@ -412,14 +413,31 @@ export function ShareLinkViewerPage() {
             currentPage={currentPage}
             totalPages={viewData.num_pages}
             viewId={viewId}
+            previewMode={viewData.preview_mode}
           />
-          <PreviewViewer
-            documentData={viewData}
-            zoomLevel={zoomLevel}
-            onPageChange={setCurrentPage}
-            viewId={viewId}
-            dataroomVisitId={dataroomVisitId}
-          />
+          {viewData.preview_mode === 'client_pdf' ? (
+            <PdfJsViewer
+              pdfUrl={viewData.pdf_preview_url}
+              title={viewData.name}
+              viewId={viewId}
+              dataroomVisitId={dataroomVisitId}
+              watermarkText={
+                viewData.link_settings?.enable_watermark
+                  ? (viewData.link_settings.resolved_watermark_text || viewData.link_settings.watermark_text || '')
+                  : ''
+              }
+              zoomLevel={zoomLevel}
+              onPageChange={setCurrentPage}
+            />
+          ) : (
+            <PreviewViewer
+              documentData={viewData}
+              zoomLevel={zoomLevel}
+              onPageChange={setCurrentPage}
+              viewId={viewId}
+              dataroomVisitId={dataroomVisitId}
+            />
+          )}
           <Button
             type="button"
             className={`absolute bottom-6 z-20 h-12 rounded-full px-4 shadow-lg transition-[right] duration-200 ${isQnaOpen ? 'right-6 lg:right-[35.5rem] xl:right-[39.5rem]' : 'right-6'}`}

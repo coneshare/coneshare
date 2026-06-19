@@ -13,6 +13,7 @@ export function ViewerToolbar({
   totalPages,
   viewId,
   downloadDocumentId = null,
+  previewMode = 'server_pages',
 }) {
   const handleDownload = () => {
     if (viewId && downloadUrl) {
