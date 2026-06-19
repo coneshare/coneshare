@@ -17,7 +17,7 @@ Use Docker-based workflows from the repository root unless you are iterating ins
 - `make test`: run backend pytest suite in container.
 - Targeted backend test in container (example):
   - `COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend pytest -q tests/filerequests/test_views.py`
-- `make test.front`: run frontend Vitest suite in container.
+- `make test.front`: run frontend Vitest suite in container. (Do NOT run this command as there are many broken test cases).
 - Targeted frontend test in container (example):
   - `COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run src/tests/pages/PublicUploadPage.test.jsx`
 - `make lint.portal`: run portal ESLint.
@@ -46,7 +46,7 @@ Recent history follows Conventional Commits (`feat:`, `fix:`, `chore(scope): ...
 PRs should include:
 - clear summary and motivation;
 - linked issue (if applicable);
-- test evidence (`make test`, `make test.front`, or targeted command output);
+- test evidence (`make test` or targeted command output; do NOT run `make test.front` as there are many broken test cases);
 - UI screenshots/GIFs for frontend or portal changes;
 - migration/config notes when schema or env vars change.
 

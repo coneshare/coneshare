@@ -432,6 +432,104 @@ class TestDataroomViewSet:
             position=0,
         ).exists()
 
+    def test_reorder_items_after_moving_content_should_succeed(self, api_client, dataroom, document, user, organization):
+        # 1. Setup a destination folder and a document inside it.
+        folder_dest = DataroomFolder.objects.create(dataroom=dataroom, name="Destination")
+        ddoc1 = DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name, folder=folder_dest)
+        
+        # 2. Call reorder endpoint once to initialize order rows for folder_dest.
+        url_reorder = f'/api/v1/datarooms/{dataroom.id}/reorder-items/'
+        response_reorder_init = api_client.post(url_reorder, {
+            "parent_id": str(folder_dest.id),
+            "ordered_items": [
+                {"type": "document", "id": str(ddoc1.id)},
+            ],
+        }, format="json")
+        assert response_reorder_init.status_code == status.HTTP_200_OK
+        
+        # Verify that DataroomItemOrder row exists for folder_dest and ddoc1.
+        assert DataroomItemOrder.objects.filter(
+            dataroom=dataroom,
+            parent_folder=folder_dest,
+            dataroom_document=ddoc1
+        ).exists()
+
+        # 3. Create another document in the root.
+        doc2 = Document.objects.create(name="Doc 2", organization=organization, created_by=user)
+        ddoc2 = DataroomDocument.objects.create(dataroom=dataroom, document=doc2, name=doc2.name)
+
+        # 4. Move ddoc2 into folder_dest.
+        url_move = f'/api/v1/datarooms/{dataroom.id}/move-content/'
+        response_move = api_client.post(url_move, {
+            "dataroom_document_ids": [str(ddoc2.id)],
+            "destination_folder_id": str(folder_dest.id)
+        }, format="json")
+        assert response_move.status_code == status.HTTP_200_OK
+
+        # 5. Call reorder endpoint with all items in the target scope.
+        # This should succeed, but currently fails with 409 because ddoc2 has no order row.
+        response_reorder = api_client.post(url_reorder, {
+            "parent_id": str(folder_dest.id),
+            "ordered_items": [
+                {"type": "document", "id": str(ddoc1.id)},
+                {"type": "document", "id": str(ddoc2.id)},
+            ],
+        }, format="json")
+        assert response_reorder.status_code == status.HTTP_200_OK
+
+    def test_reorder_items_after_adding_content_should_succeed(self, api_client, dataroom, document, user, organization):
+        # 1. Setup a folder and a document inside it.
+        folder_dest = DataroomFolder.objects.create(dataroom=dataroom, name="Destination")
+        ddoc1 = DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name, folder=folder_dest)
+        
+        # 2. Call reorder endpoint once to initialize order rows for folder_dest.
+        url_reorder = f'/api/v1/datarooms/{dataroom.id}/reorder-items/'
+        response_reorder_init = api_client.post(url_reorder, {
+            "parent_id": str(folder_dest.id),
+            "ordered_items": [
+                {"type": "document", "id": str(ddoc1.id)},
+            ],
+        }, format="json")
+        assert response_reorder_init.status_code == status.HTTP_200_OK
+
+        # 3. Create a library document, and add it to folder_dest using the add_content endpoint.
+        # The add_content endpoint will not create an order row if show_file_index is False.
+        dataroom.show_file_index = False
+        dataroom.save(update_fields=["show_file_index"])
+
+        doc2 = Document.objects.create(name="Doc 2", organization=organization, created_by=user)
+        url_add = f'/api/v1/datarooms/{dataroom.id}/add-content/'
+        response_add = api_client.post(url_add, {
+            "document_ids": [str(doc2.id)],
+            "destination_folder_id": str(folder_dest.id)
+        }, format="json")
+        assert response_add.status_code == status.HTTP_200_OK
+
+        # Find the created DataroomDocument.
+        ddoc2 = DataroomDocument.objects.get(dataroom=dataroom, document=doc2, folder=folder_dest)
+
+        # Confirm there's no DataroomItemOrder record for ddoc2.
+        assert not DataroomItemOrder.objects.filter(
+            dataroom=dataroom,
+            parent_folder=folder_dest,
+            dataroom_document=ddoc2
+        ).exists()
+
+        # Turn show_file_index back to True.
+        dataroom.show_file_index = True
+        dataroom.save(update_fields=["show_file_index"])
+
+        # 4. Attempt to reorder items inside folder_dest.
+        # This should succeed, but currently fails with 409.
+        response_reorder = api_client.post(url_reorder, {
+            "parent_id": str(folder_dest.id),
+            "ordered_items": [
+                {"type": "document", "id": str(ddoc1.id)},
+                {"type": "document", "id": str(ddoc2.id)},
+            ],
+        }, format="json")
+        assert response_reorder.status_code == status.HTTP_200_OK
+
     def test_list_view_sessions_for_dataroom(self, api_client, user, dataroom, organization):
         """
         Test that the view-sessions endpoint returns paginated view sessions

@@ -236,45 +236,39 @@ class DataroomViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        existing_order_rows = DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=parent)
-        has_existing_rows = existing_order_rows.exists()
+        folder_ids = [item["id"] for item in ordered_items if item["type"] == "folder"]
+        doc_ids = [item["id"] for item in ordered_items if item["type"] == "document"]
 
         with transaction.atomic():
-            if not has_existing_rows:
-                for position, item in enumerate(ordered_items):
-                    if item["type"] == "folder":
-                        DataroomItemOrder.objects.create(
+            # Clear any existing order rows for these specific items to prevent
+            # UniqueConstraint collisions and OneToOne validation errors.
+            DataroomItemOrder.objects.filter(folder_id__in=folder_ids).delete()
+            DataroomItemOrder.objects.filter(dataroom_document_id__in=doc_ids).delete()
+
+            # Recreate them in the new sequence using bulk_create to avoid N+1 query overhead.
+            orders_to_create = []
+            for position, item in enumerate(ordered_items):
+                if item["type"] == "folder":
+                    orders_to_create.append(
+                        DataroomItemOrder(
                             dataroom=dataroom,
                             parent_folder=parent,
                             item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
                             folder_id=item["id"],
                             position=position,
                         )
-                    else:
-                        DataroomItemOrder.objects.create(
+                    )
+                else:
+                    orders_to_create.append(
+                        DataroomItemOrder(
                             dataroom=dataroom,
                             parent_folder=parent,
                             item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
                             dataroom_document_id=item["id"],
                             position=position,
                         )
-            else:
-                order_map = {}
-                for row in existing_order_rows:
-                    if row.folder_id:
-                        order_map[("folder", str(row.folder_id))] = row
-                    elif row.dataroom_document_id:
-                        order_map[("document", str(row.dataroom_document_id))] = row
-
-                for position, item in enumerate(ordered_items):
-                    row = order_map.get((item["type"], str(item["id"])))
-                    if not row:
-                        return Response(
-                            {"detail": "Existing order rows are out of sync with current scope. Reinitialize required."},
-                            status=status.HTTP_409_CONFLICT,
-                        )
-                    row.position = position
-                    row.save(update_fields=["position", "updated_at"])
+                    )
+            DataroomItemOrder.objects.bulk_create(orders_to_create)
 
         return Response({"detail": "Items reordered successfully."}, status=status.HTTP_200_OK)
 
