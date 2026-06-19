@@ -618,32 +618,34 @@ class ShareLinkViewDataView(APIView):
             document = document_to_return
             primary_version = document.versions.filter(is_primary=True).first()
 
+            view_session_id = request.query_params.get('view_session_id')
+            dataroom_visit_id = request.query_params.get('dataroom_visit_id')
+            authorized_links = request.session.get('authorized_share_links', {})
+            auth_status = authorized_links.get(str(link.id), {})
+            viewer_email = auth_status.get('viewer_email', '')
+            view_session = None
+            
+            if view_session_id:
+                view_session = ViewSession.objects.filter(
+                    id=view_session_id,
+                    share_link=link,
+                ).only(
+                    'viewer_email',
+                    'viewed_at',
+                    'ip_address',
+                    'country',
+                    'city',
+                    'latitude',
+                    'longitude',
+                ).first()
+                if not viewer_email and view_session:
+                    viewer_email = view_session.viewer_email
+
             if link.dataroom and dataroom_document_id:
                 extra_payload = {
                     'document_id': str(document.id),
                     'document_name': document.name,
                 }
-                view_session_id = request.query_params.get('view_session_id')
-                dataroom_visit_id = request.query_params.get('dataroom_visit_id')
-                authorized_links = request.session.get('authorized_share_links', {})
-                auth_status = authorized_links.get(str(link.id), {})
-                viewer_email = auth_status.get('viewer_email', '')
-                view_session = None
-                if view_session_id:
-                    view_session = ViewSession.objects.filter(
-                        id=view_session_id,
-                        share_link=link,
-                    ).only(
-                        'viewer_email',
-                        'viewed_at',
-                        'ip_address',
-                        'country',
-                        'city',
-                        'latitude',
-                        'longitude',
-                    ).first()
-                    if not viewer_email and view_session:
-                        viewer_email = view_session.viewer_email
                 if viewer_email:
                     extra_payload['viewer_email'] = viewer_email
                 if view_session_id:
@@ -662,6 +664,8 @@ class ShareLinkViewDataView(APIView):
             render_status = enqueue_server_preview_render(primary_version)
 
             preview_status = preview_status_for_render_status(render_status)
+            if preview_mode == 'client_pdf':
+                preview_status = 'ready'
 
             # Determine the correct settings to use (link vs. item-specific)
             allow_download = link.allow_download
@@ -707,6 +711,25 @@ class ShareLinkViewDataView(APIView):
                         # If file server is down, we can't generate a download URL.
                         download_url = None
 
+            # Generate a signed PDF URL for PDF.js/client-side preview.
+            pdf_preview_url = None
+            if preview_mode == 'client_pdf':
+                try:
+                    pdf_preview_url = fileserver_client.generate_preview_url(
+                        primary_version.original_storage_key, is_internal=False
+                    )
+                except APIException as e:
+                    logger.warning(f"Failed to generate client PDF URL for version {primary_version.id}: {e}")
+                    pdf_preview_url = None
+
+            # Resolve watermark template tokens for the frontend CSS overlay.
+            # The raw template (e.g. "{{ip-address}} {{email}}") is resolved here so
+            # the client does not need to know the viewer's email or IP.
+            resolved_watermark_text = (
+                _render_watermark_text(link.watermark_text, request, viewer_email=viewer_email)
+                if is_watermarked else ''
+            )
+
             response_data = {
                 "link_type": "document",
                 "id": document.id,
@@ -720,13 +743,14 @@ class ShareLinkViewDataView(APIView):
                 "render_status": render_status,
                 "render_error": primary_version.render_error,
                 "pages": pages_data,
-                "pdf_url": None,
+                "pdf_preview_url": pdf_preview_url,
                 "download_url": download_url,
                 "link_settings": {
                     "id": link.id,
                     "allow_download": allow_download,
                     "enable_watermark": enable_watermark,
                     "watermark_text": link.watermark_text,
+                    "resolved_watermark_text": resolved_watermark_text,
                 }
             }
             return Response(response_data, status=status.HTTP_200_OK)

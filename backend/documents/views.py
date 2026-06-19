@@ -609,7 +609,7 @@ class DocumentPreviewDataView(APIView):
         render_status = serializers.CharField()
         render_error = serializers.CharField(allow_blank=True, allow_null=True)
         pages = serializers.ListField(child=serializers.DictField())
-        pdf_url = serializers.CharField(allow_null=True)
+        pdf_preview_url = serializers.CharField(allow_null=True)
         download_url = serializers.CharField(allow_null=True)
 
     @extend_schema(
@@ -647,6 +647,8 @@ class DocumentPreviewDataView(APIView):
         render_status = enqueue_server_preview_render(primary_version)
 
         preview_status = preview_status_for_render_status(render_status)
+        if preview_mode == 'client_pdf':
+            preview_status = 'ready'
 
         # Content Processing and Response Shaping
         pages_data = []
@@ -664,6 +666,16 @@ class DocumentPreviewDataView(APIView):
             except APIException:
                 download_url = None
 
+        pdf_preview_url = None
+        if preview_mode == 'client_pdf':
+            try:
+                pdf_preview_url = fileserver_client.generate_preview_url(
+                    primary_version.original_storage_key, is_internal=False
+                )
+            except APIException as e:
+                logger.warning(f"Failed to generate client PDF URL for version {primary_version.id}: {e}")
+                pdf_preview_url = None
+
         response_data = {
             "id": document.id,
             "name": document.name,
@@ -674,7 +686,7 @@ class DocumentPreviewDataView(APIView):
             "render_status": render_status,
             "render_error": primary_version.render_error,
             "pages": pages_data,
-            "pdf_url": None,
+            "pdf_preview_url": pdf_preview_url,
             "download_url": download_url,
         }
 
