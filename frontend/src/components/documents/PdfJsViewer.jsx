@@ -11,13 +11,13 @@
  *    or tab hiding, and reporting analytics to the backend via recordPageView.
  */
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, forwardRef, useImperativeHandle } from 'react';
 import { recordPageView } from '../../services/api';
 import { usePdfDocument } from '../../hooks/usePdfDocument';
 import { PdfPage } from './PdfPage';
 import { Skeleton } from '../ui/Skeleton';
 
-export function PdfJsViewer({
+export const PdfJsViewer = forwardRef(({
   pdfUrl,
   title = 'PDF Document',
   viewId,
@@ -25,7 +25,8 @@ export function PdfJsViewer({
   watermarkText = '',
   zoomLevel = 1,
   onPageChange = () => {},
-}) {
+  onDocumentLoad = () => {},
+}, ref) => {
   const { pdfDoc, numPages, pageDimensions, loading, error } = usePdfDocument(pdfUrl);
 
   const [scrollContainer, setScrollContainer] = useState(null);
@@ -37,6 +38,13 @@ export function PdfJsViewer({
   const intervalRef = useRef(null);
   const isInactiveRef = useRef(false);
   const inactivityTimerRef = useRef(null);
+
+  // Notify parent of total pages once PDF is loaded client-side
+  useEffect(() => {
+    if (pdfDoc && numPages) {
+      onDocumentLoad({ numPages });
+    }
+  }, [pdfDoc, numPages, onDocumentLoad]);
 
   const scrollContainerCallbackRef = useCallback((node) => {
     if (node !== null) {
@@ -59,6 +67,16 @@ export function PdfJsViewer({
     },
     [viewId, dataroomVisitId]
   );
+
+  // Expose goToPage via ref
+  useImperativeHandle(ref, () => ({
+    goToPage: (pageNumber) => {
+      const pageEl = pageRefs.current.get(pageNumber);
+      if (pageEl) {
+        pageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }));
 
   // Active time tracking loop (only when active and visible)
   useEffect(() => {
@@ -217,7 +235,7 @@ export function PdfJsViewer({
         ref={scrollContainerCallbackRef}
         className="h-full overflow-y-auto bg-gray-100 dark:bg-gray-800"
       >
-        <div className="mx-auto flex w-fit flex-col items-center space-y-4 p-4">
+        <div className="mx-auto flex w-fit flex-col items-center space-y-4 p-4 pb-24">
           {Array.from({ length: numPages }, (_, i) => {
             const pageNumber = i + 1;
             const pageDim = pageDimensions[pageNumber - 1] || null;
@@ -262,7 +280,9 @@ export function PdfJsViewer({
       )}
     </div>
   );
-}
+});
+
+PdfJsViewer.displayName = 'PdfJsViewer';
 
 function buildWatermarkSvg(text) {
   const safe = text
