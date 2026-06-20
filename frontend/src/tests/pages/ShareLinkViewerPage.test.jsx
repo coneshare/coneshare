@@ -321,7 +321,43 @@ describe('ShareLinkViewerPage', () => {
     });
 
     fireEvent.click(screen.getByLabelText(/open q&a/i));
-
-    expect(screen.getByTestId('qna-panel')).toHaveTextContent('ddoc-123');
-  });
-});
+ 
+     expect(screen.getByTestId('qna-panel')).toHaveTextContent('ddoc-123');
+   });
+ 
+   it('renders, copies link, and dismisses the Owner Preview banner when previewToken is present', async () => {
+     // Mock navigator.clipboard
+     const mockWriteText = vi.fn().mockResolvedValue(undefined);
+     Object.defineProperty(navigator, 'clipboard', {
+       value: { writeText: mockWriteText },
+       writable: true,
+       configurable: true,
+     });
+ 
+     api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
+     api.getShareLinkViewData.mockResolvedValue({ data: mockDocumentData });
+     api.createViewSession.mockResolvedValue({ data: mockViewData });
+ 
+     renderComponent('/view/test-slug?previewToken=test-preview-token');
+ 
+     await waitFor(() => {
+       expect(screen.getByText(/Owner Preview Mode:/)).toBeInTheDocument();
+     });
+ 
+     const copyButton = screen.getByRole('button', { name: /copy the clean link/i });
+     expect(copyButton).toBeInTheDocument();
+ 
+     fireEvent.click(copyButton);
+     expect(mockWriteText).toHaveBeenCalled();
+     await waitFor(() => {
+       expect(screen.getByRole('button', { name: /copied!/i })).toBeInTheDocument();
+     });
+ 
+     const dismissButton = screen.getByTitle('Dismiss banner');
+     expect(dismissButton).toBeInTheDocument();
+ 
+     fireEvent.click(dismissButton);
+ 
+     expect(screen.queryByText(/Owner Preview Mode:/)).not.toBeInTheDocument();
+   });
+ });

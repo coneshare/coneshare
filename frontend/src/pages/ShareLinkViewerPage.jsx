@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { FileDown, MessageCircle } from 'lucide-react';
+import { FileDown, MessageCircle, Info, X } from 'lucide-react';
 import { PasswordForm } from '../components/viewer/PasswordForm';
 import { EmailForm } from '../components/viewer/EmailForm';
 import { ViewerToolbar } from '../components/viewer/ViewerToolbar';
@@ -27,6 +27,56 @@ import { formatBytes } from '../lib/formatters';
 
 const PREVIEW_POLL_INTERVAL_MS = 3000;
 
+function PreviewBanner({ onClose }) {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
+  const handleCopy = () => {
+    const cleanUrl = window.location.origin + window.location.pathname;
+    if (!navigator.clipboard) {
+      console.error('Clipboard API not available');
+      return;
+    }
+    navigator.clipboard.writeText(cleanUrl)
+      .then(() => {
+        setCopied(true);
+      })
+      .catch((err) => {
+        console.error('Failed to copy link:', err);
+      });
+  };
+
+  return (
+    <div className="fixed top-4 left-1/2 z-50 w-full max-w-xl -translate-x-1/2 px-4 animate-fadeIn">
+      <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/95 p-3 shadow-lg backdrop-blur-sm dark:border-amber-900/50 dark:bg-amber-950/90">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+        <div className="flex-1 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+          <span className="font-semibold">Owner Preview Mode:</span> Authorization steps (such as passwords or email checks) are bypassed. To test the full recipient experience,{' '}
+          <button
+            onClick={handleCopy}
+            className="font-semibold underline hover:text-amber-950 dark:hover:text-white"
+          >
+            {copied ? 'Copied!' : 'copy the clean link'}
+          </button>{' '}
+          and open it in an incognito window.
+        </div>
+        <button
+          onClick={onClose}
+          className="rounded-md p-0.5 text-amber-800/60 hover:bg-amber-100 hover:text-amber-800 dark:text-amber-300/60 dark:hover:bg-amber-900/50 dark:hover:text-amber-300"
+          title="Dismiss banner"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function ShareLinkViewerPage() {
   const { slug } = useParams();
   const [searchParams] = useSearchParams();
@@ -37,6 +87,7 @@ export function ShareLinkViewerPage() {
   const dataroomDocumentIdFromUrl = searchParams.get('dataroom_document_id');
   const parentIdFromUrl = searchParams.get('parent_id');
 
+  const [showPreviewBanner, setShowPreviewBanner] = useState(true);
   const [viewData, setViewData] = useState(null);
   const [publicMeta, setPublicMeta] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -345,7 +396,14 @@ export function ShareLinkViewerPage() {
   }
 
   if (viewData?.link_type === 'dataroom') {
-    return <DataroomViewer data={viewData} slug={slug} viewId={viewId} />;
+    return (
+      <>
+        {previewToken && showPreviewBanner && (
+          <PreviewBanner onClose={() => setShowPreviewBanner(false)} />
+        )}
+        <DataroomViewer data={viewData} slug={slug} viewId={viewId} />
+      </>
+    );
   }
 
   // Document-specific state and handlers
@@ -366,6 +424,9 @@ export function ShareLinkViewerPage() {
   if (viewData && (viewData.download_only || !isPreviewable)) {
     return (
       <div className="relative h-screen w-screen bg-gray-50">
+        {previewToken && showPreviewBanner && (
+          <PreviewBanner onClose={() => setShowPreviewBanner(false)} />
+        )}
         <div className="absolute left-6 top-4 z-10">
           <a
             href="/"
@@ -415,6 +476,9 @@ export function ShareLinkViewerPage() {
   if (showPreviewState) {
     return (
       <div className="relative h-screen w-screen bg-gray-50">
+        {previewToken && showPreviewBanner && (
+          <PreviewBanner onClose={() => setShowPreviewBanner(false)} />
+        )}
         <div className="absolute left-6 top-4 z-10">
           <a
             href="/"
@@ -460,6 +524,9 @@ export function ShareLinkViewerPage() {
       ref={viewerRef}
       className={`relative h-screen w-screen bg-gray-50 transition-[padding] duration-200 ${isQnaOpen ? 'lg:pr-[34rem] xl:pr-[38rem]' : ''}`}
     >
+      {previewToken && showPreviewBanner && (
+        <PreviewBanner onClose={() => setShowPreviewBanner(false)} />
+      )}
       <div className="absolute left-6 top-4 z-10">
         <a
           href="/"
