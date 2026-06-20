@@ -7,7 +7,9 @@ import {
   Maximize, 
   Minus, 
   Plus, 
-  Printer 
+  Printer,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import { recordDownload } from '../../services/api';
 import { Button } from '../ui/Button';
@@ -32,6 +34,12 @@ export function ViewerToolbar({
   viewId,
   onFullScreen,
   onPrint,
+
+  // Sibling controls (Optional, for dataroom mode)
+  hasPrevSibling,
+  hasNextSibling,
+  onPrevSibling,
+  onNextSibling,
 }) {
   const [isVisible, setIsVisible] = useState(true);
   const hideTimeoutRef = useRef(null);
@@ -151,6 +159,19 @@ export function ViewerToolbar({
         
         {/* Group 1: Page Navigation */}
         <div className="flex items-center gap-1 pr-1.5">
+          {onPrevSibling && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onPrevSibling} 
+              disabled={!hasPrevSibling}
+              title="Previous file"
+              className="h-8 w-8 hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
+              <ChevronsLeft className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+            </Button>
+          )}
+
           <Button 
             variant="ghost" 
             size="icon" 
@@ -186,6 +207,19 @@ export function ViewerToolbar({
           >
             <ChevronRight className="h-4 w-4 text-gray-600 dark:text-gray-400" />
           </Button>
+
+          {onNextSibling && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onNextSibling} 
+              disabled={!hasNextSibling}
+              title="Next file"
+              className="h-8 w-8 hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
+              <ChevronsRight className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+            </Button>
+          )}
         </div>
 
         <div className="h-6 w-px bg-gray-200 dark:bg-gray-800" />

@@ -311,4 +311,135 @@ describe('DataroomViewer', () => {
     expect(screen.getByTestId('qna-panel')).toHaveTextContent('doc1');
     expect(screen.getByTestId('qna-panel')).toHaveTextContent('Root Document');
   });
+
+  it('ignores stale document fetches to prevent race conditions', async () => {
+    let resolveDoc1;
+    const doc1Promise = new Promise((resolve) => {
+      resolveDoc1 = resolve;
+    });
+
+    api.getShareLinkViewData.mockImplementation((slug, query) => {
+      if (query.parentId === 'folder1') {
+        return Promise.resolve({
+          data: {
+            ...mockDataroomData,
+            items: [
+              { type: 'document', id: 'doc1', name: 'Document 1', document_type: 'pdf' },
+              { type: 'document', id: 'doc2', name: 'Document 2', document_type: 'pdf' },
+            ],
+          },
+        });
+      }
+      if (query.dataroomDocumentId === 'doc1') {
+        return doc1Promise.then(() => ({
+          data: {
+            id: 'doc1',
+            name: 'Stale Doc 1',
+            type: 'document',
+            preview_mode: 'client_pdf',
+            link_settings: { allow_download: true },
+          },
+        }));
+      }
+      if (query.dataroomDocumentId === 'doc2') {
+        return Promise.resolve({
+          data: {
+            id: 'doc2',
+            name: 'Fresh Doc 2',
+            type: 'document',
+            preview_mode: 'client_pdf',
+            link_settings: { allow_download: true },
+          },
+        });
+      }
+      return Promise.resolve({ data: mockDataroomData });
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/view/test-slug?dataroom_document_id=doc1']}>
+        <DataroomViewer
+          data={{
+            ...mockDataroomData,
+            link_type: 'document',
+            id: 'doc1',
+            name: 'Stale Doc 1',
+            dataroom_context: {
+              id: 'dr1',
+              name: 'Test Dataroom',
+              parent_folder_id: 'folder1',
+            },
+          }}
+          slug="test-slug"
+          viewId="view-123"
+        />
+      </MemoryRouter>
+    );
+
+    // Wait for DataroomSiblingNav items to render
+    await waitFor(() => {
+      expect(screen.getByTitle('Document 1')).toBeInTheDocument();
+      expect(screen.getByTitle('Document 2')).toBeInTheDocument();
+    });
+
+    // Simulate clicking Document 1 (triggers doc1 fetch which is slow/pending)
+    fireEvent.click(screen.getByTitle('Document 1'));
+
+    // Simulate clicking Document 2 (triggers doc2 fetch which resolves immediately)
+    fireEvent.click(screen.getByTitle('Document 2'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Fresh Doc 2')).toBeInTheDocument();
+    });
+
+    // Resolve doc1 (the stale response)
+    resolveDoc1();
+
+    // Verify doc2 remains active and doc1 is ignored
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByText('Fresh Doc 2')).toBeInTheDocument();
+    expect(screen.queryByText('Stale Doc 1')).not.toBeInTheDocument();
+  });
+
+  it('does not trigger infinite loop or hijack navigation when navigating to an empty folder', async () => {
+    api.getShareLinkViewData.mockResolvedValue({
+      data: {
+        ...mockDataroomData,
+        items: [],
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/view/test-slug?dataroom_document_id=doc1']}>
+        <DataroomViewer
+          data={{
+            ...mockDataroomData,
+            link_type: 'document',
+            id: 'doc1',
+            name: 'Document 1',
+            dataroom_context: {
+              id: 'dr1',
+              name: 'Test Dataroom',
+              parent_folder_id: 'folder1',
+            },
+          }}
+          slug="test-slug"
+          viewId="view-123"
+        />
+      </MemoryRouter>
+    );
+
+    // On mount, parent folder loading triggers one request
+    await waitFor(() => {
+      expect(api.getShareLinkViewData).toHaveBeenCalledTimes(2);
+    });
+
+    // Verify only 2 calls were fired (no infinite loops)
+    await new Promise((r) => setTimeout(r, 100));
+    expect(api.getShareLinkViewData).toHaveBeenCalledTimes(2);
+    expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', {
+      parentId: 'folder1',
+      limit: DATAROOM_VIEWER_PAGE_SIZE,
+      offset: 0,
+    });
+  });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
   HomeIcon,
@@ -15,6 +15,16 @@ import { formatBytes } from '../../lib/formatters';
 import { FileTypeIcon } from '../documents/FileTypeIcon';
 import { Button } from '../ui/Button';
 import { QnAPanel } from './QnAPanel';
+import { DataroomSiblingNav } from './DataroomSiblingNav';
+import { ViewerToolbar } from './ViewerToolbar';
+import { PreviewViewer } from '../documents/PreviewViewer';
+import { PdfJsViewer } from '../documents/PdfJsViewer';
+import { printPdf, printImages } from '../../lib/print';
+import {
+  hasRenderablePages,
+  isPreviewPending,
+  PreviewStatePanel,
+} from '../documents/PreviewStatePanel';
 import {
   downloadDataroomFolder,
   getPublicQnaSummary,
@@ -22,6 +32,8 @@ import {
   recordDataroomVisit,
 } from '../../services/api';
 import { DATAROOM_VIEWER_PAGE_SIZE } from '../../constants/pagination';
+
+const PREVIEW_POLL_INTERVAL_MS = 3000;
 
 function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = false, index = null }) {
   const isFolder = item.type === 'folder';
@@ -132,13 +144,100 @@ function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = 
 
 export function DataroomViewer({ data, slug, viewId }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [scopeData, setScopeData] = useState(data);
+  const dataroomDocumentIdFromUrl = searchParams.get('dataroom_document_id');
+  const parentIdFromUrl = searchParams.get('parent_id');
+
+  const [scopeData, setScopeData] = useState(() => {
+    if (data && data.link_type === 'dataroom') {
+      return data;
+    }
+    if (data && data.dataroom_context) {
+      return {
+        id: data.dataroom_context.id,
+        name: data.dataroom_context.name,
+        show_file_index: data.dataroom_context.show_file_index,
+        branding_banner: data.dataroom_context.branding_banner,
+        brand_primary_color: data.dataroom_context.brand_primary_color,
+        brand_secondary_color: data.dataroom_context.brand_secondary_color,
+        brand_accent_color: data.dataroom_context.brand_accent_color,
+        breadcrumbs: [],
+        items: [],
+      };
+    }
+    return data;
+  });
+
+  const [documentViewData, setDocumentViewData] = useState(() => {
+    if (data && data.link_type === 'document') {
+      return data;
+    }
+    return null;
+  });
+
+  const [selectedDocumentId, setSelectedDocumentId] = useState(dataroomDocumentIdFromUrl || null);
+  const [isDocumentLoading, setIsDocumentLoading] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [qnaContext, setQnaContext] = useState(null);
   const [currentScopeQnaThreadCount, setCurrentScopeQnaThreadCount] = useState(0);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('coneshare_dataroom_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleToggleSidebarCollapse = useCallback(() => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('coneshare_dataroom_sidebar_collapsed', String(next));
+      } catch (err) {
+        console.error('Failed to save sidebar collapsed state', err);
+      }
+      return next;
+    });
+  }, []);
   const requestRef = useRef(0);
-  const parentIdFromUrl = searchParams.get('parent_id');
+  const docRequestRef = useRef(0);
+  const initialFolderLoadedRef = useRef(false);
+
+  // Document viewing sub-states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const viewerRef = useRef(null);
+  const viewerComponentRef = useRef(null);
+
+  // Synchronize totalPages with documentViewData when it loads
+  useEffect(() => {
+    if (documentViewData) {
+      setTotalPages(documentViewData.num_pages || (documentViewData.pages?.length || 1));
+    }
+  }, [documentViewData]);
+
+  const handleDocumentLoad = useCallback(({ numPages }) => {
+    setTotalPages(numPages);
+  }, []);
+
+  const handleFullScreen = () => {
+    if (viewerRef.current) {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        viewerRef.current.requestFullscreen();
+      }
+    }
+  };
+
+  const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.1, 3));
+  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
+  const handleFitWidth = () => setZoomLevel(1);
+  const handlePageChange = (pageNumber) => {
+    viewerComponentRef.current?.goToPage(pageNumber);
+  };
 
   const handleDownloadFolder = async (folder) => {
     toast.info(`Preparing to download "${folder.name}"...`);
@@ -166,12 +265,10 @@ export function DataroomViewer({ data, slug, viewId }) {
       toast.success(`Successfully downloaded "${filename}".`);
     } catch (error) {
       console.error('Failed to download folder:', error);
-      // Error toast is handled by the api interceptor
     }
   };
 
   const handleDownloadDocument = (doc) => {
-    // This constructs a URL to the existing single-file download endpoint.
     const params = new URLSearchParams({ dataroom_document_id: doc.id });
     if (viewId) {
       params.set('view_session_id', viewId);
@@ -179,8 +276,6 @@ export function DataroomViewer({ data, slug, viewId }) {
     const downloadUrl = `/api/v1/links/${slug}/download-file/?${params.toString()}`;
     const link = document.createElement('a');
     link.href = downloadUrl;
-    // The browser will handle the 'download' attribute for same-origin URLs.
-    // The backend should set 'Content-Disposition' header for this to work robustly.
     link.setAttribute('download', doc.name || doc.document_name);
     document.body.appendChild(link);
     link.click();
@@ -221,13 +316,32 @@ export function DataroomViewer({ data, slug, viewId }) {
     ));
   };
 
-  const allItems = Array.isArray(scopeData.items) ? scopeData.items : [];
+  const allItems = useMemo(() => (Array.isArray(scopeData.items) ? scopeData.items : []), [scopeData.items]);
   const breadcrumbs = Array.isArray(scopeData.breadcrumbs) ? scopeData.breadcrumbs : [];
   const currentFolderId = scopeData?.current_parent_id || null;
 
   // Keep local scope state aligned with parent-provided data refreshes.
   useEffect(() => {
-    setScopeData(data);
+    initialFolderLoadedRef.current = false;
+    if (data) {
+      if (data.link_type === 'dataroom') {
+        setScopeData(data);
+      } else if (data.link_type === 'document') {
+        setDocumentViewData(data);
+        if (data.dataroom_context) {
+          setScopeData((prev) => ({
+            ...prev,
+            id: data.dataroom_context.id,
+            name: data.dataroom_context.name,
+            show_file_index: data.dataroom_context.show_file_index,
+            branding_banner: data.dataroom_context.branding_banner,
+            brand_primary_color: data.dataroom_context.brand_primary_color,
+            brand_secondary_color: data.dataroom_context.brand_secondary_color,
+            brand_accent_color: data.dataroom_context.brand_accent_color,
+          }));
+        }
+      }
+    }
   }, [data]);
 
   useEffect(() => {
@@ -273,7 +387,7 @@ export function DataroomViewer({ data, slug, viewId }) {
       if (requestId !== requestRef.current) return;
       if (append) {
         setScopeData((prev) => ({
-          ...response.data,
+          ...prev,
           items: [...(prev?.items || []), ...(response.data.items || [])],
         }));
       } else {
@@ -284,25 +398,15 @@ export function DataroomViewer({ data, slug, viewId }) {
       console.error('Failed to load folder scope:', err);
       toast.error('Could not load folder. Please try again.');
     } finally {
-      if (requestId !== requestRef.current) return;
-      if (append) {
-        setIsLoadingMore(false);
-      } else {
-        setIsNavigating(false);
+      if (requestId === requestRef.current) {
+        if (append) {
+          setIsLoadingMore(false);
+        } else {
+          setIsNavigating(false);
+        }
       }
     }
   }, [slug]);
-
-  // User-initiated navigation updates URL; fetching is centralized in the URL-sync effect.
-  const navigateToScope = useCallback((parentId) => {
-    const nextParams = new URLSearchParams(searchParams);
-    if (parentId) {
-      nextParams.set('parent_id', parentId);
-    } else {
-      nextParams.delete('parent_id');
-    }
-    setSearchParams(nextParams);
-  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     const currentParentId = scopeData?.current_parent_id ? String(scopeData.current_parent_id) : null;
@@ -310,7 +414,6 @@ export function DataroomViewer({ data, slug, viewId }) {
     if (normalizedUrlParentId === currentParentId) {
       return;
     }
-    // URL changed via click/back-forward. Refresh scope data for the target URL state.
     fetchScopeData(normalizedUrlParentId);
   }, [fetchScopeData, parentIdFromUrl, scopeData?.current_parent_id]);
 
@@ -321,42 +424,209 @@ export function DataroomViewer({ data, slug, viewId }) {
     fetchScopeData(normalizedUrlParentId, { append: true, offset: nextOffset });
   }, [scopeData?.pagination?.next_offset, parentIdFromUrl, fetchScopeData]);
 
-  const handleItemClick = async (item) => {
+  // Document inline viewing logic
+  const fetchDocumentViewData = useCallback(async (docId) => {
+    const requestId = ++docRequestRef.current;
+    setIsDocumentLoading(true);
+    try {
+      let dataroomVisitId = null;
+      if (viewId) {
+        try {
+          const visitRes = await recordDataroomVisit(viewId, { dataroomDocumentId: docId });
+          dataroomVisitId = visitRes.data.id;
+        } catch (visitErr) {
+          console.error('Failed to record document visit:', visitErr);
+        }
+      }
+
+      if (requestId !== docRequestRef.current) return;
+
+      const response = await getShareLinkViewData(slug, {
+        dataroomDocumentId: docId,
+        viewSessionId: viewId || undefined,
+        dataroomVisitId: dataroomVisitId || undefined,
+      });
+
+      if (requestId !== docRequestRef.current) return;
+
+      setDocumentViewData({
+        ...response.data,
+        dataroom_visit_id: dataroomVisitId,
+      });
+    } catch (err) {
+      if (requestId !== docRequestRef.current) return;
+      console.error('Failed to load document view data:', err);
+      toast.error('Could not load document. Please try again.');
+    } finally {
+      if (requestId === docRequestRef.current) {
+        setIsDocumentLoading(false);
+      }
+    }
+  }, [slug, viewId]);
+
+  useEffect(() => {
+    const docId = searchParams.get('dataroom_document_id') || null;
+    if (docId !== selectedDocumentId) {
+      setSelectedDocumentId(docId);
+    }
+  }, [searchParams, selectedDocumentId]);
+  useEffect(() => {
+    if (selectedDocumentId) {
+      if (!documentViewData || String(documentViewData.id) !== String(selectedDocumentId)) {
+        fetchDocumentViewData(selectedDocumentId);
+      }
+    } else {
+      setDocumentViewData(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDocumentId, documentViewData?.id, fetchDocumentViewData]);
+
+  // Rewrite URL on direct deep link load to include parent_id
+  useEffect(() => {
+    if (dataroomDocumentIdFromUrl && !parentIdFromUrl) {
+      const parentFolderId = data?.dataroom_context?.parent_folder_id;
+      if (parentFolderId) {
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.set('parent_id', parentFolderId);
+        setSearchParams(nextParams);
+      }
+    }
+  }, [dataroomDocumentIdFromUrl, parentIdFromUrl, data, searchParams, setSearchParams]);
+
+  // Trigger parent folder load if starting with document deep-link but folder items not loaded
+  useEffect(() => {
+    if (data && data.dataroom_context && !scopeData?.items?.length && !initialFolderLoadedRef.current) {
+      initialFolderLoadedRef.current = true;
+      const parentId = data.dataroom_context.parent_folder_id;
+      fetchScopeData(parentId);
+    }
+  }, [data, fetchScopeData, scopeData?.items?.length]);
+
+  // Reset zoom & page when active document changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setZoomLevel(1);
+  }, [selectedDocumentId]);
+
+  // Poll for document preview rendering status updates if pending
+  useEffect(() => {
+    if (!documentViewData || !isPreviewPending(documentViewData)) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      fetchDocumentViewData(selectedDocumentId);
+    }, PREVIEW_POLL_INTERVAL_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [documentViewData, selectedDocumentId, fetchDocumentViewData]);
+
+  const handleItemClick = useCallback(async (item) => {
     if (item.type === 'folder') {
       if (viewId) {
-        // Fire-and-forget request to record the folder visit for the activity log.
         recordDataroomVisit(viewId, { dataroomFolderId: item.id }).catch((err) => {
           console.error('Failed to record folder visit:', err);
         });
       }
-      navigateToScope(item.id);
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set('parent_id', item.id);
+      nextParams.delete('dataroom_document_id');
+      setSearchParams(nextParams);
+
+      setDocumentViewData(null);
+      setSelectedDocumentId(null);
     } else {
-      // 1. Open a blank window IMMEDIATELY to satisfy Safari's user gesture rule
-      const newTab = window.open('about:blank', '_blank');
-      if (!newTab) {
-        toast.error('Pop-up blocked. Please allow pop-ups for this site.');
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set('dataroom_document_id', item.id);
+      const currentFolderId = scopeData?.current_parent_id || parentIdFromUrl || null;
+      if (currentFolderId) {
+        nextParams.set('parent_id', currentFolderId);
+      } else {
+        nextParams.delete('parent_id');
+      }
+      setSearchParams(nextParams);
+
+      setSelectedDocumentId(item.id);
+    }
+  }, [viewId, searchParams, setSearchParams, scopeData?.current_parent_id, parentIdFromUrl]);
+
+  const siblingDocs = useMemo(() => allItems.filter((item) => item.type === 'document'), [allItems]);
+  const currentIndex = useMemo(() => {
+    if (!selectedDocumentId) return -1;
+    return siblingDocs.findIndex((item) => String(item.id) === String(selectedDocumentId));
+  }, [siblingDocs, selectedDocumentId]);
+
+  const hasPrevSibling = currentIndex > 0;
+  const hasNextSibling = currentIndex !== -1 && currentIndex < siblingDocs.length - 1;
+
+  const onPrevSibling = useCallback(() => {
+    if (hasPrevSibling) {
+      handleItemClick(siblingDocs[currentIndex - 1]);
+    }
+  }, [hasPrevSibling, currentIndex, siblingDocs, handleItemClick]);
+
+  const onNextSibling = useCallback(() => {
+    if (hasNextSibling) {
+      handleItemClick(siblingDocs[currentIndex + 1]);
+    }
+  }, [hasNextSibling, currentIndex, siblingDocs, handleItemClick]);
+
+  // Keyboard navigation event listener
+  useEffect(() => {
+    if (!selectedDocumentId) {
+      return undefined;
+    }
+
+    const handleKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
         return;
       }
 
-      // This is a document. Record the visit and then open it in a new tab.
-      if (viewId) {
-        try {
-          // Record the visit to get a specific visit ID for page-level tracking.
-          const visitResponse = await recordDataroomVisit(viewId, { dataroomDocumentId: item.id });
-          const dataroomVisitId = visitResponse.data.id;
-          // Construct the URL for the new tab.
-          const url = `/view/${slug}?dataroom_document_id=${item.id}&view_session_id=${viewId}&dataroom_visit_id=${dataroomVisitId}`;
-
-          // 2. Update the already-opened window with the actual URL
-          newTab.location.href = url;
-        } catch (err) {
-          console.error('Failed to record document visit or open document:', err);
-          newTab.close(); // Close the blank tab if the request fails
-          toast.error('Could not open document. Please try again.');
+      if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        onNextSibling();
+      } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowLeft')) {
+        e.preventDefault();
+        onPrevSibling();
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const nextPage = Math.min(currentPage + 1, totalPages);
+        if (nextPage !== currentPage) {
+          viewerComponentRef.current?.goToPage(nextPage);
         }
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const prevPage = Math.max(currentPage - 1, 1);
+        if (prevPage !== currentPage) {
+          viewerComponentRef.current?.goToPage(prevPage);
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === '=') {
+        e.preventDefault();
+        setZoomLevel((prev) => Math.min(prev + 0.1, 3));
+      } else if ((e.ctrlKey || e.metaKey) && e.key === '-') {
+        e.preventDefault();
+        setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
+      } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+        e.preventDefault();
+        setZoomLevel(1);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedDocumentId, currentPage, totalPages, onPrevSibling, onNextSibling]);
+
+  const handlePrint = () => {
+    if (!documentViewData) return;
+
+    if (documentViewData.preview_mode === 'client_pdf') {
+      printPdf(documentViewData.pdf_preview_url);
+    } else {
+      if (documentViewData.link_settings?.allow_download && documentViewData.type === 'pdf') {
+        printPdf(docDownloadUrl);
       } else {
-        // Fallback for the case where viewId is not ready, though it should be.
-        newTab.location.href = `/view/${slug}?dataroom_document_id=${item.id}`;
+        const imageUrls = documentViewData.pages?.map((p) => p.url) || [];
+        printImages(imageUrls);
       }
     }
   };
@@ -366,14 +636,61 @@ export function DataroomViewer({ data, slug, viewId }) {
     '--viewer-secondary': scopeData.brand_secondary_color || '#4b5563',
     '--viewer-accent': scopeData.brand_accent_color || '#1f2937',
   };
+
+  const showDocumentViewer = Boolean(selectedDocumentId);
+
+  const isDocActive = showDocumentViewer;
   const isCurrentScopeQnaOpen = Boolean(
     qnaContext
+      && !isDocActive
       && qnaContext.type === (currentFolderId ? 'folder' : 'dataroom')
       && qnaContext.id === currentFolderId
   );
-  const currentScopeQnaButtonLabel = `${isCurrentScopeQnaOpen ? 'Close' : 'Open'} Q&A for current folder${
-    currentScopeQnaThreadCount > 0 ? `, ${currentScopeQnaThreadCount} threads` : ''
-  }`;
+  const isDocQnaOpen = Boolean(
+    qnaContext
+      && isDocActive
+      && qnaContext.type === 'document'
+      && qnaContext.id === selectedDocumentId
+  );
+
+  const handleQnaToggle = () => {
+    if (isDocActive) {
+      if (!documentViewData) return;
+      const nextContext = {
+        id: selectedDocumentId,
+        type: 'document',
+        label: documentViewData.name,
+      };
+      setQnaContext((current) => (
+        current && current.id === nextContext.id && current.type === nextContext.type
+          ? null
+          : nextContext
+      ));
+    } else {
+      handleCurrentScopeQnaClick();
+    }
+  };
+
+  const currentScopeQnaButtonLabel = isDocActive
+    ? `${isDocQnaOpen ? 'Close' : 'Open'} Q&A for this document`
+    : `${isCurrentScopeQnaOpen ? 'Close' : 'Open'} Q&A for current folder${
+        currentScopeQnaThreadCount > 0 ? `, ${currentScopeQnaThreadCount} threads` : ''
+      }`;
+
+  // Inline Document Viewer specific layout parameters
+  const PREVIEWABLE_TYPES = ['image', 'pdf', 'document'];
+  const isPreviewable = documentViewData && PREVIEWABLE_TYPES.includes(documentViewData.type);
+  const canDownload = Boolean(documentViewData?.link_settings?.allow_download);
+  const canRenderPages = hasRenderablePages(documentViewData);
+  const showPreviewState = documentViewData && isPreviewable && !documentViewData.download_only && !canRenderPages && documentViewData.preview_mode !== 'client_pdf';
+
+  let docDownloadUrl = `/api/v1/links/${slug}/download-file/`;
+  if (selectedDocumentId) {
+    docDownloadUrl += `?dataroom_document_id=${selectedDocumentId}`;
+  }
+  if (viewId) {
+    docDownloadUrl += `&view_session_id=${viewId}`;
+  }
 
   return (
     <div
@@ -387,14 +704,14 @@ export function DataroomViewer({ data, slug, viewId }) {
             type="button"
             variant="outline"
             className="h-9 rounded-full bg-white px-3 text-gray-900 hover:bg-gray-100 hover:text-gray-900 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 dark:hover:text-gray-900"
-            onClick={handleCurrentScopeQnaClick}
+            onClick={handleQnaToggle}
             disabled={!viewId}
             aria-label={currentScopeQnaButtonLabel}
             title={currentScopeQnaButtonLabel}
           >
             <MessageCircle className="h-4 w-4" />
-            <span className="ml-2 font-semibold">Q&amp;A</span>
-            {currentScopeQnaThreadCount > 0 && (
+            <span className="ml-2 font-semibold">{isDocActive ? 'Document Q&A' : 'Q&A'}</span>
+            {!isDocActive && currentScopeQnaThreadCount > 0 && (
               <span
                 className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground"
                 aria-hidden="true"
@@ -409,7 +726,7 @@ export function DataroomViewer({ data, slug, viewId }) {
           </a>
         </div>
       </header>
-      {scopeData.branding_banner && (
+      {scopeData.branding_banner && !showDocumentViewer && (
         <section className="flex-shrink-0 border-b bg-white">
           <img src={scopeData.branding_banner} alt={`${scopeData.name} banner`} className="h-32 w-full object-cover md:h-44" />
         </section>
@@ -419,7 +736,14 @@ export function DataroomViewer({ data, slug, viewId }) {
         <ol className="flex items-center space-x-2 overflow-x-auto whitespace-nowrap text-sm" style={{ color: 'var(--viewer-secondary)' }}>
           <li>
             <button
-              onClick={() => navigateToScope(null)}
+              onClick={() => {
+                const nextParams = new URLSearchParams(searchParams);
+                nextParams.delete('parent_id');
+                nextParams.delete('dataroom_document_id');
+                setSearchParams(nextParams);
+                setDocumentViewData(null);
+                setSelectedDocumentId(null);
+              }}
               className="flex items-center gap-2"
               style={{ color: 'var(--viewer-secondary)' }}
             >
@@ -431,7 +755,14 @@ export function DataroomViewer({ data, slug, viewId }) {
             <li key={crumb.id} className="flex items-center">
               <ChevronRight className="h-4 w-4" style={{ color: 'var(--viewer-secondary)' }} />
               <button
-                onClick={() => navigateToScope(crumb.id)}
+                onClick={() => {
+                  const nextParams = new URLSearchParams(searchParams);
+                  nextParams.set('parent_id', crumb.id);
+                  nextParams.delete('dataroom_document_id');
+                  setSearchParams(nextParams);
+                  setDocumentViewData(null);
+                  setSelectedDocumentId(null);
+                }}
                 className="ml-2"
                 style={{ color: 'var(--viewer-secondary)' }}
               >
@@ -439,67 +770,197 @@ export function DataroomViewer({ data, slug, viewId }) {
               </button>
             </li>
           ))}
+          {showDocumentViewer && documentViewData && (
+            <li className="flex items-center">
+              <ChevronRight className="h-4 w-4" style={{ color: 'var(--viewer-secondary)' }} />
+              <span className="ml-2 font-medium" style={{ color: 'var(--viewer-primary)' }}>
+                {documentViewData.name}
+              </span>
+            </li>
+          )}
         </ol>
       </nav>
 
-      <main className="flex-1 overflow-y-auto border-t">
-        <div
-          className="flex w-full items-center border-b px-3 py-2 text-xs font-medium sm:px-4"
-          style={{
-            color: 'var(--viewer-secondary)',
-            backgroundColor: 'color-mix(in srgb, var(--viewer-secondary) 8%, white)',
-          }}
-        >
-          {scopeData.show_file_index && <div className="hidden w-10 sm:block">#</div>}
-          <div className="w-7 sm:w-8" />
-          <div className="min-w-0 flex-1 pr-2 sm:pr-4">Name</div>
-          <div className="hidden w-[20%] sm:block">Last Modified</div>
-          <div className="hidden w-[10%] sm:block">Size</div>
-          <div className="w-9 shrink-0 text-right sm:w-[10%]">Actions</div>
-        </div>
-        {isNavigating ? (
-          <div className="divide-y">
-            {Array.from({ length: 5 }).map((_, idx) => (
-              <div key={idx} className="flex w-full items-center px-4 py-2">
-                {scopeData.show_file_index && <div className="w-10"><div className="h-3 w-4 animate-pulse rounded bg-gray-200" /></div>}
-                <div className="w-8"><div className="h-4 w-4 animate-pulse rounded bg-gray-200" /></div>
-                <div className="w-[50%] pr-4"><div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" /></div>
-                <div className="w-[20%]"><div className="h-4 w-2/3 animate-pulse rounded bg-gray-200" /></div>
-                <div className="w-[10%]"><div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" /></div>
-                <div className="w-[10%] text-right"><div className="ml-auto h-4 w-4 animate-pulse rounded bg-gray-200" /></div>
+      {showDocumentViewer ? (
+        <main className="flex-1 flex overflow-hidden border-t relative">
+          <DataroomSiblingNav
+            items={allItems}
+            selectedDocumentId={selectedDocumentId}
+            onItemClick={handleItemClick}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={handleToggleSidebarCollapse}
+            currentFolderName={breadcrumbs[breadcrumbs.length - 1]?.name || scopeData.name}
+          />
+          {isDocumentLoading ? (
+            <div className="flex-1 flex items-center justify-center bg-gray-50">
+              <div className="text-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-primary mx-auto mb-4" />
+                <p className="text-gray-500 text-sm">Loading document...</p>
               </div>
-            ))}
+            </div>
+          ) : documentViewData ? (
+            <div className="flex-1 flex flex-col relative h-full bg-gray-100 overflow-hidden" ref={viewerRef}>
+              {documentViewData.download_only || !isPreviewable ? (
+                <div className="flex h-full items-center justify-center p-4 w-full bg-white">
+                  <div className="w-full max-w-md rounded-lg bg-white p-8 text-center shadow-lg border">
+                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+                      <DownloadIcon className="h-6 w-6 text-gray-600" />
+                    </div>
+                    <h1 className="mb-1 text-xl font-bold text-gray-900 truncate" title={documentViewData.name}>
+                      {documentViewData.name}
+                    </h1>
+                    {documentViewData.file_size ? (
+                      <p className="mb-6 text-sm text-gray-500">{formatBytes(documentViewData.file_size)}</p>
+                    ) : null}
+                    <p className="mb-6 text-gray-700">
+                      This type of file is not available for online preview. Download the file and open it
+                      on your device.
+                    </p>
+                    {canDownload ? (
+                      <Button asChild size="lg" className="w-full">
+                        <a href={docDownloadUrl} download={documentViewData.name}>
+                          Download
+                        </a>
+                      </Button>
+                    ) : (
+                      <>
+                        <Button size="lg" className="w-full" disabled>
+                          Download
+                        </Button>
+                        <p className="mt-2 text-sm text-gray-500">
+                          Download is disabled for this document by the link permissions.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : showPreviewState ? (
+                <div className="flex-1 flex items-center justify-center bg-gray-50 h-full w-full">
+                  <PreviewStatePanel
+                    documentData={documentViewData}
+                    allowDownload={canDownload}
+                    downloadUrl={docDownloadUrl}
+                  />
+                </div>
+              ) : (
+                <div className="relative flex-1 flex flex-col h-full overflow-hidden">
+                  <ViewerToolbar
+                    allowDownload={documentViewData.link_settings.allow_download}
+                    downloadUrl={docDownloadUrl}
+                    downloadFileName={documentViewData.name}
+                    downloadDocumentId={selectedDocumentId}
+                    onFullScreen={handleFullScreen}
+                    onZoomIn={handleZoomIn}
+                    onZoomOut={handleZoomOut}
+                    zoomLevel={zoomLevel}
+                    onFitWidth={handleFitWidth}
+                    onPageChange={handlePageChange}
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    viewId={viewId}
+                    previewMode={documentViewData.preview_mode}
+                    onPrint={handlePrint}
+                    hasPrevSibling={hasPrevSibling}
+                    hasNextSibling={hasNextSibling}
+                    onPrevSibling={onPrevSibling}
+                    onNextSibling={onNextSibling}
+                  />
+                  {documentViewData.preview_mode === 'client_pdf' ? (
+                    <PdfJsViewer
+                      ref={viewerComponentRef}
+                      pdfUrl={documentViewData.pdf_preview_url}
+                      title={documentViewData.name}
+                      viewId={viewId}
+                      dataroomVisitId={documentViewData.dataroom_visit_id}
+                      watermarkText={
+                        documentViewData.link_settings?.enable_watermark
+                          ? (documentViewData.link_settings.resolved_watermark_text || documentViewData.link_settings.watermark_text || '')
+                          : ''
+                      }
+                      zoomLevel={zoomLevel}
+                      onPageChange={setCurrentPage}
+                      onDocumentLoad={handleDocumentLoad}
+                    />
+                  ) : (
+                    <PreviewViewer
+                      ref={viewerComponentRef}
+                      documentData={documentViewData}
+                      zoomLevel={zoomLevel}
+                      onPageChange={setCurrentPage}
+                      viewId={viewId}
+                      dataroomVisitId={documentViewData.dataroom_visit_id}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center bg-gray-50">
+              <p className="text-gray-500">No document view data available.</p>
+            </div>
+          )}
+        </main>
+      ) : (
+        <main className="flex-1 overflow-y-auto border-t">
+          <div
+            className="flex w-full items-center border-b px-3 py-2 text-xs font-medium sm:px-4"
+            style={{
+              color: 'var(--viewer-secondary)',
+              backgroundColor: 'color-mix(in srgb, var(--viewer-secondary) 8%, white)',
+            }}
+          >
+            {scopeData.show_file_index && <div className="hidden w-10 sm:block">#</div>}
+            <div className="w-7 sm:w-8" />
+            <div className="min-w-0 flex-1 pr-2 sm:pr-4">Name</div>
+            <div className="hidden w-[20%] sm:block">Last Modified</div>
+            <div className="hidden w-[10%] sm:block">Size</div>
+            <div className="w-9 shrink-0 text-right sm:w-[10%]">Actions</div>
           </div>
-        ) : (
-          <div className="divide-y">
-            {allItems.map((item, idx) => (
-              <ListItem
-                key={item.id}
-                item={item}
-                onItemClick={handleItemClick}
-                onDownloadClick={handleDownloadClick}
-                onQnaClick={handleQnaClick}
-                showIndex={Boolean(scopeData.show_file_index)}
-                index={idx + 1}
-              />
-            ))}
-            {scopeData?.pagination?.has_more && (
-              <div className="flex justify-center py-4">
-                <Button
-                  variant="outline"
-                  onClick={handleLoadMore}
-                  disabled={isLoadingMore}
-                >
-                  {isLoadingMore ? 'Loading...' : 'Load more'}
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-        {!isNavigating && allItems.length === 0 && (
-          <div className="p-12 text-center" style={{ color: 'var(--viewer-secondary)' }}>This folder is empty.</div>
-        )}
-      </main>
+          {isNavigating ? (
+            <div className="divide-y">
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <div key={idx} className="flex w-full items-center px-4 py-2">
+                  {scopeData.show_file_index && <div className="w-10"><div className="h-3 w-4 animate-pulse rounded bg-gray-200" /></div>}
+                  <div className="w-8"><div className="h-4 w-4 animate-pulse rounded bg-gray-200" /></div>
+                  <div className="w-[50%] pr-4"><div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" /></div>
+                  <div className="w-[20%]"><div className="h-4 w-2/3 animate-pulse rounded bg-gray-200" /></div>
+                  <div className="w-[10%]"><div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" /></div>
+                  <div className="w-[10%] text-right"><div className="ml-auto h-4 w-4 animate-pulse rounded bg-gray-200" /></div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="divide-y">
+              {allItems.map((item, idx) => (
+                <ListItem
+                  key={item.id}
+                  item={item}
+                  onItemClick={handleItemClick}
+                  onDownloadClick={handleDownloadClick}
+                  onQnaClick={handleQnaClick}
+                  showIndex={Boolean(scopeData.show_file_index)}
+                  index={idx + 1}
+                />
+              ))}
+              {scopeData?.pagination?.has_more && (
+                <div className="flex justify-center py-4">
+                  <Button
+                    variant="outline"
+                    onClick={handleLoadMore}
+                    disabled={isLoadingMore}
+                  >
+                    {isLoadingMore ? 'Loading...' : 'Load more'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+          {!isNavigating && allItems.length === 0 && (
+            <div className="p-12 text-center" style={{ color: 'var(--viewer-secondary)' }}>This folder is empty.</div>
+          )}
+        </main>
+      )}
+
       <QnAPanel
         open={Boolean(qnaContext)}
         onOpenChange={(nextOpen) => {
@@ -520,7 +981,6 @@ export function DataroomViewer({ data, slug, viewId }) {
           }
         }}
       />
-
     </div>
   );
 }

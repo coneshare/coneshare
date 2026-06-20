@@ -972,6 +972,39 @@ class TestDataroomVisitTracking:
         assert "link_settings" in data
         assert data['link_settings']['allow_download'] is False  # Should reflect the specific setting
 
+    def test_get_document_from_dataroom_link_returns_dataroom_context(self, public_client, user, dataroom, document):
+        """
+        Test that fetching a document from a dataroom link returns the parent dataroom
+        branding context and correct parent folder ID.
+        """
+        folder = DataroomFolder.objects.create(dataroom=dataroom, name="Nested Folder")
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document, folder=folder)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        url = f"/api/v1/links/{link.slug}/view-data/?dataroom_document_id={ddoc.id}"
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert "dataroom_context" in data
+        ctx = data["dataroom_context"]
+        assert ctx["id"] == str(dataroom.id)
+        assert ctx["name"] == dataroom.name
+        assert ctx["parent_folder_id"] == str(folder.id)
+        assert ctx["brand_primary_color"] == dataroom.brand_primary_color
+
+    def test_get_standalone_document_link_does_not_return_dataroom_context(self, public_client, user, document):
+        """
+        Test that fetching a standalone document link does not return dataroom_context.
+        """
+        link = ShareLink.objects.create(document=document, created_by=user)
+        url = f"/api/v1/links/{link.slug}/view-data/"
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert "dataroom_context" not in data
+
     @patch('sharelinks.views.enqueue_server_preview_render')
     @patch('sharelinks.views.fileserver_client.generate_download_url')
     def test_get_dataroom_document_hides_download_url_when_item_downloads_disabled(

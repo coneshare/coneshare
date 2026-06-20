@@ -9,3 +9,4 @@ const ResizeObserverMock = vi.fn(() => ({
 }));
 
 vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+vi.stubGlobal('DOMMatrix', class DOMMatrix {});
