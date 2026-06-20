@@ -30,7 +30,7 @@ export function LinkActionsDropdown({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
-        {contextType === 'document' && (
+        {onPreview && (
           <DropdownMenuItem onSelect={() => onPreview(link.id, link.slug)}>
             <Eye className="mr-2 h-4 w-4" /> <span>Preview</span>
           </DropdownMenuItem>
