@@ -595,6 +595,7 @@ class ShareLinkViewDataView(APIView):
 
         document_to_return = None
         dataroom_setting = None  # To hold the setting if it's a dataroom link
+        dataroom_context = None
         # Case 1: Fetching a specific document from within a dataroom link.
         if link.dataroom and dataroom_document_id:
             try:
@@ -605,6 +606,18 @@ class ShareLinkViewDataView(APIView):
                 )
                 document_to_return = setting.dataroom_document.document
                 dataroom_setting = setting
+                
+                dataroom = link.dataroom
+                dataroom_context = {
+                    'id': dataroom.id,
+                    'name': dataroom.name,
+                    'show_file_index': dataroom.show_file_index,
+                    'branding_banner': urljoin(settings.SITE_DOMAIN, dataroom.branding_banner.url) if dataroom.branding_banner else None,
+                    'brand_primary_color': dataroom.brand_primary_color,
+                    'brand_secondary_color': dataroom.brand_secondary_color,
+                    'brand_accent_color': dataroom.brand_accent_color,
+                    'parent_folder_id': setting.dataroom_document.folder_id,
+                }
             except serializers.ValidationError as e:
                 return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
             except ShareLinkDataroomSetting.DoesNotExist:
@@ -753,6 +766,8 @@ class ShareLinkViewDataView(APIView):
                     "resolved_watermark_text": resolved_watermark_text,
                 }
             }
+            if dataroom_context:
+                response_data["dataroom_context"] = dataroom_context
             return Response(response_data, status=status.HTTP_200_OK)
 
         # Case 3: Fetching the content list for a dataroom link.

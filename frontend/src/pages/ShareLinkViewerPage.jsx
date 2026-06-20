@@ -247,6 +247,7 @@ export function ShareLinkViewerPage() {
       isCancelled = true;
       window.clearTimeout(retryTimer);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     slug,
     previewToken,
@@ -395,7 +396,12 @@ export function ShareLinkViewerPage() {
     );
   }
 
-  if (viewData?.link_type === 'dataroom') {
+  const isDataroom =
+    publicMeta?.target_type === 'dataroom' ||
+    viewData?.link_type === 'dataroom' ||
+    Boolean(viewData?.dataroom_context);
+
+  if (isDataroom && viewData) {
     return (
       <>
         {previewToken && showPreviewBanner && (
