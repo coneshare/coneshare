@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import permissions, status, viewsets, serializers
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from documents.views import StandardResultsSetPagination
@@ -99,6 +100,27 @@ class AdminSettingsViewSet(viewsets.ModelViewSet):
         })
 
 
+class AdminUserDetailSerializer(UserSerializer):
+    total_links = serializers.SerializerMethodField()
+    total_datarooms = serializers.SerializerMethodField()
+    total_views = serializers.SerializerMethodField()
+
+    class Meta(UserSerializer.Meta):
+        fields = UserSerializer.Meta.fields + ['total_links', 'total_datarooms', 'total_views']
+
+    def get_total_links(self, obj):
+        from sharelinks.models import ShareLink
+        return ShareLink.objects.filter(created_by=obj).count()
+
+    def get_total_datarooms(self, obj):
+        from datarooms.models import Dataroom
+        return Dataroom.objects.filter(created_by=obj).count()
+
+    def get_total_views(self, obj):
+        from sharelinks.models import ViewSession
+        return ViewSession.objects.filter(share_link__created_by=obj).count()
+
+
 class AdminUserViewSet(viewsets.ModelViewSet):
     """
     API endpoint for admins to manage users in their organization.
@@ -107,6 +129,11 @@ class AdminUserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
     pagination_class = StandardResultsSetPagination
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return AdminUserDetailSerializer
+        return UserSerializer
 
     def get_queryset(self):
         """
@@ -171,6 +198,36 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['get'], url_path='share-links')
+    def share_links(self, request, pk=None):
+        from sharelinks.models import ShareLink
+        from sharelinks.serializers import ShareLinkSerializer
+        user = self.get_object()
+        queryset = ShareLink.objects.filter(created_by=user).order_by('-created_at')
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = ShareLinkSerializer(page, many=True, context=self.get_serializer_context())
+            return self.get_paginated_response(serializer.data)
+
+        serializer = ShareLinkSerializer(queryset, many=True, context=self.get_serializer_context())
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='datarooms')
+    def datarooms(self, request, pk=None):
+        from datarooms.models import Dataroom
+        from datarooms.serializers import DataroomSerializer
+        user = self.get_object()
+        queryset = Dataroom.objects.filter(created_by=user).order_by('-created_at')
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = DataroomSerializer(page, many=True, context=self.get_serializer_context())
+            return self.get_paginated_response(serializer.data)
+
+        serializer = DataroomSerializer(queryset, many=True, context=self.get_serializer_context())
+        return Response(serializer.data)
 
 
 class AdminLoginActivityViewSet(viewsets.ReadOnlyModelViewSet):

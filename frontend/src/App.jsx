@@ -25,6 +25,7 @@ import UserSettingsPage from './pages/UserSettingsPage';
 import { AdminSettingsPage } from './pages/AdminSettingsPage';
 import { AdminLoginActivityPage } from './pages/AdminLoginActivityPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
+import { AdminUserDetailPage } from './pages/AdminUserDetailPage';
 import { AdminSecurityAlertsPage } from './pages/AdminSecurityAlertsPage';
 import { ErrorPage } from './pages/ErrorPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -59,6 +60,7 @@ function App() {
             <Route path="/settings/password" element={<PasswordSettingsPage />} />
             <Route path="/admin/settings" element={<AdminSettingsPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
+            <Route path="/admin/users/:userId" element={<AdminUserDetailPage />} />
             <Route path="/admin/login-activity" element={<AdminLoginActivityPage />} />
             <Route path="/admin/security-alerts" element={<AdminSecurityAlertsPage />} />
             <Route path="*" element={<NotFoundPage />} />

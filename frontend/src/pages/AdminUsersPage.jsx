@@ -8,7 +8,8 @@ import { Input } from '../components/ui/Input';
 import { PlusIcon } from '../components/icons/PlusIcon';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Select } from '../components/ui/Select';
-import { Pencil, Trash2, Check, X } from 'lucide-react';
+import { Pencil, Trash2, Check, X, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 function AddUserForm({ onAddUser, onCancel }) {
   const [formData, setFormData] = useState({
@@ -326,7 +327,11 @@ export function AdminUsersPage() {
                     </tr>
                   ) : (
                     <tr key={user.id} className="border-b">
-                      <td className="p-4 font-medium">{user.name}</td>
+                      <td className="p-4 font-medium">
+                        <Link to={`/admin/users/${user.id}`} className="hover:underline">
+                          {user.name}
+                        </Link>
+                      </td>
                       <td className="p-4 text-muted-foreground">
                         {user.email}
                       </td>
