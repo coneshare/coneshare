@@ -180,7 +180,25 @@ export function DataroomViewer({ data, slug, viewId }) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [qnaContext, setQnaContext] = useState(null);
   const [currentScopeQnaThreadCount, setCurrentScopeQnaThreadCount] = useState(0);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('coneshare_dataroom_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleToggleSidebarCollapse = useCallback(() => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('coneshare_dataroom_sidebar_collapsed', String(next));
+      } catch (err) {
+        console.error('Failed to save sidebar collapsed state', err);
+      }
+      return next;
+    });
+  }, []);
   const requestRef = useRef(0);
 
   // Document viewing sub-states
@@ -518,6 +536,27 @@ export function DataroomViewer({ data, slug, viewId }) {
     }
   }, [viewId, searchParams, setSearchParams, scopeData?.current_parent_id, parentIdFromUrl]);
 
+  const siblingDocs = useMemo(() => allItems.filter((item) => item.type === 'document'), [allItems]);
+  const currentIndex = useMemo(() => {
+    if (!selectedDocumentId) return -1;
+    return siblingDocs.findIndex((item) => String(item.id) === String(selectedDocumentId));
+  }, [siblingDocs, selectedDocumentId]);
+
+  const hasPrevSibling = currentIndex > 0;
+  const hasNextSibling = currentIndex !== -1 && currentIndex < siblingDocs.length - 1;
+
+  const onPrevSibling = useCallback(() => {
+    if (hasPrevSibling) {
+      handleItemClick(siblingDocs[currentIndex - 1]);
+    }
+  }, [hasPrevSibling, currentIndex, siblingDocs, handleItemClick]);
+
+  const onNextSibling = useCallback(() => {
+    if (hasNextSibling) {
+      handleItemClick(siblingDocs[currentIndex + 1]);
+    }
+  }, [hasNextSibling, currentIndex, siblingDocs, handleItemClick]);
+
   // Keyboard navigation event listener
   useEffect(() => {
     if (!selectedDocumentId) {
@@ -531,18 +570,10 @@ export function DataroomViewer({ data, slug, viewId }) {
 
       if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowRight')) {
         e.preventDefault();
-        const siblingDocuments = allItems.filter((item) => item.type === 'document');
-        const currentIndex = siblingDocuments.findIndex((item) => String(item.id) === String(selectedDocumentId));
-        if (currentIndex !== -1 && currentIndex < siblingDocuments.length - 1) {
-          handleItemClick(siblingDocuments[currentIndex + 1]);
-        }
+        onNextSibling();
       } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowLeft')) {
         e.preventDefault();
-        const siblingDocuments = allItems.filter((item) => item.type === 'document');
-        const currentIndex = siblingDocuments.findIndex((item) => String(item.id) === String(selectedDocumentId));
-        if (currentIndex > 0) {
-          handleItemClick(siblingDocuments[currentIndex - 1]);
-        }
+        onPrevSibling();
       } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault();
         const nextPage = Math.min(currentPage + 1, totalPages);
@@ -569,7 +600,7 @@ export function DataroomViewer({ data, slug, viewId }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedDocumentId, currentPage, totalPages, allItems, handleItemClick]);
+  }, [selectedDocumentId, currentPage, totalPages, onPrevSibling, onNextSibling]);
 
   const handlePrint = () => {
     if (!documentViewData) return;
@@ -743,7 +774,7 @@ export function DataroomViewer({ data, slug, viewId }) {
             selectedDocumentId={selectedDocumentId}
             onItemClick={handleItemClick}
             isCollapsed={isSidebarCollapsed}
-            onToggleCollapse={() => setIsSidebarCollapsed((v) => !v)}
+            onToggleCollapse={handleToggleSidebarCollapse}
             currentFolderName={breadcrumbs[breadcrumbs.length - 1]?.name || scopeData.name}
           />
           {isDocumentLoading ? (
@@ -815,6 +846,10 @@ export function DataroomViewer({ data, slug, viewId }) {
                     viewId={viewId}
                     previewMode={documentViewData.preview_mode}
                     onPrint={handlePrint}
+                    hasPrevSibling={hasPrevSibling}
+                    hasNextSibling={hasNextSibling}
+                    onPrevSibling={onPrevSibling}
+                    onNextSibling={onNextSibling}
                   />
                   {documentViewData.preview_mode === 'client_pdf' ? (
                     <PdfJsViewer

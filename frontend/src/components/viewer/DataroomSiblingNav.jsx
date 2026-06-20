@@ -15,8 +15,9 @@ export function DataroomSiblingNav({
         isCollapsed ? 'w-12' : 'w-64'
       }`}
     >
-      {/* Header section with toggle button */}
-      <div className="flex h-12 items-center justify-between border-b px-3 shrink-0">
+      <div className={`flex h-12 items-center border-b shrink-0 ${
+        isCollapsed ? 'justify-center px-0' : 'justify-between px-3'
+      }`}>
         {!isCollapsed && (
           <span className="truncate text-xs font-semibold uppercase tracking-wider text-gray-400 select-none">
             {currentFolderName || 'Folder Contents'}
@@ -24,7 +25,7 @@ export function DataroomSiblingNav({
         )}
         <button
           onClick={onToggleCollapse}
-          className="rounded-lg p-1.5 hover:bg-gray-100 text-gray-500 hover:text-gray-900 mx-auto"
+          className="rounded-lg p-1.5 hover:bg-gray-100 text-gray-500 hover:text-gray-900"
           title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
           {isCollapsed ? (
