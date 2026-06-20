@@ -200,6 +200,8 @@ export function DataroomViewer({ data, slug, viewId }) {
     });
   }, []);
   const requestRef = useRef(0);
+  const docRequestRef = useRef(0);
+  const initialFolderLoadedRef = useRef(false);
 
   // Document viewing sub-states
   const [currentPage, setCurrentPage] = useState(1);
@@ -320,6 +322,7 @@ export function DataroomViewer({ data, slug, viewId }) {
 
   // Keep local scope state aligned with parent-provided data refreshes.
   useEffect(() => {
+    initialFolderLoadedRef.current = false;
     if (data) {
       if (data.link_type === 'dataroom') {
         setScopeData(data);
@@ -423,6 +426,7 @@ export function DataroomViewer({ data, slug, viewId }) {
 
   // Document inline viewing logic
   const fetchDocumentViewData = useCallback(async (docId) => {
+    const requestId = ++docRequestRef.current;
     setIsDocumentLoading(true);
     try {
       let dataroomVisitId = null;
@@ -434,20 +438,29 @@ export function DataroomViewer({ data, slug, viewId }) {
           console.error('Failed to record document visit:', visitErr);
         }
       }
+
+      if (requestId !== docRequestRef.current) return;
+
       const response = await getShareLinkViewData(slug, {
         dataroomDocumentId: docId,
         viewSessionId: viewId || undefined,
         dataroomVisitId: dataroomVisitId || undefined,
       });
+
+      if (requestId !== docRequestRef.current) return;
+
       setDocumentViewData({
         ...response.data,
         dataroom_visit_id: dataroomVisitId,
       });
     } catch (err) {
+      if (requestId !== docRequestRef.current) return;
       console.error('Failed to load document view data:', err);
       toast.error('Could not load document. Please try again.');
     } finally {
-      setIsDocumentLoading(false);
+      if (requestId === docRequestRef.current) {
+        setIsDocumentLoading(false);
+      }
     }
   }, [slug, viewId]);
 
@@ -482,7 +495,8 @@ export function DataroomViewer({ data, slug, viewId }) {
 
   // Trigger parent folder load if starting with document deep-link but folder items not loaded
   useEffect(() => {
-    if (data && data.dataroom_context && !scopeData?.items?.length) {
+    if (data && data.dataroom_context && !scopeData?.items?.length && !initialFolderLoadedRef.current) {
+      initialFolderLoadedRef.current = true;
       const parentId = data.dataroom_context.parent_folder_id;
       fetchScopeData(parentId);
     }
