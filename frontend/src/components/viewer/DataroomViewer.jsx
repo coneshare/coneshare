@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
   HomeIcon,
@@ -15,6 +15,7 @@ import { formatBytes } from '../../lib/formatters';
 import { FileTypeIcon } from '../documents/FileTypeIcon';
 import { Button } from '../ui/Button';
 import { QnAPanel } from './QnAPanel';
+import { DataroomSiblingNav } from './DataroomSiblingNav';
 import { ViewerToolbar } from './ViewerToolbar';
 import { PreviewViewer } from '../documents/PreviewViewer';
 import { PdfJsViewer } from '../documents/PdfJsViewer';
@@ -179,6 +180,7 @@ export function DataroomViewer({ data, slug, viewId }) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [qnaContext, setQnaContext] = useState(null);
   const [currentScopeQnaThreadCount, setCurrentScopeQnaThreadCount] = useState(0);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const requestRef = useRef(0);
 
   // Document viewing sub-states
@@ -294,7 +296,7 @@ export function DataroomViewer({ data, slug, viewId }) {
     ));
   };
 
-  const allItems = Array.isArray(scopeData.items) ? scopeData.items : [];
+  const allItems = useMemo(() => (Array.isArray(scopeData.items) ? scopeData.items : []), [scopeData.items]);
   const breadcrumbs = Array.isArray(scopeData.breadcrumbs) ? scopeData.breadcrumbs : [];
   const currentFolderId = scopeData?.current_parent_id || null;
 
@@ -487,46 +489,7 @@ export function DataroomViewer({ data, slug, viewId }) {
     return () => window.clearTimeout(timer);
   }, [documentViewData, selectedDocumentId, fetchDocumentViewData]);
 
-  // Keyboard navigation event listener
-  useEffect(() => {
-    if (!selectedDocumentId) {
-      return undefined;
-    }
-
-    const handleKeyDown = (e) => {
-      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
-        return;
-      }
-
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-        e.preventDefault();
-        const nextPage = Math.min(currentPage + 1, totalPages);
-        if (nextPage !== currentPage) {
-          viewerComponentRef.current?.goToPage(nextPage);
-        }
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        const prevPage = Math.max(currentPage - 1, 1);
-        if (prevPage !== currentPage) {
-          viewerComponentRef.current?.goToPage(prevPage);
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.key === '=') {
-        e.preventDefault();
-        setZoomLevel((prev) => Math.min(prev + 0.1, 3));
-      } else if ((e.ctrlKey || e.metaKey) && e.key === '-') {
-        e.preventDefault();
-        setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
-      } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
-        e.preventDefault();
-        setZoomLevel(1);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedDocumentId, currentPage, totalPages]);
-
-  const handleItemClick = async (item) => {
+  const handleItemClick = useCallback(async (item) => {
     if (item.type === 'folder') {
       if (viewId) {
         recordDataroomVisit(viewId, { dataroomFolderId: item.id }).catch((err) => {
@@ -553,7 +516,60 @@ export function DataroomViewer({ data, slug, viewId }) {
 
       setSelectedDocumentId(item.id);
     }
-  };
+  }, [viewId, searchParams, setSearchParams, scopeData?.current_parent_id, parentIdFromUrl]);
+
+  // Keyboard navigation event listener
+  useEffect(() => {
+    if (!selectedDocumentId) {
+      return undefined;
+    }
+
+    const handleKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
+        return;
+      }
+
+      if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        const siblingDocuments = allItems.filter((item) => item.type === 'document');
+        const currentIndex = siblingDocuments.findIndex((item) => String(item.id) === String(selectedDocumentId));
+        if (currentIndex !== -1 && currentIndex < siblingDocuments.length - 1) {
+          handleItemClick(siblingDocuments[currentIndex + 1]);
+        }
+      } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowLeft')) {
+        e.preventDefault();
+        const siblingDocuments = allItems.filter((item) => item.type === 'document');
+        const currentIndex = siblingDocuments.findIndex((item) => String(item.id) === String(selectedDocumentId));
+        if (currentIndex > 0) {
+          handleItemClick(siblingDocuments[currentIndex - 1]);
+        }
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const nextPage = Math.min(currentPage + 1, totalPages);
+        if (nextPage !== currentPage) {
+          viewerComponentRef.current?.goToPage(nextPage);
+        }
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const prevPage = Math.max(currentPage - 1, 1);
+        if (prevPage !== currentPage) {
+          viewerComponentRef.current?.goToPage(prevPage);
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === '=') {
+        e.preventDefault();
+        setZoomLevel((prev) => Math.min(prev + 0.1, 3));
+      } else if ((e.ctrlKey || e.metaKey) && e.key === '-') {
+        e.preventDefault();
+        setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
+      } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+        e.preventDefault();
+        setZoomLevel(1);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedDocumentId, currentPage, totalPages, allItems, handleItemClick]);
 
   const handlePrint = () => {
     if (!documentViewData) return;
@@ -722,6 +738,14 @@ export function DataroomViewer({ data, slug, viewId }) {
 
       {showDocumentViewer ? (
         <main className="flex-1 flex overflow-hidden border-t relative">
+          <DataroomSiblingNav
+            items={allItems}
+            selectedDocumentId={selectedDocumentId}
+            onItemClick={handleItemClick}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={() => setIsSidebarCollapsed((v) => !v)}
+            currentFolderName={breadcrumbs[breadcrumbs.length - 1]?.name || scopeData.name}
+          />
           {isDocumentLoading ? (
             <div className="flex-1 flex items-center justify-center bg-gray-50">
               <div className="text-center">
