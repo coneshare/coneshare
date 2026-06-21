@@ -30,6 +30,7 @@ Local package commands:
 
 ## Coding Style & Naming Conventions
 - Python: PEP 8, 4-space indentation, `snake_case` for functions/modules, `PascalCase` for classes.
+- Imports should always be placed at the head of files, unless an import loop (circular import) issue requires inline/deferred imports.
 - React/JS: follow `frontend/eslint.config.js`; components and pages use `PascalCase` filenames (for example `DocumentsPage.jsx`), hooks use `useXxx` (for example `useSortedList.js`).
 - Keep app/domain modules cohesive (serializers, views, models grouped per Django app).
 

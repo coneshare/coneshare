@@ -1,5 +1,6 @@
 from rest_framework import serializers
 import re
+import posixpath
 from urllib.parse import urljoin
 from django.conf import settings
 from django.db.models import Count
@@ -334,3 +335,75 @@ class PublicDataroomFolderSerializer(serializers.ModelSerializer):
     def get_enable_watermark(self, obj):
         settings = self.context.get('settings_map', {})
         return settings.get(obj.id, {}).get('enable_watermark', False)
+
+
+def validate_safe_relative_path(value):
+    """
+    Validates and normalizes relative path strings representing folder/file hierarchies
+    within a dataroom. The paths must be relative to the target/destination folder
+    in the dataroom.
+    """
+    if not value:
+        return value
+
+    # Convert Windows-style backslashes to forward slashes for uniform cross-platform parsing
+    normalized_separators = value.replace('\\', '/')
+
+    # Normalize redundant separators and dot components (e.g., 'foo//bar' -> 'foo/bar') using posixpath
+    normalized = posixpath.normpath(normalized_separators)
+
+    # Reject absolute paths (e.g. '/etc/passwd'). Paths must be relative to the destination container;
+    # absolute paths would break database folder hierarchy lookups and create malformed root '/' folders.
+    if normalized.startswith('/'):
+        raise serializers.ValidationError("Absolute paths are not allowed.")
+
+    # Reject directory traversal components ('..') to prevent climbing out of the dataroom root
+    # or creating malformed '..' folder records in the database, avoiding potential Zip Slip/traversal exploits.
+    parts = normalized.split('/')
+    if '..' in parts or '..' in value.split('/') or '..' in value.split('\\'):
+        raise serializers.ValidationError("Directory traversal components ('..') are not allowed.")
+
+    if normalized == '.':
+        return ''
+
+    return normalized
+
+
+class EnsureDataroomFolderPathsSerializer(serializers.Serializer):
+    paths = serializers.ListField(child=serializers.CharField())
+    parent_folder_id = serializers.PrimaryKeyRelatedField(
+        queryset=DataroomFolder.objects.all(), required=False, allow_null=True, default=None
+    )
+
+    def validate_paths(self, value):
+        validated_paths = []
+        for path in value:
+            validated_paths.append(validate_safe_relative_path(path))
+        return validated_paths
+
+
+class DataroomUploadRequestSerializer(serializers.Serializer):
+    file_name = serializers.CharField()
+    file_size = serializers.IntegerField()
+    destination_folder_id = serializers.PrimaryKeyRelatedField(
+        queryset=DataroomFolder.objects.all(), required=False, allow_null=True, default=None
+    )
+    path = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+
+    def validate_path(self, value):
+        return validate_safe_relative_path(value)
+
+
+class DataroomUploadFinalizeSerializer(serializers.Serializer):
+    storage_key = serializers.CharField()
+    unique_name = serializers.CharField()
+    file_size = serializers.IntegerField()
+    content_type = serializers.CharField(allow_blank=True)
+    destination_folder_id = serializers.PrimaryKeyRelatedField(
+        queryset=DataroomFolder.objects.all(), required=False, allow_null=True, default=None
+    )
+    path = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+
+    def validate_path(self, value):
+        return validate_safe_relative_path(value)
+
