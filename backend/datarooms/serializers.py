@@ -334,3 +334,31 @@ class PublicDataroomFolderSerializer(serializers.ModelSerializer):
     def get_enable_watermark(self, obj):
         settings = self.context.get('settings_map', {})
         return settings.get(obj.id, {}).get('enable_watermark', False)
+
+
+class EnsureDataroomFolderPathsSerializer(serializers.Serializer):
+    paths = serializers.ListField(child=serializers.CharField())
+    parent_folder_id = serializers.PrimaryKeyRelatedField(
+        queryset=DataroomFolder.objects.all(), required=False, allow_null=True, default=None
+    )
+
+
+class DataroomUploadRequestSerializer(serializers.Serializer):
+    file_name = serializers.CharField()
+    file_size = serializers.IntegerField()
+    destination_folder_id = serializers.PrimaryKeyRelatedField(
+        queryset=DataroomFolder.objects.all(), required=False, allow_null=True, default=None
+    )
+    path = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+
+
+class DataroomUploadFinalizeSerializer(serializers.Serializer):
+    storage_key = serializers.CharField()
+    unique_name = serializers.CharField()
+    file_size = serializers.IntegerField()
+    content_type = serializers.CharField(allow_blank=True)
+    destination_folder_id = serializers.PrimaryKeyRelatedField(
+        queryset=DataroomFolder.objects.all(), required=False, allow_null=True, default=None
+    )
+    path = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+

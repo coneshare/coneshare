@@ -1,8 +1,15 @@
-from django.db.models.signals import post_save
+import logging
+
+from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 
-from .models import DataroomDocument, DataroomFolder
+from documents.models import Folder
+from documents.services import delete_document_and_files
 from sharelinks.models import ShareLinkDataroomSetting
+from .models import DataroomDocument, DataroomFolder
+
+
+logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=DataroomDocument)
@@ -43,3 +50,55 @@ def create_settings_for_new_dataroom_folder(sender, instance, created, **kwargs)
                     'enable_watermark': link.enable_watermark,
                 }
             )
+
+
+_deleting_docs = set()
+
+
+@receiver(pre_delete, sender=DataroomDocument)
+def delete_direct_uploaded_document_on_remove(sender, instance, **kwargs):
+    """
+    When a document is removed/deleted from a dataroom, if it was a direct upload
+    (i.e. stored in 'Dataroom Uploads' hierarchy) and there are no other references
+    to it in any dataroom, delete the backing Document model and files from storage.
+    """
+    doc = instance.document
+    if not doc or doc.id in _deleting_docs:
+        return
+
+    # Check if this document is referenced by any other DataroomDocument.
+    # We exclude the current instance being deleted.
+    other_references_exist = DataroomDocument.objects.filter(document=doc).exclude(pk=instance.pk).exists()
+    if other_references_exist:
+        return
+
+    try:
+        root_folder = Folder.objects.get_root_for_org(doc.organization)
+        dataroom_uploads = Folder.objects.get(
+            organization=doc.organization,
+            parent=root_folder,
+            name="Dataroom Uploads",
+            created_by=doc.created_by
+        )
+    except (Folder.DoesNotExist, Folder.MultipleObjectsReturned):
+        return
+
+    # Check if the document's folder is a descendant of 'Dataroom Uploads'
+    folder = doc.folder
+    is_direct_upload = False
+    while folder:
+        if folder == dataroom_uploads:
+            is_direct_upload = True
+            break
+        folder = folder.parent
+
+    if is_direct_upload:
+        _deleting_docs.add(doc.id)
+        try:
+            delete_document_and_files(doc)
+        except Exception as e:
+            # Log the error but don't block the DataroomDocument deletion
+            # to prevent transaction blockages.
+            logger.exception("Failed to clean up backing document %s: %s", doc.id, e)
+        finally:
+            _deleting_docs.discard(doc.id)

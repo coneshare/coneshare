@@ -1,4 +1,5 @@
 import os
+from unittest.mock import patch
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -596,6 +597,376 @@ class TestDataroomViewSet:
         setting.refresh_from_db()
         assert setting.enable_watermark is True
 
+    def test_ensure_paths_in_dataroom(self, api_client, dataroom):
+        """
+        Test ensuring folder structures in a dataroom.
+        """
+        url = f'/api/v1/datarooms/{dataroom.id}/ensure-paths/'
+        
+        # 1. Post valid paths to ensure
+        data = {
+            'paths': [
+                'Folder A',
+                'Folder A/Subfolder B',
+                'Folder C'
+            ]
+        }
+        response = api_client.post(url, data, format='json')
+        assert response.status_code == status.HTTP_201_CREATED, response.json()
+        
+        # Verify response structure
+        resp_data = response.json()
+        assert resp_data['detail'] == "Folder structure ensured successfully."
+        assert 'Folder A' in resp_data['path_mappings']
+        assert 'Folder C' in resp_data['path_mappings']
+        
+        # Verify folders exist in database
+        folder_a_name = resp_data['path_mappings']['Folder A']
+        folder_c_name = resp_data['path_mappings']['Folder C']
+        
+        folder_a = DataroomFolder.objects.get(dataroom=dataroom, name=folder_a_name, parent=None)
+        folder_c = DataroomFolder.objects.get(dataroom=dataroom, name=folder_c_name, parent=None)
+        subfolder_b = DataroomFolder.objects.get(dataroom=dataroom, name='Subfolder B', parent=folder_a)
+
+        # 2. Ensure checking parent folder works
+        data_nested = {
+            'paths': ['Sub-Subfolder D'],
+            'parent_folder_id': str(folder_a.id)
+        }
+        response_nested = api_client.post(url, data_nested, format='json')
+        assert response_nested.status_code == status.HTTP_201_CREATED
+        nested_name = response_nested.json()['path_mappings']['Sub-Subfolder D']
+        assert DataroomFolder.objects.filter(dataroom=dataroom, name=nested_name, parent=folder_a).exists()
+
+        # 3. Test validation error with a folder belonging to another dataroom
+        from datarooms.models import Dataroom
+        other_dr = Dataroom.objects.create(name="Other DR", organization=dataroom.organization, created_by=dataroom.created_by)
+        other_folder = DataroomFolder.objects.create(dataroom=other_dr, name="Other Folder")
+        
+        data_invalid = {
+            'paths': ['Some Folder'],
+            'parent_folder_id': str(other_folder.id)
+        }
+        response_invalid = api_client.post(url, data_invalid, format='json')
+        assert response_invalid.status_code == status.HTTP_400_BAD_REQUEST
+        assert "Parent folder does not belong to this dataroom." in response_invalid.json()['detail']
+
+    def test_upload_request_in_dataroom(self, api_client, dataroom):
+        """
+        Test requesting upload URLs in a dataroom.
+        """
+        from unittest.mock import patch
+        with patch('documents.fileserver.fileserver_client.generate_upload_url') as mock_generate_url:
+            mock_generate_url.return_value = "https://fileserver.example.com/upload-token"
+
+            # 1. Test request without a specific folder path (root upload)
+            url = f'/api/v1/datarooms/{dataroom.id}/uploads/request/'
+            data = {
+                'file_name': 'test_file.pdf',
+                'file_size': 1024,
+            }
+            response = api_client.post(url, data, format='json')
+            assert response.status_code == status.HTTP_200_OK, response.json()
+            resp_data = response.json()
+            assert resp_data['upload_url'] == "https://fileserver.example.com/upload-token"
+            assert 'storage_key' in resp_data
+            assert resp_data['unique_name'] == 'test_file.pdf'
+
+            # 2. Test request inside an ensured folder path in the dataroom
+            folder = DataroomFolder.objects.create(dataroom=dataroom, name="Uploads")
+            data_nested = {
+                'file_name': 'nested_file.txt',
+                'file_size': 512,
+                'path': 'Uploads/nested_file.txt',
+            }
+            response_nested = api_client.post(url, data_nested, format='json')
+            assert response_nested.status_code == status.HTTP_200_OK
+            resp_nested = response_nested.json()
+            assert resp_nested['unique_name'] == 'nested_file.txt'
+
+            # 3. Test validation error if the path does not exist
+            data_non_existent = {
+                'file_name': 'nested_file.txt',
+                'file_size': 512,
+                'path': 'NonExistent/nested_file.txt',
+            }
+            response_non_existent = api_client.post(url, data_non_existent, format='json')
+            assert response_non_existent.status_code == status.HTTP_400_BAD_REQUEST
+            assert "Folder path 'NonExistent' does not exist in this dataroom." in response_non_existent.json()['detail']
+
+            # 4. Test quota exceeded
+            with patch('datarooms.views.check_user_quota_on_upload') as mock_check_quota:
+                from documents.services import QuotaExceededError
+                mock_check_quota.side_effect = QuotaExceededError("Quota exceeded.")
+                response_quota = api_client.post(url, data, format='json')
+                assert response_quota.status_code == status.HTTP_400_BAD_REQUEST
+                assert "Quota exceeded." in response_quota.json()['detail']
+
+    @patch('documents.fileserver.fileserver_client.generate_upload_url')
+    def test_upload_request_inside_folder_with_path(self, mock_generate_url, api_client, dataroom):
+        """
+        Represents the issue where uploading a file inside an existing folder
+        with its path set (relative to root) causes a DoesNotExist error.
+        """
+        mock_generate_url.return_value = "https://fileserver.example.com/upload-token"
+
+        # 1. Create a folder 'png' in the dataroom at root
+        folder_png = DataroomFolder.objects.create(dataroom=dataroom, name="png", parent=None)
+
+        # 2. Request upload for a file 'photo.png' inside folder 'png'
+        # The frontend sends: destination_folder_id = folder_png.id, path = 'png/photo.png'
+        url = f'/api/v1/datarooms/{dataroom.id}/uploads/request/'
+        data = {
+            'file_name': 'photo.png',
+            'file_size': 1024,
+            'destination_folder_id': str(folder_png.id),
+            'path': 'png/photo.png'
+        }
+        response = api_client.post(url, data, format='json')
+        assert response.status_code == status.HTTP_200_OK, response.json()
+        assert response.json()['unique_name'] == 'photo.png'
+
+    def test_upload_finalize_in_dataroom(self, api_client, dataroom):
+        """
+        Test finalizing a direct upload to a dataroom.
+        """
+        url = f'/api/v1/datarooms/{dataroom.id}/uploads/finalize/'
+        
+        # 1. Finalize root upload (no path, no parent folder)
+        data = {
+            'storage_key': 'org_1/uploads/test_file.pdf',
+            'unique_name': 'test_file.pdf',
+            'file_size': 1024,
+            'content_type': 'application/pdf',
+        }
+        
+        response = api_client.post(url, data, format='json')
+        assert response.status_code == status.HTTP_202_ACCEPTED, response.json()
+        
+        # Check standard document was created in 'Dataroom Uploads/<Dataroom-Name>' folder path
+        from documents.models import Document, Folder
+        doc = Document.objects.get(name='test_file.pdf')
+        assert doc.folder.name == dataroom.name
+        assert doc.folder.parent.name == "Dataroom Uploads"
+        assert doc.folder.parent.parent.name == "__root__"
+        
+        # Verify folders are owned by the user so they are visible in library
+        assert doc.folder.created_by == dataroom.created_by
+        assert doc.folder.parent.created_by == dataroom.created_by
+        
+        # Check DataroomDocument reference was created
+        assert DataroomDocument.objects.filter(
+            dataroom=dataroom,
+            document=doc,
+            folder=None,
+            name='test_file.pdf'
+        ).exists()
+
+        # 2. Finalize nested upload with path
+        # First ensure the visual folder path exists in Dataroom
+        ensure_url = f'/api/v1/datarooms/{dataroom.id}/ensure-paths/'
+        ensure_response = api_client.post(ensure_url, {'paths': ['Folder A/Folder B']}, format='json')
+        assert ensure_response.status_code == status.HTTP_201_CREATED
+        
+        folder_a_name = ensure_response.json()['path_mappings']['Folder A']
+        folder_a = DataroomFolder.objects.get(dataroom=dataroom, name=folder_a_name, parent=None)
+        folder_b = DataroomFolder.objects.get(dataroom=dataroom, name='Folder B', parent=folder_a)
+
+        data_nested = {
+            'storage_key': 'org_1/uploads/test_nested.pdf',
+            'unique_name': 'test_nested.pdf',
+            'file_size': 2048,
+            'content_type': 'application/pdf',
+            'path': f'{folder_a_name}/Folder B/test_nested.pdf',
+        }
+        response_nested = api_client.post(url, data_nested, format='json')
+        assert response_nested.status_code == status.HTTP_202_ACCEPTED
+        
+        # Check standard document was created in the nested library folder
+        doc_nested = Document.objects.get(name='test_nested.pdf')
+        assert doc_nested.folder.name == "Folder B"
+        assert doc_nested.folder.parent.name == folder_a_name
+        assert doc_nested.folder.parent.parent.name == dataroom.name
+
+        # Verify the entire path of nested library folders is owned by the user
+        assert doc_nested.folder.created_by == dataroom.created_by
+        assert doc_nested.folder.parent.created_by == dataroom.created_by
+        assert doc_nested.folder.parent.parent.created_by == dataroom.created_by
+        
+        # Check DataroomDocument reference was created under visual folder_b
+        assert DataroomDocument.objects.filter(
+            dataroom=dataroom,
+            document=doc_nested,
+            folder=folder_b,
+            name='test_nested.pdf'
+        ).exists()
+
+    def test_dataroom_rename_updates_library_folder(self, api_client, dataroom):
+        """
+        Test that renaming a dataroom also renames the library folder under Dataroom Uploads.
+        """
+        # 1. Let's first ensure the folder exists by triggering a finalize (which creates the folder structure lazily)
+        url_finalize = f'/api/v1/datarooms/{dataroom.id}/uploads/finalize/'
+        data_finalize = {
+            'storage_key': 'org_1/uploads/temp.txt',
+            'unique_name': 'temp.txt',
+            'file_size': 12,
+            'content_type': 'text/plain',
+        }
+        res = api_client.post(url_finalize, data_finalize, format='json')
+        assert res.status_code == status.HTTP_202_ACCEPTED
+
+        # Verify initial library folder exists with current dataroom name
+        from documents.models import Folder
+        org = dataroom.created_by.organization
+        root_folder = Folder.objects.get_root_for_org(org)
+        dataroom_uploads = Folder.objects.get(organization=org, parent=root_folder, name="Dataroom Uploads")
+        assert Folder.objects.filter(organization=org, parent=dataroom_uploads, name=dataroom.name).exists()
+
+        # 2. Update the dataroom name via PATCH
+        url_patch = f'/api/v1/datarooms/{dataroom.id}/'
+        old_name = dataroom.name
+        new_name = "Brand New Dataroom Name"
+        res_patch = api_client.patch(url_patch, {'name': new_name}, format='json')
+        assert res_patch.status_code == status.HTTP_200_OK
+
+        # 3. Verify library folder is renamed to new name and old name folder does not exist
+        assert Folder.objects.filter(organization=org, parent=dataroom_uploads, name=new_name).exists()
+        assert not Folder.objects.filter(organization=org, parent=dataroom_uploads, name=old_name).exists()
+
+    def test_dataroom_deletion_cleans_uploads(self, api_client, dataroom):
+        """
+        Test that deleting a dataroom recursively deletes the library folder and its contents.
+        """
+        from unittest.mock import patch
+        with patch('documents.services.fileserver_client.delete_file') as mock_delete_file:
+            # 1. Finalize an upload to create the library folder structure and document
+            url_finalize = f'/api/v1/datarooms/{dataroom.id}/uploads/finalize/'
+            data_finalize = {
+                'storage_key': 'org_1/uploads/temp.txt',
+                'unique_name': 'temp.txt',
+                'file_size': 12,
+                'content_type': 'text/plain',
+            }
+            res = api_client.post(url_finalize, data_finalize, format='json')
+            assert res.status_code == status.HTTP_202_ACCEPTED
+
+            # Verify documents and library folders are in DB
+            from documents.models import Document, Folder
+            assert Document.objects.filter(name='temp.txt').exists()
+
+            # 2. Delete the dataroom
+            url_delete = f'/api/v1/datarooms/{dataroom.id}/'
+            response = api_client.delete(url_delete)
+            assert response.status_code == status.HTTP_204_NO_CONTENT
+
+            # 3. Assert mock_delete_file was called with the storage key
+            mock_delete_file.assert_called_with('org_1/uploads/temp.txt')
+
+            # 4. Verify standard document and library folder are deleted
+            assert not Document.objects.filter(name='temp.txt').exists()
+            org = dataroom.created_by.organization
+            root_folder = Folder.objects.get_root_for_org(org)
+            dataroom_uploads = Folder.objects.get(organization=org, parent=root_folder, name="Dataroom Uploads")
+            assert not Folder.objects.filter(organization=org, parent=dataroom_uploads, name=dataroom.name).exists()
+
+    @patch('documents.services.fileserver_client.delete_file')
+    def test_direct_upload_deletion_removes_library_document(self, mock_delete_file, api_client, dataroom):
+        """
+        Test that deleting a directly uploaded dataroom document recursively deletes the backing Document
+        model and file from storage, allowing it to be uploaded again.
+        """
+        # 1. Finalize an upload to create the library folder structure and document
+        url_finalize = f'/api/v1/datarooms/{dataroom.id}/uploads/finalize/'
+        data_finalize = {
+            'storage_key': 'org_1/uploads/test_file.pdf',
+            'unique_name': 'test_file.pdf',
+            'file_size': 1024,
+            'content_type': 'application/pdf',
+        }
+        res = api_client.post(url_finalize, data_finalize, format='json')
+        assert res.status_code == status.HTTP_202_ACCEPTED
+
+        # Verify standard document and DataroomDocument are in DB
+        from documents.models import Document
+        assert Document.objects.filter(name='test_file.pdf').exists()
+        dataroom_doc = DataroomDocument.objects.get(name='test_file.pdf', dataroom=dataroom)
+
+        # 2. Remove the document from the dataroom (delete/remove-content)
+        url_remove = f'/api/v1/datarooms/{dataroom.id}/remove-content/'
+        data_remove = {
+            'dataroom_document_ids': [str(dataroom_doc.id)],
+            'dataroom_folder_ids': []
+        }
+        response_remove = api_client.post(url_remove, data_remove, format='json')
+        assert response_remove.status_code == status.HTTP_204_NO_CONTENT
+
+        # 3. Assert mock_delete_file was called with the storage key
+        mock_delete_file.assert_called_with('org_1/uploads/test_file.pdf')
+
+        # 4. Verify standard document is deleted from library
+        assert not Document.objects.filter(name='test_file.pdf').exists()
+
+        # 5. Finalize the same upload again (to prove no UNIQUE constraint failed error occurs)
+        res_again = api_client.post(url_finalize, data_finalize, format='json')
+        assert res_again.status_code == status.HTTP_202_ACCEPTED
+        assert Document.objects.filter(name='test_file.pdf').exists()
+
+    @patch('documents.services.fileserver_client.delete_file')
+    def test_direct_upload_deletion_with_multiple_dataroom_uploads_folders(self, mock_delete_file, api_client, dataroom, user2):
+        """
+        Test that direct upload deletion does not crash when multiple 'Dataroom Uploads' folders
+        exist (created by different users in the same organization).
+        """
+        # Ensure user2 is in the same organization as dataroom creator
+        org = dataroom.created_by.organization
+        user2.organization = org
+        user2.save()
+
+        # 1. Create two 'Dataroom Uploads' folders (one for each user)
+        root_folder = Folder.objects.get_root_for_org(org)
+        Folder.objects.create(
+            organization=org,
+            parent=root_folder,
+            name="Dataroom Uploads",
+            created_by=dataroom.created_by
+        )
+        Folder.objects.create(
+            organization=org,
+            parent=root_folder,
+            name="Dataroom Uploads",
+            created_by=user2
+        )
+
+        # Verify we now have 2 'Dataroom Uploads' folders in this org under root
+        assert Folder.objects.filter(organization=org, parent=root_folder, name="Dataroom Uploads").count() == 2
+
+        # 2. Finalize an upload for the dataroom (creates the first 'Dataroom Uploads' folder for dataroom.created_by)
+        url_finalize = f'/api/v1/datarooms/{dataroom.id}/uploads/finalize/'
+        data_finalize = {
+            'storage_key': 'org_1/uploads/test_file_multiple.pdf',
+            'unique_name': 'test_file_multiple.pdf',
+            'file_size': 1024,
+            'content_type': 'application/pdf',
+        }
+        res = api_client.post(url_finalize, data_finalize, format='json')
+        assert res.status_code == status.HTTP_202_ACCEPTED
+
+        dataroom_doc = DataroomDocument.objects.get(name='test_file_multiple.pdf', dataroom=dataroom)
+
+        # 3. Remove the document from the dataroom (triggers pre_delete signal)
+        url_remove = f'/api/v1/datarooms/{dataroom.id}/remove-content/'
+        data_remove = {
+            'dataroom_document_ids': [str(dataroom_doc.id)],
+            'dataroom_folder_ids': []
+        }
+        response_remove = api_client.post(url_remove, data_remove, format='json')
+
+        # This should succeed without raising MultipleObjectsReturned exception!
+        assert response_remove.status_code == status.HTTP_204_NO_CONTENT
+        assert not Document.objects.filter(name='test_file_multiple.pdf').exists()
+
+
 
 class TestDataroomFolderViewSet:
     def test_create_dataroom_folder(self, api_client, dataroom):
@@ -693,6 +1064,45 @@ class TestDataroomFolderViewSet:
         folder.refresh_from_db()
         assert folder.is_starred is True
 
+    def test_rename_direct_uploaded_folder_propagates(self, api_client, dataroom):
+        """Test that renaming a direct uploaded dataroom folder renames its backing library folder."""
+        # 1. Finalize an upload to create visual folder and backing library folder path
+        ensure_url = f'/api/v1/datarooms/{dataroom.id}/ensure-paths/'
+        res_ensure = api_client.post(ensure_url, {'paths': ['subfolder']}, format='json')
+        assert res_ensure.status_code == status.HTTP_201_CREATED
+
+        # Finalize a file inside subfolder to materialize the backing library folder
+        url_finalize = f'/api/v1/datarooms/{dataroom.id}/uploads/finalize/'
+        data_finalize = {
+            'storage_key': 'org_1/uploads/subfile.txt',
+            'unique_name': 'subfile.txt',
+            'file_size': 12,
+            'content_type': 'text/plain',
+            'path': 'subfolder/subfile.txt',
+        }
+        res_finalize = api_client.post(url_finalize, data_finalize, format='json')
+        assert res_finalize.status_code == status.HTTP_202_ACCEPTED
+
+        # Retrieve the created visual folder and verify backing standard folder exists
+        dfolder = DataroomFolder.objects.get(dataroom=dataroom, name='subfolder')
+        org = dataroom.created_by.organization
+        root_folder = Folder.objects.get_root_for_org(org)
+        dataroom_uploads = Folder.objects.get(organization=org, parent=root_folder, name="Dataroom Uploads")
+        backing_dataroom_root = Folder.objects.get(organization=org, parent=dataroom_uploads, name=dataroom.name)
+        backing_folder = Folder.objects.get(organization=org, parent=backing_dataroom_root, name='subfolder')
+
+        # 2. Rename DataroomFolder via PATCH
+        url_patch = f'/api/v1/dataroom-folders/{dfolder.id}/'
+        res_patch = api_client.patch(url_patch, {'name': 'renamed_subfolder'}, format='json')
+        assert res_patch.status_code == status.HTTP_200_OK
+
+        # 3. Verify renaming propagated to backing Folder
+        dfolder.refresh_from_db()
+        assert dfolder.name == 'renamed_subfolder'
+        backing_folder.refresh_from_db()
+        assert backing_folder.name == 'renamed_subfolder'
+
+
 
 class TestDataroomDocumentViewSet:
     def test_rename_document_success(self, api_client, dataroom, document):
@@ -741,3 +1151,33 @@ class TestDataroomDocumentViewSet:
 
         ddoc.refresh_from_db()
         assert ddoc.is_starred is True
+
+    def test_rename_direct_uploaded_document_propagates(self, api_client, dataroom):
+        """Test that renaming a direct uploaded dataroom document renames its backing library document."""
+        # 1. Finalize an upload to create backing Document
+        url_finalize = f'/api/v1/datarooms/{dataroom.id}/uploads/finalize/'
+        data_finalize = {
+            'storage_key': 'org_1/uploads/temp.txt',
+            'unique_name': 'temp.txt',
+            'file_size': 12,
+            'content_type': 'text/plain',
+        }
+        res = api_client.post(url_finalize, data_finalize, format='json')
+        assert res.status_code == status.HTTP_202_ACCEPTED
+
+        # Find the DataroomDocument and its backing Document
+        ddoc = DataroomDocument.objects.get(dataroom=dataroom, name='temp.txt')
+        backing_doc = ddoc.document
+        assert backing_doc.name == 'temp.txt'
+
+        # 2. Rename DataroomDocument via PATCH
+        url_patch = f'/api/v1/dataroom-documents/{ddoc.id}/'
+        res_patch = api_client.patch(url_patch, {'name': 'renamed_temp.txt'}, format='json')
+        assert res_patch.status_code == status.HTTP_200_OK
+
+        # 3. Verify renaming propagated
+        ddoc.refresh_from_db()
+        assert ddoc.name == 'renamed_temp.txt'
+        backing_doc.refresh_from_db()
+        assert backing_doc.name == 'renamed_temp.txt'
+

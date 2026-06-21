@@ -1,24 +1,39 @@
 import logging
+import os
+from pathlib import Path
 
 from django.db import transaction
+
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, APIException
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 
 from backend.utils import get_unique_name
 from documents.models import Document, Folder
 from documents.views import StandardResultsSetPagination
+from documents.services import (
+    delete_folder_and_contents,
+    check_user_quota_on_upload,
+    QuotaExceededError,
+    generate_storage_key,
+    create_document_from_upload
+)
+from documents.fileserver import fileserver_client
+from sharelinks.models import ViewSession
+from sharelinks.serializers import ViewSessionSerializer
 from .models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
 from .serializers import (
     AddContentSerializer, DataroomDetailSerializer,
     DataroomDocumentSerializer, DataroomDocumentUpdateSerializer,
     DataroomFolderSerializer, DataroomSerializer,
     MoveDataroomContentSerializer, RemoveContentSerializer,
-    ReorderDataroomItemsSerializer)
+    ReorderDataroomItemsSerializer, EnsureDataroomFolderPathsSerializer,
+    DataroomUploadRequestSerializer, DataroomUploadFinalizeSerializer)
+
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +64,56 @@ class DataroomViewSet(viewsets.ModelViewSet):
             organization=self.request.user.organization,
             created_by=self.request.user
         )
+
+    def perform_destroy(self, instance):
+        # 1. Find the corresponding library folder: "Dataroom Uploads / <Dataroom-Name>"
+        try:
+            root_folder = Folder.objects.get_root_for_org(instance.organization)
+            dataroom_uploads_folder = Folder.objects.get(
+                organization=instance.organization,
+                parent=root_folder,
+                name="Dataroom Uploads",
+                created_by=instance.created_by
+            )
+            # Find the specific folder for this dataroom name
+            dataroom_folder = Folder.objects.get(
+                organization=instance.organization,
+                parent=dataroom_uploads_folder,
+                name=instance.name,
+                created_by=instance.created_by
+            )
+            # Delete the folder and its contents using documents.services.delete_folder_and_contents
+            delete_folder_and_contents(dataroom_folder)
+        except Folder.DoesNotExist:
+            pass # No direct uploads existed, or folder was already removed
+
+        # 2. Perform the actual dataroom deletion
+        super().perform_destroy(instance)
+
+    def perform_update(self, serializer):
+        old_name = self.get_object().name
+        instance = serializer.save()
+        if old_name != instance.name:
+            # Rename the library folder if it exists
+            try:
+                root_folder = Folder.objects.get_root_for_org(instance.organization)
+                dataroom_uploads_folder = Folder.objects.get(
+                    organization=instance.organization,
+                    parent=root_folder,
+                    name="Dataroom Uploads",
+                    created_by=instance.created_by
+                )
+                dataroom_folder = Folder.objects.get(
+                    organization=instance.organization,
+                    parent=dataroom_uploads_folder,
+                    name=old_name,
+                    created_by=instance.created_by
+                )
+                dataroom_folder.name = instance.name
+                dataroom_folder.save()
+            except Folder.DoesNotExist:
+                pass
+
 
     def _scope_has_item_order_rows(self, dataroom, parent_folder):
         return DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=parent_folder).exists()
@@ -319,8 +384,6 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='view-sessions')
     def view_sessions(self, request, pk=None):
-        from sharelinks.models import ViewSession
-        from sharelinks.serializers import ViewSessionSerializer
 
         dataroom = self.get_object()
         view_queryset = ViewSession.objects.filter(
@@ -336,8 +399,288 @@ class DataroomViewSet(viewsets.ModelViewSet):
         serializer = ViewSessionSerializer(view_queryset, many=True, context=self.get_serializer_context())
         return Response(serializer.data)
 
+    def _ensure_library_folder_path(self, requesting_user, dataroom, relative_path=None):
+        """
+        Ensures Dataroom Uploads/<Dataroom-Name>/<relative_path> exists as a standard Folder structure.
+        """
+        organization = requesting_user.organization
+        root_folder = Folder.objects.get_root_for_org(organization)
+
+        # 1. Ensure "Dataroom Uploads" folder at root
+        dataroom_uploads_folder, _ = Folder.objects.get_or_create(
+            organization=organization,
+            parent=root_folder,
+            name="Dataroom Uploads",
+            created_by=requesting_user
+        )
+
+        # 2. Ensure "<Dataroom-Name>" folder inside "Dataroom Uploads"
+        dataroom_folder, _ = Folder.objects.get_or_create(
+            organization=organization,
+            parent=dataroom_uploads_folder,
+            name=dataroom.name,
+            created_by=requesting_user
+        )
+
+        current_folder = dataroom_folder
+
+        # 3. Ensure any relative folder paths inside the Dataroom-Name folder
+        if relative_path:
+            folder_path, _ = os.path.split(relative_path)
+            if folder_path:
+                path_parts = Path(folder_path).parts
+                for part in path_parts:
+                    current_folder, _ = Folder.objects.get_or_create(
+                        organization=organization,
+                        parent=current_folder,
+                        name=part,
+                        defaults={'created_by': requesting_user}
+                    )
+
+        return current_folder
+
+    @action(detail=True, methods=['post'], url_path='ensure-paths')
+    def ensure_paths(self, request, pk=None):
+        dataroom = self.get_object()
+        serializer = EnsureDataroomFolderPathsSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        paths = serializer.validated_data['paths']
+        parent_folder = serializer.validated_data.get('parent_folder_id')
+
+        if parent_folder and parent_folder.dataroom != dataroom:
+            return Response(
+                {"detail": "Parent folder does not belong to this dataroom."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                top_level_dirs = {Path(p).parts[0] for p in paths if Path(p).parts}
+                path_mappings = {}
+                for original_name in top_level_dirs:
+                    unique_name = self._get_unique_dataroom_folder_name(
+                        dataroom=dataroom,
+                        parent_folder=parent_folder,
+                        original_name=original_name
+                    )
+                    path_mappings[original_name] = unique_name
+
+                all_required_paths = set()
+                for path_str in paths:
+                    p = Path(path_str)
+                    if not p.parts:
+                        continue
+
+                    original_top_level = p.parts[0]
+                    renamed_top_level = path_mappings.get(original_top_level, original_top_level)
+
+                    new_path_parts = [renamed_top_level] + list(p.parts[1:])
+                    new_p = Path(*new_path_parts)
+
+                    all_required_paths.add(str(new_p))
+                    for parent in new_p.parents:
+                        if parent != Path('.'):
+                            all_required_paths.add(str(parent))
+
+                sorted_paths = sorted(list(all_required_paths), key=lambda p: p.count(os.sep))
+                path_to_folder_map = {'': parent_folder}
+
+                for path_str in sorted_paths:
+                    path = Path(path_str)
+                    parent_path_str = str(path.parent) if path.parent != Path('.') else ''
+
+                    parent_dataroom_folder = path_to_folder_map.get(parent_path_str)
+                    if not parent_dataroom_folder and parent_path_str != '':
+                        return Response(
+                            {"detail": f"An error occurred: parent folder for '{path_str}' not found."},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        )
+
+                    folder_name = path.name
+                    folder, created = DataroomFolder.objects.get_or_create(
+                        dataroom=dataroom,
+                        parent=parent_dataroom_folder,
+                        name=folder_name,
+                    )
+                    path_to_folder_map[path_str] = folder
+
+                    if created and dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, parent_dataroom_folder):
+                        self._append_item_order(
+                            dataroom=dataroom,
+                            parent_folder=parent_dataroom_folder,
+                            item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
+                            folder=folder,
+                        )
+
+            return Response(
+                {
+                    "detail": "Folder structure ensured successfully.",
+                    "path_mappings": path_mappings,
+                },
+                status=status.HTTP_201_CREATED
+            )
+        except Exception as e:
+            logger.exception("Failed to ensure dataroom folder paths: %s", paths)
+            return Response(
+                {"detail": "An unexpected error occurred while creating the folder structure."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=True, methods=['post'], url_path='uploads/request')
+    def upload_request(self, request, pk=None):
+        dataroom = self.get_object()
+        serializer = DataroomUploadRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        validated_data = serializer.validated_data
+
+        try:
+            check_user_quota_on_upload(
+                user=request.user,
+                new_file_size=validated_data['file_size']
+            )
+        except QuotaExceededError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        file_name = validated_data['file_name']
+        relative_path = validated_data.get('path')
+        destination_folder = validated_data.get('destination_folder_id')
+
+        if destination_folder and destination_folder.dataroom != dataroom:
+            return Response(
+                {"detail": "Destination folder does not belong to this dataroom."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if relative_path:
+            folder_path, file_name_from_path = os.path.split(relative_path)
+            if folder_path:
+                current_folder = None
+                path_parts = Path(folder_path).parts
+                try:
+                    for part in path_parts:
+                        current_folder = DataroomFolder.objects.get(
+                            dataroom=dataroom,
+                            parent=current_folder,
+                            name=part
+                        )
+                    destination_folder = current_folder
+                except DataroomFolder.DoesNotExist:
+                    return Response(
+                        {"detail": f"Folder path '{folder_path}' does not exist in this dataroom."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            if file_name_from_path:
+                file_name = file_name_from_path
+
+        unique_name = self._get_unique_dataroom_document_name(
+            dataroom=dataroom,
+            parent_folder=destination_folder,
+            original_name=file_name
+        )
+
+        storage_key = generate_storage_key(request.user.organization.id, unique_name)
+
+        try:
+            upload_url = fileserver_client.generate_upload_url(storage_key, is_internal=False)
+        except APIException as e:
+            logger.error(f"Failed to get upload URL from file server: {e}")
+            return Response({"detail": str(e.detail)}, status=e.status_code)
+
+        return Response({
+            'upload_url': upload_url,
+            'storage_key': storage_key,
+            'unique_name': unique_name,
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='uploads/finalize')
+    def upload_finalize(self, request, pk=None):
+        dataroom = self.get_object()
+        serializer = DataroomUploadFinalizeSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        validated_data = serializer.validated_data
+        destination_folder = validated_data.get('destination_folder_id')
+        relative_path = validated_data.get('path')
+
+        if destination_folder and destination_folder.dataroom != dataroom:
+            return Response(
+                {"detail": "Destination folder does not belong to this dataroom."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if relative_path:
+            folder_path, _ = os.path.split(relative_path)
+            if folder_path:
+                current_folder = None
+                path_parts = Path(folder_path).parts
+                try:
+                    for part in path_parts:
+                        current_folder = DataroomFolder.objects.get(
+                            dataroom=dataroom,
+                            parent=current_folder,
+                            name=part
+                        )
+                    destination_folder = current_folder
+                except DataroomFolder.DoesNotExist:
+                    return Response(
+                        {"detail": f"Folder path '{folder_path}' does not exist in this dataroom."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+        library_folder = self._ensure_library_folder_path(
+            requesting_user=request.user,
+            dataroom=dataroom,
+            relative_path=relative_path
+        )
+
+        try:
+            with transaction.atomic():
+                document = create_document_from_upload(
+                    requesting_user=request.user,
+                    folder=library_folder,
+                    storage_key=validated_data['storage_key'],
+                    unique_name=validated_data['unique_name'],
+                    file_size=validated_data['file_size'],
+                    content_type=validated_data['content_type'],
+                )
+
+                unique_name = self._get_unique_dataroom_document_name(
+                    dataroom=dataroom,
+                    parent_folder=destination_folder,
+                    original_name=document.name
+                )
+                dataroom_doc = DataroomDocument.objects.create(
+                    dataroom=dataroom,
+                    document=document,
+                    folder=destination_folder,
+                    name=unique_name,
+                )
+
+                if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, destination_folder):
+                    self._append_item_order(
+                        dataroom=dataroom,
+                        parent_folder=destination_folder,
+                        item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
+                        dataroom_document=dataroom_doc,
+                    )
+        except Exception as e:
+            logger.error(f"Failed to finalize dataroom document upload: {e}")
+            return Response(
+                {"detail": f"Failed to finalize dataroom document processing: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        doc_serializer = DataroomDocumentSerializer(dataroom_doc, context={'request': request})
+        return Response(doc_serializer.data, status=status.HTTP_202_ACCEPTED)
+
 
 class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
+
                               mixins.UpdateModelMixin,
                               viewsets.GenericViewSet):
     queryset = DataroomDocument.objects.all()
@@ -356,8 +699,9 @@ class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
     def perform_update(self, serializer):
         instance = self.get_object()
         new_name = serializer.validated_data.get('name')
+        old_name = instance.name
 
-        if new_name and new_name != instance.name:
+        if new_name and new_name != old_name:
             if DataroomDocument.objects.filter(
                 dataroom=instance.dataroom,
                 folder=instance.folder,
@@ -366,6 +710,34 @@ class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
                 raise serializers.ValidationError({'name': 'A document with this name already exists in this location.'})
 
         serializer.save()
+
+        # Rename backing Document under "Dataroom Uploads" if it exists and is a direct upload
+        if new_name and new_name != old_name:
+            doc = instance.document
+            if doc:
+                try:
+                    root_folder = Folder.objects.get_root_for_org(doc.organization)
+                    dataroom_uploads = Folder.objects.get(
+                        organization=doc.organization,
+                        parent=root_folder,
+                        name="Dataroom Uploads",
+                        created_by=instance.dataroom.created_by
+                    )
+                except Folder.DoesNotExist:
+                    return
+
+                # Check if doc's folder is a descendant of 'Dataroom Uploads'
+                folder = doc.folder
+                is_direct_upload = False
+                while folder:
+                    if folder == dataroom_uploads:
+                        is_direct_upload = True
+                        break
+                    folder = folder.parent
+
+                if is_direct_upload:
+                    doc.name = new_name
+                    doc.save()
 
 
 @extend_schema(tags=['datarooms'])
@@ -461,8 +833,9 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         instance = self.get_object()
         new_name = serializer.validated_data.get('name')
+        old_name = instance.name
 
-        if new_name and new_name != instance.name:
+        if new_name and new_name != old_name:
             if DataroomFolder.objects.filter(
                 dataroom=instance.dataroom,
                 parent=instance.parent,
@@ -471,3 +844,32 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
                 raise serializers.ValidationError({'name': 'A folder with this name already exists in this location.'})
 
         serializer.save()
+
+        # Rename the backing Folder under "Dataroom Uploads" if it exists
+        if new_name and new_name != old_name:
+            try:
+                organization = instance.dataroom.organization
+                root_folder = Folder.objects.get_root_for_org(organization)
+
+                # Traverse up the visual folders to get the path names relative to dataroom
+                names = []
+                curr = instance.parent
+                while curr:
+                    names.insert(0, curr.name)
+                    curr = curr.parent
+
+                path_names = ["Dataroom Uploads", instance.dataroom.name] + names + [old_name]
+
+                curr_folder = root_folder
+                for name in path_names:
+                    curr_folder = Folder.objects.get(
+                        organization=organization,
+                        parent=curr_folder,
+                        name=name,
+                        created_by=instance.dataroom.created_by
+                    )
+
+                curr_folder.name = new_name
+                curr_folder.save()
+            except Folder.DoesNotExist:
+                pass
