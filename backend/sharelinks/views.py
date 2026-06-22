@@ -537,20 +537,19 @@ class ShareLinkViewDataView(APIView):
                 with transaction.atomic():
                     verification = EmailVerificationToken.objects.select_for_update().get(token=access_token)
                     if not verification.is_expired() and verification.share_link == link:
-                        # Magic link authorizes both steps.
-                        authorized_links = request.session.get('authorized_share_links', {})
-                        authorized_links[str(link.id)] = {
-                            'password_verified': True,
-                            'email_verified': True,
-                            'viewer_email': verification.email,
+                        # Store the pending verification in request.session instead of authorizing/consuming on GET
+                        pending_verifications = request.session.get('pending_email_verifications', {})
+                        pending_verifications[access_token] = {
+                            'email': verification.email,
+                            'link_id': str(link.id)
                         }
-                        request.session['authorized_share_links'] = authorized_links
-                        _dispatch_automation_event(
-                            link,
-                            'email_identified',
-                            {'viewer_email': verification.email},
-                        )
-                        verification.delete()
+                        request.session['pending_email_verifications'] = pending_verifications
+                        return Response({
+                            "message": "Verification token is valid. Please confirm access.",
+                            "protectionType": "email",
+                            "requiresConfirmation": True,
+                            "emailToConfirm": verification.email,
+                        }, status=status.HTTP_401_UNAUTHORIZED)
             except EmailVerificationToken.DoesNotExist:
                 logger.debug(f"Invalid or expired access token used for share link {slug}: {access_token}")
                 pass  # Token is invalid, proceed with normal checks.
@@ -1518,7 +1517,6 @@ class ShareLinkRequestAccessView(APIView):
                 settings.SITE_DOMAIN,
                 f"/view/{link.slug}?accessToken={verification.token}"
             )
-            
             # Send email
             try:
                 target_name = link.document.name if link.document else link.dataroom.name
@@ -1550,6 +1548,70 @@ class ShareLinkRequestAccessView(APIView):
                 {"message": "Verification link sent. Please check your email to continue.", "verification_required": True},
                 status=status.HTTP_200_OK
             )
+
+
+class ShareLinkConfirmAccessView(APIView):
+    """
+    Finalizes the email verification using a magic link access token.
+    This sets the session authorization and deletes the token.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        request=dict,
+        responses={200: dict, 400: dict, 404: dict},
+    )
+    def post(self, request, slug, *args, **kwargs):
+        token = request.data.get('token')
+        if not token:
+            return Response({"message": "Token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            link = _get_active_share_link(slug)
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
+
+        # Retrieve the pending verification details from session to bind it to the same browser context
+        pending_verifications = request.session.get('pending_email_verifications', {})
+        pending = pending_verifications.get(token)
+        if not pending or pending.get('link_id') != str(link.id):
+            return Response(
+                {"message": "Verification context mismatch. Please request a new verification link."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            with transaction.atomic():
+                verification = EmailVerificationToken.objects.select_for_update().get(token=token)
+                if verification.is_expired() or verification.share_link != link:
+                    return Response({"message": "The verification link has expired or is invalid."}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Authorize the session
+                authorized_links = request.session.get('authorized_share_links', {})
+                authorized_links[str(link.id)] = {
+                    'password_verified': True,
+                    'email_verified': True,
+                    'viewer_email': verification.email,
+                }
+                request.session['authorized_share_links'] = authorized_links
+                
+                _dispatch_automation_event(
+                    link,
+                    'email_identified',
+                    {'viewer_email': verification.email},
+                )
+                
+                # Delete the token to consume it
+                verification.delete()
+                
+                # Clear the pending verification in the session
+                if token in pending_verifications:
+                    del pending_verifications[token]
+                    request.session['pending_email_verifications'] = pending_verifications
+
+                return Response({"message": "Access granted successfully."}, status=status.HTTP_200_OK)
+        except EmailVerificationToken.DoesNotExist:
+            return Response({"message": "The verification link has already been used or is invalid."}, status=status.HTTP_400_BAD_REQUEST)
 
 
 def _calculate_watermark_grid_params(page_width, page_height, rotated_tile_width, rotated_tile_height):

@@ -280,6 +280,9 @@ export const verifyShareLinkPassword = (slug, password) =>
 export const requestShareLinkAccess = (slug, email) =>
   api.post(`/links/${slug}/request-access/`, { email });
 
+export const confirmShareLinkEmailAccess = (slug, token) =>
+  api.post(`/links/${slug}/verify-access-token/confirm/`, { token });
+
 export const getPublicQnaThreads = (
   slug,
   {
