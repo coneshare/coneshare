@@ -359,5 +359,101 @@ describe('ShareLinkViewerPage', () => {
      fireEvent.click(dismissButton);
  
      expect(screen.queryByText(/Owner Preview Mode:/)).not.toBeInTheDocument();
-   });
- });
+    });
+
+    it('does not trigger duplicate view-data or record-visit calls when clicking a document in sidebar', async () => {
+      api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
+      
+      const dataroomData = {
+        link_type: 'dataroom',
+        id: 'dr1',
+        name: 'Room',
+        items: [
+          { type: 'document', id: 'doc1', name: 'Document 1', document_type: 'pdf' },
+          { type: 'document', id: 'doc2', name: 'Document 2', document_type: 'pdf' },
+        ],
+        breadcrumbs: [],
+        link_settings: { id: 'link_abc' },
+      };
+      
+      api.getShareLinkViewData.mockResolvedValueOnce({ data: dataroomData });
+      api.createViewSession.mockResolvedValue({ data: mockViewData });
+      api.recordDataroomVisit.mockResolvedValue({ data: { id: 'visit_1' } });
+
+      api.getShareLinkViewData.mockImplementation((slug, query) => {
+        if (query.dataroomDocumentId === 'doc1') {
+          return Promise.resolve({
+            data: {
+              id: 'doc1',
+              name: 'Document 1',
+              type: 'document',
+              preview_mode: 'client_pdf',
+              link_settings: { allow_download: true },
+              dataroom_context: { id: 'dr1', parent_folder_id: 'folder1' },
+            },
+          });
+        }
+        if (query.dataroomDocumentId === 'doc2') {
+          return Promise.resolve({
+            data: {
+              id: 'doc2',
+              name: 'Document 2',
+              type: 'document',
+              preview_mode: 'client_pdf',
+              link_settings: { allow_download: true },
+              dataroom_context: { id: 'dr1', parent_folder_id: 'folder1' },
+            },
+          });
+        }
+        return Promise.resolve({ data: dataroomData });
+      });
+
+      renderComponent('/view/test-slug');
+
+      await screen.findByTitle('Document 1');
+      await screen.findByTitle('Document 2');
+
+      api.getShareLinkViewData.mockClear();
+      api.recordDataroomVisit.mockClear();
+
+      fireEvent.click(screen.getByTitle('Document 1'));
+      await screen.findByText('PdfJs Viewer');
+
+      fireEvent.click(screen.getByTitle('Document 2'));
+      await screen.findByText('PdfJs Viewer');
+
+      expect(api.recordDataroomVisit).toHaveBeenCalledTimes(2);
+      expect(api.getShareLinkViewData).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not trigger duplicate view-data calls when deep-linking to a dataroom document and view session is created asynchronously', async () => {
+      api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
+      
+      const docData = {
+        id: 'doc1',
+        name: 'Document 1',
+        type: 'document',
+        link_type: 'document',
+        preview_mode: 'client_pdf',
+        link_settings: { id: 'link_abc', allow_download: true },
+        dataroom_context: { id: 'dr1', name: 'Room', parent_folder_id: 'folder1' },
+      };
+      
+      api.getShareLinkViewData.mockResolvedValue({ data: docData });
+      api.createViewSession.mockResolvedValue({ data: { id: 'view-123' } });
+      api.recordDataroomVisit.mockResolvedValue({ data: { id: 'visit_1' } });
+
+      renderComponent('/view/test-slug?dataroom_document_id=doc1');
+
+      await screen.findByText('PdfJs Viewer');
+
+      // Let's assert on call count of getShareLinkViewData.
+      // 1 call from ShareLinkViewerPage (initial load)
+      // If there is another call from DataroomViewer, we want to know.
+      // Ideally, it should only be called once or we want to inspect the call arguments.
+      const docCalls = api.getShareLinkViewData.mock.calls.filter(call => call[1]?.dataroomDocumentId === 'doc1');
+      expect(docCalls.length).toBe(1);
+      expect(api.recordDataroomVisit).toHaveBeenCalledTimes(1);
+    });
+  });
+

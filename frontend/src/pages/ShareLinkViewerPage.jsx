@@ -145,13 +145,16 @@ export function ShareLinkViewerPage() {
     viewDataRef.current = viewData;
   }, [viewData]);
 
+  // Only reset layout & session state when switching between different share link slugs.
+  // We intentionally exclude dataroomDocumentIdFromUrl here to prevent unmounting the
+  // DataroomViewer and resetting the sidebar tree when navigating documents inside a dataroom.
   useEffect(() => {
     hasLoadedViewDataRef.current = false;
     setViewData(null);
     setViewId(null);
     viewIdRef.current = null;
     setCurrentPage(1);
-  }, [slug, dataroomDocumentIdFromUrl]);
+  }, [slug]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -185,6 +188,18 @@ export function ShareLinkViewerPage() {
 
       if (dataroomVisitIdFromUrl) {
         setDataroomVisitId(dataroomVisitIdFromUrl);
+      }
+
+      // If we are already viewing a dataroom (either on the root scope or after deep-linking
+      // into a document), skip parent-level refetching. This delegates document fetching
+      // to DataroomViewer's own scoped fetcher and avoids breaking the SPA layout context.
+      const isAlreadyDataroom = viewDataRef.current && (
+        viewDataRef.current.link_type === 'dataroom' ||
+        Boolean(viewDataRef.current.dataroom_context)
+      );
+      if (isAlreadyDataroom) {
+        setIsLoading(false);
+        return;
       }
 
       try {
