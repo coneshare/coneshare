@@ -174,7 +174,9 @@ export function DataroomViewer({ data, slug, viewId }) {
     return null;
   });
 
-  const [selectedDocumentId, setSelectedDocumentId] = useState(dataroomDocumentIdFromUrl || null);
+  const [currentDataroomVisitId, setCurrentDataroomVisitId] = useState(null);
+
+  const selectedDocumentId = searchParams.get('dataroom_document_id') || null;
   const [isDocumentLoading, setIsDocumentLoading] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -201,6 +203,8 @@ export function DataroomViewer({ data, slug, viewId }) {
   }, []);
   const requestRef = useRef(0);
   const docRequestRef = useRef(0);
+  const activeDocIdRef = useRef(null);
+  const lastRecordedVisitRef = useRef(null);
   const initialFolderLoadedRef = useRef(false);
 
   // Document viewing sub-states
@@ -425,34 +429,23 @@ export function DataroomViewer({ data, slug, viewId }) {
   }, [scopeData?.pagination?.next_offset, parentIdFromUrl, fetchScopeData]);
 
   // Document inline viewing logic
-  const fetchDocumentViewData = useCallback(async (docId) => {
+  const fetchDocumentViewData = useCallback(async (docId, { force = false } = {}) => {
+    if (activeDocIdRef.current === docId && !force) {
+      return;
+    }
+    activeDocIdRef.current = docId;
+
     const requestId = ++docRequestRef.current;
     setIsDocumentLoading(true);
     try {
-      let dataroomVisitId = null;
-      if (viewId) {
-        try {
-          const visitRes = await recordDataroomVisit(viewId, { dataroomDocumentId: docId });
-          dataroomVisitId = visitRes.data.id;
-        } catch (visitErr) {
-          console.error('Failed to record document visit:', visitErr);
-        }
-      }
-
-      if (requestId !== docRequestRef.current) return;
-
       const response = await getShareLinkViewData(slug, {
         dataroomDocumentId: docId,
         viewSessionId: viewId || undefined,
-        dataroomVisitId: dataroomVisitId || undefined,
       });
 
       if (requestId !== docRequestRef.current) return;
 
-      setDocumentViewData({
-        ...response.data,
-        dataroom_visit_id: dataroomVisitId,
-      });
+      setDocumentViewData(response.data);
     } catch (err) {
       if (requestId !== docRequestRef.current) return;
       console.error('Failed to load document view data:', err);
@@ -465,12 +458,6 @@ export function DataroomViewer({ data, slug, viewId }) {
   }, [slug, viewId]);
 
   useEffect(() => {
-    const docId = searchParams.get('dataroom_document_id') || null;
-    if (docId !== selectedDocumentId) {
-      setSelectedDocumentId(docId);
-    }
-  }, [searchParams, selectedDocumentId]);
-  useEffect(() => {
     if (selectedDocumentId) {
       if (!documentViewData || String(documentViewData.id) !== String(selectedDocumentId)) {
         fetchDocumentViewData(selectedDocumentId);
@@ -481,6 +468,39 @@ export function DataroomViewer({ data, slug, viewId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDocumentId, documentViewData?.id, fetchDocumentViewData]);
 
+  // Reset current visit ID when document changes.
+  // Clearing lastRecordedVisitRef when selectedDocumentId is falsy ensures that
+  // navigating away and returning to the same document correctly records the visit again.
+  useEffect(() => {
+    setCurrentDataroomVisitId(null);
+    if (!selectedDocumentId) {
+      lastRecordedVisitRef.current = null;
+    }
+  }, [selectedDocumentId]);
+
+  // Record visit once viewId and selectedDocumentId are both available
+  useEffect(() => {
+    if (!viewId || !selectedDocumentId) {
+      return;
+    }
+    const visitKey = `${viewId}-${selectedDocumentId}`;
+    if (lastRecordedVisitRef.current === visitKey) {
+      return;
+    }
+    lastRecordedVisitRef.current = visitKey;
+
+    const recordVisit = async () => {
+      try {
+        const visitRes = await recordDataroomVisit(viewId, { dataroomDocumentId: selectedDocumentId });
+        setCurrentDataroomVisitId(visitRes.data.id);
+      } catch (err) {
+        console.error('Failed to record document visit:', err);
+      }
+    };
+
+    recordVisit();
+  }, [viewId, selectedDocumentId]);
+
   // Rewrite URL on direct deep link load to include parent_id
   useEffect(() => {
     if (dataroomDocumentIdFromUrl && !parentIdFromUrl) {
@@ -488,10 +508,13 @@ export function DataroomViewer({ data, slug, viewId }) {
       if (parentFolderId) {
         const nextParams = new URLSearchParams(searchParams);
         nextParams.set('parent_id', parentFolderId);
+        if (viewId) {
+          nextParams.set('view_session_id', viewId);
+        }
         setSearchParams(nextParams);
       }
     }
-  }, [dataroomDocumentIdFromUrl, parentIdFromUrl, data, searchParams, setSearchParams]);
+  }, [dataroomDocumentIdFromUrl, parentIdFromUrl, data, searchParams, setSearchParams, viewId]);
 
   // Trigger parent folder load if starting with document deep-link but folder items not loaded
   useEffect(() => {
@@ -515,7 +538,7 @@ export function DataroomViewer({ data, slug, viewId }) {
     }
 
     const timer = window.setTimeout(() => {
-      fetchDocumentViewData(selectedDocumentId);
+      fetchDocumentViewData(selectedDocumentId, { force: true });
     }, PREVIEW_POLL_INTERVAL_MS);
 
     return () => window.clearTimeout(timer);
@@ -531,10 +554,12 @@ export function DataroomViewer({ data, slug, viewId }) {
       const nextParams = new URLSearchParams(searchParams);
       nextParams.set('parent_id', item.id);
       nextParams.delete('dataroom_document_id');
+      if (viewId) {
+        nextParams.set('view_session_id', viewId);
+      }
       setSearchParams(nextParams);
 
       setDocumentViewData(null);
-      setSelectedDocumentId(null);
     } else {
       const nextParams = new URLSearchParams(searchParams);
       nextParams.set('dataroom_document_id', item.id);
@@ -544,9 +569,10 @@ export function DataroomViewer({ data, slug, viewId }) {
       } else {
         nextParams.delete('parent_id');
       }
+      if (viewId) {
+        nextParams.set('view_session_id', viewId);
+      }
       setSearchParams(nextParams);
-
-      setSelectedDocumentId(item.id);
     }
   }, [viewId, searchParams, setSearchParams, scopeData?.current_parent_id, parentIdFromUrl]);
 
@@ -740,9 +766,11 @@ export function DataroomViewer({ data, slug, viewId }) {
                 const nextParams = new URLSearchParams(searchParams);
                 nextParams.delete('parent_id');
                 nextParams.delete('dataroom_document_id');
+                if (viewId) {
+                  nextParams.set('view_session_id', viewId);
+                }
                 setSearchParams(nextParams);
                 setDocumentViewData(null);
-                setSelectedDocumentId(null);
               }}
               className="flex items-center gap-2"
               style={{ color: 'var(--viewer-secondary)' }}
@@ -759,9 +787,11 @@ export function DataroomViewer({ data, slug, viewId }) {
                   const nextParams = new URLSearchParams(searchParams);
                   nextParams.set('parent_id', crumb.id);
                   nextParams.delete('dataroom_document_id');
+                  if (viewId) {
+                    nextParams.set('view_session_id', viewId);
+                  }
                   setSearchParams(nextParams);
                   setDocumentViewData(null);
-                  setSelectedDocumentId(null);
                 }}
                 className="ml-2"
                 style={{ color: 'var(--viewer-secondary)' }}
@@ -871,7 +901,7 @@ export function DataroomViewer({ data, slug, viewId }) {
                       pdfUrl={documentViewData.pdf_preview_url}
                       title={documentViewData.name}
                       viewId={viewId}
-                      dataroomVisitId={documentViewData.dataroom_visit_id}
+                      dataroomVisitId={currentDataroomVisitId}
                       watermarkText={
                         documentViewData.link_settings?.enable_watermark
                           ? (documentViewData.link_settings.resolved_watermark_text || documentViewData.link_settings.watermark_text || '')
@@ -888,7 +918,7 @@ export function DataroomViewer({ data, slug, viewId }) {
                       zoomLevel={zoomLevel}
                       onPageChange={setCurrentPage}
                       viewId={viewId}
-                      dataroomVisitId={documentViewData.dataroom_visit_id}
+                      dataroomVisitId={currentDataroomVisitId}
                     />
                   )}
                 </div>

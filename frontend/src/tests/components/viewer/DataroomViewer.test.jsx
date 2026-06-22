@@ -442,4 +442,149 @@ describe('DataroomViewer', () => {
       offset: 0,
     });
   });
+
+  it('calls recordDataroomVisit exactly once when switching between documents in sidebar', async () => {
+    api.getShareLinkViewData.mockImplementation((slug, query) => {
+      if (query.parentId === 'folder1') {
+        return Promise.resolve({
+          data: {
+            ...mockDataroomData,
+            items: [
+              { type: 'document', id: 'doc1', name: 'Document 1', document_type: 'pdf' },
+              { type: 'document', id: 'doc2', name: 'Document 2', document_type: 'pdf' },
+            ],
+          },
+        });
+      }
+      if (query.dataroomDocumentId === 'doc1') {
+        return Promise.resolve({
+          data: {
+            id: 'doc1',
+            name: 'Document 1',
+            type: 'document',
+            preview_mode: 'client_pdf',
+            link_settings: { allow_download: true },
+          },
+        });
+      }
+      if (query.dataroomDocumentId === 'doc2') {
+        return Promise.resolve({
+          data: {
+            id: 'doc2',
+            name: 'Document 2',
+            type: 'document',
+            preview_mode: 'client_pdf',
+            link_settings: { allow_download: true },
+          },
+        });
+      }
+      return Promise.resolve({ data: mockDataroomData });
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/view/test-slug?dataroom_document_id=doc1']}>
+        <DataroomViewer
+          data={{
+            ...mockDataroomData,
+            link_type: 'document',
+            id: 'doc1',
+            name: 'Document 1',
+            dataroom_context: {
+              id: 'dr1',
+              name: 'Test Dataroom',
+              parent_folder_id: 'folder1',
+            },
+          }}
+          slug="test-slug"
+          viewId="view-123"
+        />
+      </MemoryRouter>
+    );
+
+    // Wait for sidebar items to load
+    await screen.findByTitle('Document 1');
+    await screen.findByTitle('Document 2');
+
+    // Reset calls to recordDataroomVisit
+    api.recordDataroomVisit.mockClear();
+
+    // Click Document 2
+    fireEvent.click(screen.getByTitle('Document 2'));
+
+    // Wait for Document 2 view data to load and render
+    await screen.findByText('Document 2');
+
+    // Verify recordDataroomVisit was called exactly once
+    expect(api.recordDataroomVisit).toHaveBeenCalledTimes(1);
+    expect(api.recordDataroomVisit).toHaveBeenCalledWith('view-123', { dataroomDocumentId: 'doc2' });
+  });
+
+  it('records visit when returning to the same document after navigating away to folder/root', async () => {
+    api.getShareLinkViewData.mockImplementation((slug, query) => {
+      if (query?.parentId === 'folder1') {
+        return Promise.resolve({
+          data: {
+            ...mockDataroomData,
+            current_parent_id: 'folder1',
+            items: [
+              { type: 'document', id: 'doc1', name: 'Document 1', document_type: 'pdf' },
+            ],
+          },
+        });
+      }
+      if (query.dataroomDocumentId === 'doc1') {
+        return Promise.resolve({
+          data: {
+            id: 'doc1',
+            name: 'Document 1',
+            type: 'document',
+            preview_mode: 'client_pdf',
+            link_settings: { allow_download: true },
+          },
+        });
+      }
+      return Promise.resolve({ data: mockDataroomData });
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/view/test-slug?dataroom_document_id=doc1']}>
+        <DataroomViewer
+          data={{
+            ...mockDataroomData,
+            link_type: 'document',
+            id: 'doc1',
+            name: 'Document 1',
+            dataroom_context: {
+              id: 'dr1',
+              name: 'Test Dataroom',
+              parent_folder_id: 'folder1',
+            },
+          }}
+          slug="test-slug"
+          viewId="view-123"
+        />
+      </MemoryRouter>
+    );
+
+    await screen.findByTitle('Document 1');
+
+    await waitFor(() => {
+      expect(api.recordDataroomVisit).toHaveBeenCalledTimes(1);
+    });
+
+    api.recordDataroomVisit.mockClear();
+
+    // Navigate to root
+    fireEvent.click(screen.getByRole('button', { name: /root/i }));
+
+    // Wait until root contents are loaded
+    await screen.findByText('Sub Folder A');
+
+    // Navigate back to Document 1 (which is Root Document under mockDataroomData items list with id 'doc1')
+    fireEvent.click(screen.getByTitle('Root Document'));
+
+    await waitFor(() => {
+      expect(api.recordDataroomVisit).toHaveBeenCalledTimes(1);
+    });
+  });
 });
