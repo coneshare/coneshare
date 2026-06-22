@@ -112,4 +112,71 @@ describe('EmailForm', () => {
     render(<EmailForm slug={slug} onSuccess={mockOnSuccess} publicMeta={null} />);
     expect(screen.getByRole('heading', { name: 'Email Required' })).toBeInTheDocument();
   });
+
+  it('renders the confirmation view when requiresConfirmation is true', () => {
+    render(
+      <EmailForm
+        slug={slug}
+        onSuccess={mockOnSuccess}
+        publicMeta={null}
+        requiresConfirmation={true}
+        emailToConfirm="confirm@example.com"
+        token="my-token-123"
+      />
+    );
+
+    expect(screen.getByRole('heading', { name: /verify your email/i })).toBeInTheDocument();
+    expect(screen.getByText(/you are verifying access to this document as/i)).toBeInTheDocument();
+    expect(screen.getByText('confirm@example.com')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /continue to document/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /use a different email address/i })).toBeInTheDocument();
+  });
+
+  it('calls confirmShareLinkEmailAccess and onSuccess when clicking Continue to Document', async () => {
+    api.confirmShareLinkEmailAccess.mockResolvedValue({
+      data: { message: 'Access granted successfully.' },
+    });
+
+    render(
+      <EmailForm
+        slug={slug}
+        onSuccess={mockOnSuccess}
+        publicMeta={null}
+        requiresConfirmation={true}
+        emailToConfirm="confirm@example.com"
+        token="my-token-123"
+      />
+    );
+
+    const confirmButton = screen.getByRole('button', { name: /continue to document/i });
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => {
+      expect(api.confirmShareLinkEmailAccess).toHaveBeenCalledWith(slug, 'my-token-123');
+    });
+
+    expect(toast.success).toHaveBeenCalledWith('Access granted successfully.');
+    expect(mockOnSuccess).toHaveBeenCalled();
+  });
+
+  it('switches to normal email input view when clicking Use a different email address', async () => {
+    render(
+      <EmailForm
+        slug={slug}
+        onSuccess={mockOnSuccess}
+        publicMeta={null}
+        requiresConfirmation={true}
+        emailToConfirm="confirm@example.com"
+        token="my-token-123"
+      />
+    );
+
+    expect(screen.queryByLabelText(/email address/i)).not.toBeInTheDocument();
+
+    const switchButton = screen.getByRole('button', { name: /use a different email address/i });
+    fireEvent.click(switchButton);
+
+    expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /continue/i })).toBeInTheDocument();
+  });
 });

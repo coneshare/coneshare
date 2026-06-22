@@ -128,6 +128,14 @@ def verification_token(share_link_context, email):
 def access_with_token(public_client, share_link_context, verification_token):
     share_link = share_link_context['share_link']
     url = f'/api/v1/links/{share_link.slug}/view-data/?accessToken={verification_token.token}'
+    res_get = public_client.get(url)
+    assert res_get.status_code == 401
+    assert res_get.json()['requiresConfirmation'] is True
+
+    confirm_url = f'/api/v1/links/{share_link.slug}/verify-access-token/confirm/'
+    res_post = public_client.post(confirm_url, {'token': verification_token.token})
+    assert res_post.status_code == 200
+
     return public_client.get(url)
 
 

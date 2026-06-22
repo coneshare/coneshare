@@ -1584,7 +1584,8 @@ class TestShareLinkEmailProtection:
 
     def test_view_data_with_valid_access_token(self, public_client, share_link_requires_email_verification):
         """
-        Using a valid access token from an email magic link should grant access.
+        Using a valid access token from an email magic link should NOT grant access immediately on GET.
+        It should return 401 requiring confirmation, then after POST confirm, access is granted.
         """
         # Step 1: Create a token manually (as if an email was sent)
         token = EmailVerificationToken.objects.create(
@@ -1593,19 +1594,71 @@ class TestShareLinkEmailProtection:
         )
         assert EmailVerificationToken.objects.count() == 1
 
-        # Step 2: Access the data with the token
+        # Step 2: Access the data with the token via GET - should require confirmation (HTTP 401)
         view_data_url = f'/api/v1/links/{share_link_requires_email_verification.slug}/view-data/?accessToken={token.token}'
         response_view = public_client.get(view_data_url)
 
-        assert response_view.status_code == status.HTTP_200_OK
-        assert 'id' in response_view.json()
+        assert response_view.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response_view.json()['requiresConfirmation'] is True
+        assert response_view.json()['emailToConfirm'] == 'viewer@example.com'
+        
+        # Token is still in DB (not consumed by GET)
+        assert EmailVerificationToken.objects.count() == 1
 
-        # Step 3: Verify the token was single-use and deleted
+        # Step 3: Confirm the token via POST
+        confirm_url = f'/api/v1/links/{share_link_requires_email_verification.slug}/verify-access-token/confirm/'
+        response_confirm = public_client.post(confirm_url, {'token': token.token}, format='json')
+        assert response_confirm.status_code == status.HTTP_200_OK
+
+        # Token is now consumed/deleted
         assert EmailVerificationToken.objects.count() == 0
 
         # Step 4: Subsequent access without the token should be allowed due to session
         response_view_2 = public_client.get(f'/api/v1/links/{share_link_requires_email_verification.slug}/view-data/')
         assert response_view_2.status_code == status.HTTP_200_OK
+
+    def test_confirm_access_token_mismatch_fails(self, public_client, share_link_requires_email_verification):
+        """Confirming a token without a valid session context or mismatched token fails."""
+        token = EmailVerificationToken.objects.create(
+            share_link=share_link_requires_email_verification,
+            email='viewer@example.com'
+        )
+        confirm_url = f'/api/v1/links/{share_link_requires_email_verification.slug}/verify-access-token/confirm/'
+        response_confirm = public_client.post(confirm_url, {'token': token.token}, format='json')
+        
+        # Fails with 400 because GET view-data was never called to set the pending token in this session
+        assert response_confirm.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'context mismatch' in response_confirm.json()['message']
+
+    def test_confirm_access_multiple_tabs_no_collision(self, public_client, share_link_requires_email_verification):
+        """Opening multiple verification links in different tabs should not overwrite pending verifications."""
+        token_a = EmailVerificationToken.objects.create(
+            share_link=share_link_requires_email_verification,
+            email='viewer_a@example.com'
+        )
+        token_b = EmailVerificationToken.objects.create(
+            share_link=share_link_requires_email_verification,
+            email='viewer_b@example.com'
+        )
+
+        # GET request for Token A (simulating opening Tab A)
+        view_data_url_a = f'/api/v1/links/{share_link_requires_email_verification.slug}/view-data/?accessToken={token_a.token}'
+        response_a = public_client.get(view_data_url_a)
+        assert response_a.status_code == status.HTTP_401_UNAUTHORIZED
+
+        # GET request for Token B (simulating opening Tab B)
+        view_data_url_b = f'/api/v1/links/{share_link_requires_email_verification.slug}/view-data/?accessToken={token_b.token}'
+        response_b = public_client.get(view_data_url_b)
+        assert response_b.status_code == status.HTTP_401_UNAUTHORIZED
+
+        # Confirm Token A via POST (confirming Tab A)
+        confirm_url = f'/api/v1/links/{share_link_requires_email_verification.slug}/verify-access-token/confirm/'
+        response_confirm_a = public_client.post(confirm_url, {'token': token_a.token}, format='json')
+        assert response_confirm_a.status_code == status.HTTP_200_OK
+
+        # Confirm Token B via POST (confirming Tab B)
+        response_confirm_b = public_client.post(confirm_url, {'token': token_b.token}, format='json')
+        assert response_confirm_b.status_code == status.HTTP_200_OK
 
     def test_view_data_with_expired_access_token(self, public_client, share_link_requires_email_verification):
         """An expired access token should not grant access."""

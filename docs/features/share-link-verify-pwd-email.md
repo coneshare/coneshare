@@ -45,6 +45,8 @@ Frontend save behavior:
   - verifies password; sets session authorization
 - `POST /api/v1/links/{slug}/request-access/`
   - handles email step (immediate or magic-link)
+- `POST /api/v1/links/{slug}/verify-access-token/confirm/`
+  - finalizes email verification using magic link token; sets session authorization
 
 Related:
 - `GET /view/{slug}?accessToken=...` (frontend route)
@@ -120,13 +122,18 @@ Then behavior diverges by `requires_email_verification`:
   - `{"message": "...", "verification_required": true}`
 - frontend shows “check your email” state.
 
-When viewer opens magic link:
-- frontend reads `accessToken` query param and calls `view-data`
-- backend validates token and link binding, checks expiry, authorizes session:
-  - `password_verified = true`
-  - `email_verified = true`
-  - `viewer_email = token email`
-- backend deletes token after use
+To prevent secure email gateways/prefetch link scanners from consuming the token before the actual user views the document, the verification relies on a two-step scanner-tolerant flow:
+
+1. **GET Stage (Pending Verification):**
+   - When the magic link is clicked (e.g. by a scanner or viewer), the frontend reads `accessToken` query param and calls `GET /api/v1/links/{slug}/view-data/?accessToken={token}`.
+   - The backend validates the token, but **does not** delete the token or grant full access immediately. Instead, it stores the verification details (consisting of the email and link ID) inside a `pending_email_verifications` dictionary keyed by the token inside the requester's Django session.
+   - The backend returns a `401 Unauthorized` with `requiresConfirmation: true`, `emailToConfirm`, and `protectionType: "email"`.
+   - The frontend `EmailForm` intercepts this response and displays a confirmation screen asking the viewer to confirm access for the specified email.
+
+2. **POST Stage (Access Confirmation & Consumption):**
+   - When the actual viewer clicks "Continue to Document" on the confirmation screen, a `POST` request is sent to `/api/v1/links/{slug}/verify-access-token/confirm/` with the verification token.
+   - The backend checks that the POSTed token matches the pending details in the `pending_email_verifications` dictionary saved in the Django session.
+   - If verified, the backend authorizes the session (`email_verified = true`, `password_verified = true`, `viewer_email = verification.email`), deletes/consumes the token, removes the token key from the session's pending dictionary, and returns `200 OK`.
 
 ## Toggle Effect Summary
 

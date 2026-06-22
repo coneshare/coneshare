@@ -381,6 +381,9 @@ export function ShareLinkViewerPage() {
         slug={slug}
         onSuccess={() => setRefetchTrigger((c) => c + 1)}
         publicMeta={publicMeta}
+        requiresConfirmation={error?.requiresConfirmation}
+        emailToConfirm={error?.emailToConfirm}
+        token={accessToken}
       />
     );
   }
