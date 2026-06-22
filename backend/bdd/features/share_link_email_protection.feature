@@ -30,3 +30,11 @@ Feature: Share Link Email Protection
     When an anonymous viewer requests access with the email "viewer@example.com"
     And they create a view session for the share link
     Then the view session should be associated with the email "viewer@example.com"
+
+  Scenario: A viewer verifies their email with a 6-digit code
+    Given I am an authenticated user
+    And I have a document with a share link that requires email verification
+    And a verification token exists for the email "viewer@example.com"
+    When the viewer submits the correct verification code for "viewer@example.com"
+    Then they should be granted access to the document
+    And the verification token should be consumed

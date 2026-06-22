@@ -78,7 +78,11 @@ class EmailVerificationToken(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.token:
-            self.token = secrets.token_urlsafe(32)
+            while True:
+                code = f"{secrets.randbelow(900000) + 100000}"
+                if not EmailVerificationToken.objects.filter(token=code).exists():
+                    self.token = code
+                    break
         if not self.expires_at:
             # Set expiry for 15 minutes from now.
             self.expires_at = timezone.now() + timedelta(minutes=15)

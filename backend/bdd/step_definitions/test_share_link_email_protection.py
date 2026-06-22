@@ -140,3 +140,22 @@ def check_access_granted_with_token(view_response):
 @then("the verification token should be consumed")
 def check_token_consumed(verification_token):
     assert not EmailVerificationToken.objects.filter(id=verification_token.id).exists()
+
+
+@pytest.mark.django_db
+@scenario('../features/share_link_email_protection.feature', 'A viewer verifies their email with a 6-digit code')
+def test_viewer_verifies_email_with_code():
+    pass
+
+
+@when(parsers.parse('the viewer submits the correct verification code for "{email}"'), target_fixture="view_response")
+def submit_verification_code(public_client, share_link_context, verification_token, email):
+    share_link = share_link_context['share_link']
+    url = f'/api/v1/links/{share_link.slug}/verify-code/'
+    response = public_client.post(url, {
+        'email': email,
+        'code': verification_token.token
+    })
+    assert response.status_code == 200
+    view_url = f'/api/v1/links/{share_link.slug}/view-data/'
+    return public_client.get(view_url)

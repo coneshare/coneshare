@@ -61,12 +61,15 @@ describe('EmailForm', () => {
     expect(mockOnSuccess).toHaveBeenCalled();
   });
 
-  it('shows "check your email" message when verification is required', async () => {
+  it('shows verification code input and verifies successfully when code is entered', async () => {
     api.requestShareLinkAccess.mockResolvedValue({
       data: {
-        message: 'Verification link sent.',
+        message: 'Verification code sent.',
         verification_required: true,
       },
+    });
+    api.verifyShareLinkCode.mockResolvedValue({
+      data: { message: 'Email verified successfully.' },
     });
 
     renderComponent();
@@ -78,14 +81,25 @@ describe('EmailForm', () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /check your email/i })).toBeInTheDocument();
+      expect(screen.getByText(/a 6-digit verification code has been sent to/i)).toBeInTheDocument();
     });
 
     expect(api.requestShareLinkAccess).toHaveBeenCalledWith(slug, 'test@example.com');
-    expect(toast.success).toHaveBeenCalledWith('Verification link sent.');
-    expect(mockOnSuccess).not.toHaveBeenCalled();
-    expect(screen.getByText(/a verification link has been sent to/i)).toBeInTheDocument();
-    expect(screen.getByText('test@example.com')).toBeInTheDocument();
+    expect(toast.success).toHaveBeenCalledWith('Verification code sent.');
+    expect(screen.getByText(/a 6-digit verification code has been sent to/i)).toBeInTheDocument();
+
+    const codeInput = screen.getByLabelText(/verification code/i);
+    const verifyButton = screen.getByRole('button', { name: /verify/i });
+
+    fireEvent.change(codeInput, { target: { value: '123456' } });
+    fireEvent.click(verifyButton);
+
+    await waitFor(() => {
+      expect(api.verifyShareLinkCode).toHaveBeenCalledWith(slug, 'test@example.com', '123456');
+    });
+
+    expect(toast.success).toHaveBeenCalledWith('Email verified successfully.');
+    expect(mockOnSuccess).toHaveBeenCalled();
   });
 
   it('handles API errors gracefully', async () => {

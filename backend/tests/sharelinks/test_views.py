@@ -1624,6 +1624,64 @@ class TestShareLinkEmailProtection:
         assert 'protectionType' in response_view.json()
         assert response_view.json()['protectionType'] == 'email'
 
+    def test_verify_code_success(self, public_client, share_link_requires_email_verification):
+        """Verifying the correct 6-digit code should authorize the session."""
+        # Create a token manually
+        token = EmailVerificationToken.objects.create(
+            share_link=share_link_requires_email_verification,
+            email='viewer@example.com'
+        )
+        assert EmailVerificationToken.objects.count() == 1
+
+        # Post to verify code endpoint
+        verify_url = f'/api/v1/links/{share_link_requires_email_verification.slug}/verify-code/'
+        response = public_client.post(verify_url, {
+            'email': 'viewer@example.com',
+            'code': token.token
+        })
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()['message'] == 'Email verified successfully.'
+
+        # Verify token was deleted (consumed)
+        assert EmailVerificationToken.objects.count() == 0
+
+        # Verify access to view-data is now granted
+        view_data_url = f'/api/v1/links/{share_link_requires_email_verification.slug}/view-data/'
+        response_view = public_client.get(view_data_url)
+        assert response_view.status_code == status.HTTP_200_OK
+
+    def test_verify_code_invalid(self, public_client, share_link_requires_email_verification):
+        """Verifying an invalid code should return 401."""
+        token = EmailVerificationToken.objects.create(
+            share_link=share_link_requires_email_verification,
+            email='viewer@example.com'
+        )
+        
+        verify_url = f'/api/v1/links/{share_link_requires_email_verification.slug}/verify-code/'
+        response = public_client.post(verify_url, {
+            'email': 'viewer@example.com',
+            'code': 'wrongcode'
+        })
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.json()['message'] == 'Invalid verification code.'
+
+    def test_verify_code_expired(self, public_client, share_link_requires_email_verification):
+        """Verifying an expired code should return 401."""
+        expired_time = timezone.now() - timedelta(minutes=30)
+        token = EmailVerificationToken.objects.create(
+            share_link=share_link_requires_email_verification,
+            email='viewer@example.com',
+            expires_at=expired_time
+        )
+        
+        verify_url = f'/api/v1/links/{share_link_requires_email_verification.slug}/verify-code/'
+        response = public_client.post(verify_url, {
+            'email': 'viewer@example.com',
+            'code': token.token
+        })
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert 'expired' in response.json()['message'].lower()
+
     def test_request_access_for_dataroom_no_verification_success(self, public_client, dataroom_link_requires_email):
         """
         Requesting access for a dataroom link that requires email should grant access.

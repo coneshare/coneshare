@@ -14,6 +14,7 @@ urlpatterns = [
     path('links/<slug:slug>/public-meta/', views.ShareLinkPublicMetaView.as_view(), name='share-link-public-meta'),
     path('links/<slug:slug>/verify-password/', views.ShareLinkVerifyPasswordView.as_view(), name='share-link-verify-password'),
     path('links/<slug:slug>/request-access/', views.ShareLinkRequestAccessView.as_view(), name='share-link-request-access'),
+    path('links/<slug:slug>/verify-code/', views.ShareLinkVerifyCodeView.as_view(), name='share-link-verify-code'),
     path('links/<slug:slug>/view-data/', views.ShareLinkViewDataView.as_view(), name='share-link-view-data'),
     path('links/<slug:slug>/qna-summary/', views.ShareLinkQnASummaryView.as_view(), name='share-link-qna-summary'),
     path('links/<slug:slug>/qna-threads/', views.ShareLinkQnAThreadListCreateView.as_view(), name='share-link-qna-threads'),

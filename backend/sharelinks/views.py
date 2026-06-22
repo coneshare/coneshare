@@ -52,6 +52,7 @@ from .serializers import (DataroomVisitSerializer, PageViewRecordSerializer,
                           QnAThreadStatusUpdateSerializer,
                           ShareLinkDataroomSettingUpdateSerializer,
                           ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
+                          ShareLinkVerifyCodeSerializer,
                           ShareLinkTemplateSerializer, ShareLinkSerializer,
                           ViewerSerializer, ViewSessionSerializer)
 from .tasks import send_view_notification_email_task
@@ -1513,19 +1514,13 @@ class ShareLinkRequestAccessView(APIView):
             EmailVerificationToken.objects.filter(share_link=link, email=email).delete()
             verification = EmailVerificationToken.objects.create(share_link=link, email=email)
             
-            # Construct magic link URL
-            access_url = urljoin(
-                settings.SITE_DOMAIN,
-                f"/view/{link.slug}?accessToken={verification.token}"
-            )
-            
             # Send email
             try:
                 target_name = link.document.name if link.document else link.dataroom.name
                 
                 context = {
                     'target_name': target_name,
-                    'access_url': access_url,
+                    'verification_code': verification.token,
                 }
                 
                 text_content = render_to_string('sharelinks/verification_email.txt', context)
@@ -1547,8 +1542,79 @@ class ShareLinkRequestAccessView(APIView):
                 )
 
             return Response(
-                {"message": "Verification link sent. Please check your email to continue.", "verification_required": True},
+                {"message": "Verification code sent. Please check your email to continue.", "verification_required": True},
                 status=status.HTTP_200_OK
+            )
+
+
+@extend_schema(tags=['sharelinks'])
+class ShareLinkVerifyCodeView(APIView):
+    """
+    Verifies the email code for a share link and authorizes the session.
+    """
+    throttle_classes = [PerSlugScopedRateThrottle]
+    throttle_scope = 'password_verify'
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        request=ShareLinkVerifyCodeSerializer,
+        responses={200: dict, 400: dict, 401: dict, 404: dict},
+    )
+    def post(self, request, slug, *args, **kwargs):
+        try:
+            link = _get_active_share_link(slug)
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
+
+        if not link.requires_email or not link.requires_email_verification:
+            return Response(
+                {"message": "This link does not require email verification."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = ShareLinkVerifyCodeSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        email = serializer.validated_data['email']
+        code = serializer.validated_data['code']
+
+        try:
+            with transaction.atomic():
+                verification = EmailVerificationToken.objects.select_for_update().get(
+                    share_link=link,
+                    email__iexact=email,
+                    token=code
+                )
+                if verification.is_expired():
+                    return Response(
+                        {"message": "Verification code has expired. Please request a new one.", "protectionType": "email"},
+                        status=status.HTTP_401_UNAUTHORIZED
+                    )
+
+                # Set session authorization
+                authorized_links = request.session.get('authorized_share_links', {})
+                if str(link.id) not in authorized_links:
+                    authorized_links[str(link.id)] = {}
+                authorized_links[str(link.id)]['password_verified'] = True
+                authorized_links[str(link.id)]['email_verified'] = True
+                authorized_links[str(link.id)]['viewer_email'] = verification.email
+                request.session['authorized_share_links'] = authorized_links
+
+                _dispatch_automation_event(
+                    link,
+                    'email_identified',
+                    {'viewer_email': verification.email},
+                )
+                # Single use verification code consumption
+                verification.delete()
+
+                return Response({"message": "Email verified successfully."}, status=status.HTTP_200_OK)
+
+        except EmailVerificationToken.DoesNotExist:
+            return Response(
+                {"message": "Invalid verification code.", "protectionType": "email"},
+                status=status.HTTP_401_UNAUTHORIZED
             )
 
 

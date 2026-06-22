@@ -325,6 +325,11 @@ class ShareLinkPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
 
+class ShareLinkVerifyCodeSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    code = serializers.CharField(max_length=64)
+
+
 class QnAMessageSerializer(serializers.ModelSerializer):
     sender_type = serializers.SerializerMethodField()
     sender_email = serializers.SerializerMethodField()
