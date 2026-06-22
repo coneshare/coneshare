@@ -2,10 +2,13 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
-import { ShareIcon, Star, ArrowLeft } from 'lucide-react';
+import { ShareIcon, Star, ArrowLeft, ChevronDown, FolderUp, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, removeContentFromDataroom, updateDataroomFolder, updateDataroomDocument, updateDataroomBranding, reorderDataroomItems, deleteDataroom } from '../services/api';
+import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, removeContentFromDataroom, updateDataroomFolder, updateDataroomDocument, updateDataroomBranding, reorderDataroomItems, deleteDataroom, ensureDataroomFolderPaths, uploadDataroomDocument } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
+import { useUpload } from '../contexts/UploadProvider';
+import { useUser } from '../contexts/UserProvider';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Button } from '../components/ui/Button';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
@@ -91,6 +94,122 @@ export function DataroomPage() {
   const [deleteConfirmationName, setDeleteConfirmationName] = useState('');
   const [isDeletingDataroom, setIsDeletingDataroom] = useState(false);
   const bannerFileInputRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const folderInputRef = useRef(null);
+  const { addUploads, updateUpload } = useUpload();
+  const { user } = useUser();
+
+  const handleFileSelect = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleFolderSelect = () => {
+    folderInputRef.current.click();
+  };
+
+  const handleFileUploads = async (files) => {
+    if (!files || files.length === 0) return;
+
+    if (!user) {
+      toast.error("User information is still loading. Please wait a moment and try again.");
+      return;
+    }
+
+    if (user.max_files_per_upload > 0 && files.length > user.max_files_per_upload) {
+      toast.error(`Uploads are limited to ${user.max_files_per_upload} files at a time.`);
+      return;
+    }
+
+    const fileIdMap = addUploads(files);
+
+    let basePath = '';
+    if (currentDataroomFolder) {
+      basePath = [
+        ...currentDataroomFolder.ancestors.map((a) => a.name),
+        currentDataroomFolder.name,
+      ].join('/');
+    }
+
+    const paths = new Set();
+    Array.from(files).forEach((file) => {
+      const relativePath = file.webkitRelativePath;
+      if (relativePath) {
+        const folderPath = relativePath.substring(0, relativePath.lastIndexOf('/'));
+        if (folderPath) {
+          const normalizedPath = folderPath.replace(/^\/+|\/+$/g, '');
+          if (normalizedPath) paths.add(normalizedPath);
+        }
+      }
+    });
+
+    let pathMappings = {};
+    if (paths.size > 0) {
+      try {
+        const response = await ensureDataroomFolderPaths(dataroomId, Array.from(paths), currentFolderId || null);
+        pathMappings = response.data.path_mappings || {};
+      } catch (error) {
+        console.error("Failed to create folder structure:", error);
+        fileIdMap.forEach(id => updateUpload(id, { status: 'error', error: 'Folder creation failed' }));
+        return;
+      }
+    }
+
+    const uploadPromises = Array.from(files).map((file) => {
+      const id = fileIdMap.get(file);
+
+      let relativePath = file.webkitRelativePath || null;
+      if (relativePath && Object.keys(pathMappings).length > 0) {
+        const pathParts = relativePath.split('/');
+        const topLevelDir = pathParts[0];
+        const newTopLevelDir = pathMappings[topLevelDir];
+        if (newTopLevelDir && newTopLevelDir !== topLevelDir) {
+          pathParts[0] = newTopLevelDir;
+          relativePath = pathParts.join('/');
+        }
+      }
+
+      if (relativePath && basePath) {
+        relativePath = `${basePath}/${relativePath}`;
+      }
+      const finalPath = relativePath || (basePath ? `${basePath}/${file.name}` : file.name);
+
+      const onProgress = (progress) => {
+        updateUpload(id, { progress });
+      };
+
+      return uploadDataroomDocument(dataroomId, file, currentFolderId || null, finalPath, onProgress)
+        .then(response => ({ id, status: 'fulfilled', value: response }))
+        .catch(error => ({ id, status: 'rejected', reason: error }));
+    });
+
+    const results = await Promise.all(uploadPromises);
+    let successfulUploads = 0;
+
+    results.forEach(result => {
+      if (result.status === 'fulfilled') {
+        updateUpload(result.id, { status: 'complete', progress: 100 });
+        successfulUploads++;
+      } else {
+        const errorMessage = result.reason?.response?.data?.detail || result.reason?.message || 'Upload failed';
+        updateUpload(result.id, { status: 'error', error: errorMessage });
+        console.error(`File upload failed for id ${result.id}:`, result.reason);
+      }
+    });
+
+    if (successfulUploads > 0) {
+      fetchContent();
+    }
+  };
+
+  const onFileChange = async (e) => {
+    await handleFileUploads(e.target.files);
+    e.target.value = null;
+  };
+
+  const onFolderChange = async (e) => {
+    await handleFileUploads(e.target.files);
+    e.target.value = null;
+  };
     
   const fetchContent = useCallback(async () => {
     setIsLoading(true);
@@ -634,6 +753,20 @@ export function DataroomPage() {
         <div className="flex items-center gap-2">
           {activeTab === 'documents' && (
             <>
+              <input
+                type="file"
+                multiple
+                ref={fileInputRef}
+                onChange={onFileChange}
+                className="hidden"
+              />
+              <input
+                type="file"
+                ref={folderInputRef}
+                onChange={onFolderChange}
+                className="hidden"
+                webkitdirectory=""
+              />
               <Button
                 variant="outline"
                 size="icon"
@@ -643,10 +776,37 @@ export function DataroomPage() {
               >
                 <FolderPlusIcon className="h-5 w-5" />
               </Button>
-              <Button variant="outline" onClick={() => setIsAddContentOpen(true)}>
+              <Button variant="outline" onClick={() => setIsAddContentOpen(true)} title="Add existing documents from library">
                 <DocumentPlusIcon className="mr-2 h-4 w-4" />
                 Add Content
               </Button>
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger asChild>
+                  <Button className="flex items-center gap-1">
+                    <span>Upload</span>
+                    <ChevronDown className="h-4 w-4 shrink-0" />
+                  </Button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content
+                  className="z-50 w-40 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-gray-800"
+                  sideOffset={8}
+                >
+                  <DropdownMenu.Item
+                    onSelect={handleFileSelect}
+                    className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Upload Files</span>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    onSelect={handleFolderSelect}
+                    className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
+                  >
+                    <FolderUp className="h-4 w-4" />
+                    <span>Upload Folder</span>
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Root>
             </>
           )}
           {activeTab === 'links' && (
