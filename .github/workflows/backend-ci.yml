@@ -71,8 +71,36 @@ jobs:
         FIELD_ENCRYPTION_KEY: "S-c9WBE3DEJE2R7i-b-sOmegRChW2McTDIOWcrG0-C8="
         CORE_API_URL: "http://localhost:8080"
 
+  test-frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Run frontend tests
+      working-directory: ./frontend
+      run: npm run test:whitelist
+
   build-and-push:
-    needs: test-backend
+    needs: [test-backend, test-frontend]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 

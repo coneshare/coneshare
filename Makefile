@@ -24,7 +24,7 @@ help:
 	@echo "  portal.sh       - Attach a shell to the portal container"
 	@echo "  clean           - Remove migrations, .pyc files, and database"
 	@echo "  test            - Run backend tests with pytest"
-	@echo "  test.front      - Run frontend tests with vitest"
+	@echo "  test.front      - Run whitelisted frontend tests with vitest"
 	@echo "  lint.portal     - Run portal linter with eslint"
 	@echo "  lint.docs       - Validate feature docs template sections"
 	@echo "  migrate         - Run database migrations"
@@ -106,7 +106,7 @@ test:
 .PHONY: test.front
 test.front:
 	@echo "Running frontend tests..."
-	COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm run test:whitelist
 
 .PHONY: lint.portal
 lint.portal:

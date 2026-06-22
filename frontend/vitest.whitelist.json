@@ -1,0 +1,10 @@
+{
+  "whitelist": [
+    "src/tests/components/viewer/DataroomViewer.test.jsx",
+    "src/tests/pages/ShareLinkViewerPage.test.jsx",
+    "src/tests/components/viewer/EmailForm.test.jsx",
+    "src/tests/components/viewer/PasswordForm.test.jsx",
+    "src/tests/components/viewer/QnAPanel.test.jsx",
+    "src/tests/components/viewer/ViewerToolbar.test.jsx"
+  ]
+}

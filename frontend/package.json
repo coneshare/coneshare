@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
+    "test:whitelist": "vitest run --config vitest.whitelist.config.js",
     "test:case": "vitest -t",
     "test:ui": "vitest --ui"
   },
