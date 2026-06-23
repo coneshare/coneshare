@@ -11,7 +11,34 @@ on:
       - 'portal/**'
 
 jobs:
+  # Job to determine which sub-projects have changes, avoiding unnecessary test runs.
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Detect changes
+      uses: dorny/paths-filter@v3
+      id: filter
+      with:
+        filters: |
+          backend:
+            - 'backend/**'
+            - 'core/**'
+            - '.github/workflows/build-ci.yml'
+          frontend:
+            - 'frontend/**'
+            - '.github/workflows/build-ci.yml'
+
+  # Backend testing job (Python/Django tests + Go file server compilation/execution).
   test-backend:
+    needs: detect-changes
+    # Run only if change detection outputs 'true' for backend (backend/ or core/)
+    if: needs.detect-changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
 
     services:
@@ -71,7 +98,11 @@ jobs:
         FIELD_ENCRYPTION_KEY: "S-c9WBE3DEJE2R7i-b-sOmegRChW2McTDIOWcrG0-C8="
         CORE_API_URL: "http://localhost:8080"
 
+  # Frontend testing job (React/Vite tests under frontend/src/tests/).
   test-frontend:
+    needs: detect-changes
+    # Run only if change detection outputs 'true' for frontend (frontend/)
+    if: needs.detect-changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -99,10 +130,22 @@ jobs:
       working-directory: ./frontend
       run: npm run test:whitelist
 
+  # Build and push job that runs only on pushes to the main branch.
   build-and-push:
-    needs: [test-backend, test-frontend]
+    needs: [detect-changes, test-backend, test-frontend]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Condition explained:
+    # 1. always(): force evaluation even if parent jobs (test-backend/test-frontend) were skipped.
+    # 2. github.event_name == 'push' && github.ref == 'refs/heads/main': restrict execution to pushes on main.
+    # 3. needs.detect-changes.result == 'success': ensure path detection completed successfully.
+    # 4. Result checks: proceed only if tests succeeded OR were skipped (meaning no changes to test).
+    if: |
+      always() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.detect-changes.result == 'success' &&
+      (needs.test-backend.result == 'success' || needs.test-backend.result == 'skipped') &&
+      (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped')
 
     steps:
       - name: Checkout code
