@@ -24,6 +24,19 @@ vi.mock('../../components/dialogs/AddContentDialog', () => ({
     },
 }));
 
+vi.mock('../../contexts/UploadProvider', () => ({
+    useUpload: () => ({
+        addUploads: vi.fn().mockReturnValue(new Map()),
+        updateUpload: vi.fn(),
+    }),
+}));
+
+vi.mock('../../contexts/UserProvider', () => ({
+    useUser: () => ({
+        user: { id: 'u1', email: 'test@example.com', max_files_per_upload: 100 },
+    }),
+}));
+
 const mockedNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
     const original = await vi.importActual('react-router-dom');
@@ -683,6 +696,138 @@ describe('DataroomPage', () => {
 
             expect(await screen.findByText('test10@example.com')).toBeInTheDocument();
             expect(screen.queryByText('test0@example.com')).not.toBeInTheDocument();
+        });
+    });
+
+    describe('Direct Uploads', () => {
+        beforeEach(() => {
+            api.ensureDataroomFolderPaths = vi.fn().mockResolvedValue({
+                data: {
+                    detail: "Folder structure ensured successfully.",
+                    path_mappings: { 'UploadedFolder': 'UploadedFolder' }
+                }
+            });
+            api.uploadDataroomDocument = vi.fn().mockResolvedValue({ data: { id: 'ddoc_new' } });
+        });
+
+        it('should show the Upload options and handle file selection and folder selection upload', async () => {
+            const { container } = renderComponent();
+
+            expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
+
+            const fileInput = container.querySelector('input[type="file"][multiple]');
+            const folderInput = container.querySelector('input[webkitdirectory]');
+
+            expect(fileInput).toBeInTheDocument();
+            expect(folderInput).toBeInTheDocument();
+
+            const file = new File(['hello'], 'hello.txt', { type: 'text/plain' });
+            
+            const { fireEvent } = await import('@testing-library/react');
+            fireEvent.change(fileInput, {
+                target: { files: [file] }
+            });
+
+            await waitFor(() => {
+                expect(api.uploadDataroomDocument).toHaveBeenCalledTimes(1);
+            });
+            expect(api.uploadDataroomDocument).toHaveBeenCalledWith(
+                'dr123',
+                file,
+                null,
+                'hello.txt',
+                expect.any(Function)
+            );
+        });
+
+        it('should handle folder upload with conflict-resolved path mappings', async () => {
+            api.ensureDataroomFolderPaths = vi.fn().mockResolvedValue({
+                data: {
+                    detail: "Folder structure ensured successfully.",
+                    path_mappings: { 'UploadedFolder': 'UploadedFolder (1)' }
+                }
+            });
+
+            const { container } = renderComponent();
+            expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
+            const folderInput = container.querySelector('input[webkitdirectory]');
+
+            const file = new File(['hello'], 'hello.txt', { type: 'text/plain' });
+            Object.defineProperty(file, 'webkitRelativePath', {
+                value: 'UploadedFolder/Subfolder/hello.txt',
+                writable: false
+            });
+
+            const { fireEvent } = await import('@testing-library/react');
+            fireEvent.change(folderInput, {
+                target: { files: [file] }
+            });
+
+            await waitFor(() => {
+                expect(api.ensureDataroomFolderPaths).toHaveBeenCalledWith(
+                    'dr123',
+                    ['UploadedFolder/Subfolder'],
+                    null
+                );
+                expect(api.uploadDataroomDocument).toHaveBeenCalledTimes(1);
+            });
+
+            expect(api.uploadDataroomDocument).toHaveBeenCalledWith(
+                'dr123',
+                file,
+                null,
+                'UploadedFolder (1)/Subfolder/hello.txt',
+                expect.any(Function)
+            );
+        });
+
+        it('should handle file upload defensively when currentDataroomFolder.ancestors is null', async () => {
+            const user = userEvent.setup();
+            
+            // Mock subfolder contents with ancestors as null
+            api.getDataroomFolderContents = vi.fn().mockResolvedValue({
+                data: {
+                    id: 'folder1',
+                    name: 'Sub Folder',
+                    ancestors: null,
+                    items: [],
+                    sub_folders: [],
+                    documents: []
+                }
+            });
+
+            const { container } = renderComponent();
+            expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
+
+            // Navigate to Sub Folder
+            const folderItem = await screen.findByText('Sub Folder');
+            await user.click(folderItem);
+
+            // Wait for navigation and mock API call
+            await waitFor(() => {
+                expect(api.getDataroomFolderContents).toHaveBeenCalledWith('folder1');
+            });
+
+            // Trigger file upload in the subfolder
+            const fileInput = container.querySelector('input[type="file"][multiple]');
+            const file = new File(['hello'], 'hello.txt', { type: 'text/plain' });
+
+            const { fireEvent } = await import('@testing-library/react');
+            fireEvent.change(fileInput, {
+                target: { files: [file] }
+            });
+
+            await waitFor(() => {
+                expect(api.uploadDataroomDocument).toHaveBeenCalledTimes(1);
+            });
+
+            expect(api.uploadDataroomDocument).toHaveBeenCalledWith(
+                'dr123',
+                file,
+                'folder1',
+                'Sub Folder/hello.txt',
+                expect.any(Function)
+            );
         });
     });
 });

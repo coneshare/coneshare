@@ -94,48 +94,50 @@ function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = 
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenu.Trigger>
-          <DropdownMenu.Content
-            className="z-20 w-40 origin-top-right rounded-md bg-white p-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
-            sideOffset={5}
-            align="end"
-            onCloseAutoFocus={(e) => e.preventDefault()}
-          >
-            <DropdownMenu.Item
-              onSelect={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onItemClick(item);
-              }}
-              className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              className="z-[9999] w-40 origin-top-right rounded-md bg-white p-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+              sideOffset={5}
+              align="end"
+              onCloseAutoFocus={(e) => e.preventDefault()}
             >
-              <Eye className="h-4 w-4" aria-hidden="true" />
-              <span>View</span>
-            </DropdownMenu.Item>
-            {item.allow_download && (
               <DropdownMenu.Item
                 onSelect={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  onDownloadClick(item);
+                  onItemClick(item);
                 }}
                 className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
               >
-                <DownloadIcon className="h-4 w-4" aria-hidden="true" />
-                <span>Download</span>
+                <Eye className="h-4 w-4" aria-hidden="true" />
+                <span>View</span>
               </DropdownMenu.Item>
-            )}
-            <DropdownMenu.Item
-              onSelect={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onQnaClick(item);
-              }}
-              className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-700 dark:hover:bg-gray-100 dark:focus:bg-gray-100"
-            >
-              <MessageCircle className="h-4 w-4" aria-hidden="true" />
-              <span>Q&amp;A</span>
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
+              {item.allow_download && (
+                <DropdownMenu.Item
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onDownloadClick(item);
+                  }}
+                  className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                >
+                  <DownloadIcon className="h-4 w-4" aria-hidden="true" />
+                  <span>Download</span>
+                </DropdownMenu.Item>
+              )}
+              <DropdownMenu.Item
+                onSelect={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onQnaClick(item);
+                }}
+                className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-700 dark:hover:bg-gray-100 dark:focus:bg-gray-100"
+              >
+                <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                <span>Q&amp;A</span>
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
         </DropdownMenu.Root>
       </div>
     </div>
