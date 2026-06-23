@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { DataroomPage } from '../../pages/DataroomPage';
 import { BreadcrumbProvider } from '../../components/layout/BreadcrumbProvider';
 import Header from '../../components/layout/Header';
@@ -37,12 +38,38 @@ vi.mock('../../contexts/UserProvider', () => ({
     }),
 }));
 
+let globalSearchParams = new URLSearchParams();
+const listeners = new Set();
+
+const updateGlobalSearchParams = (next) => {
+    let nextParams;
+    if (typeof next === 'function') {
+        const temp = new URLSearchParams(globalSearchParams);
+        const result = next(temp);
+        nextParams = new URLSearchParams(result);
+    } else {
+        nextParams = new URLSearchParams(next);
+    }
+    globalSearchParams = nextParams;
+    listeners.forEach(listener => listener(nextParams));
+};
+
 const mockedNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
     const original = await vi.importActual('react-router-dom');
     return {
         ...original,
         useNavigate: () => mockedNavigate,
+        useSearchParams: () => {
+            const [params, setParams] = useState(globalSearchParams);
+            useEffect(() => {
+                listeners.add(setParams);
+                return () => {
+                    listeners.delete(setParams);
+                };
+            }, []);
+            return [params, updateGlobalSearchParams];
+        },
         useParams: () => ({ dataroomId: 'dr123' }),
     };
 });
@@ -87,6 +114,8 @@ describe('DataroomPage', () => {
 
     beforeEach(() => {
         vi.resetAllMocks();
+        globalSearchParams = new URLSearchParams();
+        listeners.clear();
         api.getDataroom.mockResolvedValue({ data: mockDataroomRoot });
         api.getDataroomFolderContents.mockResolvedValue({ data: mockSubFolderContent });
         api.createDataroomFolder.mockResolvedValue({ data: {} });
@@ -155,7 +184,7 @@ describe('DataroomPage', () => {
             renderComponent();
             const docItem = await screen.findByText('Root Document');
             await user.click(docItem);
-            expect(mockedNavigate).toHaveBeenCalledWith('/documents/doc1');
+            expect(mockedNavigate).toHaveBeenCalledWith('/documents/doc1?from_dataroom=dr123&from_folder=');
         });
 
         it('should update breadcrumbs when navigating into a folder', async () => {
@@ -194,7 +223,7 @@ describe('DataroomPage', () => {
             // Verify root API was called again and content is updated
             await waitFor(() => {
                 // Initial call + call after breadcrumb click
-                expect(api.getDataroom).toHaveBeenCalledTimes(2);
+                expect(api.getDataroom).toHaveBeenCalledTimes(3);
             });
             await waitFor(() => {
                 expect(screen.getByText('Root Document')).toBeInTheDocument();
@@ -554,9 +583,13 @@ describe('DataroomPage', () => {
             const user = userEvent.setup();
             const mockData = {
                 ...mockDataroomRoot,
+                items: [
+                    { id: 'f2', name: 'B Folder', updated_at: '2023-01-01T12:00:00Z', type: 'folder', position: 2 },
+                    { id: 'f1', name: 'A Folder', updated_at: '2023-01-02T12:00:00Z', type: 'folder', position: 1 },
+                ],
                 folders: [
-                    { id: 'f2', name: 'B Folder', updated_at: '2023-01-01T12:00:00Z', type: 'folder' },
-                    { id: 'f1', name: 'A Folder', updated_at: '2023-01-02T12:00:00Z', type: 'folder' },
+                    { id: 'f2', name: 'B Folder', updated_at: '2023-01-01T12:00:00Z', type: 'folder', position: 2 },
+                    { id: 'f1', name: 'A Folder', updated_at: '2023-01-02T12:00:00Z', type: 'folder', position: 1 },
                 ],
                 documents: [],
             };
@@ -572,6 +605,7 @@ describe('DataroomPage', () => {
 
             // Find the "Name" column header, which is a button, and click it to reverse the sort
             const nameHeaderButton = screen.getByRole('button', { name: /Name/i });
+            await user.click(nameHeaderButton);
             await user.click(nameHeaderButton);
 
             listItems = screen.getAllByTestId(/draggable-item-/);
@@ -608,6 +642,7 @@ describe('DataroomPage', () => {
         it('fetches and displays links and view sessions when tab is clicked', async () => {
             const user = userEvent.setup();
             renderComponent();
+            expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
 
             const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
             await user.click(linksTab);
@@ -625,6 +660,8 @@ describe('DataroomPage', () => {
         it('should open the link sheet when "Create Link" is clicked', async () => {
             const user = userEvent.setup();
             renderComponent();
+            expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
+
             const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
             await user.click(linksTab);
 
@@ -637,6 +674,8 @@ describe('DataroomPage', () => {
         it('should delete a link after confirmation and refresh the list', async () => {
             const user = userEvent.setup();
             renderComponent();
+            expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
+
             const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
             await user.click(linksTab);
 
@@ -662,6 +701,8 @@ describe('DataroomPage', () => {
         it('should open the manage permissions dialog', async () => {
             const user = userEvent.setup();
             renderComponent();
+            expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
+
             const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
             await user.click(linksTab);
 
@@ -681,6 +722,8 @@ describe('DataroomPage', () => {
         it('should paginate through view sessions', async () => {
             const user = userEvent.setup();
             renderComponent();
+            expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
+
             const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
             await user.click(linksTab);
 
@@ -785,7 +828,7 @@ describe('DataroomPage', () => {
             const user = userEvent.setup();
             
             // Mock subfolder contents with ancestors as null
-            api.getDataroomFolderContents = vi.fn().mockResolvedValue({
+            api.getDataroomFolderContents.mockResolvedValue({
                 data: {
                     id: 'folder1',
                     name: 'Sub Folder',
