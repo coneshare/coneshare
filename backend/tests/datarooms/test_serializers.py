@@ -14,6 +14,9 @@ from datarooms.serializers import (
     MoveDataroomContentSerializer,
     PublicDataroomDocumentSerializer,
     PublicDataroomFolderSerializer,
+    EnsureDataroomFolderPathsSerializer,
+    DataroomUploadRequestSerializer,
+    DataroomUploadFinalizeSerializer,
 )
 
 pytestmark = pytest.mark.django_db
@@ -228,3 +231,137 @@ class TestPublicDataroomSerializers:
         assert data['id'] == str(dfolder.id)
         assert data['name'] == "Test Folder"
         assert data['allow_download'] is True  # From context
+
+
+class TestEnsureDataroomFolderPathsSerializer:
+    def test_valid_safe_paths(self):
+        data = {
+            "paths": ["foo/bar", "baz/qux", "a\\b\\c"]
+        }
+        serializer = EnsureDataroomFolderPathsSerializer(data=data)
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["paths"] == ["foo/bar", "baz/qux", "a/b/c"]
+
+    def test_absolute_paths_fail(self):
+        data = {
+            "paths": ["/foo/bar"]
+        }
+        serializer = EnsureDataroomFolderPathsSerializer(data=data)
+        assert not serializer.is_valid()
+        assert "paths" in serializer.errors
+
+    def test_directory_traversal_fails(self):
+        data = {
+            "paths": ["foo/../../bar"]
+        }
+        serializer = EnsureDataroomFolderPathsSerializer(data=data)
+        assert not serializer.is_valid()
+        assert "paths" in serializer.errors
+
+    def test_traversal_starting_with_dots_fails(self):
+        data = {
+            "paths": ["../foo"]
+        }
+        serializer = EnsureDataroomFolderPathsSerializer(data=data)
+        assert not serializer.is_valid()
+        assert "paths" in serializer.errors
+
+    def test_redundant_separators_normalized(self):
+        data = {
+            "paths": ["foo//bar", "foo/./bar"]
+        }
+        serializer = EnsureDataroomFolderPathsSerializer(data=data)
+        assert serializer.is_valid()
+        assert serializer.validated_data["paths"] == ["foo/bar", "foo/bar"]
+
+
+class TestDataroomUploadRequestSerializer:
+    def test_valid_safe_path(self):
+        data = {
+            "file_name": "test.txt",
+            "file_size": 100,
+            "path": "foo/bar"
+        }
+        serializer = DataroomUploadRequestSerializer(data=data)
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["path"] == "foo/bar"
+
+    def test_backslash_normalized(self):
+        data = {
+            "file_name": "test.txt",
+            "file_size": 100,
+            "path": "foo\\bar"
+        }
+        serializer = DataroomUploadRequestSerializer(data=data)
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["path"] == "foo/bar"
+
+    def test_absolute_path_fails(self):
+        data = {
+            "file_name": "test.txt",
+            "file_size": 100,
+            "path": "/foo"
+        }
+        serializer = DataroomUploadRequestSerializer(data=data)
+        assert not serializer.is_valid()
+        assert "path" in serializer.errors
+
+    def test_directory_traversal_fails(self):
+        data = {
+            "file_name": "test.txt",
+            "file_size": 100,
+            "path": "../foo"
+        }
+        serializer = DataroomUploadRequestSerializer(data=data)
+        assert not serializer.is_valid()
+        assert "path" in serializer.errors
+
+
+class TestDataroomUploadFinalizeSerializer:
+    def test_valid_safe_path(self):
+        data = {
+            "storage_key": "key",
+            "unique_name": "unique",
+            "file_size": 100,
+            "content_type": "text/plain",
+            "path": "foo/bar"
+        }
+        serializer = DataroomUploadFinalizeSerializer(data=data)
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["path"] == "foo/bar"
+
+    def test_backslash_normalized(self):
+        data = {
+            "storage_key": "key",
+            "unique_name": "unique",
+            "file_size": 100,
+            "content_type": "text/plain",
+            "path": "foo\\bar"
+        }
+        serializer = DataroomUploadFinalizeSerializer(data=data)
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["path"] == "foo/bar"
+
+    def test_absolute_path_fails(self):
+        data = {
+            "storage_key": "key",
+            "unique_name": "unique",
+            "file_size": 100,
+            "content_type": "text/plain",
+            "path": "/foo"
+        }
+        serializer = DataroomUploadFinalizeSerializer(data=data)
+        assert not serializer.is_valid()
+        assert "path" in serializer.errors
+
+    def test_directory_traversal_fails(self):
+        data = {
+            "storage_key": "key",
+            "unique_name": "unique",
+            "file_size": 100,
+            "content_type": "text/plain",
+            "path": "../foo"
+        }
+        serializer = DataroomUploadFinalizeSerializer(data=data)
+        assert not serializer.is_valid()
+        assert "path" in serializer.errors
