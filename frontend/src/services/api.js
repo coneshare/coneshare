@@ -535,6 +535,40 @@ export const addContentToDataroom = (id, data) => api.post(`/datarooms/${id}/add
 export const removeContentFromDataroom = (id, data) => api.post(`/datarooms/${id}/remove-content/`, data);
 export const moveDataroomContent = (id, data) => api.post(`/datarooms/${id}/move-content/`, data);
 export const reorderDataroomItems = (id, data) => api.post(`/datarooms/${id}/reorder-items/`, data);
+export const ensureDataroomFolderPaths = (dataroomId, paths, parentFolderId = null) =>
+  api.post(`/datarooms/${dataroomId}/ensure-paths/`, { paths, parent_folder_id: parentFolderId });
+
+export const uploadDataroomDocument = async (dataroomId, file, destinationFolderId = null, path = null, onProgress = null) => {
+  const requestResponse = await api.post(`/datarooms/${dataroomId}/uploads/request/`, {
+    file_name: file.name,
+    file_size: file.size,
+    destination_folder_id: destinationFolderId || null,
+    path: path || null,
+  });
+
+  const { upload_url, storage_key, unique_name } = requestResponse.data;
+
+  await axios.put(upload_url, file, {
+    headers: {
+      'Content-Type': file.type || 'application/octet-stream',
+    },
+    onUploadProgress: (progressEvent) => {
+      if (onProgress && progressEvent.total) {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        onProgress(percentCompleted);
+      }
+    },
+  });
+
+  return api.post(`/datarooms/${dataroomId}/uploads/finalize/`, {
+    storage_key,
+    unique_name,
+    file_size: file.size,
+    content_type: file.type || 'application/octet-stream',
+    destination_folder_id: destinationFolderId || null,
+    path: path || null,
+  });
+};
 export const getDataroomFolderContents = (folderId) => api.get(`/dataroom-folders/${folderId}/`);
 export const getShareLinksForDataroom = (dataroomId) => api.get(`/share-links/?dataroom_id=${dataroomId}`);
 export const updateDataroomLinkSettings = (linkId, settings) => api.patch(`/share-links/${linkId}/dataroom-settings/`, settings);

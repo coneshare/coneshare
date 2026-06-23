@@ -17,7 +17,7 @@ Use Docker-based workflows from the repository root unless you are iterating ins
 - `make test`: run backend pytest suite in container.
 - Targeted backend test in container (example):
   - `COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend pytest -q tests/filerequests/test_views.py`
-- `make test.front`: run frontend Vitest suite in container. (Do NOT run this command as there are many broken test cases).
+- `make test.front`: run whitelisted frontend Vitest suite in container.
 - Targeted frontend test in container (example):
   - `COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run src/tests/pages/PublicUploadPage.test.jsx`
 - `make lint.portal`: run portal ESLint.
@@ -37,7 +37,7 @@ Local package commands:
 ## Testing Guidelines
 - Migration workflow note: do not create migration files unless explicitly requested or supplied by the maintainer. When schema changes need migrations, call that out in the final summary.
 - Backend: `pytest` + `pytest-django`; test discovery from `backend/tests` and `backend/bdd` (`test_*.py`, `*_tests.py`).
-- Frontend: `vitest` + Testing Library; place tests under `frontend/src/tests/**` and use `*.test.jsx|js`.
+- Frontend: `vitest` + Testing Library; place tests under `frontend/src/tests/**` and use `*.test.jsx|js`. Stable/new test files should be added to the whitelist config: `frontend/vitest.whitelist.json`.
 - E2E: Playwright specs in `e2e/tests/`.
 - Add/adjust tests with every behavior change, especially for permissions, sharing, and file operations.
 
@@ -47,7 +47,7 @@ Recent history follows Conventional Commits (`feat:`, `fix:`, `chore(scope): ...
 PRs should include:
 - clear summary and motivation;
 - linked issue (if applicable);
-- test evidence (`make test` or targeted command output; do NOT run `make test.front` as there are many broken test cases);
+- test evidence (`make test` or targeted command output; or `make test.front` for whitelisted tests);
 - UI screenshots/GIFs for frontend or portal changes;
 - migration/config notes when schema or env vars change.
 
