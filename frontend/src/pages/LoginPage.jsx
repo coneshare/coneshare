@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { Link } from 'react-router-dom'
 import { authService } from '../services/authService'
 import { APP_DISPLAY_VERSION } from '../lib/constants'
+import { Button } from '../components/ui/Button'
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -47,7 +48,7 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 dark:bg-gray-900">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 dark:bg-gray-900">
       <div className="w-full max-w-md space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
@@ -96,13 +97,14 @@ function LoginPage() {
           )}
 
           <div>
-            <button
+            <Button
               type="submit"
+              size="lg"
               disabled={isLoading}
-              className="group relative flex w-full justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+              className="w-full active:scale-[0.98] transition-transform"
             >
               {isLoading ? "Signing In..." : "Sign In"}
-            </button>
+            </Button>
           </div>
         </form>
         {showSignupLink && (
@@ -119,6 +121,36 @@ function LoginPage() {
             {`ver-${APP_DISPLAY_VERSION}`}
           </p>
         )}
+      </div>
+
+      {/* Footer Links */}
+      <div className="mt-8 flex items-center justify-center gap-3 text-xs text-gray-400">
+        <a
+          href="https://www.coneshare.com/about"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-gray-600 transition-colors"
+        >
+          About Coneshare
+        </a>
+        <span className="text-gray-300">&bull;</span>
+        <a
+          href="https://www.coneshare.com/terms"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-gray-600 transition-colors"
+        >
+          Terms
+        </a>
+        <span className="text-gray-300">&bull;</span>
+        <a
+          href="https://www.coneshare.com/privacy-policy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-gray-600 transition-colors"
+        >
+          Privacy Policy
+        </a>
       </div>
     </div>
   )

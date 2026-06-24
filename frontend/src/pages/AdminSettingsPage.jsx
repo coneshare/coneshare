@@ -267,7 +267,7 @@ export function AdminSettingsPage() {
   const grouped = useMemo(() => groupSettings(filteredSettings), [filteredSettings]);
 
   return (
-    <div className="container mx-auto max-w-6xl py-6">
+    <div className="container mx-auto py-6">
       <AdminNav />
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
