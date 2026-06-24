@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+
+# Path to your universal agent memory file
+MEMORY_FILE="./.agent/memory.md"
+
+# Ensure the memory file directory exists
+mkdir -p "$(dirname "$MEMORY_FILE")"
+touch "$MEMORY_FILE"
+
+show_usage() {
+    echo "Usage: ./agent-mem [command] [args]"
+    echo ""
+    echo "Commands:"
+    echo "  active        List only the currently active rules (filters out superseded blocks)"
+    echo "  history       View the raw chronological memory log on screen"
+    echo "  add           Quickly append a new manual entry to the log"
+    echo ""
+    echo "Examples:"
+    echo "  ./agent-mem active"
+    echo "  ./agent-mem add \"Gotcha\" \"The Go service crashes if port 8080 is locked.\""
+    exit 1
+}
+
+case "$1" in
+    active)
+        echo "=== Currently Active Project Memories ==="
+        echo "-----------------------------------------"
+        # Simple extraction loop to find overrides and pull fresh states
+        if [ ! -s "$MEMORY_FILE" ]; then
+            echo "(Memory file is currently empty)"
+        else
+            # Print entries while ignoring anything that has a following SUPERSEDES match
+            awk '
+            /^###/ { 
+                if (entry) { print entry; entry="" }
+                header=$0 
+                is_stale=0
+            }
+            header && !/^###/ { entry = entry ? entry ORS $0 : header ORS $0 }
+            END { if (entry) print entry }
+            ' "$MEMORY_FILE" | grep -v "SUPERSEDES" | sed 's/\\`\\`\\`//g'
+        fi
+        ;;
+        
+    history)
+        if [ ! -s "$MEMORY_FILE" ]; then
+            echo "Memory log is empty."
+        else
+            cat "$MEMORY_FILE"
+        fi
+        ;;
+        
+    add)
+        if [ -z "$2" ] || [ -z "$3" ]; then
+            echo "Error: Missing Category or Context description."
+            echo "Usage: ./agent-mem add [Category] [Description/Action]"
+            exit 1
+        fi
+        
+        CURRENT_DATE=$(date +"%Y-%m-%d")
+        CATEGORY="$2"
+        CONTENT="$3"
+        
+        cat << EOF >> "$MEMORY_FILE"
+
+### [$CURRENT_DATE] Session Entry
+- **Category:** $CATEGORY
+- **Context/Implication:** Manually logged via CLI interface.
+- **Resolution/Action:** $CONTENT
+EOF
+        echo "Successfully appended new entry under Category: '$CATEGORY' to $MEMORY_FILE"
+        ;;
+        
+    *)
+        show_usage
+        ;;
+esac
