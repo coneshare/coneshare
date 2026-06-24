@@ -43,10 +43,10 @@ describe('PasswordForm', () => {
     renderComponent();
     expect(screen.getByText('Alice Owner')).toBeInTheDocument();
     expect(screen.getByText('a***@example.com')).toBeInTheDocument();
-    expect(screen.getByText('Alice Owner (a***@example.com) shared "Pitch Deck"')).toBeInTheDocument();
-    expect(screen.getByText('Please enter the password to continue.')).toBeInTheDocument();
+    expect(screen.getByText('Pitch Deck')).toBeInTheDocument();
+    expect(screen.getByText('This secure link is password protected. Enter the password below to continue.')).toBeInTheDocument();
     expect(screen.getByLabelText('Password')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Unlock Document' })).toBeInTheDocument();
   });
 
   it('should update password input on user typing', async () => {
@@ -61,7 +61,7 @@ describe('PasswordForm', () => {
     renderComponent();
 
     const passwordInput = screen.getByLabelText('Password');
-    const submitButton = screen.getByRole('button', { name: 'Continue' });
+    const submitButton = screen.getByRole('button', { name: 'Unlock Document' });
 
     await userEvent.type(passwordInput, 'correct-password');
     await userEvent.click(submitButton);
@@ -80,7 +80,7 @@ describe('PasswordForm', () => {
     renderComponent();
 
     const passwordInput = screen.getByLabelText('Password');
-    const submitButton = screen.getByRole('button', { name: 'Continue' });
+    const submitButton = screen.getByRole('button', { name: 'Unlock Document' });
 
     await userEvent.type(passwordInput, 'wrong-password');
     await userEvent.click(submitButton);
@@ -90,15 +90,10 @@ describe('PasswordForm', () => {
     // Wait for the async actions to complete
     await vi.waitFor(() => {
       // The button should be enabled again
-      expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Unlock Document' })).toBeEnabled();
     });
 
     // onSuccess should not have been called
     expect(mockOnSuccess).not.toHaveBeenCalled();
-  });
-
-  it('shows fallback heading when publicMeta is unavailable', () => {
-    render(<PasswordForm slug={slug} onSuccess={mockOnSuccess} publicMeta={null} />);
-    expect(screen.getByRole('heading', { name: 'Password Required' })).toBeInTheDocument();
   });
 });

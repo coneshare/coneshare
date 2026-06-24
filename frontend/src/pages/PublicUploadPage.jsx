@@ -330,24 +330,36 @@ export function PublicUploadPage() {
       )}
     >
       <Toaster richColors />
-      <div className={cn('w-full max-w-lg rounded-lg bg-white p-6 dark:bg-gray-800', !isEmbedMode && 'shadow-md')}>
+      <div className={cn('w-full max-w-lg rounded-2xl bg-white p-8 dark:bg-gray-800 border border-gray-100/80', !isEmbedMode && 'shadow-lg')}>
+        {!isEmbedMode && (
+          <div className="flex flex-col items-center justify-center mb-8">
+            <div className="flex items-center gap-2">
+              <img src="/logo.svg" alt="Coneshare Logo" className="h-8 w-8" />
+              <span className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">Coneshare</span>
+            </div>
+            <p className="mt-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+              Secure File Share
+            </p>
+          </div>
+        )}
+
         {uploadSuccess ? (
-          <div className="text-center">
-            <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
-            <h1 className="mt-4 text-2xl font-bold">Upload Complete!</h1>
-            <p className="mt-2 text-muted-foreground">Your files have been successfully submitted.</p>
+          <div className="text-center py-6">
+            <CheckCircle className="mx-auto h-12 w-12 text-green-500 animate-scaleIn" />
+            <h1 className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">Upload Complete!</h1>
+            <p className="mt-2 text-muted-foreground text-sm">Your files have been successfully submitted.</p>
           </div>
         ) : (
           <>
             <div className="text-center">
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 {fileRequest.owner_name || 'Someone'} has invited you to upload files for:
               </p>
-              <h1 className="mt-2 text-2xl font-bold">
+              <h1 className="mt-2 text-xl font-bold text-gray-900 dark:text-white">
                 {fileRequest.name}
               </h1>
               {fileRequest.message && (
-                <p className="mt-2 text-muted-foreground">
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 leading-relaxed bg-gray-50/50 dark:bg-gray-900/10 p-3 rounded-lg border border-gray-100/50 dark:border-gray-800/40 text-left">
                   {fileRequest.message}
                 </p>
               )}
@@ -451,6 +463,38 @@ export function PublicUploadPage() {
           </>
         )}
       </div>
+
+      {/* Footer Links */}
+      {!isEmbedMode && (
+        <div className="mt-6 flex items-center justify-center gap-3 text-xs text-gray-400">
+          <a
+            href="https://www.coneshare.com/about"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gray-600 transition-colors"
+          >
+            About Coneshare
+          </a>
+          <span className="text-gray-300">&bull;</span>
+          <a
+            href="https://www.coneshare.com/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gray-600 transition-colors"
+          >
+            Terms
+          </a>
+          <span className="text-gray-300">&bull;</span>
+          <a
+            href="https://www.coneshare.com/privacy-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gray-600 transition-colors"
+          >
+            Privacy Policy
+          </a>
+        </div>
+      )}
     </div>
   );
 }

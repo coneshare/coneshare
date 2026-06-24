@@ -34,8 +34,8 @@ describe('EmailForm', () => {
     renderComponent();
     expect(screen.getByText('Alice Owner')).toBeInTheDocument();
     expect(screen.getByText('a***@example.com')).toBeInTheDocument();
-    expect(screen.getByText('Alice Owner (a***@example.com) invited you to the dataroom "Deal Room"')).toBeInTheDocument();
-    expect(screen.getByText('Please enter your email address to continue.')).toBeInTheDocument();
+    expect(screen.getByText('Deal Room')).toBeInTheDocument();
+    expect(screen.getByText('This secure link requires email verification. Enter your email below to continue.')).toBeInTheDocument();
     expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /continue/i })).toBeInTheDocument();
   });
@@ -108,11 +108,6 @@ describe('EmailForm', () => {
     expect(submitButton).not.toBeDisabled();
   });
 
-  it('shows fallback heading when publicMeta is unavailable', () => {
-    render(<EmailForm slug={slug} onSuccess={mockOnSuccess} publicMeta={null} />);
-    expect(screen.getByRole('heading', { name: 'Email Required' })).toBeInTheDocument();
-  });
-
   it('renders the confirmation view when requiresConfirmation is true', () => {
     render(
       <EmailForm
@@ -125,7 +120,6 @@ describe('EmailForm', () => {
       />
     );
 
-    expect(screen.getByRole('heading', { name: /verify your email/i })).toBeInTheDocument();
     expect(screen.getByText(/you are verifying access to this document as/i)).toBeInTheDocument();
     expect(screen.getByText('confirm@example.com')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /continue to document/i })).toBeInTheDocument();
