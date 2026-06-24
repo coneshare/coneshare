@@ -152,7 +152,7 @@ PDF_PREVIEW_ENGINE = os.environ.get('PDF_PREVIEW_ENGINE', 'server_pages')
 if PDF_PREVIEW_ENGINE not in ('pdfjs', 'server_pages'):
     raise ValueError(f"Invalid PDF_PREVIEW_ENGINE: '{PDF_PREVIEW_ENGINE}'. Allowed options are 'pdfjs', 'server_pages'.")
 
-ENABLE_OFFICE_PREVIEW = os.environ.get('ENABLE_OFFICE_PREVIEW', 'false').lower() in ('true', '1', 't')
+ENABLE_OFFICE_PREVIEW = os.environ.get('ENABLE_OFFICE_PREVIEW', 'true').lower() in ('true', '1', 't')
 
 if ENABLE_OFFICE_PREVIEW and PDF_PREVIEW_ENGINE != 'server_pages':
     raise ValueError("Invalid configuration: ENABLE_OFFICE_PREVIEW cannot be true when PDF_PREVIEW_ENGINE is not 'server_pages'.")
