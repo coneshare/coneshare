@@ -1,6 +1,28 @@
 # Changelog
 
 
+## [1.5.0](https://github.com/coneshare/coneshare/compare/v1.4.0...v1.5.0) (2026-06-25)
+
+
+### Features
+
+* **admin:** implement Admin User Detail page with quota usage, share links, and datarooms ([66106d8](https://github.com/coneshare/coneshare/commit/66106d83fcf7afedc400b0d2efdb71323cd8e85e))
+* **datarooms:** support file/folder uploads in dataroom directly ([a94d63c](https://github.com/coneshare/coneshare/commit/a94d63c4b0802c0ded4b614afe4602c41ecc8c85))
+* **frontend:** redesign public verification and file request forms with branding and footers ([e45d0c7](https://github.com/coneshare/coneshare/commit/e45d0c792d34a865f7267520fa8b0c92cb78f3eb))
+* **sharelinks:** implement scanner-tolerant magic link email verification ([63ff763](https://github.com/coneshare/coneshare/commit/63ff7631b16a34c004895727fc4f29c471c49976))
+* **viewer:** update eager document preview generation to lazy ([25ac1a1](https://github.com/coneshare/coneshare/commit/25ac1a1fc96e826b9958326dce160ee3ba925d21))
+* **viewer:** support client pdfjs viewer ([bdcedd6](https://github.com/coneshare/coneshare/commit/bdcedd637fc69130d33d940ca83c77bb9095f198))
+* **viewer:** add collapsible sibling navigation rail and keyboard shortcuts ([1a44f74](https://github.com/coneshare/coneshare/commit/1a44f74b455dea68469724858889d7bd1f2aad7e))
+* **viewer:** implement inline dataroom document viewer and deep link routing ([dabf5de](https://github.com/coneshare/coneshare/commit/dabf5def9ce08bf1e50b48c9644a1aeb1479d6ab))
+* **viewer:** redesign PDF viewer toolbar with floating glassmorphism and print support ([5df9722](https://github.com/coneshare/coneshare/commit/5df97228566c20d20a71506437a566cbf3c4a440))
+* **viewer:** support dataroom preview action and add preview mode warning banner ([95a9793](https://github.com/coneshare/coneshare/commit/95a9793f642373f826844b8cdcce652ddc5f3a11))
+
+
+### Bug Fixes
+
+* **datarooms:** resolve out-of-sync 409 conflict during dataroom item reordering ([d9e175d](https://github.com/coneshare/coneshare/commit/d9e175d015d837f6c10efdda1352e376b2df86ed))
+
+
 ## [1.4.0](https://github.com/coneshare/coneshare/compare/v1.3.2...v1.4.0) (2026-06-02)
 
 
