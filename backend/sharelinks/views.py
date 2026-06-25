@@ -25,7 +25,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from django.db.models import Count, F, Q
 from geoip2.errors import AddressNotFoundError
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, inline_serializer
 
 from backend.utils import get_client_ip
 from datarooms.models import (DataroomDocument, DataroomFolder, DataroomItemOrder)
@@ -1033,6 +1033,7 @@ class ShareLinkQnAThreadListCreateView(APIView):
             dataroom_folder_id=request.data.get('dataroom_folder_id') or request.query_params.get('dataroom_folder_id'),
         )
 
+    @extend_schema(responses={200: QnAThreadSerializer(many=True)})
     def get(self, request, slug, *args, **kwargs):
         # TODO: Normalize Q&A errors through DRF's exception handler so public
         # Q&A endpoints consistently return {"detail": ...} payloads.
@@ -1060,6 +1061,10 @@ class ShareLinkQnAThreadListCreateView(APIView):
         serializer = QnAThreadSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        request=QnAThreadCreateSerializer,
+        responses={201: QnAThreadSerializer}
+    )
     def post(self, request, slug, *args, **kwargs):
         serializer = QnAThreadCreateSerializer(data=request.data)
         if not serializer.is_valid():
@@ -1126,6 +1131,18 @@ class ShareLinkQnAThreadListCreateView(APIView):
 class ShareLinkQnASummaryView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={
+            200: inline_serializer(
+                name='ShareLinkQnASummaryResponse',
+                fields={
+                    'thread_count': serializers.IntegerField(),
+                    'open_thread_count': serializers.IntegerField(),
+                    'message_count': serializers.IntegerField(),
+                }
+            )
+        }
+    )
     def get(self, request, slug, *args, **kwargs):
         # TODO: Normalize Q&A errors through DRF's exception handler so public
         # Q&A endpoints consistently return {"detail": ...} payloads.
@@ -1181,6 +1198,7 @@ class ShareLinkQnAMessageListCreateView(APIView):
                 _resolve_qna_context_for_link(link, dataroom_folder_id=thread.dataroom_folder_id)
         return link, view_session, thread
 
+    @extend_schema(responses={200: QnAMessageSerializer(many=True)})
     def get(self, request, slug, thread_id, *args, **kwargs):
         # TODO: Normalize Q&A errors through DRF's exception handler so public
         # Q&A endpoints consistently return {"detail": ...} payloads.
@@ -1202,6 +1220,10 @@ class ShareLinkQnAMessageListCreateView(APIView):
         serializer = QnAMessageSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        request=QnAMessageCreateSerializer,
+        responses={201: QnAMessageSerializer}
+    )
     def post(self, request, slug, thread_id, *args, **kwargs):
         serializer = QnAMessageCreateSerializer(data=request.data)
         if not serializer.is_valid():

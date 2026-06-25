@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: ConeShare API
-  version: 1.0.0
+  version: 1.5.0
   description: OpenAPI schema for the ConeShare backend API.
 paths:
   /api/schema/:
@@ -278,6 +278,57 @@ paths:
               schema:
                 $ref: '#/components/schemas/LoginActivity'
           description: ''
+  /api/v1/admin/security-threat-events/:
+    get:
+      operationId: v1_admin_security_threat_events_list
+      description: API endpoint for admins to view security threat events for file
+        requests.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSecurityThreatEventList'
+          description: ''
+  /api/v1/admin/security-threat-events/{id}/:
+    get:
+      operationId: v1_admin_security_threat_events_retrieve
+      description: API endpoint for admins to view security threat events for file
+        requests.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityThreatEvent'
+          description: ''
   /api/v1/admin/settings/:
     get:
       operationId: v1_admin_settings_list
@@ -509,7 +560,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/AdminUserDetail'
           description: ''
     put:
       operationId: v1_admin_users_update
@@ -593,6 +644,50 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/admin/users/{id}/datarooms/:
+    get:
+      operationId: v1_admin_users_datarooms_retrieve
+      description: API endpoint for admins to manage users in their organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this user.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/admin/users/{id}/share-links/:
+    get:
+      operationId: v1_admin_users_share_links_retrieve
+      description: API endpoint for admins to manage users in their organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this user.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
   /api/v1/analytics/daily-visits/:
     get:
       operationId: v1_analytics_daily_visits_list
@@ -1672,6 +1767,39 @@ paths:
               schema:
                 $ref: '#/components/schemas/Dataroom'
           description: ''
+  /api/v1/datarooms/{id}/ensure-paths/:
+    post:
+      operationId: v1_datarooms_ensure_paths_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
   /api/v1/datarooms/{id}/move-content/:
     post:
       operationId: v1_datarooms_move_content_create
@@ -1708,6 +1836,105 @@ paths:
   /api/v1/datarooms/{id}/remove-content/:
     post:
       operationId: v1_datarooms_remove_content_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
+  /api/v1/datarooms/{id}/reorder-items/:
+    post:
+      operationId: v1_datarooms_reorder_items_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
+  /api/v1/datarooms/{id}/uploads/finalize/:
+    post:
+      operationId: v1_datarooms_uploads_finalize_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
+  /api/v1/datarooms/{id}/uploads/request/:
+    post:
+      operationId: v1_datarooms_uploads_request_create
       parameters:
       - in: path
         name: id
@@ -2758,6 +2985,177 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/links/{slug}/public-meta/:
+    get:
+      operationId: v1_links_public_meta_retrieve
+      description: Provides safe public metadata for password/email pre-access screens.
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/links/{slug}/qna-summary/:
+    get:
+      operationId: v1_links_qna_summary_retrieve
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLinkQnASummaryResponse'
+          description: ''
+  /api/v1/links/{slug}/qna-threads/:
+    get:
+      operationId: v1_links_qna_threads_list
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QnAThread'
+          description: ''
+    post:
+      operationId: v1_links_qna_threads_create
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QnAThreadCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QnAThreadCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QnAThreadCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QnAThread'
+          description: ''
+  /api/v1/links/{slug}/qna-threads/{thread_id}/messages/:
+    get:
+      operationId: v1_links_qna_threads_messages_list
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: thread_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QnAMessage'
+          description: ''
+    post:
+      operationId: v1_links_qna_threads_messages_create
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: thread_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QnAMessageCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QnAMessageCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QnAMessageCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QnAMessage'
+          description: ''
   /api/v1/links/{slug}/render-page/{page_number}/:
     get:
       operationId: v1_links_render_page_retrieve
@@ -2884,6 +3282,59 @@ paths:
                 additionalProperties: {}
           description: ''
         '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/links/{slug}/verify-access-token/confirm/:
+    post:
+      operationId: v1_links_verify_access_token_confirm_create
+      description: |-
+        Finalizes the email verification using a magic link access token.
+        This sets the session authorization and deletes the token.
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: {}
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
           content:
             application/json:
               schema:
@@ -3148,9 +3599,7 @@ paths:
   /api/v1/public/file-requests/{slug}/finalize-upload/:
     post:
       operationId: v1_public_file_requests_finalize_upload_create
-      description: Finalizes a document upload made via a file request link. Also
-        enforces allowed_file_types server-side (case-insensitive, with or without
-        leading dot) as defense-in-depth.
+      description: Finalizes a document upload made via a file request link.
       parameters:
       - in: path
         name: slug
@@ -3188,9 +3637,7 @@ paths:
               schema:
                 type: object
                 additionalProperties: {}
-          description: Bad request (for example expired request, invalid payload,
-            file too large, or disallowed file type). Disallowed file type responses
-            include the allowed extension list.
+          description: ''
         '404':
           content:
             application/json:
@@ -3209,8 +3656,7 @@ paths:
     post:
       operationId: v1_public_file_requests_request_upload_create
       description: 'Handles the first step of a public upload: requesting a pre-signed
-        URL. Enforces allowed_file_types server-side (case-insensitive, with or
-        without leading dot).'
+        URL.'
       parameters:
       - in: path
         name: slug
@@ -3247,15 +3693,149 @@ paths:
               schema:
                 type: object
                 additionalProperties: {}
-          description: Bad request (for example expired request, invalid payload,
-            file too large, storage limit reached, or disallowed file type). Disallowed
-            file type responses include the allowed extension list.
+          description: ''
         '404':
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties: {}
+          description: ''
+  /api/v1/public/settings/:
+    get:
+      operationId: v1_public_settings_retrieve
+      tags:
+      - core
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicSettingsResponse'
+          description: ''
+  /api/v1/qna-threads/:
+    get:
+      operationId: v1_qna_threads_list
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QnAThread'
+          description: ''
+    post:
+      operationId: v1_qna_threads_create
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QnAThread'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QnAThread'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QnAThread'
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QnAThread'
+          description: ''
+  /api/v1/qna-threads/{id}/:
+    get:
+      operationId: v1_qna_threads_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QnAThread'
+          description: ''
+    patch:
+      operationId: v1_qna_threads_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedQnAThread'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedQnAThread'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedQnAThread'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QnAThread'
+          description: ''
+  /api/v1/qna-threads/{id}/messages/:
+    post:
+      operationId: v1_qna_threads_messages_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QnAThread'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QnAThread'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QnAThread'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QnAThread'
           description: ''
   /api/v1/share-link-templates/:
     get:
@@ -3627,6 +4207,88 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ShareLink'
+          description: ''
+  /api/v1/signup/:
+    post:
+      operationId: v1_signup_create
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignupRequestAccepted'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/signup/verify/:
+    post:
+      operationId: v1_signup_verify_create
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupVerify'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SignupVerify'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SignupVerify'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignupVerifyResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
           description: ''
   /api/v1/token/:
     post:
@@ -4348,6 +5010,91 @@ paths:
           description: No response body
 components:
   schemas:
+    AdminUserDetail:
+      type: object
+      description: Serializer for the User model.
+      properties:
+        id:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        name:
+          type: string
+          maxLength: 255
+        role:
+          type: string
+          maxLength: 20
+        organization:
+          type: string
+          readOnly: true
+        password:
+          type: string
+          writeOnly: true
+          maxLength: 128
+        avatar:
+          type: string
+          format: uri
+          writeOnly: true
+          nullable: true
+        avatar_url:
+          type: string
+          readOnly: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        total_document_size:
+          type: integer
+          readOnly: true
+          description: Total size of all documents in bytes.
+        file_size_quota_mb:
+          type: string
+          readOnly: true
+        max_files_per_upload:
+          type: string
+          readOnly: true
+        is_superuser:
+          type: boolean
+          readOnly: true
+          title: Superuser status
+          description: Designates that this user has all permissions without explicitly
+            assigning them.
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        total_links:
+          type: string
+          readOnly: true
+        total_datarooms:
+          type: string
+          readOnly: true
+        total_views:
+          type: string
+          readOnly: true
+      required:
+      - avatar_url
+      - date_joined
+      - email
+      - file_size_quota_mb
+      - id
+      - is_superuser
+      - max_files_per_upload
+      - organization
+      - total_datarooms
+      - total_document_size
+      - total_links
+      - total_views
+      - updated_at
     AppConfiguration:
       type: object
       description: Serializer for the AppConfiguration model for admin use.
@@ -4703,6 +5450,28 @@ components:
           type: string
           readOnly: true
           nullable: true
+        show_file_index:
+          type: boolean
+        branding_banner:
+          type: string
+          format: uri
+          nullable: true
+        brand_primary_color:
+          type: string
+          nullable: true
+          maxLength: 9
+        brand_secondary_color:
+          type: string
+          nullable: true
+          maxLength: 9
+        brand_accent_color:
+          type: string
+          nullable: true
+          maxLength: 9
+        remove_branding_banner:
+          type: boolean
+          writeOnly: true
+          default: false
       required:
       - created_at
       - created_by
@@ -4734,20 +5503,39 @@ components:
           type: string
           readOnly: true
           nullable: true
-        folders:
+        show_file_index:
+          type: boolean
+          readOnly: true
+        branding_banner:
           type: string
           readOnly: true
-        documents:
+        brand_primary_color:
+          type: string
+          readOnly: true
+          nullable: true
+        brand_secondary_color:
+          type: string
+          readOnly: true
+          nullable: true
+        brand_accent_color:
+          type: string
+          readOnly: true
+          nullable: true
+        items:
           type: string
           readOnly: true
       required:
+      - brand_accent_color
+      - brand_primary_color
+      - brand_secondary_color
+      - branding_banner
       - created_at
       - created_by
-      - documents
-      - folders
       - id
+      - items
       - name
       - organization
+      - show_file_index
       - updated_at
     DataroomDocument:
       type: object
@@ -4783,9 +5571,13 @@ components:
           readOnly: true
         is_starred:
           type: boolean
+        dataroom_view_count:
+          type: string
+          readOnly: true
       required:
       - created_at
       - created_by
+      - dataroom_view_count
       - document_id
       - document_type
       - file_size
@@ -4962,6 +5754,9 @@ components:
         uploader_info:
           type: string
           readOnly: true
+        share_link_view_count:
+          type: string
+          readOnly: true
       required:
       - content_type
       - created_at
@@ -4969,6 +5764,7 @@ components:
       - id
       - name
       - organization
+      - share_link_view_count
       - share_links
       - type
       - updated_at
@@ -5014,16 +5810,37 @@ components:
         num_pages:
           type: integer
           nullable: true
+        preview_mode:
+          type: string
+        preview_status:
+          type: string
+        render_status:
+          type: string
+        render_error:
+          type: string
+          nullable: true
         pages:
           type: array
           items:
             type: object
             additionalProperties: {}
+        pdf_preview_url:
+          type: string
+          nullable: true
+        download_url:
+          type: string
+          nullable: true
       required:
+      - download_url
       - id
       - name
       - num_pages
       - pages
+      - pdf_preview_url
+      - preview_mode
+      - preview_status
+      - render_error
+      - render_status
       - type
     DocumentStatusEnum:
       enum:
@@ -5105,6 +5922,14 @@ components:
         has_pages:
           type: boolean
           readOnly: true
+        render_status:
+          allOf:
+          - $ref: '#/components/schemas/RenderStatusEnum'
+          readOnly: true
+        render_error:
+          type: string
+          readOnly: true
+          nullable: true
         pages:
           type: array
           items:
@@ -5122,6 +5947,8 @@ components:
       - is_primary
       - num_pages
       - pages
+      - render_error
+      - render_status
       - version_number
     EnsureFolderPaths:
       type: object
@@ -5150,6 +5977,14 @@ components:
       required:
       - detail
       - path_mappings
+    EventTypeEnum:
+      enum:
+      - malware_detected
+      - scan_failed
+      type: string
+      description: |-
+        * `malware_detected` - Malware Detected
+        * `scan_failed` - Scanner Failed
     FileRequest:
       type: object
       properties:
@@ -5186,6 +6021,8 @@ components:
         uploaded_files_count:
           type: integer
           readOnly: true
+        custom_fields:
+          description: Optional public intake field schema for this file request.
         created_at:
           type: string
           format: date-time
@@ -5241,6 +6078,8 @@ components:
         uploaded_files_count:
           type: integer
           readOnly: true
+        custom_fields:
+          description: Optional public intake field schema for this file request.
         created_at:
           type: string
           format: date-time
@@ -5284,6 +6123,7 @@ components:
         uploader_email:
           type: string
           format: email
+        custom_field_values: {}
       required:
       - content_type
       - file_size
@@ -5580,6 +6420,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LoginActivity'
+    PaginatedSecurityThreatEventList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SecurityThreatEvent'
     PaginatedShareLinkList:
       type: object
       required:
@@ -5764,6 +6627,28 @@ components:
           type: string
           readOnly: true
           nullable: true
+        show_file_index:
+          type: boolean
+        branding_banner:
+          type: string
+          format: uri
+          nullable: true
+        brand_primary_color:
+          type: string
+          nullable: true
+          maxLength: 9
+        brand_secondary_color:
+          type: string
+          nullable: true
+          maxLength: 9
+        brand_accent_color:
+          type: string
+          nullable: true
+          maxLength: 9
+        remove_branding_banner:
+          type: boolean
+          writeOnly: true
+          default: false
     PatchedDataroomDocumentUpdate:
       type: object
       properties:
@@ -5877,6 +6762,9 @@ components:
         uploader_info:
           type: string
           readOnly: true
+        share_link_view_count:
+          type: string
+          readOnly: true
     PatchedFileRequest:
       type: object
       properties:
@@ -5913,6 +6801,8 @@ components:
         uploaded_files_count:
           type: integer
           readOnly: true
+        custom_fields:
+          description: Optional public intake field schema for this file request.
         created_at:
           type: string
           format: date-time
@@ -5951,6 +6841,66 @@ components:
           readOnly: true
         is_starred:
           type: boolean
+    PatchedQnAThread:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        organization:
+          type: string
+          readOnly: true
+        share_link:
+          type: string
+          readOnly: true
+        dataroom:
+          type: string
+          readOnly: true
+          nullable: true
+        document:
+          type: string
+          readOnly: true
+          nullable: true
+        dataroom_document:
+          type: string
+          readOnly: true
+          nullable: true
+        dataroom_folder:
+          type: string
+          readOnly: true
+          nullable: true
+        context_type:
+          type: string
+          readOnly: true
+        context_name:
+          type: string
+          readOnly: true
+        subject:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/QnAThreadStatusEnum'
+          readOnly: true
+        created_by_type:
+          type: string
+          readOnly: true
+        created_by_email:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/QnAMessage'
+          readOnly: true
     PatchedShareLink:
       type: object
       properties:
@@ -6278,11 +7228,168 @@ components:
         allowed_file_types:
           nullable: true
           description: List of allowed file extensions, e.g., ['.pdf', '.docx']
+        custom_fields:
+          description: Optional public intake field schema for this file request.
         message:
           type: string
       required:
       - name
       - owner_name
+    PublicSettingsResponse:
+      type: object
+      properties:
+        enable_public_signup:
+          type: boolean
+      required:
+      - enable_public_signup
+    QnAMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        thread:
+          type: string
+          readOnly: true
+        body:
+          type: string
+          readOnly: true
+        sender_type:
+          type: string
+          readOnly: true
+        sender_email:
+          type: string
+          readOnly: true
+        sender_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - body
+      - created_at
+      - id
+      - sender_email
+      - sender_name
+      - sender_type
+      - thread
+      - updated_at
+    QnAMessageCreate:
+      type: object
+      properties:
+        body:
+          type: string
+        view_session_id:
+          type: string
+      required:
+      - body
+    QnAThread:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        organization:
+          type: string
+          readOnly: true
+        share_link:
+          type: string
+          readOnly: true
+        dataroom:
+          type: string
+          readOnly: true
+          nullable: true
+        document:
+          type: string
+          readOnly: true
+          nullable: true
+        dataroom_document:
+          type: string
+          readOnly: true
+          nullable: true
+        dataroom_folder:
+          type: string
+          readOnly: true
+          nullable: true
+        context_type:
+          type: string
+          readOnly: true
+        context_name:
+          type: string
+          readOnly: true
+        subject:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/QnAThreadStatusEnum'
+          readOnly: true
+        created_by_type:
+          type: string
+          readOnly: true
+        created_by_email:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/QnAMessage'
+          readOnly: true
+      required:
+      - context_name
+      - context_type
+      - created_at
+      - created_by_email
+      - created_by_type
+      - dataroom
+      - dataroom_document
+      - dataroom_folder
+      - document
+      - id
+      - messages
+      - organization
+      - share_link
+      - status
+      - subject
+      - updated_at
+    QnAThreadCreate:
+      type: object
+      properties:
+        subject:
+          type: string
+        body:
+          type: string
+        view_session_id:
+          type: string
+        dataroom_document_id:
+          type: string
+        dataroom_folder_id:
+          type: string
+      required:
+      - body
+      - subject
+    QnAThreadStatusEnum:
+      enum:
+      - open
+      - closed
+      type: string
+      description: |-
+        * `open` - Open
+        * `closed` - Closed
     RecordPageResponse:
       type: object
       properties:
@@ -6290,6 +7397,22 @@ components:
           type: string
       required:
       - message
+    RenderStatusEnum:
+      enum:
+      - not_applicable
+      - not_generated
+      - queued
+      - processing
+      - ready
+      - failed
+      type: string
+      description: |-
+        * `not_applicable` - Not applicable
+        * `not_generated` - Not generated
+        * `queued` - Queued
+        * `processing` - Processing
+        * `ready` - Ready
+        * `failed` - Failed
     Request:
       type: object
       properties:
@@ -6330,6 +7453,114 @@ components:
         * `global` - Global
         * `share_link` - Share Link
         * `dataroom` - Dataroom
+    SecurityThreatEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        event_type:
+          allOf:
+          - $ref: '#/components/schemas/EventTypeEnum'
+          readOnly: true
+        severity:
+          allOf:
+          - $ref: '#/components/schemas/SeverityEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/SecurityThreatEventStatusEnum'
+          readOnly: true
+        file_request:
+          type: string
+          readOnly: true
+        file_request_slug:
+          type: string
+          readOnly: true
+        storage_key:
+          type: string
+          readOnly: true
+        file_name:
+          type: string
+          readOnly: true
+        file_size:
+          type: integer
+          readOnly: true
+          nullable: true
+        content_type:
+          type: string
+          readOnly: true
+        uploader_name:
+          type: string
+          readOnly: true
+        uploader_email:
+          type: string
+          format: email
+          readOnly: true
+        scanner_engine:
+          type: string
+          readOnly: true
+        scanner_message:
+          type: string
+          readOnly: true
+        storage_cleanup_status:
+          allOf:
+          - $ref: '#/components/schemas/StorageCleanupStatusEnum'
+          readOnly: true
+        storage_cleanup_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        storage_cleanup_error:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - content_type
+      - created_at
+      - event_type
+      - file_name
+      - file_request
+      - file_request_slug
+      - file_size
+      - id
+      - scanner_engine
+      - scanner_message
+      - severity
+      - status
+      - storage_cleanup_at
+      - storage_cleanup_error
+      - storage_cleanup_status
+      - storage_key
+      - updated_at
+      - uploader_email
+      - uploader_name
+    SecurityThreatEventStatusEnum:
+      enum:
+      - new
+      - acknowledged
+      - resolved
+      type: string
+      description: |-
+        * `new` - New
+        * `acknowledged` - Acknowledged
+        * `resolved` - Resolved
+    SeverityEnum:
+      enum:
+      - high
+      - medium
+      type: string
+      description: |-
+        * `high` - High
+        * `medium` - Medium
     ShareLink:
       type: object
       properties:
@@ -6467,6 +7698,19 @@ components:
           writeOnly: true
       required:
       - password
+    ShareLinkQnASummaryResponse:
+      type: object
+      properties:
+        thread_count:
+          type: integer
+        open_thread_count:
+          type: integer
+        message_count:
+          type: integer
+      required:
+      - message_count
+      - open_thread_count
+      - thread_count
     ShareLinkTemplate:
       type: object
       properties:
@@ -6516,6 +7760,61 @@ components:
       - name
       - organization
       - updated_at
+    SignupRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          writeOnly: true
+        name:
+          type: string
+          maxLength: 255
+      required:
+      - email
+      - password
+    SignupRequestAccepted:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+    SignupVerify:
+      type: object
+      properties:
+        uid:
+          type: string
+        token:
+          type: string
+      required:
+      - token
+      - uid
+    SignupVerifyResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        access:
+          type: string
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+      - user
+    StorageCleanupStatusEnum:
+      enum:
+      - pending
+      - deleted
+      - failed
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `deleted` - Deleted
+        * `failed` - Failed
     TokenObtainPair:
       type: object
       properties:
@@ -6572,6 +7871,7 @@ components:
           type: string
           format: email
           maxLength: 254
+        submitted_fields: {}
         created_at:
           type: string
           format: date-time
