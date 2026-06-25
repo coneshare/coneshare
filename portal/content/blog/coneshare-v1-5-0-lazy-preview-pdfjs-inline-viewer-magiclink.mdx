@@ -1,0 +1,59 @@
+export const metadata = {
+  title: 'Coneshare V1.5: Desktop-Grade PDF Viewer and Lightweight Self-Hosting',
+  description:
+    'Coneshare V1.5 introduces lazy document preview generation, client-side PDF.js rendering, direct dataroom uploads, inline document viewing, branded verification pages, and scanner-tolerant magic links.',
+  date: '2026-06-25',
+  category: 'Releases',
+  tags: [
+    'Performance',
+    'Self-Hosting',
+    'Viewer',
+    'Security',
+    'Datarooms',
+  ],
+};
+
+## Optimizing for Efficiency and Independence
+
+As Coneshare scales, self-hosting needs to be as efficient as possible. 
+
+In Coneshare V1.5, we re-architected our document rendering flow to move heavy work away from the server. By shifting to lazy rendering and client-side processing, we have dramatically reduced the hardware required to deploy Coneshare. You can now host a production-ready Coneshare instance on a lightweight **2 Cores, 2 GB RAM (2C2G)** machine.
+
+Additionally, this release introduces direct dataroom uploads, inline viewing, deep link routing, and critical security mitigations for email link scanners.
+
+## Main Features: High-Efficiency Document Processing
+
+### 1) Lazy Document Preview Generation
+* **The Change:** Previously, document previews were generated eagerly on the server upon upload. Previews are now generated **lazily** (only when a viewer actually requests to preview the document).
+* **The Result:** This shift drastically reduces idle and peak server resource consumption. Upload processes finish faster, and CPU usage on document storage servers is minimized.
+
+### 2) Client-Side PDF.js Rendering
+* **The Change:** We redesigned the PDF viewer to support local rendering using the client-side `pdf.js` library.
+* **The Result:** Previews no longer require the server to render and serve individual page images. By utilizing the viewer's local browser capability:
+  * Server resource overhead is reduced.
+  * Pages load and zoom instantly.
+  * **Low-spec hosting:** A small machine with just **2C2G** resources can now comfortably host a Coneshare instance.
+
+
+## Other Improvements: Accessibility & Usability
+
+### Inline Dataroom Document Viewer & Deep Link Routing
+Viewers no longer need to navigate back and forth to read folder contents. Documents now load in an inline viewer pane directly inside the dataroom window. We also implemented deep link routing, allowing you to copy and share URLs pointing directly to specific folders or documents inside a virtual dataroom.
+
+### Direct File & Folder Uploads in Datarooms
+Dataroom managers can now drag and drop files or complete nested folder structures directly into the dataroom pane, avoiding the multi-step process of uploading to the main workspace and linking files manually.
+
+### Redesigned Branded Forms and Footers
+Public pre-access screens (such as password and email gates) and file request forms have been updated to align with the design system. They now feature responsive buttons, consistent inputs, and branded footers matching the authentication screens.
+
+### Scanner-Tolerant Magic Link Verification
+* **The Improvement:** When users verify their sessions via magic links, corporate email security filters (like Microsoft Defender or Proofpoint) often fetch links in the background to scan them before delivery. Previously, this silent pre-fetch request would consume and invalidate the single-use token, locking the user out.
+* **The Solution:** The verification system is now scanner-tolerant. It distinguishes automated scanner requests from user interactions, ensuring users can open their magic links successfully on their first click.
+* **Community Credit:** Special thanks to [@animesh-garg](https://github.com/animesh-garg) for reporting this workflow issue in GitHub Issue [#224](https://github.com/coneshare/coneshare/issues/224).
+
+For full technical details, see the [release changelog](https://docs.coneshare.com/en/release-notes/).
+
+## Next Steps
+
+* **Upgrade to V1.5.0** to reduce your infrastructure footprints.
+* **Use inline links** to share specific dataroom documents directly with your team.
