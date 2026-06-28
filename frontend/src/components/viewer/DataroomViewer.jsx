@@ -816,6 +816,8 @@ export function DataroomViewer({ data, slug, viewId }) {
       {showDocumentViewer ? (
         <main className="flex-1 flex overflow-hidden border-t relative">
           <DataroomSiblingNav
+            slug={slug}
+            viewId={viewId}
             items={allItems}
             selectedDocumentId={selectedDocumentId}
             onItemClick={handleItemClick}

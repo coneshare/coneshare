@@ -17,3 +17,8 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend pytest -q tests/filer
 ```bash
 COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run src/tests/pages/PublicUploadPage.test.jsx
 ```
+
+### 2026-06-28 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Clicking folders in the document viewer's sibling sidebar navigated the user away to the folder list, disrupting the viewing context.
+- **Resolution/Action:** Converted the sibling sidebar to a recursive, expandable folder tree using lazy-loaded folder content endpoints. Implemented test coverage in `DataroomViewer.test.jsx`.
