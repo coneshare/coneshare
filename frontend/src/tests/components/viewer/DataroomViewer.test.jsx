@@ -587,4 +587,84 @@ describe('DataroomViewer', () => {
       expect(api.recordDataroomVisit).toHaveBeenCalledTimes(1);
     });
   });
+
+  it('expands folder and fetches contents on folder click in sidebar instead of navigating away', async () => {
+    api.getShareLinkViewData.mockImplementation((slug, query) => {
+      if (query?.parentId === 'folder1') {
+        return Promise.resolve({
+          data: {
+            ...mockDataroomData,
+            current_parent_id: 'folder1',
+            items: [
+              { type: 'folder', id: 'nested_folder', name: 'Nested Folder' },
+              { type: 'document', id: 'doc1', name: 'Document 1', document_type: 'pdf' },
+            ],
+          },
+        });
+      }
+      if (query?.parentId === 'nested_folder') {
+        return Promise.resolve({
+          data: {
+            items: [
+              { type: 'document', id: 'nested_doc', name: 'Nested Document', document_type: 'pdf' },
+            ],
+          },
+        });
+      }
+      if (query.dataroomDocumentId === 'doc1') {
+        return Promise.resolve({
+          data: {
+            id: 'doc1',
+            name: 'Document 1',
+            type: 'document',
+            preview_mode: 'client_pdf',
+            link_settings: { allow_download: true },
+          },
+        });
+      }
+      return Promise.resolve({ data: mockDataroomData });
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/view/test-slug?dataroom_document_id=doc1']}>
+        <DataroomViewer
+          data={{
+            ...mockDataroomData,
+            items: [],
+            link_type: 'document',
+            id: 'doc1',
+            name: 'Document 1',
+            dataroom_context: {
+              id: 'dr1',
+              name: 'Test Dataroom',
+              parent_folder_id: 'folder1',
+            },
+          }}
+          slug="test-slug"
+          viewId="view-123"
+        />
+      </MemoryRouter>
+    );
+
+    // Sibling sidebar list should show Nested Folder and Document 1
+    await screen.findByTitle('Nested Folder');
+    await screen.findByRole('button', { name: 'Document 1' });
+
+    // Click Nested Folder
+    fireEvent.click(screen.getByTitle('Nested Folder'));
+
+    // Wait for the api call to nested_folder
+    await waitFor(() => {
+      expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', {
+        parentId: 'nested_folder',
+        viewSessionId: 'view-123',
+      });
+    });
+
+    // Nested Document should now be displayed under Nested Folder
+    await screen.findByTitle('Nested Document');
+
+    // Make sure the main document viewer is still rendering Document 1 (and didn't navigate away)
+    expect(screen.getByRole('heading', { level: 1, name: 'Document 1' })).toBeInTheDocument();
+  });
 });
