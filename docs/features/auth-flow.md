@@ -27,7 +27,7 @@ This document outlines the implementation plan for an email/password authenticat
 
 ## Recommended Approach: Token-Based Auth with JWT
 
-This approach uses JSON Web Tokens (JWT) for a stateless, API-first architecture, which is highly compatible with a single-page application (SPA) frontend like React. This mirrors the modern, decoupled architecture seen in `papermark-auth-flow.md`.
+This approach uses JSON Web Tokens (JWT) for a stateless, API-first architecture, which is highly compatible with a single-page application (SPA) frontend like React.
 
 ### Backend Implementation (Django)
 
