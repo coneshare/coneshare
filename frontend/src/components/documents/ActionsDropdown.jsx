@@ -40,7 +40,6 @@ export function ActionsDropdown({
         >
           <DropdownMenu.Item
             onSelect={(e) => {
-              e.preventDefault();
               e.stopPropagation();
               onRename(item);
             }}
@@ -66,7 +65,6 @@ export function ActionsDropdown({
           {type === 'document' && onShare && (
              <DropdownMenu.Item
               onSelect={(e) => {
-                e.preventDefault();
                 e.stopPropagation();
                 onShare(item);
               }}
@@ -93,7 +91,6 @@ export function ActionsDropdown({
           {type === 'folder' && onRequestFiles && (
             <DropdownMenu.Item
               onSelect={(e) => {
-                e.preventDefault();
                 e.stopPropagation();
                 onRequestFiles(item);
               }}
@@ -108,7 +105,6 @@ export function ActionsDropdown({
           
           <DropdownMenu.Item
             onSelect={(e) => {
-              e.preventDefault();
               e.stopPropagation();
               onDelete(item);
             }}

@@ -101,11 +101,11 @@ describe('EmailForm', () => {
 
     await waitFor(() => {
       expect(api.requestShareLinkAccess).toHaveBeenCalledWith(slug, 'test@example.com');
+      expect(submitButton).not.toBeDisabled();
     });
 
     // The global interceptor will show the toast, so we don't check for it here.
     expect(mockOnSuccess).not.toHaveBeenCalled();
-    expect(submitButton).not.toBeDisabled();
   });
 
   it('renders the confirmation view when requiresConfirmation is true', () => {

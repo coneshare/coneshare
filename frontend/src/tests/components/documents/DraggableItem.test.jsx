@@ -92,7 +92,7 @@ describe("DraggableItem", () => {
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 
-  it("should not navigate when rename menu item is clicked", async () => {
+  it("should not navigate and should close dropdown when rename menu item is clicked", async () => {
     const user = userEvent.setup();
     const onRename = vi.fn();
     renderDraggableItem({ onRename });
@@ -109,9 +109,10 @@ describe("DraggableItem", () => {
 
     expect(onRename).toHaveBeenCalledWith(mockDocument);
     expect(mockedNavigate).not.toHaveBeenCalled();
+    expect(screen.queryByRole("menuitem", { name: /rename/i })).not.toBeInTheDocument();
   });
 
-  it("should not navigate when delete menu item is clicked", async () => {
+  it("should not navigate and should close dropdown when delete menu item is clicked", async () => {
     const user = userEvent.setup();
     const onDelete = vi.fn();
     renderDraggableItem({ onDelete });
@@ -128,5 +129,6 @@ describe("DraggableItem", () => {
 
     expect(onDelete).toHaveBeenCalledWith(mockDocument);
     expect(mockedNavigate).not.toHaveBeenCalled();
+    expect(screen.queryByRole("menuitem", { name: /delete/i })).not.toBeInTheDocument();
   });
 });

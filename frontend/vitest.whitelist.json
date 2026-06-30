@@ -7,6 +7,8 @@
     "src/tests/components/viewer/QnAPanel.test.jsx",
     "src/tests/components/viewer/ViewerToolbar.test.jsx",
     "src/tests/pages/DataroomPage.test.jsx",
-    "src/tests/pages/LoginPage.test.jsx"
+    "src/tests/pages/LoginPage.test.jsx",
+    "src/tests/components/documents/DraggableItem.test.jsx",
+    "src/tests/pages/FileRequestsPage.test.jsx"
   ]
 }
