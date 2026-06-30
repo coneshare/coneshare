@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronRight, FolderIcon, FileTextIcon } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { FileTypeIcon } from './FileTypeIcon';
 import { PageViewsChart } from './PageViewsChart';
 import { Pagination } from '../ui/Pagination';
 import { Skeleton } from '../ui/Skeleton';
@@ -46,9 +47,9 @@ function DataroomVisitRow({ visit }) {
         </div>
 
         {visit.dataroom_folder_id ? (
-          <FolderIcon className="h-4 w-4 flex-shrink-0 text-blue-500" />
+          <FileTypeIcon type="folder" className="h-4 w-4 flex-shrink-0" />
         ) : (
-          <FileTextIcon className="h-4 w-4 flex-shrink-0 text-gray-500" />
+          <FileTypeIcon type={visit.dataroom_document_type} className="h-4 w-4 flex-shrink-0" />
         )}
         <span className="truncate">
           {visit.dataroom_folder_name

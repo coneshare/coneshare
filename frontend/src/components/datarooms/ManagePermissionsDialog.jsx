@@ -12,7 +12,8 @@ import {
 import { Button } from '../ui/Button';
 import { Checkbox } from '../ui/Checkbox';
 import { Label } from '../ui/Label';
-import { FolderIcon, FileIcon, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { FileTypeIcon } from '../documents/FileTypeIcon';
 import {
   Tooltip,
   TooltipContent,
@@ -68,13 +69,13 @@ function PermissionRow({ item, level, settings, onSettingChange, onBulkSettingCh
       <div className={`${PERMISSION_GRID_CLASS} rounded-md p-2 hover:bg-muted/50 text-sm`}>
         <div className="flex items-center gap-2 flex-1 min-w-0" style={{ paddingLeft: `${level * 1.5}rem` }}>
           {isFolder ? (
-            <button onClick={() => toggleFolder(item.id)} className="p-1 -ml-1">
+            <button onClick={() => toggleFolder(item.id)} className="p-1 -ml-1 flex-shrink-0">
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
           ) : (
-            <div className="w-6" /> // Spacer to align with folder icons
+            <div className="w-6 flex-shrink-0" /> // Spacer to align with folder icons
           )}
-          {isFolder ? <FolderIcon className="h-4 w-4 flex-shrink-0" /> : <FileIcon className="h-4 w-4 flex-shrink-0" />}
+          <FileTypeIcon type={isFolder ? 'folder' : item.document_type || 'document'} className="h-4 w-4 flex-shrink-0" />
           <span className="truncate">{item.name}</span>
         </div>
         <div className="flex justify-center">

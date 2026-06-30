@@ -41,6 +41,7 @@ class PageViewSerializer(serializers.ModelSerializer):
 
 class DataroomVisitSerializer(serializers.ModelSerializer):
     dataroom_document_name = serializers.CharField(source='dataroom_document.document.name', read_only=True, default=None)
+    dataroom_document_type = serializers.CharField(source='dataroom_document.document.type', read_only=True, default=None)
     dataroom_folder_name = serializers.CharField(source='dataroom_folder.name', read_only=True, default=None)
     page_views = PageViewSerializer(many=True, read_only=True)
 
@@ -48,7 +49,7 @@ class DataroomVisitSerializer(serializers.ModelSerializer):
         model = DataroomVisit
         fields = [
             'id', 'visited_at', 'dataroom_document_id', 'dataroom_folder_id',
-            'dataroom_document_name', 'dataroom_folder_name', 'page_views'
+            'dataroom_document_name', 'dataroom_document_type', 'dataroom_folder_name', 'page_views'
         ]
 
 
