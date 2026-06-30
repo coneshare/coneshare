@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { Eye, Pencil, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
+import { Eye, Pencil, Trash2, ChevronRight, ChevronDown, FolderIcon } from 'lucide-react';
 import { Fragment, useState } from 'react';
+import { FileTypeIcon } from './FileTypeIcon';
 import { toast } from 'sonner';
 import { UAParser } from 'ua-parser-js';
 import { generateShareLinkPreview, updateShareLink } from '../../services/api';
@@ -196,13 +197,27 @@ export function LinksTable({
                     </TableCell>
                     {isDashboardWidget && (
                       <TableCell>
-                        <Link
-                          to={`/documents/${link.document}`}
-                          className="truncate hover:underline"
-                          title={link.document_name}
-                        >
-                          {link.document_name}
-                        </Link>
+                        {link.document ? (
+                          <Link
+                            to={`/documents/${link.document}`}
+                            className="inline-flex items-center gap-1.5 truncate hover:underline"
+                            title={link.document_name}
+                          >
+                            <FileTypeIcon type={link.document_type} className="h-4 w-4" />
+                            <span>{link.document_name}</span>
+                          </Link>
+                        ) : link.dataroom ? (
+                          <Link
+                            to={`/datarooms/${link.dataroom}`}
+                            className="inline-flex items-center gap-1.5 truncate hover:underline"
+                            title={link.dataroom_name}
+                          >
+                            <FolderIcon className="h-4 w-4 text-blue-500" />
+                            <span>{link.dataroom_name}</span>
+                          </Link>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </TableCell>
                     )}
                     <TableCell>{link.view_count}</TableCell>

@@ -79,14 +79,18 @@ class ViewSessionSerializer(serializers.ModelSerializer):
     is_owner_view = serializers.SerializerMethodField()
     document_id = serializers.CharField(source='share_link.document.id', read_only=True)
     document_name = serializers.CharField(source='share_link.document.name', read_only=True)
+    document_type = serializers.CharField(source='share_link.document.type', read_only=True, default=None)
+    dataroom_id = serializers.CharField(source='share_link.dataroom.id', read_only=True, default=None)
+    dataroom_name = serializers.CharField(source='share_link.dataroom.name', read_only=True, default=None)
 
     class Meta:
         model = ViewSession
         fields = [
-            'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name', 'document_id', 'document_name', 'ip_address', 'user_agent', 'country', 'city', 'latitude', 'longitude', 'duration_seconds',
+            'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name', 'document_id', 'document_name', 'document_type',
+            'dataroom_id', 'dataroom_name', 'ip_address', 'user_agent', 'country', 'city', 'latitude', 'longitude', 'duration_seconds',
             'completion_rate', 'viewed_at', 'page_views', 'dataroom_visits', 'is_owner_view', 'downloaded_at'
         ]
-        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name', 'document_id', 'document_name', 'country', 'city', 'latitude', 'longitude', 'page_views', 'dataroom_visits', 'is_owner_view', 'downloaded_at']
+        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name', 'document_id', 'document_name', 'document_type', 'dataroom_id', 'dataroom_name', 'country', 'city', 'latitude', 'longitude', 'page_views', 'dataroom_visits', 'is_owner_view', 'downloaded_at']
     
     def get_is_owner_view(self, obj) -> bool:
         request = self.context.get('request')
@@ -166,6 +170,7 @@ class ShareLinkSerializer(serializers.ModelSerializer):
     view_count = serializers.SerializerMethodField()
     recent_view_sessions = serializers.SerializerMethodField()
     document_name = serializers.CharField(source='document.name', read_only=True, allow_null=True)
+    document_type = serializers.CharField(source='document.type', read_only=True, allow_null=True)
     dataroom_name = serializers.CharField(source='dataroom.name', read_only=True, allow_null=True)
     last_viewed_at = serializers.SerializerMethodField()
 
@@ -218,13 +223,13 @@ class ShareLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShareLink
         fields = [
-            'id', 'document', 'dataroom', 'document_name', 'dataroom_name', 'dataroom_settings', 'created_by', 'name', 'slug', 'expires_at',
+            'id', 'document', 'dataroom', 'document_name', 'document_type', 'dataroom_name', 'dataroom_settings', 'created_by', 'name', 'slug', 'expires_at',
             'has_password', 'password', 'requires_email', 'requires_email_verification', 'allow_download',
             'enable_watermark', 'watermark_text', 'receive_email_notification', 'is_active', 'created_at', 'updated_at',
             'view_count', 'recent_view_sessions', 'last_viewed_at'
         ]
         read_only_fields = [
-            'id', 'created_by', 'slug', 'created_at', 'updated_at', 'document_name'
+            'id', 'created_by', 'slug', 'created_at', 'updated_at', 'document_name', 'document_type'
         ]
         extra_kwargs = {
             'name': {'required': True, 'allow_blank': True},

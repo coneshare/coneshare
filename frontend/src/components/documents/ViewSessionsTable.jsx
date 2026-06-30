@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, FolderIcon } from 'lucide-react';
 import { FileTypeIcon } from './FileTypeIcon';
 import { PageViewsChart } from './PageViewsChart';
 import { Pagination } from '../ui/Pagination';
@@ -193,13 +193,27 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                       <TableCell>{view.share_link_name || 'Untitled Link'}</TableCell>
                       {isDashboardWidget && (
                         <TableCell>
-                          <Link
-                            to={`/documents/${view.document_id}`}
-                            className="truncate hover:underline"
-                            title={view.document_name}
-                          >
-                            {view.document_name}
-                          </Link>
+                          {view.document_id ? (
+                            <Link
+                              to={`/documents/${view.document_id}`}
+                              className="inline-flex items-center gap-1.5 truncate hover:underline"
+                              title={view.document_name}
+                            >
+                              <FileTypeIcon type={view.document_type} className="h-4 w-4" />
+                              <span>{view.document_name}</span>
+                            </Link>
+                          ) : view.dataroom_id ? (
+                            <Link
+                              to={`/datarooms/${view.dataroom_id}`}
+                              className="inline-flex items-center gap-1.5 truncate hover:underline"
+                              title={view.dataroom_name}
+                            >
+                              <FolderIcon className="h-4 w-4 text-blue-500" />
+                              <span>{view.dataroom_name}</span>
+                            </Link>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
                         </TableCell>
                       )}
                       <TableCell>
