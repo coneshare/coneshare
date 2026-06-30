@@ -231,6 +231,8 @@ describe('DataroomViewer', () => {
     fireEvent.pointerDown(screen.getByLabelText(/actions for root document/i));
     fireEvent.click(await screen.findByRole('menuitem', { name: /download/i }));
 
+    expect(screen.queryByRole('menuitem', { name: /download/i })).not.toBeInTheDocument();
+
     const anchor = appendSpy.mock.calls
       .map(([node]) => node)
       .find((node) => node?.tagName === 'A');
@@ -245,6 +247,8 @@ describe('DataroomViewer', () => {
 
     fireEvent.pointerDown(screen.getByLabelText(/actions for sub folder a/i));
     fireEvent.click(await screen.findByRole('menuitem', { name: /q&a/i }));
+
+    expect(screen.queryByRole('menuitem', { name: /q&a/i })).not.toBeInTheDocument();
 
     expect(screen.getByTestId('qna-panel')).toHaveTextContent('Q&A Open');
     expect(screen.getByTestId('qna-panel')).toHaveTextContent('folder1');
@@ -306,6 +310,8 @@ describe('DataroomViewer', () => {
 
     fireEvent.pointerDown(screen.getByLabelText(/actions for root document/i));
     fireEvent.click(await screen.findByRole('menuitem', { name: /q&a/i }));
+
+    expect(screen.queryByRole('menuitem', { name: /q&a/i })).not.toBeInTheDocument();
 
     expect(screen.getByTestId('qna-panel')).toHaveTextContent('Q&A Open');
     expect(screen.getByTestId('qna-panel')).toHaveTextContent('doc1');

@@ -103,7 +103,6 @@ function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = 
             >
               <DropdownMenu.Item
                 onSelect={(e) => {
-                  e.preventDefault();
                   e.stopPropagation();
                   onItemClick(item);
                 }}
@@ -115,7 +114,6 @@ function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = 
               {item.allow_download && (
                 <DropdownMenu.Item
                   onSelect={(e) => {
-                    e.preventDefault();
                     e.stopPropagation();
                     onDownloadClick(item);
                   }}
@@ -127,7 +125,6 @@ function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = 
               )}
               <DropdownMenu.Item
                 onSelect={(e) => {
-                  e.preventDefault();
                   e.stopPropagation();
                   onQnaClick(item);
                 }}
