@@ -10,8 +10,9 @@ import {
 } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { getFolderContents, getRootFolderContents } from '../../services/api';
-import { File as DocumentIcon, Folder as FolderIcon, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { Checkbox } from '../ui/Checkbox';
+import { FileTypeIcon } from '../documents/FileTypeIcon';
 
 function Breadcrumbs({ path, onNavigate }) {
   return (
@@ -145,7 +146,7 @@ export function AddContentDialog({ isOpen, onOpenChange, onConfirm }) {
                       onClick={() => handleNavigate(folder.id)}
                       className="flex items-center gap-3 text-left w-full"
                     >
-                      <FolderIcon className="h-5 w-5 text-gray-500" />
+                      <FileTypeIcon type="folder" className="h-5 w-5 shrink-0" />
                       <span className="flex-grow">{folder.name}</span>
                     </button>
                   </div>
@@ -159,7 +160,7 @@ export function AddContentDialog({ isOpen, onOpenChange, onConfirm }) {
                       checked={selection.documents.includes(doc.id)}
                       onCheckedChange={() => handleItemSelect(doc.id, 'documents')}
                     />
-                    <DocumentIcon className="h-5 w-5 text-gray-500" />
+                    <FileTypeIcon type={doc.type} className="h-5 w-5 shrink-0" />
                     <span className="flex-grow">{doc.name}</span>
                   </div>
                 </li>
