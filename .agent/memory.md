@@ -32,3 +32,8 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Gotcha
 - **Context/Implication:** In Radix UI (`DropdownMenu.Item`), calling `e.preventDefault()` inside the `onSelect` callback prevents the default dropdown dismissal behavior, leaving the menu stuck open on the screen after the action is clicked.
 - **Resolution/Action:** Avoid `e.preventDefault()` in `onSelect` when the dropdown should dismiss. Use only `e.stopPropagation()` if you need to prevent the click from bubbling to parent row event handlers, and add test assertions to check that the dropdown menu is dismissed upon clicking.
+
+### 2026-07-01 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Retaining clickable links and secure watermarking for server-side document previews.
+- **Resolution/Action:** Created the hybrid plan at `plans/hybrid-preview-download-plan.md` using server-rendered image overlays for viewer links, and a configurable flattened rasterizer for high-security PDF downloads.
