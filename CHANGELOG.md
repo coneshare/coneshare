@@ -1,6 +1,18 @@
 # Changelog
 
 
+## [1.5.1](https://github.com/coneshare/coneshare/compare/v1.5.0...v1.5.1) (2026-06-30)
+
+
+### Bug Fixes
+
+* **dashboard:** render file icons and dataroom links in dashboard widgets ([aec1c55](https://github.com/coneshare/coneshare/commit/aec1c559efaff238be18778e7b6b1a86e38b9393))
+* **dataroom:** use FileTypeIcon in permissions and activity logs and fix spacer alignment ([0967d30](https://github.com/coneshare/coneshare/commit/0967d3055598f06d8596d03988f8eef44a23b169))
+* **frontend:** align AddContentDialog file/folder icons with main file list ([a23e5ae](https://github.com/coneshare/coneshare/commit/a23e5ae07d0c116e405e2d8feb25de12be614885))
+* **frontend:** close actions dropdown on item select and add test coverage ([8fa0ec7](https://github.com/coneshare/coneshare/commit/8fa0ec74fa18ac67db92767514c6cc6e69043f67))
+* **frontend:** implement expandable folder tree in dataroom sidebar ([3eef317](https://github.com/coneshare/coneshare/commit/3eef317990bdf21d350814f45bf2f34baa3144ec))
+* **viewer:** close action dropdown on select in dataroom viewer and add radix gotcha memory ([cc2f51c](https://github.com/coneshare/coneshare/commit/cc2f51cbefdc87fadd2f2464813363f60aa89d44))
+
 ## [1.5.0](https://github.com/coneshare/coneshare/compare/v1.4.0...v1.5.0) (2026-06-25)
 
 
