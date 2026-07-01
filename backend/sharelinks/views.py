@@ -9,6 +9,7 @@ from io import BytesIO
 from urllib.parse import urljoin
 
 import requests
+from pdf2image import convert_from_bytes
 from django.conf import settings
 from django.core.mail import send_mail
 from django.db import transaction
@@ -28,6 +29,7 @@ from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, inline_serializer
 
 from backend.utils import get_client_ip
+from core.services import get_dynamic_setting
 from datarooms.models import (DataroomDocument, DataroomFolder, DataroomItemOrder)
 from datarooms.serializers import (PublicDataroomDocumentSerializer,
                                    PublicDataroomFolderSerializer)
@@ -2042,6 +2044,31 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
         raise WatermarkingError("An error occurred while generating the watermarked file.") from e
 
 
+def _generate_flattened_watermarked_pdf(document, primary_version, watermark_text, request, viewer_email):
+    """
+    Generates a flattened, watermarked PDF (rasterized to JPEGs and recompiled to PDF).
+    """
+    # 1. Generate standard vector watermarked PDF
+    vector_pdf_buffer = _generate_watermarked_pdf(document, primary_version, watermark_text, request, viewer_email)
+    
+    # 2. Rasterize pages to JPEGs using poppler
+    try:
+        pages = convert_from_bytes(vector_pdf_buffer.getvalue(), dpi=150, fmt="jpeg")
+        
+        if not pages:
+            raise WatermarkingError("Failed to rasterize watermarked PDF pages.")
+            
+        # 3. Save to a single PDF buffer using Pillow
+        flattened_buffer = BytesIO()
+        rgb_images = [img.convert('RGB') for img in pages]
+        rgb_images[0].save(flattened_buffer, format="PDF", save_all=True, append_images=rgb_images[1:])
+        flattened_buffer.seek(0)
+        return flattened_buffer
+    except Exception as e:
+        logger.exception(f"Failed to flatten watermarked PDF: {e}")
+        raise WatermarkingError("An error occurred while generating the flattened watermarked file.") from e
+
+
 @extend_schema(tags=['sharelinks'])
 class ShareLinkFileDownloadView(APIView):
     """
@@ -2168,7 +2195,11 @@ class ShareLinkFileDownloadView(APIView):
                     return response
 
                 # Fallback for PDF and Office documents which become PDF
-                pdf_buffer = _generate_watermarked_pdf(document, primary_version, link.watermark_text, request, viewer_email)
+                flatten_active = get_dynamic_setting('FLATTEN_WATERMARKED_DOWNLOADS')
+                if flatten_active:
+                    pdf_buffer = _generate_flattened_watermarked_pdf(document, primary_version, link.watermark_text, request, viewer_email)
+                else:
+                    pdf_buffer = _generate_watermarked_pdf(document, primary_version, link.watermark_text, request, viewer_email)
                 response = HttpResponse(pdf_buffer, content_type='application/pdf')
                 # Ensure filename has .pdf extension
                 safe_filename, _ = os.path.splitext(get_valid_filename(document.name))
@@ -2243,9 +2274,15 @@ class DataroomFolderDownloadView(APIView):
                             # Ensure filename has .jpg extension
                             zipf.writestr(f"{os.path.splitext(file_path)[0]}.jpg", image_buffer.getvalue())
                         else:
-                            pdf_buffer = _generate_watermarked_pdf(
-                                doc, primary_version, link.watermark_text, request, viewer_email
-                            )
+                            flatten_active = get_dynamic_setting('FLATTEN_WATERMARKED_DOWNLOADS')
+                            if flatten_active:
+                                pdf_buffer = _generate_flattened_watermarked_pdf(
+                                    doc, primary_version, link.watermark_text, request, viewer_email
+                                )
+                            else:
+                                pdf_buffer = _generate_watermarked_pdf(
+                                    doc, primary_version, link.watermark_text, request, viewer_email
+                                )
                             # Ensure filename has .pdf extension
                             zipf.writestr(f"{os.path.splitext(file_path)[0]}.pdf", pdf_buffer.getvalue())
                     elif primary_version.original_storage_key:

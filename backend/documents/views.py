@@ -526,6 +526,7 @@ def prepare_pages_data(
             'page_number': 1,
             'url': absolute_url,
             'metadata': {},
+            'page_links': {'links': []},
         })
     elif primary_version.has_pages:
         # For PDFs/Office docs, we have pre-generated page images.
@@ -545,6 +546,7 @@ def prepare_pages_data(
                 "page_number": page.page_number,
                 "url": absolute_url,
                 "metadata": page.metadata,
+                "page_links": page.page_links if isinstance(page.page_links, dict) else {"links": []},
             })
     return pages_data
 

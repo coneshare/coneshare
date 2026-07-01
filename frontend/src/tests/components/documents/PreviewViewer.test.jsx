@@ -288,4 +288,37 @@ describe('PreviewViewer', () => {
       false
     );
   });
+
+  it('should render absolute-positioned hyperlink overlays when page_links metadata is present', () => {
+    const documentDataWithLinks = {
+      pages: [
+        {
+          page_number: 1,
+          url: '/page1.png',
+          page_links: {
+            links: [
+              {
+                url: 'https://example.com/overlay-link',
+                bbox: { left: 10, top: 20, width: 30, height: 40 },
+              },
+            ],
+          },
+        },
+      ],
+    };
+
+    renderComponent({ documentData: documentDataWithLinks });
+
+    const linkElement = screen.getByRole('link');
+    expect(linkElement).toBeInTheDocument();
+    expect(linkElement).toHaveAttribute('href', 'https://example.com/overlay-link');
+    expect(linkElement).toHaveAttribute('target', '_blank');
+    expect(linkElement).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(linkElement).toHaveStyle({
+      left: '10%',
+      top: '20%',
+      width: '30%',
+      height: '40%',
+    });
+  });
 });

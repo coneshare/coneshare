@@ -65,6 +65,8 @@ class TestGeneratePdfPagesTask:
         assert DocumentPage.objects.count() == 2
         assert DocumentPage.objects.filter(document_version=version, page_number=1).exists()
         assert DocumentPage.objects.filter(document_version=version, page_number=2).exists()
+        page1 = DocumentPage.objects.get(document_version=version, page_number=1)
+        assert page1.page_links == {"links": []}
 
         # 5. Refresh model instances from DB to check updated fields
         document.refresh_from_db()
@@ -259,3 +261,109 @@ class TestGeneratePdfPagesTask:
         assert document.storage_key == "path/to/current.pdf"
         assert document.num_pages == 7
         assert document.status_message == "Current version is ready."
+
+    @patch('documents.tasks.pdfinfo_from_bytes')
+    @patch('documents.tasks.requests.put')
+    @patch('documents.tasks.fileserver_client.generate_upload_url')
+    @patch('documents.tasks.requests.get')
+    @patch('documents.tasks.fileserver_client.generate_download_url')
+    @patch('documents.tasks.convert_from_bytes')
+    @patch('documents.tasks.PdfReader')
+    def test_task_extracts_links_successfully(
+        self,
+        mock_pdf_reader_class,
+        mock_convert,
+        mock_fs_download_url,
+        mock_requests_get,
+        mock_fs_upload_url,
+        mock_requests_put,
+        mock_pdfinfo,
+        user,
+    ):
+        """Test that generate_pdf_pages_task extracts links from PDF annotations and stores them."""
+        document = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="test_links.pdf",
+            status='processing',
+        )
+        version = DocumentVersion.objects.create(
+            document=document,
+            version_number=1,
+            original_storage_key="path/to/original.pdf",
+            storage_key="path/to/original.pdf",
+            is_primary=True,
+        )
+
+        # 1. Mock Poppler conversion (1 page)
+        mock_images = [MagicMock()]
+        mock_images[0].save.side_effect = lambda buf, format: buf.write(b'img1')
+        mock_convert.return_value = mock_images
+        mock_pdfinfo.return_value = {'Pages': 1}
+
+        # 2. Mock pypdf PdfReader
+        mock_reader = MagicMock()
+        mock_pdf_reader_class.return_value = mock_reader
+
+        class MockPdfObject(dict):
+            def get_object(self):
+                return self
+
+        class MockPage(dict):
+            def __init__(self, width, height, annots):
+                super().__init__()
+                self.mediabox = MagicMock()
+                self.mediabox.width = width
+                self.mediabox.height = height
+                if annots:
+                    self["/Annots"] = annots
+
+        # Mock Annotation structure
+        action = MockPdfObject({
+            "/S": "/URI",
+            "/URI": "https://example.com/target"
+        })
+        
+        obj = MockPdfObject({
+            "/Subtype": "/Link",
+            "/A": action,
+            "/Rect": [60.0, 80.0, 120.0, 120.0]
+        })
+        
+        annot = MockPdfObject()
+        annot.get_object = lambda: obj
+
+        # Create the mock page
+        mock_page = MockPage(600, 800, [annot])
+        mock_reader.pages = [mock_page]
+
+        # Configure network mocks
+        mock_fs_download_url.return_value = "/files/download/token"
+        mock_get_response = MagicMock()
+        mock_get_response.raise_for_status.return_value = None
+        mock_get_response.content = b"fake-pdf"
+        mock_requests_get.return_value = mock_get_response
+        mock_fs_upload_url.return_value = "/upload/page1"
+        mock_requests_put.return_value = MagicMock()
+
+        # Run task
+        generate_pdf_pages_task(version.id)
+
+        # Assert DocumentPage was created and has correct page_links mapping
+        assert DocumentPage.objects.filter(document_version=version, page_number=1).exists()
+        page = DocumentPage.objects.get(document_version=version, page_number=1)
+        
+        expected_links = {
+            "links": [
+                {
+                    "url": "https://example.com/target",
+                    "bbox": {
+                        "left": (60.0 / 600.0) * 100,  # 10.0%
+                        "top": ((800.0 - 120.0) / 800.0) * 100,  # 85.0%
+                        "width": ((120.0 - 60.0) / 600.0) * 100,  # 10.0%
+                        "height": ((120.0 - 80.0) / 800.0) * 100  # 5.0%
+                    }
+                }
+            ]
+        }
+        assert page.page_links == expected_links

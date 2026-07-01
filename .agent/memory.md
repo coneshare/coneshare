@@ -37,3 +37,18 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Architecture Choice
 - **Context/Implication:** Retaining clickable links and secure watermarking for server-side document previews.
 - **Resolution/Action:** Created the hybrid plan at `plans/hybrid-preview-download-plan.md` using server-rendered image overlays for viewer links, and a configurable flattened rasterizer for high-security PDF downloads.
+
+### 2026-07-01 Session Entry
+- **Category:** Workflow Policy
+- **Context/Implication:** Coding Style guidelines regarding Python imports.
+- **Resolution/Action:** Imports should always be placed at the head of files, unless an import loop (circular import) issue requires inline/deferred imports.
+
+### 2026-07-02 Session Entry
+- **Category:** Command Trigger
+- **Context/Implication:** Commands to run full and targeted test suites inside Docker containers.
+- **Resolution/Action:**
+  - **Full Backend Suite:** `COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend pytest`
+  - **Targeted Backend Test File:** `COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend pytest <path_to_test_file>.py`
+  - **Targeted Backend Test Case:** `COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend pytest <path_to_test_file>.py -k <test_case_name>`
+  - **Full Frontend Suite (Whitelist):** `COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm run test:whitelist`
+  - **Targeted Frontend Test File:** `COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npx vitest run <path_to_test_file>.test.jsx`

@@ -182,6 +182,7 @@ export const PreviewViewer = forwardRef(({ documentData, zoomLevel, onPageChange
               }
             }}
             data-page-number={page.page_number}
+            className="relative mx-auto w-fit"
           >
             <LazyImage
               src={page.url}
@@ -189,6 +190,22 @@ export const PreviewViewer = forwardRef(({ documentData, zoomLevel, onPageChange
               className="mx-auto max-w-full rounded-md shadow-md"
               scrollContainer={scrollContainer}
             />
+            {page.page_links?.links?.map((link, idx) => (
+              <a
+                key={idx}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute cursor-pointer hover:bg-blue-500/10 transition-colors duration-150 rounded"
+                style={{
+                  left: `${link.bbox.left}%`,
+                  top: `${link.bbox.top}%`,
+                  width: `${link.bbox.width}%`,
+                  height: `${link.bbox.height}%`,
+                }}
+                title={link.url}
+              />
+            ))}
           </div>
         ))}
       </div>

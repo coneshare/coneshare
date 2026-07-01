@@ -7,6 +7,7 @@ from pathlib import Path
 from io import BytesIO
 from celery import shared_task
 from pdf2image import convert_from_bytes, pdfinfo_from_bytes
+from pypdf import PdfReader
 
 from core.services import get_dynamic_setting
 from .fileserver import fileserver_client
@@ -141,6 +142,59 @@ def generate_pdf_pages_task(version_id):
         # 2. Convert PDF pages to images (PNG)
         images = convert_from_bytes(pdf_bytes, fmt='png')
 
+        # Extract links using pypdf (best-effort)
+        # We wrap the entire block in a single outer try-except. This catches document-level parsing
+        # issues (e.g. invalid PDF header on PdfReader initialization, or metadata index errors)
+        # and lets the task fallback gracefully to rendering page JPEGs without crashing.
+        page_links_by_num = {}
+        try:
+            reader = PdfReader(BytesIO(pdf_bytes))
+            num_pdf_pages = len(reader.pages)
+            for idx in range(num_pdf_pages):
+                page_num = idx + 1
+                pdf_page = reader.pages[idx]
+                media_box = pdf_page.mediabox
+                page_w = float(media_box.width) if media_box.width else 0.0
+                page_h = float(media_box.height) if media_box.height else 0.0
+
+                links = []
+                if page_w <= 0 or page_h <= 0 or "/Annots" not in pdf_page:
+                    continue
+
+                for annot in pdf_page["/Annots"]:
+                    try:
+                        # We wrap individual annotation parsing in a nested try-except so that
+                        # a single corrupt or malformed link doesn't abort link extraction
+                        # for the rest of the pages/document.
+                        obj = annot.get_object()
+                        if not obj or obj.get("/Subtype") != "/Link" or "/A" not in obj:
+                            continue
+
+                        action = obj["/A"].get_object()
+                        rect = obj.get("/Rect")
+                        uri = action.get("/URI") if action and action.get("/S") == "/URI" else None
+
+                        if not rect or not uri:
+                            continue
+
+                        # Rect: [x1, y1, x2, y2] (origin at bottom-left)
+                        x1, y1, x2, y2 = [float(v) for v in rect]
+                        links.append({
+                            "url": uri,
+                            "bbox": {
+                                "left": (x1 / page_w) * 100,
+                                "top": ((page_h - y2) / page_h) * 100,
+                                "width": ((x2 - x1) / page_w) * 100,
+                                "height": ((y2 - y1) / page_h) * 100
+                            }
+                        })
+                    except Exception as annot_err:
+                        logger.warning(f"Error parsing annot for link on page {page_num}: {annot_err}")
+                if links:
+                    page_links_by_num[page_num] = {"links": links}
+        except Exception as reader_err:
+            logger.warning(f"Failed to parse PDF annotations/links via pypdf: {reader_err}")
+
         # 3. Save page images and create DB records
         base_path, _ = os.path.splitext(version.original_storage_key)
         version.pages.all().delete()
@@ -158,7 +212,8 @@ def generate_pdf_pages_task(version_id):
             DocumentPage.objects.create(
                 document_version=version,
                 page_number=page_num,
-                storage_key=page_storage_key
+                storage_key=page_storage_key,
+                page_links=page_links_by_num.get(page_num, {"links": []})
             )
 
         # 4. Finalize status and metadata
