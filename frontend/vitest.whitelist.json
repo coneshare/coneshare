@@ -10,6 +10,7 @@
     "src/tests/pages/LoginPage.test.jsx",
     "src/tests/components/documents/DraggableItem.test.jsx",
     "src/tests/pages/FileRequestsPage.test.jsx",
-    "src/tests/components/documents/VideoViewer.test.jsx"
+    "src/tests/components/documents/VideoViewer.test.jsx",
+    "src/tests/components/documents/FileTypeIcon.test.jsx"
   ]
 }

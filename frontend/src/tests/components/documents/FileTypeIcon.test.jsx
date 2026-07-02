@@ -30,5 +30,10 @@ describe("FileTypeIcon", () => {
     render(<FileTypeIcon type="xls" />);
     expect(screen.getByTestId("file-type-icon-unknown")).toBeInTheDocument();
   });
+
+  it("renders video icon for video type", () => {
+    render(<FileTypeIcon type="video" />);
+    expect(screen.getByTestId("file-type-icon-video")).toBeInTheDocument();
+  });
 });
 

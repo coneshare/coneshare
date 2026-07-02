@@ -284,6 +284,14 @@ class PageView(models.Model):
     page_number = models.PositiveIntegerField()
     duration_seconds = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
+    media_type = models.CharField(max_length=20, default='document')
+
+    # Video engagement metrics
+    video_start_time = models.FloatField(null=True, blank=True)
+    video_end_time = models.FloatField(null=True, blank=True)
+    video_volume = models.IntegerField(null=True, blank=True)
+    is_fullscreen = models.BooleanField(null=True, blank=True)
+    playback_speed = models.FloatField(null=True, blank=True)
 
     class Meta:
         ordering = ['created_at']

@@ -890,39 +890,46 @@ export function DataroomViewer({ data, slug, viewId }) {
                 </div>
               ) : (
                 <div className="relative flex-1 flex flex-col h-full overflow-hidden">
-                  <ViewerToolbar
-                    allowDownload={documentViewData.link_settings.allow_download}
-                    downloadUrl={docDownloadUrl}
-                    downloadFileName={documentViewData.name}
-                    downloadDocumentId={selectedDocumentId}
-                    onFullScreen={handleFullScreen}
-                    onZoomIn={handleZoomIn}
-                    onZoomOut={handleZoomOut}
-                    zoomLevel={zoomLevel}
-                    onFitWidth={handleFitWidth}
-                    onPageChange={handlePageChange}
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    viewId={viewId}
-                    previewMode={documentViewData.preview_mode}
-                    onPrint={handlePrint}
-                    hasPrevSibling={hasPrevSibling}
-                    hasNextSibling={hasNextSibling}
-                    onPrevSibling={onPrevSibling}
-                    onNextSibling={onNextSibling}
-                  />
-                  {documentViewData.preview_mode === 'video' ? (
-                    <VideoViewer
-                      ref={viewerComponentRef}
-                      videoUrl={documentViewData.video_preview_url}
+                  {documentViewData.preview_mode !== 'video' && (
+                    <ViewerToolbar
+                      allowDownload={documentViewData.link_settings.allow_download}
+                      downloadUrl={docDownloadUrl}
+                      downloadFileName={documentViewData.name}
+                      downloadDocumentId={selectedDocumentId}
+                      onFullScreen={handleFullScreen}
+                      onZoomIn={handleZoomIn}
+                      onZoomOut={handleZoomOut}
+                      zoomLevel={zoomLevel}
+                      onFitWidth={handleFitWidth}
+                      onPageChange={handlePageChange}
+                      currentPage={currentPage}
+                      totalPages={totalPages}
                       viewId={viewId}
-                      dataroomVisitId={currentDataroomVisitId}
-                      watermarkText={
-                        documentViewData.link_settings?.enable_watermark
-                          ? (documentViewData.link_settings.resolved_watermark_text || documentViewData.link_settings.watermark_text || '')
-                          : ''
-                      }
+                      previewMode={documentViewData.preview_mode}
+                      onPrint={handlePrint}
+                      hasPrevSibling={hasPrevSibling}
+                      hasNextSibling={hasNextSibling}
+                      onPrevSibling={onPrevSibling}
+                      onNextSibling={onNextSibling}
+                      isVideo={documentViewData.preview_mode === 'video'}
                     />
+                  )}
+                  {documentViewData.preview_mode === 'video' ? (
+                    <div className="flex-1 flex items-center justify-center p-8 bg-zinc-900 h-full w-full">
+                      <VideoViewer
+                        ref={viewerComponentRef}
+                        videoUrl={documentViewData.video_preview_url}
+                        viewId={viewId}
+                        dataroomVisitId={currentDataroomVisitId}
+                        watermarkText={
+                          documentViewData.link_settings?.enable_watermark
+                            ? (documentViewData.link_settings.resolved_watermark_text || documentViewData.link_settings.watermark_text || '')
+                            : ''
+                        }
+                        allowDownload={documentViewData.link_settings?.allow_download}
+                        downloadUrl={docDownloadUrl}
+                      />
+                    </div>
                   ) : documentViewData.preview_mode === 'client_pdf' ? (
                     <PdfJsViewer
                       ref={viewerComponentRef}

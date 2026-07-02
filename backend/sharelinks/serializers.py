@@ -32,7 +32,10 @@ class PageViewSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PageView
-        fields = ['page_number', 'duration_seconds', 'url']
+        fields = [
+            'page_number', 'duration_seconds', 'url', 'created_at', 'media_type',
+            'video_start_time', 'video_end_time', 'video_volume', 'is_fullscreen', 'playback_speed'
+        ]
 
     def get_url(self, obj) -> str | None:
         pages_map = self.context.get('pages_map', {})
@@ -147,7 +150,10 @@ class PageViewRecordSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PageView
-        fields = ['view_session', 'page_number', 'duration_seconds', 'dataroom_visit']
+        fields = [
+            'view_session', 'page_number', 'duration_seconds', 'dataroom_visit', 'media_type',
+            'video_start_time', 'video_end_time', 'video_volume', 'is_fullscreen', 'playback_speed'
+        ]
 
     def validate(self, data):
         view_session = data.get('view_session')
@@ -159,6 +165,26 @@ class PageViewRecordSerializer(serializers.ModelSerializer):
                     {"dataroom_visit": "This document visit does not belong to the provided view session."}
                 )
         return data
+
+    def create(self, validated_data):
+        view_session = validated_data.get('view_session')
+        dataroom_visit = validated_data.get('dataroom_visit')
+
+        doc_type = 'document'
+        if dataroom_visit and dataroom_visit.dataroom_document:
+            doc_type = dataroom_visit.dataroom_document.document.type
+        elif view_session and view_session.share_link.document:
+            doc_type = view_session.share_link.document.type
+
+        # Normalize doc_type to media_type
+        if doc_type == 'video':
+            validated_data['media_type'] = 'video'
+        elif doc_type == 'audio':
+            validated_data['media_type'] = 'audio'
+        else:
+            validated_data['media_type'] = 'document'
+
+        return super().create(validated_data)
 
 
 class ShareLinkSerializer(serializers.ModelSerializer):

@@ -93,7 +93,7 @@ describe('VideoViewer', () => {
     document.createElement.mockRestore();
   });
 
-  it('starts tracking watch duration when play event is fired', () => {
+  it('sends tracking data on pause', () => {
     const { container } = render(
       <VideoViewer videoUrl={videoUrl} viewId={viewId} />
     );
@@ -102,6 +102,12 @@ describe('VideoViewer', () => {
     Object.defineProperty(video, 'paused', {
       configurable: true,
       get: () => false,
+    });
+    
+    let startTime = Date.now();
+    Object.defineProperty(video, 'currentTime', {
+      configurable: true,
+      get: () => (Date.now() - startTime) / 1000,
     });
 
     // Simulate play
@@ -119,12 +125,30 @@ describe('VideoViewer', () => {
       configurable: true,
       get: () => true,
     });
+    Object.defineProperty(video, 'volume', {
+      configurable: true,
+      writable: true,
+      value: 0.5,
+    });
     act(() => {
       video.dispatchEvent(new Event('pause'));
     });
 
-    // Tracking should not have sent a heartbeat yet since it is < 10 seconds
-    expect(api.recordPageView).not.toHaveBeenCalled();
+    // It should have sent tracking data immediately on pause
+    expect(api.recordPageView).toHaveBeenCalledTimes(1);
+    expect(api.recordPageView).toHaveBeenCalledWith(
+      expect.objectContaining({
+        view_session: viewId,
+        page_number: 1,
+        duration_seconds: 5,
+        video_start_time: 0,
+        video_end_time: 5,
+        video_volume: 50,
+        is_fullscreen: false,
+        playback_speed: 1,
+      }),
+      false
+    );
   });
 
   it('sends heartbeat when watch duration reaches 10 seconds', () => {
@@ -136,6 +160,12 @@ describe('VideoViewer', () => {
     Object.defineProperty(video, 'paused', {
       configurable: true,
       get: () => false,
+    });
+    
+    let startTime = Date.now();
+    Object.defineProperty(video, 'currentTime', {
+      configurable: true,
+      get: () => (Date.now() - startTime) / 1000,
     });
 
     // Simulate play
@@ -155,6 +185,8 @@ describe('VideoViewer', () => {
         view_session: viewId,
         page_number: 1,
         duration_seconds: 10,
+        video_start_time: 0,
+        video_end_time: 10,
       }),
       false
     );
@@ -169,6 +201,12 @@ describe('VideoViewer', () => {
     Object.defineProperty(video, 'paused', {
       configurable: true,
       get: () => false,
+    });
+    
+    let startTime = Date.now();
+    Object.defineProperty(video, 'currentTime', {
+      configurable: true,
+      get: () => (Date.now() - startTime) / 1000,
     });
 
     // Simulate play
@@ -193,6 +231,8 @@ describe('VideoViewer', () => {
         view_session: viewId,
         page_number: 1,
         duration_seconds: 6,
+        video_start_time: 0,
+        video_end_time: 6,
       }),
       true
     );

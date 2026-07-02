@@ -561,10 +561,12 @@ export function ShareLinkViewerPage() {
     );
   }
 
+  const isVideoMode = viewData?.preview_mode === 'video';
+
   return (
     <div
       ref={viewerRef}
-      className={`relative h-screen w-screen bg-gray-50 transition-[padding] duration-200 ${isQnaOpen ? 'lg:pr-[34rem] xl:pr-[38rem]' : ''}`}
+      className={`relative h-screen w-screen transition-colors duration-300 ${isVideoMode ? 'bg-zinc-900' : 'bg-gray-50'} transition-[padding] duration-200 ${isQnaOpen ? 'lg:pr-[34rem] xl:pr-[38rem]' : ''}`}
     >
       {previewToken && showPreviewBanner && (
         <PreviewBanner onClose={() => setShowPreviewBanner(false)} />
@@ -572,7 +574,7 @@ export function ShareLinkViewerPage() {
       <div className="absolute left-6 top-4 z-10">
         <a
           href="/"
-          className="flex items-center gap-2 rounded-md bg-white p-2 font-semibold shadow-sm"
+          className="flex items-center gap-2 rounded-md bg-white p-2 font-semibold text-gray-900 shadow-sm hover:bg-gray-50 transition-all duration-300"
         >
           <img src="/logo.svg" alt="Coneshare logo" className="h-6 w-6" />
           <span>Coneshare</span>
@@ -580,35 +582,42 @@ export function ShareLinkViewerPage() {
       </div>
       {viewData && (
         <>
-          <ViewerToolbar
-            allowDownload={viewData.link_settings.allow_download}
-            downloadUrl={downloadUrl}
-            downloadFileName={viewData.name}
-            downloadDocumentId={dataroomDocumentIdFromUrl || null}
-            onFullScreen={handleFullScreen}
-            onZoomIn={handleZoomIn}
-            onZoomOut={handleZoomOut}
-            zoomLevel={zoomLevel}
-            onFitWidth={handleFitWidth}
-            onPageChange={handlePageChange}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            viewId={viewId}
-            previewMode={viewData.preview_mode}
-            onPrint={handlePrint}
-          />
-          {viewData.preview_mode === 'video' ? (
-            <VideoViewer
-              ref={viewerComponentRef}
-              videoUrl={viewData.video_preview_url}
+          {viewData.preview_mode !== 'video' && (
+            <ViewerToolbar
+              allowDownload={viewData.link_settings.allow_download}
+              downloadUrl={downloadUrl}
+              downloadFileName={viewData.name}
+              downloadDocumentId={dataroomDocumentIdFromUrl || null}
+              onFullScreen={handleFullScreen}
+              onZoomIn={handleZoomIn}
+              onZoomOut={handleZoomOut}
+              zoomLevel={zoomLevel}
+              onFitWidth={handleFitWidth}
+              onPageChange={handlePageChange}
+              currentPage={currentPage}
+              totalPages={totalPages}
               viewId={viewId}
-              dataroomVisitId={dataroomVisitId}
-              watermarkText={
-                viewData.link_settings?.enable_watermark
-                  ? (viewData.link_settings.resolved_watermark_text || viewData.link_settings.watermark_text || '')
-                  : ''
-              }
+              previewMode={viewData.preview_mode}
+              onPrint={handlePrint}
+              isVideo={viewData.preview_mode === 'video'}
             />
+          )}
+          {viewData.preview_mode === 'video' ? (
+            <div className="flex h-full w-full items-center justify-center p-8">
+              <VideoViewer
+                ref={viewerComponentRef}
+                videoUrl={viewData.video_preview_url}
+                viewId={viewId}
+                dataroomVisitId={dataroomVisitId}
+                watermarkText={
+                  viewData.link_settings?.enable_watermark
+                    ? (viewData.link_settings.resolved_watermark_text || viewData.link_settings.watermark_text || '')
+                    : ''
+                }
+                allowDownload={viewData.link_settings?.allow_download}
+                downloadUrl={downloadUrl}
+              />
+            </div>
           ) : viewData.preview_mode === 'client_pdf' ? (
             <PdfJsViewer
               ref={viewerComponentRef}

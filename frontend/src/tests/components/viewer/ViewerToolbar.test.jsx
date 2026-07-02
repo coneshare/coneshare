@@ -147,4 +147,27 @@ describe('ViewerToolbar', () => {
     renderComponent({ allowDownload: false });
     expect(screen.queryByTitle('Download file')).not.toBeInTheDocument();
   });
+
+  it('renders correctly for videos (hides page nav, zoom, and print)', () => {
+    renderComponent({ isVideo: true });
+
+    // Page navigation should NOT be in the document
+    expect(screen.queryByTitle('Previous page')).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.queryByText('/ 10')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Next page')).not.toBeInTheDocument();
+
+    // Zoom controls should NOT be in the document
+    expect(screen.queryByTitle('Zoom out')).not.toBeInTheDocument();
+    expect(screen.queryByText('100%')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Zoom in')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Fit to width')).not.toBeInTheDocument();
+
+    // Print should NOT be in the document
+    expect(screen.queryByTitle('Print document')).not.toBeInTheDocument();
+
+    // Download and Fullscreen SHOULD be in the document
+    expect(screen.getByTitle('Download file')).toBeInTheDocument();
+    expect(screen.getByTitle('Toggle fullscreen')).toBeInTheDocument();
+  });
 });

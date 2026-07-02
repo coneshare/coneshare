@@ -14,6 +14,7 @@ import {
   PreviewStatePanel,
 } from './PreviewStatePanel';
 import { PdfJsViewer } from './PdfJsViewer';
+import { VideoViewer } from './VideoViewer';
 import { ViewerToolbar } from '../viewer/ViewerToolbar';
 import { printPdf, printImages } from '../../lib/print';
 
@@ -177,7 +178,22 @@ export function DocumentPreviewModal({ documentId, isOpen, onOpenChange }) {
               documentData={documentData}
             />
           )}
-          {documentData && !hasRenderablePages(documentData) && documentData.preview_mode !== 'client_pdf' && !error && (
+          {documentData && documentData.preview_mode === 'video' && (
+            <div className="flex h-full w-full items-center justify-center p-4 bg-zinc-900 rounded-xl">
+              <VideoViewer
+                ref={viewerComponentRef}
+                videoUrl={documentData.video_preview_url}
+                watermarkText={
+                  documentData.link_settings?.enable_watermark
+                    ? (documentData.link_settings.resolved_watermark_text || documentData.link_settings.watermark_text || '')
+                    : ''
+                }
+                allowDownload={Boolean(documentData.download_url)}
+                downloadUrl={documentData.download_url}
+              />
+            </div>
+          )}
+          {documentData && !hasRenderablePages(documentData) && documentData.preview_mode !== 'client_pdf' && documentData.preview_mode !== 'video' && !error && (
             <PreviewStatePanel
               documentData={documentData}
               allowDownload={Boolean(documentData.download_url)}

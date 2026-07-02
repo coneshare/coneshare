@@ -69,6 +69,14 @@ def check_user_quota_on_upload(user: User, new_file_size: int, document_to_updat
         )
 
 
+def _normalize_content_type(content_type: str, filename: str) -> str:
+    if not content_type or content_type == 'application/octet-stream':
+        guessed_type, _ = mimetypes.guess_type(filename)
+        if guessed_type:
+            return guessed_type
+    return content_type
+
+
 def _get_doc_type_from_content_type(content_type: str) -> str:
     """Determines the document type from its MIME type."""
     if content_type in OFFICE_MIMETYPES:
@@ -325,6 +333,7 @@ def create_document_from_upload(
             defaults={'created_by': None}
         )
 
+    content_type = _normalize_content_type(content_type, unique_name)
     doc_type = _get_doc_type_from_content_type(content_type)
 
     # Create database records within a transaction to include user size update
@@ -570,6 +579,7 @@ def create_new_document_version(
     latest_version = document.versions.order_by('-version_number').first()
     new_version_number = (latest_version.version_number if latest_version else 0) + 1
 
+    content_type = _normalize_content_type(content_type, document.name)
     doc_type = _get_doc_type_from_content_type(content_type)
 
     with transaction.atomic():

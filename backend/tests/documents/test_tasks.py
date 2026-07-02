@@ -459,3 +459,14 @@ class TestGenerateVideoStreamTask:
         assert version.length == 120
         assert version.storage_key == "path/to/original_hls/playlist.m3u8"
 
+
+def test_normalize_content_type():
+    from documents.services import _normalize_content_type
+    # Generic or empty types should be guessed from filename
+    assert _normalize_content_type('', 'video.mov') == 'video/quicktime'
+    assert _normalize_content_type('application/octet-stream', 'movie.mp4') == 'video/mp4'
+    # Existing valid types should be preserved
+    assert _normalize_content_type('video/mp4', 'movie.mov') == 'video/mp4'
+    assert _normalize_content_type('application/pdf', 'doc.pdf') == 'application/pdf'
+
+

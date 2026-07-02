@@ -101,3 +101,18 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Gotcha
 - **Context/Implication:** In backend unit tests, passing MagicMock objects (such as patched iterdir results) to built-in path or file operations like `open()` causes Python to coerce the mock to an integer, raising a silent `OSError: [Errno 9] Bad file descriptor`.
 - **Resolution/Action:** Avoid mocking iterdir/Path with MagicMocks for built-in file operations. Instead, mock `tempfile.TemporaryDirectory` to return a controlled path, and write real dummy files in the test setup.
+
+### 2026-07-02 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Replaced page-based video heartbeats with contiguous video playback segment tracking. Video events now record Event Time, Video Timespan (start/end positions), Audio (muted/unmuted), Screen (fullscreen/standard), and Speed (1x, 1.25x, etc.).
+- **Resolution/Action:** Added `media_type` and video engagement columns to the `PageView` Django model, ran migrations, updated serializers to auto-resolve `media_type` from view session scopes, configured `VideoViewer.jsx` to flush tracking data on state transitions, and updated `PageViewsChart.jsx` to render a custom video watch logs table.
+
+### 2026-07-02 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** AI coding assistants should not run database migrations (`makemigrations`, `migrate`) autonomously to prevent untracked schema states or sync issues.
+- **Resolution/Action:** Let the user run all database migrations manually. Do not invoke `makemigrations` or `migrate` shell commands.
+
+### 2026-07-02 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** Running the entire frontend whitelist test suite on every minor change is slow and unnecessary.
+- **Resolution/Action:** Run only the specific test files or test cases related to the modified components/files. Do not run the full whitelist test command.
