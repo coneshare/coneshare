@@ -174,6 +174,7 @@ export function DocumentPreviewModal({ documentId, isOpen, onOpenChange }) {
               zoomLevel={zoomLevel}
               onPageChange={setCurrentPage}
               onDocumentLoad={handleDocumentLoad}
+              documentData={documentData}
             />
           )}
           {documentData && !hasRenderablePages(documentData) && documentData.preview_mode !== 'client_pdf' && !error && (

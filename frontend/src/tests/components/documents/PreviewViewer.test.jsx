@@ -288,4 +288,91 @@ describe('PreviewViewer', () => {
       false
     );
   });
+
+  it('should render absolute-positioned hyperlink overlays when page_links metadata is present', () => {
+    const documentDataWithLinks = {
+      pages: [
+        {
+          page_number: 1,
+          url: '/page1.png',
+          page_links: {
+            links: [
+              {
+                url: 'https://example.com/overlay-link',
+                bbox: { left: 10, top: 20, width: 30, height: 40 },
+              },
+            ],
+          },
+        },
+      ],
+    };
+
+    renderComponent({ documentData: documentDataWithLinks });
+
+    const linkElement = screen.getByRole('link');
+    expect(linkElement).toBeInTheDocument();
+    expect(linkElement).toHaveAttribute('href', 'https://example.com/overlay-link');
+    expect(linkElement).toHaveAttribute('target', '_blank');
+    expect(linkElement).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(linkElement).toHaveStyle({
+      left: '10%',
+      top: '20%',
+      width: '30%',
+      height: '40%',
+    });
+  });
+
+  it('should not render hyperlink overlays when the URL contains unsafe protocols', () => {
+    const documentDataWithUnsafeLinks = {
+      pages: [
+        {
+          page_number: 1,
+          url: '/page1.png',
+          page_links: {
+            links: [
+              {
+                url: 'javascript:alert(1)',
+                bbox: { left: 10, top: 20, width: 30, height: 40 },
+              },
+              {
+                url: '   javascript:alert(2)',
+                bbox: { left: 12, top: 22, width: 30, height: 40 },
+              },
+              {
+                url: 'java\nscript:alert(3)',
+                bbox: { left: 13, top: 23, width: 30, height: 40 },
+              },
+              {
+                url: '\x01javascript:alert(4)',
+                bbox: { left: 14, top: 24, width: 30, height: 40 },
+              },
+              {
+                url: 'data:text/html;base64,PHNjcmlwdD5hbGVydCgnWFNTJyk8L3NjcmlwdD4=',
+                bbox: { left: 15, top: 25, width: 30, height: 40 },
+              },
+              {
+                url: 'http://example.com/missing-bbox',
+                bbox: null,
+              },
+              {
+                url: 'http://example.com/safe',
+                bbox: { left: 20, top: 30, width: 30, height: 40 },
+              },
+            ],
+          },
+        },
+      ],
+    };
+
+    renderComponent({ documentData: documentDataWithUnsafeLinks });
+
+    // The safe link should be rendered
+    const safeLink = screen.getByRole('link');
+    expect(safeLink).toBeInTheDocument();
+    expect(safeLink).toHaveAttribute('href', 'http://example.com/safe');
+
+    // The unsafe links (javascript: and data:) should NOT be rendered
+    const allLinks = screen.getAllByRole('link');
+    expect(allLinks).toHaveLength(1);
+  });
 });

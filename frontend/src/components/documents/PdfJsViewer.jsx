@@ -16,6 +16,7 @@ import { recordPageView } from '../../services/api';
 import { usePdfDocument } from '../../hooks/usePdfDocument';
 import { PdfPage } from './PdfPage';
 import { Skeleton } from '../ui/Skeleton';
+import { isSafeUrl } from '../../lib/utils';
 
 export const PdfJsViewer = forwardRef(({
   pdfUrl,
@@ -26,6 +27,7 @@ export const PdfJsViewer = forwardRef(({
   zoomLevel = 1,
   onPageChange = () => {},
   onDocumentLoad = () => {},
+  documentData = null,
 }, ref) => {
   const { pdfDoc, numPages, pageDimensions, loading, error } = usePdfDocument(pdfUrl);
 
@@ -239,6 +241,14 @@ export const PdfJsViewer = forwardRef(({
           {Array.from({ length: numPages }, (_, i) => {
             const pageNumber = i + 1;
             const pageDim = pageDimensions[pageNumber - 1] || null;
+            // O(1) Optimization: pages is typically sorted by page_number,
+            // so the page we need is almost always at index pageNumber - 1.
+            // We verify index match first to avoid expensive O(N^2) linear searches.
+            const pageIndex = pageNumber - 1;
+            const candidate = documentData?.pages?.[pageIndex];
+            const pageData = (candidate && candidate.page_number === pageNumber)
+              ? candidate
+              : documentData?.pages?.find((p) => p.page_number === pageNumber);
             return (
               <div
                 key={pageNumber}
@@ -250,6 +260,7 @@ export const PdfJsViewer = forwardRef(({
                   }
                 }}
                 data-page-number={pageNumber}
+                className="relative w-fit mx-auto"
               >
                 <PdfPage
                   pdfDoc={pdfDoc}
@@ -258,6 +269,23 @@ export const PdfJsViewer = forwardRef(({
                   scrollContainer={scrollContainer}
                   dimensions={pageDim}
                 />
+                {pageData?.page_links?.links?.filter(link => isSafeUrl(link.url) && link.bbox).map((link, idx) => (
+                  <a
+                    key={idx}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute cursor-pointer hover:bg-blue-500/10 transition-colors duration-150 rounded"
+                    style={{
+                      left: `${link.bbox.left}%`,
+                      top: `${link.bbox.top}%`,
+                      width: `${link.bbox.width}%`,
+                      height: `${link.bbox.height}%`,
+                      zIndex: 5,
+                    }}
+                    title={link.url}
+                  />
+                ))}
               </div>
             );
           })}

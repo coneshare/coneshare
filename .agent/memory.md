@@ -76,3 +76,13 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Architecture Choice
 - **Context/Implication:** `generate_pdf_pages_task` is triggered on first preview for all PDFs regardless of the active `PDF_PREVIEW_ENGINE`. While this ensures `page_links` metadata is harvested for overlays, it also forces page-image PNG rasterization and MinIO upload even when client-side `pdfjs` is rendering the raw file.
 - **Resolution/Action:** **[Question/Later]** Revisit if we should optimize `generate_pdf_pages_task` to skip Poppler image generation and storage writes when `PDF_PREVIEW_ENGINE = 'pdfjs'` and watermarking is disabled, while continuing to parse and store link annotations.
+
+### 2026-07-02 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** Browsers normalize URLs in anchor `href` attributes by stripping leading/trailing whitespace and control characters (such as tabs, newlines, or invisible bytes). This allows scripting payloads like `"   javascript:alert(1)"` or `"java\nscript:alert(1)"` to bypass simple prefix or regex checks but still execute on click.
+- **Resolution/Action:** Always trim URL strings and strip ASCII/Unicode control characters (`/[\u0000-\u001F\u007F-\u009F]/g`) before running protocol validation checks.
+
+### 2026-07-02 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Calling `.find()` inside the page rendering loop on every document page creates $O(N^2)$ complexity, which can cause severe performance lag and browser hangs on large documents.
+- **Resolution/Action:** Optimize page metadata lookups inside rendering loops (like `PdfJsViewer.jsx`) to attempt direct index lookups first (checking `pages[pageNumber - 1]`), resorting to linear searches only as a fallback.
