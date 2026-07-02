@@ -493,6 +493,9 @@ NEXT_CLOUD_CLIENT_SECRET = ''
 # Public signup toggle.
 ENABLE_PUBLIC_SIGNUP = False
 
+# Whether to flatten watermarked PDFs on download.
+FLATTEN_WATERMARKED_DOWNLOADS = False
+
 
 # Path to the TTF/OTF font file to be used for watermarking.
 # This font should support the characters you intend to display (e.g., CJK for Chinese).
