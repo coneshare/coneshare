@@ -7,6 +7,7 @@ import {
   MoreHorizontal,
   Eye,
   MessageCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useSearchParams } from 'react-router-dom';
@@ -19,6 +20,7 @@ import { DataroomSiblingNav } from './DataroomSiblingNav';
 import { ViewerToolbar } from './ViewerToolbar';
 import { PreviewViewer } from '../documents/PreviewViewer';
 import { PdfJsViewer } from '../documents/PdfJsViewer';
+import { VideoViewer } from '../documents/VideoViewer';
 import { printPdf, printImages } from '../../lib/print';
 import {
   hasRenderablePages,
@@ -703,11 +705,15 @@ export function DataroomViewer({ data, slug, viewId }) {
       }`;
 
   // Inline Document Viewer specific layout parameters
-  const PREVIEWABLE_TYPES = ['image', 'pdf', 'document'];
+  const PREVIEWABLE_TYPES = ['image', 'pdf', 'document', 'video'];
   const isPreviewable = documentViewData && PREVIEWABLE_TYPES.includes(documentViewData.type);
   const canDownload = Boolean(documentViewData?.link_settings?.allow_download);
+  const isVideo = documentViewData && documentViewData.type === 'video';
+  const isVideoReady = isVideo && documentViewData.preview_status === 'ready';
   const canRenderPages = hasRenderablePages(documentViewData);
-  const showPreviewState = documentViewData && isPreviewable && !documentViewData.download_only && !canRenderPages && documentViewData.preview_mode !== 'client_pdf';
+  const showPreviewState = documentViewData && isPreviewable && !documentViewData.download_only && (
+    isVideo ? !isVideoReady : (!canRenderPages && documentViewData.preview_mode !== 'client_pdf')
+  );
 
   let docDownloadUrl = `/api/v1/links/${slug}/download-file/`;
   if (selectedDocumentId) {
@@ -835,7 +841,11 @@ export function DataroomViewer({ data, slug, viewId }) {
                 <div className="flex h-full items-center justify-center p-4 w-full bg-white">
                   <div className="w-full max-w-md rounded-lg bg-white p-8 text-center shadow-lg border">
                     <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-                      <DownloadIcon className="h-6 w-6 text-gray-600" />
+                      {documentViewData.type === 'video' && documentViewData.link_settings?.enable_watermark && documentViewData.download_only ? (
+                        <AlertTriangle className="h-6 w-6 text-amber-600" />
+                      ) : (
+                        <DownloadIcon className="h-6 w-6 text-gray-600" />
+                      )}
                     </div>
                     <h1 className="mb-1 text-xl font-bold text-gray-900 truncate" title={documentViewData.name}>
                       {documentViewData.name}
@@ -844,10 +854,15 @@ export function DataroomViewer({ data, slug, viewId }) {
                       <p className="mb-6 text-sm text-gray-500">{formatBytes(documentViewData.file_size)}</p>
                     ) : null}
                     <p className="mb-6 text-gray-700">
-                      This type of file is not available for online preview. Download the file and open it
-                      on your device.
+                      {documentViewData.type === 'video' && documentViewData.link_settings?.enable_watermark && documentViewData.download_only
+                        ? "This video exceeds the size limit to preview, and download is restricted due to watermark requirements."
+                        : "This type of file is not available for online preview. Download the file and open it on your device."}
                     </p>
-                    {canDownload ? (
+                    {documentViewData.type === 'video' && documentViewData.link_settings?.enable_watermark && documentViewData.download_only ? (
+                      <Button size="lg" className="w-full" disabled>
+                        Download Restricted
+                      </Button>
+                    ) : canDownload ? (
                       <Button asChild size="lg" className="w-full">
                         <a href={docDownloadUrl} download={documentViewData.name}>
                           Download
@@ -896,7 +911,19 @@ export function DataroomViewer({ data, slug, viewId }) {
                     onPrevSibling={onPrevSibling}
                     onNextSibling={onNextSibling}
                   />
-                  {documentViewData.preview_mode === 'client_pdf' ? (
+                  {documentViewData.preview_mode === 'video' ? (
+                    <VideoViewer
+                      ref={viewerComponentRef}
+                      videoUrl={documentViewData.video_preview_url}
+                      viewId={viewId}
+                      dataroomVisitId={currentDataroomVisitId}
+                      watermarkText={
+                        documentViewData.link_settings?.enable_watermark
+                          ? (documentViewData.link_settings.resolved_watermark_text || documentViewData.link_settings.watermark_text || '')
+                          : ''
+                      }
+                    />
+                  ) : documentViewData.preview_mode === 'client_pdf' ? (
                     <PdfJsViewer
                       ref={viewerComponentRef}
                       pdfUrl={documentViewData.pdf_preview_url}

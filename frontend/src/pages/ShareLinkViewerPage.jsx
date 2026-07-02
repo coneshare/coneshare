@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { FileDown, MessageCircle, Info, X } from 'lucide-react';
+import { FileDown, MessageCircle, Info, X, AlertTriangle } from 'lucide-react';
 import { PasswordForm } from '../components/viewer/PasswordForm';
 import { EmailForm } from '../components/viewer/EmailForm';
 import { ViewerToolbar } from '../components/viewer/ViewerToolbar';
 import { PreviewViewer } from '../components/documents/PreviewViewer';
 import { PdfJsViewer } from '../components/documents/PdfJsViewer';
+import { VideoViewer } from '../components/documents/VideoViewer';
 import { DataroomViewer } from '../components/viewer/DataroomViewer';
 import { QnAPanel } from '../components/viewer/QnAPanel';
 import { printPdf, printImages } from '../lib/print';
@@ -431,11 +432,15 @@ export function ShareLinkViewerPage() {
   }
 
   // Document-specific state and handlers
-  const PREVIEWABLE_TYPES = ['image', 'pdf', 'document'];
+  const PREVIEWABLE_TYPES = ['image', 'pdf', 'document', 'video'];
   const isPreviewable = viewData && PREVIEWABLE_TYPES.includes(viewData.type);
   const canDownload = Boolean(viewData?.link_settings?.allow_download);
+  const isVideo = viewData && viewData.type === 'video';
+  const isVideoReady = isVideo && viewData.preview_status === 'ready';
   const canRenderPages = hasRenderablePages(viewData);
-  const showPreviewState = viewData && isPreviewable && !viewData.download_only && !canRenderPages && viewData.preview_mode !== 'client_pdf';
+  const showPreviewState = viewData && isPreviewable && !viewData.download_only && (
+    isVideo ? !isVideoReady : (!canRenderPages && viewData.preview_mode !== 'client_pdf')
+  );
   const qnaButtonLabel = `${isQnaOpen ? 'Close Q&A' : 'Open Q&A'}${
     qnaThreadCount > 0 ? `, ${qnaThreadCount} threads` : ''
   }`;
@@ -446,6 +451,10 @@ export function ShareLinkViewerPage() {
   }
 
   if (viewData && (viewData.download_only || !isPreviewable)) {
+    const isWatermarkedVideoBlocked = viewData.type === 'video' && 
+      viewData.link_settings?.enable_watermark && 
+      viewData.download_only;
+
     return (
       <div className="relative h-screen w-screen bg-gray-50">
         {previewToken && showPreviewBanner && (
@@ -463,7 +472,11 @@ export function ShareLinkViewerPage() {
         <div className="flex h-full items-center justify-center p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-8 text-center shadow-lg">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-              <FileDown className="h-6 w-6 text-gray-600" />
+              {isWatermarkedVideoBlocked ? (
+                <AlertTriangle className="h-6 w-6 text-amber-600" />
+              ) : (
+                <FileDown className="h-6 w-6 text-gray-600" />
+              )}
             </div>
             <h1 className="mb-1 text-xl font-bold text-gray-900" title={viewData.name}>
               {viewData.name}
@@ -472,10 +485,15 @@ export function ShareLinkViewerPage() {
               <p className="mb-6 text-sm text-gray-500">{formatBytes(viewData.file_size)}</p>
             ) : null}
             <p className="mb-6 text-gray-700">
-              This type of file is not available for online preview. Download the file and open it
-              on your device.
+              {isWatermarkedVideoBlocked
+                ? "This video exceeds the size limit to preview, and download is restricted due to watermark requirements."
+                : "This type of file is not available for online preview. Download the file and open it on your device."}
             </p>
-            {canDownload ? (
+            {isWatermarkedVideoBlocked ? (
+              <Button size="lg" className="w-full" disabled>
+                Download Restricted
+              </Button>
+            ) : canDownload ? (
               <Button asChild size="lg" className="w-full">
                 <a href={downloadUrl} download={viewData.name}>
                   Download
@@ -579,7 +597,19 @@ export function ShareLinkViewerPage() {
             previewMode={viewData.preview_mode}
             onPrint={handlePrint}
           />
-          {viewData.preview_mode === 'client_pdf' ? (
+          {viewData.preview_mode === 'video' ? (
+            <VideoViewer
+              ref={viewerComponentRef}
+              videoUrl={viewData.video_preview_url}
+              viewId={viewId}
+              dataroomVisitId={dataroomVisitId}
+              watermarkText={
+                viewData.link_settings?.enable_watermark
+                  ? (viewData.link_settings.resolved_watermark_text || viewData.link_settings.watermark_text || '')
+                  : ''
+              }
+            />
+          ) : viewData.preview_mode === 'client_pdf' ? (
             <PdfJsViewer
               ref={viewerComponentRef}
               pdfUrl={viewData.pdf_preview_url}
