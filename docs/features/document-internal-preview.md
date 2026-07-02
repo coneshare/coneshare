@@ -122,50 +122,43 @@ export function DocumentPreviewModal({ documentId, isOpen }) {
 
 1. Resolve primary document version.
 2. If missing primary version, return `404`.
-3. If status is not preview-ready (`processing`, `uploading`, `error`), return a structured non-ready response (recommended: `409 Conflict`).
+3. If status is not preview-ready (`processing`, `uploading`, `error`), return a `400 Bad Request` with `{"detail": "Document is not ready for preview."}`.
 
 ### Step 3: Page payload preparation
 
 1. Fetch `DocumentPage` rows in `page_number` order.
 2. Generate pre-signed URL per page storage key.
-3. Build `pages` list with snake_case fields.
+3. Build `pages` list with snake_case fields, including the harvested `page_links` metadata:
+   ```json
+   {
+     "page_number": 1,
+     "url": "https://minio.../page-1.png?...",
+     "metadata": { "width": 595, "height": 842 },
+     "page_links": {
+       "links": [
+         {
+           "url": "https://example.com/overlay-link",
+           "bbox": { "left": 10.0, "top": 20.0, "width": 30.0, "height": 40.0 }
+         }
+       ]
+     }
+   }
+   ```
 
 ### Step 4: Final response
 
 Return `200` for preview-ready content.
 
-Example response:
+---
 
-```json
-{
-  "document_id": "01abc...",
-  "document_name": "annual-report.pdf",
-  "document_type": "pdf",
-  "num_pages": 2,
-  "pages": [
-    {
-      "page_number": 1,
-      "file": "https://minio.../page-1.png?X-Amz-Algorithm=...",
-      "metadata": { "width": 595, "height": 842 }
-    },
-    {
-      "page_number": 2,
-      "file": "https://minio.../page-2.png?X-Amz-Algorithm=...",
-      "metadata": { "width": 595, "height": 842 }
-    }
-  ]
-}
-```
+## Frontend Link Overlays & XSS Security
 
-Recommended non-ready response:
+When rendering document previews, both **`PreviewViewer`** (raster JPEG mode) and **`PdfJsViewer`** (client-side PDF canvas rendering) dynamically render the extracted page links as absolute-positioned `<a>` tag overlays using the percentage coordinates in `bbox`.
 
-```json
-{
-  "code": "document_not_ready",
-  "document_status": "processing",
-  "message": "Document preview is not ready yet."
-}
-```
+### Security & Parity Measures:
+* **DOM-based XSS Prevention**: URLs inside overlays are passed through the `isSafeUrl` validator, which trims whitespace and strips ASCII/Unicode control characters (range `0–31` and `127–159`) to prevent browser-bypass XSS payloads (e.g. `javascript:`, `data:`, `vbscript:`).
+* **Bbox Safe Guards**: The rendering engine guards against missing or malformed `bbox` elements (`bbox = null`) in legacy database records to prevent rendering crashes.
+* **Synchronized Parity**: Both owner previews (`DocumentPreviewModal`) and public/dataroom viewer previews share this unified, sanitized overlay layer.
 
 ---
 

@@ -112,16 +112,24 @@ sequenceDiagram
         Worker->>Queue: Push generate_pdf_pages_task for new PDF
     end
 
-    subgraph PDF Page Generation
+    subgraph PDF Page Generation & Link Extraction
         Worker->>Queue: Dequeue generate_pdf_pages_task
+        Worker->>Worker: Parse PDF annotations (/Annots) via pypdf
+        Note over Worker: Normalizes coordinates (min/max) to prevent negative bounds
         loop For each page in PDF
             Worker->>Worker: Convert page to image
             Worker->>Storage: Store page image
-            Worker->>DB: Create DocumentPage record
+            Worker->>DB: Create DocumentPage record with page_links JSON payload
         end
         Worker->>DB: Update Document status to 'ready'
     end
 ```
+
+### PDF Link Annotation Harvesting
+In addition to page image rendering, `generate_pdf_pages_task` parses PDF hyperlinks:
+* **pypdf Annotation Extraction**: Extracts `/Link` annotations containing `/URI` actions.
+* **Coordinate Normalization**: Normalizes bounding box array ordering using `min` and `max` (to prevent negative widths/heights from non-standard PDF writers).
+* **Parity & Triggers**: Runs automatically on first preview for all PDFs. This ensures link metadata is cached in the database and made available to both `PreviewViewer` and `PdfJsViewer`.
 
 ---
 
