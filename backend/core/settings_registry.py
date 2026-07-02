@@ -17,6 +17,7 @@ DEFAULT_SETTINGS = {
     'NEXT_CLOUD_CLIENT_ID': {'description': 'Client ID for Nextcloud integration.', 'type': 'string'},
     'NEXT_CLOUD_CLIENT_SECRET': {'description': 'Client Secret for Nextcloud integration.', 'type': 'string'},
     'ENABLE_PUBLIC_SIGNUP': {'description': 'Enable public signup with email verification.', 'type': 'bool'},
+    'FLATTEN_WATERMARKED_DOWNLOADS': {'description': 'If true, watermarked PDF downloads are flattened (rasterized to JPEGs and recompiled to PDF) to prevent watermark stripping.', 'type': 'bool'},
 }
 
 VALID_BOOL_TRUE_VALUES = {'true', '1', 'yes', 'on', 't'}
