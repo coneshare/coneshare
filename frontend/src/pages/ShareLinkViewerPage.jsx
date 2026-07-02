@@ -594,6 +594,7 @@ export function ShareLinkViewerPage() {
               zoomLevel={zoomLevel}
               onPageChange={setCurrentPage}
               onDocumentLoad={handleDocumentLoad}
+              documentData={viewData}
             />
           ) : (
             <PreviewViewer

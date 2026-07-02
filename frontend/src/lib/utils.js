@@ -58,3 +58,16 @@ export function parseUserAgent(uaString) {
     os: result.os.name || 'Unknown',
   };
 }
+
+export function isSafeUrl(url) {
+  if (!url) return false;
+  // Trim leading/trailing whitespace and remove ASCII control characters (0-31, 127-159)
+  const sanitized = url.trim().replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
+  try {
+    const parsed = new URL(sanitized);
+    return ['http:', 'https:', 'mailto:', 'tel:'].includes(parsed.protocol);
+  } catch (_err) {
+    // Allow relative URLs starting with / but not protocol-relative // links
+    return sanitized.startsWith('/') && !sanitized.startsWith('//');
+  }
+}

@@ -911,6 +911,7 @@ export function DataroomViewer({ data, slug, viewId }) {
                       zoomLevel={zoomLevel}
                       onPageChange={setCurrentPage}
                       onDocumentLoad={handleDocumentLoad}
+                      documentData={documentViewData}
                     />
                   ) : (
                     <PreviewViewer
