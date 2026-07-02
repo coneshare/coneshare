@@ -3,6 +3,7 @@ import json
 
 DEFAULT_SETTINGS = {
     'MAX_PREVIEW_FILE_SIZE_MB': {'description': 'Max file size in MB for preview generation. Files larger than this will be marked as download-only.', 'type': 'int'},
+    'MAX_VIDEO_PREVIEW_SIZE_MB': {'description': 'Max file size in MB for video preview generation. Files larger than this will be marked as download-only.', 'type': 'int'},
     'MAX_PREVIEW_PAGES': {'description': 'Maximum number of pages for document preview. Documents with more pages will be available for download only.', 'type': 'int'},
     'FILE_SIZE_QUOTA_MB': {'description': 'Per-user file size quota in MB. 0 means unlimited.', 'type': 'int'},
     'MAX_FILES_PER_UPLOAD': {'description': 'Maximum number of files allowed in a single upload operation.', 'type': 'int'},

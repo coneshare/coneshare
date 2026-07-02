@@ -39,7 +39,7 @@ export function LinkSheet({
   const [isSaving, setIsSaving] = useState(false);
 
   const isEditing = !!currentLink;
-  const isWatermarkable = ['pdf', 'document', 'image'].includes(document?.type) || !!dataroom;
+  const isWatermarkable = ['pdf', 'document', 'image', 'video'].includes(document?.type) || !!dataroom;
     
   useEffect(() => {
     if (isEditing) {

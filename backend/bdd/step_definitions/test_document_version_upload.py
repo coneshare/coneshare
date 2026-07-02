@@ -72,7 +72,7 @@ def upload_new_version(user_context, document, filename):
 
         # Step 1: Request upload URL
         request_url = f'/api/v1/uploads/document/{document.id}/versions/request/'
-        request_response = api_client.post(request_url, {'file_name': filename})
+        request_response = api_client.post(request_url, {'file_name': filename, 'file_size': len(file_content)})
         assert request_response.status_code == status.HTTP_200_OK
         upload_data = request_response.json()
 

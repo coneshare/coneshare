@@ -265,3 +265,120 @@ def generate_pdf_pages_task(version_id):
         version.save(update_fields=['render_status', 'render_error', 'updated_at'])
         # Consider more robust logging in a real application
         logger.error(f"Error processing document version {version_id}: {e}")
+
+
+@shared_task
+def generate_video_stream_task(version_id):
+    """
+    A Celery task to process an uploaded video file, transcode/segment it into
+    HLS format, and save the playlist and segments to the file system.
+    """
+    try:
+        version = DocumentVersion.objects.select_related('document').get(id=version_id)
+        document = version.document
+    except DocumentVersion.DoesNotExist:
+        return
+
+    try:
+        if version.render_status == DocumentVersion.RENDER_READY:
+            return
+
+        version.render_status = DocumentVersion.RENDER_PROCESSING
+        version.render_error = ''
+        version.save(update_fields=['render_status', 'render_error', 'updated_at'])
+
+        # 1. Fetch original video from storage
+        download_url = fileserver_client.generate_download_url(version.original_storage_key)
+        response = requests.get(download_url, stream=True)
+        response.raise_for_status()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_dir_path = Path(temp_dir)
+            original_file_name = Path(version.original_storage_key).name
+            original_file_path = temp_dir_path / original_file_name
+
+            with open(original_file_path, 'wb') as f_out:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f_out.write(chunk)
+
+            # 2. Extract duration of the video using ffprobe
+            d_probe = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(original_file_path)],
+                capture_output=True, text=True, check=True
+            )
+            duration = int(float(d_probe.stdout.strip()))
+
+            # 3. Detect codecs for H.264 / AAC compatibility
+            v_probe = subprocess.run(
+                ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name", "-of", "default=noprint_wrappers=1:nokey=1", str(original_file_path)],
+                capture_output=True, text=True, check=True
+            )
+            v_codec = v_probe.stdout.strip()
+
+            a_probe = subprocess.run(
+                ["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=codec_name", "-of", "default=noprint_wrappers=1:nokey=1", str(original_file_path)],
+                capture_output=True, text=True, check=False
+            )
+            a_codec = a_probe.stdout.strip()
+
+            # 4. Formulate the ffmpeg command.
+            # If web-safe, use copy codec; otherwise transcode.
+            playlist_name = "playlist.m3u8"
+            ffmpeg_cmd = ["nice", "-n", "19", "ffmpeg", "-i", str(original_file_path)]
+
+            if v_codec == 'h264' and a_codec in ('aac', 'mp3', ''):
+                ffmpeg_cmd += ["-codec", "copy"]
+            else:
+                ffmpeg_cmd += ["-vcodec", "libx264", "-acodec", "aac"]
+
+            # HLS segmenting options
+            ffmpeg_cmd += [
+                "-start_number", "0",
+                "-hls_time", "10",
+                "-hls_list_size", "0",
+                "-f", "hls",
+                str(temp_dir_path / playlist_name)
+            ]
+
+            subprocess.run(ffmpeg_cmd, check=True, timeout=900)  # 15 min timeout max for video encoding
+
+            # 5. Save output HLS files (.m3u8 and .ts) to local file server
+            base_path, _ = os.path.splitext(version.original_storage_key)
+            hls_prefix = f"{base_path}_hls"
+
+            # Scan the temporary directory for generated HLS files
+            for file_path in temp_dir_path.iterdir():
+                if file_path.name == original_file_name:
+                    continue  # skip input file
+                
+                # The output file storage key
+                storage_key = f"{hls_prefix}/{file_path.name}"
+                upload_url = fileserver_client.generate_upload_url(storage_key)
+                
+                with open(file_path, 'rb') as f_in:
+                    upload_response = requests.put(upload_url, data=f_in)
+                    upload_response.raise_for_status()
+
+            # 6. Update database record
+            version.refresh_from_db(fields=['is_primary'])
+            version.storage_key = f"{hls_prefix}/{playlist_name}"
+            version.length = duration
+            version.render_status = DocumentVersion.RENDER_READY
+            version.render_error = ''
+            version.save(update_fields=['storage_key', 'length', 'render_status', 'render_error', 'updated_at'])
+
+            if version.is_primary:
+                document.storage_key = version.storage_key
+                document.status = 'ready'
+                document.status_message = ''
+                document.save(update_fields=['storage_key', 'status', 'status_message', 'updated_at'])
+
+    except Exception as e:
+        logger.error(f"Error processing video version {version_id}: {e}")
+        try:
+            version.render_status = DocumentVersion.RENDER_FAILED
+            version.render_error = str(e)[:1000]
+            version.save(update_fields=['render_status', 'render_error', 'updated_at'])
+        except Exception:
+            pass
+

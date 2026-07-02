@@ -81,6 +81,7 @@ func main() {
 	r.Put("/files/upload/{token}", handleUpload(config))
 	r.Get("/files/download/{token}", handleDownload(config, "attachment"))
 	r.Get("/files/preview/{token}", handleDownload(config, "inline"))
+	r.Get("/files/preview/{token}/*", handleDownload(config, "inline"))
 
 	log.Printf("Starting file server on port %s", config.ServerPort)
 	if err := http.ListenAndServe(":"+config.ServerPort, r); err != nil {
@@ -326,7 +327,14 @@ func handleDownload(config Config, disposition string) http.HandlerFunc {
 			return
 		}
 
-		filePath := filepath.Join(config.StoragePath, info.StorageKey)
+		subpath := chi.URLParam(r, "*")
+		var filePath string
+		if subpath != "" {
+			dir := filepath.Dir(info.StorageKey)
+			filePath = filepath.Join(config.StoragePath, dir, subpath)
+		} else {
+			filePath = filepath.Join(config.StoragePath, info.StorageKey)
+		}
 
 		// Security check to prevent path traversal.
 		storageRoot, err := filepath.Abs(config.StoragePath)

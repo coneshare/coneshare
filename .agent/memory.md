@@ -86,3 +86,18 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Architecture Choice
 - **Context/Implication:** Calling `.find()` inside the page rendering loop on every document page creates $O(N^2)$ complexity, which can cause severe performance lag and browser hangs on large documents.
 - **Resolution/Action:** Optimize page metadata lookups inside rendering loops (like `PdfJsViewer.jsx`) to attempt direct index lookups first (checking `pages[pageNumber - 1]`), resorting to linear searches only as a fallback.
+
+### 2026-07-02 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Supporting watermarked video previews and avoiding Celery queue bottlenecks.
+- **Resolution/Action:** 
+  1. Add a separate `MAX_VIDEO_PREVIEW_SIZE_MB` dynamic setting to regulate video preview processing.
+  2. Implement HLS proxy streaming via the Go service for authenticated playback.
+  3. If watermarking is enabled, forcefully disable raw downloads for all videos (returning `403 Forbidden`). If a video exceeds the preview size limit and watermarking is active, access is restricted entirely.
+  4. Isolate video transcoding by routing `generate_video_stream_task` to a dedicated `video_processing` Celery queue, keeping the default `celery` queue unblocked. Limit the `video_processing` worker to a concurrency of 1 to protect CPU.
+  5. Introduce an `ENABLE_VIDEO_PREVIEW` feature flag (default: `false` in `.env.template`) to completely toggle video streaming previews off on low-spec host machines.
+
+### 2026-07-02 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** In backend unit tests, passing MagicMock objects (such as patched iterdir results) to built-in path or file operations like `open()` causes Python to coerce the mock to an integer, raising a silent `OSError: [Errno 9] Bad file descriptor`.
+- **Resolution/Action:** Avoid mocking iterdir/Path with MagicMocks for built-in file operations. Instead, mock `tempfile.TemporaryDirectory` to return a controlled path, and write real dummy files in the test setup.

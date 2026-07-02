@@ -612,6 +612,7 @@ class DocumentPreviewDataView(APIView):
         render_error = serializers.CharField(allow_blank=True, allow_null=True)
         pages = serializers.ListField(child=serializers.DictField())
         pdf_preview_url = serializers.CharField(allow_null=True)
+        video_preview_url = serializers.CharField(allow_null=True)
         download_url = serializers.CharField(allow_null=True)
 
     @extend_schema(
@@ -654,7 +655,7 @@ class DocumentPreviewDataView(APIView):
 
         # Content Processing and Response Shaping
         pages_data = []
-        if preview_mode == 'image' or render_status == 'ready':
+        if (preview_mode == 'image' or render_status == 'ready') and document.type != 'video':
             pages_data = prepare_pages_data(document, primary_version)
 
         download_url = None
@@ -678,6 +679,17 @@ class DocumentPreviewDataView(APIView):
                 logger.warning(f"Failed to generate client PDF URL for version {primary_version.id}: {e}")
                 pdf_preview_url = None
 
+        video_preview_url = None
+        if preview_mode == 'video' and render_status == 'ready':
+            try:
+                playlist_url = fileserver_client.generate_preview_url(
+                    primary_version.storage_key, is_internal=False
+                )
+                video_preview_url = f"{playlist_url}/playlist.m3u8"
+            except APIException as e:
+                logger.warning(f"Failed to generate client video URL for version {primary_version.id}: {e}")
+                video_preview_url = None
+
         response_data = {
             "id": document.id,
             "name": document.name,
@@ -689,6 +701,7 @@ class DocumentPreviewDataView(APIView):
             "render_error": primary_version.render_error,
             "pages": pages_data,
             "pdf_preview_url": pdf_preview_url,
+            "video_preview_url": video_preview_url,
             "download_url": download_url,
         }
 

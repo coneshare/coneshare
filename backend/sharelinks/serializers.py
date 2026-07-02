@@ -199,6 +199,10 @@ class ShareLinkSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("A share link cannot be associated with both a document and a dataroom.")
 
         if document and document.download_only:
+            if document.type == 'video' and data.get('enable_watermark', getattr(self.instance, 'enable_watermark', False)):
+                raise serializers.ValidationError(
+                    "Cannot enable watermarking for video files that exceed the preview size limit (since they must be downloaded to be viewed)."
+                )
             data['allow_download'] = True
 
         # Manually handle uniqueness validation on update only.

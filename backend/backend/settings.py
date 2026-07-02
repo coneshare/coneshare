@@ -157,6 +157,9 @@ ENABLE_OFFICE_PREVIEW = os.environ.get('ENABLE_OFFICE_PREVIEW', 'true').lower() 
 if ENABLE_OFFICE_PREVIEW and PDF_PREVIEW_ENGINE != 'server_pages':
     raise ValueError("Invalid configuration: ENABLE_OFFICE_PREVIEW cannot be true when PDF_PREVIEW_ENGINE is not 'server_pages'.")
 
+ENABLE_VIDEO_PREVIEW = os.environ.get('ENABLE_VIDEO_PREVIEW', 'false').lower() in ('true', '1', 't')
+
+
 # ==============================================================================
 # APPLICATION STRUCTURE (defined in code)
 # ==============================================================================
@@ -446,6 +449,11 @@ LOGGING = {
 # Maximum file size in megabytes for which a preview will be generated.
 # Files larger than this will be marked as download-only.
 MAX_PREVIEW_FILE_SIZE_MB = 100
+
+# Maximum file size in megabytes for which a video preview will be generated.
+# Files larger than this will be marked as download-only.
+MAX_VIDEO_PREVIEW_SIZE_MB = 500
+
 
 # Maximum number of pages allowed for an in-browser preview.
 # Documents with more pages will be available for download only.

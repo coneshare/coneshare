@@ -51,7 +51,7 @@ def upload_new_document(user_context, filename):
 
         # Step 1: Request upload URL for a root-level upload
         request_url = '/api/v1/uploads/document/request/'
-        request_data = {'file_name': filename}
+        request_data = {'file_name': filename, 'file_size': len(file_content)}
         request_response = api_client.post(request_url, request_data)
         assert request_response.status_code == status.HTTP_200_OK, request_response.data
         upload_data = request_response.json()
