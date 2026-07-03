@@ -81,6 +81,7 @@ func main() {
 	r.Put("/files/upload/{token}", handleUpload(config))
 	r.Get("/files/download/{token}", handleDownload(config, "attachment"))
 	r.Get("/files/preview/{token}", handleDownload(config, "inline"))
+	r.Get("/files/preview/{token}/*", handleDownload(config, "inline"))
 
 	log.Printf("Starting file server on port %s", config.ServerPort)
 	if err := http.ListenAndServe(":"+config.ServerPort, r); err != nil {
@@ -326,16 +327,24 @@ func handleDownload(config Config, disposition string) http.HandlerFunc {
 			return
 		}
 
-		filePath := filepath.Join(config.StoragePath, info.StorageKey)
+		subpath := chi.URLParam(r, "*")
+		var filePath string
+		if subpath != "" {
+			dir := filepath.Dir(info.StorageKey)
+			filePath = filepath.Join(config.StoragePath, dir, subpath)
+		} else {
+			filePath = filepath.Join(config.StoragePath, info.StorageKey)
+		}
 
-		// Security check to prevent path traversal.
-		storageRoot, err := filepath.Abs(config.StoragePath)
+		// Security check to prevent path traversal outside of the authorized directory.
+		authorizedDir := filepath.Join(config.StoragePath, filepath.Dir(info.StorageKey))
+		authorizedDirAbs, err := filepath.Abs(authorizedDir)
 		if err != nil {
 			log.Printf("Configuration error: invalid storage path: %v", err)
 			http.Error(w, "Internal server error due to server configuration", http.StatusInternalServerError)
 			return
 		}
-		safePrefix := storageRoot + string(os.PathSeparator)
+		safePrefix := authorizedDirAbs + string(os.PathSeparator)
 
 		cleanPath, err := filepath.Abs(filePath)
 		if err != nil {

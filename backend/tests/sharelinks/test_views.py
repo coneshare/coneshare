@@ -2169,6 +2169,32 @@ class TestWatermarkingViews:
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert "not allowed for this item" in response.data['message']
 
+    def test_download_video_with_watermark_enabled_returns_403(self, public_client, document_with_page):
+        """
+        Test that downloading a video is blocked (403 Forbidden) if watermarking
+        is enabled on the link.
+        """
+        # Change the document to a video
+        document_with_page.type = 'video'
+        document_with_page.save()
+
+        # Create a share link with watermarking enabled.
+        # We bypass serializer validation by creating the model instance directly in test setup
+        # to simulate a dataroom link or admin update scenario.
+        link = ShareLink.objects.create(
+            document=document_with_page,
+            created_by=document_with_page.created_by,
+            enable_watermark=True,
+            watermark_text="CONFIDENTIAL",
+            allow_download=True
+        )
+
+        url = f'/api/v1/links/{link.slug}/download-file/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert "not allowed for this item" in response.data['message']
+
     @patch('sharelinks.views.fileserver_client.generate_download_url')
     def test_download_non_watermarked_file_redirects(self, mock_fs_download_url, public_client, document_with_page):
         """
@@ -2477,6 +2503,28 @@ class TestWatermarkingViews:
         # Override setting for this item
         setting = link.dataroom_settings.get(dataroom_document=ddoc)
         setting.allow_download = False
+        setting.save()
+
+        url = f'/api/v1/links/{link.slug}/download-file/?dataroom_document_id={ddoc.id}'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert "not allowed for this item" in response.data['message']
+
+    def test_download_watermarked_video_from_dataroom_fails(self, public_client, dataroom_with_watermarked_link):
+        """Test that downloading a video from a watermarked dataroom is blocked (403 Forbidden)."""
+        link = dataroom_with_watermarked_link['link']
+        document = dataroom_with_watermarked_link['document']
+        ddoc = dataroom_with_watermarked_link['ddoc']
+
+        # Change document type to video
+        document.type = 'video'
+        document.save()
+
+        # Ensure the dataroom setting inherits enable_watermark=True and allow_download=True
+        setting = link.dataroom_settings.get(dataroom_document=ddoc)
+        setting.allow_download = True
+        setting.enable_watermark = True
         setting.save()
 
         url = f'/api/v1/links/{link.slug}/download-file/?dataroom_document_id={ddoc.id}'

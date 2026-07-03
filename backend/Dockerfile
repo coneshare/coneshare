@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     curl \
     nano \
+    ffmpeg \
 && rm -rf /var/lib/apt/lists/*
 
 # add our user and group first to make sure their IDs get assigned consistently

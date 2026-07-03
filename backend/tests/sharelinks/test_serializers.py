@@ -253,6 +253,28 @@ class TestShareLinkSerializer:
         assert len(data['dataroom_settings']) == 2
         assert 'is_visible' in data['dataroom_settings'][0]
 
+    def test_create_for_video_with_watermark_fails(self, document, serializer_context):
+        """
+        Test that creating or updating a share link for a video document
+        with enable_watermark=True raises a validation error.
+        """
+        # Make the document a video
+        document.type = 'video'
+        document.save()
+
+        serializer = ShareLinkSerializer(
+            data={
+                "document": document.id,
+                "name": "Video Link",
+                "enable_watermark": True,
+                "watermark_text": "CONFIDENTIAL",
+            },
+            context=serializer_context,
+        )
+        assert not serializer.is_valid()
+        assert "non_field_errors" in serializer.errors
+        assert "Watermarking is not supported for video files." in serializer.errors["non_field_errors"][0]
+
 
 class TestQnASerializers:
     def test_qna_thread_serializer_for_document_context(self, share_link, user):

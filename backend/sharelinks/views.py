@@ -689,8 +689,16 @@ class ShareLinkViewDataView(APIView):
                 allow_download = dataroom_setting.allow_download
                 enable_watermark = dataroom_setting.enable_watermark
 
+            # Forcefully disable video downloading if watermarking is enabled
+            if document.type == 'video' and enable_watermark:
+                allow_download = False
+
+            # Watermarking is not supported for video previews
+            if document.type == 'video':
+                enable_watermark = False
+
             pages_data = []
-            if preview_mode == 'image' or render_status == 'ready':
+            if (preview_mode == 'image' or render_status == 'ready') and document.type != 'video':
                 pages_data = prepare_pages_data(
                     document,
                     primary_version,
@@ -736,6 +744,17 @@ class ShareLinkViewDataView(APIView):
                     logger.warning(f"Failed to generate client PDF URL for version {primary_version.id}: {e}")
                     pdf_preview_url = None
 
+            video_preview_url = None
+            if preview_mode == 'video' and render_status == 'ready':
+                try:
+                    playlist_url = fileserver_client.generate_preview_url(
+                        primary_version.storage_key, is_internal=False
+                    )
+                    video_preview_url = f"{playlist_url}/playlist.m3u8"
+                except APIException as e:
+                    logger.warning(f"Failed to generate client video URL for version {primary_version.id}: {e}")
+                    video_preview_url = None
+
             # Resolve watermark template tokens for the frontend CSS overlay.
             # The raw template (e.g. "{{ip-address}} {{email}}") is resolved here so
             # the client does not need to know the viewer's email or IP.
@@ -758,6 +777,7 @@ class ShareLinkViewDataView(APIView):
                 "render_error": primary_version.render_error,
                 "pages": pages_data,
                 "pdf_preview_url": pdf_preview_url,
+                "video_preview_url": video_preview_url,
                 "download_url": download_url,
                 "link_settings": {
                     "id": link.id,
@@ -2176,6 +2196,14 @@ class ShareLinkFileDownloadView(APIView):
         
         else:
             return Response({"message": "Invalid link target."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Forcefully block video download if watermarking is enabled
+        if document.type == 'video' and enable_watermark:
+            allow_download = False
+
+        # Watermarking is not supported for video files
+        if document.type == 'video':
+            enable_watermark = False
 
         if not allow_download:
             return Response({"message": "Download is not allowed for this item."}, status=status.HTTP_403_FORBIDDEN)

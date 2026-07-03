@@ -14,7 +14,7 @@ from core.models import User
 from core.services import get_dynamic_setting
 from .fileserver import fileserver_client
 from .models import Document, DocumentPage, DocumentVersion, Folder
-from .tasks import convert_office_to_pdf_task, generate_pdf_pages_task
+from .tasks import convert_office_to_pdf_task, generate_pdf_pages_task, generate_video_stream_task
 
 
 OFFICE_MIMETYPES = [
@@ -26,6 +26,15 @@ OFFICE_MIMETYPES = [
     'application/vnd.ms-excel',  # .xls
 ]
 IMAGE_MIMETYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+VIDEO_MIMETYPES = [
+    'video/mp4',
+    'video/quicktime',  # .mov
+    'video/x-msvideo',  # .avi
+    'video/webm',
+    'video/ogg',
+    'video/mp2t',
+    'video/3gpp',
+]
 PDF_MIMETYPE = 'application/pdf'
 SERVER_RENDERABLE_TYPES = {'document', 'pdf'}
 
@@ -60,6 +69,14 @@ def check_user_quota_on_upload(user: User, new_file_size: int, document_to_updat
         )
 
 
+def _normalize_content_type(content_type: str, filename: str) -> str:
+    if not content_type or content_type == 'application/octet-stream':
+        guessed_type, _ = mimetypes.guess_type(filename)
+        if guessed_type:
+            return guessed_type
+    return content_type
+
+
 def _get_doc_type_from_content_type(content_type: str) -> str:
     """Determines the document type from its MIME type."""
     if content_type in OFFICE_MIMETYPES:
@@ -68,6 +85,8 @@ def _get_doc_type_from_content_type(content_type: str) -> str:
         return 'pdf'
     elif content_type in IMAGE_MIMETYPES:
         return 'image'
+    elif content_type in VIDEO_MIMETYPES:
+        return 'video'
     return 'file'  # default
 
 
@@ -81,7 +100,14 @@ def _route_document_for_processing(document: Document, version: DocumentVersion,
     is_too_large = file_size > max_size_bytes
 
     doc_type = _get_doc_type_from_content_type(content_type)
-    is_previewable = doc_type != 'file' and not is_too_large
+    
+    if doc_type == 'video':
+        max_video_size_mb = get_dynamic_setting('MAX_VIDEO_PREVIEW_SIZE_MB')
+        max_size_bytes = max_video_size_mb * 1024 * 1024
+        is_too_large = file_size > max_size_bytes
+        is_previewable = settings.ENABLE_VIDEO_PREVIEW and not is_too_large
+    else:
+        is_previewable = doc_type != 'file' and not is_too_large
 
     # Update parent document attributes
     document.download_only = not is_previewable
@@ -101,6 +127,11 @@ def _route_document_for_processing(document: Document, version: DocumentVersion,
             version.has_pages = True
             version.render_status = DocumentVersion.RENDER_NOT_APPLICABLE
             version.save()
+        elif doc_type == 'video':
+            document.status = 'ready'
+            version.has_pages = False
+            version.render_status = DocumentVersion.RENDER_NOT_GENERATED
+            version.save(update_fields=['has_pages', 'render_status', 'render_error', 'updated_at'])
         else:  # Office or PDF
             document.status = 'ready'
             version.has_pages = False
@@ -156,6 +187,10 @@ def get_effective_render_status(version: DocumentVersion) -> str:
     """
     if version.has_pages:
         return DocumentVersion.RENDER_READY
+    if version.type == 'video':
+        if not settings.ENABLE_VIDEO_PREVIEW:
+            return DocumentVersion.RENDER_NOT_APPLICABLE
+        return version.render_status
     if not is_server_renderable_version(version):
         return DocumentVersion.RENDER_NOT_APPLICABLE
     return version.render_status
@@ -176,6 +211,14 @@ def preview_mode_for_version(version: DocumentVersion) -> str:
         
     if document.type == 'pdf' and settings.PDF_PREVIEW_ENGINE == 'pdfjs':
         return 'client_pdf'
+        
+    if document.type == 'video':
+        if not settings.ENABLE_VIDEO_PREVIEW:
+            return 'download_only'
+        max_video_size = get_dynamic_setting('MAX_VIDEO_PREVIEW_SIZE_MB')
+        if version.file_size and version.file_size > (max_video_size * 1024 * 1024):
+            return 'download_only'
+        return 'video'
         
     if is_server_renderable_version(version):
         return 'server_pages'
@@ -235,6 +278,8 @@ def enqueue_server_preview_render(version: DocumentVersion) -> str:
             convert_office_to_pdf_task.delay(version.id)
         elif version.type == 'pdf':
             generate_pdf_pages_task.delay(version.id)
+        elif version.type == 'video':
+            generate_video_stream_task.delay(version.id)
         return DocumentVersion.RENDER_QUEUED
 
     # Another request or worker changed the row first. Refresh only the fields
@@ -285,6 +330,7 @@ def create_document_from_upload(
             defaults={'created_by': None}
         )
 
+    content_type = _normalize_content_type(content_type, unique_name)
     doc_type = _get_doc_type_from_content_type(content_type)
 
     # Create database records within a transaction to include user size update
@@ -530,6 +576,7 @@ def create_new_document_version(
     latest_version = document.versions.order_by('-version_number').first()
     new_version_number = (latest_version.version_number if latest_version else 0) + 1
 
+    content_type = _normalize_content_type(content_type, document.name)
     doc_type = _get_doc_type_from_content_type(content_type)
 
     with transaction.atomic():
