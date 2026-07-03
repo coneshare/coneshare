@@ -66,7 +66,7 @@ function DataroomVisitRow({ visit }) {
       </div>
       {isExpanded && hasPageViews && (
         <div className="ml-8 mt-2 border-l pl-4">
-          <PageViewsChart pageViews={visit.page_views} />
+          <PageViewsChart pageViews={visit.page_views} documentType={visit.dataroom_document_type} />
         </div>
       )}
     </li>
@@ -251,7 +251,7 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                             </div>
                           ) : hasPageViews ? (
                             <div className="p-4">
-                              <PageViewsChart pageViews={view.page_views} />
+                              <PageViewsChart pageViews={view.page_views} documentType={view.document_type} />
                             </div>
                           ) : null}
                         </TableCell>
