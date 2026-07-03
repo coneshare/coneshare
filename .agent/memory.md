@@ -136,3 +136,8 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Gotcha
 - **Context/Implication:** Video files do not support overlay watermarks (trivially bypassed in DevTools). If a parent dataroom link enforces watermarks, letting users download the raw video allows unwatermarked leaks.
 - **Resolution/Action:** Skip watermarks during the video preview player, but forcefully set `allow_download = False` (returning `403 Forbidden`) on video downloads if `enable_watermark = True` at the link/dataroom level.
+
+### 2026-07-02 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** On native HLS playback (like Safari/iOS), simply unmounting the React player without cleaning the native source can cause background network buffering to continue and leak media decoder instances.
+- **Resolution/Action:** In the cleanup of `VideoViewer.jsx`, if the native HLS player was used, explicitly call `video.removeAttribute('src')` followed by `video.load()` to force the browser to release the media decoder and stop buffering.

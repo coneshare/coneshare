@@ -1,4 +1,4 @@
-import { FileIcon, FileImageIcon, FileQuestion, FileTextIcon, FolderIcon } from "lucide-react";
+import { FileIcon, FileImageIcon, FileQuestion, FileTextIcon, FolderIcon, FileVideo } from "lucide-react";
 
 function normalizeType(type) {
   if (!type) return "unknown";
@@ -6,6 +6,7 @@ function normalizeType(type) {
   if (lower === "folder") return "folder";
   if (lower === "pdf") return "pdf";
   if (lower === "image") return "image";
+  if (lower === "video" || lower === "mov" || lower === "mp4" || lower === "avi" || lower === "webm" || lower === "m3u8") return "video";
   if (lower === "document" || lower === "doc" || lower === "docx") return "document";
   return "unknown";
 }
@@ -19,6 +20,7 @@ export function FileTypeIcon({ type, className = "h-5 w-5", palette = "default" 
       pdf: "#b91c1c",
       document: "#1d4ed8",
       image: "#0f766e",
+      video: "#8a2be2",
       unknown: "var(--viewer-secondary)",
     },
     dataroom: {
@@ -26,6 +28,7 @@ export function FileTypeIcon({ type, className = "h-5 w-5", palette = "default" 
       pdf: "#b91c1c",
       document: "#1d4ed8",
       image: "#0f766e",
+      video: "#8a2be2",
       unknown: "var(--dataroom-secondary)",
     },
     default: {
@@ -33,6 +36,7 @@ export function FileTypeIcon({ type, className = "h-5 w-5", palette = "default" 
       pdf: "#b91c1c",
       document: "#1d4ed8",
       image: "#0f766e",
+      video: "#8a2be2",
       unknown: "#6b7280",
     },
   };
@@ -51,6 +55,9 @@ export function FileTypeIcon({ type, className = "h-5 w-5", palette = "default" 
   }
   if (normalized === "document") {
     return <FileIcon data-testid="file-type-icon-document" className={className} style={style} />;
+  }
+  if (normalized === "video") {
+    return <FileVideo data-testid="file-type-icon-video" className={className} style={style} />;
   }
   return <FileQuestion data-testid="file-type-icon-unknown" className={className} style={style} />;
 }

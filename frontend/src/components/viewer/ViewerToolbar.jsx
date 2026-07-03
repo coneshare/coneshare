@@ -221,7 +221,6 @@ export function ViewerToolbar({
             </Button>
           )}
         </div>
-
         <div className="h-6 w-px bg-gray-200 dark:bg-gray-800" />
 
         {/* Group 2: Zoom Controls */}
@@ -262,9 +261,10 @@ export function ViewerToolbar({
             <Expand className="h-4 w-4 text-gray-600 dark:text-gray-400" />
           </Button>
         </div>
+        <div className="h-6 w-px bg-gray-200 dark:bg-gray-800" />
 
         {/* Group 3: Actions */}
-        <div className="flex items-center gap-1 border-l pl-1.5 dark:border-gray-800">
+        <div className="flex items-center gap-1 pl-1.5">
           {allowDownload && (
             <Button 
               variant="ghost" 
