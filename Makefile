@@ -24,6 +24,7 @@ help:
 	@echo "  portal.sh       - Attach a shell to the portal container"
 	@echo "  clean           - Remove migrations, .pyc files, and database"
 	@echo "  test            - Run backend tests with pytest"
+	@echo "  test.bdd        - Run backend BDD tests with pytest"
 	@echo "  test.front      - Run whitelisted frontend tests with vitest"
 	@echo "  lint.portal     - Run portal linter with eslint"
 	@echo "  lint.docs       - Validate feature docs template sections"
@@ -102,6 +103,11 @@ clean:
 test:
 	@echo "Running backend tests..."
 	COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend pytest
+
+.PHONY: test.bdd
+test.bdd:
+	@echo "Running backend BDD tests..."
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend pytest bdd/
 
 .PHONY: test.front
 test.front:

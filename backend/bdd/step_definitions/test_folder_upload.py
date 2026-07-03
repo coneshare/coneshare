@@ -36,30 +36,21 @@ def given_folder_exists_at_root(user_context, folder_name):
     )
 
 
-@when(parsers.parse('I upload the following files in a batch:\n{file_table}'))
-def upload_files_in_batch(user_context, file_table):
+@when("I upload the following files in a batch:")
+def upload_files_in_batch(user_context, datatable):
     api_client = user_context["api_client"]
     file_content = b"file content"
 
-    # Step 1: Parse the table and extract all unique folder paths
-    lines = file_table.strip().split('\n')
-    header_line = lines[0]
-    rows = lines[1:]
-
-    headers = [h.strip() for h in header_line.split('|') if h.strip()]
+    headers = [h.strip() for h in datatable[0]]
     filename_idx = headers.index('filename')
     path_idx = headers.index('path')
 
     files_to_upload = []
     folder_paths = set()
 
-    for row_str in rows:
-        cols = [c.strip() for c in row_str.split('|') if c.strip()]
-        if not cols:
-            continue
-        
-        filename = cols[filename_idx]
-        path = cols[path_idx]
+    for row in datatable[1:]:
+        filename = row[filename_idx].strip()
+        path = row[path_idx].strip()
         
         files_to_upload.append({'filename': filename, 'path': path})
         folder_path, _ = os.path.split(path)
@@ -96,7 +87,7 @@ def upload_files_in_batch(user_context, file_table):
 
             # Request upload URL
             request_url = '/api/v1/uploads/document/request/'
-            request_data = {'file_name': filename, 'path': upload_path}
+            request_data = {'file_name': filename, 'path': upload_path, 'file_size': len(file_content)}
             request_response = api_client.post(request_url, request_data)
             assert request_response.status_code == status.HTTP_200_OK, request_response.data
             upload_data = request_response.json()

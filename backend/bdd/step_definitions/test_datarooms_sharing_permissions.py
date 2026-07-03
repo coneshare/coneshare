@@ -347,52 +347,81 @@ def check_share_link_setting(dataroom_context, doc_name, setting_key, setting_va
 @then(parsers.parse('the response should contain the document "{doc_name}"'))
 def response_contains_document(public_response_context, doc_name):
     data = public_response_context['response'].json()
-    assert any(doc['document_name'] == doc_name for doc in data['documents'])
+    assert any(item.get('type') == 'document' and item.get('name') == doc_name for item in data.get('items', []))
 
 
 @then(parsers.parse('the response should not contain the document "{doc_name}"'))
 def response_does_not_contain_document(public_response_context, doc_name):
     data = public_response_context['response'].json()
-    assert not any(doc['document_name'] == doc_name for doc in data['documents'])
+    assert not any(item.get('type') == 'document' and item.get('name') == doc_name for item in data.get('items', []))
 
 
 @then(parsers.parse('the response should not contain the folder "{folder_name}"'))
 def response_does_not_contain_folder(public_response_context, folder_name):
     data = public_response_context['response'].json()
-    assert not any(folder['name'] == folder_name for folder in data['folders'])
+    assert not any(item.get('type') == 'folder' and item.get('name') == folder_name for item in data.get('items', []))
 
 
-def _get_item_from_response(response_data, item_name, item_type):
-    key, name_key = ('documents', 'document_name') if item_type == 'document' else ('folders', 'name')
-    for item in response_data.get(key, []):
-        if item.get(name_key) == item_name:
-            return item
+def _get_item_from_response(response_data, item_name, item_type, public_client=None, dataroom_context=None):
+    for item in response_data.get('items', []):
+        if item.get('type') == item_type:
+            if item.get('name') == item_name:
+                return item
+
+    if dataroom_context and public_client:
+        link = dataroom_context['link']
+        if item_type == 'document':
+            try:
+                from datarooms.models import DataroomDocument
+                ddoc = DataroomDocument.objects.get(dataroom=link.dataroom, document__name=item_name)
+                if ddoc.folder_id:
+                    url = f'/api/v1/links/{link.slug}/view-data/?parent_id={ddoc.folder_id}'
+                    resp = public_client.get(url)
+                    if resp.status_code == 200:
+                        for item in resp.json().get('items', []):
+                            if item.get('type') == 'document' and item.get('name') == item_name:
+                                return item
+            except Exception:
+                pass
+        elif item_type == 'folder':
+            try:
+                from datarooms.models import DataroomFolder
+                dfolder = DataroomFolder.objects.get(dataroom=link.dataroom, name=item_name)
+                if dfolder.parent_id:
+                    url = f'/api/v1/links/{link.slug}/view-data/?parent_id={dfolder.parent_id}'
+                    resp = public_client.get(url)
+                    if resp.status_code == 200:
+                        for item in resp.json().get('items', []):
+                            if item.get('type') == 'folder' and item.get('name') == item_name:
+                                return item
+            except Exception:
+                pass
     return None
 
 
 @then(parsers.parse('the data for "{item_name}" should have "{setting_key}" as {setting_value_str}'))
-def check_data_property(public_response_context, item_name, setting_key, setting_value_str):
+def check_data_property(public_response_context, item_name, setting_key, setting_value_str, public_client, dataroom_context):
     setting_value = setting_value_str.lower() == 'true'
     data = public_response_context['response'].json()
-    item = _get_item_from_response(data, item_name, 'document')
+    item = _get_item_from_response(data, item_name, 'document', public_client, dataroom_context)
     assert item is not None, f"Document '{item_name}' not found in response"
     assert item.get(setting_key) == setting_value
 
 
 @then(parsers.parse('the data for the folder "{folder_name}" should have "{setting_key}" as {setting_value_str}'))
-def check_folder_data_property(public_response_context, folder_name, setting_key, setting_value_str):
+def check_folder_data_property(public_response_context, folder_name, setting_key, setting_value_str, public_client, dataroom_context):
     setting_value = setting_value_str.lower() == 'true'
     data = public_response_context['response'].json()
-    item = _get_item_from_response(data, folder_name, 'folder')
+    item = _get_item_from_response(data, folder_name, 'folder', public_client, dataroom_context)
     assert item is not None, f"Folder '{folder_name}' not found in response"
     assert item.get(setting_key) == setting_value
 
 
 @then(parsers.parse('the data for the document "{doc_name}" should have "{setting_key}" as {setting_value_str}'))
-def check_doc_data_property(public_response_context, doc_name, setting_key, setting_value_str):
+def check_doc_data_property(public_response_context, doc_name, setting_key, setting_value_str, public_client, dataroom_context):
     setting_value = setting_value_str.lower() == 'true'
     data = public_response_context['response'].json()
-    item = _get_item_from_response(data, doc_name, 'document')
+    item = _get_item_from_response(data, doc_name, 'document', public_client, dataroom_context)
     assert item is not None, f"Document '{doc_name}' not found in response"
     assert item.get(setting_key) == setting_value
 
