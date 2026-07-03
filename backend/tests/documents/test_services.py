@@ -281,3 +281,40 @@ class TestPreviewModeServices:
         
         with override_settings(PDF_PREVIEW_ENGINE='server_pages', ENABLE_OFFICE_PREVIEW=False):
             assert preview_mode_for_version(version) == 'download_only'
+
+    @patch('documents.services.get_dynamic_setting')
+    def test_preview_mode_for_large_video_respects_video_limit(self, mock_get_setting, user):
+        def side_effect(key, default=None):
+            if key == 'MAX_PREVIEW_FILE_SIZE_MB':
+                return 100
+            if key == 'MAX_VIDEO_PREVIEW_SIZE_MB':
+                return 500
+            return default
+        mock_get_setting.side_effect = side_effect
+
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            type='video',
+            download_only=False,
+        )
+        version = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            type='video',
+            is_primary=True,
+            file_size=300 * 1024 * 1024, # 300MB
+        )
+        
+        with override_settings(ENABLE_VIDEO_PREVIEW=True):
+            assert preview_mode_for_version(version) == 'video'
+
+        version2 = DocumentVersion.objects.create(
+            document=doc,
+            version_number=2,
+            type='video',
+            is_primary=True,
+            file_size=600 * 1024 * 1024, # 600MB
+        )
+        with override_settings(ENABLE_VIDEO_PREVIEW=True):
+            assert preview_mode_for_version(version2) == 'download_only'

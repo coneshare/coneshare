@@ -456,7 +456,7 @@ MAX_PREVIEW_FILE_SIZE_MB = 100
 
 # Maximum file size in megabytes for which a video preview will be generated.
 # Files larger than this will be marked as download-only.
-MAX_VIDEO_PREVIEW_SIZE_MB = 500
+MAX_VIDEO_PREVIEW_SIZE_MB = 100
 
 
 # Maximum number of pages allowed for an in-browser preview.

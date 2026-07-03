@@ -8,8 +8,8 @@ Like documents, videos will upload instantly. Upon the first view request, a Cel
 
 ### Settings & Limits (`backend/core/settings_registry.py` & `backend/backend/settings.py`)
 1. **Feature Flag**: Add `ENABLE_VIDEO_PREVIEW` to `.env.template` and settings.py, defaulting to `false` since it consumes high CPU/Memory.
-2. **Dynamic Setting**: Register `MAX_VIDEO_PREVIEW_SIZE_MB` (default: `500` MB).
-   - *Rationale*: Videos are significantly larger than PDFs/Office files (which default to `100` MB). A separate setting allows admins to prevent massive video transcoding from locking Celery workers while still supporting average-sized videos.
+2. **Dynamic Setting**: Register `MAX_VIDEO_PREVIEW_SIZE_MB` (default: `100` MB).
+   - *Rationale*: A separate setting allows admins to prevent massive video transcoding from locking Celery workers.
 3. **Define MIME Types**: Add `VIDEO_MIMETYPES` (e.g., `video/mp4`, `video/quicktime`, `video/x-msvideo`, `video/webm`) to `backend/documents/services.py`.
 4. **Lazy Initialization**: In `_route_document_for_processing`, if `ENABLE_VIDEO_PREVIEW` is false or files exceed `MAX_VIDEO_PREVIEW_SIZE_MB`, they are marked `download_only = True`. Otherwise, set `version.render_status = 'not_generated'`.
 

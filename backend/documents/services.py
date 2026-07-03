@@ -202,6 +202,14 @@ def preview_mode_for_version(version: DocumentVersion) -> str:
     if document.download_only:
         return 'download_only'
         
+    if document.type == 'video':
+        if not settings.ENABLE_VIDEO_PREVIEW:
+            return 'download_only'
+        max_video_size = get_dynamic_setting('MAX_VIDEO_PREVIEW_SIZE_MB')
+        if version.file_size and version.file_size > (max_video_size * 1024 * 1024):
+            return 'download_only'
+        return 'video'
+
     max_preview_file_size_mb = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
     if version.file_size and version.file_size > (max_preview_file_size_mb * 1024 * 1024):
         return 'download_only'
@@ -211,14 +219,6 @@ def preview_mode_for_version(version: DocumentVersion) -> str:
         
     if document.type == 'pdf' and settings.PDF_PREVIEW_ENGINE == 'pdfjs':
         return 'client_pdf'
-        
-    if document.type == 'video':
-        if not settings.ENABLE_VIDEO_PREVIEW:
-            return 'download_only'
-        max_video_size = get_dynamic_setting('MAX_VIDEO_PREVIEW_SIZE_MB')
-        if version.file_size and version.file_size > (max_video_size * 1024 * 1024):
-            return 'download_only'
-        return 'video'
         
     if is_server_renderable_version(version):
         return 'server_pages'

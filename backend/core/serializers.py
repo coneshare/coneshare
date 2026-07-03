@@ -151,12 +151,13 @@ class SignupVerifyResponseSerializer(serializers.Serializer):
 class LoginActivitySerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source='user.email', read_only=True)
     user_name = serializers.CharField(source='user.name', read_only=True)
+    user_id = serializers.UUIDField(source='user.id', read_only=True)
     country = serializers.SerializerMethodField()
     city = serializers.SerializerMethodField()
 
     class Meta:
         model = LoginActivity
-        fields = ['id', 'user_email', 'user_name', 'created_at', 'ip_address', 'user_agent', 'country', 'city']
+        fields = ['id', 'user_id', 'user_email', 'user_name', 'created_at', 'ip_address', 'user_agent', 'country', 'city']
 
     def _get_geoip_data(self, obj):
         if not hasattr(obj, '_geoip_data_cache'):

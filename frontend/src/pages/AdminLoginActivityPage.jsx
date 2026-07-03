@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import * as api from '../services/api';
 import { AdminNav } from '../components/admin/AdminNav';
@@ -83,10 +84,25 @@ export function AdminLoginActivityPage() {
                   return (
                     <tr key={activity.id} className="border-b">
                       <td className="p-4">
-                        <div className="font-medium">{activity.user_name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {activity.user_email}
-                        </div>
+                        {activity.user_id ? (
+                          <>
+                            <div className="font-medium">
+                              <Link to={`/admin/users/${activity.user_id}`} className="hover:underline">
+                                {activity.user_name}
+                              </Link>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {activity.user_email}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="font-medium">{activity.user_name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {activity.user_email}
+                            </div>
+                          </>
+                        )}
                       </td>
                       <td className="p-4 text-muted-foreground">
                         <div title={new Date(activity.created_at).toLocaleString()}>
