@@ -86,3 +86,53 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Architecture Choice
 - **Context/Implication:** Calling `.find()` inside the page rendering loop on every document page creates $O(N^2)$ complexity, which can cause severe performance lag and browser hangs on large documents.
 - **Resolution/Action:** Optimize page metadata lookups inside rendering loops (like `PdfJsViewer.jsx`) to attempt direct index lookups first (checking `pages[pageNumber - 1]`), resorting to linear searches only as a fallback.
+
+### 2026-07-02 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Supporting watermarked video previews and avoiding Celery queue bottlenecks.
+- **Resolution/Action:** 
+  1. Add a separate `MAX_VIDEO_PREVIEW_SIZE_MB` dynamic setting to regulate video preview processing.
+  2. Implement HLS proxy streaming via the Go service for authenticated playback.
+  3. If watermarking is enabled, forcefully disable raw downloads for all videos (returning `403 Forbidden`). If a video exceeds the preview size limit and watermarking is active, access is restricted entirely.
+  4. Isolate video transcoding by routing `generate_video_stream_task` to a dedicated `video_processing` Celery queue, keeping the default `celery` queue unblocked. Limit the `video_processing` worker to a concurrency of 1 to protect CPU.
+  5. Introduce an `ENABLE_VIDEO_PREVIEW` feature flag (default: `false` in `.env.template`) to completely toggle video streaming previews off on low-spec host machines.
+
+### 2026-07-02 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** In backend unit tests, passing MagicMock objects (such as patched iterdir results) to built-in path or file operations like `open()` causes Python to coerce the mock to an integer, raising a silent `OSError: [Errno 9] Bad file descriptor`.
+- **Resolution/Action:** Avoid mocking iterdir/Path with MagicMocks for built-in file operations. Instead, mock `tempfile.TemporaryDirectory` to return a controlled path, and write real dummy files in the test setup.
+
+### 2026-07-02 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Replaced page-based video heartbeats with contiguous video playback segment tracking. Video events now record Event Time, Video Timespan (start/end positions), Audio (muted/unmuted), Screen (fullscreen/standard), and Speed (1x, 1.25x, etc.).
+- **Resolution/Action:** Added `media_type` and video engagement columns to the `PageView` Django model, ran migrations, updated serializers to auto-resolve `media_type` from view session scopes, configured `VideoViewer.jsx` to flush tracking data on state transitions, and updated `PageViewsChart.jsx` to render a custom video watch logs table.
+
+### 2026-07-02 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** AI coding assistants should not run database migrations (`makemigrations`, `migrate`) autonomously to prevent untracked schema states or sync issues.
+- **Resolution/Action:** Let the user run all database migrations manually. Do not invoke `makemigrations` or `migrate` shell commands.
+
+### 2026-07-02 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** Running the entire frontend whitelist test suite on every minor change is slow and unnecessary.
+- **Resolution/Action:** Run only the specific test files or test cases related to the modified components/files. Do not run the full whitelist test command.
+
+### 2026-07-02 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Large video files transcoding could cause OOM issues if the whole file is buffered in RAM during transcoding tasks.
+- **Resolution/Action:** The background transcoding Celery task `generate_video_stream_task` uses end-to-end stream processing. Downloads are chunked in 8KB buffers, FFmpeg decodes/encodes frame-by-frame on disk with constant low memory usage (~50-100MB), and generated `.ts` chunks are uploaded individually using stream generators.
+
+### 2026-07-02 Session Entry [SUPERSEDES 2026-07-02]
+- **Category:** Gotcha
+- **Context/Implication:** Docker Compose variables configured via `${VAR:-default}` override Celery default auto-concurrency (core count) with the hardcoded fallback value. Additionally, workers for custom queues remain active even if the features using them are disabled.
+- **Resolution/Action:** **[OVERRIDE]** Documented default fallbacks (`4` and `1`) clearly in `.env.template` to avoid confusion. If video previewing is disabled via `ENABLE_VIDEO_PREVIEW=false`, the `video_worker` container remains idle and consumes negligible resources.
+
+### 2026-07-02 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** In chi wildcard routes `/*` serving files via Go proxy, validating paths against the main storage root allows unauthorized users to traverse directories using `../` to access other files or organizations.
+- **Resolution/Action:** Restrict `strings.HasPrefix` validation against the absolute path of the specific token's authorized directory (`filepath.Join(StoragePath, filepath.Dir(StorageKey))`) plus the separator suffix, rather than the general storage root.
+
+### 2026-07-02 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** Video files do not support overlay watermarks (trivially bypassed in DevTools). If a parent dataroom link enforces watermarks, letting users download the raw video allows unwatermarked leaks.
+- **Resolution/Action:** Skip watermarks during the video preview player, but forcefully set `allow_download = False` (returning `403 Forbidden`) on video downloads if `enable_watermark = True` at the link/dataroom level.

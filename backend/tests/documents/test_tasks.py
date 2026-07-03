@@ -3,7 +3,7 @@ import pytest
 from django.test import override_settings
 
 from documents.models import Document, DocumentVersion, DocumentPage
-from documents.tasks import generate_pdf_pages_task
+from documents.tasks import generate_pdf_pages_task, generate_video_stream_task
 
 
 @pytest.mark.django_db
@@ -367,3 +367,106 @@ class TestGeneratePdfPagesTask:
             ]
         }
         assert page.page_links == expected_links
+
+@pytest.mark.django_db
+class TestGenerateVideoStreamTask:
+    @patch('documents.tasks.subprocess.run')
+    @patch('documents.tasks.requests.put')
+    @patch('documents.tasks.fileserver_client.generate_upload_url')
+    @patch('documents.tasks.requests.get')
+    @patch('documents.tasks.fileserver_client.generate_download_url')
+    @patch('documents.tasks.tempfile.TemporaryDirectory')
+    def test_video_transcoding_task(
+        self,
+        mock_temp_dir,
+        mock_fs_download_url,
+        mock_requests_get,
+        mock_fs_upload_url,
+        mock_requests_put,
+        mock_subprocess,
+        user
+    ):
+        document = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="test.mp4",
+            type="video",
+            status='processing',
+        )
+        version = DocumentVersion.objects.create(
+            document=document,
+            version_number=1,
+            original_storage_key="path/to/original.mp4",
+            storage_key="path/to/original.mp4",
+            is_primary=True,
+            type="video",
+        )
+
+        mock_fs_download_url.return_value = "/files/download/token"
+        mock_get_response = MagicMock()
+        mock_get_response.raise_for_status.return_value = None
+        mock_get_response.iter_content.return_value = [b"chunk1", b"chunk2"]
+        mock_requests_get.return_value = mock_get_response
+
+        # Mock ffprobe and ffmpeg calls
+        mock_probe_duration = MagicMock()
+        mock_probe_duration.stdout = "120.5\n"
+        mock_probe_vcodec = MagicMock()
+        mock_probe_vcodec.stdout = "h264\n"
+        mock_probe_acodec = MagicMock()
+        mock_probe_acodec.stdout = "aac\n"
+
+        mock_subprocess.side_effect = [
+            mock_probe_duration,  # Duration probe
+            mock_probe_vcodec,    # Video codec probe
+            mock_probe_acodec,    # Audio codec probe
+            MagicMock(),          # ffmpeg run
+        ]
+
+        mock_fs_upload_url.return_value = "/upload/hls-file"
+        mock_requests_put.return_value = MagicMock()
+
+        # Create a real temp directory for the test duration
+        import tempfile as real_tempfile
+        import shutil
+        from pathlib import Path
+        real_dir = real_tempfile.mkdtemp()
+        real_dir_path = Path(real_dir)
+
+        # Setup mock context manager for TemporaryDirectory
+        mock_context = MagicMock()
+        mock_context.__enter__.return_value = real_dir
+        mock_temp_dir.return_value = mock_context
+
+        # Write dummy files to the temp directory so the task finds and uploads them
+        playlist_file = real_dir_path / "playlist.m3u8"
+        playlist_file.write_text("#EXTM3U\n")
+        chunk_file = real_dir_path / "playlist0.ts"
+        chunk_file.write_bytes(b"ts-chunk")
+
+        try:
+            # Run task
+            generate_video_stream_task(version.id)
+        finally:
+            shutil.rmtree(real_dir)
+
+        # Assert document status and fields updated
+        document.refresh_from_db()
+        version.refresh_from_db()
+
+        assert document.status == 'ready'
+        assert version.render_status == DocumentVersion.RENDER_READY
+        assert version.length == 120
+        assert version.storage_key == "path/to/original_hls/playlist.m3u8"
+
+
+def test_normalize_content_type():
+    from documents.services import _normalize_content_type
+    # Generic or empty types should be guessed from filename
+    assert _normalize_content_type('', 'video.mov') == 'video/quicktime'
+    assert _normalize_content_type('application/octet-stream', 'movie.mp4') == 'video/mp4'
+    # Existing valid types should be preserved
+    assert _normalize_content_type('video/mp4', 'movie.mov') == 'video/mp4'
+    assert _normalize_content_type('application/pdf', 'doc.pdf') == 'application/pdf'
+
+

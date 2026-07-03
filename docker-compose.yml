@@ -37,10 +37,19 @@ services:
 
   celery_worker:
     image: coneshare:dev
-    # build:
-    #   context: ./backend
-    #   dockerfile: Dockerfile-dev
-    command: celery -A backend worker -l INFO
+    command: celery -A backend worker -l INFO -Q celery --concurrency=${CELERY_WORKER_CONCURRENCY:-4}
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - redis
+      - core
+    env_file: .env
+
+  video_worker:
+    image: coneshare:dev
+    command: celery -A backend worker -l INFO -Q video_processing --concurrency=${CELERY_VIDEO_WORKER_CONCURRENCY:-1}
     volumes:
       - ./backend:/app
     restart: unless-stopped
