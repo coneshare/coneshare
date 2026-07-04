@@ -1,15 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { authService } from '../services/authService'
 import { extractApiErrorMessage } from '../lib/apiErrors'
+import { useBranding } from '../contexts/BrandingProvider'
 
 export function SignupPage() {
+  const { brandName, brandLogoUrl, brandWebsiteUrl, termsUrl, privacyPolicyUrl } = useBranding()
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    document.title = `Create Account - ${brandName}`;
+  }, [brandName]);
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -29,8 +35,17 @@ export function SignupPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8 dark:bg-gray-900">
       <div className="w-full max-w-md space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
+        <div className="flex flex-col items-center">
+          {brandLogoUrl ? (
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white p-2 shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
+              <img
+                src={brandLogoUrl}
+                alt={`${brandName} logo`}
+                className="h-12 w-12 object-contain"
+              />
+            </div>
+          ) : null}
+          <h2 className="text-center text-3xl font-extrabold text-gray-900 dark:text-white">
             Create Account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
@@ -113,6 +128,41 @@ export function SignupPage() {
             Sign in
           </Link>
         </p>
+      </div>
+
+      {/* Footer Links */}
+      <div className="mt-8 flex flex-col items-center justify-center gap-2 text-xs text-gray-400">
+        <div className="flex items-center gap-3">
+          <a
+            href={brandWebsiteUrl || "https://www.coneshare.com/about"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gray-600 transition-colors"
+          >
+            {brandWebsiteUrl ? `About ${brandName}` : "About Coneshare"}
+          </a>
+          <span className="text-gray-300">&bull;</span>
+          <a
+            href={termsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gray-600 transition-colors"
+          >
+            Terms
+          </a>
+          <span className="text-gray-300">&bull;</span>
+          <a
+            href={privacyPolicyUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gray-600 transition-colors"
+          >
+            Privacy Policy
+          </a>
+        </div>
+        <div className="text-[11px] text-gray-400/80">
+          This website is powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 dark:text-gray-100 dark:hover:text-gray-300 font-semibold underline transition-colors">Coneshare</a>
+        </div>
       </div>
     </div>
   )

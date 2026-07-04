@@ -6,6 +6,59 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 import { AccessOwnerCard } from './AccessOwnerCard';
+import { useBranding } from '../../contexts/BrandingProvider';
+
+function LogoHeader({ brandLogoUrl, brandName }) {
+  return (
+    <div className="flex flex-col items-center justify-center mb-8">
+      <div className="flex items-center gap-2">
+        <img src={brandLogoUrl} alt={`${brandName} Logo`} className="h-8 w-8 object-contain" />
+        <span className="text-xl font-bold tracking-tight text-gray-900">{brandName}</span>
+      </div>
+      <p className="mt-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+        Secure File Share
+      </p>
+    </div>
+  );
+}
+
+function OpenSourceFooter({ brandWebsiteUrl, brandName, termsUrl, privacyPolicyUrl }) {
+  return (
+    <div className="mt-6 flex flex-col items-center justify-center gap-2 text-xs text-gray-400">
+      <div className="flex items-center gap-3">
+        <a
+          href={brandWebsiteUrl || "https://www.coneshare.com/about"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-gray-600 transition-colors"
+        >
+          {brandWebsiteUrl ? `About ${brandName}` : "About Coneshare"}
+        </a>
+        <span className="text-gray-300">&bull;</span>
+        <a
+          href={termsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-gray-600 transition-colors"
+        >
+          Terms
+        </a>
+        <span className="text-gray-300">&bull;</span>
+        <a
+          href={privacyPolicyUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-gray-600 transition-colors"
+        >
+          Privacy Policy
+        </a>
+      </div>
+      <div className="text-[11px] text-gray-400/80">
+        This website is powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 dark:text-gray-100 dark:hover:text-gray-300 font-semibold underline transition-colors">Coneshare</a>
+      </div>
+    </div>
+  );
+}
 
 export function EmailForm({
   slug,
@@ -15,6 +68,7 @@ export function EmailForm({
   emailToConfirm = '',
   token = '',
 }) {
+  const { brandName, brandLogoUrl, brandWebsiteUrl, termsUrl, privacyPolicyUrl } = useBranding();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
@@ -54,16 +108,7 @@ export function EmailForm({
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">
         <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg border border-gray-100/80 animate-fadeIn">
-          {/* Section 1: Logo */}
-          <div className="flex flex-col items-center justify-center mb-8">
-            <div className="flex items-center gap-2">
-              <img src="/logo.svg" alt="Coneshare Logo" className="h-8 w-8" />
-              <span className="text-xl font-bold tracking-tight text-gray-900">Coneshare</span>
-            </div>
-            <p className="mt-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-              Secure File Share
-            </p>
-          </div>
+          <LogoHeader brandLogoUrl={brandLogoUrl} brandName={brandName} />
 
           {/* Section 2: Owner & Document Info */}
           <AccessOwnerCard publicMeta={publicMeta} />
@@ -88,35 +133,7 @@ export function EmailForm({
           </div>
         </div>
 
-        {/* Footer Links */}
-        <div className="mt-6 flex items-center justify-center gap-3 text-xs text-gray-400">
-          <a
-            href="https://www.coneshare.com/about"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-gray-600 transition-colors"
-          >
-            About Coneshare
-          </a>
-          <span className="text-gray-300">&bull;</span>
-          <a
-            href="https://www.coneshare.com/terms"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-gray-600 transition-colors"
-          >
-            Terms
-          </a>
-          <span className="text-gray-300">&bull;</span>
-          <a
-            href="https://www.coneshare.com/privacy-policy"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-gray-600 transition-colors"
-          >
-            Privacy Policy
-          </a>
-        </div>
+        <OpenSourceFooter brandWebsiteUrl={brandWebsiteUrl} brandName={brandName} termsUrl={termsUrl} privacyPolicyUrl={privacyPolicyUrl} />
       </div>
     );
   }
@@ -125,16 +142,7 @@ export function EmailForm({
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">
         <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-lg border border-gray-100/80 animate-fadeIn">
-          {/* Section 1: Logo */}
-          <div className="flex flex-col items-center justify-center mb-8">
-            <div className="flex items-center gap-2">
-              <img src="/logo.svg" alt="Coneshare Logo" className="h-8 w-8" />
-              <span className="text-xl font-bold tracking-tight text-gray-900">Coneshare</span>
-            </div>
-            <p className="mt-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-              Secure File Share
-            </p>
-          </div>
+          <LogoHeader brandLogoUrl={brandLogoUrl} brandName={brandName} />
 
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600">
             <Mail className="h-6 w-6" />
@@ -145,35 +153,7 @@ export function EmailForm({
           </p>
         </div>
 
-        {/* Footer Links */}
-        <div className="mt-6 flex items-center justify-center gap-3 text-xs text-gray-400">
-          <a
-            href="https://www.coneshare.com/about"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-gray-600 transition-colors"
-          >
-            About Coneshare
-          </a>
-          <span className="text-gray-300">&bull;</span>
-          <a
-            href="https://www.coneshare.com/terms"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-gray-600 transition-colors"
-          >
-            Terms
-          </a>
-          <span className="text-gray-300">&bull;</span>
-          <a
-            href="https://www.coneshare.com/privacy-policy"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-gray-600 transition-colors"
-          >
-            Privacy Policy
-          </a>
-        </div>
+        <OpenSourceFooter brandWebsiteUrl={brandWebsiteUrl} brandName={brandName} termsUrl={termsUrl} privacyPolicyUrl={privacyPolicyUrl} />
       </div>
     );
   }
@@ -181,16 +161,7 @@ export function EmailForm({
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg border border-gray-100/80 animate-fadeIn">
-        {/* Section 1: Logo */}
-        <div className="flex flex-col items-center justify-center mb-8">
-          <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="Coneshare Logo" className="h-8 w-8" />
-            <span className="text-xl font-bold tracking-tight text-gray-900">Coneshare</span>
-          </div>
-          <p className="mt-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-            Secure File Share
-          </p>
-        </div>
+        <LogoHeader brandLogoUrl={brandLogoUrl} brandName={brandName} />
 
         {/* Section 2: Owner & Document Info */}
         <AccessOwnerCard publicMeta={publicMeta} />
@@ -229,35 +200,7 @@ export function EmailForm({
         </form>
       </div>
 
-      {/* Footer Links */}
-      <div className="mt-6 flex items-center justify-center gap-3 text-xs text-gray-400">
-        <a
-          href="https://www.coneshare.com/about"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-gray-600 transition-colors"
-        >
-          About Coneshare
-        </a>
-        <span className="text-gray-300">&bull;</span>
-        <a
-          href="https://www.coneshare.com/terms"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-gray-600 transition-colors"
-        >
-          Terms
-        </a>
-        <span className="text-gray-300">&bull;</span>
-        <a
-          href="https://www.coneshare.com/privacy-policy"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-gray-600 transition-colors"
-        >
-          Privacy Policy
-        </a>
-      </div>
+      <OpenSourceFooter brandWebsiteUrl={brandWebsiteUrl} brandName={brandName} termsUrl={termsUrl} privacyPolicyUrl={privacyPolicyUrl} />
     </div>
   );
 }

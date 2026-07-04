@@ -599,6 +599,10 @@ export const finalizePublicUpload = (slug, data) => api.post(`/public/file-reque
 
 
 // Admin
+export const getAdminBranding = () => api.get('/admin/organization/');
+export const updateAdminBranding = (data) => api.patch('/admin/organization/', data, {
+  headers: { 'Content-Type': 'multipart/form-data' }
+});
 export const getAdminSettings = () => api.get('/admin/settings/');
 export const updateAdminSetting = (key, value) => api.patch(`/admin/settings/${key}/`, { value });
 export const getAdminUsers = () => api.get('/admin/users/');

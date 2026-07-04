@@ -3,6 +3,7 @@ import { Toaster } from 'sonner';
 import './App.css';
 import MainLayout from './components/layout/MainLayout';
 import { UploadProvider } from './contexts/UploadProvider';
+import { BrandingProvider } from './contexts/BrandingProvider';
 import { AllLinksPage } from './pages/AllLinksPage';
 import { AllViewSessionsPage } from './pages/AllViewSessionsPage';
 import { AutomationsPage } from './pages/AutomationsPage';
@@ -23,6 +24,7 @@ import { ShareLinkAnalyticsPage } from './pages/ShareLinkAnalyticsPage';
 import { ShareLinkViewerPage } from './pages/ShareLinkViewerPage';
 import UserSettingsPage from './pages/UserSettingsPage';
 import { AdminSettingsPage } from './pages/AdminSettingsPage';
+import { AdminBrandingPage } from './pages/AdminBrandingPage';
 import { AdminLoginActivityPage } from './pages/AdminLoginActivityPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { AdminUserDetailPage } from './pages/AdminUserDetailPage';
@@ -34,9 +36,10 @@ function App() {
   return (
     <>
       <Toaster richColors />
-      <UploadProvider>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
+      <BrandingProvider>
+        <UploadProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/signup/verify" element={<SignupVerifyPage />} />
           <Route path="/view/:slug" element={<ShareLinkViewerPage />} />
@@ -59,6 +62,7 @@ function App() {
             <Route path="/settings" element={<UserSettingsPage />} />
             <Route path="/settings/password" element={<PasswordSettingsPage />} />
             <Route path="/admin/settings" element={<AdminSettingsPage />} />
+            <Route path="/admin/branding" element={<AdminBrandingPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/admin/users/:userId" element={<AdminUserDetailPage />} />
             <Route path="/admin/login-activity" element={<AdminLoginActivityPage />} />
@@ -67,6 +71,7 @@ function App() {
           </Route>
         </Routes>
       </UploadProvider>
+      </BrandingProvider>
     </>
   );
 }

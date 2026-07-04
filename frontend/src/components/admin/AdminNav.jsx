@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 
 const NAV_LINKS = [
   { to: '/admin/settings', label: 'Settings' },
+  { to: '/admin/branding', label: 'Branding' },
   { to: '/admin/users', label: 'Users' },
   { to: '/admin/login-activity', label: 'Login Activity' },
   { to: '/admin/security-alerts', label: 'Security Alerts' },

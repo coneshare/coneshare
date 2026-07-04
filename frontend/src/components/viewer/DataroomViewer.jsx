@@ -34,6 +34,7 @@ import {
   recordDataroomVisit,
 } from '../../services/api';
 import { DATAROOM_VIEWER_PAGE_SIZE } from '../../constants/pagination';
+import { useBranding } from '../../contexts/BrandingProvider';
 
 const PREVIEW_POLL_INTERVAL_MS = 3000;
 
@@ -145,6 +146,7 @@ function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = 
 
 export function DataroomViewer({ data, slug, viewId }) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { brandName, brandLogoUrl, brandWebsiteUrl } = useBranding();
   const dataroomDocumentIdFromUrl = searchParams.get('dataroom_document_id');
   const parentIdFromUrl = searchParams.get('parent_id');
 
@@ -751,10 +753,32 @@ export function DataroomViewer({ data, slug, viewId }) {
               </span>
             )}
           </Button>
-          <a href="/" className="flex items-center gap-2 rounded-md p-2 font-semibold" style={{ color: 'var(--viewer-primary)' }}>
-            <img src="/logo.svg" alt="Coneshare logo" className="h-6 w-6" />
-            <span className="hidden sm:inline">Coneshare</span>
-          </a>
+          <div className="flex flex-col gap-0.5 items-end">
+            {brandWebsiteUrl ? (
+              <a
+                href={brandWebsiteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 rounded-md p-2 font-semibold"
+                style={{ color: 'var(--viewer-primary)' }}
+              >
+                <img src={brandLogoUrl} alt={`${brandName} logo`} className="h-6 w-6 object-contain" />
+                <span className="hidden sm:inline">{brandName}</span>
+              </a>
+            ) : (
+              <a
+                href="/"
+                className="flex items-center gap-2 rounded-md p-2 font-semibold"
+                style={{ color: 'var(--viewer-primary)' }}
+              >
+                <img src={brandLogoUrl} alt={`${brandName} logo`} className="h-6 w-6 object-contain" />
+                <span className="hidden sm:inline">{brandName}</span>
+              </a>
+            )}
+            <div className="text-[9px] text-gray-400 select-none mr-2">
+              Powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 hover:underline dark:text-gray-100 dark:hover:text-gray-300 transition-colors font-medium">Coneshare</a>
+            </div>
+          </div>
         </div>
       </header>
       {scopeData.branding_banner && !showDocumentViewer && (

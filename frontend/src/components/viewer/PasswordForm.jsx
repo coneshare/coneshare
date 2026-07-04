@@ -6,8 +6,10 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 import { AccessOwnerCard } from './AccessOwnerCard';
+import { useBranding } from '../../contexts/BrandingProvider';
 
 export function PasswordForm({ slug, onSuccess, publicMeta = null }) {
+  const { brandName, brandLogoUrl, brandWebsiteUrl, termsUrl, privacyPolicyUrl } = useBranding();
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -33,8 +35,8 @@ export function PasswordForm({ slug, onSuccess, publicMeta = null }) {
         {/* Section 1: Logo */}
         <div className="flex flex-col items-center justify-center mb-8">
           <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="Coneshare Logo" className="h-8 w-8" />
-            <span className="text-xl font-bold tracking-tight text-gray-900">Coneshare</span>
+            <img src={brandLogoUrl} alt={`${brandName} Logo`} className="h-8 w-8 object-contain" />
+            <span className="text-xl font-bold tracking-tight text-gray-900">{brandName}</span>
           </div>
           <p className="mt-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
             Secure File Share
@@ -79,33 +81,38 @@ export function PasswordForm({ slug, onSuccess, publicMeta = null }) {
       </div>
 
       {/* Footer Links */}
-      <div className="mt-6 flex items-center justify-center gap-3 text-xs text-gray-400">
-        <a
-          href="https://www.coneshare.com/about"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-gray-600 transition-colors"
-        >
-          About Coneshare
-        </a>
-        <span className="text-gray-300">&bull;</span>
-        <a
-          href="https://www.coneshare.com/terms"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-gray-600 transition-colors"
-        >
-          Terms
-        </a>
-        <span className="text-gray-300">&bull;</span>
-        <a
-          href="https://www.coneshare.com/privacy-policy"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-gray-600 transition-colors"
-        >
-          Privacy Policy
-        </a>
+      <div className="mt-6 flex flex-col items-center justify-center gap-2 text-xs text-gray-400">
+        <div className="flex items-center gap-3">
+          <a
+            href={brandWebsiteUrl || "https://www.coneshare.com/about"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gray-600 transition-colors"
+          >
+            {brandWebsiteUrl ? `About ${brandName}` : "About Coneshare"}
+          </a>
+          <span className="text-gray-300">&bull;</span>
+          <a
+            href={termsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gray-600 transition-colors"
+          >
+            Terms
+          </a>
+          <span className="text-gray-300">&bull;</span>
+          <a
+            href={privacyPolicyUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gray-600 transition-colors"
+          >
+            Privacy Policy
+          </a>
+        </div>
+        <div className="text-[11px] text-gray-400/80">
+          This website is powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 dark:text-gray-100 dark:hover:text-gray-300 font-semibold underline transition-colors">Coneshare</a>
+        </div>
       </div>
     </div>
   );
