@@ -75,6 +75,10 @@ jobs:
       with:
         go-version: '1.25'
 
+    - name: Run Go core tests
+      working-directory: ./core
+      run: go test -v ./...
+
     - name: Build Go file server
       working-directory: ./core
       run: |

@@ -146,3 +146,8 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Gotcha
 - **Context/Implication:** The `<Button />` UI component's default variant is hardcoded to `bg-gray-900` and `text-gray-50` instead of utilizing the semantic Tailwind variables `bg-primary` and `text-primary-foreground`. As a result, buttons do not dynamically update when changing HSL variables in `index.css`.
 - **Resolution/Action:** In a future session, refactor `frontend/src/components/ui/Button.jsx` default variant to `"bg-primary text-primary-foreground hover:bg-primary/90"`.
+
+### 2026-07-04 Session Entry
+- **Category:** Tooling Update
+- **Context/Implication:** User requested a strict TDD (Test-Driven Development) cycle whenever fixing an error or bug.
+- **Resolution/Action:** When addressing a bug or error, first revert the code fix to replicate the issue, write a test case confirming the failure, and then re-apply the fix to confirm the test succeeds.

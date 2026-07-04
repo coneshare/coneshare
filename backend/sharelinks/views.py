@@ -728,7 +728,9 @@ class ShareLinkViewDataView(APIView):
                     download_url = pages_data[0]['url']
                 elif primary_version and primary_version.original_storage_key:
                     try:
-                        download_url = fileserver_client.generate_download_url(primary_version.original_storage_key, is_internal=False)
+                        download_url = fileserver_client.generate_download_url(
+                            primary_version.original_storage_key, is_internal=False, filename=document.name
+                        )
                     except APIException:
                         # If file server is down, we can't generate a download URL.
                         download_url = None
@@ -2276,7 +2278,9 @@ class ShareLinkFileDownloadView(APIView):
                 return Response({"message": "Original file not found for download."}, status=status.HTTP_404_NOT_FOUND)
             
             try:
-                download_url = fileserver_client.generate_download_url(primary_version.original_storage_key, is_internal=False)
+                download_url = fileserver_client.generate_download_url(
+                    primary_version.original_storage_key, is_internal=False, filename=document.name
+                )
                 return HttpResponseRedirect(download_url)
             except APIException as e:
                 logger.error(f"Failed to get non-watermarked download URL from file server: {e}")

@@ -473,7 +473,7 @@ class TestShareLinkViewDataView:
         assert "download_url" in data
         assert data["download_url"] == "http://test.coneshare.com/files/download/some-token"
 
-        mock_fs_download_url.assert_called_once_with("path/to/original.pdf", is_internal=False)
+        mock_fs_download_url.assert_called_once_with("path/to/original.pdf", is_internal=False, filename=share_link.document.name)
 
     @patch('sharelinks.views.enqueue_server_preview_render')
     @patch('sharelinks.views.fileserver_client.generate_download_url')
@@ -2216,7 +2216,7 @@ class TestWatermarkingViews:
 
         assert response.status_code == status.HTTP_302_FOUND
         assert response.url == "http://fileserver.test/download/some-token"
-        mock_fs_download_url.assert_called_once_with(version.original_storage_key, is_internal=False)
+        mock_fs_download_url.assert_called_once_with(version.original_storage_key, is_internal=False, filename=document_with_page.name)
 
     def test_download_non_watermarked_file_not_allowed(self, public_client, document_with_page):
         """Test that downloading is forbidden if allow_download is false for a non-watermarked link."""
@@ -2606,7 +2606,31 @@ class TestWatermarkingViews:
         # 3. Try to download again - should succeed
         response_success = public_client.get(download_url)
         assert response_success.status_code == status.HTTP_302_FOUND
-        mock_fs_download_url.assert_called_once_with(version.original_storage_key, is_internal=False)
+        mock_fs_download_url.assert_called_once_with(version.original_storage_key, is_internal=False, filename=document_with_page.name)
+
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_non_watermarked_dataroom_file_redirects(self, mock_fs_download_url, public_client, user, dataroom, document_factory):
+        """Test that downloading a non-watermarked document within a dataroom redirects to the correct URL."""
+        from datarooms.models import DataroomDocument
+        doc = document_factory(name="Test Dataroom Doc.pdf")
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=doc)
+        link = ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            allow_download=True,
+            enable_watermark=False
+        )
+        version = doc.versions.get(is_primary=True)
+        mock_fs_download_url.return_value = "http://fileserver.test/download/some-token"
+
+        url = f'/api/v1/links/{link.slug}/download-file/?dataroom_document_id={ddoc.id}'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_302_FOUND
+        assert response.url == "http://fileserver.test/download/some-token"
+        mock_fs_download_url.assert_called_once_with(
+            version.original_storage_key, is_internal=False, filename=doc.name
+        )
 
     def test_download_file_email_protected_fails_without_auth(self, public_client, document_with_page, user):
         """Test that downloading from an email-protected link without an authorized session fails."""

@@ -858,7 +858,9 @@ def test_get_document_preview_data_for_image_document(
     expected_url = "http://test.coneshare.com/files/download/some-token"
     assert page_data['url'] == expected_url
 
-    mock_fs_download_url.assert_called_once_with(primary_version.original_storage_key, is_internal=False)
+    mock_fs_download_url.assert_called_once_with(
+        primary_version.original_storage_key, is_internal=False, filename=image_document_with_content.name
+    )
 
 
 @pytest.mark.django_db
