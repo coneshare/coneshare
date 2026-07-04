@@ -6,14 +6,17 @@ from rest_framework import permissions, status, viewsets, serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from drf_spectacular.utils import extend_schema
 
 from documents.views import StandardResultsSetPagination
 from filerequests.models import SecurityThreatEvent
-from .models import AppConfiguration, LoginActivity
+from .models import AppConfiguration, LoginActivity, Organization
 from .settings_registry import (DEFAULT_SETTINGS, coerce_to_typed_value,
                                 deserialize_db_value, serialize_typed_to_db_value)
 from .serializers import (AppConfigurationSerializer, LoginActivitySerializer,
-                          UserSerializer)
+                          UserSerializer, OrganizationSerializer)
 
 User = get_user_model()
 
@@ -312,3 +315,34 @@ class AdminSecurityThreatEventViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(event_type=event_type)
 
         return queryset
+
+
+class AdminOrganizationView(APIView):
+    """
+    View for admins to retrieve or update their organization's branding/settings.
+    """
+    permission_classes = [IsAuthenticated, IsAdmin]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    @extend_schema(
+        request=OrganizationSerializer,
+        responses={200: OrganizationSerializer},
+    )
+    def get(self, request):
+        serializer = OrganizationSerializer(request.user.organization, context={'request': request})
+        return Response(serializer.data)
+
+    @extend_schema(
+        request=OrganizationSerializer,
+        responses={200: OrganizationSerializer},
+    )
+    def patch(self, request):
+        serializer = OrganizationSerializer(
+            request.user.organization,
+            data=request.data,
+            partial=True,
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)

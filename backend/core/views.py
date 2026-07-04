@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import urljoin
 
 from django.contrib.auth import get_user_model, logout
 from django.contrib.auth.signals import user_logged_in
@@ -271,19 +272,39 @@ class LogoutView(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
-
-
 @extend_schema(tags=['core'])
 class PublicSettingsView(APIView):
     permission_classes = [permissions.AllowAny]
 
     class PublicSettingsResponseSerializer(serializers.Serializer):
         enable_public_signup = serializers.BooleanField()
+        brand_name = serializers.CharField(allow_null=True)
+        brand_logo_url = serializers.CharField(allow_null=True)
+        brand_website_url = serializers.CharField(allow_null=True)
+        terms_url = serializers.CharField(allow_null=True, required=False)
+        privacy_policy_url = serializers.CharField(allow_null=True, required=False)
 
     @extend_schema(responses={200: PublicSettingsResponseSerializer})
     def get(self, request):
+        org = Organization.objects.first()
+        brand_name = org.brand_name if org else None
+        brand_logo_url = None
+        brand_website_url = org.brand_website_url if org else None
+        
+        config = org.branding_extras or {} if org else {}
+        terms_url = config.get('terms_url')
+        privacy_policy_url = config.get('privacy_policy_url')
+
+        if org and org.brand_logo and hasattr(org.brand_logo, 'url'):
+            brand_logo_url = urljoin(settings.SITE_DOMAIN, org.brand_logo.url)
+
         return Response({
-            'enable_public_signup': get_dynamic_setting('ENABLE_PUBLIC_SIGNUP')
+            'enable_public_signup': get_dynamic_setting('ENABLE_PUBLIC_SIGNUP'),
+            'brand_name': brand_name,
+            'brand_logo_url': brand_logo_url,
+            'brand_website_url': brand_website_url,
+            'terms_url': terms_url,
+            'privacy_policy_url': privacy_policy_url,
         }, status=status.HTTP_200_OK)
 
 

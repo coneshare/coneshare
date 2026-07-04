@@ -84,3 +84,24 @@ def test_model_relationships(organization):
     # Test user's membership in group
     assert group.id == user.groups.all()[0].id
     assert user in group.user_set.all()
+
+
+def test_validate_branding_extras():
+    """Test that validate_branding_extras correctly raises ValidationError for invalid schemas."""
+    from core.models import validate_branding_extras
+    from django.core.exceptions import ValidationError
+
+    # Valid schema
+    validate_branding_extras({'terms_url': 'https://example.com/terms', 'privacy_policy_url': 'https://example.com/privacy'})
+    
+    # Invalid type
+    with pytest.raises(ValidationError, match="must be a dictionary"):
+        validate_branding_extras("invalid")
+
+    # Invalid key
+    with pytest.raises(ValidationError, match="Invalid keys"):
+        validate_branding_extras({'invalid_key': 'value'})
+
+    # Invalid value type
+    with pytest.raises(ValidationError, match="must be a string"):
+        validate_branding_extras({'terms_url': 123})

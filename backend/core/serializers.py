@@ -14,11 +14,46 @@ User = get_user_model()
 
 class OrganizationSerializer(serializers.ModelSerializer):
     """Serializer for the Organization model."""
+    brand_logo_url = serializers.SerializerMethodField()
+    terms_url = serializers.URLField(required=False, allow_null=True, allow_blank=True)
+    privacy_policy_url = serializers.URLField(required=False, allow_null=True, allow_blank=True)
 
     class Meta:
         model = Organization
-        fields = ['id', 'name', 'plan', 'stripe_customer_id', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'plan', 'stripe_customer_id', 'created_at', 'updated_at']
+        fields = [
+            'id', 'name', 'plan', 'stripe_customer_id', 'created_at', 'updated_at',
+            'brand_logo', 'brand_logo_url', 'brand_name', 'brand_website_url',
+            'terms_url', 'privacy_policy_url', 'branding_extras'
+        ]
+        read_only_fields = ['id', 'plan', 'stripe_customer_id', 'created_at', 'updated_at', 'brand_logo_url', 'branding_extras']
+        extra_kwargs = {
+            'brand_logo': {'write_only': True, 'required': False}
+        }
+
+    def get_brand_logo_url(self, obj):
+        if obj.brand_logo and hasattr(obj.brand_logo, 'url'):
+            return urljoin(settings.SITE_DOMAIN, obj.brand_logo.url)
+        return None
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        config = instance.branding_extras or {}
+        ret['terms_url'] = config.get('terms_url')
+        ret['privacy_policy_url'] = config.get('privacy_policy_url')
+        return ret
+
+    def update(self, instance, validated_data):
+        # Create a copy to ensure Django's JSONField change tracking detects the modification
+        extras = dict(instance.branding_extras or {})
+
+        # Check key presence in validated_data to support partial updates and clearing fields
+        if 'terms_url' in validated_data:
+            extras['terms_url'] = validated_data.pop('terms_url')
+        if 'privacy_policy_url' in validated_data:
+            extras['privacy_policy_url'] = validated_data.pop('privacy_policy_url')
+
+        instance.branding_extras = extras
+        return super().update(instance, validated_data)
 
 
 class UserGroupSerializer(serializers.ModelSerializer):
