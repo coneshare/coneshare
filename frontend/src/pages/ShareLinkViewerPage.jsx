@@ -25,6 +25,7 @@ import {
 } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { formatBytes } from '../lib/formatters';
+import { useBranding } from '../contexts/BrandingProvider';
 
 const PREVIEW_POLL_INTERVAL_MS = 3000;
 
@@ -87,6 +88,7 @@ export function ShareLinkViewerPage() {
   const dataroomVisitIdFromUrl = searchParams.get('dataroom_visit_id');
   const dataroomDocumentIdFromUrl = searchParams.get('dataroom_document_id');
   const parentIdFromUrl = searchParams.get('parent_id');
+  const { brandName, brandLogoUrl, brandWebsiteUrl } = useBranding();
 
   const [showPreviewBanner, setShowPreviewBanner] = useState(true);
   const [viewData, setViewData] = useState(null);
@@ -178,6 +180,14 @@ export function ShareLinkViewerPage() {
       isCancelled = true;
     };
   }, [slug]);
+
+  useEffect(() => {
+    if (viewData) {
+      document.title = `${viewData.name} - ${brandName}`;
+    } else if (publicMeta) {
+      document.title = `${publicMeta.target_name} - ${brandName}`;
+    }
+  }, [viewData, publicMeta, brandName]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -460,14 +470,19 @@ export function ShareLinkViewerPage() {
         {previewToken && showPreviewBanner && (
           <PreviewBanner onClose={() => setShowPreviewBanner(false)} />
         )}
-        <div className="absolute left-6 top-4 z-10">
+        <div className="absolute left-6 top-4 z-10 flex flex-col gap-1 items-start">
           <a
-            href="/"
+            href={brandWebsiteUrl || "/"}
+            target={brandWebsiteUrl ? "_blank" : undefined}
+            rel={brandWebsiteUrl ? "noopener noreferrer" : undefined}
             className="flex items-center gap-2 rounded-md bg-white p-2 font-semibold shadow-sm"
           >
-            <img src="/logo.svg" alt="Coneshare logo" className="h-6 w-6" />
-            <span>Coneshare</span>
+            <img src={brandLogoUrl} alt={`${brandName} logo`} className="h-6 w-6 object-contain" />
+            <span>{brandName}</span>
           </a>
+          <div className="pl-1 text-[9px] text-gray-400/80 bg-white/40 px-1 rounded backdrop-blur-xs select-none">
+            Powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 hover:underline dark:text-gray-100 dark:hover:text-gray-300 transition-colors font-medium">Coneshare</a>
+          </div>
         </div>
         <div className="flex h-full items-center justify-center p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-8 text-center shadow-lg">
@@ -521,14 +536,19 @@ export function ShareLinkViewerPage() {
         {previewToken && showPreviewBanner && (
           <PreviewBanner onClose={() => setShowPreviewBanner(false)} />
         )}
-        <div className="absolute left-6 top-4 z-10">
+        <div className="absolute left-6 top-4 z-10 flex flex-col gap-1 items-start">
           <a
-            href="/"
+            href={brandWebsiteUrl || "/"}
+            target={brandWebsiteUrl ? "_blank" : undefined}
+            rel={brandWebsiteUrl ? "noopener noreferrer" : undefined}
             className="flex items-center gap-2 rounded-md bg-white p-2 font-semibold shadow-sm"
           >
-            <img src="/logo.svg" alt="Coneshare logo" className="h-6 w-6" />
-            <span>Coneshare</span>
+            <img src={brandLogoUrl} alt={`${brandName} logo`} className="h-6 w-6 object-contain" />
+            <span>{brandName}</span>
           </a>
+          <div className="pl-1 text-[9px] text-gray-400/80 bg-white/40 px-1 rounded backdrop-blur-xs select-none">
+            Powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 hover:underline dark:text-gray-100 dark:hover:text-gray-300 transition-colors font-medium">Coneshare</a>
+          </div>
         </div>
         <PreviewStatePanel
           documentData={viewData}
@@ -571,14 +591,19 @@ export function ShareLinkViewerPage() {
       {previewToken && showPreviewBanner && (
         <PreviewBanner onClose={() => setShowPreviewBanner(false)} />
       )}
-      <div className="absolute left-6 top-4 z-10">
+      <div className="absolute left-6 top-4 z-10 flex flex-col gap-1 items-start">
         <a
-          href="/"
+          href={brandWebsiteUrl || "/"}
+          target={brandWebsiteUrl ? "_blank" : undefined}
+          rel={brandWebsiteUrl ? "noopener noreferrer" : undefined}
           className="flex items-center gap-2 rounded-md bg-white p-2 font-semibold text-gray-900 shadow-sm hover:bg-gray-50 transition-all duration-300"
         >
-          <img src="/logo.svg" alt="Coneshare logo" className="h-6 w-6" />
-          <span>Coneshare</span>
+          <img src={brandLogoUrl} alt={`${brandName} logo`} className="h-6 w-6 object-contain" />
+          <span>{brandName}</span>
         </a>
+        <div className="pl-1 text-[9px] text-gray-400/80 bg-white/40 px-1 rounded backdrop-blur-xs select-none">
+          Powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 hover:underline dark:text-gray-100 dark:hover:text-gray-300 transition-colors font-medium">Coneshare</a>
+        </div>
       </div>
       {viewData && (
         <>
