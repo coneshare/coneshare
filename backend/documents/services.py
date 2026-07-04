@@ -612,7 +612,7 @@ def create_new_document_version(
     return new_version
 
 
-def process_imported_file(document: Document, file_data: dict):
+def process_imported_file(document: Document, file_data: dict, version_id=None):
     """
     Processes a file downloaded from a cloud service, saves it to storage,
     and routes it for further processing (e.g., PDF conversion).
@@ -620,6 +620,7 @@ def process_imported_file(document: Document, file_data: dict):
     file_name = file_data['name']
     file_content = file_data['content']  # This is an in-memory file
     file_size = file_data['size']
+    etag_or_rev = file_data.get('etag_or_rev', '')
 
     content_type, _ = mimetypes.guess_type(file_name)
     if not content_type:
@@ -643,11 +644,22 @@ def process_imported_file(document: Document, file_data: dict):
         return
 
     # 2. Update document and version records
-    version = document.versions.get(version_number=1)
+    if version_id:
+        version = document.versions.get(id=version_id)
+    else:
+        version = document.versions.get(version_number=1)
+
     version.original_storage_key = original_storage_key
     version.storage_key = original_storage_key
     version.content_type = content_type
     version.type = _get_doc_type_from_content_type(content_type)
+    
+    # Store the etag/rev in version metadata
+    if not isinstance(version.metadata, dict):
+        version.metadata = {}
+    if 'cloud_import' in version.metadata:
+        version.metadata['cloud_import']['etag_or_rev'] = etag_or_rev
+    
     version.save()
 
     document.status_message = 'File imported. Starting processing...'
@@ -657,7 +669,11 @@ def process_imported_file(document: Document, file_data: dict):
     user = document.created_by
     if user:
         try:
-            check_user_quota_on_upload(user=user, new_file_size=file_size)
+            check_user_quota_on_upload(
+                user=user,
+                new_file_size=file_size,
+                document_to_update=document if (version.version_number > 1) else None
+            )
         except QuotaExceededError as e:
             logger.warning(
                 f"Cloud import for doc {document.id} failed: quota exceeded with actual file size. "

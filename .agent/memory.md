@@ -151,3 +151,8 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Tooling Update
 - **Context/Implication:** User requested a strict TDD (Test-Driven Development) cycle whenever fixing an error or bug.
 - **Resolution/Action:** When addressing a bug or error, first revert the code fix to replicate the issue, write a test case confirming the failure, and then re-apply the fix to confirm the test succeeds.
+
+### 2026-07-04 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Decided to store cloud file import tracking metadata (`cloud_import` containing connection details and `etag_or_rev` version checksums) on the `DocumentVersion` model rather than the `Document` model. This keeps the data history intact for version restoring and periodic auto-sync tracking.
+- **Resolution/Action:** Added `metadata = JSONField(default=dict, blank=True)` to `DocumentVersion` model, created API endpoints to refresh document and import version, and exposed the metadata dynamically via a serializer method field in `DocumentSerializer`.

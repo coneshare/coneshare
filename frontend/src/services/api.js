@@ -495,6 +495,17 @@ export const importCloudFile = (connectionId, { fileId, fileName, fileSize }) =>
     file_size: fileSize,
   });
 
+export const refreshCloudDocument = (documentId) =>
+  api.post(`/cloud/documents/${documentId}/refresh/`);
+
+export const importCloudVersion = (documentId, { connectionId, fileId, fileName, fileSize }) =>
+  api.post(`/cloud/documents/${documentId}/import_version/`, {
+    connection_id: connectionId,
+    file_id: fileId,
+    file_name: fileName,
+    file_size: fileSize,
+  });
+
 // Datarooms
 export const getDatarooms = () => api.get('/datarooms/');
 export const getDataroom = (id, params) => api.get(`/datarooms/${id}/`, { params });

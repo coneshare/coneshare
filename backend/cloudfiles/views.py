@@ -234,3 +234,175 @@ class CloudImportView(APIView):
         except Exception as e:
             logger.exception(f"Failed to initiate cloud import for user {request.user.id}: {e}")
             return Response({"detail": "Failed to start import process."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@extend_schema(tags=['cloudfiles'])
+class CloudRefreshView(APIView):
+    """
+    Refreshes a document that was originally imported from a cloud provider.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        responses={202: DocumentSerializer, 400: dict, 404: dict, 500: dict},
+    )
+    def post(self, request, document_id, *args, **kwargs):
+        from documents.models import Document, DocumentVersion
+        from .tasks import import_from_cloud_task
+
+        try:
+            document = Document.objects.get(id=document_id, created_by=request.user)
+        except Document.DoesNotExist:
+            return Response({"detail": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # 1. Fetch the primary version and verify it has cloud_import metadata
+        primary_version = document.versions.filter(is_primary=True).first()
+        if not primary_version or not isinstance(primary_version.metadata, dict) or 'cloud_import' not in primary_version.metadata:
+            return Response({"detail": "This document was not imported from a cloud provider."}, status=status.HTTP_400_BAD_REQUEST)
+
+        cloud_import_data = primary_version.metadata['cloud_import']
+        connection_id = cloud_import_data.get('connection_id')
+        file_id = cloud_import_data.get('file_id')
+
+        try:
+            connection = CloudConnection.objects.get(id=connection_id, user=request.user)
+        except CloudConnection.DoesNotExist:
+            return Response({"detail": "Cloud connection not found. Please reconnect your cloud account."}, status=status.HTTP_404_NOT_FOUND)
+
+        # 2. Check quota (reuse primary version's size for pre-check)
+        try:
+            check_user_quota_on_upload(
+                user=request.user,
+                new_file_size=primary_version.file_size or 0,
+                document_to_update=document
+            )
+        except QuotaExceededError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 3. Create a new DocumentVersion
+        latest_version = document.versions.order_by('-version_number').first()
+        new_version_number = (latest_version.version_number if latest_version else 0) + 1
+
+        from django.db import transaction
+        with transaction.atomic():
+            if primary_version:
+                primary_version.is_primary = False
+                primary_version.save(update_fields=['is_primary'])
+
+            # Clone the cloud_import metadata to the new version
+            new_version = DocumentVersion.objects.create(
+                document=document,
+                version_number=new_version_number,
+                file_size=primary_version.file_size,
+                is_primary=True,
+                metadata={
+                    "cloud_import": {
+                        "provider": connection.provider,
+                        "provider_display": connection.get_provider_display(),
+                        "connection_id": connection.id,
+                        "file_id": file_id
+                    }
+                }
+            )
+
+            document.status = 'uploading'
+            document.status_message = 'Syncing latest version from cloud...'
+            document.save(update_fields=['status', 'status_message'])
+
+        import_from_cloud_task.delay(document.id, connection.id, file_id, version_id=new_version.id)
+
+        response_serializer = DocumentSerializer(document, context={'request': request})
+        return Response(response_serializer.data, status=status.HTTP_202_ACCEPTED)
+
+
+@extend_schema(tags=['cloudfiles'])
+class CloudImportVersionView(APIView):
+    """
+    Imports a new version of an existing document from a cloud provider.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    class ImportVersionSerializer(serializers.Serializer):
+        connection_id = serializers.IntegerField()
+        file_id = serializers.CharField(max_length=1024)
+        file_name = serializers.CharField(max_length=255)
+        file_size = serializers.IntegerField()
+
+    @extend_schema(
+        request=ImportVersionSerializer,
+        responses={202: DocumentSerializer, 400: dict, 404: dict, 500: dict},
+    )
+    def post(self, request, document_id, *args, **kwargs):
+        from documents.models import Document, DocumentVersion
+        from .tasks import import_from_cloud_task
+
+        try:
+            document = Document.objects.get(id=document_id, created_by=request.user)
+        except Document.DoesNotExist:
+            return Response({"detail": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.ImportVersionSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        validated_data = serializer.validated_data
+        connection_id = validated_data['connection_id']
+        file_id = validated_data['file_id']
+        file_name = validated_data['file_name']
+        file_size = validated_data['file_size']
+
+        try:
+            connection = CloudConnection.objects.get(id=connection_id, user=request.user)
+        except CloudConnection.DoesNotExist:
+            return Response({"detail": "Connection not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # 1. Pre-flight quota check
+        try:
+            check_user_quota_on_upload(
+                user=request.user,
+                new_file_size=file_size,
+                document_to_update=document
+            )
+        except QuotaExceededError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 2. Check max size constraint
+        max_size_mb = get_dynamic_setting('CLOUD_IMPORT_MAX_SIZE_MB')
+        max_size_bytes = max_size_mb * 1024 * 1024
+        if file_size > max_size_bytes:
+            return Response({"detail": f"File size cannot exceed {max_size_mb}MB for import."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 3. Create the new version
+        latest_version = document.versions.order_by('-version_number').first()
+        new_version_number = (latest_version.version_number if latest_version else 0) + 1
+
+        from django.db import transaction
+        with transaction.atomic():
+            primary_version = document.versions.filter(is_primary=True).first()
+            if primary_version:
+                primary_version.is_primary = False
+                primary_version.save(update_fields=['is_primary'])
+
+            new_version = DocumentVersion.objects.create(
+                document=document,
+                version_number=new_version_number,
+                file_size=file_size,
+                is_primary=True,
+                metadata={
+                    "cloud_import": {
+                        "provider": connection.provider,
+                        "provider_display": connection.get_provider_display(),
+                        "connection_id": connection.id,
+                        "file_id": file_id
+                    }
+                }
+            )
+
+            document.status = 'uploading'
+            document.status_message = 'Importing new version from cloud...'
+            document.save(update_fields=['status', 'status_message'])
+
+        import_from_cloud_task.delay(document.id, connection.id, file_id, version_id=new_version.id)
+
+        response_serializer = DocumentSerializer(document, context={'request': request})
+        return Response(response_serializer.data, status=status.HTTP_202_ACCEPTED)

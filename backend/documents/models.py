@@ -127,6 +127,7 @@ class DocumentVersion(BaseModel):
         db_index=True,
     )
     render_error = models.TextField(blank=True, null=True)
+    metadata = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return f'{self.document.name} v{self.version_number}'
