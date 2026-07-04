@@ -27,6 +27,7 @@ type Config struct {
 
 type URLRequest struct {
 	StorageKey string `json:"storage_key"`
+	Filename   string `json:"filename"`
 }
 
 type URLResponse struct {
@@ -40,6 +41,7 @@ type CopyFileRequest struct {
 
 type TokenInfo struct {
 	StorageKey string
+	Filename   string
 	ExpiresAt  time.Time
 }
 
@@ -115,6 +117,7 @@ func generateURLHandler(action string, expiryDuration time.Duration) http.Handle
 		storeLock.Lock()
 		tokenStore[token] = TokenInfo{
 			StorageKey: reqBody.StorageKey,
+			Filename:   reqBody.Filename,
 			ExpiresAt:  expiry,
 		}
 		storeLock.Unlock()
@@ -356,7 +359,13 @@ func handleDownload(config Config, disposition string) http.HandlerFunc {
 			return
 		}
 
-		safeName := url.PathEscape(filepath.Base(filePath))
+		var downloadName string
+		if info.Filename != "" {
+			downloadName = filepath.Base(info.Filename)
+		} else {
+			downloadName = filepath.Base(filePath)
+		}
+		safeName := url.PathEscape(downloadName)
 		w.Header().Set("Content-Disposition",
 			fmt.Sprintf(`%s; filename*=UTF-8''%s`, disposition, safeName))
 		http.ServeFile(w, r, filePath)

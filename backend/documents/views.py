@@ -520,7 +520,9 @@ def prepare_pages_data(
                 page_url += f"?dataroom_document_id={dataroom_document_id}"
             absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
         else:
-            absolute_url = fileserver_client.generate_download_url(primary_version.original_storage_key, is_internal=False)
+            absolute_url = fileserver_client.generate_download_url(
+                primary_version.original_storage_key, is_internal=False, filename=document.name
+            )
 
         pages_data.append({
             'page_number': 1,
@@ -586,7 +588,7 @@ class DocumentDownloadView(APIView):
 
         try:
             download_url = fileserver_client.generate_download_url(
-                primary_version.original_storage_key, is_internal=False
+                primary_version.original_storage_key, is_internal=False, filename=document.name
             )
             return Response({'download_url': download_url}, status=status.HTTP_200_OK)
         except APIException as e:

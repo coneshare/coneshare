@@ -26,6 +26,7 @@ help:
 	@echo "  test            - Run backend tests with pytest"
 	@echo "  test.bdd        - Run backend BDD tests with pytest"
 	@echo "  test.front      - Run whitelisted frontend tests with vitest"
+	@echo "  test.core       - Run core service tests with go test"
 	@echo "  lint.portal     - Run portal linter with eslint"
 	@echo "  lint.docs       - Validate feature docs template sections"
 	@echo "  migrate         - Run database migrations"
@@ -113,6 +114,11 @@ test.bdd:
 test.front:
 	@echo "Running frontend tests..."
 	COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm run test:whitelist
+
+.PHONY: test.core
+test.core:
+	@echo "Running core service Go tests..."
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec core go test ./...
 
 .PHONY: lint.portal
 lint.portal:

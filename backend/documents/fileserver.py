@@ -45,9 +45,11 @@ class FileServerClient:
             return urljoin(self.base_url, relative_url)
         return urljoin(settings.SITE_DOMAIN, relative_url)
 
-    def generate_download_url(self, storage_key: str, is_internal: bool = True) -> str:
+    def generate_download_url(self, storage_key: str, is_internal: bool = True, filename: str = None) -> str:
         """Requests a temporary URL for downloading a file."""
         data = {'storage_key': storage_key}
+        if filename:
+            data['filename'] = filename
         response_data = self._post('/internal/v1/generate-download-url', data)
         relative_url = response_data.get('url')
         if is_internal:

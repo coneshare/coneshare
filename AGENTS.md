@@ -102,7 +102,7 @@ PRs should include:
 - test evidence (`make test` or targeted command output; or `make test.front` for whitelisted tests);
 - UI screenshots/GIFs for frontend or portal changes;
 - migration/config notes when schema or env vars change.
-- **Git workflow rule**: Do not execute `git add` or `git commit` commands directly/eagerly. Let the user run those commands manually.
+- **Git workflow rule**: Do not execute `git add` or `git commit` commands directly/eagerly, unless the user explicitly asks you to do so.
 
 ## Security & Configuration
 - Copy `.env.template` to `.env`. Never commit secrets.
