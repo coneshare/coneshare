@@ -1,5 +1,7 @@
 import os
 
+from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 from django.contrib.auth.models import AbstractUser, Group
 from django.db import models
 from django.db.models import Sum
@@ -29,6 +31,33 @@ def user_avatar_path(instance, filename):
     return f'avatars/{instance.id}/pic{extension}'
 
 
+def organization_logo_path(instance, filename):
+    """
+    Generates a unique path for an organization's brand logo image.
+    e.g., logos/org_0123456789ABCDEF/logo.jpg
+    """
+    _, extension = os.path.splitext(filename)
+    return f'logos/{instance.id}/logo{extension}'
+
+
+def validate_branding_extras(value):
+    """
+    Validates the keys and values inside the branding_extras JSON field
+    to ensure schema integrity.
+    """
+    if not isinstance(value, dict):
+        raise ValidationError("branding_extras must be a dictionary.")
+
+    allowed_keys = {'terms_url', 'privacy_policy_url'}
+    invalid_keys = set(value.keys()) - allowed_keys
+    if invalid_keys:
+        raise ValidationError(f"Invalid keys in branding_extras: {', '.join(invalid_keys)}")
+
+    for key, val in value.items():
+        if val is not None and not isinstance(val, str):
+            raise ValidationError(f"Value for '{key}' must be a string.")
+
+
 class Organization(BaseModel):
     """
     The top-level tenant in the system. It is the ultimate owner of all
@@ -37,6 +66,25 @@ class Organization(BaseModel):
     name = models.CharField(max_length=255)
     plan = models.CharField(max_length=50, default='self-hosted')
     stripe_customer_id = models.CharField(max_length=255, null=True, blank=True)
+    brand_logo = models.FileField(
+        upload_to=organization_logo_path,
+        null=True,
+        blank=True,
+        validators=[FileExtensionValidator(allowed_extensions=['png', 'jpg', 'jpeg', 'svg'])]
+    )
+    brand_name = models.CharField(max_length=255, null=True, blank=True)
+    brand_website_url = models.URLField(max_length=500, null=True, blank=True)
+
+    # Expected schema for branding_extras:
+    # {
+    #     'terms_url': str (optional URL),
+    #     'privacy_policy_url': str (optional URL)
+    # }
+    branding_extras = models.JSONField(
+        default=dict,
+        blank=True,
+        validators=[validate_branding_extras]
+    )
 
     def __str__(self):
         return self.name

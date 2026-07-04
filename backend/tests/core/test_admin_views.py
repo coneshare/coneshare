@@ -216,3 +216,87 @@ class TestAdminSecurityThreatEventsViewSet:
     def test_non_admin_cannot_list_security_threat_events(self, api_client):
         response = api_client.get('/api/v1/admin/security-threat-events/')
         assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+@pytest.mark.django_db
+class TestAdminOrganizationView:
+    def test_get_organization_branding(self, admin_api_client, admin_user):
+        url = '/api/v1/admin/organization/'
+        response = admin_api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['name'] == admin_user.organization.name
+        assert 'brand_name' in response.data
+        assert 'brand_logo_url' in response.data
+        assert 'terms_url' in response.data
+        assert 'privacy_policy_url' in response.data
+
+    def test_patch_organization_branding(self, admin_api_client, admin_user):
+        url = '/api/v1/admin/organization/'
+        data = {
+            'brand_name': 'My Custom Brand',
+            'brand_website_url': 'https://mycustombrand.com',
+            'terms_url': 'https://mycustombrand.com/terms',
+            'privacy_policy_url': 'https://mycustombrand.com/privacy',
+        }
+        response = admin_api_client.patch(url, data, format='json')
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['brand_name'] == 'My Custom Brand'
+        assert response.data['brand_website_url'] == 'https://mycustombrand.com'
+        assert response.data['terms_url'] == 'https://mycustombrand.com/terms'
+        assert response.data['privacy_policy_url'] == 'https://mycustombrand.com/privacy'
+        
+        admin_user.organization.refresh_from_db()
+        assert admin_user.organization.brand_name == 'My Custom Brand'
+        assert admin_user.organization.brand_website_url == 'https://mycustombrand.com'
+        assert admin_user.organization.branding_extras.get('terms_url') == 'https://mycustombrand.com/terms'
+        assert admin_user.organization.branding_extras.get('privacy_policy_url') == 'https://mycustombrand.com/privacy'
+
+    def test_patch_organization_branding_with_svg_logo(self, admin_api_client, admin_user):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        url = '/api/v1/admin/organization/'
+        svg_content = b'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><circle cx="5" cy="5" r="4"/></svg>'
+        svg_file = SimpleUploadedFile("logo.svg", svg_content, content_type="image/svg+xml")
+
+        data = {
+            'brand_name': 'My Custom Brand',
+            'brand_logo': svg_file,
+        }
+        response = admin_api_client.patch(url, data, format='multipart')
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['brand_name'] == 'My Custom Brand'
+        assert 'logo.svg' in response.data['brand_logo_url']
+
+        admin_user.organization.refresh_from_db()
+        assert admin_user.organization.brand_name == 'My Custom Brand'
+        assert admin_user.organization.brand_logo.name.endswith('logo.svg')
+
+    def test_patch_organization_branding_clear_fields_and_partial_update(self, admin_api_client, admin_user):
+        url = '/api/v1/admin/organization/'
+        
+        # 1. Set values first
+        data = {
+            'terms_url': 'https://mycustombrand.com/terms',
+            'privacy_policy_url': 'https://mycustombrand.com/privacy',
+        }
+        response = admin_api_client.patch(url, data, format='json')
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['terms_url'] == 'https://mycustombrand.com/terms'
+        assert response.data['privacy_policy_url'] == 'https://mycustombrand.com/privacy'
+
+        # 2. Perform partial update (omit privacy_policy_url, clear terms_url)
+        data_partial = {
+            'terms_url': '',
+        }
+        response = admin_api_client.patch(url, data_partial, format='json')
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['terms_url'] == ''
+        assert response.data['privacy_policy_url'] == 'https://mycustombrand.com/privacy'
+
+        admin_user.organization.refresh_from_db()
+        assert admin_user.organization.branding_extras.get('terms_url') == ''
+        assert admin_user.organization.branding_extras.get('privacy_policy_url') == 'https://mycustombrand.com/privacy'
+
+    def test_non_admin_cannot_access_branding(self, api_client):
+        url = '/api/v1/admin/organization/'
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_403_FORBIDDEN

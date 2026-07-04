@@ -188,3 +188,23 @@ class TestUserViewSetQueryset:
         assert str(user.id) in ids
         assert str(user2.id) in ids
         assert str(other_org_user.id) not in ids
+
+
+@pytest.mark.django_db
+def test_public_settings_branding(api_client, organization):
+    organization.brand_name = "Public Brand Test"
+    organization.brand_website_url = "https://publicbrandtest.com"
+    organization.branding_extras = {
+        'terms_url': 'https://publicbrandtest.com/terms',
+        'privacy_policy_url': 'https://publicbrandtest.com/privacy'
+    }
+    organization.save()
+    
+    url = reverse('public_settings')
+    response = api_client.get(url)
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data['brand_name'] == "Public Brand Test"
+    assert response.data['brand_website_url'] == "https://publicbrandtest.com"
+    assert response.data['terms_url'] == "https://publicbrandtest.com/terms"
+    assert response.data['privacy_policy_url'] == "https://publicbrandtest.com/privacy"
+    assert 'brand_logo_url' in response.data

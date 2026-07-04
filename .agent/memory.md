@@ -141,3 +141,8 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Gotcha
 - **Context/Implication:** On native HLS playback (like Safari/iOS), simply unmounting the React player without cleaning the native source can cause background network buffering to continue and leak media decoder instances.
 - **Resolution/Action:** In the cleanup of `VideoViewer.jsx`, if the native HLS player was used, explicitly call `video.removeAttribute('src')` followed by `video.load()` to force the browser to release the media decoder and stop buffering.
+
+### 2026-07-04 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** The `<Button />` UI component's default variant is hardcoded to `bg-gray-900` and `text-gray-50` instead of utilizing the semantic Tailwind variables `bg-primary` and `text-primary-foreground`. As a result, buttons do not dynamically update when changing HSL variables in `index.css`.
+- **Resolution/Action:** In a future session, refactor `frontend/src/components/ui/Button.jsx` default variant to `"bg-primary text-primary-foreground hover:bg-primary/90"`.
