@@ -1505,3 +1505,22 @@ def test_get_document_preview_data_client_pdf(mock_fs_preview_url, api_client, u
     assert data['preview_mode'] == 'client_pdf'
     assert data['preview_status'] == 'ready'
     assert data['pdf_preview_url'] == 'https://mock.fileserver/client_pdf.pdf'
+
+
+def test_document_status_endpoint(api_client, user, organization):
+    """Test retrieving document status via the lightweight status endpoint."""
+    doc = Document.objects.create(
+        name="Status Test.pdf",
+        organization=organization,
+        created_by=user,
+        status="processing",
+        status_message="Downloading from cloud..."
+    )
+
+    response = api_client.get(f'/api/v1/documents/{doc.id}/status/')
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data == {
+        'status': 'processing',
+        'status_message': 'Downloading from cloud...'
+    }
+

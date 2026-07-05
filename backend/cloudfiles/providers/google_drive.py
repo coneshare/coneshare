@@ -149,7 +149,8 @@ class GoogleDriveProvider(BaseCloudProvider):
         service = self._get_client()
         try:
             request = service.files().get_media(fileId=file_id)
-            file_metadata = service.files().get(fileId=file_id, fields='name, size').execute()
+            file_metadata = service.files().get(fileId=file_id, fields='name, size, md5Checksum, version').execute()
+            etag_or_rev = file_metadata.get('md5Checksum') or str(file_metadata.get('version', ''))
             
             # Use a spooled temporary file to avoid loading large files into memory.
             # It spills to disk if the file is larger than 5MB.
@@ -163,7 +164,8 @@ class GoogleDriveProvider(BaseCloudProvider):
             return {
                 'name': file_metadata.get('name'),
                 'size': int(file_metadata.get('size', 0)),
-                'content': fh
+                'content': fh,
+                'etag_or_rev': etag_or_rev
             }
         except HttpError as e:
             raise CloudProviderError(f"Google Drive download failed: {e}")

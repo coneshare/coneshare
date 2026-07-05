@@ -53,6 +53,14 @@ def create_document_for_import(
         version_number=1,
         file_size=file_size,
         is_primary=True,
+        metadata={
+            "cloud_import": {
+                "provider": connection.provider,
+                "provider_display": connection.get_provider_display(),
+                "connection_id": str(connection.id),
+                "file_id": file_id_or_path
+            }
+        }
     )
 
     # 4. Trigger the async import task

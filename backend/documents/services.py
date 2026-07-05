@@ -92,8 +92,11 @@ def _get_doc_type_from_content_type(content_type: str) -> str:
 
 def _route_document_for_processing(document: Document, version: DocumentVersion, file_size: int, content_type: str):
     """
-    Routes a document/version for processing based on type and size.
-    Updates file availability and records server-rendered preview state.
+    Sets initial metadata and preview rendering states on document and version
+    records based on file type and size. Defers heavy processing tasks.
+
+    TODO: We may need to rename this function (e.g., to `_initialize_document_metadata_and_states`)
+    since it no longer directly routes/triggers Celery processing tasks under lazy preview mode.
     """
     max_preview_file_size_mb = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
     max_size_bytes = max_preview_file_size_mb * 1024 * 1024
@@ -612,7 +615,7 @@ def create_new_document_version(
     return new_version
 
 
-def process_imported_file(document: Document, file_data: dict):
+def process_imported_file(document: Document, file_data: dict, version_id=None):
     """
     Processes a file downloaded from a cloud service, saves it to storage,
     and routes it for further processing (e.g., PDF conversion).
@@ -620,6 +623,7 @@ def process_imported_file(document: Document, file_data: dict):
     file_name = file_data['name']
     file_content = file_data['content']  # This is an in-memory file
     file_size = file_data['size']
+    etag_or_rev = file_data.get('etag_or_rev', '')
 
     content_type, _ = mimetypes.guess_type(file_name)
     if not content_type:
@@ -643,11 +647,23 @@ def process_imported_file(document: Document, file_data: dict):
         return
 
     # 2. Update document and version records
-    version = document.versions.get(version_number=1)
+    if version_id:
+        version = document.versions.get(id=version_id)
+    else:
+        version = document.versions.get(version_number=1)
+
     version.original_storage_key = original_storage_key
     version.storage_key = original_storage_key
     version.content_type = content_type
     version.type = _get_doc_type_from_content_type(content_type)
+    version.file_size = file_size
+    
+    # Store the etag/rev in version metadata
+    if not isinstance(version.metadata, dict):
+        version.metadata = {}
+    if 'cloud_import' in version.metadata:
+        version.metadata['cloud_import']['etag_or_rev'] = etag_or_rev
+    
     version.save()
 
     document.status_message = 'File imported. Starting processing...'
@@ -657,7 +673,11 @@ def process_imported_file(document: Document, file_data: dict):
     user = document.created_by
     if user:
         try:
-            check_user_quota_on_upload(user=user, new_file_size=file_size)
+            check_user_quota_on_upload(
+                user=user,
+                new_file_size=file_size,
+                document_to_update=document if (version.version_number > 1) else None
+            )
         except QuotaExceededError as e:
             logger.warning(
                 f"Cloud import for doc {document.id} failed: quota exceeded with actual file size. "
@@ -673,6 +693,8 @@ def process_imported_file(document: Document, file_data: dict):
                 logger.error(f"Failed to clean up file {original_storage_key} after quota error: {delete_e}")
             return  # Stop processing
 
+    old_file_size = document.file_size or 0 if version.version_number > 1 else 0
+
     with transaction.atomic():
         _route_document_for_processing(
             document=document,
@@ -681,4 +703,6 @@ def process_imported_file(document: Document, file_data: dict):
             content_type=content_type,
         )
         if user:
-            User.objects.filter(pk=user.pk).update(total_document_size=F('total_document_size') + file_size)
+            User.objects.filter(pk=user.pk).update(
+                total_document_size=F('total_document_size') - old_file_size + file_size
+            )

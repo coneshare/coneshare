@@ -1,6 +1,7 @@
 import pytest
+from django.core.exceptions import ValidationError
 
-from documents.models import Document, Folder
+from documents.models import Document, Folder, validate_document_version_metadata
 
 
 @pytest.mark.django_db
@@ -29,3 +30,48 @@ def test_document_creation(organization, user):
     assert document.organization == organization
     assert document.created_by == user
     assert document.status == 'processing'
+
+
+def test_validate_document_version_metadata():
+    """Test that validate_document_version_metadata correctly raises ValidationError for invalid schemas."""
+    # Valid metadata
+    validate_document_version_metadata({})
+    validate_document_version_metadata({
+        'cloud_import': {
+            'provider': 'dropbox',
+            'provider_display': 'Dropbox',
+            'connection_id': 'conn_123',
+            'file_id': 'file_123',
+            'etag_or_rev': 'rev_123'
+        }
+    })
+
+    # Invalid metadata: not a dict
+    with pytest.raises(ValidationError):
+        validate_document_version_metadata("not-a-dict")
+
+    # Invalid metadata: invalid root keys
+    with pytest.raises(ValidationError):
+        validate_document_version_metadata({'invalid_key': 'value'})
+
+    # Invalid metadata: cloud_import not a dict
+    with pytest.raises(ValidationError):
+        validate_document_version_metadata({'cloud_import': 'not-a-dict'})
+
+    # Invalid metadata: invalid keys inside cloud_import
+    with pytest.raises(ValidationError):
+        validate_document_version_metadata({
+            'cloud_import': {
+                'provider': 'dropbox',
+                'invalid_key': 'value'
+            }
+        })
+
+    # Invalid metadata: invalid type for provider
+    with pytest.raises(ValidationError):
+        validate_document_version_metadata({
+            'cloud_import': {
+                'provider': 123.45
+            }
+        })
+

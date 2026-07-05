@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 
 from core.models import BaseModel, Organization, User
 
@@ -87,6 +88,41 @@ class Document(BaseModel):
         super().save(*args, **kwargs)
 
 
+def validate_document_version_metadata(value):
+    """
+    Validates the keys and values inside the DocumentVersion metadata JSON field
+    to ensure schema integrity.
+    """
+    if not isinstance(value, dict):
+        raise ValidationError("metadata must be a dictionary.")
+
+    allowed_keys = {'cloud_import'}
+    invalid_keys = set(value.keys()) - allowed_keys
+    if invalid_keys:
+        raise ValidationError(f"Invalid keys in metadata: {', '.join(invalid_keys)}")
+
+    if 'cloud_import' in value:
+        cloud_import = value['cloud_import']
+        if not isinstance(cloud_import, dict):
+            raise ValidationError("metadata['cloud_import'] must be a dictionary.")
+
+        allowed_cloud_keys = {'provider', 'provider_display', 'connection_id', 'file_id', 'etag_or_rev'}
+        invalid_cloud_keys = set(cloud_import.keys()) - allowed_cloud_keys
+        if invalid_cloud_keys:
+            raise ValidationError(f"Invalid keys in metadata['cloud_import']: {', '.join(invalid_cloud_keys)}")
+
+        for key in ('provider', 'provider_display', 'connection_id', 'file_id'):
+            if key in cloud_import:
+                val = cloud_import[key]
+                if val is not None and not isinstance(val, (str, int)):
+                    raise ValidationError(f"Value for '{key}' in metadata['cloud_import'] must be a string or integer.")
+
+        if 'etag_or_rev' in cloud_import:
+            val = cloud_import['etag_or_rev']
+            if val is not None and not isinstance(val, str):
+                raise ValidationError("Value for 'etag_or_rev' in metadata['cloud_import'] must be a string.")
+
+
 class DocumentVersion(BaseModel):
     """
     Enables version control for a Document. Each version tracks a specific file state.
@@ -127,6 +163,22 @@ class DocumentVersion(BaseModel):
         db_index=True,
     )
     render_error = models.TextField(blank=True, null=True)
+
+    # Expected schema for metadata:
+    # {
+    #     'cloud_import': {
+    #         'provider': str (optional),
+    #         'provider_display': str (optional),
+    #         'connection_id': str/int (optional),
+    #         'file_id': str (optional),
+    #         'etag_or_rev': str (optional)
+    #     }
+    # }
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        validators=[validate_document_version_metadata]
+    )
 
     def __str__(self):
         return f'{self.document.name} v{self.version_number}'
