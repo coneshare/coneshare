@@ -3,21 +3,20 @@ from celery import shared_task
 from django.conf import settings
 
 from documents.models import Document
+from documents.services import process_imported_file
 from .models import CloudConnection
 from .providers import CloudProviderError, get_cloud_provider
 
 logger = logging.getLogger('tasks')
 
 @shared_task
-def import_from_cloud_task(document_id, connection_id, file_id_or_path):
+def import_from_cloud_task(document_id, connection_id, file_id_or_path, version_id=None):
     """
     Downloads a file from a cloud provider and processes it.
     """
     try:
         document = Document.objects.get(id=document_id)
         connection = CloudConnection.objects.get(id=connection_id)
-
-        from documents.services import process_imported_file
 
         provider = get_cloud_provider(connection.provider, connection=connection)
 
@@ -31,7 +30,7 @@ def import_from_cloud_task(document_id, connection_id, file_id_or_path):
         if file_data['size'] > max_size_bytes:
             raise CloudProviderError(f"File size exceeds the {settings.CLOUD_IMPORT_MAX_SIZE_MB}MB limit for imports.")
 
-        process_imported_file(document, file_data)
+        process_imported_file(document, file_data, version_id=version_id)
 
     except (Document.DoesNotExist, CloudConnection.DoesNotExist):
         logger.error(f"Could not find Document or CloudConnection for import task. Doc ID: {document_id}, Conn ID: {connection_id}")

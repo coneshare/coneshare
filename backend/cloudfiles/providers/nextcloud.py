@@ -215,6 +215,7 @@ class NextcloudProvider(BaseCloudProvider):
                     response.raise_for_status()
                     file_name = unquote(file_id.strip('/').split('/')[-1])
                     size = int(response.headers.get('content-length', 0))
+                    etag_or_rev = response.headers.get('etag', '').strip('"')
 
                     # Use a spooled temporary file to avoid loading large files into memory.
                     # It spills to disk if the file is larger than 5MB.
@@ -226,7 +227,8 @@ class NextcloudProvider(BaseCloudProvider):
                     return {
                         'name': file_name,
                         'size': size,
-                        'content': content
+                        'content': content,
+                        'etag_or_rev': etag_or_rev
                     }
             except httpx.HTTPStatusError as e:
                 logger.error(f"Nextcloud download failed: {e}")

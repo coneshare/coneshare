@@ -172,7 +172,8 @@ class DropboxProvider(BaseCloudProvider):
             return {
                 'name': metadata.name,
                 'size': metadata.size,
-                'content': content
+                'content': content,
+                'etag_or_rev': metadata.rev
             }
         except dropbox.exceptions.ApiError as e:
             raise CloudProviderError(f"Dropbox download error: {e}")

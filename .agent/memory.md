@@ -151,3 +151,23 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Tooling Update
 - **Context/Implication:** User requested a strict TDD (Test-Driven Development) cycle whenever fixing an error or bug.
 - **Resolution/Action:** When addressing a bug or error, first revert the code fix to replicate the issue, write a test case confirming the failure, and then re-apply the fix to confirm the test succeeds.
+
+### 2026-07-04 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Decided to store cloud file import tracking metadata (`cloud_import` containing connection details and `etag_or_rev` version checksums) on the `DocumentVersion` model rather than the `Document` model. This keeps the data history intact for version restoring and periodic auto-sync tracking.
+- **Resolution/Action:** Added `metadata = JSONField(default=dict, blank=True)` to `DocumentVersion` model, created API endpoints to refresh document and import version, and exposed the metadata dynamically via a serializer method field in `DocumentSerializer`.
+
+### 2026-07-05 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** The connection ID primary keys (like `CloudConnection.id`) are represented as string Hashids at the API layer. Defining serializing payload fields for connections (e.g., `connection_id` in `ImportVersionSerializer`) as `IntegerField` causes validation failures with code `invalid` ("A valid integer is required").
+- **Resolution/Action:** Always declare connection ID serializer fields as `CharField` rather than `IntegerField` to support Hashid string parameters.
+
+### 2026-07-05 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** Under the lazy preview mode, the function name `_route_document_for_processing` was misleading as it no longer queues Celery processing tasks eagerly.
+- **Resolution/Action:** Updated the function's docstring to clarify its role (initializing DB records and deferring heavy processing) and added a `TODO` to rename it to something like `_initialize_document_metadata_and_states`.
+
+### 2026-07-05 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Queries for version creation (`latest_version` and setting `primary_version.is_primary = False`) were done outside a database lock, exposing the endpoints to race conditions if concurrent refresh/import requests were made.
+- **Resolution/Action:** Wrapped version creation inside `transaction.atomic()` and used `Document.objects.select_for_update().get(id=document_id)` to lock the document row during version increments inside `CloudRefreshView` and `CloudImportVersionView`.

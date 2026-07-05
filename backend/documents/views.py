@@ -869,6 +869,22 @@ class DocumentViewSet(viewsets.ModelViewSet):
         delete_document_and_files(document)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(detail=True, methods=['get'])
+    def status(self, request, pk=None):
+        """
+        Returns a lightweight status object containing only status and status_message.
+        """
+        document = get_object_or_404(
+            Document.objects.only('status', 'status_message'),
+            id=pk,
+            organization=request.user.organization,
+            created_by=request.user
+        )
+        return Response({
+            'status': document.status,
+            'status_message': document.status_message
+        })
+
     @action(detail=True, methods=['post'])
     def copy(self, request, *args, **kwargs):
         """

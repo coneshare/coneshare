@@ -120,7 +120,7 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'version_number', 'file_size', 'num_pages',
             'is_primary', 'has_pages', 'render_status', 'render_error',
-            'pages', 'created_at'
+            'pages', 'metadata', 'created_at'
         ]
         read_only_fields = fields
 
@@ -156,6 +156,7 @@ class DocumentSerializer(serializers.ModelSerializer):
     share_links = serializers.SerializerMethodField()
     uploader_info = serializers.SerializerMethodField()
     share_link_view_count = serializers.SerializerMethodField()
+    cloud_import = serializers.SerializerMethodField()
     # parent folder this document belongs to.
     # TODO: we may need to explict pass parent folder to this serialier for performance consideration.
     # XXX: why default=RootFolderDefault()? Even though required=False tells the serializer that the client does not
@@ -175,7 +176,8 @@ class DocumentSerializer(serializers.ModelSerializer):
             'id', 'organization', 'folder', 'name', 'description', 'status',
             'status_message', 'storage_key', 'original_storage_key', 'type', 'content_type',
             'num_pages', 'file_size', 'download_only', 'assistant_enabled', 'is_starred', 'created_by',
-            'created_at', 'updated_at', 'versions', 'share_links', 'uploader_info', 'share_link_view_count'
+            'created_at', 'updated_at', 'versions', 'share_links', 'uploader_info', 'share_link_view_count',
+            'cloud_import'
         ]
         read_only_fields = [
             'id', 'organization', 'created_by', 'created_at', 'updated_at'
@@ -198,6 +200,13 @@ class DocumentSerializer(serializers.ModelSerializer):
 
         from sharelinks.models import ViewSession
         return ViewSession.objects.filter(share_link__document=obj).count()
+
+    def get_cloud_import(self, obj):
+        # Retrieve the currently active/primary version
+        primary_version = obj.versions.filter(is_primary=True).first()
+        if primary_version and isinstance(primary_version.metadata, dict):
+            return primary_version.metadata.get('cloud_import', None)
+        return None
 
     def create(self, validated_data):
         request = self.context['request']

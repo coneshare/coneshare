@@ -9,4 +9,6 @@ urlpatterns = [
     path('callback/<str:provider_name>/', views.CloudCallbackView.as_view(), name='cloud-oauth-callback'),
     path('connections/<str:connection_id>/list/', views.CloudFileListView.as_view(), name='cloud-file-list'),
     path('connections/<str:connection_id>/import/', views.CloudImportView.as_view(), name='cloud-import'),
+    path('documents/<str:document_id>/refresh/', views.CloudRefreshView.as_view(), name='cloud-document-refresh'),
+    path('documents/<str:document_id>/import_version/', views.CloudImportVersionView.as_view(), name='cloud-document-import-version'),
 ]
