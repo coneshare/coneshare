@@ -171,3 +171,21 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Architecture Choice
 - **Context/Implication:** Queries for version creation (`latest_version` and setting `primary_version.is_primary = False`) were done outside a database lock, exposing the endpoints to race conditions if concurrent refresh/import requests were made.
 - **Resolution/Action:** Wrapped version creation inside `transaction.atomic()` and used `Document.objects.select_for_update().get(id=document_id)` to lock the document row during version increments inside `CloudRefreshView` and `CloudImportVersionView`.
+
+### 2026-07-05 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** Google Workspace editor files (Docs/Sheets/Slides) cannot be downloaded directly via `get_media` and throw a `403 fileNotDownloadable` error. Also, when updating an existing document version fails, the document became broken because the failed version was left as `is_primary=True`.
+- **Resolution/Action:**
+  1. Updated `GoogleDriveProvider.download_file` to use `export_media` for Google apps files (Docs to PDF, Sheets to Excel, Slides to PowerPoint) and calculate size from the downloaded buffer.
+  2. Implemented `_handle_import_failure` inside `tasks.py` to revert the document status to `ready`, restore the previous version as `is_primary=True`, and delete the failed version.
+
+### 2026-07-05 Session Entry
+- **Category:** Tooling Update
+- **Context/Implication:** Running the full backend test suite on every change is slow and resource-heavy.
+- **Resolution/Action:** Do not run the full backend test suite (`make test`); instead, target only the related test files (e.g. `pytest tests/cloudfiles/test_tasks.py`).
+
+### 2026-07-05 Session Entry [SUPERSEDES 2026-07-05]
+- **Category:** Gotcha
+- **Context/Implication:** The original import failure rollback was queried outside the transaction block (leading to potential stale read race conditions) and unconditionally set document status to `'ready'` even if the previous version was missing.
+- **Resolution/Action:** **[OVERRIDE]** Queried `prev_version` inside the `transaction.atomic()` block after acquiring the `select_for_update()` lock. Revert the document status to `'ready'` only if a valid previous version exists; otherwise, fall back to `'error'`.
+
