@@ -148,10 +148,38 @@ class GoogleDriveProvider(BaseCloudProvider):
     def download_file(self, file_id):
         service = self._get_client()
         try:
-            request = service.files().get_media(fileId=file_id)
-            file_metadata = service.files().get(fileId=file_id, fields='name, size, md5Checksum, version').execute()
+            file_metadata = service.files().get(fileId=file_id, fields='name, size, md5Checksum, version, mimeType').execute()
+            mime_type = file_metadata.get('mimeType', '')
+            name = file_metadata.get('name', 'Untitled')
             etag_or_rev = file_metadata.get('md5Checksum') or str(file_metadata.get('version', ''))
-            
+
+            # Handle Google Docs / Sheets / Slides editor files
+            is_google_apps_file = mime_type.startswith('application/vnd.google-apps.') and mime_type != 'application/vnd.google-apps.folder'
+
+            if is_google_apps_file:
+                # Map Google Workspace format to a downloadable export format
+                if mime_type == 'application/vnd.google-apps.document':
+                    export_mime = 'application/pdf'
+                    if not name.lower().endswith('.pdf'):
+                        name += '.pdf'
+                elif mime_type == 'application/vnd.google-apps.spreadsheet':
+                    export_mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    if not name.lower().endswith('.xlsx'):
+                        name += '.xlsx'
+                elif mime_type == 'application/vnd.google-apps.presentation':
+                    export_mime = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+                    if not name.lower().endswith('.pptx'):
+                        name += '.pptx'
+                else:
+                    # Fallback default export as PDF
+                    export_mime = 'application/pdf'
+                    if not name.lower().endswith('.pdf'):
+                        name += '.pdf'
+
+                request = service.files().export_media(fileId=file_id, mimeType=export_mime)
+            else:
+                request = service.files().get_media(fileId=file_id)
+
             # Use a spooled temporary file to avoid loading large files into memory.
             # It spills to disk if the file is larger than 5MB.
             fh = tempfile.SpooledTemporaryFile(max_size=5 * 1024 * 1024)
@@ -159,11 +187,15 @@ class GoogleDriveProvider(BaseCloudProvider):
             done = False
             while not done:
                 _, done = downloader.next_chunk()
-            
+
+            # Seek to end to find actual size of the downloaded/exported stream
+            fh.seek(0, 2)
+            actual_size = fh.tell()
             fh.seek(0)
+
             return {
-                'name': file_metadata.get('name'),
-                'size': int(file_metadata.get('size', 0)),
+                'name': name,
+                'size': actual_size,
                 'content': fh,
                 'etag_or_rev': etag_or_rev
             }
