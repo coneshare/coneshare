@@ -189,3 +189,8 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** The original import failure rollback was queried outside the transaction block (leading to potential stale read race conditions) and unconditionally set document status to `'ready'` even if the previous version was missing.
 - **Resolution/Action:** **[OVERRIDE]** Queried `prev_version` inside the `transaction.atomic()` block after acquiring the `select_for_update()` lock. Revert the document status to `'ready'` only if a valid previous version exists; otherwise, fall back to `'error'`.
 
+### 2026-07-06 Session Entry
+- **Category:** Tooling Update
+- **Context/Implication:** Running unit/BDD tests when only code comments or docstrings are updated is unnecessary and wastes time.
+- **Resolution/Action:** Skip running test cases entirely when a change only updates file comments or docstrings.
+

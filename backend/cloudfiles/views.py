@@ -269,7 +269,10 @@ class CloudRefreshView(APIView):
         except CloudConnection.DoesNotExist:
             return Response({"detail": "Cloud connection not found. Please reconnect your cloud account."}, status=status.HTTP_404_NOT_FOUND)
 
-        # 2. Check quota (reuse primary version's size for pre-check)
+        # 2. Check quota (reuse primary version's size for pre-check).
+        # Note: Since new_file_size matches the current file_size, this pre-check has a net change of 0.
+        # It only fails if the user's current usage already exceeds their quota (e.g. after a quota limit reduction).
+        # The true size will be checked inside the Celery task once downloaded.
         try:
             check_user_quota_on_upload(
                 user=request.user,
@@ -279,7 +282,11 @@ class CloudRefreshView(APIView):
         except QuotaExceededError as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 3. Create a new DocumentVersion
+        # 3. Create a new DocumentVersion eagerly in the view.
+        # Note: Reserving the new version number synchronously under lock prevents race conditions
+        # and double-submission download tasks. It also provides immediate visual feedback
+        # to the user. If the background download task fails, the reversion logic in the
+        # celery worker cleans up this version record and restores the previous primary version.
         with transaction.atomic():
             # Lock the document row to prevent concurrent updates
             locked_document = Document.objects.select_for_update().get(id=document_id)
@@ -373,7 +380,11 @@ class CloudImportVersionView(APIView):
         if file_size > max_size_bytes:
             return Response({"detail": f"File size cannot exceed {max_size_mb}MB for import."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 3. Create the new version
+        # 3. Create the new version eagerly in the view.
+        # Note: Reserving the new version number synchronously under lock prevents race conditions
+        # and double-submission download tasks. It also provides immediate visual feedback
+        # to the user. If the background download task fails, the reversion logic in the
+        # celery worker cleans up this version record and restores the previous primary version.
         with transaction.atomic():
             # Lock the document row to prevent concurrent updates
             locked_document = Document.objects.select_for_update().get(id=document_id)
