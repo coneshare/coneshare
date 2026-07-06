@@ -24,6 +24,7 @@ export function DocumentHeader({
   onImportVersionFromCloud,
   onRefreshFromCloud,
   onDownload,
+  onVersionHistory,
   onDelete,
   isProcessing,
   cloudProviders = []
@@ -138,6 +139,7 @@ export function DocumentHeader({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={onDownload}>Download</DropdownMenuItem>
+              <DropdownMenuItem onSelect={onVersionHistory}>Version History</DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={onDelete}
                 className="text-red-600 hover:!text-red-600 hover:!bg-red-50 focus:!text-red-600 focus:!bg-red-50"

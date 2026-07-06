@@ -13,6 +13,7 @@ import { DataroomsPage } from './pages/DataroomsPage';
 import { FileRequestsPage } from './pages/FileRequestsPage';
 import { FileRequestDetailPage } from './pages/FileRequestDetailPage';
 import { DocumentPage } from './pages/DocumentPage';
+import { DocumentVersionsPage } from './pages/DocumentVersionsPage';
 import DocumentsPage from './pages/DocumentsPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
@@ -51,6 +52,7 @@ function App() {
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/documents/folders/:folderId" element={<DocumentsPage />} />
             <Route path="/documents/:documentId" element={<DocumentPage />} />
+            <Route path="/documents/:documentId/versions" element={<DocumentVersionsPage />} />
             <Route path="/documents/:documentId/links/:linkId" element={<ShareLinkAnalyticsPage />} />
             <Route path="/datarooms" element={<DataroomsPage />} />
             <Route path="/datarooms/:dataroomId" element={<DataroomPage />} />

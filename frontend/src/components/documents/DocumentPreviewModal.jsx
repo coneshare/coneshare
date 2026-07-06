@@ -20,7 +20,7 @@ import { printPdf, printImages } from '../../lib/print';
 
 const PREVIEW_POLL_INTERVAL_MS = 3000;
 
-export function DocumentPreviewModal({ documentId, isOpen, onOpenChange }) {
+export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onOpenChange }) {
   const [documentData, setDocumentData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -61,7 +61,7 @@ export function DocumentPreviewModal({ documentId, isOpen, onOpenChange }) {
       }
       setError(null);
       try {
-        const response = await getDocumentPreviewData(documentId);
+        const response = await getDocumentPreviewData(documentId, versionId);
         if (!isCancelled) {
           setDocumentData(response.data);
           if (isPreviewPending(response.data)) {
@@ -88,7 +88,7 @@ export function DocumentPreviewModal({ documentId, isOpen, onOpenChange }) {
       isCancelled = true;
       window.clearTimeout(pollTimer);
     };
-  }, [isOpen, documentId]);
+  }, [isOpen, documentId, versionId]);
 
   const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.1, 3));
   const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
