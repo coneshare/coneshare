@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { listCloudFiles, importCloudFile } from '../../services/api';
 import { formatBytes } from '../../lib/formatters';
 
-export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, onImportSuccess }) {
+export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, onImportSuccess, onImport }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -64,12 +64,20 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
   const handleImportClick = async (file) => {
     setImportingFileId(file.id);
     try {
-      await importCloudFile(connection.id, {
-        fileId: file.id,
-        fileName: file.name,
-        fileSize: file.size,
-      });
-      toast.success(`Import started for "${file.name}". It will appear in your documents list shortly.`);
+      if (onImport) {
+        await onImport(connection.id, {
+          fileId: file.id,
+          fileName: file.name,
+          fileSize: file.size,
+        });
+      } else {
+        await importCloudFile(connection.id, {
+          fileId: file.id,
+          fileName: file.name,
+          fileSize: file.size,
+        });
+        toast.success(`Import started for "${file.name}". It will appear in your documents list shortly.`);
+      }
       onImportSuccess();
       onOpenChange(false);
     } catch (error) {

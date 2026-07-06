@@ -232,6 +232,8 @@ export const getDocumentDownloadUrl = (id) => api.get(`/documents/${id}/download
 
 export const getDocumentDetails = (id) => api.get(`/documents/${id}/`);
 
+export const getDocumentStatus = (id) => api.get(`/documents/${id}/status/`);
+
 export const getDocumentViews = (documentId, page = 1) =>
   api.get(`/documents/${documentId}/view-sessions/?page=${page}`);
 
@@ -490,6 +492,17 @@ export const listCloudFiles = (connectionId, path = '/') =>
 
 export const importCloudFile = (connectionId, { fileId, fileName, fileSize }) =>
   api.post(`/cloud/connections/${connectionId}/import/`, {
+    file_id: fileId,
+    file_name: fileName,
+    file_size: fileSize,
+  });
+
+export const refreshCloudDocument = (documentId) =>
+  api.post(`/cloud/documents/${documentId}/refresh/`);
+
+export const importCloudVersion = (documentId, { connectionId, fileId, fileName, fileSize }) =>
+  api.post(`/cloud/documents/${documentId}/import_version/`, {
+    connection_id: connectionId,
     file_id: fileId,
     file_name: fileName,
     file_size: fileSize,
