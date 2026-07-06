@@ -453,6 +453,7 @@ export function DocumentPage() {
         onImportVersionFromCloud={handleCloudProviderClick}
         onRefreshFromCloud={handleRefreshFromCloud}
         onDownload={handleDownload}
+        onVersionHistory={() => navigate(`/documents/${documentId}/versions`)}
         onDelete={handleDelete}
         isProcessing={isProcessing}
         cloudProviders={cloudProviders}
@@ -487,6 +488,7 @@ export function DocumentPage() {
         isOpen={isPreviewOpen}
         onOpenChange={setIsPreviewOpen}
         documentId={documentId}
+        versionId={null}
       />
       <ConfirmationDialog
         isOpen={isDeleteDialogOpen}

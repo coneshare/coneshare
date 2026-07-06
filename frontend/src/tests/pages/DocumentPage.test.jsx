@@ -2,10 +2,11 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { DocumentPage } from '../../pages/DocumentPage';
 import * as api from '../../services/api';
 
 vi.mock('../../services/api');
+import { BreadcrumbProvider } from '../../components/layout/BreadcrumbProvider';
+import { DocumentPage } from '../../pages/DocumentPage';
 
 // Mock child components to isolate the page
 vi.mock('../../components/documents/DocumentHeader', () => ({
@@ -28,10 +29,15 @@ vi.mock('../../components/links/LinkSheet', () => ({
 vi.mock('../../components/documents/DocumentPreviewModal', () => ({
   DocumentPreviewModal: () => <div>Preview Modal</div>,
 }));
+vi.mock('../../components/qna/OwnerQnAManager', () => ({
+  OwnerQnAManager: () => <div>Owner Q&A Manager</div>,
+}));
 
 describe('DocumentPage', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    api.getCloudProviders.mockResolvedValue({ data: [] });
+    api.getCloudConnections.mockResolvedValue({ data: [] });
   });
 
   const mockDocument = { id: 'doc123', name: 'Test Doc', share_links: [] };
@@ -58,10 +64,12 @@ describe('DocumentPage', () => {
   const renderComponent = () => {
     return render(
       <MemoryRouter initialEntries={['/documents/doc123']}>
-        <Routes>
-          <Route path="/documents/:documentId" element={<DocumentPage />} />
-          <Route path="/documents" element={<div>Documents Page</div>} />
-        </Routes>
+        <BreadcrumbProvider>
+          <Routes>
+            <Route path="/documents/:documentId" element={<DocumentPage />} />
+            <Route path="/documents" element={<div>Documents Page</div>} />
+          </Routes>
+        </BreadcrumbProvider>
       </MemoryRouter>
     );
   };

@@ -226,7 +226,17 @@ export const moveItems = ({ documentIds, folderIds, destinationFolderId }) => {
   });
 };
 
-export const getDocumentPreviewData = (id) => api.get(`/documents/${id}/preview-data/`);
+export const getDocumentPreviewData = (id, versionId = null) => {
+  return api.get(`/documents/${id}/preview-data/`, {
+    params: versionId ? { version_id: versionId } : undefined,
+  });
+};
+
+export const promoteDocumentVersion = (documentId, versionId) =>
+  api.post(`/documents/${documentId}/promote_version/`, { version_id: versionId });
+
+export const getDocumentVersions = (documentId, page = 1) =>
+  api.get(`/documents/${documentId}/versions/`, { params: { page } });
 
 export const getDocumentDownloadUrl = (id) => api.get(`/documents/${id}/download/`);
 
