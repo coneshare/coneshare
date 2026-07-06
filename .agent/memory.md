@@ -190,7 +190,10 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Resolution/Action:** **[OVERRIDE]** Queried `prev_version` inside the `transaction.atomic()` block after acquiring the `select_for_update()` lock. Revert the document status to `'ready'` only if a valid previous version exists; otherwise, fall back to `'error'`.
 
 ### 2026-07-06 Session Entry
-- **Category:** Tooling Update
-- **Context/Implication:** Running unit/BDD tests when only code comments or docstrings are updated is unnecessary and wastes time.
-- **Resolution/Action:** Skip running test cases entirely when a change only updates file comments or docstrings.
+- **Category:** Architecture Choice
+- **Context/Implication:** Displaying Version History inline on the document details page cluttered the layout. Additionally, listing version histories via the full document details endpoint was inefficient, and promoting larger document versions without validating storage quotas could bypass user storage limits.
+- **Resolution/Action:** 
+  1. Placed Version History on a dedicated page `/documents/:documentId/versions` ([DocumentVersionsPage](file:///Users/xiez/coneshare/frontend/src/pages/DocumentVersionsPage.jsx)), retrieving paginated versions via a new backend endpoint `GET /api/v1/documents/{id}/versions/` ([views.py](file:///Users/xiez/coneshare/backend/documents/views.py)) that instantiates `StandardResultsSetPagination()` manually to support server-side pagination.
+  2. Updated [VersionHistoryTable](file:///Users/xiez/coneshare/frontend/src/components/documents/VersionHistoryTable.jsx) to support server-side pagination, render the primary `Active` status badge next to the version name, render fallback labels for unknown statuses (like `not_generated`), and wrap the `Error` badge in a `Tooltip` showing the `render_error` message on hover.
+  3. Integrated `check_user_quota_on_upload` check entirely before the `transaction.atomic()` block in `promote_document_version` ([services.py](file:///Users/xiez/coneshare/backend/documents/services.py)) to prevent storage quota bypass during version promotion without keeping database locks open unnecessarily.
 

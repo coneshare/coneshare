@@ -5,6 +5,7 @@ import requests
 import uuid
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import F, Sum
 from rest_framework.exceptions import APIException
@@ -698,3 +699,81 @@ def process_imported_file(document: Document, file_data: dict, version_id=None):
             User.objects.filter(pk=user.pk).update(
                 total_document_size=F('total_document_size') - old_file_size + file_size
             )
+
+
+def promote_document_version(document: Document, version: DocumentVersion, requesting_user: User):
+    """
+    Promotes a specific DocumentVersion to be the active (primary) version of the Document.
+    Synchronizes parent Document fields with the promoted version's metadata.
+    """
+    if version.document != document:
+        raise ValidationError("The selected version does not belong to this document.")
+
+    old_file_size = document.file_size or 0
+    new_file_size = version.file_size or 0
+
+    if requesting_user and new_file_size > old_file_size:
+        check_user_quota_on_upload(
+            user=requesting_user,
+            new_file_size=new_file_size,
+            document_to_update=document
+        )
+
+    with transaction.atomic():
+        # Obtain select_for_update lock on document to prevent concurrency issues
+        locked_doc = Document.objects.select_for_update().get(pk=document.pk)
+
+        # Deactivate all current primary versions
+        document.versions.filter(is_primary=True).update(is_primary=False)
+
+        # Activate the chosen version
+        version.is_primary = True
+        version.save(update_fields=['is_primary', 'updated_at'])
+
+        # Sync fields onto the Document
+        locked_doc.file_size = new_file_size
+        locked_doc.content_type = version.content_type
+        locked_doc.type = version.type
+        locked_doc.storage_key = version.storage_key
+        locked_doc.original_storage_key = version.original_storage_key
+        locked_doc.num_pages = version.num_pages
+
+        # Determine download_only based on render capabilities
+        max_preview_file_size_mb = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
+        max_size_bytes = max_preview_file_size_mb * 1024 * 1024
+        is_too_large = new_file_size > max_size_bytes
+
+        if version.type == 'video':
+            max_video_size_mb = get_dynamic_setting('MAX_VIDEO_PREVIEW_SIZE_MB')
+            max_size_bytes = max_video_size_mb * 1024 * 1024
+            is_too_large = new_file_size > max_size_bytes
+            is_previewable = settings.ENABLE_VIDEO_PREVIEW and not is_too_large
+        else:
+            is_previewable = version.type != 'file' and not is_too_large
+
+        locked_doc.download_only = not is_previewable
+
+        # Map version's render_status to Document status
+        if version.render_status == DocumentVersion.RENDER_FAILED:
+            locked_doc.status = 'error'
+            locked_doc.status_message = version.render_error or 'An error occurred during preview generation.'
+        elif version.render_status in (DocumentVersion.RENDER_QUEUED, DocumentVersion.RENDER_PROCESSING):
+            locked_doc.status = 'processing'
+            locked_doc.status_message = 'Generating preview...'
+        else:
+            locked_doc.status = 'ready'
+            locked_doc.status_message = ''
+
+        locked_doc.save()
+
+        # Update user's total document size
+        if requesting_user and old_file_size != new_file_size:
+            User.objects.filter(pk=requesting_user.pk).update(
+                total_document_size=F('total_document_size') - old_file_size + new_file_size
+            )
+
+    # Since locked_doc was retrieved via select_for_update() as a separate Python object instance,
+    # changes made and saved to locked_doc won't be visible on the original 'document' instance
+    # passed to this function. Refresh from DB to ensure the caller (e.g. view serializer) 
+    # receives up-to-date metadata in memory.
+    document.refresh_from_db()

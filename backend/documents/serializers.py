@@ -125,6 +125,17 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class DocumentVersionListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DocumentVersion
+        fields = [
+            'id', 'version_number', 'file_size', 'num_pages',
+            'is_primary', 'has_pages', 'render_status', 'render_error',
+            'metadata', 'created_at'
+        ]
+        read_only_fields = fields
+
+
 class NestedFolderField(serializers.PrimaryKeyRelatedField):
     """
     A custom field that uses a primary key for writes but serializes

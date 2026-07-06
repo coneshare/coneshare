@@ -1,5 +1,6 @@
 from unittest.mock import patch, MagicMock
 import pytest
+from django.core.exceptions import ValidationError
 from django.test import override_settings
 
 from documents.models import Document, DocumentVersion, DocumentPage
@@ -11,7 +12,9 @@ from documents.services import (
     QuotaExceededError,
     preview_mode_for_version,
     is_server_renderable_version,
+    promote_document_version,
 )
+
 
 
 @pytest.mark.django_db
@@ -318,3 +321,92 @@ class TestPreviewModeServices:
         )
         with override_settings(ENABLE_VIDEO_PREVIEW=True):
             assert preview_mode_for_version(version2) == 'download_only'
+
+
+@pytest.mark.django_db
+class TestPromoteDocumentVersion:
+    def test_promote_version_success(self, user):
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="test_promote.pdf",
+            type="pdf",
+            content_type="application/pdf",
+            file_size=100,
+            status="ready",
+        )
+        v1 = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            is_primary=True,
+            file_size=100,
+            content_type="application/pdf",
+            original_storage_key="test_v1.pdf",
+            storage_key="test_v1.pdf",
+            type="pdf",
+            render_status=DocumentVersion.RENDER_READY,
+        )
+        v2 = DocumentVersion.objects.create(
+            document=doc,
+            version_number=2,
+            is_primary=False,
+            file_size=200,
+            content_type="application/pdf",
+            original_storage_key="test_v2.pdf",
+            storage_key="test_v2.pdf",
+            type="pdf",
+            render_status=DocumentVersion.RENDER_FAILED,
+            render_error="Some rendering error",
+        )
+
+        user.total_document_size = 100
+        user.save()
+
+        # Act
+        promote_document_version(doc, v2, user)
+
+        # Assert version state
+        v1.refresh_from_db()
+        v2.refresh_from_db()
+        assert not v1.is_primary
+        assert v2.is_primary
+
+        # Assert document metadata sync
+        doc.refresh_from_db()
+        assert doc.file_size == 200
+        assert doc.storage_key == "test_v2.pdf"
+        assert doc.status == "error"
+        assert doc.status_message == "Some rendering error"
+
+        # Assert user quota size update
+        user.refresh_from_db()
+        assert user.total_document_size == 200
+
+    def test_promote_version_wrong_document(self, user):
+        doc1 = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="doc1.pdf",
+            type="pdf",
+            content_type="application/pdf",
+        )
+        doc2 = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="doc2.pdf",
+            type="pdf",
+            content_type="application/pdf",
+        )
+        v_other = DocumentVersion.objects.create(
+            document=doc2,
+            version_number=1,
+            is_primary=True,
+            file_size=100,
+            content_type="application/pdf",
+            original_storage_key="other.pdf",
+            storage_key="other.pdf",
+            type="pdf",
+        )
+
+        with pytest.raises(ValidationError, match="The selected version does not belong to this document."):
+            promote_document_version(doc1, v_other, user)
