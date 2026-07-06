@@ -19,7 +19,7 @@ from drf_spectacular.utils import extend_schema
 from core.services import get_dynamic_setting
 from .models import (Document, Folder)
 from .serializers import (DocumentSerializer, EnsureFolderPathsSerializer,
-                          FolderSerializer)
+                          FolderSerializer, DocumentVersionSerializer, DocumentVersionListSerializer)
 from .fileserver import fileserver_client
 from .services import (
     _get_unique_folder_name,
@@ -35,6 +35,7 @@ from .services import (
     enqueue_server_preview_render,
     preview_mode_for_version,
     preview_status_for_render_status,
+    promote_document_version,
 )
 
 
@@ -634,14 +635,20 @@ class DocumentPreviewDataView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        if document.status != 'ready':
+        version_id = request.query_params.get('version_id')
+
+        if not version_id and document.status != 'ready':
              return Response(
                 {"detail": "Document is not ready for preview."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         # Data Fetching
-        primary_version = document.versions.filter(is_primary=True).first()
+        if version_id:
+            primary_version = get_object_or_404(document.versions, id=version_id)
+        else:
+            primary_version = document.versions.filter(is_primary=True).first()
+
         if not primary_version:
             return Response(
                 {"detail": "Document version not found."},
@@ -965,6 +972,49 @@ class DocumentViewSet(viewsets.ModelViewSet):
             'avg_duration_seconds': avg_duration,
             'total_downloads': total_downloads,
         })
+
+    @action(detail=True, methods=['post'])
+    def promote_version(self, request, pk=None):
+        """
+        Promotes a specific DocumentVersion to be the active (primary) version of the Document.
+        """
+        document = self.get_object()
+        version_id = request.data.get('version_id')
+        if not version_id:
+            return Response({'detail': 'version_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        version = get_object_or_404(document.versions, id=version_id)
+
+        try:
+            promote_document_version(document, version, request.user)
+        except QuotaExceededError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            from django.core.exceptions import ValidationError as DjangoValidationError
+            if isinstance(e, DjangoValidationError):
+                return Response({'detail': e.message if hasattr(e, 'message') else str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            logger.exception(f"Failed to promote version {version_id} for document {document.id}")
+            return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        serializer = self.get_serializer(document)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'])
+    def versions(self, request, pk=None):
+        """
+        Retrieves a list of DocumentVersions for the given Document.
+        """
+        document = self.get_object()
+        versions = document.versions.all().order_by('-version_number')
+        
+        paginator = StandardResultsSetPagination()
+        page = paginator.paginate_queryset(versions, request, view=self)
+        if page is not None:
+            serializer = DocumentVersionListSerializer(page, many=True, context={'request': request})
+            return paginator.get_paginated_response(serializer.data)
+            
+        serializer = DocumentVersionListSerializer(versions, many=True, context={'request': request})
+        return Response(serializer.data)
 
 
 @extend_schema(tags=['documents'])

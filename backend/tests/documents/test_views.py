@@ -1524,3 +1524,227 @@ def test_document_status_endpoint(api_client, user, organization):
         'status_message': 'Downloading from cloud...'
     }
 
+
+@pytest.mark.django_db
+def test_promote_version_endpoint_success(api_client, user, organization):
+    """Test promoting a document version via the API."""
+    doc = Document.objects.create(
+        name="Promote API Test.pdf",
+        organization=organization,
+        created_by=user,
+        status="ready",
+        file_size=100,
+    )
+    v1 = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        is_primary=True,
+        file_size=100,
+        content_type="application/pdf",
+        original_storage_key="v1.pdf",
+        storage_key="v1.pdf",
+        type="pdf",
+    )
+    v2 = DocumentVersion.objects.create(
+        document=doc,
+        version_number=2,
+        is_primary=False,
+        file_size=200,
+        content_type="application/pdf",
+        original_storage_key="v2.pdf",
+        storage_key="v2.pdf",
+        type="pdf",
+    )
+
+    response = api_client.post(
+        f'/api/v1/documents/{doc.id}/promote_version/',
+        {'version_id': str(v2.id)}
+    )
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data['file_size'] == 200
+    assert response.data['storage_key'] == "v2.pdf"
+    
+    doc.refresh_from_db()
+    v1.refresh_from_db()
+    v2.refresh_from_db()
+    
+    assert not v1.is_primary
+    assert v2.is_primary
+    assert doc.file_size == 200
+    assert doc.storage_key == "v2.pdf"
+
+
+@pytest.mark.django_db
+def test_promote_version_endpoint_wrong_doc(api_client, user, organization):
+    """Test promoting a version that belongs to a different document returns 404."""
+    doc1 = Document.objects.create(
+        name="Doc1.pdf",
+        organization=organization,
+        created_by=user,
+    )
+    doc2 = Document.objects.create(
+        name="Doc2.pdf",
+        organization=organization,
+        created_by=user,
+    )
+    v_other = DocumentVersion.objects.create(
+        document=doc2,
+        version_number=1,
+        is_primary=True,
+        file_size=100,
+        content_type="application/pdf",
+        original_storage_key="other.pdf",
+        storage_key="other.pdf",
+        type="pdf",
+    )
+
+    response = api_client.post(
+        f'/api/v1/documents/{doc1.id}/promote_version/',
+        {'version_id': str(v_other.id)}
+    )
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+@patch('documents.views.fileserver_client.generate_download_url')
+@patch('documents.views.fileserver_client.generate_preview_url')
+def test_preview_data_endpoint_with_version_id(mock_preview_url, mock_download_url, api_client, user, organization):
+    """Test retrieving preview data for a specific inactive version."""
+    mock_download_url.return_value = "https://mock.fileserver/v1.pdf"
+    mock_preview_url.return_value = "https://mock.fileserver/client_pdf.pdf"
+
+    doc = Document.objects.create(
+        name="Preview Version Test.pdf",
+        organization=organization,
+        created_by=user,
+        status="ready",
+        file_size=100,
+    )
+    v1 = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        is_primary=True,
+        file_size=100,
+        content_type="application/pdf",
+        original_storage_key="v1.pdf",
+        storage_key="v1.pdf",
+        type="pdf",
+    )
+    v2 = DocumentVersion.objects.create(
+        document=doc,
+        version_number=2,
+        is_primary=False,
+        file_size=200,
+        content_type="application/pdf",
+        original_storage_key="v2.pdf",
+        storage_key="v2.pdf",
+        type="pdf",
+        render_error="Stale preview failed",
+    )
+
+    with override_settings(PDF_PREVIEW_ENGINE='pdfjs'):
+        # Preview specific version v2 (which is inactive)
+        response = api_client.get(f'/api/v1/documents/{doc.id}/preview-data/?version_id={v2.id}')
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data['render_error'] == "Stale preview failed"
+
+
+@pytest.mark.django_db
+def test_list_versions_endpoint_success(api_client, user, organization):
+    """Test retrieving document version history via the API."""
+    doc = Document.objects.create(
+        name="List Versions Test.pdf",
+        organization=organization,
+        created_by=user,
+    )
+    v1 = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        is_primary=True,
+        file_size=100,
+        content_type="application/pdf",
+        original_storage_key="v1.pdf",
+        storage_key="v1.pdf",
+        type="pdf",
+    )
+    v2 = DocumentVersion.objects.create(
+        document=doc,
+        version_number=2,
+        is_primary=False,
+        file_size=200,
+        content_type="application/pdf",
+        original_storage_key="v2.pdf",
+        storage_key="v2.pdf",
+        type="pdf",
+    )
+
+    response = api_client.get(f'/api/v1/documents/{doc.id}/versions/')
+    assert response.status_code == status.HTTP_200_OK
+    
+    data = response.json()
+    assert isinstance(data, dict)
+    assert 'count' in data
+    assert 'results' in data
+    assert data['count'] == 2
+    
+    results = data['results']
+    assert len(results) == 2
+    assert results[0]['version_number'] == 2
+    assert results[1]['version_number'] == 1
+    assert 'pages' not in results[0]
+
+
+@pytest.mark.django_db
+@patch('documents.services.get_dynamic_setting')
+def test_promote_version_endpoint_respects_quota(mock_get_setting, api_client, user, organization):
+    """Test that promoting a version that exceeds user storage quota fails."""
+    def get_setting_mock(key):
+        if key == 'FILE_SIZE_QUOTA_MB':
+            return 1
+        elif key == 'MAX_PREVIEW_FILE_SIZE_MB':
+            return 100
+        elif key == 'MAX_VIDEO_PREVIEW_SIZE_MB':
+            return 100
+        return 0
+    mock_get_setting.side_effect = get_setting_mock
+
+    doc = Document.objects.create(
+        name="Doc.pdf",
+        organization=organization,
+        created_by=user,
+        status="ready",
+        file_size=500 * 1024,
+    )
+    v1 = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        is_primary=True,
+        file_size=500 * 1024,
+        content_type="application/pdf",
+        original_storage_key="v1.pdf",
+        storage_key="v1.pdf",
+        type="pdf",
+    )
+    v2 = DocumentVersion.objects.create(
+        document=doc,
+        version_number=2,
+        is_primary=False,
+        file_size=1500 * 1024,
+        content_type="application/pdf",
+        original_storage_key="v2.pdf",
+        storage_key="v2.pdf",
+        type="pdf",
+    )
+    
+    user.total_document_size = 500 * 1024
+    user.save()
+
+    response = api_client.post(
+        f'/api/v1/documents/{doc.id}/promote_version/',
+        {'version_id': str(v2.id)}
+    )
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "exceed your storage quota" in response.json()['detail']
+
