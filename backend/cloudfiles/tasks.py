@@ -4,7 +4,7 @@ from django.conf import settings
 from django.db import transaction
 
 from documents.models import Document, DocumentVersion
-from documents.services import process_imported_file
+from documents.services import process_imported_file, QuotaExceededError
 from .models import CloudConnection
 from .providers import CloudProviderError, get_cloud_provider
 
@@ -17,6 +17,14 @@ def _handle_import_failure(document, version_id, error_message):
     Falls back to setting the document status to 'error' if it's the first version,
     if no previous version is found, or if the reversion fails.
     """
+    # Truncate error message to fit within the 255 character limit of status_message
+    if error_message:
+        error_message = str(error_message)
+        if len(error_message) > 200:
+            error_message = error_message[:197] + "..."
+    else:
+        error_message = ""
+
     try:
         if version_id:
             version = DocumentVersion.objects.get(id=version_id)
@@ -86,8 +94,8 @@ def import_from_cloud_task(document_id, connection_id, file_id_or_path, version_
     except (Document.DoesNotExist, CloudConnection.DoesNotExist):
         logger.error(f"Could not find Document or CloudConnection for import task. Doc ID: {document_id}, Conn ID: {connection_id}")
         return
-    except CloudProviderError as e:
-        logger.error(f"Cloud provider error during import for document {document_id}: {e}")
+    except (CloudProviderError, QuotaExceededError) as e:
+        logger.error(f"Import error during import for document {document_id}: {e}")
         _handle_import_failure(document, version_id, str(e))
     except Exception as e:
         logger.exception(f"Unexpected error during cloud import for document {document_id}: {e}")

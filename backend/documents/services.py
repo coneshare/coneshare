@@ -117,6 +117,7 @@ def _route_document_for_processing(document: Document, version: DocumentVersion,
     document.type = doc_type
     document.content_type = content_type
     document.file_size = file_size
+    document.status_message = ''
 
     version.render_error = ''
 
@@ -641,10 +642,7 @@ def process_imported_file(document: Document, file_data: dict, version_id=None):
         original_storage_key = storage_key
     except (APIException, requests.exceptions.RequestException) as e:
         logger.error(f"Failed to upload imported file to file server for doc {document.id}: {e}")
-        document.status = 'error'
-        document.status_message = 'Failed to store imported file.'
-        document.save()
-        return
+        raise
 
     # 2. Update document and version records
     if version_id:
@@ -666,9 +664,6 @@ def process_imported_file(document: Document, file_data: dict, version_id=None):
     
     version.save()
 
-    document.status_message = 'File imported. Starting processing...'
-    document.save()
-
     # 3. Re-check quota with actual size and route for processing.
     user = document.created_by
     if user:
@@ -683,15 +678,12 @@ def process_imported_file(document: Document, file_data: dict, version_id=None):
                 f"Cloud import for doc {document.id} failed: quota exceeded with actual file size. "
                 f"User: {user.id}, Size: {file_size}."
             )
-            document.status = 'error'
-            document.status_message = str(e)
-            document.save()
             # Clean up the file that was just uploaded to our storage
             try:
                 fileserver_client.delete_file(original_storage_key)
             except APIException as delete_e:
                 logger.error(f"Failed to clean up file {original_storage_key} after quota error: {delete_e}")
-            return  # Stop processing
+            raise
 
     old_file_size = document.file_size or 0 if version.version_number > 1 else 0
 
