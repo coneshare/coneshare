@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Loader2, AlertTriangle } from 'lucide-react';
-import { getDocumentDetails, getDocumentStatus, getDocumentViews, getDocumentStats, deleteShareLink, uploadNewVersion, getDocumentDownloadUrl, deleteDocument, getDataroom, getDataroomFolderContents, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl, refreshCloudDocument, importCloudVersion } from '../services/api';
+import { renameDocument, getDocumentDetails, getDocumentStatus, getDocumentViews, getDocumentStats, deleteShareLink, uploadNewVersion, getDocumentDownloadUrl, deleteDocument, getDataroom, getDataroomFolderContents, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl, refreshCloudDocument, importCloudVersion } from '../services/api';
 import { DocumentHeader } from '../components/documents/DocumentHeader';
 import { LinksTable } from '../components/documents/LinksTable';
 import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
@@ -249,6 +249,18 @@ export function DocumentPage() {
     }
   };
 
+  const handleRenameDocument = async (newName) => {
+    try {
+      await renameDocument(documentId, newName);
+      setDocument(prev => ({ ...prev, name: newName }));
+      setBreadcrumbData(prev => prev ? { ...prev, documentName: newName } : null);
+      toast.success("Document renamed successfully.");
+    } catch (error) {
+      console.error("Failed to rename document:", error);
+      toast.error(error.response?.data?.detail || "Failed to rename document.");
+    }
+  };
+
   const handleDelete = () => {
     setIsDeleteDocDialogOpen(true);
   };
@@ -260,7 +272,7 @@ export function DocumentPage() {
       toast.success(`Document "${document.name}" deleted.`);
       navigate('/documents');
     } catch (error) {
-      // Error is handled by API interceptor
+      // The API interceptor will show a more specific error message.
     } finally {
       setIsDeleteDocDialogOpen(false);
     }
@@ -455,6 +467,7 @@ export function DocumentPage() {
         onDownload={handleDownload}
         onVersionHistory={() => navigate(`/documents/${documentId}/versions`)}
         onDelete={handleDelete}
+        onRenameDocument={handleRenameDocument}
         isProcessing={isProcessing}
         cloudProviders={cloudProviders}
       />
