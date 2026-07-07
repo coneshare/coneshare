@@ -1,4 +1,5 @@
-import { Eye, Upload, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Eye, Upload, RefreshCw, Pencil } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import {
@@ -26,29 +27,120 @@ export function DocumentHeader({
   onDownload,
   onVersionHistory,
   onDelete,
+  onRenameDocument,
   isProcessing,
   cloudProviders = []
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedName, setEditedName] = useState(document.name);
+
+  useEffect(() => {
+    setEditedName(document.name);
+  }, [document.name]);
+
+  const handleStartEdit = () => {
+    if (isProcessing) return;
+    setEditedName(document.name);
+    setIsEditing(true);
+  };
+
+  const handleSave = () => {
+    setIsEditing(false);
+    const trimmed = editedName.trim();
+    if (!trimmed) {
+      setEditedName(document.name);
+      return;
+    }
+    if (trimmed !== document.name) {
+      onRenameDocument(trimmed);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+      setEditedName(document.name);
+    }
+  };
+
   return (
-    <div className="border-b border-gray-200 pb-5 sm:flex sm:items-center sm:justify-between">
-      <div>
-        <h1 className="text-2xl font-bold leading-6 text-gray-900">{document.name}</h1>
-        {(document.uploader_info || document.cloud_import) && (
-          <div className="mt-2 flex flex-wrap gap-2">
+    <TooltipProvider>
+      <div className="border-b border-gray-200 pb-5 sm:flex sm:items-center sm:justify-between">
+        <div className="flex-1 min-w-0 mr-4">
+          {isEditing ? (
+            <input
+              type="text"
+              className="text-2xl font-bold leading-6 text-gray-900 border-b border-gray-900 focus:outline-none bg-transparent w-full focus:border-b-2 py-0"
+              value={editedName}
+              onChange={(e) => setEditedName(e.target.value)}
+              onBlur={handleSave}
+              onKeyDown={handleKeyDown}
+              autoFocus
+            />
+          ) : (
+            <div className="flex items-center gap-2 group max-w-full">
+              <h1 
+                className="text-2xl font-bold leading-6 text-gray-900 truncate cursor-pointer hover:bg-gray-100/50 rounded px-1 -mx-1"
+                onClick={handleStartEdit}
+                title="Click to rename"
+              >
+                {document.name}
+              </h1>
+              <button
+                onClick={handleStartEdit}
+                disabled={isProcessing}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-gray-400 hover:text-gray-600 focus:opacity-100 disabled:pointer-events-none"
+                title="Rename Document"
+                aria-label="Rename Document"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {document.updated_at && (
+              <span className="text-xs text-gray-500 mr-1">
+                Last updated: {new Date(document.updated_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+              </span>
+            )}
             {document.uploader_info && (
               <Badge variant="secondary">
                 Uploaded by {document.uploader_info.name} ({document.uploader_info.email})
               </Badge>
             )}
             {document.cloud_import && (
-              <Badge className="bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-900/20 dark:text-sky-400 dark:border-sky-850">
-                ☁️ Imported from {document.cloud_import.provider_display}
-              </Badge>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Badge className="bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-900/20 dark:text-sky-400 dark:border-sky-850 cursor-help">
+                      ☁️ Imported from {document.cloud_import.provider_display}
+                    </Badge>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="space-y-1.5 p-1 text-xs">
+                    <div className="font-semibold border-b border-gray-700/50 pb-1 mb-1">
+                      Cloud Import Details
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Provider:</span> {document.cloud_import.provider_display}
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Source Path:</span> <code className="bg-gray-800 dark:bg-gray-750 px-1 rounded break-all">{document.cloud_import.file_id || 'N/A'}</code>
+                    </div>
+                    {document.cloud_import.etag_or_rev && (
+                      <div>
+                        <span className="text-gray-400">Revision:</span> <code className="bg-gray-800 dark:bg-gray-750 px-1 rounded break-all">{document.cloud_import.etag_or_rev}</code>
+                      </div>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
-        )}
-      </div>
-      <TooltipProvider>
+        </div>
         <div className="mt-3 flex sm:ml-4 sm:mt-0">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -98,19 +190,26 @@ export function DocumentHeader({
           )}
 
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="mr-2"
-                  disabled={isProcessing}
-                >
-                  <Upload className="h-5 w-5" />
-                  <span className="sr-only">Upload New Version</span>
-                </Button>
-              </span>
-            </DropdownMenuTrigger>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <DropdownMenuTrigger asChild disabled={isProcessing}>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="mr-2"
+                      disabled={isProcessing}
+                    >
+                      <Upload className="h-5 w-5" />
+                      <span className="sr-only">Upload New Version</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Upload New Version</p>
+              </TooltipContent>
+            </Tooltip>
             <DropdownMenuContent>
               <DropdownMenuItem onSelect={onUploadNewVersion}>
                 Upload from Computer
@@ -129,13 +228,11 @@ export function DocumentHeader({
             Create Link
           </Button>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <span>
-                <Button variant="outline" size="icon" disabled={isProcessing}>
-                  <ChevronDownIcon className="h-5 w-5" />
-                  <span className="sr-only">More actions</span>
-                </Button>
-              </span>
+            <DropdownMenuTrigger asChild disabled={isProcessing}>
+              <Button variant="outline" size="icon" disabled={isProcessing}>
+                <ChevronDownIcon className="h-5 w-5" />
+                <span className="sr-only">More actions</span>
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={onDownload}>Download</DropdownMenuItem>
@@ -149,7 +246,7 @@ export function DocumentHeader({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </TooltipProvider>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

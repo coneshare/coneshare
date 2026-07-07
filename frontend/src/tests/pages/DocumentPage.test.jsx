@@ -10,12 +10,13 @@ import { DocumentPage } from '../../pages/DocumentPage';
 
 // Mock child components to isolate the page
 vi.mock('../../components/documents/DocumentHeader', () => ({
-  DocumentHeader: ({ onUploadNewVersion, onDownload, onDelete }) => (
+  DocumentHeader: ({ onUploadNewVersion, onDownload, onDelete, onRenameDocument }) => (
     <div>
       <span>Document Header</span>
       <button onClick={onUploadNewVersion}>Upload New Version</button>
       <button onClick={onDownload}>Download</button>
       <button onClick={onDelete}>Delete</button>
+      <button onClick={() => onRenameDocument('New Document Name')}>Rename</button>
     </div>
   ),
 }));
@@ -292,6 +293,20 @@ describe('DocumentPage', () => {
 
       // Check for navigation
       expect(await screen.findByText('Documents Page')).toBeInTheDocument();
+    });
+
+    it('handles document renaming', async () => {
+      api.renameDocument.mockResolvedValue({ data: { id: 'doc123', name: 'New Document Name' } });
+
+      renderComponent();
+      await waitFor(() => expect(api.getDocumentDetails).toHaveBeenCalled());
+
+      const renameButton = screen.getByRole('button', { name: /rename/i });
+      fireEvent.click(renameButton);
+
+      await waitFor(() => {
+        expect(api.renameDocument).toHaveBeenCalledWith('doc123', 'New Document Name');
+      });
     });
   });
 });
