@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { authService } from '../services/authService'
 import { extractApiErrorMessage } from '../lib/apiErrors'
 import { useBranding } from '../contexts/BrandingProvider'
+import { Button } from '../components/ui/Button'
+import { APP_DISPLAY_VERSION } from '../lib/constants'
 
 export function SignupPage() {
   const { brandName, brandLogoUrl, brandWebsiteUrl, termsUrl, privacyPolicyUrl } = useBranding()
@@ -33,7 +35,7 @@ export function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8 dark:bg-gray-900">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8 dark:bg-gray-900">
       <div className="w-full max-w-md space-y-8">
         <div className="flex flex-col items-center">
           {brandLogoUrl ? (
@@ -111,13 +113,14 @@ export function SignupPage() {
             )}
 
             <div>
-              <button
+              <Button
                 type="submit"
+                size="lg"
                 disabled={isLoading}
-                className="group relative flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+                className="w-full active:scale-[0.98] transition-transform"
               >
                 {isLoading ? 'Submitting...' : 'Sign Up'}
-              </button>
+              </Button>
             </div>
           </form>
         )}
@@ -160,8 +163,16 @@ export function SignupPage() {
             Privacy Policy
           </a>
         </div>
-        <div className="text-[11px] text-gray-400/80">
-          This website is powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 dark:text-gray-100 dark:hover:text-gray-300 font-semibold underline transition-colors">Coneshare</a>
+        <div className="flex items-center gap-1.5 text-[11px] text-gray-400/80">
+          <span>
+            This website is powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 dark:text-gray-100 dark:hover:text-gray-300 font-semibold underline transition-colors">Coneshare</a>
+          </span>
+          {APP_DISPLAY_VERSION && (
+            <>
+              <span className="text-gray-300 select-none">&bull;</span>
+              <span>{`ver-${APP_DISPLAY_VERSION}`}</span>
+            </>
+          )}
         </div>
       </div>
     </div>

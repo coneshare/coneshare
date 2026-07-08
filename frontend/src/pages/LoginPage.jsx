@@ -131,11 +131,6 @@ function LoginPage() {
           </p>
         )}
 
-        {APP_DISPLAY_VERSION && (
-          <p className="text-center text-xs text-gray-500 dark:text-gray-400">
-            {`ver-${APP_DISPLAY_VERSION}`}
-          </p>
-        )}
       </div>
 
       {/* Footer Links */}
@@ -168,8 +163,16 @@ function LoginPage() {
             Privacy Policy
           </a>
         </div>
-        <div className="text-[11px] text-gray-400/80">
-          This website is powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 dark:text-gray-100 dark:hover:text-gray-300 font-semibold underline transition-colors">Coneshare</a>
+        <div className="flex items-center gap-1.5 text-[11px] text-gray-400/80">
+          <span>
+            This website is powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 dark:text-gray-100 dark:hover:text-gray-300 font-semibold underline transition-colors">Coneshare</a>
+          </span>
+          {APP_DISPLAY_VERSION && (
+            <>
+              <span className="text-gray-300 select-none">&bull;</span>
+              <span>{`ver-${APP_DISPLAY_VERSION}`}</span>
+            </>
+          )}
         </div>
       </div>
     </div>
