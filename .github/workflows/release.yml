@@ -57,7 +57,8 @@ jobs:
           cd coneshare-compose
           git checkout -b "release-${CLEAN_VERSION}"
           sed -i "s|CONESHARE_IMAGE=conesharedev/coneshare:rolling|CONESHARE_IMAGE=conesharedev/coneshare:${CLEAN_VERSION}|" .env
-          git add .env
+          sed -i "s|SENTRY_RELEASE=rolling|SENTRY_RELEASE=${CLEAN_VERSION}|" app.env.example
+          git add .env app.env.example
           git commit -m "release: ${CLEAN_VERSION}"
           git push origin "release-${CLEAN_VERSION}"
           
@@ -95,6 +96,7 @@ jobs:
           git checkout main
           git reset --hard origin/main 
           sed -i "s|CONESHARE_IMAGE=conesharedev/coneshare:${CLEAN_VERSION}|CONESHARE_IMAGE=conesharedev/coneshare:rolling|" .env
-          git add .env
+          sed -i "s|SENTRY_RELEASE=${CLEAN_VERSION}|SENTRY_RELEASE=rolling|" app.env.example
+          git add .env app.env.example
           git commit -m "build: Set main version back to rolling"
           git push origin main
