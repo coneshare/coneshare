@@ -1301,6 +1301,8 @@ class ShareLinkQnAMessageListCreateView(APIView):
 
 @extend_schema(tags=['sharelinks'])
 class QnAThreadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    # Dummy queryset for OpenAPI schema generation to infer lookup field type without executing get_queryset().
+    queryset = QnAThread.objects.none()
     serializer_class = QnAThreadSerializer
     permission_classes = [permissions.IsAuthenticated]
 

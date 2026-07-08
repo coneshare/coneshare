@@ -397,17 +397,17 @@ class DocumentVersionUploadRequestView(APIView):
     """
     permission_classes = [permissions.IsAuthenticated]
 
-    class RequestSerializer(serializers.Serializer):
+    class DocumentVersionUploadRequestSerializer(serializers.Serializer):
         file_name = serializers.CharField()
         file_size = serializers.IntegerField()
 
-    class ResponseSerializer(serializers.Serializer):
+    class DocumentVersionUploadResponseSerializer(serializers.Serializer):
         upload_url = serializers.CharField()
         storage_key = serializers.CharField()
 
     @extend_schema(
-        request=RequestSerializer,
-        responses={200: ResponseSerializer, 400: dict, 404: dict},
+        request=DocumentVersionUploadRequestSerializer,
+        responses={200: DocumentVersionUploadResponseSerializer, 400: dict, 404: dict},
     )
     def post(self, request, document_id, *args, **kwargs):
         try:
@@ -415,7 +415,7 @@ class DocumentVersionUploadRequestView(APIView):
         except Document.DoesNotExist:
             return Response({"detail": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = self.RequestSerializer(data=request.data)
+        serializer = self.DocumentVersionUploadRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 

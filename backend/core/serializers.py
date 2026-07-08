@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model, password_validation
 from django.core.exceptions import ValidationError
 from geoip2.errors import AddressNotFoundError
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 
 from core.models import AppConfiguration, LoginActivity, Organization, UserGroup
 from core.services import get_dynamic_setting
@@ -30,7 +31,8 @@ class OrganizationSerializer(serializers.ModelSerializer):
             'brand_logo': {'write_only': True, 'required': False}
         }
 
-    def get_brand_logo_url(self, obj):
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_brand_logo_url(self, obj) -> str:
         if obj.brand_logo and hasattr(obj.brand_logo, 'url'):
             return urljoin(settings.SITE_DOMAIN, obj.brand_logo.url)
         return None
@@ -88,15 +90,18 @@ class UserSerializer(serializers.ModelSerializer):
             'avatar': {'write_only': True, 'required': False}
         }
 
-    def get_avatar_url(self, obj):
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_avatar_url(self, obj) -> str:
         if obj.avatar and hasattr(obj.avatar, 'url'):
             return urljoin(settings.SITE_DOMAIN, obj.avatar.url)
         return None
 
-    def get_file_size_quota_mb(self, obj):
+    @extend_schema_field(serializers.IntegerField())
+    def get_file_size_quota_mb(self, obj) -> int:
         return get_dynamic_setting('FILE_SIZE_QUOTA_MB')
 
-    def get_max_files_per_upload(self, obj):
+    @extend_schema_field(serializers.IntegerField())
+    def get_max_files_per_upload(self, obj) -> int:
         return get_dynamic_setting('MAX_FILES_PER_UPLOAD')
 
     def validate_password(self, value):
@@ -205,10 +210,12 @@ class LoginActivitySerializer(serializers.ModelSerializer):
             setattr(obj, '_geoip_data_cache', data)
         return obj._geoip_data_cache
 
-    def get_country(self, obj):
+    @extend_schema_field(serializers.CharField())
+    def get_country(self, obj) -> str:
         return self._get_geoip_data(obj).get('country_name', '')
 
-    def get_city(self, obj):
+    @extend_schema_field(serializers.CharField())
+    def get_city(self, obj) -> str:
         return self._get_geoip_data(obj).get('city', '')
 
 

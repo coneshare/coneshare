@@ -15,6 +15,8 @@ from .tasks import deliver_automation_delivery_task
 
 @extend_schema(tags=['automations'])
 class AutomationDestinationViewSet(viewsets.ModelViewSet):
+    # Dummy queryset for OpenAPI schema generation to infer lookup field type without executing get_queryset().
+    queryset = AutomationDestination.objects.none()
     serializer_class = AutomationDestinationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -30,6 +32,8 @@ class AutomationDestinationViewSet(viewsets.ModelViewSet):
 
 @extend_schema(tags=['automations'])
 class AutomationRuleViewSet(viewsets.ModelViewSet):
+    # Dummy queryset for OpenAPI schema generation to infer lookup field type without executing get_queryset().
+    queryset = AutomationRule.objects.none()
     serializer_class = AutomationRuleSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -45,6 +49,8 @@ class AutomationRuleViewSet(viewsets.ModelViewSet):
 
 @extend_schema(tags=['automations'])
 class AutomationDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
+    # Dummy queryset for OpenAPI schema generation to infer lookup field type without executing get_queryset().
+    queryset = AutomationDelivery.objects.none()
     serializer_class = AutomationDeliverySerializer
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = StandardResultsSetPagination
@@ -88,6 +94,8 @@ class AutomationDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
 
 @extend_schema(tags=['automations'])
 class AutomationAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
+    # Dummy queryset for OpenAPI schema generation to infer lookup field type without executing get_queryset().
+    queryset = AutomationAssignment.objects.none()
     serializer_class = AutomationAssignmentSerializer
     permission_classes = [permissions.IsAuthenticated]
 

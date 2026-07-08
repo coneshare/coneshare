@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 import re
 import posixpath
 from urllib.parse import urljoin
@@ -72,6 +73,7 @@ class DataroomFolderSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'dataroom', 'parent', 'is_starred', 'created_at', 'updated_at', 'ancestors']
         read_only_fields = ['id', 'created_at', 'updated_at', 'ancestors']
 
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_ancestors(self, obj):
         """
         Returns a list of ancestor folders, from the root down to the
@@ -116,10 +118,12 @@ class DataroomDocumentSerializer(serializers.ModelSerializer):
             'dataroom_view_count'
         ]
 
-    def get_name(self, obj):
+    @extend_schema_field(serializers.CharField())
+    def get_name(self, obj) -> str:
         return obj.name or obj.document.name
 
-    def get_dataroom_view_count(self, obj):
+    @extend_schema_field(serializers.IntegerField())
+    def get_dataroom_view_count(self, obj) -> int:
         return getattr(obj, 'dataroom_view_count', 0) or 0
 
 
@@ -137,11 +141,13 @@ class DataroomDetailSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
-    def get_branding_banner(self, obj):
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_branding_banner(self, obj) -> str:
         if not obj.branding_banner:
             return None
         return urljoin(settings.SITE_DOMAIN, obj.branding_banner.url)
 
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_items(self, obj):
         request = self.context.get('request')
         use_full_content = bool(request and request.query_params.get('content') == 'full')

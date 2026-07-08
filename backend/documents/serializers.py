@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 
 from .models import (Document, DocumentPage, DocumentVersion, Folder)
 from .services import _get_unique_folder_name
@@ -25,6 +26,7 @@ class FolderSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'parent', 'organization', 'created_at', 'updated_at', 'ancestors', 'is_starred']
         read_only_fields = ['id', 'organization', 'created_at', 'updated_at', 'ancestors']
 
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_ancestors(self, obj):
         """
         Returns a list of ancestor folders, from the root down to the
@@ -194,6 +196,7 @@ class DocumentSerializer(serializers.ModelSerializer):
             'id', 'organization', 'created_by', 'created_at', 'updated_at'
         ]
 
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_share_links(self, instance):
         from sharelinks.serializers import ShareLinkSerializer
         # The 'share_links' related manager is often prefetched in the viewset,
@@ -201,10 +204,12 @@ class DocumentSerializer(serializers.ModelSerializer):
         queryset = instance.share_links.all()
         return ShareLinkSerializer(queryset, many=True, context=self.context).data
 
-    def get_uploader_info(self, obj):
+    @extend_schema_field(serializers.DictField(allow_null=True))
+    def get_uploader_info(self, obj) -> dict:
         return obj.metadata.get('uploader_info', None)
 
-    def get_share_link_view_count(self, obj):
+    @extend_schema_field(serializers.IntegerField())
+    def get_share_link_view_count(self, obj) -> int:
         annotated_count = getattr(obj, 'share_link_view_count', None)
         if annotated_count is not None:
             return annotated_count
@@ -212,7 +217,8 @@ class DocumentSerializer(serializers.ModelSerializer):
         from sharelinks.models import ViewSession
         return ViewSession.objects.filter(share_link__document=obj).count()
 
-    def get_cloud_import(self, obj):
+    @extend_schema_field(serializers.DictField(allow_null=True))
+    def get_cloud_import(self, obj) -> dict:
         # Retrieve the currently active/primary version
         primary_version = obj.versions.filter(is_primary=True).first()
         if primary_version and isinstance(primary_version.metadata, dict):

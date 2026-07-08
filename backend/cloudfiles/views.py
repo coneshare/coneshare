@@ -247,6 +247,7 @@ class CloudRefreshView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
+        request=None,
         responses={202: DocumentSerializer, 400: dict, 404: dict, 500: dict},
     )
     def post(self, request, document_id, *args, **kwargs):

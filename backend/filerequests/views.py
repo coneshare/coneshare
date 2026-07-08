@@ -156,18 +156,18 @@ class FileRequestUploadRequestView(APIView):
     """
     permission_classes = [permissions.AllowAny]
 
-    class RequestSerializer(serializers.Serializer):
+    class FileRequestUploadRequestSerializer(serializers.Serializer):
         file_name = serializers.CharField()
         file_size = serializers.IntegerField()
 
-    class ResponseSerializer(serializers.Serializer):
+    class FileRequestUploadResponseSerializer(serializers.Serializer):
         upload_url = serializers.CharField()
         storage_key = serializers.CharField()
         unique_name = serializers.CharField()
 
     @extend_schema(
-        request=RequestSerializer,
-        responses={200: ResponseSerializer, 400: dict, 404: dict},
+        request=FileRequestUploadRequestSerializer,
+        responses={200: FileRequestUploadResponseSerializer, 400: dict, 404: dict},
     )
     def post(self, request, slug, *args, **kwargs):
         try:
@@ -178,7 +178,7 @@ class FileRequestUploadRequestView(APIView):
         if file_request.expires_at and file_request.expires_at < timezone.now():
             return Response({"detail": "This file request has expired."}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = self.RequestSerializer(data=request.data)
+        serializer = self.FileRequestUploadRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         file_name = serializer.validated_data['file_name']

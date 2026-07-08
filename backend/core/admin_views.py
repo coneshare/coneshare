@@ -8,7 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, extend_schema_field
 
 from documents.views import StandardResultsSetPagination
 from filerequests.models import SecurityThreatEvent
@@ -111,15 +111,18 @@ class AdminUserDetailSerializer(UserSerializer):
     class Meta(UserSerializer.Meta):
         fields = UserSerializer.Meta.fields + ['total_links', 'total_datarooms', 'total_views']
 
-    def get_total_links(self, obj):
+    @extend_schema_field(serializers.IntegerField())
+    def get_total_links(self, obj) -> int:
         from sharelinks.models import ShareLink
         return ShareLink.objects.filter(created_by=obj).count()
 
-    def get_total_datarooms(self, obj):
+    @extend_schema_field(serializers.IntegerField())
+    def get_total_datarooms(self, obj) -> int:
         from datarooms.models import Dataroom
         return Dataroom.objects.filter(created_by=obj).count()
 
-    def get_total_views(self, obj):
+    @extend_schema_field(serializers.IntegerField())
+    def get_total_views(self, obj) -> int:
         from sharelinks.models import ViewSession
         return ViewSession.objects.filter(share_link__created_by=obj).count()
 
@@ -292,6 +295,8 @@ class AdminSecurityThreatEventViewSet(viewsets.ReadOnlyModelViewSet):
     """
     API endpoint for admins to view security threat events for file requests.
     """
+    # Dummy queryset for OpenAPI schema generation to infer lookup field type without executing get_queryset().
+    queryset = SecurityThreatEvent.objects.none()
     serializer_class = SecurityThreatEventSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
     pagination_class = StandardResultsSetPagination

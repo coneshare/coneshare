@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: ConeShare API
-  version: 1.5.0
+  version: 1.6.0
   description: OpenAPI schema for the ConeShare backend API.
 paths:
   /api/schema/:
@@ -278,6 +278,46 @@ paths:
               schema:
                 $ref: '#/components/schemas/LoginActivity'
           description: ''
+  /api/v1/admin/organization/:
+    get:
+      operationId: v1_admin_organization_retrieve
+      description: View for admins to retrieve or update their organization's branding/settings.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+    patch:
+      operationId: v1_admin_organization_partial_update
+      description: View for admins to retrieve or update their organization's branding/settings.
+      tags:
+      - v1
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedOrganization'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedOrganization'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedOrganization'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
   /api/v1/admin/security-threat-events/:
     get:
       operationId: v1_admin_security_threat_events_list
@@ -317,6 +357,7 @@ paths:
         name: id
         schema:
           type: string
+        description: A unique value identifying this security threat event.
         required: true
       tags:
       - v1
@@ -802,6 +843,7 @@ paths:
         name: id
         schema:
           type: string
+        description: A unique value identifying this automation assignment.
         required: true
       tags:
       - automations
@@ -849,6 +891,7 @@ paths:
         name: id
         schema:
           type: string
+        description: A unique value identifying this automation delivery.
         required: true
       tags:
       - automations
@@ -869,6 +912,7 @@ paths:
         name: id
         schema:
           type: string
+        description: A unique value identifying this automation delivery.
         required: true
       tags:
       - automations
@@ -941,6 +985,7 @@ paths:
         name: id
         schema:
           type: string
+        description: A unique value identifying this automation destination.
         required: true
       tags:
       - automations
@@ -960,6 +1005,7 @@ paths:
         name: id
         schema:
           type: string
+        description: A unique value identifying this automation destination.
         required: true
       tags:
       - automations
@@ -991,6 +1037,7 @@ paths:
         name: id
         schema:
           type: string
+        description: A unique value identifying this automation destination.
         required: true
       tags:
       - automations
@@ -1021,6 +1068,7 @@ paths:
         name: id
         schema:
           type: string
+        description: A unique value identifying this automation destination.
         required: true
       tags:
       - automations
@@ -1078,6 +1126,7 @@ paths:
         name: id
         schema:
           type: string
+        description: A unique value identifying this automation rule.
         required: true
       tags:
       - automations
@@ -1097,6 +1146,7 @@ paths:
         name: id
         schema:
           type: string
+        description: A unique value identifying this automation rule.
         required: true
       tags:
       - automations
@@ -1128,6 +1178,7 @@ paths:
         name: id
         schema:
           type: string
+        description: A unique value identifying this automation rule.
         required: true
       tags:
       - automations
@@ -1158,6 +1209,7 @@ paths:
         name: id
         schema:
           type: string
+        description: A unique value identifying this automation rule.
         required: true
       tags:
       - automations
@@ -1332,6 +1384,103 @@ paths:
       - jwtAuth: []
       responses:
         '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/cloud/documents/{document_id}/import_version/:
+    post:
+      operationId: v1_cloud_documents_import_version_create
+      description: Imports a new version of an existing document from a cloud provider.
+      parameters:
+      - in: path
+        name: document_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - cloudfiles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportVersion'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportVersion'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportVersion'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/cloud/documents/{document_id}/refresh/:
+    post:
+      operationId: v1_cloud_documents_refresh_create
+      description: Refreshes a document that was originally imported from a cloud
+        provider.
+      parameters:
+      - in: path
+        name: document_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - cloudfiles
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+        '400':
           content:
             application/json:
               schema:
@@ -2228,9 +2377,89 @@ paths:
               schema:
                 $ref: '#/components/schemas/Document'
           description: ''
+  /api/v1/documents/{id}/promote_version/:
+    post:
+      operationId: v1_documents_promote_version_create
+      description: Promotes a specific DocumentVersion to be the active (primary)
+        version of the Document.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this document.
+        required: true
+      tags:
+      - documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Document'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Document'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Document'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
   /api/v1/documents/{id}/stats/:
     get:
       operationId: v1_documents_stats_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this document.
+        required: true
+      tags:
+      - documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+  /api/v1/documents/{id}/status/:
+    get:
+      operationId: v1_documents_status_retrieve
+      description: Returns a lightweight status object containing only status and
+        status_message.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this document.
+        required: true
+      tags:
+      - documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+  /api/v1/documents/{id}/versions/:
+    get:
+      operationId: v1_documents_versions_retrieve
+      description: Retrieves a list of DocumentVersions for the given Document.
       parameters:
       - in: path
         name: id
@@ -3669,13 +3898,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Request'
+              $ref: '#/components/schemas/FileRequestUploadRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/Request'
+              $ref: '#/components/schemas/FileRequestUploadRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Request'
+              $ref: '#/components/schemas/FileRequestUploadRequest'
         required: true
       security:
       - jwtAuth: []
@@ -3685,7 +3914,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Response'
+                $ref: '#/components/schemas/FileRequestUploadResponse'
           description: ''
         '400':
           content:
@@ -3764,6 +3993,7 @@ paths:
         name: id
         schema:
           type: string
+        description: A unique value identifying this qn a thread.
         required: true
       tags:
       - sharelinks
@@ -3783,6 +4013,7 @@ paths:
         name: id
         schema:
           type: string
+        description: A unique value identifying this qn a thread.
         required: true
       tags:
       - sharelinks
@@ -3814,6 +4045,7 @@ paths:
         name: id
         schema:
           type: string
+        description: A unique value identifying this qn a thread.
         required: true
       tags:
       - sharelinks
@@ -4417,13 +4649,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Request'
+              $ref: '#/components/schemas/DocumentVersionUploadRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/Request'
+              $ref: '#/components/schemas/DocumentVersionUploadRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Request'
+              $ref: '#/components/schemas/DocumentVersionUploadRequest'
         required: true
       security:
       - jwtAuth: []
@@ -4432,7 +4664,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Response'
+                $ref: '#/components/schemas/DocumentVersionUploadResponse'
           description: ''
         '400':
           content:
@@ -5042,6 +5274,8 @@ components:
           nullable: true
         avatar_url:
           type: string
+          format: uri
+          nullable: true
           readOnly: true
         date_joined:
           type: string
@@ -5056,10 +5290,10 @@ components:
           readOnly: true
           description: Total size of all documents in bytes.
         file_size_quota_mb:
-          type: string
+          type: integer
           readOnly: true
         max_files_per_upload:
-          type: string
+          type: integer
           readOnly: true
         is_superuser:
           type: boolean
@@ -5073,13 +5307,13 @@ components:
           description: Designates whether this user should be treated as active. Unselect
             this instead of deleting accounts.
         total_links:
-          type: string
+          type: integer
           readOnly: true
         total_datarooms:
-          type: string
+          type: integer
           readOnly: true
         total_views:
-          type: string
+          type: integer
           readOnly: true
       required:
       - avatar_url
@@ -5508,6 +5742,8 @@ components:
           readOnly: true
         branding_banner:
           type: string
+          format: uri
+          nullable: true
           readOnly: true
         brand_primary_color:
           type: string
@@ -5522,7 +5758,10 @@ components:
           readOnly: true
           nullable: true
         items:
-          type: string
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
           readOnly: true
       required:
       - brand_accent_color
@@ -5572,7 +5811,7 @@ components:
         is_starred:
           type: boolean
         dataroom_view_count:
-          type: string
+          type: integer
           readOnly: true
       required:
       - created_at
@@ -5618,7 +5857,10 @@ components:
           format: date-time
           readOnly: true
         ancestors:
-          type: string
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
           readOnly: true
       required:
       - ancestors
@@ -5647,6 +5889,9 @@ components:
         dataroom_document_name:
           type: string
           readOnly: true
+        dataroom_document_type:
+          type: string
+          readOnly: true
         dataroom_folder_name:
           type: string
           readOnly: true
@@ -5658,6 +5903,7 @@ components:
       required:
       - dataroom_document_id
       - dataroom_document_name
+      - dataroom_document_type
       - dataroom_folder_id
       - dataroom_folder_name
       - id
@@ -5749,15 +5995,26 @@ components:
             $ref: '#/components/schemas/DocumentVersion'
           readOnly: true
         share_links:
-          type: string
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
           readOnly: true
         uploader_info:
-          type: string
+          type: object
+          additionalProperties: {}
+          nullable: true
           readOnly: true
         share_link_view_count:
-          type: string
+          type: integer
+          readOnly: true
+        cloud_import:
+          type: object
+          additionalProperties: {}
+          nullable: true
           readOnly: true
       required:
+      - cloud_import
       - content_type
       - created_at
       - created_by
@@ -5827,6 +6084,9 @@ components:
         pdf_preview_url:
           type: string
           nullable: true
+        video_preview_url:
+          type: string
+          nullable: true
         download_url:
           type: string
           nullable: true
@@ -5842,6 +6102,7 @@ components:
       - render_error
       - render_status
       - type
+      - video_preview_url
     DocumentStatusEnum:
       enum:
       - uploading
@@ -5935,6 +6196,8 @@ components:
           items:
             $ref: '#/components/schemas/DocumentPage'
           readOnly: true
+        metadata:
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -5945,11 +6208,32 @@ components:
       - has_pages
       - id
       - is_primary
+      - metadata
       - num_pages
       - pages
       - render_error
       - render_status
       - version_number
+    DocumentVersionUploadRequest:
+      type: object
+      properties:
+        file_name:
+          type: string
+        file_size:
+          type: integer
+      required:
+      - file_name
+      - file_size
+    DocumentVersionUploadResponse:
+      type: object
+      properties:
+        upload_url:
+          type: string
+        storage_key:
+          type: string
+      required:
+      - storage_key
+      - upload_url
     EnsureFolderPaths:
       type: object
       description: Serializer for validating paths for the ensure-paths endpoint.
@@ -6131,6 +6415,29 @@ components:
       - unique_name
       - uploader_email
       - uploader_name
+    FileRequestUploadRequest:
+      type: object
+      properties:
+        file_name:
+          type: string
+        file_size:
+          type: integer
+      required:
+      - file_name
+      - file_size
+    FileRequestUploadResponse:
+      type: object
+      properties:
+        upload_url:
+          type: string
+        storage_key:
+          type: string
+        unique_name:
+          type: string
+      required:
+      - storage_key
+      - unique_name
+      - upload_url
     Finalize:
       type: object
       properties:
@@ -6168,7 +6475,10 @@ components:
           format: date-time
           readOnly: true
         ancestors:
-          type: string
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
           readOnly: true
         is_starred:
           type: boolean
@@ -6197,11 +6507,34 @@ components:
       description: |-
         * `POST` - POST
         * `PUT` - PUT
+    ImportVersion:
+      type: object
+      properties:
+        connection_id:
+          type: string
+          maxLength: 255
+        file_id:
+          type: string
+          maxLength: 1024
+        file_name:
+          type: string
+          maxLength: 255
+        file_size:
+          type: integer
+      required:
+      - connection_id
+      - file_id
+      - file_name
+      - file_size
     LoginActivity:
       type: object
       properties:
         id:
           type: string
+          readOnly: true
+        user_id:
+          type: string
+          format: uuid
           readOnly: true
         user_email:
           type: string
@@ -6232,6 +6565,7 @@ components:
       - created_at
       - id
       - user_email
+      - user_id
       - user_name
     LogoutRequest:
       type: object
@@ -6299,7 +6633,39 @@ components:
           type: string
           format: date-time
           readOnly: true
+        brand_logo:
+          type: string
+          format: uri
+          writeOnly: true
+          nullable: true
+          pattern: (?:png|jpg|jpeg|svg)$
+        brand_logo_url:
+          type: string
+          format: uri
+          nullable: true
+          readOnly: true
+        brand_name:
+          type: string
+          nullable: true
+          maxLength: 255
+        brand_website_url:
+          type: string
+          format: uri
+          nullable: true
+          maxLength: 500
+        terms_url:
+          type: string
+          format: uri
+          nullable: true
+        privacy_policy_url:
+          type: string
+          format: uri
+          nullable: true
+        branding_extras:
+          readOnly: true
       required:
+      - brand_logo_url
+      - branding_extras
       - created_at
       - id
       - name
@@ -6323,7 +6689,36 @@ components:
           type: string
           nullable: true
           readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        media_type:
+          type: string
+          maxLength: 20
+        video_start_time:
+          type: number
+          format: double
+          nullable: true
+        video_end_time:
+          type: number
+          format: double
+          nullable: true
+        video_volume:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        is_fullscreen:
+          type: boolean
+          nullable: true
+        playback_speed:
+          type: number
+          format: double
+          nullable: true
       required:
+      - created_at
       - duration_seconds
       - page_number
       - url
@@ -6346,6 +6741,30 @@ components:
           format: int64
         dataroom_visit:
           type: string
+          nullable: true
+        media_type:
+          type: string
+          maxLength: 20
+        video_start_time:
+          type: number
+          format: double
+          nullable: true
+        video_end_time:
+          type: number
+          format: double
+          nullable: true
+        video_volume:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        is_fullscreen:
+          type: boolean
+          nullable: true
+        playback_speed:
+          type: number
+          format: double
           nullable: true
       required:
       - duration_seconds
@@ -6682,7 +7101,10 @@ components:
           format: date-time
           readOnly: true
         ancestors:
-          type: string
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
           readOnly: true
     PatchedDocument:
       type: object
@@ -6757,13 +7179,23 @@ components:
             $ref: '#/components/schemas/DocumentVersion'
           readOnly: true
         share_links:
-          type: string
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
           readOnly: true
         uploader_info:
-          type: string
+          type: object
+          additionalProperties: {}
+          nullable: true
           readOnly: true
         share_link_view_count:
-          type: string
+          type: integer
+          readOnly: true
+        cloud_import:
+          type: object
+          additionalProperties: {}
+          nullable: true
           readOnly: true
     PatchedFileRequest:
       type: object
@@ -6837,10 +7269,68 @@ components:
           format: date-time
           readOnly: true
         ancestors:
-          type: string
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
           readOnly: true
         is_starred:
           type: boolean
+    PatchedOrganization:
+      type: object
+      description: Serializer for the Organization model.
+      properties:
+        id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        plan:
+          type: string
+          readOnly: true
+        stripe_customer_id:
+          type: string
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        brand_logo:
+          type: string
+          format: uri
+          writeOnly: true
+          nullable: true
+          pattern: (?:png|jpg|jpeg|svg)$
+        brand_logo_url:
+          type: string
+          format: uri
+          nullable: true
+          readOnly: true
+        brand_name:
+          type: string
+          nullable: true
+          maxLength: 255
+        brand_website_url:
+          type: string
+          format: uri
+          nullable: true
+          maxLength: 500
+        terms_url:
+          type: string
+          format: uri
+          nullable: true
+        privacy_policy_url:
+          type: string
+          format: uri
+          nullable: true
+        branding_extras:
+          readOnly: true
     PatchedQnAThread:
       type: object
       properties:
@@ -6914,6 +7404,10 @@ components:
           type: string
           nullable: true
         document_name:
+          type: string
+          readOnly: true
+          nullable: true
+        document_type:
           type: string
           readOnly: true
           nullable: true
@@ -7062,6 +7556,8 @@ components:
           nullable: true
         avatar_url:
           type: string
+          format: uri
+          nullable: true
           readOnly: true
         date_joined:
           type: string
@@ -7076,10 +7572,10 @@ components:
           readOnly: true
           description: Total size of all documents in bytes.
         file_size_quota_mb:
-          type: string
+          type: integer
           readOnly: true
         max_files_per_upload:
-          type: string
+          type: integer
           readOnly: true
         is_superuser:
           type: boolean
@@ -7126,6 +7622,15 @@ components:
           type: string
           readOnly: true
         document_name:
+          type: string
+          readOnly: true
+        document_type:
+          type: string
+          readOnly: true
+        dataroom_id:
+          type: string
+          readOnly: true
+        dataroom_name:
           type: string
           readOnly: true
         ip_address:
@@ -7240,7 +7745,25 @@ components:
       properties:
         enable_public_signup:
           type: boolean
+        brand_name:
+          type: string
+          nullable: true
+        brand_logo_url:
+          type: string
+          nullable: true
+        brand_website_url:
+          type: string
+          nullable: true
+        terms_url:
+          type: string
+          nullable: true
+        privacy_policy_url:
+          type: string
+          nullable: true
       required:
+      - brand_logo_url
+      - brand_name
+      - brand_website_url
       - enable_public_signup
     QnAMessage:
       type: object
@@ -7413,29 +7936,6 @@ components:
         * `processing` - Processing
         * `ready` - Ready
         * `failed` - Failed
-    Request:
-      type: object
-      properties:
-        file_name:
-          type: string
-        file_size:
-          type: integer
-      required:
-      - file_name
-      - file_size
-    Response:
-      type: object
-      properties:
-        upload_url:
-          type: string
-        storage_key:
-          type: string
-        unique_name:
-          type: string
-      required:
-      - storage_key
-      - unique_name
-      - upload_url
     RootFolderResponse:
       type: object
       properties:
@@ -7577,6 +8077,10 @@ components:
           type: string
           readOnly: true
           nullable: true
+        document_type:
+          type: string
+          readOnly: true
+          nullable: true
         dataroom_name:
           type: string
           readOnly: true
@@ -7653,6 +8157,7 @@ components:
       - dataroom_name
       - dataroom_settings
       - document_name
+      - document_type
       - has_password
       - id
       - last_viewed_at
@@ -7917,6 +8422,8 @@ components:
           nullable: true
         avatar_url:
           type: string
+          format: uri
+          nullable: true
           readOnly: true
         date_joined:
           type: string
@@ -7931,10 +8438,10 @@ components:
           readOnly: true
           description: Total size of all documents in bytes.
         file_size_quota_mb:
-          type: string
+          type: integer
           readOnly: true
         max_files_per_upload:
-          type: string
+          type: integer
           readOnly: true
         is_superuser:
           type: boolean
@@ -7998,6 +8505,15 @@ components:
         document_name:
           type: string
           readOnly: true
+        document_type:
+          type: string
+          readOnly: true
+        dataroom_id:
+          type: string
+          readOnly: true
+        dataroom_name:
+          type: string
+          readOnly: true
         ip_address:
           type: string
           readOnly: true
@@ -8054,9 +8570,12 @@ components:
       required:
       - city
       - country
+      - dataroom_id
+      - dataroom_name
       - dataroom_visits
       - document_id
       - document_name
+      - document_type
       - downloaded_at
       - id
       - ip_address
