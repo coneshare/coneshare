@@ -3,7 +3,10 @@ from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from documents.models import Document, Folder
-from documents.serializers import DocumentSerializer, FolderSerializer
+from documents.serializers import (
+    DocumentSerializer, FolderSerializer,
+    DocumentVersionSerializer, DocumentVersionListSerializer
+)
 from sharelinks.models import ShareLink, ViewSession
 
 pytestmark = pytest.mark.django_db
@@ -162,3 +165,52 @@ class TestDocumentSerializer:
         serializer = DocumentSerializer(instance=doc_from_db, context=serializer_context)
         with django_assert_num_queries(1):
             assert serializer.get_share_link_view_count(doc_from_db) == 1
+
+
+class TestDocumentVersionSerializers:
+    def test_version_serializers_cloud_import_exposed_metadata_hidden(self, user, organization):
+        from documents.models import DocumentVersion
+        doc = Document.objects.create(
+            organization=organization,
+            name="Version Test.pdf",
+            created_by=user,
+        )
+        metadata_val = {
+            "cloud_import": {
+                "connection_id": 12,
+                "file_id": "id:abcdef12345",
+                "file_name": "Test.pdf",
+                "file_path": "/photos/Test.pdf",
+                "provider": "dropbox",
+                "etag_or_rev": "015d30000000000000000",
+            }
+        }
+        v1 = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            is_primary=True,
+            file_size=100,
+            content_type="application/pdf",
+            original_storage_key="v1.pdf",
+            storage_key="v1.pdf",
+            type="pdf",
+            metadata=metadata_val,
+        )
+
+        for serializer_class in [DocumentVersionSerializer, DocumentVersionListSerializer]:
+            serializer = serializer_class(instance=v1)
+            data = serializer.data
+            
+            # Assert metadata field itself is not present
+            assert "metadata" not in data
+            
+            # Assert display-safe cloud_import field is present with only non-sensitive keys
+            assert "cloud_import" in data
+            ci = data["cloud_import"]
+            assert ci["provider"] == "dropbox"
+            assert ci["file_name"] == "Test.pdf"
+            assert ci["file_path"] == "/photos/Test.pdf"
+            
+            # Assert sensitive details are filtered out
+            assert "connection_id" not in ci
+            assert "etag_or_rev" not in ci

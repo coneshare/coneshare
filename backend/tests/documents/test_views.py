@@ -1737,7 +1737,6 @@ def test_promote_version_endpoint_respects_quota(mock_get_setting, api_client, u
         storage_key="v2.pdf",
         type="pdf",
     )
-    
     user.total_document_size = 500 * 1024
     user.save()
 
@@ -1747,4 +1746,29 @@ def test_promote_version_endpoint_respects_quota(mock_get_setting, api_client, u
     )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert "exceed your storage quota" in response.json()['detail']
+
+
+def test_preview_data_endpoint_document_uploading_state(api_client, user, organization):
+    """Test retrieving preview data when document is in uploading state."""
+    doc = Document.objects.create(
+        name="Test.pdf",
+        organization=organization,
+        created_by=user,
+        status="uploading",
+        file_size=100,
+    )
+    v1 = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        is_primary=True,
+        file_size=100,
+        content_type="application/pdf",
+        original_storage_key="v1.pdf",
+        storage_key="v1.pdf",
+        type="pdf",
+    )
+    # Even with a specific version_id, preview should be rejected since document is uploading
+    response = api_client.get(f'/api/v1/documents/{doc.id}/preview-data/?version_id={v1.id}')
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json()['detail'] == "Document is not ready for preview."
 

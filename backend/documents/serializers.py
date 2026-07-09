@@ -116,26 +116,63 @@ class DocumentPageSerializer(serializers.ModelSerializer):
 
 class DocumentVersionSerializer(serializers.ModelSerializer):
     pages = DocumentPageSerializer(many=True, read_only=True)
+    cloud_import = serializers.SerializerMethodField()
 
     class Meta:
         model = DocumentVersion
         fields = [
             'id', 'version_number', 'file_size', 'num_pages',
             'is_primary', 'has_pages', 'render_status', 'render_error',
-            'pages', 'metadata', 'created_at'
+            'pages', 'cloud_import', 'created_at'
         ]
         read_only_fields = fields
+
+    @extend_schema_field(serializers.DictField(allow_null=True))
+    def get_cloud_import(self, obj) -> dict:
+        """
+        Exposes display-safe cloud import details. Raw metadata is filtered
+        to prevent leaking sensitive connection details (e.g. connection_id).
+        """
+        if isinstance(obj.metadata, dict):
+            ci = obj.metadata.get('cloud_import')
+            if isinstance(ci, dict):
+                return {
+                    'provider': ci.get('provider'),
+                    'provider_display': ci.get('provider_display'),
+                    'file_name': ci.get('file_name'),
+                    'file_path': ci.get('file_path') or ci.get('file_id'),
+                }
+        return None
 
 
 class DocumentVersionListSerializer(serializers.ModelSerializer):
+    cloud_import = serializers.SerializerMethodField()
+
     class Meta:
         model = DocumentVersion
         fields = [
             'id', 'version_number', 'file_size', 'num_pages',
             'is_primary', 'has_pages', 'render_status', 'render_error',
-            'metadata', 'created_at'
+            'cloud_import', 'created_at'
         ]
         read_only_fields = fields
+
+    @extend_schema_field(serializers.DictField(allow_null=True))
+    def get_cloud_import(self, obj) -> dict:
+        """
+        Exposes display-safe cloud import details. Raw metadata is filtered
+        to prevent leaking sensitive connection details (e.g. connection_id).
+        """
+        if isinstance(obj.metadata, dict):
+            ci = obj.metadata.get('cloud_import')
+            if isinstance(ci, dict):
+                return {
+                    'provider': ci.get('provider'),
+                    'provider_display': ci.get('provider_display'),
+                    'file_name': ci.get('file_name'),
+                    'file_path': ci.get('file_path') or ci.get('file_id'),
+                }
+        return None
 
 
 class NestedFolderField(serializers.PrimaryKeyRelatedField):
@@ -219,10 +256,23 @@ class DocumentSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.DictField(allow_null=True))
     def get_cloud_import(self, obj) -> dict:
+        """
+        Exposes display-safe cloud import details from the active primary version.
+        Raw metadata is filtered to prevent leaking sensitive connection details (e.g. connection_id).
+        """
         # Retrieve the currently active/primary version
         primary_version = obj.versions.filter(is_primary=True).first()
         if primary_version and isinstance(primary_version.metadata, dict):
-            return primary_version.metadata.get('cloud_import', None)
+            ci = primary_version.metadata.get('cloud_import')
+            if isinstance(ci, dict):
+                return {
+                    'provider': ci.get('provider'),
+                    'provider_display': ci.get('provider_display'),
+                    'file_name': ci.get('file_name'),
+                    'file_path': ci.get('file_path') or ci.get('file_id'),
+                    'file_id': ci.get('file_id'),
+                    'etag_or_rev': ci.get('etag_or_rev'),
+                }
         return None
 
     def create(self, validated_data):
