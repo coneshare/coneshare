@@ -709,19 +709,24 @@ def promote_document_version(document: Document, version: DocumentVersion, reque
     if version.document != document:
         raise ValidationError("The selected version does not belong to this document.")
 
-    old_file_size = document.file_size or 0
+    if version.is_primary:
+        raise ValidationError("This version is already the active version.")
+
     new_file_size = version.file_size or 0
 
-    if requesting_user and new_file_size > old_file_size:
-        check_user_quota_on_upload(
-            user=requesting_user,
-            new_file_size=new_file_size,
-            document_to_update=document
-        )
-
     with transaction.atomic():
-        # Obtain select_for_update lock on document to prevent concurrency issues
+        # Obtain select_for_update lock on document to prevent concurrency issues.
+        # Read old_file_size from the locked row (Rule 1: never read quota-sensitive
+        # fields from the un-locked argument before acquiring the lock).
         locked_doc = Document.objects.select_for_update().get(pk=document.pk)
+        old_file_size = locked_doc.file_size or 0
+
+        if requesting_user and new_file_size > old_file_size:
+            check_user_quota_on_upload(
+                user=requesting_user,
+                new_file_size=new_file_size,
+                document_to_update=locked_doc
+            )
 
         # Deactivate all current primary versions
         document.versions.filter(is_primary=True).update(is_primary=False)
@@ -774,6 +779,7 @@ def promote_document_version(document: Document, version: DocumentVersion, reque
 
     # Since locked_doc was retrieved via select_for_update() as a separate Python object instance,
     # changes made and saved to locked_doc won't be visible on the original 'document' instance
-    # passed to this function. Refresh from DB to ensure the caller (e.g. view serializer) 
+    # passed to this function. Refresh from DB to ensure the caller (e.g. view serializer)
     # receives up-to-date metadata in memory.
     document.refresh_from_db()
+

@@ -6196,19 +6196,22 @@ components:
           items:
             $ref: '#/components/schemas/DocumentPage'
           readOnly: true
-        metadata:
+        cloud_import:
+          type: object
+          additionalProperties: {}
+          nullable: true
           readOnly: true
         created_at:
           type: string
           format: date-time
           readOnly: true
       required:
+      - cloud_import
       - created_at
       - file_size
       - has_pages
       - id
       - is_primary
-      - metadata
       - num_pages
       - pages
       - render_error

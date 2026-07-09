@@ -16,10 +16,9 @@ from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
 
 
-from core.services import get_dynamic_setting
 from .models import (Document, Folder)
 from .serializers import (DocumentSerializer, EnsureFolderPathsSerializer,
-                          FolderSerializer, DocumentVersionSerializer, DocumentVersionListSerializer)
+                          FolderSerializer, DocumentVersionListSerializer)
 from .fileserver import fileserver_client
 from .services import (
     _get_unique_folder_name,
@@ -636,9 +635,14 @@ class DocumentPreviewDataView(APIView):
             )
 
         version_id = request.query_params.get('version_id')
-
-        if not version_id and document.status != 'ready':
-             return Response(
+        if version_id:
+            if document.status == 'uploading':
+                return Response(
+                    {"detail": "Document is not ready for preview."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        elif document.status != 'ready':
+            return Response(
                 {"detail": "Document is not ready for preview."},
                 status=status.HTTP_400_BAD_REQUEST
             )
@@ -989,12 +993,17 @@ class DocumentViewSet(viewsets.ModelViewSet):
             promote_document_version(document, version, request.user)
         except QuotaExceededError as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            from django.core.exceptions import ValidationError as DjangoValidationError
-            if isinstance(e, DjangoValidationError):
-                return Response({'detail': e.message if hasattr(e, 'message') else str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except DjangoValidationError as e:
+            return Response(
+                {'detail': e.message if hasattr(e, 'message') else str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception:
             logger.exception(f"Failed to promote version {version_id} for document {document.id}")
-            return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {'detail': 'An internal error occurred. Please try again later.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         serializer = self.get_serializer(document)
         return Response(serializer.data, status=status.HTTP_200_OK)

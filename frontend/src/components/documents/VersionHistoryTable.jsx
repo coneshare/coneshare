@@ -53,7 +53,7 @@ export function VersionHistoryTable({
   const totalPages = pageSize > 0 ? Math.ceil(totalCount / pageSize) : 0;
 
   const getSourceDisplay = (version) => {
-    const cloudImport = version.metadata?.cloud_import;
+    const cloudImport = version.cloud_import;
     if (cloudImport) {
       return `Imported from ${cloudImport.provider_display || cloudImport.provider}`;
     }

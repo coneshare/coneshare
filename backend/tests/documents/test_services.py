@@ -410,3 +410,30 @@ class TestPromoteDocumentVersion:
 
         with pytest.raises(ValidationError, match="The selected version does not belong to this document."):
             promote_document_version(doc1, v_other, user)
+
+    def test_promote_already_primary_version(self, user):
+        """Promoting the already-active version must raise a ValidationError."""
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="already_primary.pdf",
+            type="pdf",
+            content_type="application/pdf",
+            file_size=100,
+            status="ready",
+        )
+        v1 = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            is_primary=True,
+            file_size=100,
+            content_type="application/pdf",
+            original_storage_key="v1.pdf",
+            storage_key="v1.pdf",
+            type="pdf",
+            render_status=DocumentVersion.RENDER_READY,
+        )
+
+        with pytest.raises(ValidationError, match="already the active version"):
+            promote_document_version(doc, v1, user)
+
