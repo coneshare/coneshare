@@ -9,11 +9,9 @@
 
 # Coneshare
 
-**将您的云存储变成安全、可追踪的数据室 (Data Room)。**
+**在您现有的存储（Nextcloud、Google Drive、Dropbox）之上添加虚拟数据室、安全分享、文档追踪和工作流自动化。自托管的 DocSend 与 VDR 替代方案。**
 
-Coneshare 是一个开源的自托管平台，它在您现有的存储（Nextcloud、Google Drive、Dropbox）之上添加了**虚拟数据室、富媒体预览和参与度追踪**功能。
-
-安全地分享文档和视频，实时追踪参与度并触发工作流——同时将数据保留在您自己的基础设施中。
+Coneshare 是一个开源的自托管平台，为您现有的文件添加安全的共享与分发层。安全地分享文档和视频，实时追踪参与度并触发工作流——同时将数据保留在您自己的基础设施中。
 
 [快速开始](https://github.com/coneshare/coneshare-compose) · [文档](https://docs.coneshare.com/zh/) · [在线演示](https://www.coneshare.com/demo) · [路线图](https://github.com/orgs/coneshare/projects/2/) · [论坛](https://github.com/orgs/coneshare/discussions)
 

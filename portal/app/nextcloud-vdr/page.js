@@ -2,9 +2,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 export const metadata = {
-  title: 'Nextcloud VDR: Build a Secure Data Room on Nextcloud | Coneshare',
+  title: 'Self-Hosted Virtual Dataroom (VDR) for Nextcloud | Coneshare',
   description:
-    'Learn how to create a Nextcloud VDR workflow with secure sharing, document tracking, and workflow actions.',
+    'Learn how to turn Nextcloud storage into a secure virtual dataroom with Coneshare. Secure sharing, document tracking, and workflow automation.',
   keywords: [
     'nextcloud vdr',
     'nextcloud data room',
@@ -65,15 +65,14 @@ export default function NextcloudVdrPage() {
     <div className="bg-white py-24 sm:py-32">
       <div className="mx-auto max-w-6xl px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">Nextcloud VDR</p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">Coneshare + Nextcloud</p>
           <h1 className="mt-3 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-            Build a secure VDR on Nextcloud with full control and visibility
+            Turn Nextcloud storage into a secure virtual dataroom
           </h1>
           <p className="mt-6 text-lg leading-8 text-gray-600">
-            Keep your Nextcloud workflow and add virtual data room capabilities for secure sharing, document tracking,
-            and workflow actions.
+            Keep your Nextcloud storage workflow and add virtual dataroom capabilities for secure sharing, document tracking,
+            video streaming, and workflow actions.
           </p>
-          <p className="mt-3 text-base text-gray-600">Know who viewed what, when they engaged, and what to do next.</p>
           <div className="mt-10 flex items-center justify-center gap-5">
             <Link href="/demo" className="rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800">
               View live demo
@@ -86,14 +85,13 @@ export default function NextcloudVdrPage() {
 
         <div className="mx-auto mt-16 max-w-4xl border-t border-gray-200 pt-12">
           <div className="prose prose-lg max-w-none text-gray-700">
-            <h2 className="text-gray-900">What is a Nextcloud VDR?</h2>
+            <h2 className="text-gray-900">What is a Virtual Data Room (VDR)?</h2>
             <p>
-              A Nextcloud VDR (virtual data room) is a secure environment for sharing sensitive documents in workflows such as
-              fundraising, M&amp;A diligence, legal exchange, and enterprise collaboration.
+              A Virtual Data Room (VDR) is a secure, controlled digital repository designed for sharing highly sensitive documents and rich media with external partners. Unlike standard storage links, VDRs provide advanced security controls (such as dynamic watermarking, email verification, and copy restrictions), precise engagement tracking (views, timing, page-level behavior), and automated workflow integrations. VDRs are essential for transactions, fundraising, M&amp;A due diligence, and legal exchanges.
             </p>
+            <h2 className="text-gray-900">What is Nextcloud?</h2>
             <p>
-              Nextcloud provides a strong self-hosted storage foundation, but many teams add sharing intelligence and workflow
-              capabilities to support high-stakes external distribution.
+              Nextcloud is a premier self-hosted content collaboration platform that offers total data sovereignty and privacy. It serves as a private, secure alternative to public cloud storage solutions like Google Drive or Dropbox, allowing teams to store, share, and collaborate on files internally within their own infrastructure.
             </p>
           </div>
         </div>
@@ -101,9 +99,13 @@ export default function NextcloudVdrPage() {
         <section className="mx-auto mt-12 max-w-4xl">
           <div className="prose prose-lg max-w-none text-gray-700">
             <h2 className="text-gray-900">Limitations of using Nextcloud alone as a data room</h2>
+            <p>
+              While Nextcloud is outstanding for internal storage and collaboration, using standard folder links for external distribution presents several challenges:
+            </p>
             <ul>
               <li>Limited visibility into external viewer behavior</li>
               <li>No built-in engagement workflow for follow-up timing</li>
+              <li>Heavy document previews and video playback can strain server resources</li>
               <li>Link sharing does not provide decision-ready context</li>
               <li>Advanced distribution controls can require additional tooling</li>
             </ul>
@@ -122,7 +124,7 @@ export default function NextcloudVdrPage() {
         </section>
 
         <section className="mx-auto mt-12 max-w-4xl">
-          <h2 className="text-2xl font-bold tracking-tight text-gray-900">How to build a Nextcloud VDR</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900">How to build a Nextcloud-backed VDR</h2>
           <ol className="mt-6 space-y-6 text-base leading-7 text-gray-700">
             <li>
               <strong>1. Store files in Nextcloud</strong>
@@ -144,7 +146,7 @@ export default function NextcloudVdrPage() {
             </li>
             <li>
               <strong>3. Apply VDR controls</strong>
-              <p className="mt-1">Set passwords, expirations, email verification, download restrictions, and watermarking.</p>
+              <p className="mt-1">Set passwords, expirations, email verification, download restrictions, and dynamic watermarking.</p>
               <div className="mt-4">
                 <Image
                   src="/screenshots/feat-sharing.png"
@@ -162,7 +164,7 @@ export default function NextcloudVdrPage() {
             </li>
             <li>
               <strong>5. Track engagement</strong>
-              <p className="mt-1">Monitor views, revisits, timing, and page-level attention patterns.</p>
+              <p className="mt-1">Monitor views, revisits, page-level attention, and video streaming play metrics in real time.</p>
               <div className="mt-4">
                 <Image
                   src="/screenshots/feat-analytics.png"
@@ -237,12 +239,13 @@ export default function NextcloudVdrPage() {
 
         <section className="mx-auto mt-12 max-w-4xl">
           <div className="prose prose-lg max-w-none text-gray-700">
-            <h2 className="text-gray-900">Why teams choose Coneshare for Nextcloud VDR workflows</h2>
+            <h2 className="text-gray-900">Why teams choose Coneshare on top of Nextcloud</h2>
             <ul>
               <li>Works with existing Nextcloud-based storage workflows</li>
               <li>Self-hosted architecture and infrastructure control</li>
-              <li>Purpose-built for high-stakes sharing workflows</li>
-              <li>Document intelligence layer beyond storage</li>
+              <li>Purpose-built for high-stakes sharing and dataroom workflows</li>
+              <li>High-performance media streaming and client-side rendering, keeping your self-hosted server lightweight</li>
+              <li>Document intelligence layer beyond simple storage links</li>
             </ul>
             <p>
               Also evaluating DocSend alternatives? See <Link href="/alternatives/docsend">Coneshare vs DocSend</Link>.

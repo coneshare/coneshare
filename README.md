@@ -9,11 +9,9 @@ English | [中文](./README_zh.md)
 
 # Coneshare
 
-**Turn your cloud storage into a secure, trackable data room.**
+**Add virtual datarooms, secure sharing, document tracking, and workflow automation on top of your storage (Nextcloud, Google Drive, Dropbox). Self-hosted DocSend and VDR alternative.**
 
-Coneshare is an open-source, self-hosted platform that adds **virtual datarooms, rich media previewing, and engagement tracking** on top of your existing storage (Nextcloud, Google Drive, Dropbox).
-
-Share documents and videos securely, track engagement in real time, and trigger workflows—while keeping your data in your own infrastructure.
+Coneshare is an open-source, self-hosted platform that adds a secure distribution layer to your existing files. Share documents and videos, track engagement in real time, and trigger workflows—while keeping your data in your own infrastructure.
 
 [Quick Start](https://github.com/coneshare/coneshare-compose) · [Docs](https://docs.coneshare.com/en/) · [Live Demo](https://www.coneshare.com/demo) · [Roadmap](https://github.com/orgs/coneshare/projects/2/) · [Forum](https://github.com/orgs/coneshare/discussions)
 
