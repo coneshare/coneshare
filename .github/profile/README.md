@@ -7,9 +7,9 @@
 
 ---
 
-Coneshare is an open-source, self-hosted platform that adds a **control and intelligence layer** on top of your existing storage (Nextcloud, Google Drive, Dropbox).
+Coneshare is an open-source, self-hosted platform that adds **virtual datarooms, rich media previewing, and engagement tracking** on top of your existing storage (Nextcloud, Google Drive, Dropbox).
 
-Share documents securely, understand how they’re used, and trigger workflows in real time—while keeping your data in your own infrastructure.
+Share documents and videos securely, track engagement in real time, and trigger workflows—while keeping your data in your own infrastructure.
 
 [Get Started](https://github.com/coneshare/coneshare-compose) · [Docs](https://docs.coneshare.com/en/) · [Live Demo](https://www.coneshare.com/demo) · [Roadmap](https://github.com/orgs/coneshare/projects/2/) · [Forum](https://github.com/orgs/coneshare/discussions)
 
@@ -23,11 +23,12 @@ Coneshare acts as a **layer on top of your storage**:
 
 - Files stay where they are (Nextcloud, Google Drive, Dropbox)
 - Coneshare adds:
+  - Virtual datarooms and rich media previewing
   - Secure sharing controls
   - Document engagement tracking
   - Workflow automation
 
-No migration. No duplication. No vendor lock-in.
+Keep your storage workflow. Add secure links, data rooms, tracking, and automation.
 
 > Instead of asking “Did they read it?”, you’ll know exactly how your documents are used.
 
@@ -35,25 +36,30 @@ No migration. No duplication. No vendor lock-in.
 
 ## Why Coneshare
 
+### 🗄️ Virtual Datarooms & Rich Previewing
+Transform your storage into a professional, interactive dataroom:
+- Seamlessly organize and present documents and rich media.
+- Fast client-side rendering for PDFs and secure video streaming.
+- Inline viewers for effortless navigation between adjacent items.
+
 ### 🔐 Control Layer
 Secure how documents are shared externally:
-- Password protection, expiration, email verification  
-- Download restrictions and dynamic watermarking  
+- Password protection, expiration, and email verification.
+- Download restrictions and dynamic watermarking.
 
 ### 👁️ Intelligence Layer
-Understand document engagement in real time:
-- Views, revisits, downloads  
-- Page-level behavior insights  
+Understand how your content is consumed:
+- Track views, revisits, and downloads in real time.
+- Gain precise page-level engagement insights and media play metrics.
 
 ### ⚡ Action Layer
 Turn activity into workflows:
-- Slack and webhook integrations  
-- Real-time notifications and automation  
+- Slack and webhook integrations.
+- Real-time notifications and automation.
 
 ### 🧱 Built for your infrastructure
-- Self-hosted by design  
-- Works with your existing storage  
-- No migration required  
+- Self-hosted by design.
+- Works with your existing storage.
 
 ---
 
@@ -71,17 +77,14 @@ More integrations coming soon.
 
 ## Common Use Cases
 
-### 📊 Fundraising & Investor Updates
-Track investor engagement with decks and data rooms—and follow up at the right time.
-
 ### 💼 Sales & Deal Workflows
-Understand proposal activity and prioritize high-intent prospects.
+Understand how buyers explore your deal across datarooms and separate real prospects from the noise.
 
 ### 🤝 Secure External Sharing
-Share sensitive documents with full control and visibility.
+Share sensitive documents externally with stronger access control, clearer visibility, and safer workflow governance.
 
 ### 🏛️ Compliance & Regulated Environments
-Run fully self-hosted while maintaining modern sharing workflows.
+Adopt modern document workflows and dataroom capabilities without losing data sovereignty.
 
 ---
 
