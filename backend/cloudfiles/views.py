@@ -69,6 +69,32 @@ class CloudConnectionListView(APIView):
 
 
 @extend_schema(tags=['cloudfiles'])
+class CloudConnectionDetailView(APIView):
+    """
+    Handles operations on a specific cloud connection (e.g. deletion).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(responses={204: None, 404: dict})
+    def delete(self, request, connection_id, *args, **kwargs):
+        try:
+            connection = CloudConnection.objects.get(id=connection_id, user=request.user)
+        except CloudConnection.DoesNotExist:
+            return Response({"detail": "Connection not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            # Best-effort remote revocation
+            provider = get_cloud_provider(connection.provider, connection=connection)
+            provider.revoke_token()
+        except Exception as e:
+            logger.warning(f"Error during remote token revocation for connection {connection_id}: {e}")
+
+        connection.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
+@extend_schema(tags=['cloudfiles'])
 class CloudConnectView(APIView):
     """
     Generates a cloud provider authorization URL and returns it to the frontend.

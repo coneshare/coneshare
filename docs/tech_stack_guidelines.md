@@ -18,3 +18,11 @@
 #### Rule 3: Guard no-op or invalid state-change transitions + write failing test first (TDD)
 - **Issue:** Promoting an already-primary version was not blocked, violating the plan's acceptance criteria ("cannot be promoted again"). No test existed for this boundary.
 - **Prevention Rule:** When implementing any state-change action (promote, activate, publish, restore), add an early guard that explicitly rejects no-op or invalid transitions with a `ValidationError`. Per project TDD policy: write the failing unit test first to confirm the bug, then add the guard to make it pass.
+
+---
+
+### [2026-07-14] Review of `6a33248` — Cloud Provider Disconnect
+
+#### Rule 4: Never send OAuth tokens in URL query params during revocation calls
+- **Issue:** `GoogleDriveProvider.revoke_token()` passed the OAuth token via `params={"token": token}` in an `httpx.post()` call to `https://oauth2.googleapis.com/revoke`. This encodes the token in the request URL, leaking it into server access logs, HTTP proxy logs, and browser history.
+- **Prevention Rule:** Always send OAuth tokens in the **POST request body** (`data={"token": token}`) for revocation and any other sensitive token-passing calls. Never use `params=` for secrets. This applies to all providers (Google, Dropbox, Nextcloud, etc.) and is required by RFC 7009.

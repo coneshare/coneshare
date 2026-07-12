@@ -482,6 +482,8 @@ export const getCloudProviders = () => api.get('/cloud/providers/');
 
 export const getCloudConnections = () => api.get('/cloud/connections/');
 
+export const deleteCloudConnection = (connectionId) => api.delete(`/cloud/connections/${connectionId}/`);
+
 export const getDropboxConnectUrl = () => api.get('/cloud/connect/dropbox/');
 
 export const getGoogleDriveConnectUrl = () => api.get('/cloud/connect/google_drive/');

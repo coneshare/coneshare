@@ -24,6 +24,7 @@ import { PublicUploadPage } from './pages/PublicUploadPage';
 import { ShareLinkAnalyticsPage } from './pages/ShareLinkAnalyticsPage';
 import { ShareLinkViewerPage } from './pages/ShareLinkViewerPage';
 import UserSettingsPage from './pages/UserSettingsPage';
+import { IntegrationsSettingsPage } from './pages/IntegrationsSettingsPage';
 import { AdminSettingsPage } from './pages/AdminSettingsPage';
 import { AdminBrandingPage } from './pages/AdminBrandingPage';
 import { AdminLoginActivityPage } from './pages/AdminLoginActivityPage';
@@ -63,6 +64,7 @@ function App() {
             <Route path="/automations" element={<AutomationsPage />} />
             <Route path="/settings" element={<UserSettingsPage />} />
             <Route path="/settings/password" element={<PasswordSettingsPage />} />
+            <Route path="/settings/integrations" element={<IntegrationsSettingsPage />} />
             <Route path="/admin/settings" element={<AdminSettingsPage />} />
             <Route path="/admin/branding" element={<AdminBrandingPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />

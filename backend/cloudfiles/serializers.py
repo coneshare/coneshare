@@ -6,8 +6,9 @@ from .models import CloudConnection
 class CloudConnectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = CloudConnection
-        fields = ['id', 'provider', 'email', 'created_at']
+        fields = ['id', 'provider', 'email', 'created_at', 'updated_at']
         read_only_fields = fields
+
 
 
 class CloudImportSerializer(serializers.Serializer):
