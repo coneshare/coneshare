@@ -45,7 +45,7 @@ from automations.tasks import dispatch_automation_event_task
 from .models import (DataroomVisit, EmailVerificationToken, PreviewSession,
                      QnAMessage, QnAThread, ShareLink,
                      ShareLinkDataroomSetting, ShareLinkTemplate, Viewer,
-                     ViewSession)
+                     ViewSession, NDAAcceptance)
 from .serializers import (DataroomVisitSerializer, PageViewRecordSerializer,
                           LinkClickRecordSerializer, RecordVisitSerializer,
                           QnAMessageCreateSerializer, QnAMessageSerializer,
@@ -202,7 +202,53 @@ def _get_active_share_link(slug: str) -> ShareLink:
     return link
 
 
-def _build_share_link_public_meta(link: ShareLink) -> dict:
+def _is_nda_accepted(link: ShareLink, request, auth_status) -> bool:
+    if not link.require_nda:
+        return True
+
+    # Owners / Staff / Admin bypass NDA
+    if request.user and request.user.is_authenticated and (request.user == link.created_by or request.user.is_staff):
+        return True
+
+    # Preview mode bypasses NDA
+    preview_token = request.query_params.get('previewToken') if hasattr(request, 'query_params') else None
+    if preview_token:
+        is_valid_preview = PreviewSession.objects.filter(
+            share_link=link, token=preview_token
+        ).exclude(expires_at__lt=timezone.now()).exists()
+        if is_valid_preview:
+            return True
+
+    # 1. Check if accepted in session
+    if auth_status.get('nda_accepted_version') == link.nda_version:
+        return True
+
+    # 2. Check NDAAcceptance by viewer email
+    viewer_email = auth_status.get('viewer_email')
+    if viewer_email:
+        if NDAAcceptance.objects.filter(share_link=link, viewer__email=viewer_email, nda_version=link.nda_version).exists():
+            # Update session
+            authorized_links = request.session.get('authorized_share_links', {})
+            if str(link.id) in authorized_links:
+                authorized_links[str(link.id)]['nda_accepted_version'] = link.nda_version
+                request.session['authorized_share_links'] = authorized_links
+            return True
+
+    # 3. Check by ViewSession ID
+    view_session_id = request.query_params.get('view_session_id') if hasattr(request, 'query_params') else None
+    if view_session_id:
+        if NDAAcceptance.objects.filter(share_link=link, view_session_id=view_session_id, nda_version=link.nda_version).exists():
+            # Update session
+            authorized_links = request.session.get('authorized_share_links', {})
+            if str(link.id) in authorized_links:
+                authorized_links[str(link.id)]['nda_accepted_version'] = link.nda_version
+                request.session['authorized_share_links'] = authorized_links
+            return True
+
+    return False
+
+
+def _build_share_link_public_meta(link: ShareLink, request=None) -> dict:
     owner = link.created_by
     owner_name = (owner.name or "").strip() or "Shared by owner"
     owner_avatar_url = None
@@ -224,7 +270,14 @@ def _build_share_link_public_meta(link: ShareLink) -> dict:
         target_type = "dataroom"
         target_name = link.dataroom.name
 
+    has_accepted_current_nda = False
+    if request:
+        authorized_links = request.session.get('authorized_share_links', {})
+        auth_status = authorized_links.get(str(link.id), {})
+        has_accepted_current_nda = _is_nda_accepted(link, request, auth_status)
+
     return {
+        "id": str(link.id),
         "slug": link.slug,
         "target_type": target_type,
         "target_name": target_name,
@@ -232,6 +285,10 @@ def _build_share_link_public_meta(link: ShareLink) -> dict:
         "owner_email_masked": owner_email_masked,
         "owner_avatar_url": owner_avatar_url,
         "organization_name": owner.organization.name if owner.organization else "",
+        "require_nda": link.require_nda,
+        "nda_text": link.nda_text,
+        "nda_version": link.nda_version,
+        "has_accepted_current_nda": has_accepted_current_nda,
     }
 
 
@@ -526,6 +583,7 @@ class ShareLinkViewDataView(APIView):
                                 'password_verified': True,
                                 'email_verified': True,
                                 'viewer_email': session.user.email,
+                                'nda_accepted_version': session.share_link.nda_version,
                             }
                             request.session['authorized_share_links'] = authorized_links
 
@@ -538,6 +596,18 @@ class ShareLinkViewDataView(APIView):
             link = _get_active_share_link(slug)
         except NotFound as e:
             return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
+
+        # If the user is the owner/creator or staff, automatically authorize the session
+        # in the cookie context so that subsequent anonymous page/image requests pass.
+        if request.user and request.user.is_authenticated and (request.user == link.created_by or request.user.is_staff):
+            authorized_links = request.session.get('authorized_share_links', {})
+            authorized_links[str(link.id)] = {
+                'password_verified': True,
+                'email_verified': True,
+                'viewer_email': request.user.email,
+                'nda_accepted_version': link.nda_version,
+            }
+            request.session['authorized_share_links'] = authorized_links
 
         if access_token:
             try:
@@ -585,6 +655,19 @@ class ShareLinkViewDataView(APIView):
                     status=status.HTTP_401_UNAUTHORIZED
                 )
 
+            # Step 2c: Check NDA third
+            if link.require_nda and not _is_nda_accepted(link, request, auth_status):
+                return Response(
+                    {
+                        "message": "NDA acceptance is required to view this content.",
+                        "protectionType": "nda",
+                        "require_nda": True,
+                        "nda_text": link.nda_text,
+                        "nda_version": link.nda_version
+                    },
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
         # If all checks passed (or there were none), authorize the session for page views.
         auth_status = request.session.get('authorized_share_links', {}).get(str(link.id), {})
         if not auth_status:
@@ -593,6 +676,7 @@ class ShareLinkViewDataView(APIView):
                 'password_verified': True,  # Bypassed if not required
                 'email_verified': True,  # Bypassed if not required
                 'viewer_email': '',
+                'nda_accepted_version': 0,
             }
             request.session['authorized_share_links'] = authorized_links
 
@@ -1048,7 +1132,7 @@ class ShareLinkPublicMetaView(APIView):
         except NotFound as e:
             return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response(_build_share_link_public_meta(link), status=status.HTTP_200_OK)
+        return Response(_build_share_link_public_meta(link, request=request), status=status.HTTP_200_OK)
 
 
 @extend_schema(tags=['sharelinks'])
@@ -1499,6 +1583,135 @@ class ShareLinkVerifyPasswordView(APIView):
 
 
 @extend_schema(tags=['sharelinks'])
+class ShareLinkAcceptNDAView(APIView):
+    """
+    Accepts the NDA for a share link and authorizes the session.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        request=inline_serializer(
+            name='ShareLinkAcceptNDASerializer',
+            fields={
+                'view_session_id': serializers.CharField(required=False, allow_null=True, allow_blank=True),
+            }
+        ),
+        responses={200: dict, 400: dict, 404: dict},
+    )
+    def post(self, request, slug, *args, **kwargs):
+        try:
+            link = _get_active_share_link(slug)
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
+
+        if not link.require_nda:
+            return Response(
+                {"message": "This link does not require an NDA."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        view_session_id = request.data.get('view_session_id')
+        authorized_links = request.session.get('authorized_share_links', {})
+        auth_status = authorized_links.get(str(link.id), {})
+
+        # Resolve viewer and view_session
+        viewer = None
+        viewer_email = auth_status.get('viewer_email')
+        if viewer_email:
+            try:
+                org = _get_share_link_organization(link)
+                viewer = Viewer.objects.get(organization=org, email=viewer_email)
+            except Viewer.DoesNotExist:
+                pass
+
+        ip_address = get_client_ip(request)
+        user_agent = request.META.get('HTTP_USER_AGENT', '')[:255]
+
+        view_session = None
+        if view_session_id:
+            try:
+                view_session = ViewSession.objects.get(id=view_session_id, share_link=link)
+            except ViewSession.DoesNotExist:
+                pass
+
+        if not view_session:
+            # Check if a session already exists in the user's cookie context
+            existing_session_id = auth_status.get('view_session_id')
+            if existing_session_id:
+                try:
+                    view_session = ViewSession.objects.get(id=existing_session_id, share_link=link)
+                    view_session_id = str(view_session.id)
+                except ViewSession.DoesNotExist:
+                    pass
+
+        # If no view_session exists (e.g. anonymous link or first-time viewer),
+        # create a ViewSession on the fly for them so we can tie the NDAAcceptance.
+        if not view_session:
+            email_val = viewer.email if viewer else (viewer_email or '')
+            
+            # GeoIP lookup
+            location_data = {}
+            if ip_address and settings.GEOIP:
+                try:
+                    location_data = settings.GEOIP.city(ip_address)
+                except AddressNotFoundError:
+                    pass
+                except Exception as e:
+                    logger.error(f"GeoIP2 lookup failed: {e}")
+
+            view_session = ViewSession.objects.create(
+                share_link=link,
+                viewer=viewer,
+                viewer_email=email_val,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                country=location_data.get('country_name') or '',
+                city=location_data.get('city') or '',
+                latitude=location_data.get('latitude'),
+                longitude=location_data.get('longitude')
+            )
+            view_session_id = str(view_session.id)
+
+            # Trigger email notifications
+            if link.receive_email_notification:
+                send_view_notification_email_task.delay(view_session_id)
+
+            # Trigger automation events
+            base_payload = {
+                'view_session_id': view_session_id,
+                'viewer_email': email_val,
+            }
+            if link.document_id:
+                _dispatch_automation_event(link, 'document_viewed', base_payload, view_session=view_session)
+            elif link.dataroom_id:
+                _dispatch_automation_event(link, 'dataroom_opened', base_payload, view_session=view_session)
+
+        # Create NDAAcceptance record
+        NDAAcceptance.objects.create(
+            share_link=link,
+            nda_version=link.nda_version,
+            view_session=None if viewer else view_session,
+            viewer=viewer,
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+
+        if str(link.id) not in authorized_links:
+            authorized_links[str(link.id)] = {}
+        authorized_links[str(link.id)]['nda_accepted_version'] = link.nda_version
+        authorized_links[str(link.id)]['view_session_id'] = view_session_id
+        request.session['authorized_share_links'] = authorized_links
+
+        return Response(
+            {
+                "message": "NDA accepted successfully.",
+                "view_session_id": view_session_id
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+@extend_schema(tags=['sharelinks'])
 class ShareLinkRequestAccessView(APIView):
     """
     Handles a viewer's request to access a link that requires an email.
@@ -1715,11 +1928,15 @@ class ShareLinkPageView(APIView):
         # A simplified check; the main /view-data/ endpoint handles the full
         # sequential auth flow. This just ensures a session is authorized.
         authorized_links = request.session.get('authorized_share_links', {})
-        if not authorized_links.get(str(link.id)):
+        auth_status = authorized_links.get(str(link.id))
+        if not auth_status:
             return Response(
                 {"message": "Authorization required to view this content."},
                 status=status.HTTP_401_UNAUTHORIZED
             )
+
+        if link.require_nda and not _is_nda_accepted(link, request, auth_status):
+            return Response({"message": "NDA acceptance is required."}, status=status.HTTP_403_FORBIDDEN)
 
         document = None
         if link.dataroom:
@@ -1802,6 +2019,9 @@ class WatermarkedPageRenderView(APIView):
                 {"message": "Authorization required to view this content."},
                 status=status.HTTP_401_UNAUTHORIZED
             )
+
+        if link.require_nda and not _is_nda_accepted(link, request, auth_status):
+            return Response({"message": "NDA acceptance is required."}, status=status.HTTP_403_FORBIDDEN)
 
         document = None
         watermark_enabled_for_item = False
@@ -2176,6 +2396,9 @@ class ShareLinkFileDownloadView(APIView):
                     status=status.HTTP_401_UNAUTHORIZED
                 )
 
+            if link.require_nda and not _is_nda_accepted(link, request, auth_status):
+                return Response({"message": "NDA acceptance is required."}, status=status.HTTP_403_FORBIDDEN)
+
         document = None
         allow_download = False
         enable_watermark = False
@@ -2401,6 +2624,9 @@ class DataroomFolderDownloadView(APIView):
                     {"message": "This link requires an email address to view.", "protectionType": "email"},
                     status=status.HTTP_401_UNAUTHORIZED
                 )
+
+            if link.require_nda and not _is_nda_accepted(link, request, auth_status):
+                return Response({"message": "NDA acceptance is required."}, status=status.HTTP_403_FORBIDDEN)
 
         if not link.dataroom:
             return Response({"message": "This link is not for a dataroom."}, status=status.HTTP_400_BAD_REQUEST)

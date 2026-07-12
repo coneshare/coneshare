@@ -207,4 +207,7 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** Telemetry tracking requests sent via standard `fetch()` during anchor clicks can get cancelled by the browser when navigation happens.
 - **Resolution/Action:** Always use `navigator.sendBeacon` or `fetch()` with `keepalive: true` to ensure outbound click telemetry requests complete successfully.
 
-
+### 2026-07-12 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Diligence workflows require NDAs before viewing. Storing acceptance requires auditing.
+- **Resolution/Action:** Implemented the `NDAAcceptance` model tracking `share_link`, `nda_version`, `view_session`, and `viewer` with check constraints. Configured the NDA acceptance check on `view-data`, `page-view`, `page-render`, and `download` views to prompt/block access, and created the frontend `NDAForm` rendering on `protectionType === 'nda'` that registers acceptance and retries data fetching.
