@@ -47,7 +47,7 @@ from .models import (DataroomVisit, EmailVerificationToken, PreviewSession,
                      ShareLinkDataroomSetting, ShareLinkTemplate, Viewer,
                      ViewSession)
 from .serializers import (DataroomVisitSerializer, PageViewRecordSerializer,
-                          RecordVisitSerializer,
+                          LinkClickRecordSerializer, RecordVisitSerializer,
                           QnAMessageCreateSerializer, QnAMessageSerializer,
                           QnAOwnerThreadCreateSerializer,
                           QnAThreadCreateSerializer, QnAThreadSerializer,
@@ -411,7 +411,12 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'], url_path='view-sessions')
     def view_sessions(self, request, pk=None):
         share_link = self.get_object()
-        view_queryset = share_link.view_sessions.prefetch_related('dataroom_visits__page_views').all()
+        view_queryset = share_link.view_sessions.prefetch_related(
+            'page_views',
+            'link_clicks',
+            'dataroom_visits__page_views',
+            'dataroom_visits__link_clicks'
+        ).all()
 
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(view_queryset, request, view=self)
@@ -2559,7 +2564,14 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def get_queryset(self):
-        return ViewSession.objects.filter(share_link__document__organization=self.request.user.organization)
+        return ViewSession.objects.filter(
+            share_link__document__organization=self.request.user.organization
+        ).prefetch_related(
+            'page_views',
+            'link_clicks',
+            'dataroom_visits__page_views',
+            'dataroom_visits__link_clicks'
+        )
 
     def perform_create(self, serializer):
         ip_address = get_client_ip(self.request)
@@ -2676,4 +2688,32 @@ class RecordPageView(APIView):
             return Response({"message": "View recorded"}, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Error recording page view: {e}")
+            return Response({"error": "Server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@extend_schema(tags=['sharelinks'])
+class RecordLinkClickView(APIView):
+    """
+    Receives and records link click tracking events.
+    """
+    permission_classes = [permissions.AllowAny]
+    serializer_class = LinkClickRecordSerializer
+
+    class RecordLinkClickResponseSerializer(serializers.Serializer):
+        message = serializers.CharField()
+
+    @extend_schema(
+        request=LinkClickRecordSerializer,
+        responses={200: RecordLinkClickResponseSerializer, 400: dict, 500: dict},
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = LinkClickRecordSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            serializer.save()
+            return Response({"message": "Link click recorded"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error recording link click: {e}")
             return Response({"error": "Server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

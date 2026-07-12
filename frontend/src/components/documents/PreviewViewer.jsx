@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useMemo, useState, forwardRef, useImperativeHandle } from 'react';
 import { LazyImage } from './LazyImage';
 import { recordPageView } from '../../services/api';
+import { useLinkClickTracking } from '../../hooks/useLinkClickTracking';
 import { isSafeUrl } from '../../lib/utils';
 
 export const PreviewViewer = forwardRef(({ documentData, zoomLevel, onPageChange, viewId, dataroomVisitId }, ref) => {
@@ -39,6 +40,8 @@ export const PreviewViewer = forwardRef(({ documentData, zoomLevel, onPageChange
     },
     [viewId, dataroomVisitId]
   );
+
+  const handleLinkClick = useLinkClickTracking(viewId, dataroomVisitId);
 
   // Expose goToPage ref
   useImperativeHandle(ref, () => ({
@@ -206,6 +209,7 @@ export const PreviewViewer = forwardRef(({ documentData, zoomLevel, onPageChange
                   zIndex: 5,
                 }}
                 title={link.url}
+                onClick={() => handleLinkClick(link.url, page.page_number)}
               />
             ))}
           </div>

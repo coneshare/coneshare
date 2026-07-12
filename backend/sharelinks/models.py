@@ -298,3 +298,19 @@ class PageView(models.Model):
 
     def __str__(self):
         return f"PageView {self.id} for ViewSession {self.view_session.id}, Page {self.page_number}"
+
+
+class LinkClick(models.Model):
+    id = ULIDField(primary_key=True, editable=False)
+    view_session = models.ForeignKey('ViewSession', on_delete=models.CASCADE, related_name='link_clicks')
+    dataroom_visit = models.ForeignKey('DataroomVisit', on_delete=models.SET_NULL, null=True, blank=True, related_name='link_clicks')
+    url = models.TextField()
+    page_number = models.PositiveIntegerField()
+    clicked_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['clicked_at']
+
+    def __str__(self):
+        return f"LinkClick on {self.url} (Session: {self.view_session_id}, Page: {self.page_number})"
+

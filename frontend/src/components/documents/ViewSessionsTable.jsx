@@ -19,18 +19,20 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../ui/Tooltip';
-import { parseUserAgent } from '../../lib/utils';
+import { parseUserAgent, isSafeUrl } from '../../lib/utils';
 
 function DataroomVisitRow({ visit }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const hasPageViews = visit.page_views && visit.page_views.length > 0;
+  const hasLinkClicks = visit.link_clicks && visit.link_clicks.length > 0;
   const isDocumentVisit = !!visit.dataroom_document_id;
+  const isExpandable = isDocumentVisit && (hasPageViews || hasLinkClicks);
 
   return (
     <li key={visit.id}>
       <div className="flex items-center gap-2 text-sm">
         <div className="flex w-6 flex-shrink-0 items-center justify-center">
-          {isDocumentVisit && hasPageViews && (
+          {isExpandable && (
             <button
               onClick={() => setIsExpanded(!isExpanded)}
               className="rounded p-1 hover:bg-gray-200"
@@ -64,9 +66,45 @@ function DataroomVisitRow({ visit }) {
           })}
         </span>
       </div>
-      {isExpanded && hasPageViews && (
-        <div className="ml-8 mt-2 border-l pl-4">
-          <PageViewsChart pageViews={visit.page_views} documentType={visit.dataroom_document_type} />
+      {isExpanded && (hasPageViews || hasLinkClicks) && (
+        <div className="ml-8 mt-2 border-l pl-4 space-y-3">
+          {hasPageViews && (
+            <PageViewsChart pageViews={visit.page_views} documentType={visit.dataroom_document_type} />
+          )}
+          {hasLinkClicks && (
+            <div className="mt-2 text-xs">
+              <h5 className="font-semibold text-gray-600 mb-1">Clicked Links:</h5>
+              <ul className="space-y-1">
+                {visit.link_clicks.map((click) => (
+                  <li key={click.id} className="flex items-center gap-1">
+                    <span className="text-muted-foreground">Page {click.page_number}:</span>
+                    {click.url && isSafeUrl(click.url) ? (
+                      <a
+                        href={click.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline truncate max-w-[300px] sm:max-w-[400px]"
+                        title={click.url}
+                      >
+                        {click.url}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground truncate max-w-[300px] sm:max-w-[400px]" title={click.url}>
+                        {click.url}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-muted-foreground ml-auto">
+                      {new Date(click.clicked_at).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </li>
@@ -142,7 +180,8 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                 const isExpanded = expandedRowId === view.id;
                 const hasPageViews = view.page_views && view.page_views.length > 0;
                 const hasDataroomVisits = view.dataroom_visits && view.dataroom_visits.length > 0;
-                const isExpandable = hasPageViews || hasDataroomVisits;
+                const hasLinkClicks = view.link_clicks && view.link_clicks.length > 0;
+                const isExpandable = hasPageViews || hasDataroomVisits || hasLinkClicks;
 
                 return (
                   <Fragment key={view.id}>
@@ -249,9 +288,45 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                                 ))}
                               </ul>
                             </div>
-                          ) : hasPageViews ? (
-                            <div className="p-4">
-                              <PageViewsChart pageViews={view.page_views} documentType={view.document_type} />
+                          ) : (hasPageViews || hasLinkClicks) ? (
+                            <div className="p-4 space-y-4">
+                              {hasPageViews && (
+                                <PageViewsChart pageViews={view.page_views} documentType={view.document_type} />
+                              )}
+                              {hasLinkClicks && (
+                                <div className={`${hasPageViews ? 'border-t pt-3' : ''}`}>
+                                  <h4 className="text-sm font-semibold mb-2">Clicked Links</h4>
+                                  <ul className="space-y-2 text-xs">
+                                    {view.link_clicks.map((click) => (
+                                      <li key={click.id} className="flex items-center gap-1">
+                                        <span className="text-muted-foreground">Page {click.page_number}:</span>
+                                        {click.url && isSafeUrl(click.url) ? (
+                                          <a
+                                            href={click.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:underline truncate max-w-[300px] sm:max-w-[400px]"
+                                            title={click.url}
+                                          >
+                                            {click.url}
+                                          </a>
+                                        ) : (
+                                          <span className="text-muted-foreground truncate max-w-[300px] sm:max-w-[400px]" title={click.url}>
+                                            {click.url}
+                                          </span>
+                                        )}
+                                        <span className="text-[10px] text-muted-foreground ml-auto">
+                                          {new Date(click.clicked_at).toLocaleTimeString([], {
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                            second: '2-digit',
+                                          })}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
                             </div>
                           ) : null}
                         </TableCell>

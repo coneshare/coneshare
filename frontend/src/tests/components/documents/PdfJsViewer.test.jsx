@@ -245,7 +245,7 @@ describe('PdfJsViewer', () => {
       ],
     };
 
-    renderComponent({ documentData: documentDataWithLinks });
+    renderComponent({ documentData: documentDataWithLinks, viewId });
 
     const linkElement = screen.getByRole('link');
     expect(linkElement).toBeInTheDocument();
@@ -261,5 +261,14 @@ describe('PdfJsViewer', () => {
 
     const allLinks = screen.getAllByRole('link');
     expect(allLinks).toHaveLength(1);
+
+    // Simulate clicking the link
+    fireEvent.click(linkElement);
+    expect(api.recordLinkClick).toHaveBeenCalledTimes(1);
+    expect(api.recordLinkClick).toHaveBeenCalledWith({
+      view_session: viewId,
+      page_number: 1,
+      url: 'https://example.com/overlay-link',
+    });
   });
 });

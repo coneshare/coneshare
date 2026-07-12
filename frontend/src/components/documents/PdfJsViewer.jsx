@@ -14,6 +14,7 @@
 import { useEffect, useRef, useCallback, useState, forwardRef, useImperativeHandle } from 'react';
 import { recordPageView } from '../../services/api';
 import { usePdfDocument } from '../../hooks/usePdfDocument';
+import { useLinkClickTracking } from '../../hooks/useLinkClickTracking';
 import { PdfPage } from './PdfPage';
 import { Skeleton } from '../ui/Skeleton';
 import { isSafeUrl } from '../../lib/utils';
@@ -69,6 +70,8 @@ export const PdfJsViewer = forwardRef(({
     },
     [viewId, dataroomVisitId]
   );
+
+  const handleLinkClick = useLinkClickTracking(viewId, dataroomVisitId);
 
   // Expose goToPage via ref
   useImperativeHandle(ref, () => ({
@@ -284,6 +287,7 @@ export const PdfJsViewer = forwardRef(({
                       zIndex: 5,
                     }}
                     title={link.url}
+                    onClick={() => handleLinkClick(link.url, pageNumber)}
                   />
                 ))}
               </div>

@@ -432,6 +432,26 @@ export const recordPageView = (data, useBeacon = false) => {
   });
 };
 
+export const recordLinkClick = (data, useBeacon = false) => {
+  const payload = JSON.stringify(data);
+  const url = `${api.defaults.baseURL}/link-clicks/record/`;
+
+  // Use sendBeacon for maximum reliability during page unload
+  if (useBeacon && navigator.sendBeacon) {
+    const blob = new Blob([payload], { type: 'application/json' });
+    navigator.sendBeacon(url, blob);
+    return Promise.resolve();
+  }
+
+  return fetch(url, {
+    method: 'POST',
+    body: payload,
+    headers: { 'Content-Type': 'application/json' },
+    keepalive: true,
+  });
+};
+
+
 export const getUser = (id) => api.get(`/users/${id}/`);
 
 export const setPassword = (data) => api.post('/users/set-password/', data);
