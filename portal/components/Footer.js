@@ -3,7 +3,7 @@ export function Footer() {
     {
       title: 'Product',
       links: [
-        { label: 'Nextcloud VDR', href: '/nextcloud-vdr' },
+        { label: 'Virtual Dataroom', href: '/virtual-dataroom' },
         { label: 'Nextcloud Integration', href: '/integrations/nextcloud' },
         { label: 'Google Drive Integration', href: '/integrations/google-drive' },
         { label: 'Dropbox Integration', href: '/integrations/dropbox' },

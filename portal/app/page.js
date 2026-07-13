@@ -1,14 +1,6 @@
 import Link from 'next/link';
 import { features, solutions } from '../lib/content';
-import { Carousel } from '../components/Carousel';
-
-const workflowImages = [
-  { src: '/screenshots/feat-upload.png', alt: 'Screenshot of the document upload process' },
-  { src: '/screenshots/feat-sharing.png', alt: 'Screenshot of creating a secure share link' },
-  { src: '/screenshots/feat-watermark.png', alt: 'Screenshot of dynamic watermarking' },
-  { src: '/screenshots/feat-analytics.png', alt: 'Screenshot of document analytics and viewer insights' },
-  { src: '/screenshots/feat-automations.png', alt: 'Screenshot of document activities automations' },
-];
+import { HomepageMockupCarousel } from '../components/HomepageMockupCarousel';
 
 export default function HomePage() {
   const featuredUseCaseSlugs = ['secure-fundraising', 'engagement-visibility', 'timely-follow-ups'];
@@ -33,7 +25,6 @@ export default function HomePage() {
           />
           <div className="py-24 sm:py-32 lg:py-40">
             <div className="mx-auto max-w-3xl text-center">
-              <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">Document Control & Intelligence Layer</p>
               <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
                 Turn your cloud storage into a secure, trackable data room
               </h1>
@@ -46,18 +37,18 @@ export default function HomePage() {
               </p>
               <div className="mt-10 flex items-center justify-center gap-x-6">
                 <Link
-                  href="/nextcloud-vdr"
+                  href="/virtual-dataroom"
                   className="rounded-md bg-gray-900 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
                 >
-                  Explore Nextcloud VDR
+                  Explore Virtual Datarooms
                 </Link>
-                <Link href="/integrations/nextcloud" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
-                  See integration details <span aria-hidden="true">→</span>
+                <Link href="/demo" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
+                  View Live Demo <span aria-hidden="true">→</span>
                 </Link>
               </div>
             </div>
-            <div className="mt-16 sm:mt-20">
-              <Carousel images={workflowImages} />
+            <div className="mt-16 sm:mt-20 mx-auto max-w-5xl px-6 lg:px-8">
+              <HomepageMockupCarousel />
             </div>
 
     {/*

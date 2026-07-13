@@ -67,7 +67,7 @@ export default async function sitemap() {
     '/privacy-policy',
     '/terms',
     '/demo',
-    '/nextcloud-vdr',
+    '/virtual-dataroom',
     '/alternatives/docsend',
   ].map((route) => ({
     url: `${URL}${route}`,
