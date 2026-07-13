@@ -119,7 +119,7 @@ export default function DocsendAlternativePage() {
               after sharing. Coneshare adds a control and intelligence layer for selected external document workflows.
             </p>
             <p>
-              If you are Nextcloud-first, start with the <Link href="/nextcloud-vdr">Nextcloud VDR page</Link>. You can also review
+              If you want to build a secure dataroom, start with the <Link href="/virtual-dataroom">Virtual Dataroom page</Link>. You can also review
               the <Link href="/integrations/nextcloud">Nextcloud integration details</Link>.
             </p>
           </div>
@@ -231,13 +231,13 @@ export default function DocsendAlternativePage() {
         </section>
 
         <section className="mx-auto mt-12 max-w-4xl rounded-2xl border border-gray-200 bg-gray-50 p-8">
-          <h2 className="text-2xl font-bold tracking-tight text-gray-900">Using Nextcloud?</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900">Need a Virtual Dataroom?</h2>
           <p className="mt-4 text-base leading-7 text-gray-700">
-            Coneshare adds VDR-style sharing, document tracking, and workflow actions to Nextcloud-based document workflows.
+            Coneshare adds secure sharing, viewer analytics, and follow-up automations on top of your existing cloud or local storage.
           </p>
           <p className="mt-6">
-            <Link href="/nextcloud-vdr" className="text-sm font-semibold text-gray-900 hover:text-gray-700">
-              Explore Nextcloud VDR <span aria-hidden="true">→</span>
+            <Link href="/virtual-dataroom" className="text-sm font-semibold text-gray-900 hover:text-gray-700">
+              Explore Virtual Datarooms <span aria-hidden="true">→</span>
             </Link>
           </p>
         </section>
@@ -249,7 +249,7 @@ export default function DocsendAlternativePage() {
             <Link href="/demo" className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-100">
               View live demo
             </Link>
-            <Link href="/nextcloud-vdr" className="text-sm font-semibold text-white hover:text-gray-200">
+            <Link href="/virtual-dataroom" className="text-sm font-semibold text-white hover:text-gray-200">
               Get started <span aria-hidden="true">→</span>
             </Link>
           </div>

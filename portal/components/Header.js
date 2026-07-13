@@ -202,8 +202,8 @@ export function Header() {
 
           {/* Desktop Nav */}
           <div className="hidden md:flex md:items-center md:gap-x-4">
-            <Link href="/nextcloud-vdr" className="text-sm font-medium text-gray-500 hover:text-gray-900">
-              Nextcloud VDR
+            <Link href="/virtual-dataroom" className="text-sm font-medium text-gray-500 hover:text-gray-900">
+              Virtual Dataroom
             </Link>
             <NavDropdown title="Works with" href="/integrations" items={integrationMenuItems} />
             <NavDropdown title="Features" href="/features" items={features} />
@@ -253,11 +253,11 @@ export function Header() {
           <div className="space-y-4 px-4 pb-4 pt-4">
             <div>
               <Link
-                href="/nextcloud-vdr"
+                href="/virtual-dataroom"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
               >
-                Nextcloud VDR
+                Virtual Dataroom
               </Link>
             </div>
             <div className="border-t border-gray-200 pt-4">

@@ -32,8 +32,8 @@ export default function NextcloudIntegrationPage() {
             <Link href="/demo" className="rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800">
               View live demo
             </Link>
-            <Link href="/nextcloud-vdr" className="text-sm font-semibold text-gray-900 hover:text-gray-700">
-              See full data room use case <span aria-hidden="true">→</span>
+            <Link href="/blog/nextcloud-virtual-data-room-guide" className="text-sm font-semibold text-gray-900 hover:text-gray-700">
+              See Nextcloud VDR Guide <span aria-hidden="true">→</span>
             </Link>
           </div>
         </div>
@@ -168,8 +168,8 @@ export default function NextcloudIntegrationPage() {
             <Link href="/demo" className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-100">
               View live demo
             </Link>
-            <Link href="/nextcloud-vdr" className="text-sm font-semibold text-white hover:text-gray-200">
-              Explore VDR setup <span aria-hidden="true">→</span>
+            <Link href="/virtual-dataroom" className="text-sm font-semibold text-white hover:text-gray-200">
+              Explore VDR features <span aria-hidden="true">→</span>
             </Link>
             <Link href="/integrations/google-drive" className="text-sm font-semibold text-white hover:text-gray-200">
               Compare with Google Drive <span aria-hidden="true">→</span>
