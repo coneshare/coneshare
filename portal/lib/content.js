@@ -612,6 +612,70 @@ export const solutions = [
       </div>
     )
   },
+  {
+    slug: 'real-estate-diligence',
+    name: 'Real Estate Due Diligence',
+    menuName: 'Real Estate',
+    description: 'Securely distribute property disclosures, rent rolls, and deeds to prospective buyers while tracking viewing behavior and page-level engagement.',
+    icon: Landmark,
+    quote: "Coneshare gives us modern VDR features with on-premise security. We can share highly sensitive tenancy rent rolls knowing exactly who viewed which page.",
+    problem: 'Listing brokers struggle to safely distribute confidential property disclosures without risking leaks, and lack visibility on bidder interest.',
+    trigger: 'A prospective buyer or broker views, downloads, or questions property records or buy-sell agreements.',
+    action: 'Coneshare requires email verification for link access, tiles viewer-specific watermarks onto pages dynamically, and notifies the team of detailed viewing metrics.',
+    outcome: 'Protect listing data from unauthorized leaks, trace distribution paths instantly, and prioritize high-intent bidders ahead of deadlines.',
+    bestFor: 'Commercial real estate brokers, transaction teams, and listing agents',
+    primarySignal: 'Dossier views, page-level reading times, and download actions',
+    successMetric: 'Higher response rate and better negotiation leverage with top bidders',
+    storyTags: ['Due diligence', 'Commercial listing', 'Real estate VDR', 'Watermark protection', 'Compliance'],
+    resultHighlights: [
+      { value: '100%', label: 'Traceability of shared PDF pages' },
+      { value: '<2 min', label: 'Alert latency when buyer opens purchase draft' },
+      { value: 'Zero', label: 'Emailed document Q&A clutter' },
+    ],
+    storySections: [
+      {
+        title: 'Safely distributing high-value property data',
+        body: 'Due diligence in real estate transactions requires sharing massive folders of confidential files. Sending them via generic links exposes the seller to leaks, and brokers have no idea if a bidder has actually opened the package.',
+      },
+      {
+        title: 'Watermarking and email gating on the fly',
+        body: 'Coneshare secures every listing folder by requiring email verification. Dynamic watermarks embed the viewer\'s verified email and IP address on the fly across previews and downloads, deterring leaks of proprietary rent rolls.',
+      },
+      {
+        title: 'Tracking buyer interest before the deadline',
+        body: 'Instead of guessing which buyers are active, brokers get page-by-page viewing telemetry. Knowing a buyer spent an hour on structural inspection reports but bypassed tax records gives the broker key leverage during negotiation calls.',
+      },
+      {
+        title: 'Centralizing buyer diligence Q&A',
+        body: 'By allowing viewers to submit secure, document-bound questions directly on shared files, brokers eliminate scattered email chains and resolve disclosures directly inside the dataroom.',
+      },
+    ],
+    keywords: ['real estate dataroom', 'property due diligence sharing', 'deal room watermark tracking'],
+    relatedSlugs: ['deal-visibility', 'timely-follow-ups'],
+    selfHostedWhy: 'Confidential property, lease, and tenant records remain stored in your own secure cloud boundaries, satisfying strict client data privacy requirements.',
+    workflowSteps: [
+      'Create a dataroom for the property and import folders from Nextcloud or Google Drive.',
+      'Enforce password protection, email verification, and dynamic viewer watermarking.',
+      'Monitor bidder activity, page-level reading times, and video walkthrough views in real time.',
+      'Respond to bidder inquiries directly using the integrated document Q&A board.',
+    ],
+    proof: {
+      src: '/screenshots/feat-vdr-manage-perm.png',
+      alt: 'Real Estate dataroom settings with document access control',
+      caption: 'Broker controls visibility, downloads, and watermarks for every disclosure item.',
+    },
+    docsUrl: 'https://docs.coneshare.com/en/',
+    content: (
+      <div>
+        <h3 className="text-xl font-semibold mb-4">Problem</h3>
+        <p className="mb-4">{'Listing brokers struggle to safely distribute confidential property disclosures without risking leaks, and lack visibility on bidder interest.'}</p>
+        <h3 className="text-xl font-semibold mb-4">Trigger → Action</h3>
+        <p className="mb-4">{'Coneshare requires email verification for link access, tiles viewer-specific watermarks onto pages dynamically, and notifies the team of detailed viewing metrics.'}</p>
+        <h3 className="text-xl font-semibold mb-4">Outcome</h3>
+        <p>{'Protect listing data from unauthorized leaks, trace distribution paths instantly, and prioritize high-intent bidders ahead of deadlines.'}</p>
+      </div>
+    )
+  },
 ];
 
 export const integrations = [
