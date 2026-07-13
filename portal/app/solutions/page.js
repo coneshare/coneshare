@@ -31,7 +31,7 @@ const groups = [
   },
   {
     title: 'Deal Execution',
-    slugs: ['deal-visibility'],
+    slugs: ['deal-visibility', 'real-estate-diligence'],
   },
   {
     title: 'Security and Governance',

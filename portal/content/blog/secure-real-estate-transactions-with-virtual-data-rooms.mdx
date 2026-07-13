@@ -1,0 +1,72 @@
+export const metadata = {
+  title: 'Secure Real Estate Due Diligence: How to Share Property Disclosures & Track Buyer Intent',
+  description:
+    'A step-by-step guide for commercial real estate brokers and listing agents to safely distribute property dossiers, protect rent rolls with dynamic watermarks, and monitor buyer interest.',
+  date: '2026-07-13',
+  category: 'Solutions',
+  tags: [
+    'Real Estate',
+    'Virtual Data Rooms',
+    'Due Diligence',
+    'Document Sharing',
+    'Security',
+    'Analytics',
+  ],
+};
+
+In commercial real estate (CRE) acquisitions, high-value leasing transactions, and premium listing cycles, information is the currency of the deal. Brokers and transaction teams must coordinate the distribution of massive **Due Diligence Packages** containing highly sensitive records: detailed corporate rent rolls, property appraisal values, structural engineering surveys, environmental audits, and draft purchase-and-sale contracts.
+
+For years, the standard delivery mechanism has been a mix of email attachments or basic public cloud folders (such as Dropbox, Box, or Google Drive links). 
+
+But in a modern transactions landscape, this approach presents significant liabilities:
+1. **Zero leak traceability:** Confidential tenant rent rolls or tax summaries can be forwarded or leaked to competing brokers without any way to identify the source.
+2. **Blind negotiation:** Listing agents go into high-stakes negotiation calls completely blind, with no idea if a prospective bidder has spent hours studying the reports or hasn't even opened the link.
+3. **Communication chaos:** Clarifications and questions about engineering disclosures get scattered across dozens of disjointed email threads, creating massive admin overhead.
+
+This is why top-performing real estate transaction teams are transitioning their sharing workflows to self-hosted **Virtual Datarooms (VDRs)**. Here is a step-by-step guide on how to configure secure document distribution and intent tracking using Coneshare.
+
+
+## Step 1: Connect Your Storage and Import Dossiers
+
+To avoid disrupting existing folder structures, Coneshare connects directly to your team's existing storage providers (such as Google Drive, Dropbox, or self-hosted Nextcloud) using secure OAuth2 or localized mount paths.
+
+1. **Import folders in seconds:** From the Coneshare dashboard, select the target folder containing the property dossier (e.g., `/Properties/120-Broadway-Diligence`).
+2. **Maintain a single source of truth:** When files (such as updated zoning approvals or revised appraisal tables) are updated in your primary storage, you can sync them to Coneshare with a single click. The active share links automatically display the updated versions without requiring you to resend new URLs.
+
+
+## Step 2: Enforce Secure Gated Access and Watermarking
+
+Once your property folder is imported, you can generate custom share links for individual bidder groups. To maintain complete sovereignty over who views the disclosures, apply targeted access rules:
+
+* **Email Verification (Magic Links):** Force viewers to enter and verify their email address before they can enter the dataroom. This prevents bidders from forwarding links to unauthorized third parties; every viewer must prove their identity.
+* **Dynamic Recipient Watermarking:** For highly sensitive records (like rent rolls containing tenant names and lease agreements), enable dynamic watermarking. Coneshare renders a viewer-specific watermark (displaying the viewer's verified email and IP address) directly onto the PDF pages. If a bidder prints or screenshots a page, the leak is permanently traced back to them.
+* **Disable Downloads:** For the highest protection, disable file downloads. Prospective buyers can read blueprints and disclosures inside Coneshare's secure in-browser previewer, but cannot download the raw PDF to their local hard drives.
+
+
+## Step 3: Track Buyer Intent and Prioritize outreach
+
+Diligence is a game of intent. Instead of guessing which bidding groups are most active, Coneshare's behavioral analytics dashboard gives listing agents clear evidence of buyer interest:
+
+* **Page-by-Page Reading Duration:** See exactly how many minutes a buyer group spent on specific documents. If a buyer spent 45 minutes on the *“Phase II Environmental Survey”* but only 2 minutes on the *“Zoning Report,”* you know exactly what objections they are preparing for.
+* **Revisit Triggers:** If a bidder re-opens the dataroom or specific tax documents multiple times in a short window, Coneshare's analytics logs flag them as a high-intent prospect.
+* **Coordinated Team Alerts:** Set up automated Slack or webhook notifications. The moment a bidder opens the *“Purchase Agreement Draft,”* your transaction team is notified instantly, enabling them to reach out and handle questions while interest is at its peak.
+
+
+## Step 4: Resolve Disclosures Directly with Inline Q&A
+
+Diligence questions shouldn't get lost in your email inbox. By enabling the **Interactive Q&A Board** in the dataroom:
+
+1. Viewers can submit questions on specific files directly from within the secure document previewer.
+2. The listing broker reviews the question in a unified queue, writes the answer, and publishes it securely.
+3. This creates a transparent, auditable log of due diligence queries and resolutions, speeding up legal approvals and closing cycles.
+
+
+## Why Self-Hosting Matters for Real Estate Transactions
+
+Real estate deals involve strict confidentiality agreements (NDAs). Placing sensitive client records on third-party public SaaS platforms introduces compliance risks and data residency questions.
+
+By deploying Coneshare as a **self-hosted VDR** on your own server or private cloud:
+* All property files, buyer email lists, and viewing telemetry logs remain completely under your firm's own security boundaries.
+* You pay zero seat licensing fees. Unlike public SaaS providers who charge per-user seats that scale heavily as you invite more buyers and brokers, Coneshare is open source and free to run, allowing unlimited bidders, partners, and transactions.
+
+Transitioning to a self-hosted VDR workflow ensures data security for your clients while giving your deal team the tracking data they need to close listings faster.
