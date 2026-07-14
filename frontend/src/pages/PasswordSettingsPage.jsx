@@ -6,6 +6,7 @@ import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
 import { authService } from '../services/authService';
 import { setPassword } from '../services/api';
+import { SettingsTabs } from '../components/settings/SettingsTabs';
 
 function PasswordSettingsPage() {
   const navigate = useNavigate();
@@ -51,6 +52,7 @@ function PasswordSettingsPage() {
     <div className="p-4 sm:mx-4 sm:pt-8">
       <div className="mx-auto max-w-2xl">
         <h1 className="text-2xl font-bold mb-6">Change Password</h1>
+        <SettingsTabs />
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="current-password">Current Password</Label>

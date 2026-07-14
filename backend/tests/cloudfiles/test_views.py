@@ -460,3 +460,67 @@ class TestCloudImportView:
         response_ok = api_client.post(url, data_ok)
         assert response_ok.status_code == status.HTTP_202_ACCEPTED
         mock_task_delay.assert_called_once()
+
+
+@pytest.mark.django_db
+@patch('cloudfiles.views.get_cloud_provider')
+class TestCloudConnectionDeleteView:
+    def test_delete_connection_success(self, mock_get_provider, api_client, cloud_connection):
+        mock_provider_instance = MagicMock()
+        mock_get_provider.return_value = mock_provider_instance
+
+        url = f'/api/v1/cloud/connections/{cloud_connection.id}/'
+        response = api_client.delete(url)
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert not CloudConnection.objects.filter(id=cloud_connection.id).exists()
+        mock_get_provider.assert_called_once()
+        args, kwargs = mock_get_provider.call_args
+        assert args[0] == 'dropbox'
+        assert isinstance(kwargs['connection'], CloudConnection)
+        mock_provider_instance.revoke_token.assert_called_once()
+
+    def test_delete_connection_not_found(self, mock_get_provider, api_client):
+        url = '/api/v1/cloud/connections/01J4Z7YJ8ZJ4Z7YJ8ZJ4Z7YJ8Z/'
+        response = api_client.delete(url)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        mock_get_provider.assert_not_called()
+
+    def test_delete_connection_permission_denied(self, mock_get_provider, api_client, user2):
+        other_connection = CloudConnection.objects.create(
+            user=user2,
+            provider='dropbox',
+            email='other@dropbox.com',
+            access_token='other_token'
+        )
+        url = f'/api/v1/cloud/connections/{other_connection.id}/'
+        response = api_client.delete(url)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert CloudConnection.objects.filter(id=other_connection.id).exists()
+        mock_get_provider.assert_not_called()
+
+    def test_delete_connection_best_effort_revocation(self, mock_get_provider, api_client, cloud_connection):
+        mock_provider_instance = MagicMock()
+        mock_provider_instance.revoke_token.side_effect = Exception("Revocation endpoint down")
+        mock_get_provider.return_value = mock_provider_instance
+
+        url = f'/api/v1/cloud/connections/{cloud_connection.id}/'
+        response = api_client.delete(url)
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert not CloudConnection.objects.filter(id=cloud_connection.id).exists()
+        mock_get_provider.assert_called_once()
+        args, kwargs = mock_get_provider.call_args
+        assert args[0] == 'dropbox'
+        assert isinstance(kwargs['connection'], CloudConnection)
+        mock_provider_instance.revoke_token.assert_called_once()
+
+    def test_delete_connection_requires_auth(self, mock_get_provider, cloud_connection):
+        from rest_framework.test import APIClient
+        anon_client = APIClient()
+        url = f'/api/v1/cloud/connections/{cloud_connection.id}/'
+        response = anon_client.delete(url)
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert CloudConnection.objects.filter(id=cloud_connection.id).exists()
+        mock_get_provider.assert_not_called()
+

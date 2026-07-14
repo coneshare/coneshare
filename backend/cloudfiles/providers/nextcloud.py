@@ -233,3 +233,26 @@ class NextcloudProvider(BaseCloudProvider):
             except httpx.HTTPStatusError as e:
                 logger.error(f"Nextcloud download failed: {e}")
                 raise CloudProviderError(f"Nextcloud download failed: {e}")
+
+    def revoke_token(self):
+        if not self.connection or not self.connection.access_token:
+            return
+        token_url = f"{self.host.rstrip('/')}/apps/oauth2/api/v1/token/revoke"
+        data = {
+            'token': self.connection.refresh_token or self.connection.access_token,
+            'token_type_hint': 'refresh_token' if self.connection.refresh_token else 'access_token'
+        }
+        try:
+            with httpx.Client(timeout=5.0) as client:
+                response = client.post(
+                    token_url,
+                    data=data,
+                    auth=(self.client_id, self.client_secret)
+                )
+                if response.status_code < 400:
+                    logger.info(f"Successfully revoked Nextcloud token for connection {self.connection.id}")
+                else:
+                    logger.warning(f"Nextcloud token revocation returned status: {response.status_code}")
+        except Exception as e:
+            logger.warning(f"Failed to revoke Nextcloud token: {e}")
+

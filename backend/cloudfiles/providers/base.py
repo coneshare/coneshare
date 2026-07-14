@@ -27,3 +27,8 @@ class BaseCloudProvider:
     def get_user_info(self):
         """Gets user info from the provider, like email."""
         raise NotImplementedError
+
+    def revoke_token(self):
+        """Best-effort revocation of the cloud provider's OAuth token."""
+        pass
+

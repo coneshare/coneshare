@@ -177,3 +177,14 @@ class DropboxProvider(BaseCloudProvider):
             }
         except dropbox.exceptions.ApiError as e:
             raise CloudProviderError(f"Dropbox download error: {e}")
+
+    def revoke_token(self):
+        if not self.connection or not self.connection.access_token:
+            return
+        try:
+            client = self._get_client()
+            client.auth_token_revoke()
+            logger.info(f"Successfully revoked Dropbox token for connection {self.connection.id}")
+        except Exception as e:
+            logger.warning(f"Failed to revoke Dropbox token: {e}")
+

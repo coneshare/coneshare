@@ -1,5 +1,6 @@
 import logging
 import tempfile
+import httpx
 from io import BytesIO
 from urllib.parse import urljoin
 
@@ -201,3 +202,22 @@ class GoogleDriveProvider(BaseCloudProvider):
             }
         except HttpError as e:
             raise CloudProviderError(f"Google Drive download failed: {e}")
+
+    def revoke_token(self):
+        if not self.connection:
+            return
+        token = self.connection.refresh_token or self.connection.access_token
+        if not token:
+            return
+        try:
+            response = httpx.post(
+                "https://oauth2.googleapis.com/revoke",
+                data={"token": token},
+                headers={"content-type": "application/x-www-form-urlencoded"},
+                timeout=5.0
+            )
+            response.raise_for_status()
+            logger.info(f"Successfully revoked Google Drive token for connection {self.connection.id}")
+        except Exception as e:
+            logger.warning(f"Failed to revoke Google Drive token: {e}")
+

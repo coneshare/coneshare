@@ -197,6 +197,9 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
   2. Updated [VersionHistoryTable](file:///Users/xiez/coneshare/frontend/src/components/documents/VersionHistoryTable.jsx) to support server-side pagination, render the primary `Active` status badge next to the version name, render fallback labels for unknown statuses (like `not_generated`), and wrap the `Error` badge in a `Tooltip` showing the `render_error` message on hover.
   3. Integrated `check_user_quota_on_upload` check entirely before the `transaction.atomic()` block in `promote_document_version` ([services.py](file:///Users/xiez/coneshare/backend/documents/services.py)) to prevent storage quota bypass during version promotion without keeping database locks open unnecessarily.
 
-
+### 2026-07-12 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** Mocking `window.location` in frontend Vitest pages with an incomplete object (e.g. `{ href: "" }`) will crash React Router's `<NavLink>` component during component rendering with `Error: No window.location.(origin|href) available`.
+- **Resolution/Action:** Always populate the mocked `window.location` with standard properties: `origin`, `pathname`, `search`, `hash`, and helper methods like `assign: vi.fn()`.
 
 

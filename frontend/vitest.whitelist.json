@@ -15,6 +15,7 @@
     "src/tests/pages/AdminBrandingPage.test.jsx",
     "src/tests/pages/DocumentVersionsPage.test.jsx",
     "src/tests/components/documents/VersionHistoryTable.test.jsx",
-    "src/tests/components/documents/DocumentHeader.test.jsx"
+    "src/tests/components/documents/DocumentHeader.test.jsx",
+    "src/tests/pages/IntegrationsSettingsPage.test.jsx"
   ]
 }

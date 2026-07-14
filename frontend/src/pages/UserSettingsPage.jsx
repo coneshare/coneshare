@@ -6,6 +6,7 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Label } from "../components/ui/Label";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/Avatar";
+import { SettingsTabs } from "../components/settings/SettingsTabs";
 
 function UserSettingsPage() {
   const [user, setUser] = useState(null);
@@ -16,6 +17,7 @@ function UserSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef(null);
+
 
   useEffect(() => {
     let isMounted = true;
@@ -118,6 +120,7 @@ function UserSettingsPage() {
     <div className="p-4 sm:mx-4 sm:pt-8">
       <div className="mx-auto max-w-2xl">
         <h1 className="text-2xl font-bold mb-6">User Settings</h1>
+        <SettingsTabs />
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
