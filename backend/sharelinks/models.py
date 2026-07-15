@@ -43,6 +43,9 @@ class ShareLink(BaseModel):
     watermark_text = models.CharField(max_length=255, blank=True)
     receive_email_notification = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    require_nda = models.BooleanField(default=False)
+    nda_text = models.TextField(blank=True, default='')
+    nda_version = models.IntegerField(default=1)
 
     class Meta:
         constraints = [
@@ -61,6 +64,18 @@ class ShareLink(BaseModel):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = secrets.token_urlsafe(16)
+        if self.pk:
+            update_fields = kwargs.get('update_fields')
+            if update_fields is None or 'nda_text' in update_fields:
+                old_data = ShareLink.objects.filter(pk=self.pk).values_list('nda_text', 'nda_version').first()
+                if old_data and old_data[0] != self.nda_text:
+                    self.nda_version = old_data[1] + 1
+                    # Ensure nda_version is persisted during partial updates (e.g. PATCH)
+                    # if nda_text is being explicitly saved via update_fields.
+                    if update_fields is not None:
+                        fields = set(update_fields)
+                        fields.add('nda_version')
+                        kwargs['update_fields'] = list(fields)
         super().save(*args, **kwargs)
 
 
@@ -314,3 +329,33 @@ class LinkClick(models.Model):
     def __str__(self):
         return f"LinkClick on {self.url} (Session: {self.view_session_id}, Page: {self.page_number})"
 
+
+class NDAAcceptance(models.Model):
+    id = ULIDField(primary_key=True, editable=False)
+    share_link = models.ForeignKey('ShareLink', on_delete=models.CASCADE, related_name='nda_acceptances')
+    nda_version = models.IntegerField()
+    view_session = models.ForeignKey('ViewSession', on_delete=models.SET_NULL, null=True, blank=True, related_name='nda_acceptances')
+    viewer = models.ForeignKey('Viewer', on_delete=models.SET_NULL, null=True, blank=True, related_name='nda_acceptances')
+    accepted_at = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        constraints = [
+            # Enforce strict XOR: NDA acceptance must be scoped to either
+            # a transient view_session (for anonymous viewers) or a persistent
+            # viewer record (for email-verified viewers), but never both.
+            # Setting both is prohibited to avoid database redundancy (as ViewSession
+            # already links to Viewer) and to eliminate ambiguity between transient (session-scoped)
+            # and persistent (identity-scoped) acceptances.
+            models.CheckConstraint(
+                condition=(
+                    Q(view_session__isnull=False, viewer__isnull=True) |
+                    Q(view_session__isnull=True, viewer__isnull=False)
+                ),
+                name='ndaacceptance_session_or_viewer'
+            )
+        ]
+
+    def __str__(self):
+        return f"NDAAcceptance {self.id} for ShareLink {self.share_link_id} (v{self.nda_version})"

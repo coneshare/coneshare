@@ -37,6 +37,8 @@ export function LinkSheet({
   const [watermarkText, setWatermarkText] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [requireNda, setRequireNda] = useState(false);
+  const [ndaText, setNdaText] = useState('');
 
   const isEditing = !!currentLink;
   const isWatermarkable = ['pdf', 'document', 'image'].includes(document?.type) || !!dataroom;
@@ -64,6 +66,8 @@ export function LinkSheet({
       setReceiveEmailNotification(currentLink.receive_email_notification || false);
       setEnableWatermark(isWatermarkable && (currentLink.enable_watermark || false));
       setWatermarkText(currentLink.watermark_text || '');
+      setRequireNda(currentLink.require_nda || false);
+      setNdaText(currentLink.nda_text || '');
     } else {
       // Reset form for new link
       setName('');
@@ -76,6 +80,8 @@ export function LinkSheet({
       setReceiveEmailNotification(false);
       setEnableWatermark(false);
       setWatermarkText('');
+      setRequireNda(false);
+      setNdaText('');
     }
 
     if (document?.download_only) {
@@ -96,6 +102,8 @@ export function LinkSheet({
       enable_watermark: isWatermarkable && enableWatermark,
       watermark_text: isWatermarkable && enableWatermark ? watermarkText : '',
       expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+      require_nda: requireNda,
+      nda_text: requireNda ? ndaText : '',
     };
     
     if (!isEditing) {
@@ -228,6 +236,39 @@ export function LinkSheet({
                 placeholder="Enter a password"
                 autoFocus
               />
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <Label htmlFor="nda-enabled" className="flex flex-col space-y-1">
+              <span>Require NDA</span>
+              <span className="text-sm font-normal text-muted-foreground">
+                Viewers must accept a Non-Disclosure Agreement before viewing the content.
+              </span>
+            </Label>
+            <Switch
+              id="nda-enabled"
+              checked={requireNda}
+              onCheckedChange={setRequireNda}
+            />
+          </div>
+          {requireNda && (
+            <div className="space-y-2">
+              <Label htmlFor="nda-text">NDA Terms</Label>
+              <textarea
+                id="nda-text"
+                rows={4}
+                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                value={ndaText}
+                onChange={(e) => setNdaText(e.target.value)}
+                placeholder="Enter NDA terms..."
+                required
+              />
+              {isEditing && currentLink?.require_nda && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Note: Editing the NDA terms will increment the version number, forcing previous viewers to re-accept.
+                </p>
+              )}
             </div>
           )}
           <div className="flex items-center justify-between">

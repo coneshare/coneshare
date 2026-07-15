@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { FileDown, MessageCircle, Info, X, AlertTriangle } from 'lucide-react';
 import { PasswordForm } from '../components/viewer/PasswordForm';
 import { EmailForm } from '../components/viewer/EmailForm';
+import { NDAForm } from '../components/viewer/NDAForm';
 import { ViewerToolbar } from '../components/viewer/ViewerToolbar';
 import { PreviewViewer } from '../components/documents/PreviewViewer';
 import { PdfJsViewer } from '../components/documents/PdfJsViewer';
@@ -410,6 +411,21 @@ export function ShareLinkViewerPage() {
         requiresConfirmation={error?.requiresConfirmation}
         emailToConfirm={error?.emailToConfirm}
         token={accessToken}
+      />
+    );
+  }
+
+  if (protectionType === 'nda') {
+    return (
+      <NDAForm
+        slug={slug}
+        onSuccess={(sessionId) => {
+          if (sessionId) {
+            setViewId(sessionId);
+          }
+          setRefetchTrigger((c) => c + 1);
+        }}
+        publicMeta={publicMeta}
       />
     );
   }

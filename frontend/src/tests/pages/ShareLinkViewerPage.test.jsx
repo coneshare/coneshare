@@ -29,6 +29,16 @@ vi.mock('../../components/viewer/EmailForm', () => ({
   ),
 }));
 
+vi.mock('../../components/viewer/NDAForm', () => ({
+  NDAForm: ({ onSuccess, publicMeta }) => (
+    <div>
+      <span>NDA Form</span>
+      <span>{publicMeta?.owner_name || ''}</span>
+      <button onClick={() => onSuccess('mock-session-id')}>Submit NDA</button>
+    </div>
+  ),
+}));
+
 vi.mock('../../components/documents/PreviewViewer', () => ({
   PreviewViewer: () => <div>Preview Viewer</div>,
 }));
@@ -454,6 +464,48 @@ describe('ShareLinkViewerPage', () => {
       const docCalls = api.getShareLinkViewData.mock.calls.filter(call => call[1]?.dataroomDocumentId === 'doc1');
       expect(docCalls.length).toBe(1);
       expect(api.recordDataroomVisit).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders NDAForm when protectionType is nda', async () => {
+      api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
+      api.getShareLinkViewData.mockRejectedValue({
+        response: { status: 401, data: { protectionType: 'nda' } },
+      });
+
+      renderComponent('/view/test-slug');
+
+      await waitFor(() => {
+        expect(screen.getByText('NDA Form')).toBeInTheDocument();
+      });
+      expect(screen.getByText('Alice Owner')).toBeInTheDocument();
+    });
+
+    it('fetches data again after successful NDA submission', async () => {
+      api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
+      // Initial load fails with NDA protection
+      api.getShareLinkViewData.mockRejectedValueOnce({
+        response: { status: 401, data: { protectionType: 'nda' } },
+      });
+
+      // Second load (after NDA) succeeds
+      api.getShareLinkViewData.mockResolvedValueOnce({ data: mockDocumentData });
+      api.createViewSession.mockResolvedValue({ data: mockViewData });
+
+      renderComponent('/view/test-slug');
+
+      await waitFor(() => {
+        expect(screen.getByText('NDA Form')).toBeInTheDocument();
+      });
+
+      // Simulate successful NDA acceptance
+      const submitButton = screen.getByRole('button', { name: /submit nda/i });
+      fireEvent.click(submitButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Preview Viewer')).toBeInTheDocument();
+      });
+
+      expect(api.getShareLinkViewData).toHaveBeenCalledTimes(2);
     });
   });
 

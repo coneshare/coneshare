@@ -43,7 +43,7 @@ api.interceptors.response.use(
 
     const isPublicProtectionError =
       error.response?.status === 401 &&
-      ['password', 'email'].includes(error.response?.data?.protectionType);
+      ['password', 'email', 'nda'].includes(error.response?.data?.protectionType);
 
     const isInitialPasswordPrompt =
       error.response?.status === 401 &&
@@ -288,6 +288,9 @@ export const getShareLinkPublicMeta = (slug) =>
 
 export const verifyShareLinkPassword = (slug, password) =>
   api.post(`/links/${slug}/verify-password/`, { password });
+
+export const acceptShareLinkNda = (slug, data) =>
+  api.post(`/links/${slug}/accept-nda/`, data);
 
 export const requestShareLinkAccess = (slug, email) =>
   api.post(`/links/${slug}/request-access/`, { email });

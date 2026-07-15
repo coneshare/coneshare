@@ -9,7 +9,7 @@ from datarooms.models import Dataroom
 from .models import (DataroomVisit, PageView, ShareLink,
                      QnAMessage, QnAThread,
                      ShareLinkDataroomSetting, ShareLinkTemplate, Viewer,
-                     ViewSession, LinkClick)
+                     ViewSession, LinkClick, NDAAcceptance)
 from .services import (_get_unique_dataroom_share_link_name,
                        _get_unique_share_link_name)
 
@@ -253,6 +253,36 @@ class ShareLinkSerializer(serializers.ModelSerializer):
     document_type = serializers.CharField(source='document.type', read_only=True, allow_null=True)
     dataroom_name = serializers.CharField(source='dataroom.name', read_only=True, allow_null=True)
     last_viewed_at = serializers.SerializerMethodField()
+    has_accepted_current_nda = serializers.SerializerMethodField()
+
+    def get_has_accepted_current_nda(self, obj) -> bool:
+        request = self.context.get('request')
+        if not request:
+            return False
+
+        # Admin / Owner bypasses
+        if request.user and request.user.is_authenticated and (request.user == obj.created_by or request.user.is_staff):
+            return True
+
+        # Check session
+        authorized_links = request.session.get('authorized_share_links', {})
+        auth_status = authorized_links.get(str(obj.id), {})
+        if auth_status.get('nda_accepted_version') == obj.nda_version:
+            return True
+
+        # Check database
+        viewer_email = auth_status.get('viewer_email')
+        if viewer_email:
+            if NDAAcceptance.objects.filter(share_link=obj, viewer__email=viewer_email, nda_version=obj.nda_version).exists():
+                return True
+
+        query_params = getattr(request, 'query_params', getattr(request, 'GET', {}))
+        view_session_id = query_params.get('view_session_id') if query_params else None
+        if view_session_id:
+            if NDAAcceptance.objects.filter(share_link=obj, view_session_id=view_session_id, nda_version=obj.nda_version).exists():
+                return True
+
+        return False
 
     def validate(self, data):
         """
@@ -311,10 +341,10 @@ class ShareLinkSerializer(serializers.ModelSerializer):
             'id', 'document', 'dataroom', 'document_name', 'document_type', 'dataroom_name', 'dataroom_settings', 'created_by', 'name', 'slug', 'expires_at',
             'has_password', 'password', 'requires_email', 'requires_email_verification', 'allow_download',
             'enable_watermark', 'watermark_text', 'receive_email_notification', 'is_active', 'created_at', 'updated_at',
-            'view_count', 'recent_view_sessions', 'last_viewed_at'
+            'view_count', 'recent_view_sessions', 'last_viewed_at', 'require_nda', 'nda_text', 'nda_version', 'has_accepted_current_nda'
         ]
         read_only_fields = [
-            'id', 'created_by', 'slug', 'created_at', 'updated_at', 'document_name', 'document_type'
+            'id', 'created_by', 'slug', 'created_at', 'updated_at', 'document_name', 'document_type', 'nda_version', 'has_accepted_current_nda'
         ]
         extra_kwargs = {
             'name': {'required': True, 'allow_blank': True},

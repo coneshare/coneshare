@@ -13,6 +13,7 @@ router.register(r'view-sessions', views.ViewSessionViewSet, basename='viewsessio
 urlpatterns = [
     path('links/<slug:slug>/public-meta/', views.ShareLinkPublicMetaView.as_view(), name='share-link-public-meta'),
     path('links/<slug:slug>/verify-password/', views.ShareLinkVerifyPasswordView.as_view(), name='share-link-verify-password'),
+    path('links/<slug:slug>/accept-nda/', views.ShareLinkAcceptNDAView.as_view(), name='share-link-accept-nda'),
     path('links/<slug:slug>/request-access/', views.ShareLinkRequestAccessView.as_view(), name='share-link-request-access'),
     path('links/<slug:slug>/verify-access-token/confirm/', views.ShareLinkConfirmAccessView.as_view(), name='share-link-confirm-access'),
     path('links/<slug:slug>/view-data/', views.ShareLinkViewDataView.as_view(), name='share-link-view-data'),
