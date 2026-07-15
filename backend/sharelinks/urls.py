@@ -24,6 +24,7 @@ urlpatterns = [
     path('links/<slug:slug>/download-file/', views.ShareLinkFileDownloadView.as_view(), name='sharelink-file-download'),
     path('links/<slug:slug>/download-folder/<str:folder_id>/', views.DataroomFolderDownloadView.as_view(), name='dataroom-folder-download'),
     path('page-views/record/', views.RecordPageView.as_view(), name='record-page-view'),
+    path('link-clicks/record/', views.RecordLinkClickView.as_view(), name='record-link-click'),
 
     path('', include(router.urls)),
 ]

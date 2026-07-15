@@ -1,5 +1,7 @@
+import re
 from datetime import datetime
 
+from django.utils import timezone
 from rest_framework import serializers
 
 from core.models import Organization
@@ -7,7 +9,7 @@ from datarooms.models import Dataroom
 from .models import (DataroomVisit, PageView, ShareLink,
                      QnAMessage, QnAThread,
                      ShareLinkDataroomSetting, ShareLinkTemplate, Viewer,
-                     ViewSession)
+                     ViewSession, LinkClick)
 from .services import (_get_unique_dataroom_share_link_name,
                        _get_unique_share_link_name)
 
@@ -42,17 +44,25 @@ class PageViewSerializer(serializers.ModelSerializer):
         return pages_map.get(obj.page_number)
 
 
+class LinkClickSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LinkClick
+        fields = ['id', 'url', 'page_number', 'clicked_at']
+        read_only_fields = ['id', 'clicked_at']
+
+
 class DataroomVisitSerializer(serializers.ModelSerializer):
     dataroom_document_name = serializers.CharField(source='dataroom_document.document.name', read_only=True, default=None)
     dataroom_document_type = serializers.CharField(source='dataroom_document.document.type', read_only=True, default=None)
     dataroom_folder_name = serializers.CharField(source='dataroom_folder.name', read_only=True, default=None)
     page_views = PageViewSerializer(many=True, read_only=True)
+    link_clicks = LinkClickSerializer(many=True, read_only=True)
 
     class Meta:
         model = DataroomVisit
         fields = [
             'id', 'visited_at', 'dataroom_document_id', 'dataroom_folder_id',
-            'dataroom_document_name', 'dataroom_document_type', 'dataroom_folder_name', 'page_views'
+            'dataroom_document_name', 'dataroom_document_type', 'dataroom_folder_name', 'page_views', 'link_clicks'
         ]
 
 
@@ -79,6 +89,7 @@ class ViewSessionSerializer(serializers.ModelSerializer):
     share_link_name = serializers.CharField(source='share_link.name', read_only=True)
     page_views = PageViewSerializer(many=True, read_only=True)
     dataroom_visits = DataroomVisitSerializer(many=True, read_only=True)
+    link_clicks = LinkClickSerializer(many=True, read_only=True)
     is_owner_view = serializers.SerializerMethodField()
     document_id = serializers.CharField(source='share_link.document.id', read_only=True)
     document_name = serializers.CharField(source='share_link.document.name', read_only=True)
@@ -91,9 +102,9 @@ class ViewSessionSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name', 'document_id', 'document_name', 'document_type',
             'dataroom_id', 'dataroom_name', 'ip_address', 'user_agent', 'country', 'city', 'latitude', 'longitude', 'duration_seconds',
-            'completion_rate', 'viewed_at', 'page_views', 'dataroom_visits', 'is_owner_view', 'downloaded_at'
+            'completion_rate', 'viewed_at', 'page_views', 'dataroom_visits', 'link_clicks', 'is_owner_view', 'downloaded_at'
         ]
-        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name', 'document_id', 'document_name', 'document_type', 'dataroom_id', 'dataroom_name', 'country', 'city', 'latitude', 'longitude', 'page_views', 'dataroom_visits', 'is_owner_view', 'downloaded_at']
+        read_only_fields = ['id', 'viewed_at', 'ip_address', 'user_agent', 'share_link_name', 'document_id', 'document_name', 'document_type', 'dataroom_id', 'dataroom_name', 'country', 'city', 'latitude', 'longitude', 'page_views', 'dataroom_visits', 'link_clicks', 'is_owner_view', 'downloaded_at']
     
     def get_is_owner_view(self, obj) -> bool:
         request = self.context.get('request')
@@ -185,6 +196,49 @@ class PageViewRecordSerializer(serializers.ModelSerializer):
             validated_data['media_type'] = 'document'
 
         return super().create(validated_data)
+
+
+class LinkClickRecordSerializer(serializers.ModelSerializer):
+    """
+    Serializer for validating and creating LinkClick records from tracking data.
+    """
+    view_session = serializers.PrimaryKeyRelatedField(
+        queryset=ViewSession.objects.all()
+    )
+    dataroom_visit = serializers.PrimaryKeyRelatedField(
+        queryset=DataroomVisit.objects.all(), required=False, allow_null=True
+    )
+
+    class Meta:
+        model = LinkClick
+        fields = ['view_session', 'dataroom_visit', 'url', 'page_number']
+
+    def validate(self, data):
+        view_session = data.get('view_session')
+        dataroom_visit = data.get('dataroom_visit')
+        url = data.get('url')
+
+        if view_session:
+            link = view_session.share_link
+            if not link.is_active or (link.expires_at and link.expires_at < timezone.now()):
+                raise serializers.ValidationError(
+                    {"view_session": "The associated share link is inactive or expired."}
+                )
+
+        if url:
+            cleaned_url = re.sub(r'[\x00-\x1F\x7F-\x9F]', '', url.strip())
+            if not (cleaned_url.startswith('http://') or cleaned_url.startswith('https://')):
+                raise serializers.ValidationError(
+                    {"url": "Only outbound HTTP and HTTPS URLs are allowed."}
+                )
+            data['url'] = cleaned_url
+
+        if dataroom_visit and view_session:
+            if dataroom_visit.view_session != view_session:
+                raise serializers.ValidationError(
+                    {"dataroom_visit": "This document visit does not belong to the provided view session."}
+                )
+        return data
 
 
 class ShareLinkSerializer(serializers.ModelSerializer):

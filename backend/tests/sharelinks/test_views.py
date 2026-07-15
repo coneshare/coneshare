@@ -16,7 +16,7 @@ from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, Dataroo
 from documents.models import (Document, DocumentPage, DocumentVersion)
 from sharelinks.models import (DataroomVisit, EmailVerificationToken, PageView,
                                PreviewSession, ShareLink,
-                               ShareLinkDataroomSetting, ViewSession)
+                               ShareLinkDataroomSetting, ViewSession, LinkClick)
 from sharelinks.views import DATAROOM_VIEWDATA_DEFAULT_LIMIT
 import zipfile
 from io import BytesIO
@@ -213,6 +213,122 @@ class TestRecordPageView:
         assert 'dataroom_visit' in response.data
         assert "does not belong to the provided view session" in response.data['dataroom_visit'][0]
         assert PageView.objects.count() == 0
+
+
+@pytest.mark.django_db
+class TestRecordLinkClick:
+    def test_record_link_click_success(self, public_client, share_link):
+        """Test that a link click is recorded successfully."""
+        view_session = ViewSession.objects.create(share_link=share_link, duration_seconds=10)
+        assert LinkClick.objects.count() == 0
+
+        data = {
+            'view_session': view_session.id,
+            'url': 'https://google.com',
+            'page_number': 1
+        }
+        response = public_client.post('/api/v1/link-clicks/record/', data)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert LinkClick.objects.count() == 1
+
+        link_click = LinkClick.objects.first()
+        assert link_click.view_session == view_session
+        assert link_click.url == 'https://google.com'
+        assert link_click.page_number == 1
+
+    def test_record_link_click_dataroom_visit_mismatch(self, public_client, share_link):
+        """Test that recording a link click fails if the dataroom visit doesn't belong to the view session."""
+        view_session = ViewSession.objects.create(share_link=share_link)
+        other_session = ViewSession.objects.create(share_link=share_link)
+        
+        dataroom_visit = DataroomVisit.objects.create(view_session=other_session)
+
+        data = {
+            'view_session': view_session.id,
+            'dataroom_visit': dataroom_visit.id,
+            'url': 'https://google.com',
+            'page_number': 1
+        }
+        response = public_client.post('/api/v1/link-clicks/record/', data)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'dataroom_visit' in response.data
+        assert "does not belong to the provided view session" in response.data['dataroom_visit'][0]
+        assert LinkClick.objects.count() == 0
+
+    def test_record_link_click_invalid_url_protocol(self, public_client, share_link):
+        """Test that recording a link click with an invalid URL protocol returns 400 Bad Request."""
+        view_session = ViewSession.objects.create(share_link=share_link)
+        assert LinkClick.objects.count() == 0
+
+        data = {
+            'view_session': view_session.id,
+            'url': 'javascript:alert(1)',
+            'page_number': 1
+        }
+        response = public_client.post('/api/v1/link-clicks/record/', data)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'url' in response.data
+        assert "Only outbound HTTP and HTTPS URLs are allowed" in response.data['url'][0]
+        assert LinkClick.objects.count() == 0
+
+    def test_record_link_click_whitespace_bypass(self, public_client, share_link):
+        """Test that recording a link click with leading whitespace is validated and rejected if invalid."""
+        view_session = ViewSession.objects.create(share_link=share_link)
+        data = {
+            'view_session': view_session.id,
+            'url': '   javascript:alert(1)',
+            'page_number': 1
+        }
+        response = public_client.post('/api/v1/link-clicks/record/', data)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'url' in response.data
+        assert "Only outbound HTTP and HTTPS URLs are allowed" in response.data['url'][0]
+        assert LinkClick.objects.count() == 0
+
+    def test_record_link_click_data_uri(self, public_client, share_link):
+        """Test that recording a link click with data URI is rejected."""
+        view_session = ViewSession.objects.create(share_link=share_link)
+        data = {
+            'view_session': view_session.id,
+            'url': 'data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==',
+            'page_number': 1
+        }
+        response = public_client.post('/api/v1/link-clicks/record/', data)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'url' in response.data
+        assert "Only outbound HTTP and HTTPS URLs are allowed" in response.data['url'][0]
+        assert LinkClick.objects.count() == 0
+
+    def test_record_link_click_http_success(self, public_client, share_link):
+        """Test that recording a link click with http protocol succeeds."""
+        view_session = ViewSession.objects.create(share_link=share_link)
+        data = {
+            'view_session': view_session.id,
+            'url': 'http://example.com',
+            'page_number': 1
+        }
+        response = public_client.post('/api/v1/link-clicks/record/', data)
+        assert response.status_code == status.HTTP_200_OK
+        assert LinkClick.objects.count() == 1
+        assert LinkClick.objects.first().url == 'http://example.com'
+
+    def test_record_link_click_inactive_link_rejected(self, public_client, share_link):
+        """Test that recording a link click for an inactive share link is rejected."""
+        share_link.is_active = False
+        share_link.save()
+        view_session = ViewSession.objects.create(share_link=share_link)
+        data = {
+            'view_session': view_session.id,
+            'url': 'https://google.com',
+            'page_number': 1
+        }
+        response = public_client.post('/api/v1/link-clicks/record/', data)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'view_session' in response.data
+        assert "inactive or expired" in response.data['view_session'][0]
+
+
 
 
 @pytest.mark.django_db

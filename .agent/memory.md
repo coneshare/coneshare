@@ -202,4 +202,9 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** Mocking `window.location` in frontend Vitest pages with an incomplete object (e.g. `{ href: "" }`) will crash React Router's `<NavLink>` component during component rendering with `Error: No window.location.(origin|href) available`.
 - **Resolution/Action:** Always populate the mocked `window.location` with standard properties: `origin`, `pathname`, `search`, `hash`, and helper methods like `assign: vi.fn()`.
 
+### 2026-07-12 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** Telemetry tracking requests sent via standard `fetch()` during anchor clicks can get cancelled by the browser when navigation happens.
+- **Resolution/Action:** Always use `navigator.sendBeacon` or `fetch()` with `keepalive: true` to ensure outbound click telemetry requests complete successfully.
+
 
