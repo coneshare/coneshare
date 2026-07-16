@@ -30,7 +30,15 @@ class AutomationDestinationSerializer(serializers.ModelSerializer):
             'signing_secret': {'write_only': True, 'required': False, 'allow_blank': True},
         }
 
+    def validate_destination_type(self, value):
+        if value == AutomationDestination.DestinationType.EMAIL:
+            raise serializers.ValidationError('Email destination type cannot be created manually.')
+        return value
+
     def validate_endpoint_url(self, value):
+        # Allow None for email, but require valid URL for others
+        if value is None or value == '':
+            return value
         if not (value.startswith('https://') or value.startswith('http://')):
             raise serializers.ValidationError('Endpoint URL must start with http:// or https://')
         return value

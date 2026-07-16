@@ -1672,10 +1672,6 @@ class ShareLinkAcceptNDAView(APIView):
             )
             view_session_id = str(view_session.id)
 
-            # Trigger email notifications
-            if link.receive_email_notification:
-                send_view_notification_email_task.delay(view_session_id)
-
             # Trigger automation events
             base_payload = {
                 'view_session_id': view_session_id,
@@ -2853,9 +2849,6 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
             latitude=location_data.get('latitude'),
             longitude=location_data.get('longitude')
         )
-
-        if instance.share_link and instance.share_link.receive_email_notification:
-            send_view_notification_email_task.delay(str(instance.id))
 
         if instance.share_link:
             base_payload = {

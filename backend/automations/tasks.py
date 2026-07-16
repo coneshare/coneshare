@@ -8,12 +8,15 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import requests
 from celery import shared_task
+from django.core.mail import send_mail
 from django.conf import settings
+from django.template.loader import render_to_string
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 
 from .models import AutomationDelivery
 from .services import dispatch_automation_event
+from sharelinks.models import ShareLink
 
 logger = logging.getLogger(__name__)
 
@@ -294,6 +297,16 @@ def dispatch_automation_event_task(event_type: str, payload: dict):
     return dispatch_automation_event(event_type=event_type, payload=payload)
 
 
+def _mark_success_direct(delivery: AutomationDelivery, message: str):
+    delivery.attempt_count += 1
+    delivery.status = AutomationDelivery.Status.SUCCESS
+    delivery.response_code = 200
+    delivery.response_body_excerpt = (message or '')[:RESPONSE_EXCERPT_LIMIT]
+    delivery.delivered_at = timezone.now()
+    delivery.next_retry_at = None
+    delivery.save(update_fields=['attempt_count', 'status', 'response_code', 'response_body_excerpt', 'delivered_at', 'next_retry_at', 'updated_at'])
+
+
 @shared_task
 def deliver_automation_delivery_task(delivery_id: str):
     try:
@@ -310,6 +323,83 @@ def deliver_automation_delivery_task(delivery_id: str):
             delivery.destination.is_active,
         )
         _mark_non_retryable_failure(delivery, 'Rule or destination is inactive.')
+        return
+
+    if delivery.destination.destination_type == 'email':
+        owner = delivery.rule.created_by
+        recipient_email = owner.email
+        if not recipient_email:
+            logger.warning('Automation delivery skipped: owner has no email address: delivery_id=%s', delivery_id)
+            _mark_non_retryable_failure(delivery, 'Owner has no email address.')
+            return
+
+        # Prior to SMTP dispatch, check if the toggle is checked on the referenced ShareLink
+        share_link_id = delivery.payload.get('share_link_id')
+        if share_link_id:
+            try:
+                share_link = ShareLink.objects.filter(id=share_link_id).first()
+                if share_link and not share_link.receive_email_notification:
+                    logger.info('Skipping email alert: notifications disabled for link %s', share_link_id)
+                    _mark_success_direct(delivery, 'Skipped: receive_email_notification is False on ShareLink.')
+                    return
+            except Exception as e:
+                logger.warning('Failed to query ShareLink for notification check: %s', e)
+
+        # Construct context for the template
+        doc_name = delivery.payload.get('document_name')
+        dr_name = delivery.payload.get('dataroom_name')
+        target_name = doc_name or dr_name or "Shared Item"
+
+        # Determine notification subject and templates based on event type
+        event_type = delivery.event_type
+        if event_type == 'document_downloaded':
+            subject = f"Your shared item '{target_name}' was downloaded"
+        else:
+            subject = f"Your shared item '{target_name}' was viewed"
+
+        viewer_email = delivery.payload.get('viewer_email') or "Anonymous"
+
+        event_dt_str = delivery.payload.get('event_datetime')
+        viewed_at = None
+        if event_dt_str:
+            try:
+                viewed_at = parse_datetime(event_dt_str)
+            except Exception:
+                pass
+        if not viewed_at:
+            viewed_at = delivery.created_at
+
+        city = delivery.payload.get('visitor_city')
+        country = delivery.payload.get('visitor_country')
+        location = f"{city}, {country}" if city and country else "Unknown Location"
+
+        context = {
+            'owner_name': owner.name or '',
+            'target_name': target_name,
+            'viewer_email': viewer_email,
+            'viewed_at': viewed_at,
+            'ip_address': delivery.payload.get('visitor_ip'),
+            'location': location,
+        }
+
+        # Reuse existing templates from sharelinks
+        try:
+            text_content = render_to_string('sharelinks/view_notification_email.txt', context)
+            html_content = render_to_string('sharelinks/view_notification_email.html', context)
+
+            send_mail(
+                subject=subject,
+                message=text_content,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[recipient_email],
+                fail_silently=False,
+                html_message=html_content
+            )
+            logger.info('Sent view notification email to %s for delivery %s.', recipient_email, delivery_id)
+            _mark_success_direct(delivery, f'Sent email successfully to {recipient_email}')
+        except Exception as e:
+            logger.error('Failed to send automation email notification for delivery %s: %s', delivery_id, e)
+            _mark_failure_and_retry(delivery, f'Failed to send email: {e}')
         return
 
     request_payload = _build_request_payload(delivery)

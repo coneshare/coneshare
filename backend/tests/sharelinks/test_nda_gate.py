@@ -160,13 +160,9 @@ class TestShareLinkNDAGate:
         nda_share_link.receive_email_notification = True
         nda_share_link.save()
 
-        with patch('sharelinks.views.send_view_notification_email_task.delay') as mock_send_email, \
-             patch('sharelinks.views._dispatch_automation_event') as mock_dispatch:
-            
+        with patch('sharelinks.views._dispatch_automation_event') as mock_dispatch:
             response = public_client.post(f'/api/v1/links/{nda_share_link.slug}/accept-nda/')
             assert response.status_code == status.HTTP_200_OK
-
-            mock_send_email.assert_called_once()
             mock_dispatch.assert_called_once()
 
     def test_nda_save_update_fields_increments_version(self, nda_share_link):

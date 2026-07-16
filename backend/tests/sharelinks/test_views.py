@@ -473,11 +473,10 @@ class TestViewSessionViewSet:
         assert vs.share_link == share_link
         assert vs.viewer_email == user.email
 
-    @patch('sharelinks.views.send_view_notification_email_task.delay')
-    def test_create_view_session_triggers_email_notification(self, mock_task_delay, public_client, share_link):
+    @patch('sharelinks.views._dispatch_automation_event')
+    def test_create_view_session_triggers_email_notification(self, mock_dispatch, public_client, share_link):
         """
-        Test that creating a view session for a link with notifications enabled
-        triggers the email notification task.
+        Test that creating a view session for a link triggers dispatch automation.
         """
         share_link.receive_email_notification = True
         share_link.save()
@@ -491,13 +490,13 @@ class TestViewSessionViewSet:
         vs = ViewSession.objects.first()
         assert vs is not None
 
-        mock_task_delay.assert_called_once_with(str(vs.id))
+        mock_dispatch.assert_called_once_with(share_link, 'document_viewed', {'view_session_id': str(vs.id), 'viewer_email': ''}, view_session=vs)
 
-    @patch('sharelinks.views.send_view_notification_email_task.delay')
-    def test_create_view_session_does_not_trigger_email_notification(self, mock_task_delay, public_client, share_link):
+    @patch('sharelinks.views._dispatch_automation_event')
+    def test_create_view_session_does_not_trigger_email_notification(self, mock_dispatch, public_client, share_link):
         """
-        Test that creating a view session does not trigger an email if the
-        setting is disabled.
+        Test that creating a view session still triggers dispatch automation even if individual notifications are disabled
+        (since custom organization rules could still trigger).
         """
         share_link.receive_email_notification = False
         share_link.save()
@@ -508,7 +507,7 @@ class TestViewSessionViewSet:
         )
         
         assert response.status_code == status.HTTP_201_CREATED
-        mock_task_delay.assert_not_called()
+        mock_dispatch.assert_called_once()
 
 
 @pytest.mark.django_db

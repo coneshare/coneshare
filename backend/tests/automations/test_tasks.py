@@ -431,3 +431,67 @@ def test_deliver_task_inactive_rule_or_destination_is_non_retryable(mock_apply_a
     assert delivery.attempt_count == 1
     assert delivery.next_retry_at is None
     mock_apply_async.assert_not_called()
+
+
+@patch('django.core.mail.send_mail')
+def test_deliver_task_email_destination_success(mock_send_mail, user, share_link):
+    share_link.receive_email_notification = True
+    share_link.save()
+
+    delivery = _make_delivery(user, share_link)
+    delivery.destination.destination_type = 'email'
+    delivery.destination.endpoint_url = 'http://placeholder.email'
+    delivery.destination.save(update_fields=['destination_type', 'endpoint_url'])
+
+    delivery.payload = {
+        'organization_id': str(user.organization.id),
+        'share_link_id': str(share_link.id),
+        'document_name': 'Financial_Statement.pdf',
+        'viewer_email': 'viewer@example.com',
+        'event_datetime': '2026-07-16T12:00:00Z',
+        'visitor_ip': '1.2.3.4',
+        'visitor_city': 'Boston',
+        'visitor_country': 'USA',
+    }
+    delivery.save(update_fields=['payload'])
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    # Assert delivery marked success
+    delivery.refresh_from_db()
+    assert delivery.status == AutomationDelivery.Status.SUCCESS
+    assert delivery.response_code == 200
+    
+    # Assert email sent to user's profile email
+    mock_send_mail.assert_called_once()
+    _, call_kwargs = mock_send_mail.call_args
+    assert call_kwargs['recipient_list'] == [user.email]
+    assert "Financial_Statement.pdf" in call_kwargs['subject']
+
+
+@patch('django.core.mail.send_mail')
+def test_deliver_task_email_destination_skipped(mock_send_mail, user, share_link):
+    share_link.receive_email_notification = False
+    share_link.save()
+
+    delivery = _make_delivery(user, share_link)
+    delivery.destination.destination_type = 'email'
+    delivery.destination.endpoint_url = 'http://placeholder.email'
+    delivery.destination.save(update_fields=['destination_type', 'endpoint_url'])
+
+    delivery.payload = {
+        'organization_id': str(user.organization.id),
+        'share_link_id': str(share_link.id),
+        'document_name': 'Financial_Statement.pdf',
+        'viewer_email': 'viewer@example.com',
+    }
+    delivery.save(update_fields=['payload'])
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    # Assert delivery marked success but email was skipped (not called)
+    delivery.refresh_from_db()
+    assert delivery.status == AutomationDelivery.Status.SUCCESS
+    assert 'Skipped' in delivery.response_body_excerpt
+    mock_send_mail.assert_not_called()
+
