@@ -647,6 +647,15 @@ export const getPublicFileRequest = (slug) => api.get(`/public/file-requests/${s
 export const requestPublicUpload = (slug, data) => api.post(`/public/file-requests/${slug}/request-upload/`, data);
 export const finalizePublicUpload = (slug, data) => api.post(`/public/file-requests/${slug}/finalize-upload/`, data);
 
+export const listCloudFolders = (connectionId, path = '/') =>
+  api.get(`/cloud/connections/${connectionId}/folders/`, { params: { path } });
+
+export const exportFileRequestUploads = (requestId, data) =>
+  api.post(`/file-requests/${requestId}/exports/`, data);
+
+export const getFileRequestExports = (requestId) =>
+  api.get(`/file-requests/${requestId}/exports/`);
+
 
 // Admin
 export const getAdminBranding = () => api.get('/admin/organization/');

@@ -5,7 +5,7 @@ from datetime import date
 from rest_framework import serializers
 
 from documents.models import Folder
-from .models import FileRequest, UploadedFile
+from .models import FileRequest, UploadedFile, UploadExportJob
 
 
 CUSTOM_FIELD_TYPES = {'text', 'textarea', 'select', 'date', 'number', 'checkbox'}
@@ -199,17 +199,33 @@ def build_custom_field_snapshot(custom_fields, values):
     return snapshot
 
 
+class UploadExportJobSerializer(serializers.ModelSerializer):
+    uploaded_file_name = serializers.CharField(source='uploaded_file.document.name', read_only=True)
+    provider = serializers.CharField(source='connection.provider', read_only=True)
+    provider_display = serializers.CharField(source='connection.get_provider_display', read_only=True)
+
+    class Meta:
+        model = UploadExportJob
+        fields = [
+            'id', 'uploaded_file', 'uploaded_file_name', 'connection',
+            'provider', 'provider_display', 'destination_folder_id',
+            'status', 'error_message', 'provider_file_id', 'created_at', 'updated_at'
+        ]
+
+
 class UploadedFileSerializer(serializers.ModelSerializer):
     document_name = serializers.CharField(source='document.name', read_only=True)
     document_id = serializers.CharField(source='document.id', read_only=True)
+    document_status = serializers.CharField(source='document.status', read_only=True)
     folder_name = serializers.CharField(source='document.folder.name', read_only=True)
     folder_id = serializers.CharField(source='document.folder.id', read_only=True)
+    export_jobs = UploadExportJobSerializer(many=True, read_only=True)
 
     class Meta:
         model = UploadedFile
         fields = [
-            'id', 'document_id', 'document_name', 'folder_id', 'folder_name',
-            'uploader_name', 'uploader_email', 'submitted_fields', 'created_at'
+            'id', 'document_id', 'document_name', 'document_status', 'folder_id', 'folder_name',
+            'uploader_name', 'uploader_email', 'submitted_fields', 'export_jobs', 'created_at'
         ]
 
 
@@ -280,3 +296,12 @@ class FileRequestUploadFinalizeSerializer(serializers.Serializer):
     uploader_name = serializers.CharField(required=True, allow_blank=False, max_length=255)
     uploader_email = serializers.EmailField(required=True, allow_blank=False)
     custom_field_values = serializers.JSONField(required=False, default=dict)
+
+
+class ExportRequestSerializer(serializers.Serializer):
+    connection_id = serializers.CharField(required=True)
+    uploaded_file_ids = serializers.ListField(
+        child=serializers.CharField(), required=True, min_length=1
+    )
+    destination_folder_id = serializers.CharField(required=True, allow_blank=True)
+

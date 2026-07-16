@@ -10,6 +10,7 @@ from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import serializers
+from rest_framework.decorators import action
 from drf_spectacular.utils import extend_schema
 
 from backend.utils import get_client_ip
@@ -27,16 +28,20 @@ from documents.malware_scan import (
     MalwareScannerUnavailableError,
     scan_storage_key_or_raise,
 )
+from cloudfiles.models import CloudConnection
 from automations.tasks import dispatch_automation_event_task
-from .models import FileRequest, SecurityThreatEvent, UploadedFile
+from .models import FileRequest, SecurityThreatEvent, UploadedFile, UploadExportJob
 from .serializers import (
     FileRequestSerializer,
     FileRequestDetailSerializer,
     PublicFileRequestSerializer,
     FileRequestUploadFinalizeSerializer,
+    UploadExportJobSerializer,
+    ExportRequestSerializer,
     build_custom_field_snapshot,
     validate_custom_field_values,
 )
+from .tasks import export_upload_to_cloud_task
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +129,71 @@ class FileRequestViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
+    @extend_schema(
+        methods=['GET'],
+        responses={200: UploadExportJobSerializer(many=True)}
+    )
+    @extend_schema(
+        methods=['POST'],
+        request=ExportRequestSerializer,
+        responses={201: UploadExportJobSerializer(many=True), 400: dict, 404: dict}
+    )
+    @action(detail=True, methods=['get', 'post'], url_path='exports')
+    def handle_exports(self, request, pk=None):
+        file_request = self.get_object()
+        if request.method == 'GET':
+            jobs = UploadExportJob.objects.filter(
+                uploaded_file__file_request=file_request
+            ).select_related('uploaded_file__document', 'connection')
+            serializer = UploadExportJobSerializer(jobs, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        elif request.method == 'POST':
+            serializer = ExportRequestSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+
+            connection_id = serializer.validated_data['connection_id']
+            uploaded_file_ids = serializer.validated_data['uploaded_file_ids']
+            unique_file_ids = list(set(uploaded_file_ids))
+            destination_folder_id = serializer.validated_data['destination_folder_id']
+
+            try:
+                connection = CloudConnection.objects.get(id=connection_id, user=request.user)
+            except CloudConnection.DoesNotExist:
+                return Response({"connection_id": ["Cloud connection not found."]}, status=status.HTTP_400_BAD_REQUEST)
+
+            uploaded_files = UploadedFile.objects.filter(
+                file_request=file_request,
+                id__in=unique_file_ids
+            ).select_related('document')
+
+            if len(uploaded_files) != len(unique_file_ids):
+                return Response({"uploaded_file_ids": ["Some uploaded file IDs are invalid or do not belong to this request."]}, status=status.HTTP_400_BAD_REQUEST)
+
+            not_ready_files = [uf for uf in uploaded_files if not uf.document or uf.document.status != 'ready']
+            if not_ready_files:
+                return Response(
+                    {"detail": "One or more selected files are still being processed or scanned. Please wait until they are ready."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            created_jobs = []
+            with transaction.atomic():
+                for uploaded_file in uploaded_files:
+                    job = UploadExportJob.objects.create(
+                        uploaded_file=uploaded_file,
+                        connection=connection,
+                        destination_folder_id=destination_folder_id,
+                        status=UploadExportJob.Status.QUEUED
+                    )
+                    created_jobs.append(job)
+
+            for job in created_jobs:
+                export_upload_to_cloud_task.delay(job.id)
+
+            response_serializer = UploadExportJobSerializer(created_jobs, many=True)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
 @extend_schema(tags=['filerequests'])

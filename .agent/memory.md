@@ -212,6 +212,10 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** Diligence workflows require NDAs before viewing. Storing acceptance requires auditing.
 - **Resolution/Action:** Implemented the `NDAAcceptance` model tracking `share_link`, `nda_version`, `view_session`, and `viewer` with check constraints. Configured the NDA acceptance check on `view-data`, `page-view`, `page-render`, and `download` views to prompt/block access, and created the frontend `NDAForm` rendering on `protectionType === 'nda'` that registers acceptance and retries data fetching.
 
+### 2026-07-12 Session Entry
+- **Context/Implication:** Coneshare models use string-based ULID keys (instead of standard UUIDs), which means defining UUID serialization validation will cause requests to fail validation with 400 Bad Request.
+- **Resolution/Action:** Configured `ExportRequestSerializer` fields (`connection_id` and `uploaded_file_ids`) to use `CharField` (max_length=26) instead of `UUIDField` to support ULID keys.
+
 ### 2026-07-16 Session Entry
 - **Category:** Architecture Choice
 - **Context/Implication:** Consolidation of email notification routing under the generic event automation system.

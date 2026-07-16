@@ -38,7 +38,7 @@ class DropboxProvider(BaseCloudProvider):
     def get_authorization_url(self):
         state = secrets.token_urlsafe(16)
         redirect_uri = self._get_redirect_uri()
-        scopes = ["account_info.read", "files.metadata.read", "files.content.read"]
+        scopes = ["account_info.read", "files.metadata.read", "files.content.read", "files.content.write"]
 
         params = {
             'client_id': self.app_key,
@@ -188,3 +188,19 @@ class DropboxProvider(BaseCloudProvider):
         except Exception as e:
             logger.warning(f"Failed to revoke Dropbox token: {e}")
 
+    def upload_file(self, file_obj, file_name, folder_id) -> str:
+        client = self._get_client()
+        folder_path = folder_id.strip()
+        if folder_path == '/':
+            folder_path = ''
+        path = f"{folder_path}/{file_name}"
+        try:
+            file_obj.seek(0)
+            metadata = client.files_upload(
+                file_obj,
+                path,
+                mode=dropbox.files.WriteMode.overwrite
+            )
+            return metadata.path_lower
+        except dropbox.exceptions.ApiError as e:
+            raise CloudProviderError(f"Dropbox upload error: {e}")
