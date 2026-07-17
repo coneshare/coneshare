@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch
 
 from automations.models import AutomationDelivery, AutomationDestination, AutomationRule
-from automations.services import dispatch_automation_event
+from automations.services import dispatch_automation_event, ensure_default_email_automation
 from core.models import Organization, User
 
 
@@ -332,3 +332,28 @@ def test_dispatch_is_scoped_to_event_owner_user(user, user2):
     assert created_count == 1
     delivery = AutomationDelivery.objects.get()
     assert delivery.rule == rule_user1
+
+
+def test_ensure_default_email_automation_provisioning(user):
+    # 1. Initially provision rule and destination
+    user.email = 'owner@example.com'
+    user.save(update_fields=['email'])
+    
+    ensure_default_email_automation(user, user.organization)
+    
+    rule = AutomationRule.objects.get(created_by=user, scope_type=AutomationRule.ScopeType.GLOBAL)
+    destination = AutomationDestination.objects.get(created_by=user, destination_type=AutomationDestination.DestinationType.EMAIL)
+    
+    assert rule.name == "Default Email Notifications"
+    assert destination.name == f"Default Email ({user.email})"
+    assert destination.endpoint_url is None  # Properly optional/nullable
+    assert destination in rule.destinations.all()
+
+    # 2. Update owner email and re-run provisioning to verify stale name fix
+    user.email = 'new_owner@example.com'
+    user.save(update_fields=['email'])
+    
+    ensure_default_email_automation(user, user.organization)
+    
+    destination.refresh_from_db()
+    assert destination.name == f"Default Email (new_owner@example.com)"

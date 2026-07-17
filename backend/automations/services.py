@@ -1,9 +1,9 @@
 import logging
 import uuid
 
-from core.models import Organization
+from core.models import Organization, User
 
-from .models import AutomationDelivery, AutomationRule
+from .models import AutomationDelivery, AutomationRule, AutomationDestination
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,49 @@ def _rule_subscribes_event(rule, event_type):
     if not isinstance(events, list):
         return False
     return event_type in events
+
+
+def ensure_default_email_automation(owner: User, organization: Organization):
+    """
+    Ensures that the owner has the default global email rule and destination provisioned.
+    Runs during administrative changes (like enabling email notifications on a ShareLink)
+    to keep database writes off the visitor page view hot path.
+    """
+    if not owner or not owner.email:
+        return
+
+    try:
+        # 1. Get or create the default email destination for the owner
+        dest_name = f"Default Email ({owner.email})"
+        destination, created_dest = AutomationDestination.objects.get_or_create(
+            organization=organization,
+            created_by=owner,
+            destination_type=AutomationDestination.DestinationType.EMAIL,
+            defaults={
+                'name': dest_name,
+                'endpoint_url': None
+            }
+        )
+        if not created_dest and destination.name != dest_name:
+            destination.name = dest_name
+            destination.save(update_fields=['name', 'updated_at'])
+        
+        # 2. Get or create the default global rule subscribing to view/open events
+        rule_name = "Default Email Notifications"
+        rule, created_rule = AutomationRule.objects.get_or_create(
+            organization=organization,
+            created_by=owner,
+            scope_type=AutomationRule.ScopeType.GLOBAL,
+            name=rule_name,
+            defaults={
+                'subscribed_events': ['document_viewed', 'dataroom_opened', 'document_downloaded', 'file_request_uploaded'],
+                'is_active': True
+            }
+        )
+        if created_rule:
+            rule.destinations.add(destination)
+    except Exception as e:
+        logger.warning('Failed to provision default email rule for owner_id=%s: %s', owner.id, e)
 
 
 def dispatch_automation_event(event_type: str, payload: dict) -> int:

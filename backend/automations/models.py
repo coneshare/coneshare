@@ -14,6 +14,7 @@ class AutomationDestination(BaseModel):
         WECHAT = 'wechat', 'WeChat Work'
         FEISHU = 'feishu', 'FeiShu'
         WEBHOOK = 'webhook', 'Webhook'
+        EMAIL = 'email', 'Email'
 
     class HttpMethod(models.TextChoices):
         POST = 'POST', 'POST'
@@ -23,7 +24,7 @@ class AutomationDestination(BaseModel):
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='automation_destinations_created')
     name = models.CharField(max_length=255)
     destination_type = models.CharField(max_length=20, choices=DestinationType.choices, default=DestinationType.WEBHOOK)
-    endpoint_url = models.URLField(max_length=2048)
+    endpoint_url = models.URLField(max_length=2048, null=True, blank=True)
     http_method = models.CharField(max_length=10, choices=HttpMethod.choices, default=HttpMethod.POST)
     headers = models.JSONField(default=dict, blank=True)
     signing_secret = encrypt(models.CharField(max_length=255, null=True, blank=True))
@@ -34,6 +35,17 @@ class AutomationDestination(BaseModel):
         indexes = [
             models.Index(fields=['organization', 'name']),
         ]
+
+    def clean(self):
+        super().clean()
+        if self.destination_type != self.DestinationType.EMAIL and not self.endpoint_url:
+            raise ValidationError({'endpoint_url': 'This field is required for non-email destinations.'})
+        if self.destination_type == self.DestinationType.EMAIL:
+            self.endpoint_url = None
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name

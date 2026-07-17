@@ -1,4 +1,5 @@
 import pytest
+from django.core.exceptions import ValidationError
 
 from automations.models import AutomationDestination, AutomationRule
 
@@ -52,3 +53,27 @@ def test_automation_rule_allows_duplicate_name_within_org(user):
         organization=user.organization,
         name='Same Rule Name',
     ).count() == 2
+
+
+def test_automation_destination_endpoint_url_validation(user):
+    # 1. Non-email destination requires endpoint_url
+    with pytest.raises(ValidationError):
+        AutomationDestination.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name='Webhook destination',
+            destination_type='webhook',
+            endpoint_url=None,
+        )
+
+    # 2. Email destination allows None/empty endpoint_url and sets it to None
+    dest = AutomationDestination.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name='Email destination',
+        destination_type='email',
+        endpoint_url='http://should-be-cleared.com',
+    )
+    assert dest.id is not None
+    assert dest.endpoint_url is None
+

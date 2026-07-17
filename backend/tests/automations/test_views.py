@@ -32,6 +32,22 @@ class TestAutomationDestinationViewSet:
         assert destination.created_by == user
         assert destination.destination_type == 'webhook'
 
+    def test_create_email_destination_manually_fails(self, api_client):
+        response = api_client.post(
+            '/api/v1/automation-destinations/',
+            {
+                'name': 'My Email Destination',
+                'destination_type': 'email',
+                'endpoint_url': None,
+                'http_method': 'POST',
+                'is_active': True,
+            },
+            format='json',
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'Email destination type cannot be created manually' in str(response.data)
+
     def test_list_destinations_is_scoped_to_request_user(self, api_client, user, user2):
         own_destination = AutomationDestination.objects.create(
             organization=user.organization,

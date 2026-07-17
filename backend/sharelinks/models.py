@@ -9,6 +9,7 @@ from django.utils import timezone
 from core.fields import ULIDField
 from core.models import BaseModel, Organization, User
 from django_cryptography.fields import encrypt
+from automations.services import ensure_default_email_automation
 
 
 class ShareLinkTemplate(BaseModel):
@@ -77,6 +78,8 @@ class ShareLink(BaseModel):
                         fields.add('nda_version')
                         kwargs['update_fields'] = list(fields)
         super().save(*args, **kwargs)
+        if self.receive_email_notification:
+            ensure_default_email_automation(self.created_by, self.created_by.organization)
 
 
 class EmailVerificationToken(models.Model):
