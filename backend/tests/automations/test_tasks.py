@@ -433,7 +433,7 @@ def test_deliver_task_inactive_rule_or_destination_is_non_retryable(mock_apply_a
     mock_apply_async.assert_not_called()
 
 
-@patch('django.core.mail.send_mail')
+@patch('automations.tasks.send_mail')
 def test_deliver_task_email_destination_success(mock_send_mail, user, share_link):
     share_link.receive_email_notification = True
     share_link.save()
@@ -469,7 +469,7 @@ def test_deliver_task_email_destination_success(mock_send_mail, user, share_link
     assert "Financial_Statement.pdf" in call_kwargs['subject']
 
 
-@patch('django.core.mail.send_mail')
+@patch('automations.tasks.send_mail')
 def test_deliver_task_email_destination_skipped(mock_send_mail, user, share_link):
     share_link.receive_email_notification = False
     share_link.save()
