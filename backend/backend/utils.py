@@ -79,3 +79,52 @@ def get_unique_name(model_class, original_name: str, filter_kwargs: dict, has_ex
 
     # The new name will have the next number in sequence.
     return f"{base} ({highest_num + 1}){ext}"
+
+
+def parse_user_agent(ua_string: str) -> tuple:
+    if not ua_string:
+        return "Unknown OS", "Unknown Browser"
+
+    ua_lower = ua_string.lower()
+    
+    # 1. Detect OS (check mobile platforms before general desktop OS like macOS)
+    os_name = "Unknown OS"
+    if "windows nt 10.0" in ua_lower:
+        os_name = "Windows 10/11"
+    elif "windows nt 6.3" in ua_lower:
+        os_name = "Windows 8.1"
+    elif "windows nt 6.2" in ua_lower:
+        os_name = "Windows 8"
+    elif "windows nt 6.1" in ua_lower:
+        os_name = "Windows 7"
+    elif "iphone" in ua_lower:
+        os_name = "iOS (iPhone)"
+    elif "ipad" in ua_lower:
+        os_name = "iOS (iPad)"
+    elif "android" in ua_lower:
+        os_name = "Android"
+    elif "macintosh" in ua_lower or "mac os x" in ua_lower:
+        os_name = "macOS"
+    elif "linux" in ua_lower:
+        os_name = "Linux"
+
+    # 2. Detect Browser (check specialized browsers like Opera and Edge before Chrome and Safari)
+    browser_name = "Unknown Browser"
+    if "edg/" in ua_lower:
+        browser_name = "Microsoft Edge"
+    elif "opr/" in ua_lower or "opera/" in ua_lower:
+        browser_name = "Opera"
+    elif "chrome/" in ua_lower or "chromium/" in ua_lower:
+        browser_name = "Chrome"
+    elif "safari/" in ua_lower and "applewebkit/" in ua_lower:
+        browser_name = "Safari"
+    elif "firefox/" in ua_lower:
+        browser_name = "Firefox"
+    elif "msie" in ua_lower or "trident/" in ua_lower:
+        browser_name = "Internet Explorer"
+    
+    # Fallback to display the raw string if it's brief
+    if os_name == "Unknown OS" and browser_name == "Unknown Browser" and len(ua_string) < 30:
+        return ua_string, "Unknown Browser"
+
+    return os_name, browser_name

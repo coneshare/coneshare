@@ -20,11 +20,18 @@
 - Decision: Keep destination-specific formatted payloads for chat providers and raw payloads for generic webhooks.
   Rationale: Chat endpoints require strict schemas while webhook consumers benefit from raw event JSON.
   Tradeoff: Multiple payload shapes increase maintenance and schema-versioning requirements.
+- Decision: Coalesce and debounce view-session events only for Email alerts, while keeping Webhooks and Chat integrations (Slack, Discord, etc.) separate and real-time.
+  Rationale:
+    - Emails: Inbox clutter is highly disruptive. Bundling page views and downloads into a single debounced digest avoids alert fatigue and presents a clean timeline.
+    - Webhooks/Chat: Webhooks are consumed by API systems requiring instant streaming telemetry. Chat channels act as real-time activity streams where owners expect immediate notifications to follow up on active visitors.
+  Tradeoff: Adds state validation and concurrency management complexity (CAS updates) inside the email delivery queue.
+- Decision: Use a Single Global Rule + boolean toggle design for native Email alerts.
+  Rationale: Prevents massive database bloat (avoiding O(N) rules per share link) and ensures recipient security by dynamically reading the owner's current profile email during worker execution.
+  Tradeoff: Requires the async Celery worker to perform an extra database lookup (checking the ShareLink boolean flag) before dispatching.
 
 This document maps the **current** implementation state of Automations and is intended as a maintenance and enhancement reference.
 
-Primary planning doc moved to:
-- [plans/automation-feature-impl.md](../plans/automation-feature-impl.md)
+*(Note: Historical planning documents have been archived to `plans/done/`)*
 
 ---
 
@@ -51,7 +58,7 @@ Out of scope / partially implemented:
 
 Implemented models (`backend/automations/models.py`):
 - `AutomationDestination`
-  - destination types: `webhook`, `slack`, `wechat`, `feishu`, `discord`
+  - destination types: `webhook`, `slack`, `wechat`, `feishu`, `discord`, `email` (allows nullable `endpoint_url` for systemic owner alerts)
   - encrypted `signing_secret`
   - `is_active`
 - `AutomationRule`
@@ -103,6 +110,7 @@ Validation rules:
 - Destinations must belong to user org
 - Destinations must be owned by current user
 - `file_request_uploaded` is allowed only for `global` scope rules
+- Manual creation or update of the `email` destination type is strictly blocked in API serializers
 
 ---
 
@@ -147,6 +155,14 @@ Payload formatting:
 - Discord: `{ "content": ... }`
 - Generic webhook: raw event payload
 - URL-based auto-detection exists for WeChat/FeiShu/Discord webhook endpoints
+- Email digest notifications:
+  - **Single Global Rule & Toggles**: A single global rule is automatically provisioned for the user. Per-link preferences are managed via a lightweight `receive_email_notification` boolean on the `ShareLink` model, which the worker checks before dispatching.
+  - **Recipient Security**: The `email` destination leaves `endpoint_url` blank and dynamically pulls the owner's current email address at delivery time, ensuring alerts cannot be routed to unauthorized external addresses.
+  - **Coalescing & Debouncing**: View session events are coalesced over a `60 seconds` countdown. When the visitor goes idle, they are compiled into a single premium HTML digest.
+  - **Engagement metrics**: Compiles total duration (e.g. `1m 20s`) and read percentage (e.g. `75% read`) for each document from `PageView` objects.
+  - **Dynamic headlines**: Emails feature human-friendly subjects and header titles reflecting visitor activity (e.g. `<xxx> viewed and downloaded files in your dataroom <yyy>`).
+  - **Optimistic Concurrency Control (CAS)**: Uses atomic `.update(status='success')` query count checks to prevent concurrent scheduled tasks from duplicate sending.
+  - **Architecture**: Encapsulated cleanly inside `backend/automations/emails.py`.
 
 Retry behavior:
 - HTTP/network failures: exponential retry, max attempts, then `dead_letter`
@@ -285,6 +301,7 @@ Backend core:
 - `backend/automations/views.py`
 - `backend/automations/services.py`
 - `backend/automations/tasks.py`
+- `backend/automations/emails.py`
 
 Event producers:
 - `backend/sharelinks/views.py`

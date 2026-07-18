@@ -257,6 +257,22 @@ describe("API Service Interceptors", () => {
         parent_id: "folder-2",
       });
     });
+
+    it("should include viewSessionId parameter when provided", async () => {
+      mockAdapter.mockResolvedValue({ data: { ok: true } });
+
+      await getShareLinkViewData("slug-3", {
+        dataroomDocumentId: "doc-1",
+        viewSessionId: "session-123",
+      });
+
+      const requestConfig = mockAdapter.mock.calls[0][0];
+      expect(requestConfig.url).toBe("/links/slug-3/view-data/");
+      expect(requestConfig.params).toEqual({
+        dataroom_document_id: "doc-1",
+        view_session_id: "session-123",
+      });
+    });
   });
 
   describe("Share Link Q&A Params", () => {

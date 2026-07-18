@@ -98,6 +98,7 @@ def _build_visitor_context(view_session=None):
         }
 
     return {
+        'view_session_id': str(view_session.id),
         'event_datetime': _to_iso_datetime(view_session.viewed_at or timezone.now()),
         'visitor_ip': view_session.ip_address or None,
         'visitor_country': view_session.country or None,

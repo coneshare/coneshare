@@ -107,6 +107,7 @@ class AutomationRule(BaseModel):
 class AutomationDelivery(BaseModel):
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'
+        PROCESSING = 'processing', 'Processing'
         SUCCESS = 'success', 'Success'
         FAILED = 'failed', 'Failed'
         DEAD_LETTER = 'dead_letter', 'Dead Letter'

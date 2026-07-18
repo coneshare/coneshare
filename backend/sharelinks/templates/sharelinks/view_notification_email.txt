@@ -1,12 +1,23 @@
 Hi {{ owner_name }},
 
-Just letting you know that your shared item, '{{ target_name }}', was viewed.
+{% if headline %}{{ headline }}{% else %}Just letting you know that your shared item, '{{ target_name }}', was viewed.{% endif %}
 
 View Details:
-- Viewer: {{ viewer_email }}
+- Operating System: {{ os }}
+- Browser: {{ browser }}
 - Time: {{ viewed_at|date:"F j, Y, P" }}
 - IP Address: {{ ip_address }}
 - Approximate Location: {{ location }}
+
+{% if activity_stats_txt %}
+File View Details:
+{% for stat in activity_stats_txt %}{{ stat }}
+{% endfor %}
+{% endif %}
+{% if show_details_url %}
+View Session Details:
+{{ show_details_url }}
+{% endif %}
 
 Thank you,
 The Coneshare Team
