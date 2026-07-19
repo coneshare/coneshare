@@ -17,6 +17,7 @@
     "src/tests/components/documents/VersionHistoryTable.test.jsx",
     "src/tests/components/documents/DocumentHeader.test.jsx",
     "src/tests/pages/IntegrationsSettingsPage.test.jsx",
-    "src/tests/components/automations/DestinationForm.test.jsx"
+    "src/tests/components/automations/DestinationForm.test.jsx",
+    "src/tests/components/documents/DocumentPreviewModal.test.jsx"
   ]
 }

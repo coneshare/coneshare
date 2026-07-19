@@ -227,9 +227,15 @@ export const moveItems = ({ documentIds, folderIds, destinationFolderId }) => {
 };
 
 export const getDocumentPreviewData = (id, versionId = null) => {
-  return api.get(`/documents/${id}/preview-data/`, {
-    params: versionId ? { version_id: versionId } : undefined,
-  });
+  const params = {};
+  if (versionId) params.version_id = versionId;
+  return api.get(`/documents/${id}/preview-data/`, { params });
+};
+
+export const rebuildDocumentPreview = (id, versionId = null) => {
+  const data = {};
+  if (versionId) data.version_id = versionId;
+  return api.post(`/documents/${id}/rebuild-preview/`, data);
 };
 
 export const promoteDocumentVersion = (documentId, versionId) =>

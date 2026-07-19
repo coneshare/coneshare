@@ -960,6 +960,130 @@ def test_get_document_preview_data_too_many_pages(api_client, user):
 
 
 @pytest.mark.django_db
+@patch('documents.views.fileserver_client.delete_file')
+@patch('documents.services.generate_pdf_pages_task.delay')
+def test_post_rebuild_preview(mock_task_delay, mock_delete_file, api_client, user):
+    """Test that POST /rebuild-preview/ resets version render status, deletes pages and re-triggers rendering."""
+    doc = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        status='ready',
+        type='pdf',
+    )
+    version = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        original_storage_key="test_rebuild.pdf",
+        storage_key="test_rebuild.pdf",
+        type='pdf',
+        is_primary=True,
+        render_status=DocumentVersion.RENDER_READY,
+        render_error="Some error",
+        has_pages=True,
+        num_pages=3,
+    )
+    
+    # Create mock pages
+    page1 = DocumentPage.objects.create(document_version=version, page_number=1, storage_key="page1.png")
+    page2 = DocumentPage.objects.create(document_version=version, page_number=2, storage_key="page2.png")
+    
+    assert DocumentPage.objects.filter(document_version=version).count() == 2
+    
+    # Make request with POST rebuild-preview
+    response = api_client.post(f'/api/v1/documents/{doc.id}/rebuild-preview/')
+    assert response.status_code == status.HTTP_200_OK
+    
+    # Refresh version from database
+    version.refresh_from_db()
+    
+    # Assert pages deleted
+    assert DocumentPage.objects.filter(document_version=version).count() == 0
+    
+    # Assert version fields reset and set to queued
+    assert version.render_status == DocumentVersion.RENDER_QUEUED
+    assert version.render_error == ''
+    assert version.has_pages is False
+    assert version.num_pages is None
+    
+    # Assert physical files deleted from storage
+    assert mock_delete_file.call_count == 2
+    mock_delete_file.assert_any_call("page1.png")
+    mock_delete_file.assert_any_call("page2.png")
+    
+    # Assert task triggered
+    mock_task_delay.assert_called_once_with(version.id)
+
+
+@pytest.mark.django_db
+@patch('documents.views.fileserver_client.delete_file')
+@patch('documents.services.generate_pdf_pages_task.delay')
+def test_rebuild_preview_concurrency_conflict(mock_task_delay, mock_delete_file, api_client, user):
+    """Test that POST /rebuild-preview/ rejects with 409 Conflict if a render task is already processing."""
+    doc = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        status='ready',
+        type='pdf',
+    )
+    version = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        original_storage_key="test_rebuild.pdf",
+        storage_key="test_rebuild.pdf",
+        type='pdf',
+        is_primary=True,
+        render_status=DocumentVersion.RENDER_PROCESSING,
+        has_pages=False,
+    )
+    
+    # Create a mock page
+    DocumentPage.objects.create(document_version=version, page_number=1, storage_key="page1.png")
+    
+    # Request rebuild-preview
+    response = api_client.post(f'/api/v1/documents/{doc.id}/rebuild-preview/')
+    assert response.status_code == status.HTTP_409_CONFLICT
+    assert response.json()['detail'] == "A preview generation is already in progress. Please wait."
+    
+    # Assert nothing was deleted or enqueued
+    assert DocumentPage.objects.filter(document_version=version).count() == 1
+    mock_delete_file.assert_not_called()
+    mock_task_delay.assert_not_called()
+
+
+@pytest.mark.django_db
+@patch('documents.views.fileserver_client.delete_file')
+@patch('documents.services.generate_pdf_pages_task.delay')
+def test_rebuild_preview_no_existing_pages(mock_task_delay, mock_delete_file, api_client, user):
+    """Test that rebuild-preview completes cleanly when the version has no existing pages."""
+    doc = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        status='ready',
+        type='pdf',
+    )
+    version = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        original_storage_key="test_rebuild.pdf",
+        storage_key="test_rebuild.pdf",
+        type='pdf',
+        is_primary=True,
+        render_status=DocumentVersion.RENDER_FAILED,
+        has_pages=False,
+    )
+    
+    # Make request
+    response = api_client.post(f'/api/v1/documents/{doc.id}/rebuild-preview/')
+    assert response.status_code == status.HTTP_200_OK
+    
+    # Assert database pages is empty and task delay was called
+    assert DocumentPage.objects.filter(document_version=version).count() == 0
+    mock_delete_file.assert_not_called()
+    mock_task_delay.assert_called_once_with(version.id)
+
+
+
+@pytest.mark.django_db
 def test_get_document_preview_data_wrong_org(api_client):
     """Test that a user cannot access preview data from another organization."""
     other_org = Organization.objects.create(name="Other Org")

@@ -1,9 +1,14 @@
+import tempfile as real_tempfile
+import shutil
+from pathlib import Path
 from unittest.mock import patch, MagicMock
+
 import pytest
 from django.test import override_settings
 
 from documents.models import Document, DocumentVersion, DocumentPage
-from documents.tasks import generate_pdf_pages_task, generate_video_stream_task
+from documents.tasks import generate_pdf_pages_task, generate_video_stream_task, _resolve_pdf_object
+from documents.services import _normalize_content_type
 
 
 @pytest.mark.django_db
@@ -368,6 +373,121 @@ class TestGeneratePdfPagesTask:
         }
         assert page.page_links == expected_links
 
+    @patch('documents.tasks.pdfinfo_from_bytes')
+    @patch('documents.tasks.requests.put')
+    @patch('documents.tasks.fileserver_client.generate_upload_url')
+    @patch('documents.tasks.requests.get')
+    @patch('documents.tasks.fileserver_client.generate_download_url')
+    @patch('documents.tasks.convert_from_bytes')
+    @patch('documents.tasks.PdfReader')
+    def test_task_extracts_links_with_indirect_objects(
+        self,
+        mock_pdf_reader_class,
+        mock_convert,
+        mock_fs_download_url,
+        mock_requests_get,
+        mock_fs_upload_url,
+        mock_requests_put,
+        mock_pdfinfo,
+        user,
+    ):
+        """Test that generate_pdf_pages_task resolves nested indirect objects and byte strings in PDF annotations."""
+        document = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="test_indirect_links.pdf",
+            status='processing',
+        )
+        version = DocumentVersion.objects.create(
+            document=document,
+            version_number=1,
+            original_storage_key="path/to/original.pdf",
+            storage_key="path/to/original.pdf",
+            is_primary=True,
+        )
+
+        mock_images = [MagicMock()]
+        mock_images[0].save.side_effect = lambda buf, format: buf.write(b'img1')
+        mock_convert.return_value = mock_images
+        mock_pdfinfo.return_value = {'Pages': 1}
+
+        mock_reader = MagicMock()
+        mock_pdf_reader_class.return_value = mock_reader
+
+        class MockPdfObject(dict):
+            def get_object(self):
+                return self
+
+        # Mock nested indirect objects
+        class MockIndirectObject:
+            def __init__(self, target):
+                self.target = target
+            def get_object(self):
+                return self.target
+
+        class MockPage(dict):
+            def __init__(self, width, height, annots):
+                super().__init__()
+                self.mediabox = MagicMock()
+                self.mediabox.width = width
+                self.mediabox.height = height
+                if annots:
+                    self["/Annots"] = annots
+
+        # The URI is a byte string inside an indirect object
+        uri_bytes_indirect = MockIndirectObject(b"https://example.com/indirect-target")
+        action = MockPdfObject({
+            "/S": "/URI",
+            "/URI": uri_bytes_indirect
+        })
+        
+        # Coordinates are indirect objects
+        rect = [
+            MockIndirectObject(120.0),
+            MockIndirectObject(120.0),
+            MockIndirectObject(60.0),
+            MockIndirectObject(80.0)
+        ]
+
+        obj = MockPdfObject({
+            "/Subtype": "/Link",
+            "/A": action,
+            "/Rect": rect
+        })
+        
+        annot = MockIndirectObject(obj)
+
+        mock_page = MockPage(600, 800, [annot])
+        mock_reader.pages = [mock_page]
+
+        mock_fs_download_url.return_value = "/files/download/token"
+        mock_get_response = MagicMock()
+        mock_get_response.raise_for_status.return_value = None
+        mock_get_response.content = b"fake-pdf"
+        mock_requests_get.return_value = mock_get_response
+        mock_fs_upload_url.return_value = "/upload/page1"
+        mock_requests_put.return_value = MagicMock()
+
+        # Run task - this must execute without raising TypeError
+        generate_pdf_pages_task(version.id)
+
+        # Assert page was created with resolved links
+        page = DocumentPage.objects.get(document_version=version, page_number=1)
+        expected_links = {
+            "links": [
+                {
+                    "url": "https://example.com/indirect-target",
+                    "bbox": {
+                        "left": (60.0 / 600.0) * 100,
+                        "top": ((800.0 - 120.0) / 800.0) * 100,
+                        "width": ((120.0 - 60.0) / 600.0) * 100,
+                        "height": ((120.0 - 80.0) / 800.0) * 100
+                    }
+                }
+            ]
+        }
+        assert page.page_links == expected_links
+
 @pytest.mark.django_db
 class TestGenerateVideoStreamTask:
     @patch('documents.tasks.subprocess.run')
@@ -427,9 +547,6 @@ class TestGenerateVideoStreamTask:
         mock_requests_put.return_value = MagicMock()
 
         # Create a real temp directory for the test duration
-        import tempfile as real_tempfile
-        import shutil
-        from pathlib import Path
         real_dir = real_tempfile.mkdtemp()
         real_dir_path = Path(real_dir)
 
@@ -461,12 +578,31 @@ class TestGenerateVideoStreamTask:
 
 
 def test_normalize_content_type():
-    from documents.services import _normalize_content_type
     # Generic or empty types should be guessed from filename
     assert _normalize_content_type('', 'video.mov') == 'video/quicktime'
     assert _normalize_content_type('application/octet-stream', 'movie.mp4') == 'video/mp4'
     # Existing valid types should be preserved
     assert _normalize_content_type('video/mp4', 'movie.mov') == 'video/mp4'
     assert _normalize_content_type('application/pdf', 'doc.pdf') == 'application/pdf'
+
+
+def test_resolve_pdf_object_circular_reference():
+    class MockCircularObject:
+        def __init__(self, name):
+            self.name = name
+            self.next_obj = None
+
+        def get_object(self):
+            return self.next_obj
+
+    # Create two objects pointing to each other
+    obj_a = MockCircularObject("A")
+    obj_b = MockCircularObject("B")
+    obj_a.next_obj = obj_b
+    obj_b.next_obj = obj_a
+
+    # Resolving obj_a should break cycle and return safely
+    result = _resolve_pdf_object(obj_a)
+    assert result in (obj_a, obj_b)
 
 
