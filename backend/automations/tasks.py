@@ -17,6 +17,7 @@ from django.utils import timezone
 from .models import AutomationDelivery
 from .services import dispatch_automation_event
 from sharelinks.models import ShareLink
+from .emails import handle_email_delivery
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,10 @@ def _target_description(payload: dict) -> str:
     dataroom_folder_name = payload.get('dataroom_folder_name')
 
     if document_name:
+        if dataroom_folder_name and dataroom_name:
+            return f'document "{document_name}" in folder "{dataroom_folder_name}" in dataroom "{dataroom_name}"'
+        if dataroom_name:
+            return f'document "{document_name}" in dataroom "{dataroom_name}"'
         return f'document "{document_name}"'
     if dataroom_folder_name and dataroom_name:
         return f'folder "{dataroom_folder_name}" in dataroom "{dataroom_name}"'
@@ -137,39 +142,36 @@ def _append_custom_field_summary(message: str, payload: dict) -> str:
     return f'{message}\n' + '\n'.join(lines)
 
 
-def _build_event_text(delivery: AutomationDelivery) -> str:
-    payload = delivery.payload or {}
-    event_type = delivery.event_type
-
+def _build_event_sentence(event_type: str, payload: dict) -> str:
     viewer = _display_actor(None, payload.get('viewer_email'))
     target = _target_description(payload)
 
     if event_type == 'document_viewed':
-        return _append_event_details(f'Your shared {target} was viewed by {viewer}.', payload)
+        return f'Your shared {target} was viewed by {viewer}.'
 
     if event_type == 'dataroom_opened':
-        return _append_event_details(f'Your shared {target} was opened by {viewer}.', payload)
+        return f'Your shared {target} was opened by {viewer}.'
 
     if event_type == 'document_downloaded':
-        return _append_event_details(f'Your shared {target} was downloaded by {viewer}.', payload)
+        return f'Your shared {target} was downloaded by {viewer}.'
 
     if event_type == 'email_identified':
-        return _append_event_details(f'{viewer} identified their email address for your shared {target}.', payload)
+        return f'{viewer} identified their email address for your shared {target}.'
 
     thread_subject = payload.get('thread_subject') or 'Q&A thread'
     sender_type = payload.get('sender_type') or 'user'
 
     if event_type == 'qna_thread_created':
-        return _append_event_details(f'{viewer if sender_type == "viewer" else "A team member"} opened Q&A thread "{thread_subject}" on your shared {target}.', payload)
+        return f'{viewer if sender_type == "viewer" else "A team member"} opened Q&A thread "{thread_subject}" on your shared {target}.'
 
     if event_type == 'qna_message_created':
-        return _append_event_details(f'{viewer if sender_type == "viewer" else "A team member"} replied to Q&A thread "{thread_subject}" on your shared {target}.', payload)
+        return f'{viewer if sender_type == "viewer" else "A team member"} replied to Q&A thread "{thread_subject}" on your shared {target}.'
 
     if event_type == 'qna_thread_closed':
-        return _append_event_details(f'Q&A thread "{thread_subject}" was closed on your shared {target}.', payload)
+        return f'Q&A thread "{thread_subject}" was closed on your shared {target}.'
 
     if event_type == 'qna_thread_reopened':
-        return _append_event_details(f'Q&A thread "{thread_subject}" was reopened on your shared {target}.', payload)
+        return f'Q&A thread "{thread_subject}" was reopened on your shared {target}.'
 
     uploader = _display_actor(
         payload.get('uploaded_by_name'),
@@ -183,21 +185,22 @@ def _build_event_text(delivery: AutomationDelivery) -> str:
 
     if event_type == 'file_request_uploaded':
         message = f'{uploader} uploaded{file_text}{file_request_text}.'
-        return _append_event_details(_append_custom_field_summary(message, payload), payload)
+        return _append_custom_field_summary(message, payload)
 
     if event_type == 'file_request_malware_detected':
-        return _append_event_details(
-            f'Malware was detected in uploaded file{file_text}{file_request_text} from {uploader}.',
-            payload,
-        )
+        return f'Malware was detected in uploaded file{file_text}{file_request_text} from {uploader}.'
 
     if event_type == 'file_request_scan_failed':
-        return _append_event_details(
-            f'Malware scanning failed for uploaded file{file_text}{file_request_text} from {uploader}.',
-            payload,
-        )
+        return f'Malware scanning failed for uploaded file{file_text}{file_request_text} from {uploader}.'
 
-    return _append_event_details(f'Coneshare automation event "{event_type}" was triggered for {target}.', payload)
+    return f'Coneshare automation event "{event_type}" was triggered for {target}.'
+
+
+def _build_event_text(delivery: AutomationDelivery) -> str:
+    payload = delivery.payload or {}
+    event_type = delivery.event_type
+    sentence = _build_event_sentence(event_type, payload)
+    return _append_event_details(sentence, payload)
 
 
 def _build_request_payload(delivery: AutomationDelivery) -> dict:
@@ -291,7 +294,6 @@ def _mark_non_retryable_failure(delivery: AutomationDelivery, message: str, resp
         ]
     )
 
-
 @shared_task
 def dispatch_automation_event_task(event_type: str, payload: dict):
     return dispatch_automation_event(event_type=event_type, payload=payload)
@@ -326,80 +328,7 @@ def deliver_automation_delivery_task(delivery_id: str):
         return
 
     if delivery.destination.destination_type == 'email':
-        owner = delivery.rule.created_by
-        recipient_email = owner.email
-        if not recipient_email:
-            logger.warning('Automation delivery skipped: owner has no email address: delivery_id=%s', delivery_id)
-            _mark_non_retryable_failure(delivery, 'Owner has no email address.')
-            return
-
-        # Prior to SMTP dispatch, check if the toggle is checked on the referenced ShareLink
-        share_link_id = delivery.payload.get('share_link_id')
-        if share_link_id:
-            try:
-                share_link = ShareLink.objects.filter(id=share_link_id).first()
-                if share_link and not share_link.receive_email_notification:
-                    logger.info('Skipping email alert: notifications disabled for link %s', share_link_id)
-                    _mark_success_direct(delivery, 'Skipped: receive_email_notification is False on ShareLink.')
-                    return
-            except Exception as e:
-                logger.warning('Failed to query ShareLink for notification check: %s', e)
-
-        # Construct context for the template
-        doc_name = delivery.payload.get('document_name')
-        dr_name = delivery.payload.get('dataroom_name')
-        target_name = doc_name or dr_name or "Shared Item"
-
-        # Determine notification subject and templates based on event type
-        event_type = delivery.event_type
-        if event_type == 'document_downloaded':
-            subject = f"Your shared item '{target_name}' was downloaded"
-        else:
-            subject = f"Your shared item '{target_name}' was viewed"
-
-        viewer_email = delivery.payload.get('viewer_email') or "Anonymous"
-
-        event_dt_str = delivery.payload.get('event_datetime')
-        viewed_at = None
-        if event_dt_str:
-            try:
-                viewed_at = parse_datetime(event_dt_str)
-            except Exception:
-                pass
-        if not viewed_at:
-            viewed_at = delivery.created_at
-
-        city = delivery.payload.get('visitor_city')
-        country = delivery.payload.get('visitor_country')
-        location = f"{city}, {country}" if city and country else "Unknown Location"
-
-        context = {
-            'owner_name': owner.name or '',
-            'target_name': target_name,
-            'viewer_email': viewer_email,
-            'viewed_at': viewed_at,
-            'ip_address': delivery.payload.get('visitor_ip'),
-            'location': location,
-        }
-
-        # Reuse existing templates from sharelinks
-        try:
-            text_content = render_to_string('sharelinks/view_notification_email.txt', context)
-            html_content = render_to_string('sharelinks/view_notification_email.html', context)
-
-            send_mail(
-                subject=subject,
-                message=text_content,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[recipient_email],
-                fail_silently=False,
-                html_message=html_content
-            )
-            logger.info('Sent view notification email to %s for delivery %s.', recipient_email, delivery_id)
-            _mark_success_direct(delivery, f'Sent email successfully to {recipient_email}')
-        except Exception as e:
-            logger.error('Failed to send automation email notification for delivery %s: %s', delivery_id, e)
-            _mark_failure_and_retry(delivery, f'Failed to send email: {e}')
+        handle_email_delivery(delivery)
         return
 
     request_payload = _build_request_payload(delivery)

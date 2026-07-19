@@ -277,6 +277,7 @@ export const getShareLinkViewData = (
     parentId = null,
     limit = null,
     offset = null,
+    viewSessionId = null,
   } = {}
 ) => {
   const params = {};
@@ -286,6 +287,7 @@ export const getShareLinkViewData = (
   if (parentId) params.parent_id = parentId;
   if (limit !== null && limit !== undefined) params.limit = limit;
   if (offset !== null && offset !== undefined) params.offset = offset;
+  if (viewSessionId) params.view_session_id = viewSessionId;
   return api.get(`/links/${slug}/view-data/`, { params });
 };
 

@@ -433,7 +433,7 @@ def test_deliver_task_inactive_rule_or_destination_is_non_retryable(mock_apply_a
     mock_apply_async.assert_not_called()
 
 
-@patch('automations.tasks.send_mail')
+@patch('automations.emails.send_mail')
 def test_deliver_task_email_destination_success(mock_send_mail, user, share_link):
     share_link.receive_email_notification = True
     share_link.save()
@@ -469,7 +469,7 @@ def test_deliver_task_email_destination_success(mock_send_mail, user, share_link
     assert "Financial_Statement.pdf" in call_kwargs['subject']
 
 
-@patch('automations.tasks.send_mail')
+@patch('automations.emails.send_mail')
 def test_deliver_task_email_destination_skipped(mock_send_mail, user, share_link):
     share_link.receive_email_notification = False
     share_link.save()
@@ -493,5 +493,142 @@ def test_deliver_task_email_destination_skipped(mock_send_mail, user, share_link
     delivery.refresh_from_db()
     assert delivery.status == AutomationDelivery.Status.SUCCESS
     assert 'Skipped' in delivery.response_body_excerpt
+    mock_send_mail.assert_not_called()
+
+
+@patch('automations.emails.send_mail')
+def test_deliver_task_email_coalesced_digest(mock_send_mail, user, share_link):
+    from sharelinks.models import ViewSession, PageView
+    from automations.models import AutomationDelivery
+    from datetime import timedelta
+    from django.utils import timezone
+
+    share_link.receive_email_notification = True
+    share_link.save()
+
+    # Create a ViewSession
+    view_session = ViewSession.objects.create(
+        share_link=share_link,
+        viewer_email='viewer@example.com',
+        ip_address='1.2.3.4',
+        country='USA',
+        city='Boston',
+        duration_seconds=120,
+    )
+
+    # Record some PageViews to get stats
+    PageView.objects.create(
+        view_session=view_session,
+        page_number=1,
+        duration_seconds=40,
+        media_type='document',
+    )
+    PageView.objects.create(
+        view_session=view_session,
+        page_number=2,
+        duration_seconds=80,
+        media_type='document',
+    )
+
+    # We need a document on the share_link for stats pages viewed
+    from documents.models import Document
+    doc = Document.objects.create(
+        organization=user.organization,
+        name="Financial_Statement.pdf",
+        num_pages=4,
+        created_by=user,
+    )
+    share_link.document = doc
+    share_link.save()
+
+    # Make multiple deliveries in the same session
+    delivery1 = _make_delivery(user, share_link)
+    delivery1.destination.destination_type = 'email'
+    delivery1.destination.save()
+    delivery1.payload = {
+        'organization_id': str(user.organization.id),
+        'share_link_id': str(share_link.id),
+        'document_name': 'Financial_Statement.pdf',
+        'viewer_email': 'viewer@example.com',
+        'view_session_id': str(view_session.id),
+    }
+    delivery1.save()
+    AutomationDelivery.objects.filter(id=delivery1.id).update(created_at=timezone.now() - timedelta(seconds=70))
+
+    delivery2 = _make_delivery(user, share_link)
+    delivery2.destination = delivery1.destination
+    delivery2.event_type = 'document_downloaded'
+    delivery2.payload = {
+        'organization_id': str(user.organization.id),
+        'share_link_id': str(share_link.id),
+        'document_name': 'Financial_Statement.pdf',
+        'viewer_email': 'viewer@example.com',
+        'view_session_id': str(view_session.id),
+    }
+    delivery2.save()
+    AutomationDelivery.objects.filter(id=delivery2.id).update(created_at=timezone.now() - timedelta(seconds=65))
+
+    # Deliver task for the first delivery
+    deliver_automation_delivery_task(str(delivery1.id))
+
+    # Verify both deliveries got marked success (since they were coalesced and processed)
+    delivery1.refresh_from_db()
+    delivery2.refresh_from_db()
+    assert delivery1.status == AutomationDelivery.Status.SUCCESS
+    assert delivery2.status == AutomationDelivery.Status.SUCCESS
+
+    # Assert single email was sent
+    mock_send_mail.assert_called_once()
+    _, call_kwargs = mock_send_mail.call_args
+    assert "viewed and downloaded the document" in call_kwargs['subject']
+    assert "Financial_Statement.pdf" in call_kwargs['message']
+    assert "50% read" in call_kwargs['message']
+
+
+@patch('automations.emails.send_mail')
+def test_deliver_task_email_concurrency_race_condition(mock_send_mail, user, share_link):
+    from sharelinks.models import ViewSession
+    from automations.models import AutomationDelivery
+    from datetime import timedelta
+    from django.utils import timezone
+
+    share_link.receive_email_notification = True
+    share_link.save()
+
+    # Create a ViewSession
+    view_session = ViewSession.objects.create(
+        share_link=share_link,
+        viewer_email='viewer@example.com',
+    )
+
+    # Create two pending deliveries for the same session
+    delivery1 = _make_delivery(user, share_link)
+    delivery1.destination.destination_type = 'email'
+    delivery1.destination.save()
+    delivery1.payload = {
+        'organization_id': str(user.organization.id),
+        'share_link_id': str(share_link.id),
+        'view_session_id': str(view_session.id),
+    }
+    delivery1.save()
+    AutomationDelivery.objects.filter(id=delivery1.id).update(created_at=timezone.now() - timedelta(seconds=70))
+
+    delivery2 = _make_delivery(user, share_link)
+    delivery2.destination = delivery1.destination
+    delivery2.payload = delivery1.payload
+    delivery2.save()
+    AutomationDelivery.objects.filter(id=delivery2.id).update(created_at=timezone.now() - timedelta(seconds=65))
+
+    # Simulate race condition: another concurrent task claimed and updated the deliveries to SUCCESS
+    # right before our task performs the atomic update (CAS) check
+    AutomationDelivery.objects.filter(status=AutomationDelivery.Status.PENDING).update(
+        status=AutomationDelivery.Status.SUCCESS,
+        delivered_at=timezone.now()
+    )
+
+    # Now execute the task (simulating Task 2 running after Task 1 succeeded)
+    deliver_automation_delivery_task(str(delivery2.id))
+
+    # Assert that no email was sent because CAS update matching status=PENDING returned 0 updated rows
     mock_send_mail.assert_not_called()
 

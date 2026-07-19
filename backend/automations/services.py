@@ -4,6 +4,7 @@ import uuid
 from core.models import Organization, User
 
 from .models import AutomationDelivery, AutomationRule, AutomationDestination
+from .constants import EMAIL_COALESCE_DEBOUNCE_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +119,10 @@ def dispatch_automation_event(event_type: str, payload: dict) -> int:
             # Queue delivery execution immediately after creating the log row.
             # Import locally to avoid circular imports (tasks imports this service).
             from .tasks import deliver_automation_delivery_task
-            deliver_automation_delivery_task.delay(str(delivery.id))
+            if destination.destination_type == 'email':
+                deliver_automation_delivery_task.apply_async(args=[str(delivery.id)], countdown=EMAIL_COALESCE_DEBOUNCE_SECONDS)
+            else:
+                deliver_automation_delivery_task.delay(str(delivery.id))
             created += 1
 
     return created

@@ -133,12 +133,22 @@ class TestEventDispatchIntegration:
             created_by=user,
             name='Dataroom Link',
         )
+        view_session = ViewSession.objects.create(share_link=link)
 
-        response = public_client.get(f'/api/v1/links/{link.slug}/view-data/?dataroom_document_id={ddoc.id}')
+        response = public_client.get(f'/api/v1/links/{link.slug}/view-data/?dataroom_document_id={ddoc.id}&view_session_id={view_session.id}')
 
         assert response.status_code == status.HTTP_200_OK
-        event_types = [call.args[0] for call in mock_delay.call_args_list]
-        assert 'document_viewed' in event_types
+        
+        # Verify the calls and payloads
+        calls = mock_delay.call_args_list
+        found_view = False
+        for call in calls:
+            event_type = call.args[0]
+            payload = call.args[1]
+            if event_type == 'document_viewed':
+                found_view = True
+                assert payload.get('view_session_id') == str(view_session.id)
+        assert found_view
 
     @patch('sharelinks.views.dispatch_automation_event_task.delay')
     def test_dataroom_download_file_with_view_session_dispatches_document_downloaded(
