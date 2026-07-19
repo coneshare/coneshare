@@ -107,6 +107,13 @@ export function AdminUserDetailPage() {
   const quotaBytes = quotaMB * 1024 * 1024;
   const usagePercentage = quotaMB > 0 ? Math.min((usageBytes / quotaBytes) * 100, 100) : 0;
 
+  let indicatorColor = 'bg-emerald-500';
+  if (usagePercentage > 90) {
+    indicatorColor = 'bg-rose-500';
+  } else if (usagePercentage > 70) {
+    indicatorColor = 'bg-amber-500';
+  }
+
   return (
     <div className="container mx-auto py-6">
       <AdminNav />
@@ -172,6 +179,7 @@ export function AdminUserDetailPage() {
                 <Progress 
                   value={usagePercentage} 
                   className="h-2"
+                  indicatorClassName={indicatorColor}
                 />
               </div>
               

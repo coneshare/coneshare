@@ -10,6 +10,8 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { Select } from '../components/ui/Select';
 import { Pencil, Trash2, Check, X, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { formatBytes } from '../lib/formatters';
+import { Progress } from '../components/ui/Progress';
 
 function AddUserForm({ onAddUser, onCancel }) {
   const [formData, setFormData] = useState({
@@ -131,9 +133,42 @@ function SkeletonRow() {
         <Skeleton className="h-4 w-24" />
       </td>
       <td className="p-4">
+        <Skeleton className="h-4 w-24" />
+      </td>
+      <td className="p-4">
         <Skeleton className="h-10 w-20" />
       </td>
     </tr>
+  );
+}
+
+function UserStorageUsage({ user }) {
+  const usageBytes = user.total_document_size || 0;
+  const quotaMB = user.file_size_quota_mb || 0;
+  const quotaBytes = quotaMB * 1024 * 1024;
+  const usagePercentage = quotaMB > 0 ? Math.min((usageBytes / quotaBytes) * 100, 100) : 0;
+
+  let indicatorColor = 'bg-emerald-500';
+  if (usagePercentage > 90) {
+    indicatorColor = 'bg-rose-500';
+  } else if (usagePercentage > 70) {
+    indicatorColor = 'bg-amber-500';
+  }
+
+  return (
+    <div className="flex flex-col gap-1 w-32">
+      <div className="flex justify-between text-xs font-medium">
+        <span className="text-foreground">{formatBytes(usageBytes)}</span>
+        <span className="text-muted-foreground">
+          {quotaMB > 0 ? `${quotaMB} MB` : '∞'}
+        </span>
+      </div>
+      <Progress 
+        value={usagePercentage} 
+        className="h-1.5"
+        indicatorClassName={indicatorColor} 
+      />
+    </div>
   );
 }
 
@@ -263,6 +298,7 @@ export function AdminUsersPage() {
               <th className="p-4 text-left font-semibold">Email</th>
               <th className="p-4 text-left font-semibold">Role</th>
               <th className="p-4 text-left font-semibold">Status</th>
+              <th className="p-4 text-left font-semibold">Storage</th>
               <th className="p-4 text-left font-semibold">Joined</th>
               <th className="p-4 text-left font-semibold">Actions</th>
             </tr>
@@ -303,6 +339,9 @@ export function AdminUsersPage() {
                           <option value={false}>Inactive</option>
                         </Select>
                       </td>
+                      <td className="p-4">
+                        <UserStorageUsage user={user} />
+                      </td>
                       <td className="p-4 text-muted-foreground">
                         {new Date(user.date_joined).toLocaleDateString()}
                       </td>
@@ -329,11 +368,13 @@ export function AdminUsersPage() {
                     <tr key={user.id} className="border-b">
                       <td className="p-4 font-medium">
                         <Link to={`/admin/users/${user.id}`} className="hover:underline">
-                          {user.name}
+                          {user.name || 'Unnamed User'}
                         </Link>
                       </td>
                       <td className="p-4 text-muted-foreground">
-                        {user.email}
+                        <Link to={`/admin/users/${user.id}`} className="hover:underline text-muted-foreground">
+                          {user.email}
+                        </Link>
                       </td>
                       <td className="p-4 text-muted-foreground">{user.role}</td>
                       <td className="p-4">
@@ -346,6 +387,9 @@ export function AdminUsersPage() {
                         >
                           {user.is_active ? 'Active' : 'Inactive'}
                         </span>
+                      </td>
+                      <td className="p-4">
+                        <UserStorageUsage user={user} />
                       </td>
                       <td className="p-4 text-muted-foreground">
                         {new Date(user.date_joined).toLocaleDateString()}
