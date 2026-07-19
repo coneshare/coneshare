@@ -1,215 +1,148 @@
-# Coneshare: Cloud Drive Import Implementation Plan
+# Coneshare: Cloud Drive Import Implementation
 
 ## Strategy refs
 - [Coneshare Roadmap](./strategy/coneshare-roadmap.md)
 - [Coneshare Technology Stack](./strategy/coneshare-techstack.md)
 
 ## Out of scope
-- Folder import in V1 (including recursive traversal and batch folder sync).
+- Folder import (including recursive traversal and batch folder sync).
 - Multi-file selection/import in a single action.
-- Background delta sync and two-way synchronization.
+- Background delta sync and two-way synchronization (though foundational architecture for tracking revisions is in place).
 - Provider-specific advanced features (shared-drive ACL mirroring, shortcuts, comments).
 
 ## Design decisions
 - Decision: Use API-driven OAuth2 flow with frontend callback handoff and backend token exchange.
   Rationale: Fits JWT-based SPA architecture and avoids relying on server-side session auth flow.
   Tradeoff: Requires explicit state-token lifecycle handling and callback route coordination.
-- Decision: Keep V1 import asynchronous via Celery task.
+- Decision: Keep imports asynchronous via Celery task.
   Rationale: Avoids request timeouts and supports reliable large-file transfer behavior.
   Tradeoff: Requires status tracking and UI polling/error surfacing.
-- Decision: Enforce single-file import and size pre-validation (<100MB) in V1.
+- Decision: Enforce single-file import and size pre-validation (<100MB).
   Rationale: Keeps initial scope controlled while validating end-to-end provider integration.
   Tradeoff: Reduced user convenience until folder/multi-file support is added.
+- Decision: Use `JSONField` metadata on `DocumentVersion` to track cloud origin.
+  Rationale: Clean, robust, prevents "version drift", and preserves history for future features like version restoration and auto-sync version tracking.
 
-This document outlines the implementation plan for allowing users to import files from third-party cloud storage providers like Dropbox, Google Drive, or self-hosted solutions like ownCloud.
-
-The architecture is designed to be configurable by a system administrator, secure through the use of OAuth2, and scalable by leveraging an asynchronous import process.
-
----
-
-## V1 Scope & Limitations
-
-The initial implementation of this feature will focus exclusively on **single file imports**.
-
--   **Folder Imports**: The ability to import entire folders will be deferred to a future version. The user interface will only allow the selection of individual files.
--   **File Size Limit**: Each imported file must be less than 100MB. The backend will validate the file size using metadata from the cloud provider's API before initiating a download.
+This document outlines the implementation for allowing users to import files from third-party cloud storage providers like Dropbox, Google Drive, or self-hosted solutions like Nextcloud, as well as managing those connections and file versions.
 
 ---
 
 ## The User Flow
 
-The user experience is designed to be intuitive and follows a conditional logic path:
-
-1.  **Admin Configuration**: A system administrator first enables a list of approved cloud providers (e.g., "dropbox,owncloud") in the system's configuration.
+1.  **Admin Configuration**: A system administrator first enables a list of approved cloud providers (e.g., "dropbox,nextcloud") in the system's configuration.
 2.  **Dynamic UI**: The "Upload" dropdown menu in the user interface is dynamically populated with the providers enabled by the administrator.
 3.  **First-Time Connection (API-Driven Flow)**:
-    -   The frontend makes an authenticated API call to Coneshare's backend (e.g., `GET /api/v1/cloud/connect/dropbox/`).
+    -   The frontend makes an authenticated API call to Coneshare's backend (e.g., `GET /api/v1/cloudfiles/connect/dropbox/`).
     -   The backend generates the provider's authorization URL, securely caches a CSRF token, and returns the URL in a JSON response.
     -   The frontend receives the URL and redirects the user's browser to the provider's OAuth2 page.
     -   After granting access, the provider redirects the user back to a dedicated frontend callback route (e.g., `/auth/dropbox/callback`).
     -   This frontend route extracts the authorization `code` and `state` from the URL and sends them to the backend's callback API.
     -   The backend verifies the CSRF token, exchanges the code for access tokens, and securely saves the new connection. The frontend then redirects the user back to their documents.
-4.  **Subsequent Imports**: After a successful connection, clicking the same "Dropbox" menu item will open a file browser modal, allowing the user to navigate their cloud files and select items to import.
+4.  **Subsequent Imports & Versioning**: After a successful connection, clicking the same "Dropbox" menu item will open a file browser modal, allowing the user to navigate their cloud files and select items to import. Users can also refresh imported documents or upload new versions directly from the cloud.
+5.  **Settings & Revocation**: Users can view their connected accounts in the Integrations settings and disconnect them. Disconnecting performs a best-effort OAuth revocation.
 
 ---
 
 ## Part 1: Backend - Cloud Connection Infrastructure (Django)
 
-The backend will manage secure connections to external providers and handle the asynchronous import of files.
-
 ### 1. System Administrator Configuration
 
-To allow administrators to control which services are available, settings will be loaded from environment variables in `backend/backend/settings.py`.
+Settings are loaded from environment variables in `backend/backend/settings.py`.
 
-**File**: `backend/backend/settings.py`
 ```python
 import os
 
-# Cloud Services Configuration
-# A list of enabled cloud providers.
-# Example: ENABLED_CLOUD_PROVIDERS = ["dropbox", "google_drive"]
-ENABLED_CLOUD_PROVIDERS = ["dropbox"]
+ENABLED_CLOUD_PROVIDERS = ["dropbox", "google_drive", "nextcloud"]
 
-# A dictionary mapping cloud providers to their default import folder names.
 CLOUD_IMPORT_FOLDER_MAPPING = {
     "dropbox": "Dropbox Imports",
     "google_drive": "Google Drive Imports",
+    "nextcloud": "Nextcloud Imports",
 }
 
 # Provider API Credentials (loaded from env)
 DROPBOX_APP_KEY = os.environ.get("DROPBOX_APP_KEY", "")
-DROPBOX_APP_SECRET = os.environ.get("DROPBOX_APP_SECRET", "")
-GOOGLE_DRIVE_CLIENT_ID = os.environ.get("GOOGLE_DRIVE_CLIENT_ID", "")
-GOOGLE_DRIVE_CLIENT_SECRET = os.environ.get("GOOGLE_DRIVE_CLIENT_SECRET", "")
+# ...
 ```
 
-### 2. New `CloudConnection` Model
+### 2. `CloudConnection` Model & Token Encryption
 
-A new model is required to securely store user-specific authorization tokens for each cloud provider.
+User-specific authorization tokens are securely stored in the `CloudConnection` model. To protect user credentials, all OAuth2 tokens are encrypted at rest in the database using the `django-cryptography` library.
 
--   **Fields**: It will include a foreign key to the `User`, the provider's name (e.g., `google_drive`, `dropbox`), and encrypted fields for the `access_token` and `refresh_token`.
+**Implementation (`backend/cloudfiles/models.py`):**
+```python
+from django_cryptography.fields import encrypt
 
-### 3. OAuth2 and API Endpoints
+class CloudConnection(BaseModel):
+    # ...
+    access_token = encrypt(models.TextField())
+    refresh_token = encrypt(models.TextField(blank=True, null=True))
+    # ...
+```
 
--   **Provider Configuration Endpoint**: A new API endpoint (`GET /api/v1/cloud/providers/` in `cloudfiles/urls.py`) will be created to return the list of `ENABLED_CLOUD_PROVIDERS` to the frontend.
--   **API-Driven OAuth2 Flow**: To integrate smoothly with the SPA frontend and its JWT-based authentication, the OAuth2 flow is handled via API endpoints without relying on traditional sessions.
-    -   **Authorization URL Endpoint (`GET /api/v1/cloud/connect/<provider>/`)**:
-        -   The frontend makes an authenticated request to this endpoint.
-        -   The backend generates the provider's authorization URL and a unique CSRF `state` token.
-        -   The `state` token is cached on the server (e.g., in Redis) with a short expiry, keyed to the user.
-        -   The endpoint returns a JSON response containing the `authorization_url`. The frontend then performs the client-side redirect.
-    -   **Frontend Callback Route (`/auth/<provider>/callback`)**:
-        -   This is a new, dedicated route in the React application. It is configured as the "Redirect URI" in the cloud provider's app settings.
-        -   Its sole purpose is to capture the `code` and `state` query parameters from the provider's redirect and send them to the backend's callback API.
-    -   **Backend Callback Endpoint (`POST /api/v1/cloud/callback/<provider>/`)**:
-        -   The frontend sends the `code` and `state` to this authenticated endpoint.
-        -   The backend retrieves the cached `state` token for the user and compares it to the one received, preventing CSRF attacks.
-        -   It then securely exchanges the `code` for an `access_token` and `refresh_token` by making a server-to-server request to the provider.
-        -   Finally, it saves the new `CloudConnection` in the database.
--   **Cloud File Operations API** (all in `cloudfiles/urls.py`):
-    -   **File Listing Endpoint**: `GET /api/v1/cloud/connections/<connection_id>/list/` will allow the frontend to browse files and folders in a connected drive.
-    -   **Import Endpoint**: `POST /api/v1/cloud/connections/<connection_id>/import/` will trigger the asynchronous import process for one selected file in V1.
+### 3. API Endpoints (`cloudfiles/urls.py`)
 
-### 4. Token Encryption (Security Implementation)
-
-To protect user credentials, all OAuth2 tokens (`access_token`, `refresh_token`) stored in the `CloudConnection` model must be encrypted at rest in the database. This provides a critical layer of defense if the database is ever compromised. The recommended implementation uses the `django-cryptography` library.
-
-**Implementation Steps:**
-
-1.  **Install the Library**: Add `django-cryptography` to the project's dependencies.
-    ```bash
-    docker compose exec backend pip install django-cryptography
-    ```
-
-2.  **Generate and Store an Encryption Key**: A strong encryption key is required. Generate one and store it securely as an environment variable (e.g., in `.env`).
-    ```bash
-    # Command to generate a new key:
-    docker compose exec backend python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-
-    # Example .env entry:
-    FIELD_ENCRYPTION_KEY=your-generated-key-here
-    ```
-
-3.  **Configure Django Settings**: Update `backend/settings.py` to load the key into the required `FERNET_KEYS` setting.
-    ```python
-    # Field Encryption Key
-    FIELD_ENCRYPTION_KEY = os.environ.get('FIELD_ENCRYPTION_KEY')
-    FERNET_KEYS = [FIELD_ENCRYPTION_KEY] if FIELD_ENCRYPTION_KEY else []
-    ```
-
-4.  **Update the `CloudConnection` Model**: In `cloudfiles/models.py`, change the token fields from `models.TextField` to `EncryptedTextField`.
-    ```python
-    from django_cryptography.fields import EncryptedTextField
-
-    class CloudConnection(BaseModel):
-        # ...
-        access_token = EncryptedTextField()
-        refresh_token = EncryptedTextField(blank=True, null=True)
-        # ...
-    ```
-
-5.  **Create and Apply Migrations**: The final step is to apply these changes to the database schema. Validate encryption behavior in staging with a rollback plan before production rollout.
-    ```bash
-    docker compose exec backend python manage.py makemigrations cloudfiles
-    docker compose exec backend python manage.py migrate
-    ```
+-   **Provider Configuration**: `GET /api/v1/cloudfiles/providers/` returns enabled providers and connection status.
+-   **Active Connections**: `GET /api/v1/cloudfiles/connections/` lists the user's active connections.
+-   **Disconnect Provider**: `DELETE /api/v1/cloudfiles/connections/<connection_id>/`
+    - Strictly enforces that the connection belongs to the requesting user.
+    - Attempts best-effort OAuth token revocation with the provider before deleting the local database record.
+-   **OAuth2 Flow Endpoints**:
+    -   `GET /api/v1/cloudfiles/connect/<provider>/` (Generates auth URL and CSRF state)
+    -   `POST /api/v1/cloudfiles/callback/<provider>/` (Exchanges code for tokens)
+-   **Cloud File Operations**:
+    -   **File Listing**: `GET /api/v1/cloudfiles/connections/<connection_id>/list/`
+    -   **Initial Import**: `POST /api/v1/cloudfiles/connections/<connection_id>/import/`
+    -   **Refresh Document**: `POST /api/v1/cloudfiles/documents/<doc_id>/cloud_refresh/`
+    -   **Import New Version**: `POST /api/v1/cloudfiles/documents/<doc_id>/cloud_import_version/`
 
 ---
 
-## Part 2: Backend - Asynchronous Import (Celery)
+## Part 2: Backend - Document Versioning & Async Import
 
-To prevent API timeouts when importing large files, the file transfer process must be handled by a background worker.
+To prevent API timeouts, file transfers are handled by a Celery background worker. The process supports both initial imports and version updates.
 
--   **New Celery Task (`import_from_cloud_task` in `cloudfiles/tasks.py`)**:
-    -   The `POST /api/v1/cloud/connections/<connection_id>/import/` endpoint will trigger this new background task.
-    -   **Logic**:
-        -   The task receives the connection details and the ID of the file to import.
-        -   It determines the destination folder for the import based on the provider (e.g., "Dropbox Imports"), creating it if it does not exist.
-        -   It uses the stored tokens to download the file directly from the cloud provider's server to Coneshare's storage backend (e.g., MinIO) as a stream.
-        -   After the transfer, it calls existing internal services to create the `Document` and `DocumentVersion` records within the designated folder.
+### 1. Document & Metadata Modeling
 
-### Required Schema Changes
+The `DocumentVersion` model tracks cloud origin metadata. This preserves history and provides the foundation for future auto-sync features.
 
-- `CloudConnection` model for per-user provider credentials/tokens.
-- `Document.status` must support an import lifecycle (`processing`, `ready`, `error`) if not already present.
-- `Document.status_message` field is required for user-facing import failure feedback.
-- Corresponding migrations and API serializer exposure for status/status_message.
+**Metadata Schema (`DocumentVersion.metadata`):**
+```json
+{
+  "cloud_import": {
+    "provider": "dropbox",
+    "provider_display": "Dropbox",
+    "connection_id": "12",
+    "file_id": "id:abcdef12345",
+    "etag_or_rev": "015d30000000000000000"
+  }
+}
+```
+*Note: `etag_or_rev` stores the provider-specific revision tag (e.g., Dropbox `rev`, Google Drive `md5Checksum`) for change-detection.*
 
-### Error Handling and Status Updates
+### 2. Unified Background Processing (`import_from_cloud_task`)
 
-To communicate the status of the asynchronous import back to the user, especially in case of connection failures, the following mechanism will be used:
-
-1.  **Error Detection**: The `import_from_cloud_task` will wrap the cloud provider API calls (e.g., file download) in a `try...except` block to catch connection errors or other API exceptions.
-2.  **Status Update**:
-    -   On success, the task will set the corresponding `Document` status to `'ready'`.
-    -   On failure, it will set the status to `'error'` and store a user-friendly message (e.g., "Connection to the cloud provider was lost. Please try again.") in the new `status_message` field on the `Document` model.
+- The task receives the `document_id`, `connection_id`, `file_id`, and an optional `version_id`.
+- The API views (e.g., `CloudRefreshView`) pre-create the `DocumentVersion` model eagerly and set the document status to `uploading`. This synchronous reservation uses `select_for_update()` to prevent race conditions and double-submissions.
+- The Celery task downloads the file, saves the resolved `etag_or_rev` into the version's metadata, and completes the document rendering pipeline.
+- **Error Handling**: On success, the document is marked as `ready`. On failure, it is marked as `error` with a user-friendly `status_message`, and any reserved versions are cleaned up.
 
 ---
 
 ## Part 3: Frontend - User Interface (React)
 
-The frontend will manage the user-facing components for connecting to and importing from cloud services.
+### 1. Dynamic "Upload" & Versioning
 
-### 1. Dynamic "Upload" Menu
+-   **Upload Menu**: The "Upload" dropdown dynamically populates based on enabled providers (`GET /api/v1/cloudfiles/providers/`).
+-   **Cloud File Picker Modal**: A modal allows users to browse their cloud drive and select a file to import.
+-   **Document Detail Page**: 
+    - Displays a badge (e.g., `☁️ Imported from Dropbox`) if `document.cloud_import` is present.
+    - Features a **"Refresh from Cloud"** button for imported documents, triggering the refresh API endpoint.
+    - The "Upload New Version" button is split, allowing users to either upload from their computer or import a new version from their cloud drive.
 
--   On page load, the `DocumentsPage` will call the `GET /api/v1/cloud/providers/` endpoint.
--   The "Upload" dropdown menu will be dynamically populated with an item for each provider returned by the API.
+### 2. Integrations Settings (`/settings/integrations`)
 
-### 2. Conditional Click Handler
-
-A handler function for the dynamic menu items will implement the core conditional logic:
-1.  Check if a `CloudConnection` exists for the user and the selected provider.
-2.  If **no**, redirect the user to the backend's OAuth2 authorization endpoint for that provider.
-3.  If **yes**, open a new "Cloud File Picker" modal.
-
-### 3. Cloud File Picker Modal
-
--   A new modal component will serve as a file browser for the user's connected cloud drives.
--   When opened, it will use the `GET /api/v1/cloud/connections/<connection_id>/list/` endpoint to display the user's cloud files and folders (only files are selectable in V1).
--   The user can select a single file and click an "Import" button, which will call the `POST /api/v1/cloud/connections/<connection_id>/import/` endpoint to start the asynchronous background process.
-
-### 4. Displaying Import Status and Errors
-
--   After an import is initiated, the frontend will periodically poll the document's API endpoint (`GET /api/v1/documents/{id}/`).
--   The UI will display an "Importing..." indicator while the document's status is `'processing'`.
--   If the status changes to `'error'`, the frontend will display the `status_message` from the API response in a toast notification to inform the user of the failure.
+-   A dedicated settings page renders a grid of "Integration Cards".
+-   **Disconnected**: Shows the provider logo and a "Connect" button.
+-   **Connected**: Shows a "Connected" badge, the connected email/account name, connection dates, and a "Disconnect" button.
+-   **Disconnection UX**: Clicking "Disconnect" opens a warning modal explaining that documents imported from this provider will remain in Coneshare but can no longer be refreshed. Upon confirmation, it triggers the `DELETE` endpoint.
