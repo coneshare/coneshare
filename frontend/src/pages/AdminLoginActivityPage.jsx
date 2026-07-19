@@ -88,16 +88,18 @@ export function AdminLoginActivityPage() {
                           <>
                             <div className="font-medium">
                               <Link to={`/admin/users/${activity.user_id}`} className="hover:underline">
-                                {activity.user_name}
+                                {activity.user_name || 'Unnamed User'}
                               </Link>
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {activity.user_email}
+                              <Link to={`/admin/users/${activity.user_id}`} className="hover:underline text-muted-foreground">
+                                {activity.user_email}
+                              </Link>
                             </div>
                           </>
                         ) : (
                           <>
-                            <div className="font-medium">{activity.user_name}</div>
+                            <div className="font-medium">{activity.user_name || 'Unnamed User'}</div>
                             <div className="text-sm text-muted-foreground">
                               {activity.user_email}
                             </div>
