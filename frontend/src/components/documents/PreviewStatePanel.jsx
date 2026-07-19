@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { AlertTriangle, FileDown, Loader2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { formatBytes } from '../../lib/formatters';
@@ -19,6 +20,7 @@ export function PreviewStatePanel({
   allowDownload = true,
   downloadUrl = null,
   className = '',
+  onRetry = null,
 }) {
   const isFailed = isPreviewFailed(documentData);
   const isPending = isPreviewPending(documentData);
@@ -27,6 +29,22 @@ export function PreviewStatePanel({
     ? documentData?.render_error || 'The preview could not be generated.'
     : 'This may take a moment for large documents.';
   const href = downloadUrl || documentData?.download_url;
+
+  const [showStuckRetry, setShowStuckRetry] = useState(false);
+
+  // Both isPending and preview_status are listed as deps intentionally:
+  // the timer must reset whenever the status string changes (even between
+  // two pending states), not just when the boolean flips.
+  useEffect(() => {
+    setShowStuckRetry(false);
+    if (!isPending) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      setShowStuckRetry(true);
+    }, 60000); // Show retry if stuck for > 60s
+    return () => clearTimeout(timer);
+  }, [isPending, documentData?.preview_status]);
 
   return (
     <div className={`flex h-full min-h-80 items-center justify-center p-4 ${className}`}>
@@ -52,6 +70,18 @@ export function PreviewStatePanel({
           <p className="mb-4 text-sm text-gray-500">{formatBytes(documentData.file_size)}</p>
         ) : null}
         <p className="mb-6 text-gray-700">{message}</p>
+        {onRetry && (isFailed || (isPending && showStuckRetry)) && (
+          <div className="mb-6 -mt-2 text-sm text-gray-500">
+            Having trouble viewing?{' '}
+            <button
+              type="button"
+              onClick={onRetry}
+              className="font-semibold text-blue-600 hover:text-blue-800 hover:underline focus:outline-none"
+            >
+              Retry generation
+            </button>
+          </div>
+        )}
         {allowDownload && href ? (
           <Button asChild size="lg" className="w-full">
             <a href={href} download={documentData?.name}>

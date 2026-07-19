@@ -89,6 +89,23 @@ def convert_office_to_pdf_task(version_id):
         logger.error(f"Error converting document version {version_id}: {e}")
 
 
+def _resolve_pdf_object(obj):
+    # NOTE: We use id() as a best-effort cycle guard. CPython may reuse addresses
+    # for collected objects, but the while-loop's resolved-is-obj identity check
+    # provides a secondary safety net.
+    visited = set()
+    while hasattr(obj, "get_object"):
+        obj_id = id(obj)
+        if obj_id in visited:
+            break
+        visited.add(obj_id)
+        resolved = obj.get_object()
+        if resolved is obj:
+            break
+        obj = resolved
+    return obj
+
+
 def _extract_links_for_page(pdf_page, page_num):
     """
     Helper to extract and normalize link annotations from a single PDF page.
@@ -98,25 +115,34 @@ def _extract_links_for_page(pdf_page, page_num):
     page_h = float(media_box.height) if media_box.height else 0.0
 
     links = []
-    if page_w <= 0 or page_h <= 0 or "/Annots" not in pdf_page:
+    if page_w <= 0 or page_h <= 0:
         return links
 
-    annots = pdf_page["/Annots"]
+    annots_obj = _resolve_pdf_object(pdf_page.get("/Annots"))
+    if not annots_obj:
+        return links
+
     try:
-        annots_iter = iter(annots)
+        annots_iter = iter(annots_obj)
     except TypeError:
         logger.warning(f"Page {page_num} annotations object is not iterable.")
         return links
 
     for annot in annots_iter:
         try:
-            obj = annot.get_object()
-            if not obj or obj.get("/Subtype") != "/Link" or "/A" not in obj:
+            obj = _resolve_pdf_object(annot)
+            if not obj or _resolve_pdf_object(obj.get("/Subtype")) != "/Link":
                 continue
 
-            action = obj["/A"].get_object()
-            rect = obj.get("/Rect")
-            uri = action.get("/URI") if action and action.get("/S") == "/URI" else None
+            action = _resolve_pdf_object(obj.get("/A"))
+            rect = _resolve_pdf_object(obj.get("/Rect"))
+            uri = None
+            if action and _resolve_pdf_object(action.get("/S")) == "/URI":
+                uri_obj = _resolve_pdf_object(action.get("/URI"))
+                if isinstance(uri_obj, bytes):
+                    uri = uri_obj.decode("utf-8", errors="ignore")
+                elif isinstance(uri_obj, str):
+                    uri = uri_obj
 
             if not rect or not uri:
                 continue
@@ -124,7 +150,8 @@ def _extract_links_for_page(pdf_page, page_num):
             # Rect: [v1, v2, v3, v4] (origin at bottom-left).
             # PDF specs allow these coordinates to be written in arbitrary order.
             # We use min/max to normalize coordinates and prevent negative widths/heights.
-            v1, v2, v3, v4 = [float(v) for v in rect]
+            rect_values = [float(_resolve_pdf_object(v)) for v in rect]
+            v1, v2, v3, v4 = rect_values
             x1 = min(v1, v3)
             y1 = min(v2, v4)
             x2 = max(v1, v3)

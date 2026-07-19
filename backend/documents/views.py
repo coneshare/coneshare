@@ -7,6 +7,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Count, Sum
 from django.shortcuts import get_object_or_404
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException, PermissionDenied
@@ -16,7 +17,7 @@ from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
 
 
-from .models import (Document, Folder)
+from .models import (Document, Folder, DocumentVersion)
 from .serializers import (DocumentSerializer, EnsureFolderPathsSerializer,
                           FolderSerializer, DocumentVersionListSerializer)
 from .fileserver import fileserver_client
@@ -1007,6 +1008,58 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(document)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='rebuild-preview')
+    def rebuild_preview(self, request, pk=None):
+        """
+        Forces a rebuild of the document preview by clearing existing pages and enqueuing render.
+        """
+        document = self.get_object()
+        version_id = request.data.get('version_id')
+        if version_id:
+            primary_version = get_object_or_404(document.versions, id=version_id)
+        else:
+            primary_version = document.versions.filter(is_primary=True).first()
+
+        if not primary_version:
+            return Response(
+                {"detail": "Document version not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Concurrency race guard: reject if rendering is already in progress
+        if primary_version.render_status in {DocumentVersion.RENDER_QUEUED, DocumentVersion.RENDER_PROCESSING}:
+            return Response(
+                {"detail": "A preview generation is already in progress. Please wait."},
+                status=status.HTTP_409_CONFLICT
+            )
+
+        # Collect storage keys before deleting database rows
+        page_storage_keys = list(primary_version.pages.values_list('storage_key', flat=True))
+
+        with transaction.atomic():
+            primary_version.render_status = DocumentVersion.RENDER_NOT_GENERATED
+            primary_version.render_error = ''
+            primary_version.has_pages = False
+            primary_version.num_pages = None
+            primary_version.save(update_fields=['render_status', 'render_error', 'has_pages', 'num_pages', 'updated_at'])
+            primary_version.pages.all().delete()
+
+        # Clean up fileserver storage outside database transaction
+        for storage_key in page_storage_keys:
+            try:
+                fileserver_client.delete_file(storage_key)
+            except Exception as e:
+                logger.error(f"Failed to delete page file {storage_key} during force rebuild: {e}")
+
+        # Re-enqueue the background task
+        render_status = enqueue_server_preview_render(primary_version)
+        preview_status = preview_status_for_render_status(render_status)
+
+        return Response({
+            "preview_status": preview_status,
+            "render_status": render_status,
+        }, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['get'])
     def versions(self, request, pk=None):

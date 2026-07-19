@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { getDocumentPreviewData } from '../../services/api';
+import { getDocumentPreviewData, rebuildDocumentPreview } from '../../services/api';
 import {
   Dialog,
   DialogContent,
@@ -29,9 +29,16 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
   const [currentPage, setCurrentPage] = useState(1);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [rebuildTriggerCount, setRebuildTriggerCount] = useState(0);
   
+  const handleRetry = () => {
+    setRebuildTriggerCount((prev) => prev + 1);
+  };
+
   const modalViewerRef = useRef(null);
   const viewerComponentRef = useRef(null);
+  const lastLoadedDocRef = useRef(null);
+  const lastTriggerCountRef = useRef(0);
 
   // Synchronize totalPages when documentData resolves
   useEffect(() => {
@@ -49,18 +56,38 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
       setDocumentData(null);
       setCurrentPage(1);
       setZoomLevel(1);
+      lastLoadedDocRef.current = null;
+      setRebuildTriggerCount(0);
       return;
     }
 
     let isCancelled = false;
     let pollTimer = null;
 
-    const fetchPreviewData = async ({ showLoading = false } = {}) => {
+    const fetchPreviewData = async ({ showLoading = false, triggerRebuild = false } = {}) => {
       if (showLoading) {
         setIsLoading(true);
       }
       setError(null);
       try {
+        if (triggerRebuild) {
+          try {
+            const rebuildResponse = await rebuildDocumentPreview(documentId, versionId);
+            if (!isCancelled) {
+              setDocumentData(rebuildResponse.data);
+              if (isPreviewPending(rebuildResponse.data)) {
+                pollTimer = window.setTimeout(() => {
+                  fetchPreviewData();
+                }, PREVIEW_POLL_INTERVAL_MS);
+              }
+            }
+            return;
+          } catch (err) {
+            if (err.response?.status !== 409) {
+              throw err;
+            }
+          }
+        }
         const response = await getDocumentPreviewData(documentId, versionId);
         if (!isCancelled) {
           setDocumentData(response.data);
@@ -72,7 +99,7 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
         }
       } catch (err) {
         if (!isCancelled) {
-          setError('Failed to load document preview. Please try again.');
+          setError(err.response?.data?.detail || 'Failed to load document preview. Please try again.');
         }
         console.error(err);
       } finally {
@@ -82,13 +109,31 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
       }
     };
 
-    fetchPreviewData({ showLoading: true });
+    const isSameContext = lastLoadedDocRef.current === `${documentId}-${versionId}`;
+    if (!isSameContext) {
+      setRebuildTriggerCount(0);
+      lastTriggerCountRef.current = 0;
+    }
+
+    const hasNewRetry = rebuildTriggerCount > lastTriggerCountRef.current;
+
+    if (isSameContext && !hasNewRetry) {
+      lastTriggerCountRef.current = rebuildTriggerCount;
+      return;
+    }
+
+    lastTriggerCountRef.current = rebuildTriggerCount;
+
+    const shouldRebuild = hasNewRetry && isSameContext;
+
+    fetchPreviewData({ showLoading: true, triggerRebuild: shouldRebuild });
+    lastLoadedDocRef.current = `${documentId}-${versionId}`;
 
     return () => {
       isCancelled = true;
       window.clearTimeout(pollTimer);
     };
-  }, [isOpen, documentId, versionId]);
+  }, [isOpen, documentId, versionId, rebuildTriggerCount]);
 
   const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.1, 3));
   const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
@@ -192,6 +237,7 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
             <PreviewStatePanel
               documentData={documentData}
               allowDownload={Boolean(documentData.download_url)}
+              onRetry={handleRetry}
             />
           )}
         </div>
