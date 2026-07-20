@@ -328,3 +328,14 @@ Design note:
 2. Expand regression coverage for scoped public viewer navigation (`parent_id` + breadcrumbs).
 3. Refine reorder UX and failure rollback behavior.
 4. Add enterprise controls where roadmap marks gaps (org share policy, broader audit logs).
+
+---
+
+## Part 8: Dataroom Navigation Enhancement (In-page SPA & Collapsible File Tree)
+
+### Implementation Details
+- **In-page Single-Page Application (SPA) Transition:** The public dataroom viewer (`DataroomViewer.jsx`) was refactored from opening documents in new tabs to displaying them inline. Selecting a document updates the `dataroom_document_id` in the URL and renders the document viewer inline, preserving user context and avoiding popup blocker restrictions.
+- **Collapsible File Tree (`DataroomFileTree.jsx`):** Replacing the previous folder-scoped sidebar, we implemented a full file browser tree anchored to the Dataroom Root (`parentId: null`).
+  - Expanding folders fetches children dynamically via collapsible tree nodes.
+  - When deep-linking directly to a document, the component automatically expands parent folder paths by comparing node IDs against the active document's `breadcrumbs` hierarchy (`activePathFolderIds`), resulting in an automatic domino-style expansion to reveal and highlight the active document.
+- **Stable Navigation Base:** The URL parameter `parent_id` serves as the stable navigation base for the main listing pane, while the sidebar file tree remains anchored at the Dataroom Root level.

@@ -1,10 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { PanelLeftClose, PanelLeftOpen, ChevronRight, ChevronDown } from 'lucide-react';
 import { FileTypeIcon } from '../documents/FileTypeIcon';
 import { getShareLinkViewData } from '../../services/api';
 import { toast } from 'sonner';
 
-function SidebarItem({ item, selectedDocumentId, onItemClick, isCollapsed, onToggleCollapse, level = 0, slug, viewId }) {
+function SidebarItem({ item, selectedDocumentId, onItemClick, isCollapsed, onToggleCollapse, level = 0, slug, viewId, activePathFolderIds }) {
   const isFolder = item.type === 'folder';
   const isActive = !isFolder && String(item.id) === String(selectedDocumentId);
   const displayName = item.name || item.document_name;
@@ -12,6 +12,25 @@ function SidebarItem({ item, selectedDocumentId, onItemClick, isCollapsed, onTog
   const [isExpanded, setIsExpanded] = useState(false);
   const [childrenItems, setChildrenItems] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const shouldAutoExpand = isFolder && activePathFolderIds?.includes(String(item.id));
+
+  useEffect(() => {
+    if (shouldAutoExpand && !isExpanded && !childrenItems && !isLoading) {
+      setIsExpanded(true);
+      setIsLoading(true);
+      getShareLinkViewData(slug, {
+        parentId: item.id,
+        viewSessionId: viewId || undefined,
+      }).then(response => {
+        setChildrenItems(response.data.items || []);
+      }).catch(err => {
+        console.error('Failed to auto-load folder contents', err);
+      }).finally(() => {
+        setIsLoading(false);
+      });
+    }
+  }, [shouldAutoExpand, isExpanded, childrenItems, isLoading, slug, viewId, item.id]);
 
   const handleClick = useCallback(async () => {
     if (isFolder) {
@@ -109,6 +128,7 @@ function SidebarItem({ item, selectedDocumentId, onItemClick, isCollapsed, onTog
               level={level + 1}
               slug={slug}
               viewId={viewId}
+              activePathFolderIds={activePathFolderIds}
             />
           ))}
           {childrenItems.length === 0 && (
@@ -125,7 +145,7 @@ function SidebarItem({ item, selectedDocumentId, onItemClick, isCollapsed, onTog
   );
 }
 
-export function DataroomSiblingNav({
+export function DataroomFileTree({
   items,
   selectedDocumentId,
   onItemClick,
@@ -134,6 +154,7 @@ export function DataroomSiblingNav({
   currentFolderName,
   slug,
   viewId,
+  activePathFolderIds,
 }) {
   return (
     <aside
@@ -175,6 +196,7 @@ export function DataroomSiblingNav({
             level={0}
             slug={slug}
             viewId={viewId}
+            activePathFolderIds={activePathFolderIds}
           />
         ))}
         
