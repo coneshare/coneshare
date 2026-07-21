@@ -2,7 +2,7 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
-from documents.views import StandardResultsSetPagination
+from core.pagination import StandardResultsSetPagination
 
 from .models import (AutomationAssignment, AutomationDelivery, AutomationDestination,
                      AutomationRule)

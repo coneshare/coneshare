@@ -14,7 +14,7 @@ from drf_spectacular.utils import extend_schema
 
 from backend.utils import get_unique_name
 from documents.models import Document, Folder
-from documents.views import StandardResultsSetPagination
+from core.pagination import StandardResultsSetPagination
 from documents.services import (
     delete_folder_and_contents,
     check_user_quota_on_upload,

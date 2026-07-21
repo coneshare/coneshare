@@ -40,7 +40,8 @@ from documents.services import (
     preview_mode_for_version,
     preview_status_for_render_status,
 )
-from documents.views import StandardResultsSetPagination, prepare_pages_data
+from core.pagination import StandardResultsSetPagination
+from documents.views import prepare_pages_data
 from automations.tasks import dispatch_automation_event_task
 from .models import (DataroomVisit, EmailVerificationToken, PreviewSession,
                      QnAMessage, QnAThread, ShareLink,

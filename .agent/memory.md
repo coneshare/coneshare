@@ -222,3 +222,9 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** Persisting a document's previewability snapshot at upload time meant settings updates (like raising video size limits) would not apply to existing files unless they were re-uploaded.
 - **Resolution/Action:** Switched to fully dynamic read-time evaluation of document previewability. Replaced model `download_only` database checks with a new `is_download_only` property on the `Document` model that evaluates thresholds in real-time, and mapped the API serialization field `download_only` to this property.
 
+### 2026-07-21 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Enforcing clean unidirectional import patterns where the `core` app holds no runtime dependencies on feature apps (`documents`, `sharelinks`, etc.) to prevent app registry and circular import issues.
+- **Resolution/Action:** Relocated `StandardResultsSetPagination` from `documents.views` to `core.pagination.py` and redirected all backend views to utilize the new core import path. This ensures all feature apps can safely import from core modules at the file-module level.
+
+
