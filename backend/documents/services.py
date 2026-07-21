@@ -247,19 +247,42 @@ def preview_status_for_render_status(render_status: str) -> str:
     return 'not_applicable'
 
 
+def _is_dynamically_previewable(version: DocumentVersion) -> bool:
+    """Helper to check if a version is dynamically previewable based on current settings."""
+    if version.type == 'video':
+        return settings.ENABLE_VIDEO_PREVIEW and not version.document.is_download_only
+    return is_server_renderable_version(version)
+
+
 def enqueue_server_preview_render(version: DocumentVersion) -> str:
     """
     Ensure server page-image generation is queued when this version needs it.
 
     This is safe to call for any preview request: ready, failed, processing,
-    queued, download-only, and image versions are returned as-is. Only
-    not_generated server-renderable versions attempt the conditional update.
-    That update is the idempotency boundary for concurrent first views.
+    queued, download-only, and image versions are returned as-is.
+    
+    If the version was previously saved as RENDER_NOT_APPLICABLE but is now
+    dynamically previewable (e.g. settings limits were raised), it resets the
+    DB status to RENDER_NOT_GENERATED.
+    
+    Then, only not_generated server-renderable versions attempt the conditional
+    update to RENDER_QUEUED. That update is the idempotency boundary for
+    concurrent first views.
 
     Returns the effective render status after the enqueue attempt or race
     resolution. Keeps the passed model instance synchronized for callers that
     also read render_error or render_status while shaping the response.
     """
+    # 1. Reset persisted RENDER_NOT_APPLICABLE if settings changed to allow previews
+    if version.render_status == DocumentVersion.RENDER_NOT_APPLICABLE:
+        if _is_dynamically_previewable(version):
+            DocumentVersion.objects.filter(
+                pk=version.pk,
+                render_status=DocumentVersion.RENDER_NOT_APPLICABLE,
+            ).update(render_status=DocumentVersion.RENDER_NOT_GENERATED)
+            version.render_status = DocumentVersion.RENDER_NOT_GENERATED
+
+    # 2. Proceed with normal enqueue logic
     render_status = get_effective_render_status(version)
     if render_status != DocumentVersion.RENDER_NOT_GENERATED:
         return render_status

@@ -14,6 +14,7 @@ from documents.services import (
     is_server_renderable_version,
     promote_document_version,
     check_user_quota_on_upload,
+    get_effective_render_status,
 )
 from core.services import get_dynamic_setting
 
@@ -119,6 +120,35 @@ class TestEnqueueServerPreviewRender:
             assert render_status == DocumentVersion.RENDER_FAILED
             assert version.render_status == DocumentVersion.RENDER_FAILED
             assert version.render_error == "Conversion failed."
+
+    @patch('documents.services.generate_pdf_pages_task.delay')
+    def test_enqueue_re_evaluates_not_applicable_to_queued(self, mock_task_delay, user):
+        document = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="queued.pdf",
+            status='ready',
+            type='pdf',
+            content_type='application/pdf',
+            download_only=False,
+        )
+        version = DocumentVersion.objects.create(
+            document=document,
+            version_number=1,
+            original_storage_key="queued.pdf",
+            storage_key="queued.pdf",
+            type='pdf',
+            is_primary=True,
+            render_status=DocumentVersion.RENDER_NOT_APPLICABLE,
+            render_error='',
+        )
+
+        with override_settings(PDF_PREVIEW_ENGINE='server_pages'):
+            render_status = enqueue_server_preview_render(version)
+            
+            assert render_status == DocumentVersion.RENDER_QUEUED
+            assert version.render_status == DocumentVersion.RENDER_QUEUED
+            mock_task_delay.assert_called_once_with(version.id)
 
 
 
@@ -358,6 +388,91 @@ class TestPreviewModeServices:
         with override_settings(ENABLE_VIDEO_PREVIEW=True):
             # Within the new 1000MB limit, so download_only should be False dynamically
             assert doc.is_download_only is False
+
+    @patch('documents.services.generate_video_stream_task.delay')
+    @patch('documents.models.get_dynamic_setting')
+    def test_get_effective_render_status_re_evaluates_not_applicable_video(self, mock_get_setting, mock_task_delay, user):
+        def side_effect(key, default=None):
+            if key == 'MAX_PREVIEW_FILE_SIZE_MB':
+                return 100
+            if key == 'MAX_VIDEO_PREVIEW_SIZE_MB':
+                return 100
+            return default
+        mock_get_setting.side_effect = side_effect
+
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            type='video',
+            file_size=200 * 1024 * 1024, # 200MB
+            download_only=True,
+        )
+        version = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            type='video',
+            is_primary=True,
+            file_size=200 * 1024 * 1024,
+            render_status=DocumentVersion.RENDER_NOT_APPLICABLE,
+        )
+
+        with override_settings(ENABLE_VIDEO_PREVIEW=True):
+            assert get_effective_render_status(version) == DocumentVersion.RENDER_NOT_APPLICABLE
+
+        # Increase limit to 300MB
+        def side_effect_large(key, default=None):
+            if key == 'MAX_PREVIEW_FILE_SIZE_MB':
+                return 100
+            if key == 'MAX_VIDEO_PREVIEW_SIZE_MB':
+                return 300
+            return default
+        mock_get_setting.side_effect = side_effect_large
+
+        with override_settings(ENABLE_VIDEO_PREVIEW=True):
+            assert enqueue_server_preview_render(version) == DocumentVersion.RENDER_QUEUED
+            assert version.render_status == DocumentVersion.RENDER_QUEUED
+            mock_task_delay.assert_called_once_with(version.id)
+
+    @patch('documents.services.generate_pdf_pages_task.delay')
+    @patch('documents.models.get_dynamic_setting')
+    def test_get_effective_render_status_re_evaluates_not_applicable_pdf(self, mock_get_setting, mock_task_delay, user):
+        def side_effect(key, default=None):
+            if key == 'MAX_PREVIEW_FILE_SIZE_MB':
+                return 100
+            return default
+        mock_get_setting.side_effect = side_effect
+
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            type='pdf',
+            file_size=200 * 1024 * 1024, # 200MB
+            download_only=True,
+        )
+        version = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            type='pdf',
+            is_primary=True,
+            file_size=200 * 1024 * 1024,
+            render_status=DocumentVersion.RENDER_NOT_APPLICABLE,
+        )
+
+        with override_settings(PDF_PREVIEW_ENGINE='server_pages'):
+            assert get_effective_render_status(version) == DocumentVersion.RENDER_NOT_APPLICABLE
+
+        # Increase limit to 300MB
+        def side_effect_large(key, default=None):
+            if key == 'MAX_PREVIEW_FILE_SIZE_MB':
+                return 300
+            return default
+        mock_get_setting.side_effect = side_effect_large
+
+        with override_settings(PDF_PREVIEW_ENGINE='server_pages'):
+            assert enqueue_server_preview_render(version) == DocumentVersion.RENDER_QUEUED
+            assert version.render_status == DocumentVersion.RENDER_QUEUED
+            mock_task_delay.assert_called_once_with(version.id)
+
 
 
 @pytest.mark.django_db

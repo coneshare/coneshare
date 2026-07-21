@@ -238,3 +238,8 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
   4. Hooked up the missing `onFilesDrop={handleFileUploads}` handler and passed the empty state view to the `emptyState` prop in [DataroomPage.jsx](file:///Users/xiez/coneshare/frontend/src/pages/DataroomPage.jsx) while rendering the list container unconditionally.
   5. Added `min-h-[400px] pb-8` to the `<DocumentsList />` dropzone wrapper to guarantee a spacious drop target, and placed `border-b` on the actual rows container (and loading skeleton container) instead of the outer dropzone wrapper to avoid floating lines on empty states and short lists.
   6. Updated [EmptyDocuments.jsx](file:///Users/xiez/coneshare/frontend/src/components/documents/EmptyDocuments.jsx) and the dataroom empty state inside [DataroomPage.jsx](file:///Users/xiez/coneshare/frontend/src/pages/DataroomPage.jsx) visual text instructions to explicitly notify users about the drag-and-drop capability.
+
+### 2026-07-21 Session Entry [SUPERSEDES 2026-07-21]
+- **Category:** Gotcha
+- **Context/Implication:** Files finalized during upload with `render_status = RENDER_NOT_APPLICABLE` (due to small size limits) remained unpreviewable when size limits were dynamically raised, because the persisted database value blocked preview task enqueuing.
+- **Resolution/Action:** **[OVERRIDE]** Implemented the pre-enqueuer database state reset (Option 3). If a document or video was finalized as `RENDER_NOT_APPLICABLE` but is now dynamically previewable under new settings, `enqueue_server_preview_render` updates the database status to `RENDER_NOT_GENERATED` before performing the atomic enqueuing operation. This keeps `get_effective_render_status` as a pure, clean, and magic-free status mapper.
