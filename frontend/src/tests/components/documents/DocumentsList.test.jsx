@@ -16,12 +16,16 @@ vi.mock("../../../components/documents/DraggableItem", () => ({
   ),
 }));
 
+let mockCapturedOptions = null;
 vi.mock("react-dropzone", () => ({
-  useDropzone: () => ({
-    getRootProps: (props) => props,
-    getInputProps: () => ({}),
-    isDragActive: false,
-  }),
+  useDropzone: (options) => {
+    mockCapturedOptions = options;
+    return {
+      getRootProps: (props) => props,
+      getInputProps: () => ({}),
+      isDragActive: false,
+    };
+  },
 }));
 
 // Mock DndContext to just render its children and avoid drag-and-drop logic
@@ -193,3 +197,167 @@ describe("DocumentsList with external handlers", () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
+
+describe("DocumentsList Drag and Drop folder parsing", () => {
+  it("should parse files and folders recursively using webkitGetAsEntry", async () => {
+    render(
+      <DocumentsList
+        allItems={[]}
+        loading={false}
+        onDataRefresh={() => {}}
+        onFilesDrop={() => {}}
+        sortConfig={{ key: "name", direction: "ascending" }}
+      />
+    );
+
+    expect(mockCapturedOptions).not.toBeNull();
+    expect(mockCapturedOptions.getFilesFromEvent).toBeTypeOf("function");
+
+    const file1 = new File(["content1"], "file1.txt", { type: "text/plain" });
+    const file2 = new File(["content2"], "file2.txt", { type: "text/plain" });
+    const file3 = new File(["content3"], "file3.txt", { type: "text/plain" });
+
+    // Mock FileSystemEntry nodes
+    const entryFile3 = {
+      isFile: true,
+      isDirectory: false,
+      name: "file3.txt",
+      file: (cb) => cb(file3),
+    };
+
+    const entryFile2 = {
+      isFile: true,
+      isDirectory: false,
+      name: "file2.txt",
+      file: (cb) => cb(file2),
+    };
+
+    const entryFolderB = {
+      isFile: false,
+      isDirectory: true,
+      name: "folderB",
+      createReader: () => {
+        let read = false;
+        return {
+          readEntries: (cb) => {
+            if (!read) {
+              read = true;
+              cb([entryFile2]);
+            } else {
+              cb([]);
+            }
+          },
+        };
+      },
+    };
+
+    const entryFile1 = {
+      isFile: true,
+      isDirectory: false,
+      name: "file1.txt",
+      file: (cb) => cb(file1),
+    };
+
+    const entryFolderA = {
+      isFile: false,
+      isDirectory: true,
+      name: "folderA",
+      createReader: () => {
+        let read = false;
+        return {
+          readEntries: (cb) => {
+            if (!read) {
+              read = true;
+              cb([entryFile1, entryFolderB]);
+            } else {
+              cb([]);
+            }
+          },
+        };
+      },
+    };
+
+    const mockEvent = {
+      type: "drop",
+      dataTransfer: {
+        items: [
+          {
+            kind: "file",
+            webkitGetAsEntry: () => entryFolderA,
+          },
+          {
+            kind: "file",
+            webkitGetAsEntry: () => entryFile3,
+          },
+        ],
+      },
+    };
+
+    const parsedFiles = await mockCapturedOptions.getFilesFromEvent(mockEvent);
+
+    expect(parsedFiles).toHaveLength(3);
+
+    // Verify relative paths
+    const f1 = parsedFiles.find((f) => f.name === "file1.txt");
+    const f2 = parsedFiles.find((f) => f.name === "file2.txt");
+    const f3 = parsedFiles.find((f) => f.name === "file3.txt");
+
+    expect(f1).toBeDefined();
+    expect(f1.webkitRelativePath).toBe("folderA/file1.txt");
+
+    expect(f2).toBeDefined();
+    expect(f2.webkitRelativePath).toBe("folderA/folderB/file2.txt");
+
+    expect(f3).toBeDefined();
+    expect(f3.webkitRelativePath).toBe("file3.txt");
+  });
+
+  it("should fallback to dataTransfer.files if items are not available", async () => {
+    render(
+      <DocumentsList
+        allItems={[]}
+        loading={false}
+        onDataRefresh={() => {}}
+        onFilesDrop={() => {}}
+        sortConfig={{ key: "name", direction: "ascending" }}
+      />
+    );
+
+    const file = new File(["content"], "simple.txt", { type: "text/plain" });
+    const mockEvent = {
+      type: "drop",
+      dataTransfer: {
+        files: [file],
+      },
+    };
+
+    const parsedFiles = await mockCapturedOptions.getFilesFromEvent(mockEvent);
+    expect(parsedFiles).toHaveLength(1);
+    expect(parsedFiles[0].name).toBe("simple.txt");
+  });
+
+  it("should handle non-drop events like input change", async () => {
+    render(
+      <DocumentsList
+        allItems={[]}
+        loading={false}
+        onDataRefresh={() => {}}
+        onFilesDrop={() => {}}
+        sortConfig={{ key: "name", direction: "ascending" }}
+      />
+    );
+
+    const file = new File(["content"], "input.txt", { type: "text/plain" });
+    const mockEvent = {
+      type: "change",
+      target: {
+        files: [file],
+      },
+    };
+
+    const parsedFiles = await mockCapturedOptions.getFilesFromEvent(mockEvent);
+    expect(parsedFiles).toHaveLength(1);
+    expect(parsedFiles[0].name).toBe("input.txt");
+  });
+});
+

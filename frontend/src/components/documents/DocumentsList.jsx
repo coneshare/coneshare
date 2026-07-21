@@ -48,6 +48,7 @@ export function DocumentsList({
   themed = false,
   showIndex = false,
   viewsTooltip = "Views recorded for this item.",
+  emptyState = null,
 }) {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [itemToRename, setItemToRename] = useState(null);
@@ -57,19 +58,120 @@ export function DocumentsList({
 
   const onDrop = useCallback(
     (acceptedFiles) => {
-      if (acceptedFiles && acceptedFiles.length > 0) {
+      if (onFilesDrop && acceptedFiles && acceptedFiles.length > 0) {
         onFilesDrop(acceptedFiles);
       }
     },
     [onFilesDrop]
   );
 
+  const getDroppedFilesAndFolders = useCallback(async (dataTransfer) => {
+    const items = dataTransfer.items;
+    if (!items) {
+      return Array.from(dataTransfer.files || []);
+    }
+
+    const traverseFileEntry = (entry, path = "") => {
+      return new Promise((resolve) => {
+        if (!entry) {
+          resolve([]);
+          return;
+        }
+        if (entry.isFile) {
+          entry.file(
+            (file) => {
+              const relativePath = path ? `${path}/${file.name}` : file.name;
+              try {
+                Object.defineProperty(file, "webkitRelativePath", {
+                  value: relativePath,
+                  writable: true,
+                  configurable: true,
+                });
+              } catch (err) {
+                console.warn("Could not define webkitRelativePath on file object:", err);
+                try {
+                  file.webkitRelativePath = relativePath;
+                } catch (e) {
+                  // Ignore fallback failure
+                }
+              }
+              resolve([file]);
+            },
+            (err) => {
+              console.error("Error reading file entry:", err);
+              resolve([]);
+            }
+          );
+        } else if (entry.isDirectory) {
+          const dirReader = entry.createReader();
+          const childFiles = [];
+
+          const readEntriesBatch = () => {
+            dirReader.readEntries(
+              async (entries) => {
+                if (entries.length === 0) {
+                  resolve(childFiles);
+                } else {
+                  const currentPath = path ? `${path}/${entry.name}` : entry.name;
+                  for (const childEntry of entries) {
+                    const files = await traverseFileEntry(childEntry, currentPath);
+                    childFiles.push(...files);
+                  }
+                  readEntriesBatch();
+                }
+              },
+              (err) => {
+                console.error("Error reading directory entries:", err);
+                resolve(childFiles);
+              }
+            );
+          };
+
+          readEntriesBatch();
+        } else {
+          resolve([]);
+        }
+      });
+    };
+
+    const entries = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === "file") {
+        if (typeof item.webkitGetAsEntry === "function") {
+          const entry = item.webkitGetAsEntry();
+          if (entry) {
+            entries.push(entry);
+          }
+        } else {
+          return Array.from(dataTransfer.files || []);
+        }
+      }
+    }
+
+    const filesList = [];
+    for (const entry of entries) {
+      const entryFiles = await traverseFileEntry(entry);
+      filesList.push(...entryFiles);
+    }
+
+    return filesList;
+  }, []);
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     noClick: true,
     noKeyboard: true,
-    disabled: isReadOnly,
+    disabled: isReadOnly || !onFilesDrop,
+    getFilesFromEvent: async (event) => {
+      if (!onFilesDrop) return [];
+      if (event.type === "drop" && event.dataTransfer) {
+        return await getDroppedFilesAndFolders(event.dataTransfer);
+      }
+      return Array.from(event.target?.files || []);
+    },
   });
+
 
   const handleSelect = useCallback(
     (id, type, event) => {
@@ -128,7 +230,7 @@ export function DocumentsList({
       <div
         {...getRootProps({
           className:
-            "relative border-y border-gray-200 dark:border-gray-800",
+            "relative border-t border-gray-200 dark:border-gray-800 min-h-[400px] pb-8",
           onClick: handleContainerClick,
         })}
       >
@@ -153,7 +255,7 @@ export function DocumentsList({
             />
           )}
           {loading ? (
-            <div className="divide-y divide-gray-200 dark:divide-gray-800">
+            <div className="divide-y divide-gray-200 dark:divide-gray-800 border-b border-gray-200 dark:border-gray-800">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex h-[53px] items-center px-4">
                   <Skeleton className="h-4 w-4" />
@@ -162,11 +264,15 @@ export function DocumentsList({
               ))}
             </div>
           ) : allItems.length === 0 ? (
-            <div className="flex items-center justify-center py-10">
-              <EmptyDocuments />
-            </div>
+            emptyState ? (
+              emptyState
+            ) : (
+              <div className="flex items-center justify-center py-10">
+                <EmptyDocuments />
+              </div>
+            )
           ) : (
-            <div className="divide-y divide-gray-200 dark:divide-gray-800">
+            <div className="divide-y divide-gray-200 dark:divide-gray-800 border-b border-gray-200 dark:border-gray-800">
               {allItems.map((item) => (
                 <DraggableItem
                   key={item.id}

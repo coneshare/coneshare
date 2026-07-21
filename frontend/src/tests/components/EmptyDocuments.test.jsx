@@ -13,7 +13,7 @@ describe("EmptyDocuments", () => {
   it("renders the instructional text", () => {
     render(<EmptyDocuments />);
     expect(
-      screen.getByText("Get started by uploading a document.")
+      screen.getByText(/Drag and drop files or folders here/i)
     ).toBeInTheDocument();
   });
 });
