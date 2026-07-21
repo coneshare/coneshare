@@ -330,8 +330,8 @@ describe('DataroomViewer', () => {
           data: {
             ...mockDataroomData,
             items: [
-              { type: 'document', id: 'doc1', name: 'Document 1', document_type: 'pdf' },
-              { type: 'document', id: 'doc2', name: 'Document 2', document_type: 'pdf' },
+              { type: 'document', id: 'doc1', name: 'Stale Doc 1', document_type: 'pdf' },
+              { type: 'document', id: 'doc2', name: 'Fresh Doc 2', document_type: 'pdf' },
             ],
           },
         });
@@ -373,6 +373,7 @@ describe('DataroomViewer', () => {
               id: 'dr1',
               name: 'Test Dataroom',
               parent_folder_id: 'folder1',
+              breadcrumbs: [{ id: 'folder1', name: 'Sub Folder A' }],
             },
           }}
           slug="test-slug"
@@ -381,20 +382,20 @@ describe('DataroomViewer', () => {
       </MemoryRouter>
     );
 
-    // Wait for DataroomSiblingNav items to render
+    // Wait for DataroomFileTree items to render
     await waitFor(() => {
-      expect(screen.getByTitle('Document 1')).toBeInTheDocument();
-      expect(screen.getByTitle('Document 2')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Stale Doc 1' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Fresh Doc 2' })).toBeInTheDocument();
     });
 
     // Simulate clicking Document 1 (triggers doc1 fetch which is slow/pending)
-    fireEvent.click(screen.getByTitle('Document 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Stale Doc 1' }));
 
     // Simulate clicking Document 2 (triggers doc2 fetch which resolves immediately)
-    fireEvent.click(screen.getByTitle('Document 2'));
+    fireEvent.click(screen.getByRole('button', { name: 'Fresh Doc 2' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Fresh Doc 2')).toBeInTheDocument();
+      expect(screen.getAllByText('Fresh Doc 2').length).toBeGreaterThan(0);
     });
 
     // Resolve doc1 (the stale response)
@@ -402,8 +403,8 @@ describe('DataroomViewer', () => {
 
     // Verify doc2 remains active and doc1 is ignored
     await new Promise((r) => setTimeout(r, 50));
-    expect(screen.getByText('Fresh Doc 2')).toBeInTheDocument();
-    expect(screen.queryByText('Stale Doc 1')).not.toBeInTheDocument();
+    expect(screen.getByText('Fresh Doc 2', { selector: 'ol li span' })).toBeInTheDocument();
+    expect(screen.queryByText('Stale Doc 1', { selector: 'ol li span' })).not.toBeInTheDocument();
   });
 
   it('does not trigger infinite loop or hijack navigation when navigating to an empty folder', async () => {
@@ -426,6 +427,7 @@ describe('DataroomViewer', () => {
               id: 'dr1',
               name: 'Test Dataroom',
               parent_folder_id: 'folder1',
+              breadcrumbs: [{ id: 'folder1', name: 'Sub Folder A' }],
             },
           }}
           slug="test-slug"
@@ -436,12 +438,12 @@ describe('DataroomViewer', () => {
 
     // On mount, parent folder loading triggers one request
     await waitFor(() => {
-      expect(api.getShareLinkViewData).toHaveBeenCalledTimes(2);
+      expect(api.getShareLinkViewData).toHaveBeenCalledTimes(4);
     });
 
-    // Verify only 2 calls were fired (no infinite loops)
+    // Verify only 4 calls were fired (no infinite loops)
     await new Promise((r) => setTimeout(r, 100));
-    expect(api.getShareLinkViewData).toHaveBeenCalledTimes(2);
+    expect(api.getShareLinkViewData).toHaveBeenCalledTimes(4);
     expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', {
       parentId: 'folder1',
       limit: DATAROOM_VIEWER_PAGE_SIZE,
@@ -499,6 +501,7 @@ describe('DataroomViewer', () => {
               id: 'dr1',
               name: 'Test Dataroom',
               parent_folder_id: 'folder1',
+              breadcrumbs: [{ id: 'folder1', name: 'Sub Folder A' }],
             },
           }}
           slug="test-slug"
@@ -564,6 +567,7 @@ describe('DataroomViewer', () => {
               id: 'dr1',
               name: 'Test Dataroom',
               parent_folder_id: 'folder1',
+              breadcrumbs: [{ id: 'folder1', name: 'Sub Folder A' }],
             },
           }}
           slug="test-slug"
@@ -581,7 +585,7 @@ describe('DataroomViewer', () => {
     api.recordDataroomVisit.mockClear();
 
     // Navigate to root
-    fireEvent.click(screen.getByRole('button', { name: /root/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^root$/i }));
 
     // Wait until root contents are loaded
     await screen.findByText('Sub Folder A');
@@ -644,6 +648,7 @@ describe('DataroomViewer', () => {
               id: 'dr1',
               name: 'Test Dataroom',
               parent_folder_id: 'folder1',
+              breadcrumbs: [{ id: 'folder1', name: 'Sub Folder A' }],
             },
           }}
           slug="test-slug"

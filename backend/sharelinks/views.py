@@ -319,11 +319,51 @@ def _is_dataroom_folder_path_visible(link: ShareLink, folder: DataroomFolder | N
     }
 
     node_id = str(folder.id)
+    visited = set()
     while node_id:
+        if node_id in visited:
+            break
+        visited.add(node_id)
         if not visibility_map.get(node_id, False):
             return False
         node_id = folder_parent_map.get(node_id)
     return True
+
+
+def _build_dataroom_breadcrumbs(start_folder_id, folder_map=None, dataroom=None, raise_on_missing=False):
+    """
+    Builds the breadcrumbs list from a start folder ID climbing up to the root parent.
+    Returns a list of dicts: [{'id': ..., 'name': ...}, ...] in top-down order.
+    Raises PermissionDenied if raise_on_missing is True and a folder is missing.
+    """
+    if not start_folder_id:
+        return []
+
+    if folder_map is None:
+        if not dataroom:
+            raise ValueError("Either folder_map or dataroom must be provided.")
+        all_dataroom_folders = list(
+            DataroomFolder.objects.filter(dataroom=dataroom).values('id', 'parent_id', 'name')
+        )
+        folder_map = {str(f['id']): f for f in all_dataroom_folders}
+
+    ancestors = []
+    node_id = str(start_folder_id)
+    visited = set()
+    while node_id:
+        if node_id in visited:
+            break
+        visited.add(node_id)
+        node = folder_map.get(node_id)
+        if not node:
+            if raise_on_missing:
+                raise PermissionDenied("You do not have permission to view this folder through this link.")
+            break
+        ancestors.append({'id': node['id'], 'name': node['name']})
+        parent_node_id = node.get('parent_id')
+        node_id = str(parent_node_id) if parent_node_id else None
+
+    return list(reversed(ancestors))
 
 
 def _resolve_qna_context_for_link(link: ShareLink, dataroom_document_id=None, dataroom_folder_id=None):
@@ -699,6 +739,10 @@ class ShareLinkViewDataView(APIView):
                 dataroom_setting = setting
                 
                 dataroom = link.dataroom
+                
+                parent_folder_id = setting.dataroom_document.folder_id
+                breadcrumbs = _build_dataroom_breadcrumbs(parent_folder_id, dataroom=dataroom)
+
                 dataroom_context = {
                     'id': dataroom.id,
                     'name': dataroom.name,
@@ -707,7 +751,8 @@ class ShareLinkViewDataView(APIView):
                     'brand_primary_color': dataroom.brand_primary_color,
                     'brand_secondary_color': dataroom.brand_secondary_color,
                     'brand_accent_color': dataroom.brand_accent_color,
-                    'parent_folder_id': setting.dataroom_document.folder_id,
+                    'parent_folder_id': parent_folder_id,
+                    'breadcrumbs': breadcrumbs,
                 }
             except serializers.ValidationError as e:
                 return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
@@ -858,7 +903,7 @@ class ShareLinkViewDataView(APIView):
             response_data = {
                 "link_type": "document",
                 "id": document.id,
-                "name": document.name,
+                "name": (dataroom_setting.dataroom_document.name or document.name) if dataroom_setting else document.name,
                 "type": document.type,
                 "num_pages": document.num_pages,
                 "download_only": document.download_only,
@@ -936,21 +981,7 @@ class ShareLinkViewDataView(APIView):
                     )
                 current_parent_id = requested_parent['id']
 
-            breadcrumbs = []
-            if current_parent_id:
-                ancestors = []
-                node_id = str(current_parent_id)
-                while node_id:
-                    node = folder_map.get(node_id)
-                    if not node:
-                        return Response(
-                            {"detail": "You do not have permission to view this folder through this link."},
-                            status=status.HTTP_403_FORBIDDEN
-                        )
-                    ancestors.append({'id': node['id'], 'name': node['name']})
-                    parent_node_id = node.get('parent_id')
-                    node_id = str(parent_node_id) if parent_node_id else None
-                breadcrumbs = list(reversed(ancestors))
+            breadcrumbs = _build_dataroom_breadcrumbs(current_parent_id, folder_map, raise_on_missing=True)
 
             # Fetch only direct children within the requested scope.
             folders_qs = DataroomFolder.objects.filter(dataroom=dataroom)

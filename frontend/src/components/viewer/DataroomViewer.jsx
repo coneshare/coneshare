@@ -16,7 +16,7 @@ import { formatBytes } from '../../lib/formatters';
 import { FileTypeIcon } from '../documents/FileTypeIcon';
 import { Button } from '../ui/Button';
 import { QnAPanel } from './QnAPanel';
-import { DataroomSiblingNav } from './DataroomSiblingNav';
+import { DataroomFileTree } from './DataroomFileTree';
 import { ViewerToolbar } from './ViewerToolbar';
 import { PreviewViewer } from '../documents/PreviewViewer';
 import { PdfJsViewer } from '../documents/PdfJsViewer';
@@ -183,6 +183,8 @@ export function DataroomViewer({ data, slug, viewId }) {
   const [isDocumentLoading, setIsDocumentLoading] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [rootItems, setRootItems] = useState([]);
+  const [isRootLoading, setIsRootLoading] = useState(false);
   const [qnaContext, setQnaContext] = useState(null);
   const [currentScopeQnaThreadCount, setCurrentScopeQnaThreadCount] = useState(0);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -324,7 +326,10 @@ export function DataroomViewer({ data, slug, viewId }) {
   };
 
   const allItems = useMemo(() => (Array.isArray(scopeData.items) ? scopeData.items : []), [scopeData.items]);
-  const breadcrumbs = Array.isArray(scopeData.breadcrumbs) ? scopeData.breadcrumbs : [];
+  const breadcrumbs = (Boolean(selectedDocumentId) && documentViewData?.dataroom_context?.breadcrumbs)
+    ? documentViewData.dataroom_context.breadcrumbs
+    : (Array.isArray(scopeData.breadcrumbs) ? scopeData.breadcrumbs : []);
+  const activePathFolderIds = useMemo(() => breadcrumbs.map((b) => String(b.id)), [breadcrumbs]);
   const currentFolderId = scopeData?.current_parent_id || null;
 
   // Keep local scope state aligned with parent-provided data refreshes.
@@ -416,13 +421,39 @@ export function DataroomViewer({ data, slug, viewId }) {
   }, [slug]);
 
   useEffect(() => {
+    if (scopeData && (scopeData.current_parent_id === null || scopeData.current_parent_id === undefined) && Array.isArray(scopeData.items) && scopeData.items.length > 0) {
+      setRootItems(scopeData.items);
+    }
+  }, [scopeData]);
+
+  useEffect(() => {
+    if (!selectedDocumentId || rootItems.length > 0 || isRootLoading) return;
+    const fetchRootItems = async () => {
+      setIsRootLoading(true);
+      try {
+        const response = await getShareLinkViewData(slug, { parentId: null });
+        setRootItems(response.data.items || []);
+      } catch (err) {
+        console.error('Failed to load root folder:', err);
+      } finally {
+        setIsRootLoading(false);
+      }
+    };
+    fetchRootItems();
+  }, [slug, selectedDocumentId, rootItems.length, isRootLoading]);
+
+  useEffect(() => {
     const currentParentId = scopeData?.current_parent_id ? String(scopeData.current_parent_id) : null;
     const normalizedUrlParentId = parentIdFromUrl || null;
     if (normalizedUrlParentId === currentParentId) {
       return;
     }
+    // If the URL has no parent_id on direct deep link load, let the rewrite useEffect run first
+    if (dataroomDocumentIdFromUrl && !searchParams.has('parent_id')) {
+      return;
+    }
     fetchScopeData(normalizedUrlParentId);
-  }, [fetchScopeData, parentIdFromUrl, scopeData?.current_parent_id]);
+  }, [fetchScopeData, parentIdFromUrl, scopeData?.current_parent_id, dataroomDocumentIdFromUrl, searchParams]);
 
   const handleLoadMore = useCallback(() => {
     const nextOffset = scopeData?.pagination?.next_offset;
@@ -506,7 +537,7 @@ export function DataroomViewer({ data, slug, viewId }) {
 
   // Rewrite URL on direct deep link load to include parent_id
   useEffect(() => {
-    if (dataroomDocumentIdFromUrl && !parentIdFromUrl) {
+    if (dataroomDocumentIdFromUrl && !searchParams.has('parent_id')) {
       const parentFolderId = data?.dataroom_context?.parent_folder_id;
       if (parentFolderId) {
         const nextParams = new URLSearchParams(searchParams);
@@ -517,22 +548,32 @@ export function DataroomViewer({ data, slug, viewId }) {
         setSearchParams(nextParams);
       }
     }
-  }, [dataroomDocumentIdFromUrl, parentIdFromUrl, data, searchParams, setSearchParams, viewId]);
+  }, [dataroomDocumentIdFromUrl, data, searchParams, setSearchParams, viewId]);
 
   // Trigger parent folder load if starting with document deep-link but folder items not loaded
   useEffect(() => {
-    if (data && data.dataroom_context && !scopeData?.items?.length && !initialFolderLoadedRef.current) {
+    if (data && data.dataroom_context && !scopeData?.items?.length && !initialFolderLoadedRef.current && !parentIdFromUrl) {
       initialFolderLoadedRef.current = true;
-      const parentId = data.dataroom_context.parent_folder_id;
+      const parentId = searchParams.has('parent_id') ? (parentIdFromUrl || null) : data.dataroom_context.parent_folder_id;
       fetchScopeData(parentId);
     }
-  }, [data, fetchScopeData, scopeData?.items?.length]);
+  }, [data, fetchScopeData, scopeData?.items?.length, parentIdFromUrl, searchParams]);
 
   // Reset zoom & page when active document changes
   useEffect(() => {
     setCurrentPage(1);
     setZoomLevel(1);
   }, [selectedDocumentId]);
+
+  // Synchronize documentViewData name with allItems/sidebar list updates
+  useEffect(() => {
+    if (selectedDocumentId && documentViewData && String(documentViewData.id) === String(selectedDocumentId)) {
+      const matchingItem = allItems.find(item => item.type === 'document' && String(item.id) === String(selectedDocumentId));
+      if (matchingItem && matchingItem.name !== documentViewData.name) {
+        setDocumentViewData(prev => prev ? { ...prev, name: matchingItem.name } : null);
+      }
+    }
+  }, [allItems, selectedDocumentId, documentViewData]);
 
   // Poll for document preview rendering status updates if pending
   useEffect(() => {
@@ -564,20 +605,20 @@ export function DataroomViewer({ data, slug, viewId }) {
 
       setDocumentViewData(null);
     } else {
+      if (documentViewData && String(documentViewData.id) === String(item.id) && documentViewData.name !== item.name) {
+        setDocumentViewData(prev => prev ? { ...prev, name: item.name } : null);
+      }
       const nextParams = new URLSearchParams(searchParams);
       nextParams.set('dataroom_document_id', item.id);
-      const currentFolderId = scopeData?.current_parent_id || parentIdFromUrl || null;
-      if (currentFolderId) {
-        nextParams.set('parent_id', currentFolderId);
-      } else {
-        nextParams.delete('parent_id');
+      if (!nextParams.has('parent_id')) {
+        nextParams.set('parent_id', '');
       }
       if (viewId) {
         nextParams.set('view_session_id', viewId);
       }
       setSearchParams(nextParams);
     }
-  }, [viewId, searchParams, setSearchParams, scopeData?.current_parent_id, parentIdFromUrl]);
+  }, [viewId, searchParams, setSearchParams, documentViewData]);
 
   const siblingDocs = useMemo(() => allItems.filter((item) => item.type === 'document'), [allItems]);
   const currentIndex = useMemo(() => {
@@ -842,15 +883,16 @@ export function DataroomViewer({ data, slug, viewId }) {
 
       {showDocumentViewer ? (
         <main className="flex-1 flex overflow-hidden border-t relative">
-          <DataroomSiblingNav
+          <DataroomFileTree
             slug={slug}
             viewId={viewId}
-            items={allItems}
+            items={rootItems}
             selectedDocumentId={selectedDocumentId}
             onItemClick={handleItemClick}
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={handleToggleSidebarCollapse}
             currentFolderName={breadcrumbs[breadcrumbs.length - 1]?.name || scopeData.name}
+            activePathFolderIds={activePathFolderIds}
           />
           {isDocumentLoading ? (
             <div className="flex-1 flex items-center justify-center bg-gray-50">
