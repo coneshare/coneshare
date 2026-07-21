@@ -107,6 +107,18 @@ class User(AbstractUser):
         default=0,
         help_text='Total size of all documents in bytes.'
     )
+    custom_file_size_quota_mb = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='Per-user custom file size quota in MB. If null, the global config is used. 0 means unlimited.'
+    )
+
+    @property
+    def effective_file_size_quota_mb(self) -> int:
+        if self.custom_file_size_quota_mb is not None:
+            return self.custom_file_size_quota_mb
+        from core.services import get_dynamic_setting
+        return get_dynamic_setting('FILE_SIZE_QUOTA_MB')
 
     # Use a single `name` field instead of first/last name.
     first_name = None

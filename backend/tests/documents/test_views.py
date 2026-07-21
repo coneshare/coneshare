@@ -1821,7 +1821,7 @@ def test_list_versions_endpoint_success(api_client, user, organization):
 
 
 @pytest.mark.django_db
-@patch('documents.services.get_dynamic_setting')
+@patch('core.services.get_dynamic_setting')
 def test_promote_version_endpoint_respects_quota(mock_get_setting, api_client, user, organization):
     """Test that promoting a version that exceeds user storage quota fails."""
     def get_setting_mock(key):

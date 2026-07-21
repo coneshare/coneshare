@@ -13,7 +13,9 @@ from documents.services import (
     preview_mode_for_version,
     is_server_renderable_version,
     promote_document_version,
+    check_user_quota_on_upload,
 )
+from core.services import get_dynamic_setting
 
 
 
@@ -194,7 +196,7 @@ class TestCopyDocumentService:
         # Check processing was triggered
         mock_route_for_processing.assert_called_once()
 
-    @patch('documents.services.get_dynamic_setting', return_value=1)
+    @patch('core.services.get_dynamic_setting', return_value=1)
     def test_copy_document_respects_quota(self, mock_get_setting, mock_route_for_processing, mock_copy_file, user, document):
         """Test that copy_document fails if user quota is exceeded."""
         # Arrange
@@ -436,4 +438,34 @@ class TestPromoteDocumentVersion:
 
         with pytest.raises(ValidationError, match="already the active version"):
             promote_document_version(doc, v1, user)
+
+    def test_check_user_quota_on_upload_respects_custom_quota(self, user):
+        """Test that check_user_quota_on_upload respects custom user quota if set, else falls back to global."""
+        user.total_document_size = 50 * 1024 * 1024  # 50MB
+        user.save()
+
+        # 1. Custom quota set to 40MB (exceeded)
+        user.custom_file_size_quota_mb = 40
+        user.save()
+        with pytest.raises(QuotaExceededError, match="Uploading this file would exceed your storage quota of 40 MB"):
+            check_user_quota_on_upload(user, 10)
+
+        # 2. Custom quota set to 60MB (allowed)
+        user.custom_file_size_quota_mb = 60
+        user.save()
+        check_user_quota_on_upload(user, 10 * 1024 * 1024)  # 10MB upload
+
+        # 3. Custom quota set to None (fallback to dynamic setting of e.g. 100MB)
+        user.custom_file_size_quota_mb = None
+        user.save()
+        with patch('core.services.get_dynamic_setting', return_value=100):
+            check_user_quota_on_upload(user, 10 * 1024 * 1024)  # 10MB upload allowed under 100MB fallback
+
+        # 4. Custom quota set to None, but fallback exceeded
+        user.custom_file_size_quota_mb = None
+        user.save()
+        with patch('core.services.get_dynamic_setting', return_value=45):
+            with pytest.raises(QuotaExceededError, match="Uploading this file would exceed your storage quota of 45 MB"):
+                check_user_quota_on_upload(user, 10)
+
 
