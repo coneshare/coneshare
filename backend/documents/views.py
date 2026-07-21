@@ -8,7 +8,7 @@ from django.db import transaction
 from django.db.models import Count, Sum
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError as DjangoValidationError
-from rest_framework import permissions, serializers, status, viewsets
+from rest_framework import permissions, serializers, status, viewsets, throttling
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.pagination import PageNumberPagination
@@ -829,6 +829,10 @@ class FolderViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class DocumentCopyRateThrottle(throttling.UserRateThrottle):
+    scope = 'document_copy'
+
+
 @extend_schema(tags=['documents'])
 class DocumentViewSet(viewsets.ModelViewSet):
     queryset = Document.objects.all()
@@ -897,7 +901,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
             'status_message': document.status_message
         })
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], throttle_classes=[DocumentCopyRateThrottle])
     def copy(self, request, *args, **kwargs):
         """
         Creates a copy of the document.

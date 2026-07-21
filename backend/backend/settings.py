@@ -239,6 +239,7 @@ REST_FRAMEWORK = {
         'password_verify': '5/min',
         'signup': '5/min',
         'health_check': '1000/min',
+        'document_copy': '5/min',
     }
 }
 

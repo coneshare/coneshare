@@ -493,11 +493,14 @@ def copy_document(original_doc: Document, user: User) -> Document:
     if not original_primary_version:
         raise APIException("Original document has no primary version to copy.")
 
+    # TODO: Refactor this to use Asynchronous Copy via Celery to avoid blocking
+    # Django/Gunicorn request threads on copying large files (like 1GB videos).
     # 5. Copy the file on the file server
     try:
         fileserver_client.copy_file(
             source_storage_key=original_primary_version.original_storage_key,
-            destination_storage_key=new_storage_key
+            destination_storage_key=new_storage_key,
+            file_size=original_doc.file_size
         )
     except APIException as e:
         logger.error(f"Failed to copy file in storage for doc {original_doc.id}: {e}")
