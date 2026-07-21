@@ -34,15 +34,12 @@ sequenceDiagram
     participant Client as React Frontend
     participant API as Django REST API
     participant DB as PostgreSQL
-    participant Queue as Redis
-    participant Worker as Celery Worker
 
     Client->>API: POST /api/v1/documents/{id}/versions/ (+ file)
     API->>DB: Resolve document in user organization
     API->>DB: Transaction: demote old primary + create new primary version
-    API->>DB: Update parent document status=processing
-    API->>Queue: Enqueue processing task for new version
-    API-->>Client: 201 Created
+    API->>DB: Update parent document status=ready, version.render_status=not_generated
+    API-->>Client: 201 Created (immediately downloadable/shareable)
 ```
 
 ---
@@ -56,7 +53,7 @@ User starts from a version-update action (for example in an update-version modal
    - `POST /api/v1/documents/{document_id}/versions/`
 3. On success:
    - refresh document/version details
-   - show processing state until async pipeline marks document ready
+   - the document is immediately ready for download or sharing; preview rendering is deferred until the first preview view.
 
 Suggested frontend locations:
 
@@ -99,12 +96,12 @@ Recommended sequence:
 1. Lock document row (`select_for_update`) and/or current primary version row.
 2. Compute next `version_number`.
 3. Demote existing primary version (`is_primary=False`) if present.
-4. Create new `DocumentVersion` with `is_primary=True`.
+4. Create new `DocumentVersion` with `is_primary=True` and `render_status='not_generated'`.
 5. Update parent `Document` fields:
-   - `status='processing'`
+   - `status='ready'`
    - storage pointers/metadata set to new version context
 6. Commit transaction.
-7. Enqueue async processing task for the new version.
+7. Rendering and transcoding tasks are deferred lazily until the first preview request.
 
 ### Primary-version invariants
 
@@ -117,12 +114,13 @@ Enforce exactly one primary version per document:
 
 ## Async Processing
 
-New version processing should reuse existing pipeline:
+New version processing uses the same lazy rendering pipeline as initial uploads:
 
-1. Convert/process file as needed.
-2. Generate/update `DocumentPage` records for this version.
-3. On success: set document/version ready fields.
-4. On failure: set `Document.status='error'` with user-facing status message.
+1. Triggered on first preview access of the new version.
+2. Runs conversion/transcoding as needed.
+3. Updates `DocumentPage` records or saves HLS video streams.
+4. On success: sets `render_status='ready'`.
+5. On failure: sets `render_status='failed'` and updates `render_error` with traceback.
 
 Queue/broker in current deployment: Redis + Celery worker.
 

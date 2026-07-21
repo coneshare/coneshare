@@ -7,24 +7,24 @@
 
 ## Out of scope
 - OCR accuracy tuning and language-model extraction pipelines.
-- Media transcoding pipeline design for video/audio beyond current file processing flow.
+- Media transcoding pipeline design for video/audio beyond the supported HLS transcoding flow.
 - Cloud-provider-specific storage optimization strategy.
 - Full observability/metrics stack design for workers and queues.
 
 ## Design decisions
-- Decision: Use asynchronous task execution for preview generation.
-  Rationale: Keeps upload/API response path responsive and offloads expensive conversion work.
-  Tradeoff: Requires background worker operations and eventual-consistency UI states.
-- Decision: Normalize preview generation around PDF page extraction.
+- Decision: Use asynchronous lazy execution for preview/transcoding generation.
+  Rationale: Keeps the upload/API response path fast and responsive, and only utilizes server resource costs when a document or video is actually previewed.
+  Tradeoff: Adds eventual-consistency UI states on first preview view.
+- Decision: Normalize document preview generation around PDF page extraction.
   Rationale: Provides one rendering path for office and PDF-origin files.
   Tradeoff: Adds conversion dependency for office formats before page generation.
 - Decision: Mark unsupported/oversized files as `download_only` with immediate ready status.
   Rationale: Preserves upload usability while avoiding failed or expensive preview pipelines.
   Tradeoff: No in-app preview for these files.
+- Decision: Transcode and segment supported video formats into HLS.
+  Rationale: Ensures videos (including non-web-safe formats like AVI) play smoothly across all devices/browsers.
 
-This document outlines the document processing architecture for Coneshare V1.0. The system is designed for a self-hosted environment and uses an asynchronous pipeline to handle file processing, ensuring the user interface remains responsive.
-
-The V1.0 pipeline is designed to handle common enterprise file types, including office documents (e.g., DOCX, PPTX), PDFs, and images, by routing them through a modular, asynchronous processing pipeline.
+This document outlines the document processing architecture for Coneshare. The system is designed for a self-hosted environment and uses an asynchronous, lazy-rendered pipeline to handle file previews, ensuring the user interface remains responsive.
 
 ---
 
@@ -34,40 +34,33 @@ Based on the `strategy/coneshare-techstack.md`, the key components involved in t
 
 | Component            | Technology/Location         | Key Functions                                        |
 | -------------------- | --------------------------- | ---------------------------------------------------- |
-| **API Endpoint**     | Django REST Framework       | `POST /api/v1/documents/` view, handles file uploads |
-| **Document Processor** | Django Service (`backend/documents/services.py`) | `process_document()` - creates DB records, triggers tasks |
+| **API Endpoint**     | Django REST Framework       | `POST /api/v1/documents/` view, handles uploads      |
+| **Document Processor** | Django Service (`backend/documents/services.py`) | `_route_document_for_processing()` - sets metadata, defers heavy rendering |
 | **Office Converter**   | Celery Task (`backend/documents/tasks.py`) | `convert_office_to_pdf_task()` - converts DOCX etc. to PDF |
 | **PDF Page Processor** | Celery Task (`backend/documents/tasks.py`) | `generate_pdf_pages_task()` - extracts pages as images |
+| **Video Transcoder**   | Celery Task (`backend/documents/tasks.py`) | `generate_video_stream_task()` - transcodes videos (AVI/MP4) to HLS |
 | **Queue Manager**    | Redis                       | Message broker for Celery in current deployment      |
 | **Task Runner**      | Celery Worker               | Background process that executes tasks               |
-| **Storage**          | MinIO / Filesystem          | Stores original PDFs and generated page images       |
+| **Storage**          | MinIO / Filesystem          | Stores original files and generated preview assets  |
 
 ---
 
-## V1.0 File Processing Logic
+## File Processing & Lazy Rendering Logic
 
-The `process_document` service function is the entry point for all uploads. It inspects the file's type and size to determine if it can be previewed. Based on this, it either triggers the appropriate background processing task or marks the file as "download-only."
+The `_route_document_for_processing` service function is the entry point for all uploaded files. It inspects the file's type and size to determine if it can be previewed.
 
-### Previewable Documents (Office, PDF, Images)
+### 1. Upload & Initialization Path (Eager / Fast)
+1. **Initiation**: The file is stored in original storage.
+2. **Setup**: The parent `Document` status is immediately set to `'ready'` (available to download/share), and the `DocumentVersion`'s `render_status` is initialized to `RENDER_NOT_GENERATED`. No Celery tasks are triggered.
+3. **Response**: The API returns `202 Accepted` immediately.
 
-Files that are of a supported type (Office, PDF, Image) and under the configured size limit (e.g., 100MB) are sent for processing.
-
-1.  **Initiation**: The `process_document` service checks the file. It creates `Document` records with a status of `'processing'`.
-
-2.  **Routing**:
-    *   **Office Documents**: The `convert_office_to_pdf_task` is triggered. This task converts the file to PDF and then triggers the `generate_pdf_pages_task`.
-    *   **PDFs**: The `generate_pdf_pages_task` is triggered directly.
-    *   **Images**: No task is needed. The status is set to `'ready'`.
-
-### Download-Only Files (Unsupported Types or Large Files)
-
-If a file is of an unsupported type (e.g., a ZIP archive) or exceeds the preview size limit, it is marked for download only.
-
-1.  **Initiation**: The `process_document` service identifies the file as download-only.
-
-2.  **No Processing**: No Celery task is triggered. The `Document` is created with a `download_only` flag set to `True` and its status is immediately set to `'ready'`.
-
-3.  **Share Link Behavior**: When a share link is created for this document, the "Allow Download" option is automatically and permanently enabled.
+### 2. Preview / Transcoding Path (Lazy / Async Trigger)
+When the item is first accessed via `GET /api/v1/documents/{id}/preview-data/`:
+1. **Office Documents**: The `convert_office_to_pdf_task` is triggered. This task converts the file to PDF and then triggers `generate_pdf_pages_task`.
+2. **PDFs**: The `generate_pdf_pages_task` is triggered directly to convert pages to PNG.
+3. **Videos**: The `generate_video_stream_task` is triggered to segment/transcode the video to HLS.
+4. **Images**: No tasks are run; the status is set to `'ready'`.
+5. **Download-Only Files (Unsupported/Large)**: The file is marked as download-only (`download_only=True`), no task is triggered, and the preview engine falls back to direct download options.
 
 ---
 
@@ -82,47 +75,49 @@ sequenceDiagram
     participant DB as Database (PostgreSQL)
     participant Storage as Storage (MinIO)
 
+    Note over Client, Storage: Phase 1: Upload & Initial Save (No Tasks Run)
     Client->>API: POST /api/v1/documents/ (+ file)
     API->>Storage: Store original file
     API->>DB: Create Document & Version
-    
-    alt Office Doc (previewable size)
-        API->>DB: Set status: 'processing'
-        API->>Queue: Push convert_office_to_pdf_task
-        API-->>Client: 202 Accepted (recommended for async path)
-    else PDF Doc (previewable size)
-        API->>DB: Set status: 'processing'
-        API->>Queue: Push generate_pdf_pages_task
-        API-->>Client: 202 Accepted (recommended for async path)
-    else Image File (previewable size)
-        API->>DB: Set status: 'ready'
-        API-->>Client: 201 Created (recommended for immediate-ready path)
-    else Unsupported Type or Too Large
-        API->>DB: Set status: 'ready', download_only: true
-        API-->>Client: 201 Created (recommended for immediate-ready path)
-    end
+    API->>DB: Set status: 'ready', render_status: 'not_generated'
+    API-->>Client: 202 Accepted
 
-    Note right of Queue: Async processing begins
-    
-    subgraph Office to PDF Conversion
-        Worker->>Queue: Dequeue convert_office_to_pdf_task
-        Worker->>Worker: Convert DOCX to PDF (e.g., LibreOffice)
-        Worker->>Storage: Store new PDF file
-        Worker->>DB: Update DocumentVersion (path & type)
-        Worker->>Queue: Push generate_pdf_pages_task for new PDF
+    Note over Client, Storage: Phase 2: First Access & Lazy Task Trigger
+    Client->>API: GET /api/v1/documents/{id}/preview-data/
+    API->>DB: Check render_status
+    alt render_status is 'not_generated'
+        API->>DB: Set render_status: 'queued'
+        API->>Queue: Push appropriate task (Office/PDF/Video)
     end
+    API-->>Client: 200 OK (preview_status: 'processing')
 
-    subgraph PDF Page Generation & Link Extraction
-        Worker->>Queue: Dequeue generate_pdf_pages_task
-        Worker->>Worker: Parse PDF annotations (/Annots) via pypdf
-        Note over Worker: Normalizes coordinates (min/max) to prevent negative bounds
-        loop For each page in PDF
-            Worker->>Worker: Convert page to image
-            Worker->>Storage: Store page image
-            Worker->>DB: Create DocumentPage record with page_links JSON payload
+    Note over Client, Storage: Phase 3: Async Background Processing
+    subgraph Background Work
+        Worker->>Queue: Dequeue task
+        Worker->>DB: Set render_status: 'processing'
+        Worker->>Storage: Download original file
+        alt If Office Doc
+            Worker->>Worker: Convert DOCX to PDF (LibreOffice)
+            Worker->>Storage: Store PDF
+            Worker->>Queue: Push generate_pdf_pages_task
+        else If PDF Doc
+            loop For each page
+                Worker->>Worker: Render page to PNG
+                Worker->>Storage: Store PNG
+                Worker->>DB: Create DocumentPage record
+            end
+            Worker->>DB: Set render_status: 'ready'
+        else If Video
+            Worker->>Worker: Transcode/segment to HLS (ffmpeg)
+            Worker->>Storage: Store playlist.m3u8 and .ts segments
+            Worker->>DB: Set render_status: 'ready'
         end
-        Worker->>DB: Update Document status to 'ready'
     end
+
+    Note over Client, Storage: Phase 4: Resolution & Rendering
+    Client->>API: Poll GET /api/v1/documents/{id}/preview-data/
+    API->>DB: Fetch DocumentPages/HLS playlist details
+    API-->>Client: 200 OK (preview_status: 'ready')
 ```
 
 ### PDF Link Annotation Harvesting
@@ -135,10 +130,11 @@ In addition to page image rendering, `generate_pdf_pages_task` parses PDF hyperl
 
 ## Future Versions: Expanding File Support
 
-This modular architecture is designed for extension. To support new file types like CAD or video files in the future, the process is simple:
+This modular architecture is designed for extension. To support new file types (e.g. CAD drawings) in the future, the process is simple:
 
-1.  Create a new, specialized Celery task (e.g., `convert_cad_to_pdf_task`).
-2.  Add logic to the `process_document` service to detect the new file type and trigger this new task.
-3.  Ensure the new task's final output is a PDF, which can then be handed off to the existing `generate_pdf_pages_task`.
+1. Create a specialized Celery task (e.g., `convert_cad_to_pdf_task`).
+2. Add routing logic to the preview trigger path (`get_effective_render_status`/`enqueue_server_preview_render`) to detect the new file type and trigger this task.
+3. Ensure the task outputs a standard format (like PDF for documents), which can then be handed off to the existing processing systems.
 
-This creates a chained, plug-and-play pipeline that can be expanded without altering the core logic.
+This creates a chained, plug-and-play pipeline that can be expanded without altering the core upload logic.
+

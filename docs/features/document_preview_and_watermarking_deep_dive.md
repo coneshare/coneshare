@@ -6,11 +6,11 @@ This document compiles the architectures, lifecycles, and security evaluations o
 
 ## 1. Document Processing & Server Rendering Logic
 
-Coneshare separates document availability (allowing downloads) from heavy preview asset generation. For self-hosted performance on lower-resource machines, server-side document rendering is **lazy**: preview assets are generated only when the document is first viewed.
+Coneshare separates document availability (allowing downloads) from heavy preview asset generation. For self-hosted performance on lower-resource machines, server-side document rendering and video transcoding are **lazy**: preview assets and HLS video streams are generated only when the item is first viewed.
 
 ### High-Level Flow Diagram
 
-The following sequence diagram shows the lifecycles from upload to first view to rendering:
+The following sequence diagram shows the lifecycles from upload to first view to rendering/transcoding:
 
 ```mermaid
 sequenceDiagram
@@ -34,10 +34,10 @@ sequenceDiagram
     API->>DB: Check version.render_status
     alt render_status is 'not_generated'
         Note over API, DB: Atomic DB Update (Claim job):<br/>set render_status = 'queued'
-        API->>Queue: Push convert_office_to_pdf_task OR generate_pdf_pages_task
+        API->>Queue: Push convert_office_to_pdf_task, generate_pdf_pages_task, OR generate_video_stream_task
     end
     API-->>Client: 200 OK (preview_status: 'processing', pages: [])
-    Note over Client: Client displays "Preparing document preview"<br/>and begins polling (every 2s)
+    Note over Client: Client displays "Preparing preview"<br/>and begins polling (every 2s)
 
     Note over Client, Storage: Phase 3: Background Worker Processing
     Worker->>Queue: Fetch task
@@ -56,13 +56,18 @@ sequenceDiagram
             Worker->>DB: Create DocumentPage record
         end
         Worker->>DB: Update version.has_pages = True, render_status = 'ready'
+    else If Video File (.mp4, .avi, etc.)
+        Worker->>Worker: Run ffmpeg to transcode & segment to HLS
+        Worker->>Storage: Upload playlist.m3u8 and .ts segments
+        Worker->>DB: Update version.storage_key, version.render_status = 'ready'
+        Note over DB: If version is primary,<br/>set document.storage_key & status = 'ready'
     end
 
     Note over Client, Storage: Phase 4: Resolution & Display
     Client->>API: Poll GET /api/v1/documents/{id}/preview-data/
-    API->>DB: Fetch DocumentPages & generate signed URLs
-    API-->>Client: 200 OK (preview_status: 'ready', pages: [signed urls...])
-    Note over Client: Client renders pages page-by-page
+    API->>DB: Fetch DocumentPages/HLS playlist & generate signed URLs
+    API-->>Client: 200 OK (preview_status: 'ready', pages: [signed urls...]/hls_url)
+    Note over Client: Client renders pages page-by-page or plays video stream
 ```
 
 ### Core Service Components & Files
@@ -71,13 +76,13 @@ The server rendering logic is implemented across three primary modules:
 
 1. **Routing & Upload Handler**: 
    * **Location**: [backend/documents/services.py](file:///Users/xiez/coneshare/backend/documents/services.py#L74-L116)
-   * **Responsibility**: Checks if the file is previewable based on type and size limits (`MAX_PREVIEW_FILE_SIZE_MB`). Marks PDFs/Office files with `render_status = DocumentVersion.RENDER_NOT_GENERATED` and `has_pages = False`.
+   * **Responsibility**: Checks if the file is previewable based on type and size limits (`MAX_PREVIEW_FILE_SIZE_MB`). Marks PDFs/Office files and videos with `render_status = DocumentVersion.RENDER_NOT_GENERATED` and `has_pages = False`.
 2. **Lazy Enqueue Handler**: 
    * **Location**: [backend/documents/services.py](file:///Users/xiez/coneshare/backend/documents/services.py#L202-L245)
    * **Responsibility**: Invoked on preview access. Uses an atomic `QuerySet.update()` filter to claim the job idempotently, preventing concurrent visitor views from spawning multiple Celery tasks.
 3. **Background Pipelines**: 
    * **Location**: [backend/documents/tasks.py](file:///Users/xiez/coneshare/backend/documents/tasks.py)
-   * **Responsibility**: Handles file downloading, external process invocation (`libreoffice`), page conversion (`pdf2image`), and populating database records (`DocumentPage`).
+   * **Responsibility**: Handles file downloading, external process invocation (`libreoffice`), page conversion (`pdf2image`), database record population (`DocumentPage`), and video HLS segmentation (`generate_video_stream_task`).
 
 ### Database State Machine (`render_status`)
 
@@ -85,10 +90,10 @@ The `DocumentVersion.render_status` field follows this state machine:
 
 | Current State | Event / Trigger | Target State | Action Taken |
 | :--- | :--- | :--- | :--- |
-| **`not_generated`** | First user/visitor view request | **`queued`** | Atomic DB check claims job; triggers Celery tasks (`convert_office_to_pdf_task` or `generate_pdf_pages_task`). |
-| **`queued`** | Worker thread dequeues task | **`processing`** | Worker starts file download and image/PDF conversions. |
-| **`processing`** | Conversion finishes successfully | **`ready`** | Converted pages are written to MinIO; `DocumentPage` records created; `has_pages = True`. |
-| **`processing`** | Exception caught or page limit exceeded | **`failed`** | Writes the traceback/cause to `render_error`. |
+| **`not_generated`** | First user/visitor view request | **`queued`** | Atomic DB check claims job; triggers Celery tasks (`convert_office_to_pdf_task`, `generate_pdf_pages_task`, or `generate_video_stream_task`). |
+| **`queued`** | Worker thread dequeues task | **`processing`** | Worker starts file download and image/PDF conversions or video transcoding. |
+| **`processing`** | Conversion/Transcoding finishes successfully | **`ready`** | Converted pages are written to MinIO; `DocumentPage` records created (or HLS files uploaded); `has_pages = True` (for documents). |
+| **`processing`** | Exception caught or page/time limit exceeded | **`failed`** | Writes the traceback/cause to `render_error`. |
 | **`failed`** | Manual retry by owner | **`queued`** / **`processing`** | Resubmits version for processing. |
 
 ---

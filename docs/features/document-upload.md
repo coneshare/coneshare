@@ -86,7 +86,7 @@ Behavior:
 
 - File: `backend/documents/views.py`
 - Endpoint: `POST /api/v1/uploads/document/finalize/`
-- Purpose: Commit metadata and kick async processing.
+- Purpose: Commit metadata and initialize preview state.
 
 Inputs:
 
@@ -100,9 +100,10 @@ Behavior:
 
 1. Validate `storage_key` belongs to same authenticated org/upload context.
 2. Create `Document` + `DocumentVersion` via service layer.
-3. Set document status to `processing`.
-4. Return `202 Accepted`.
-5. Enqueue async processing task.
+3. Set document status to `'ready'` (available to download/share immediately).
+4. Set document version's `render_status` to `'not_generated'`.
+5. Return `202 Accepted`.
+6. Defers preview/transcoding processing until first preview access (lazy rendering).
 
 Idempotency requirement:
 
@@ -136,19 +137,21 @@ Use `Promise.allSettled` for concurrent batch resilience.
 2. Extract unique directory paths from `webkitRelativePath`.
 3. Call once: `POST /api/v1/folders/ensure-paths/`.
 4. Upload each file using same three-step flow with relative path.
-5. Refresh list and show processing states.
+5. Refresh list.
 
 ---
 
 ## Finalize/Readiness Contract
 
-`finalize` returns `202 Accepted` because preview processing is async.
+`finalize` returns `202 Accepted` and immediately exposes the document as `ready` for general file actions (downloading, renaming, moving, and sharing). However, its preview assets (rendered pages or transcoded video stream HLS segments) are **not** generated eagerly.
 
 Frontend expectations:
 
-1. New document appears in `processing` state.
-2. Status transitions to `ready` or `error` after worker completion.
-3. UI should poll/refetch list/detail endpoints or consume push updates if available.
+1. New document appears in list immediately with `'ready'` status.
+2. When the user or viewer first opens the preview modal, the client calls `GET /api/v1/documents/{id}/preview-data/`.
+3. The server atomically transitions `render_status` to `queued`/`processing` and enqueues the Celery worker processing task.
+4. The client receives a `'processing'` preview status and polls the endpoint every 2 seconds.
+5. Once processing/transcoding completes, the server returns `'ready'` and the client displays the rendered pages or streams the video.
 
 ---
 
