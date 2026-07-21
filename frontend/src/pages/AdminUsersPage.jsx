@@ -217,22 +217,38 @@ export function AdminUsersPage() {
   const [totalCount, setTotalCount] = useState(0);
   const pageSize = 10; // Corresponds to backend's StandardResultsSetPagination
 
-  const fetchUsers = async (page) => {
-    setIsLoading(true);
-    try {
-      const response = await api.getAdminUsers(page);
-      setUsers(response.data.results);
-      setTotalCount(response.data.count);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
+    let ignore = false;
+
+    const fetchUsers = async (page) => {
+      setIsLoading(true);
+      try {
+        const response = await api.getAdminUsers(page);
+        if (!ignore) {
+          setUsers(response.data.results);
+          setTotalCount(response.data.count);
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoading(false);
+        }
+      }
+    };
+
     fetchUsers(currentPage);
+
+    return () => {
+      ignore = true;
+    };
   }, [currentPage]);
 
   const totalPages = Math.ceil(totalCount / pageSize);
+
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
