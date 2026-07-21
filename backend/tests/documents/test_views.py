@@ -1375,6 +1375,33 @@ class TestDocumentViewSet:
         assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
         assert "File server error" in response.data['detail']
 
+    @patch('documents.views.copy_document')
+    def test_copy_document_api_throttling(self, mock_copy_document, api_client, document):
+        """Test that the copy document API is throttled at 5 requests per minute."""
+        from django.core.cache import cache
+        from core.fields import generate_ulid
+        cache.clear()
+        try:
+            new_doc_id = generate_ulid()
+            new_doc_instance = Document(
+                id=new_doc_id,
+                name="Copy of doc.pdf",
+                created_by=document.created_by,
+                organization=document.organization
+            )
+            mock_copy_document.return_value = new_doc_instance
+
+            # 5 successful requests
+            for _ in range(5):
+                response = api_client.post(f'/api/v1/documents/{document.id}/copy/')
+                assert response.status_code == status.HTTP_201_CREATED
+
+            # The 6th request should be throttled (429 Too Many Requests)
+            response = api_client.post(f'/api/v1/documents/{document.id}/copy/')
+            assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+        finally:
+            cache.clear()
+
 
 @pytest.mark.django_db
 class TestMoveItemsView:

@@ -22,10 +22,10 @@ class FileServerClient:
             'Content-Type': 'application/json',
         }
 
-    def _post(self, endpoint, data, expect_json=True):
+    def _post(self, endpoint, data, expect_json=True, timeout=5):
         url = urljoin(self.base_url, endpoint)
         try:
-            response = requests.post(url, json=data, headers=self.headers, timeout=5)
+            response = requests.post(url, json=data, headers=self.headers, timeout=timeout)
             response.raise_for_status()
             if expect_json:
                 return response.json()
@@ -70,13 +70,19 @@ class FileServerClient:
         data = {'storage_key': storage_key}
         self._post('/internal/v1/delete-file', data, expect_json=False)
 
-    def copy_file(self, source_storage_key: str, destination_storage_key: str):
+    def copy_file(self, source_storage_key: str, destination_storage_key: str, file_size: int = None):
         """Requests copying of a file on the file server."""
         data = {
             'source_storage_key': source_storage_key,
             'destination_storage_key': destination_storage_key
         }
-        self._post('/internal/v1/copy-file', data, expect_json=False)
+        # Dynamic timeout: default to 10 seconds, but add 1 second per 10MB of file size, up to 120 seconds.
+        timeout = 10
+        if file_size:
+            # 1 second per 10MB (10 * 1024 * 1024 bytes)
+            timeout += file_size // (10 * 1024 * 1024)
+            timeout = min(timeout, 120)
+        self._post('/internal/v1/copy-file', data, expect_json=False, timeout=timeout)
 
 
 # A singleton instance of the client for use throughout the application.

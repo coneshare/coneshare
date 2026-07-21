@@ -113,6 +113,74 @@ class TestFileServerClient:
         SITE_DOMAIN="http://coneshare.test"
     )
     @patch('documents.fileserver.requests.post')
+    def test_copy_file_default(self, mock_post):
+        """
+        Tests that the copy_file method defaults to a 10s timeout when no size is provided.
+        """
+        client = fileserver.FileServerClient()
+        client.copy_file('org/source.pdf', 'org/dest.pdf')
+
+        expected_url = 'http://core-api.test/internal/v1/copy-file'
+        expected_data = {
+            'source_storage_key': 'org/source.pdf',
+            'destination_storage_key': 'org/dest.pdf'
+        }
+        mock_post.assert_called_once_with(
+            expected_url, json=expected_data, headers=client.headers, timeout=10
+        )
+
+    @override_settings(
+        CORE_API_URL="http://core-api.test",
+        INTERNAL_API_TOKEN="test-token",
+        SITE_DOMAIN="http://coneshare.test"
+    )
+    @patch('documents.fileserver.requests.post')
+    def test_copy_file_large(self, mock_post):
+        """
+        Tests that the copy_file method uses a scaled timeout for large files.
+        """
+        client = fileserver.FileServerClient()
+        # 1GB file size
+        client.copy_file('org/source.pdf', 'org/dest.pdf', file_size=1 * 1024 * 1024 * 1024)
+
+        expected_url = 'http://core-api.test/internal/v1/copy-file'
+        expected_data = {
+            'source_storage_key': 'org/source.pdf',
+            'destination_storage_key': 'org/dest.pdf'
+        }
+        mock_post.assert_called_once_with(
+            expected_url, json=expected_data, headers=client.headers, timeout=112
+        )
+
+    @override_settings(
+        CORE_API_URL="http://core-api.test",
+        INTERNAL_API_TOKEN="test-token",
+        SITE_DOMAIN="http://coneshare.test"
+    )
+    @patch('documents.fileserver.requests.post')
+    def test_copy_file_cap(self, mock_post):
+        """
+        Tests that the copy_file method caps the timeout at 120s.
+        """
+        client = fileserver.FileServerClient()
+        # 2GB file size (would be 204s, capped at 120s)
+        client.copy_file('org/source.pdf', 'org/dest.pdf', file_size=2 * 1024 * 1024 * 1024)
+
+        expected_url = 'http://core-api.test/internal/v1/copy-file'
+        expected_data = {
+            'source_storage_key': 'org/source.pdf',
+            'destination_storage_key': 'org/dest.pdf'
+        }
+        mock_post.assert_called_once_with(
+            expected_url, json=expected_data, headers=client.headers, timeout=120
+        )
+
+    @override_settings(
+        CORE_API_URL="http://core-api.test",
+        INTERNAL_API_TOKEN="test-token",
+        SITE_DOMAIN="http://coneshare.test"
+    )
+    @patch('documents.fileserver.requests.post')
     def test_request_exception_raises_api_exception(self, mock_post):
         """
         Tests that a network error is caught and re-raised as a DRF APIException.
