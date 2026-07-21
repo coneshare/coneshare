@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useUser } from '../contexts/UserProvider';
 import { toast } from 'sonner';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { ArrowLeft } from 'lucide-react';
@@ -13,6 +14,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 export function DocumentVersionsPage() {
   const { documentId } = useParams();
   const { setBreadcrumbData } = useBreadcrumb();
+  const { refreshUser } = useUser();
   const [document, setDocument] = useState(null);
   const [loading, setLoading] = useState(true);
   const [versionsData, setVersionsData] = useState(null);
@@ -79,6 +81,7 @@ export function DocumentVersionsPage() {
     try {
       await promoteDocumentVersion(documentId, versionToRestore.id);
       toast.success(`Successfully restored version v${versionToRestore.version_number} as active.`, { id: toastId });
+      refreshUser(); // Refresh user quota
       fetchDocument();
       fetchVersions();
     } catch (error) {

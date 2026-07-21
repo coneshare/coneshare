@@ -34,6 +34,12 @@ vi.mock('../../components/qna/OwnerQnAManager', () => ({
   OwnerQnAManager: () => <div>Owner Q&A Manager</div>,
 }));
 
+vi.mock('../../contexts/UserProvider', () => ({
+  useUser: () => ({
+    refreshUser: vi.fn(),
+  }),
+}));
+
 describe('DocumentPage', () => {
   beforeEach(() => {
     vi.resetAllMocks();
