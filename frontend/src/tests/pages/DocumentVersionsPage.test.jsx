@@ -11,6 +11,12 @@ vi.mock('../../components/documents/DocumentPreviewModal', () => ({
   DocumentPreviewModal: () => <div>Preview Modal</div>,
 }));
 
+vi.mock('../../contexts/UserProvider', () => ({
+  useUser: () => ({
+    refreshUser: vi.fn(),
+  }),
+}));
+
 vi.mock('../../components/documents/VersionHistoryTable', () => ({
   VersionHistoryTable: ({ onPreviewVersion, onPromoteVersion }) => (
     <div>

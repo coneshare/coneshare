@@ -35,6 +35,7 @@ vi.mock('../../contexts/UploadProvider', () => ({
 vi.mock('../../contexts/UserProvider', () => ({
     useUser: () => ({
         user: { id: 'u1', email: 'test@example.com', max_files_per_upload: 100 },
+        refreshUser: vi.fn(),
     }),
 }));
 

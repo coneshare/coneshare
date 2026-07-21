@@ -60,6 +60,7 @@ describe('DocumentsPage', () => {
         email: 'test@example.com',
         max_files_per_upload: 100, // Default generous limit
       },
+      refreshUser: vi.fn(),
     });
   });
 
@@ -489,6 +490,7 @@ describe('DocumentsPage', () => {
       // Set a strict limit for these tests
       useUser.mockReturnValue({
         user: { max_files_per_upload: 2 },
+        refreshUser: vi.fn(),
       });
     });
 
@@ -565,8 +567,7 @@ describe('DocumentsPage', () => {
     });
 
     it('should block upload if user data is not yet loaded', async () => {
-      // Mock useUser to return null initially
-      useUser.mockReturnValue({ user: null });
+      useUser.mockReturnValue({ user: null, refreshUser: vi.fn() });
       renderComponent();
 
       const file1 = createFile('file1.txt');
@@ -702,11 +703,11 @@ describe('DocumentsPage', () => {
         const folderCard = await screen.findByText('Folder One');
         const itemRow = folderCard.closest('[data-testid^="draggable-item-"]');
         
-        expect(itemRow).not.toHaveClass('bg-blue-50');
+        expect(itemRow).not.toHaveClass('bg-blue-100');
 
         await user.click(itemRow);
         
-        expect(itemRow).toHaveClass('bg-blue-50');
+        expect(itemRow).toHaveClass('bg-blue-100');
     });
 
     it('should select a range of items with shift-click', async () => {
@@ -728,7 +729,7 @@ describe('DocumentsPage', () => {
         const actionBar = screen.getByRole('button', { name: 'Clear Selection' }).closest('div');
         expect(actionBar).toHaveTextContent('1 document, 2 folders selected');
 
-        expect(folderOneRow).toHaveClass('bg-blue-50');
+        expect(folderOneRow).toHaveClass('bg-blue-100');
     });
 
     it('should handle bulk delete action', async () => {

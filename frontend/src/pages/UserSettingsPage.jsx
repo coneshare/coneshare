@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { jwtDecode } from "jwt-decode";
 import { toast } from "sonner";
+import { useUser } from "../contexts/UserProvider";
 import { getUser, updateUser } from "../services/api";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -9,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/Avatar";
 import { SettingsTabs } from "../components/settings/SettingsTabs";
 
 function UserSettingsPage() {
+  const { refreshUser } = useUser();
   const [user, setUser] = useState(null);
   const [name, setName] = useState("");
   const [avatarPreview, setAvatarPreview] = useState(null);
@@ -100,6 +102,7 @@ function UserSettingsPage() {
       setAvatarFile(null); // Reset file input state
       setIsRemovingAvatar(false); // Reset removal state
       toast.success("Settings updated successfully!");
+      refreshUser(response.data);
     } catch (error) {
       console.error("Failed to update user:", error);
       toast.error("Failed to update settings.");

@@ -16,6 +16,26 @@ export function UserProvider({ children }) {
     navigate("/login");
   }, [navigate]);
 
+  const refreshUser = useCallback(async (updatedUserData = null) => {
+    if (updatedUserData) {
+      setUser(updatedUserData);
+      return;
+    }
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        const response = await getUser(decoded.user_id);
+        setUser(response.data);
+      } catch (error) {
+        console.error("Failed to refresh user:", error);
+        if (error.response?.status === 401) {
+          handleLogout();
+        }
+      }
+    }
+  }, [handleLogout]);
+
   useEffect(() => {
     let isMounted = true;
     const fetchUser = async () => {
@@ -39,7 +59,7 @@ export function UserProvider({ children }) {
     return () => { isMounted = false; };
   }, [handleLogout]);
 
-  const value = { user, handleLogout };
+  const value = { user, handleLogout, refreshUser };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }

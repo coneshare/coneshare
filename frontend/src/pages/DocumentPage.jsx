@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useUser } from '../contexts/UserProvider';
 import { toast } from 'sonner';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Loader2, AlertTriangle } from 'lucide-react';
@@ -19,6 +20,7 @@ export function DocumentPage() {
   const { documentId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { setBreadcrumbData } = useBreadcrumb();
+  const { refreshUser } = useUser();
   const navigate = useNavigate();
   const [document, setDocument] = useState(null);
   const [stats, setStats] = useState(null);
@@ -270,6 +272,7 @@ export function DocumentPage() {
     try {
       await deleteDocument(documentId);
       toast.success(`Document "${document.name}" deleted.`);
+      refreshUser(); // Refresh user quota
       navigate('/documents');
     } catch (error) {
       // The API interceptor will show a more specific error message.
@@ -285,6 +288,7 @@ export function DocumentPage() {
     try {
       const response = await uploadNewVersion(documentId, file);
       toast.success('New version uploaded successfully. Processing has started.', { id: toastId });
+      refreshUser(); // Refresh user quota
       setDocument(prev => {
         if (!prev) return null;
         return {
@@ -371,6 +375,7 @@ export function DocumentPage() {
     try {
       const response = await importCloudVersion(documentId, { connectionId, fileId, fileName, fileSize });
       toast.success('New cloud version import started successfully. Processing has begun.', { id: toastId });
+      refreshUser(); // Refresh user quota
       setDocument(prev => {
         if (!prev) return null;
         return {
@@ -390,6 +395,7 @@ export function DocumentPage() {
     try {
       const response = await refreshCloudDocument(documentId);
       toast.success('Sync started. The document is being updated in the background.', { id: toastId });
+      refreshUser(); // Refresh user quota
       setDocument(prev => {
         if (!prev) return null;
         return {

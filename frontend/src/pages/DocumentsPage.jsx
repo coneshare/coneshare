@@ -43,7 +43,7 @@ function DocumentsPage() {
   const [isFileRequestSheetOpen, setIsFileRequestSheetOpen] = useState(false);
   const [selectedFolderForRequest, setSelectedFolderForRequest] = useState(null);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
-  const { user } = useUser();
+  const { user, refreshUser } = useUser();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
@@ -127,11 +127,12 @@ function DocumentsPage() {
       await copyDocument(item.id);
       toast.success(`"${item.name}" was copied successfully.`, { id: toastId });
       fetchData(); // Refresh list
+      refreshUser(); // Refresh user quota
     } catch (error) {
       // API interceptor will show an error toast.
       toast.dismiss(toastId);
     }
-  }, [fetchData]);
+  }, [fetchData, refreshUser]);
 
   useEffect(() => {
     setSelection({ documents: [], folders: [] });
@@ -250,6 +251,7 @@ function DocumentsPage() {
     setIsBulkDeleteConfirmOpen(false);
     setSelection({ documents: [], folders: [] }); // Clear selection
     fetchData(); // Refresh data
+    refreshUser(); // Refresh user quota
   };
 
   const handleMoveItems = async (destinationFolderId) => {
@@ -392,6 +394,7 @@ function DocumentsPage() {
 
     if (successfulUploads > 0) {
       fetchData(); // Refresh data if at least one upload succeeded
+      refreshUser(); // Refresh user quota
     }
   };
 
@@ -439,7 +442,10 @@ function DocumentsPage() {
         onOpenChange={setIsCloudImportOpen}
         provider={activeCloudImport?.provider}
         connection={activeCloudImport?.connection}
-        onImportSuccess={fetchData}
+        onImportSuccess={() => {
+          fetchData();
+          refreshUser();
+        }}
       />
       <AddFolderDialog
         isOpen={isAddFolderOpen}
@@ -553,7 +559,10 @@ function DocumentsPage() {
       <DocumentsList
         allItems={allItems}
         loading={loading}
-        onDataRefresh={fetchData}
+        onDataRefresh={() => {
+          fetchData();
+          refreshUser();
+        }}
         onFilesDrop={handleFileUploads}
         selectedDocuments={selection.documents}
         selectedFolders={selection.folders}
