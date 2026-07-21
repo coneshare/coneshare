@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
 
-from documents.views import StandardResultsSetPagination
+from core.pagination import StandardResultsSetPagination
 from sharelinks.models import ShareLink, ViewSession
 from sharelinks.serializers import ShareLinkSerializer, ViewSessionSerializer
 

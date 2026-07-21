@@ -11,10 +11,11 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException, PermissionDenied
-from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
+
+from core.pagination import StandardResultsSetPagination
 
 
 from .models import (Document, Folder, DocumentVersion)
@@ -41,11 +42,6 @@ from .services import (
 
 logger = logging.getLogger(__name__)
 
-
-class StandardResultsSetPagination(PageNumberPagination):
-    page_size = 10
-    page_size_query_param = 'page_size'
-    max_page_size = 1000
 
 
 def _get_folder_from_path(requesting_user, folder_path: str) -> Folder | None:

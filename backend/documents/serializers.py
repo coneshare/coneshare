@@ -207,6 +207,7 @@ class DocumentSerializer(serializers.ModelSerializer):
     uploader_info = serializers.SerializerMethodField()
     share_link_view_count = serializers.SerializerMethodField()
     cloud_import = serializers.SerializerMethodField()
+    download_only = serializers.BooleanField(source='is_download_only', read_only=True)
     # parent folder this document belongs to.
     # TODO: we may need to explict pass parent folder to this serialier for performance consideration.
     # XXX: why default=RootFolderDefault()? Even though required=False tells the serializer that the client does not

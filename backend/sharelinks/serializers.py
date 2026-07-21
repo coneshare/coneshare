@@ -313,7 +313,7 @@ class ShareLinkSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     "Watermarking is not supported for video files."
                 )
-            if document.download_only:
+            if document.is_download_only:
                 data['allow_download'] = True
 
         # Manually handle uniqueness validation on update only.

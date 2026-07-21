@@ -13,7 +13,7 @@ from rest_framework import serializers
 from drf_spectacular.utils import extend_schema
 
 from backend.utils import get_client_ip
-from documents.views import StandardResultsSetPagination
+from core.pagination import StandardResultsSetPagination
 from documents.services import (
     QuotaExceededError,
     check_user_quota_on_upload,

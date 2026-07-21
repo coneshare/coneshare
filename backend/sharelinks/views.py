@@ -40,7 +40,8 @@ from documents.services import (
     preview_mode_for_version,
     preview_status_for_render_status,
 )
-from documents.views import StandardResultsSetPagination, prepare_pages_data
+from core.pagination import StandardResultsSetPagination
+from documents.views import prepare_pages_data
 from automations.tasks import dispatch_automation_event_task
 from .models import (DataroomVisit, EmailVerificationToken, PreviewSession,
                      QnAMessage, QnAThread, ShareLink,
@@ -906,7 +907,7 @@ class ShareLinkViewDataView(APIView):
                 "name": (dataroom_setting.dataroom_document.name or document.name) if dataroom_setting else document.name,
                 "type": document.type,
                 "num_pages": document.num_pages,
-                "download_only": document.download_only,
+                "download_only": document.is_download_only,
                 "file_size": primary_version.file_size if primary_version else None,
                 "preview_mode": preview_mode,
                 "preview_status": preview_status,
