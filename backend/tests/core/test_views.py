@@ -168,6 +168,34 @@ class TestUserViewSetPermissions:
         assert other_org_user.name != 'Updated by Admin'
 
 
+    def test_admin_can_update_custom_quota(self, api_client, admin_user, user):
+        """An admin can update another user's custom file size quota in the same org."""
+        api_client.force_authenticate(user=admin_user)
+        
+        # 1. Update custom quota to 123MB
+        data = {'custom_file_size_quota_mb': 123}
+        response = api_client.patch(f'/api/v1/admin/users/{user.id}/', data, format='json')
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['custom_file_size_quota_mb'] == 123
+        user.refresh_from_db()
+        assert user.custom_file_size_quota_mb == 123
+        assert user.effective_file_size_quota_mb == 123
+
+        # 2. Reset custom quota to null
+        data = {'custom_file_size_quota_mb': None}
+        response = api_client.patch(f'/api/v1/admin/users/{user.id}/', data, format='json')
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['custom_file_size_quota_mb'] is None
+        user.refresh_from_db()
+        assert user.custom_file_size_quota_mb is None
+
+        # 3. Try to set a negative quota (fails)
+        data = {'custom_file_size_quota_mb': -5}
+        response = api_client.patch(f'/api/v1/admin/users/{user.id}/', data, format='json')
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'custom_file_size_quota_mb' in response.data
+
+
 @pytest.mark.django_db
 class TestUserViewSetQueryset:
     def test_user_list_only_shows_self(self, api_client, user, user2):

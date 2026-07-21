@@ -50,7 +50,7 @@ def check_user_quota_on_upload(user: User, new_file_size: int, document_to_updat
     Checks if a new upload would exceed the user's file size quota.
     Raises a QuotaExceededError if the quota is exceeded.
     """
-    file_size_quota_mb = get_dynamic_setting('FILE_SIZE_QUOTA_MB')
+    file_size_quota_mb = user.effective_file_size_quota_mb
     if file_size_quota_mb == 0:
         return  # 0 means unlimited quota
 

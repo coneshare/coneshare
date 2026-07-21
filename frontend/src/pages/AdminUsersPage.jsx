@@ -20,6 +20,7 @@ function AddUserForm({ onAddUser, onCancel }) {
     name: '',
     password: '',
     role: 'member',
+    custom_file_size_quota_mb: '',
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -32,7 +33,11 @@ function AddUserForm({ onAddUser, onCancel }) {
     e.preventDefault();
     setIsSaving(true);
     try {
-      await onAddUser(formData);
+      const payload = {
+        ...formData,
+        custom_file_size_quota_mb: formData.custom_file_size_quota_mb === '' ? null : parseInt(formData.custom_file_size_quota_mb, 10),
+      };
+      await onAddUser(payload);
     } finally {
       setIsSaving(false);
     }
@@ -98,6 +103,34 @@ function AddUserForm({ onAddUser, onCancel }) {
               onChange={handleChange}
               required
               minLength={3}
+            />
+          </div>
+          <div>
+            <label htmlFor="role" className="mb-1 block text-sm font-medium">
+              Role
+            </label>
+            <Select
+              id="role"
+              name="role"
+              value={formData.role}
+              onChange={handleChange}
+            >
+              <option value="member">Member</option>
+              <option value="admin">Admin</option>
+            </Select>
+          </div>
+          <div>
+            <label htmlFor="custom_file_size_quota_mb" className="mb-1 block text-sm font-medium">
+              Storage Quota (MB)
+            </label>
+            <Input
+              id="custom_file_size_quota_mb"
+              name="custom_file_size_quota_mb"
+              type="number"
+              placeholder="Default (from settings)"
+              value={formData.custom_file_size_quota_mb}
+              onChange={handleChange}
+              min="0"
             />
           </div>
         </div>
@@ -235,7 +268,12 @@ export function AdminUsersPage() {
 
   const handleEdit = (user) => {
     setEditingUserId(user.id);
-    setEditedUserData({ name: user.name, role: user.role, is_active: user.is_active });
+    setEditedUserData({
+      name: user.name,
+      role: user.role,
+      is_active: user.is_active,
+      custom_file_size_quota_mb: user.custom_file_size_quota_mb !== null ? String(user.custom_file_size_quota_mb) : '',
+    });
   };
 
   const handleCancel = () => {
@@ -257,6 +295,11 @@ export function AdminUsersPage() {
     const { name, value } = e.target;
     if (name === 'is_active') {
       setEditedUserData((prev) => ({ ...prev, [name]: value === 'true' }));
+    } else if (name === 'custom_file_size_quota_mb') {
+      setEditedUserData((prev) => ({
+        ...prev,
+        [name]: value === '' ? null : parseInt(value, 10),
+      }));
     } else {
       setEditedUserData((prev) => ({ ...prev, [name]: value }));
     }
@@ -340,7 +383,18 @@ export function AdminUsersPage() {
                         </Select>
                       </td>
                       <td className="p-4">
-                        <UserStorageUsage user={user} />
+                        <div className="flex items-center gap-1.5">
+                          <Input
+                            name="custom_file_size_quota_mb"
+                            type="number"
+                            placeholder="Default"
+                            value={editedUserData.custom_file_size_quota_mb ?? ''}
+                            onChange={handleEditDataChange}
+                            className="w-24 text-sm"
+                            min="0"
+                          />
+                          <span className="text-xs text-muted-foreground">MB</span>
+                        </div>
                       </td>
                       <td className="p-4 text-muted-foreground">
                         {new Date(user.date_joined).toLocaleDateString()}
@@ -351,6 +405,7 @@ export function AdminUsersPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleSave(user.id)}
+                            title="Save"
                           >
                             <Check className="h-5 w-5" />
                           </Button>
@@ -358,6 +413,7 @@ export function AdminUsersPage() {
                             variant="ghost"
                             size="icon"
                             onClick={handleCancel}
+                            title="Cancel"
                           >
                             <X className="h-5 w-5" />
                           </Button>
@@ -400,6 +456,7 @@ export function AdminUsersPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleEdit(user)}
+                            title="Edit User"
                           >
                             <Pencil className="h-5 w-5" />
                           </Button>
@@ -407,6 +464,7 @@ export function AdminUsersPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => setUserToDelete(user)}
+                            title="Delete User"
                           >
                             <Trash2 className="h-5 w-5" />
                           </Button>

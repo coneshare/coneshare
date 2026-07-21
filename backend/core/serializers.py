@@ -72,12 +72,17 @@ class UserSerializer(serializers.ModelSerializer):
     file_size_quota_mb = serializers.SerializerMethodField()
     max_files_per_upload = serializers.SerializerMethodField()
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._global_quota_mb = None
+        self._max_files_per_upload = None
+
     class Meta:
         model = User
         fields = [
             'id', 'email', 'name', 'role', 'organization', 'password',
             'avatar', 'avatar_url', 'date_joined', 'updated_at',
-            'total_document_size', 'file_size_quota_mb', 'max_files_per_upload',
+            'total_document_size', 'file_size_quota_mb', 'custom_file_size_quota_mb', 'max_files_per_upload',
             'is_superuser', 'is_active'
         ]
         read_only_fields = [
@@ -98,11 +103,22 @@ class UserSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.IntegerField())
     def get_file_size_quota_mb(self, obj) -> int:
-        return get_dynamic_setting('FILE_SIZE_QUOTA_MB')
+        if obj.custom_file_size_quota_mb is not None:
+            return obj.custom_file_size_quota_mb
+        if self._global_quota_mb is None:
+            self._global_quota_mb = get_dynamic_setting('FILE_SIZE_QUOTA_MB')
+        return self._global_quota_mb
 
     @extend_schema_field(serializers.IntegerField())
     def get_max_files_per_upload(self, obj) -> int:
-        return get_dynamic_setting('MAX_FILES_PER_UPLOAD')
+        if self._max_files_per_upload is None:
+            self._max_files_per_upload = get_dynamic_setting('MAX_FILES_PER_UPLOAD')
+        return self._max_files_per_upload
+
+    def validate_custom_file_size_quota_mb(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError("Custom file size quota cannot be negative.")
+        return value
 
     def validate_password(self, value):
         try:
