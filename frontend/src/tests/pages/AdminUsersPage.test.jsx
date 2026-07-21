@@ -12,6 +12,16 @@ vi.mock('../../services/api', () => ({
   deleteAdminUser: vi.fn(),
 }));
 
+vi.mock('../../components/ui/Pagination', () => ({
+  Pagination: ({ currentPage, totalPages, onPageChange }) =>
+    totalPages > 1 ? (
+      <div>
+        <span>Page {currentPage} of {totalPages}</span>
+        <button onClick={() => onPageChange(currentPage + 1)}>Next</button>
+      </div>
+    ) : null,
+}));
+
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
@@ -49,6 +59,7 @@ describe('AdminUsersPage', () => {
     vi.resetAllMocks();
     api.getAdminUsers.mockResolvedValue({
       data: {
+        count: 2,
         results: mockUsers,
       },
     });
@@ -175,6 +186,35 @@ describe('AdminUsersPage', () => {
         custom_file_size_quota_mb: 300,
       });
       expect(toast.success).toHaveBeenCalledWith("User 'Charlie Brown' created successfully.");
+    });
+  });
+
+  it('renders pagination controls and fetches the next page on click', async () => {
+    // Set count > pageSize (10) so that pagination is triggered
+    api.getAdminUsers.mockResolvedValue({
+      data: {
+        count: 25,
+        results: mockUsers,
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <AdminUsersPage />
+      </MemoryRouter>
+    );
+
+    // Wait for the initial page to load
+    await screen.findByText('Alice Smith');
+
+    // Pagination should be visible since count (25) > pageSize (10)
+    expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
+
+    // Click "Next" to go to page 2
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    await waitFor(() => {
+      expect(api.getAdminUsers).toHaveBeenCalledWith(2);
     });
   });
 });
