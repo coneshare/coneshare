@@ -906,7 +906,7 @@ class ShareLinkViewDataView(APIView):
                 "name": (dataroom_setting.dataroom_document.name or document.name) if dataroom_setting else document.name,
                 "type": document.type,
                 "num_pages": document.num_pages,
-                "download_only": document.download_only,
+                "download_only": document.is_download_only,
                 "file_size": primary_version.file_size if primary_version else None,
                 "preview_mode": preview_mode,
                 "preview_status": preview_status,

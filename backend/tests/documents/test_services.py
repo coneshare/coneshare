@@ -324,6 +324,41 @@ class TestPreviewModeServices:
         with override_settings(ENABLE_VIDEO_PREVIEW=True):
             assert preview_mode_for_version(version2) == 'download_only'
 
+    @patch('documents.models.get_dynamic_setting')
+    def test_dynamic_is_download_only_video_respects_limit(self, mock_get_setting, user):
+        def side_effect(key, default=None):
+            if key == 'MAX_PREVIEW_FILE_SIZE_MB':
+                return 100
+            if key == 'MAX_VIDEO_PREVIEW_SIZE_MB':
+                return 500
+            return default
+        mock_get_setting.side_effect = side_effect
+
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            type='video',
+            file_size=600 * 1024 * 1024, # 600MB
+            download_only=False,
+        )
+
+        with override_settings(ENABLE_VIDEO_PREVIEW=True):
+            # Over the 500MB limit, so download_only should be True dynamically
+            assert doc.is_download_only is True
+
+        # Increase limit to 1000MB
+        def side_effect_large(key, default=None):
+            if key == 'MAX_PREVIEW_FILE_SIZE_MB':
+                return 100
+            if key == 'MAX_VIDEO_PREVIEW_SIZE_MB':
+                return 1000
+            return default
+        mock_get_setting.side_effect = side_effect_large
+
+        with override_settings(ENABLE_VIDEO_PREVIEW=True):
+            # Within the new 1000MB limit, so download_only should be False dynamically
+            assert doc.is_download_only is False
+
 
 @pytest.mark.django_db
 class TestPromoteDocumentVersion:

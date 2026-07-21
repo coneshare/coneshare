@@ -1,7 +1,9 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.conf import settings
 
 from core.models import BaseModel, Organization, User
+from core.services import get_dynamic_setting
 
 
 class FolderManager(models.Manager):
@@ -77,6 +79,38 @@ class Document(BaseModel):
 
     def __str__(self):
         return self.name
+
+    @property
+    def is_download_only(self) -> bool:
+        """
+        Dynamically calculates whether the document can only be downloaded.
+        Checks file type limits and enabled settings in real-time.
+        """
+        # 1. Unsupported raw files
+        if self.type == 'file':
+            return True
+
+        # 2. Videos
+        if self.type == 'video':
+            if not getattr(settings, 'ENABLE_VIDEO_PREVIEW', False):
+                return True
+            max_video_size = get_dynamic_setting('MAX_VIDEO_PREVIEW_SIZE_MB')
+            return bool(self.file_size and self.file_size > (max_video_size * 1024 * 1024))
+
+        # 3. Office Documents
+        if self.type == 'document':
+            if not getattr(settings, 'ENABLE_OFFICE_PREVIEW', False):
+                return True
+            max_preview_size = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
+            return bool(self.file_size and self.file_size > (max_preview_size * 1024 * 1024))
+
+        # 4. PDF Documents
+        if self.type == 'pdf':
+            max_preview_size = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
+            return bool(self.file_size and self.file_size > (max_preview_size * 1024 * 1024))
+
+        # Fallback to the persisted DB column (e.g., images, manually overridden status)
+        return self.download_only
 
     def save(self, *args, **kwargs):
         if self._state.adding and not self.folder_id:

@@ -1,4 +1,6 @@
 import pytest
+from unittest.mock import patch
+from django.test import override_settings
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, force_authenticate
 
@@ -165,6 +167,44 @@ class TestDocumentSerializer:
         serializer = DocumentSerializer(instance=doc_from_db, context=serializer_context)
         with django_assert_num_queries(1):
             assert serializer.get_share_link_view_count(doc_from_db) == 1
+
+    @patch('documents.models.get_dynamic_setting')
+    def test_document_serializer_download_only_dynamic(self, mock_get_setting, user, organization, serializer_context):
+        def side_effect(key, default=None):
+            if key == 'MAX_PREVIEW_FILE_SIZE_MB':
+                return 100
+            if key == 'MAX_VIDEO_PREVIEW_SIZE_MB':
+                return 500
+            return default
+        mock_get_setting.side_effect = side_effect
+
+        doc = Document.objects.create(
+            organization=organization,
+            name="Video Doc.mp4",
+            type="video",
+            created_by=user,
+            file_size=600 * 1024 * 1024,  # 600MB
+            download_only=False,
+        )
+
+        with override_settings(ENABLE_VIDEO_PREVIEW=True):
+            serializer = DocumentSerializer(instance=doc, context=serializer_context)
+            # 600MB is over the 500MB limit, so download_only should be True
+            assert serializer.data['download_only'] is True
+
+        # Now raise limit to 1000MB (1GB)
+        def side_effect_large(key, default=None):
+            if key == 'MAX_PREVIEW_FILE_SIZE_MB':
+                return 100
+            if key == 'MAX_VIDEO_PREVIEW_SIZE_MB':
+                return 1000
+            return default
+        mock_get_setting.side_effect = side_effect_large
+
+        with override_settings(ENABLE_VIDEO_PREVIEW=True):
+            serializer = DocumentSerializer(instance=doc, context=serializer_context)
+            # 600MB is within the new 1000MB limit, so download_only should be False
+            assert serializer.data['download_only'] is False
 
 
 class TestDocumentVersionSerializers:

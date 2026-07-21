@@ -165,7 +165,7 @@ def is_server_renderable_version(version: DocumentVersion) -> bool:
     """
     document = version.document
     
-    if document.download_only:
+    if document.is_download_only:
         return False
         
     if document.type not in SERVER_RENDERABLE_TYPES or version.type not in SERVER_RENDERABLE_TYPES:
@@ -204,7 +204,7 @@ def get_effective_render_status(version: DocumentVersion) -> str:
 def preview_mode_for_version(version: DocumentVersion) -> str:
     """Choose the viewer mode from document type and server-render eligibility."""
     document = version.document
-    if document.download_only:
+    if document.is_download_only:
         return 'download_only'
         
     if document.type == 'video':
@@ -522,7 +522,7 @@ def copy_document(original_doc: Document, user: User) -> Document:
                 content_type=original_doc.content_type,
                 num_pages=original_doc.num_pages,
                 file_size=original_doc.file_size,
-                download_only=original_doc.download_only,
+                download_only=original_doc.is_download_only,
                 assistant_enabled=original_doc.assistant_enabled,
                 is_starred=False,
                 created_by=user,
