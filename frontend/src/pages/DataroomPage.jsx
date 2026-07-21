@@ -887,20 +887,6 @@ export function DataroomPage() {
               </div>
             )}
           </div>
-          {!hasContent ? (
-            <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted bg-muted/20 p-12 text-center">
-              <h3 className="text-xl font-semibold tracking-tight">
-                {currentDataroomFolder ? 'This folder is empty' : 'This dataroom is empty'}
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                A Dataroom is a place to securely organize and share documents with granular access control.
-              </p>
-              <Button className="mt-4" variant="outline" onClick={() => setIsAddContentOpen(true)}>
-                <DocumentPlusIcon className="mr-2 h-4 w-4" />
-                Add Content
-              </Button>
-            </div>
-          ) : (
             <DocumentsList
               allItems={allItems}
               loading={isLoading}
@@ -910,6 +896,7 @@ export function DataroomPage() {
               showIndex={showFileIndex}
               onItemClick={handleItemClick}
               onItemSelect={handleItemSelect}
+              onFilesDrop={handleFileUploads}
               selectedDocuments={selection.documents}
               selectedFolders={selection.folders}
               onSort={handleSort}
@@ -918,8 +905,21 @@ export function DataroomPage() {
               onDelete={handleRemoveItem}
               onToggleStar={handleToggleStar}
               viewsTooltip="Views from opening this item inside this dataroom."
+              emptyState={
+                <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted bg-muted/20 p-12 text-center my-4">
+                  <h3 className="text-xl font-semibold tracking-tight">
+                    {currentDataroomFolder ? 'This folder is empty' : 'This dataroom is empty'}
+                  </h3>
+                  <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
+                    Drag and drop files or folders here, or use the "Add Content" button to securely organize and share documents with granular access control.
+                  </p>
+                  <Button className="mt-4" variant="outline" onClick={() => setIsAddContentOpen(true)}>
+                    <DocumentPlusIcon className="mr-2 h-4 w-4" />
+                    Add Content
+                  </Button>
+                </div>
+              }
             />
-          )}
         </TabsContent>
         <TabsContent value="links" className="mt-6">
           <LinksTable

@@ -228,3 +228,13 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Resolution/Action:** Relocated `StandardResultsSetPagination` from `documents.views` to `core.pagination.py` and redirected all backend views to utilize the new core import path. This ensures all feature apps can safely import from core modules at the file-module level.
 
 
+### 2026-07-21 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** Standard HTML5 Drag-and-Drop does not populate `webkitRelativePath` on dropped files from folders. Additionally, rendering `<DocumentsList />` without an `onFilesDrop` handler prop (e.g. read-only list states or missing props) crashes the app with a `TypeError` on file drops, and rendering static empty placeholders outside the list component or having a small number of items restricts the height of the drop zone, making it difficult to drop files.
+- **Resolution/Action:** 
+  1. Integrated the `getFilesFromEvent` callback in `react-dropzone` within [DocumentsList.jsx](file:///Users/xiez/coneshare/frontend/src/components/documents/DocumentsList.jsx) to recursively traverse dropped folder structures via `webkitGetAsEntry` and custom-emulate `webkitRelativePath` on files.
+  2. Guarded the `onDrop` handler in the list component and configured the dropzone hook to auto-disable itself when `onFilesDrop` is not provided (`disabled: isReadOnly || !onFilesDrop`).
+  3. Added an `emptyState` prop to `DocumentsList` to render custom empty placeholder nodes inside the dropzone container.
+  4. Hooked up the missing `onFilesDrop={handleFileUploads}` handler and passed the empty state view to the `emptyState` prop in [DataroomPage.jsx](file:///Users/xiez/coneshare/frontend/src/pages/DataroomPage.jsx) while rendering the list container unconditionally.
+  5. Added `min-h-[400px] pb-8` to the `<DocumentsList />` dropzone wrapper to guarantee a spacious drop target, and placed `border-b` on the actual rows container (and loading skeleton container) instead of the outer dropzone wrapper to avoid floating lines on empty states and short lists.
+  6. Updated [EmptyDocuments.jsx](file:///Users/xiez/coneshare/frontend/src/components/documents/EmptyDocuments.jsx) and the dataroom empty state inside [DataroomPage.jsx](file:///Users/xiez/coneshare/frontend/src/pages/DataroomPage.jsx) visual text instructions to explicitly notify users about the drag-and-drop capability.

@@ -12,8 +12,8 @@ The document list is a composite component built from several specialized child 
 -   **Role**: The main container component that orchestrates the entire list view.
 -   **Responsibilities**:
     -   Renders the `DocumentsListHeader` and the list of `DraggableItem` components.
-    -   Handles the main drop zone for file and folder uploads via `react-dropzone`.
-    -   Displays loading skeletons and the "empty state" component.
+    -   Hosts a unified drop zone for file and folder uploads via `react-dropzone` (configured with recursive Directory Entries API parsing).
+    -   Displays loading skeletons and supports a custom `emptyState` component prop.
     -   Hosts internal rename/delete dialogs when external handlers are not provided.
 
 ### 2. `DocumentsListHeader.jsx`
@@ -70,3 +70,21 @@ Several critical decisions were made to simplify row interactions and make multi
 -   Selected rows use stronger background styling for clearer state visibility.
 -   Hover background does not override selected background.
 -   File/folder icons are non-shrinking so long names truncate while icon size remains stable.
+
+### 6. Recursive Drag-and-Drop (Files & Folders) with Path Emulation
+
+-   **Problem**: Browsers do not set `webkitRelativePath` on files dropped from folders via Drag-and-Drop (it defaults to `""`). Directly passing dropped files to the V1 path resolution pipeline would lose the folder structures and upload all files flat.
+-   **Solution**: Customized the `getFilesFromEvent` callback in `react-dropzone`.
+    -   Uses `webkitGetAsEntry()` to check if a dropped item is a directory.
+    -   Recursively reads sub-directories in batches (`readEntries` chunking) to prevent Chrome/Safari entry list truncation.
+    -   Emulates `webkitRelativePath` on the parsed File objects using `Object.defineProperty`.
+    -   This maintains full backward-compatibility with the V1 path validation and folder pre-creation flow (`ensureFolderPaths` / `ensureDataroomFolderPaths`), requiring zero changes to page-level handlers or backend endpoints.
+
+### 7. Large Drop Targets & Border Isolation
+
+-   **Problem**: When a folder or dataroom is empty or contains only 1–2 files, the dropzone container collapses in height. This forces users to aim precisely at a tiny area to drag-and-drop, making it unusable. Additionally, drawing borders on a fixed-height container empty state creates floating lines.
+-   **Solution**:
+    -   Enforced a `min-h-[400px]` height on `<DocumentsList />` to guarantee a wide, comfortable dropzone.
+    -   Supported a custom `emptyState` component prop, allowing pages like `DataroomPage` to inject their empty placeholders directly *inside* the dropzone, keeping the dropzone active over empty lists.
+    -   Isolated the bottom border (`border-b`) by applying it directly to the list of items (`divide-y`) and the loading skeletons, rather than the parent dropzone container. This removes any ugly floating bottom borders when the list is empty or short.
+    -   Automatically disabled the dropzone hook (`disabled: isReadOnly || !onFilesDrop`) when no upload handler is provided or the list is read-only.
