@@ -12,6 +12,7 @@ import { Pencil, Trash2, Check, X, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatBytes } from '../lib/formatters';
 import { Progress } from '../components/ui/Progress';
+import { Pagination } from '../components/ui/Pagination';
 
 function AddUserForm({ onAddUser, onCancel }) {
   const [formData, setFormData] = useState({
@@ -212,20 +213,30 @@ export function AdminUsersPage() {
   const [userToDelete, setUserToDelete] = useState(null);
   const [editingUserId, setEditingUserId] = useState(null);
   const [editedUserData, setEditedUserData] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 10; // Corresponds to backend's StandardResultsSetPagination
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (page) => {
     setIsLoading(true);
     try {
-      const response = await api.getAdminUsers();
+      const response = await api.getAdminUsers(page);
       setUsers(response.data.results);
+      setTotalCount(response.data.count);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    fetchUsers(currentPage);
+  }, [currentPage]);
+
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
 
   const handleUpdateUser = async (userId, data) => {
     try {
@@ -476,6 +487,11 @@ export function AdminUsersPage() {
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 }

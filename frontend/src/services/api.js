@@ -661,7 +661,7 @@ export const updateAdminBranding = (data) => api.patch('/admin/organization/', d
 });
 export const getAdminSettings = () => api.get('/admin/settings/');
 export const updateAdminSetting = (key, value) => api.patch(`/admin/settings/${key}/`, { value });
-export const getAdminUsers = () => api.get('/admin/users/');
+export const getAdminUsers = (page = 1) => api.get(`/admin/users/?page=${page}`);
 export const getAdminUserDetails = (id) => api.get(`/admin/users/${id}/`);
 export const getAdminUserShareLinks = (id, page = 1) => api.get(`/admin/users/${id}/share-links/?page=${page}`);
 export const getAdminUserDatarooms = (id, page = 1) => api.get(`/admin/users/${id}/datarooms/?page=${page}`);
