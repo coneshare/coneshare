@@ -66,7 +66,7 @@ def ensure_default_email_automation(owner: User, organization: Organization):
                 'is_active': True
             }
         )
-        if created_rule:
+        if not rule.destinations.filter(id=destination.id).exists():
             rule.destinations.add(destination)
     except Exception as e:
         logger.warning('Failed to provision default email rule for owner_id=%s: %s', owner.id, e)

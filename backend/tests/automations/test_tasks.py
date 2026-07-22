@@ -632,3 +632,34 @@ def test_deliver_task_email_concurrency_race_condition(mock_send_mail, user, sha
     # Assert that no email was sent because CAS update matching status=PENDING returned 0 updated rows
     mock_send_mail.assert_not_called()
 
+
+@patch('automations.tasks.deliver_automation_delivery_task.apply_async')
+def test_deliver_task_email_destination_debounced_reschedules_retry(mock_apply_async, user, share_link):
+    share_link.receive_email_notification = True
+    share_link.save()
+
+    delivery = _make_delivery(user, share_link)
+    delivery.destination.destination_type = 'email'
+    delivery.destination.save(update_fields=['destination_type'])
+
+    # Set payload with view_session_id to trigger debouncing branch (creation time is now, time_since_latest < 60s)
+    delivery.payload = {
+        'organization_id': str(user.organization.id),
+        'share_link_id': str(share_link.id),
+        'view_session_id': 'sess-debounce-test',
+        'document_name': 'Financial_Statement.pdf',
+    }
+    delivery.save(update_fields=['payload'])
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    # Assert delivery remains PENDING (debounced)
+    delivery.refresh_from_db()
+    assert delivery.status == AutomationDelivery.Status.PENDING
+
+    # Assert apply_async was called to reschedule task retry with a countdown
+    mock_apply_async.assert_called_once()
+    _, kwargs = mock_apply_async.call_args
+    assert kwargs.get('countdown') >= 5
+
+

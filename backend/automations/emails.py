@@ -14,6 +14,8 @@ from sharelinks.models import ShareLink, PageView, ViewSession
 from automations.models import AutomationDelivery
 from backend.utils import parse_user_agent
 from .constants import EMAIL_COALESCE_DEBOUNCE_SECONDS
+# Import module reference directly to prevent circular import errors with tasks.py
+from . import tasks
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +34,6 @@ def _build_notification_headline(viewer: str, target_type: str, target_name: str
         if has_downloads:
             return f'{actor} downloaded the document "{target_name}"'
         return f'{actor} viewed the document "{target_name}"'
-
 
 
 def _get_session_completion_stats(view_session_id: str, since_datetime=None) -> dict:
@@ -116,8 +117,6 @@ def _build_show_details_url(payload: dict) -> str:
 
 
 def _send_coalesced_session_email(owner, recipient_email: str, view_session_id: str, pending_deliveries: list, first_delivery: AutomationDelivery):
-    from .tasks import _mark_failure_and_retry
-    
     payload = first_delivery.payload or {}
 
     # Build coalesced context
@@ -222,22 +221,20 @@ def _send_coalesced_session_email(owner, recipient_email: str, view_session_id: 
         # Revert PROCESSING status on failure so it can retry
         with transaction.atomic():
             for d in pending_deliveries:
-                _mark_failure_and_retry(d, f'Failed to send email: {e}')
+                tasks._mark_failure_and_retry(d, f'Failed to send email: {e}')
 
 
 def _send_standard_fallback_email(owner, recipient_email: str, delivery: AutomationDelivery):
-    from .tasks import _target_description, _build_event_sentence, _display_actor, _mark_success_direct, _mark_failure_and_retry
-    
     payload = delivery.payload or {}
-    target = _target_description(payload)
+    target = tasks._target_description(payload)
     event_type = delivery.event_type
-    event_text = _build_event_sentence(event_type, payload)
+    event_text = tasks._build_event_sentence(event_type, payload)
     viewer_email = payload.get('viewer_email') or "Anonymous"
 
     # Determine standard fallback headline
     headline = f"Activity alert: {target}"
     if event_type == 'file_request_uploaded':
-        uploader = _display_actor(payload.get('uploaded_by_name'), payload.get('uploaded_by_email'), fallback="Someone")
+        uploader = tasks._display_actor(payload.get('uploaded_by_name'), payload.get('uploaded_by_email'), fallback="Someone")
         req_name = payload.get('file_request_name') or "file request"
         headline = f'{uploader} uploaded a file to your file request "{req_name}"'
     elif event_type == 'file_request_malware_detected':
@@ -293,10 +290,10 @@ def _send_standard_fallback_email(owner, recipient_email: str, delivery: Automat
             html_message=html_content
         )
         logger.info('Sent notification email to %s for delivery %s.', recipient_email, delivery.id)
-        _mark_success_direct(delivery, f'Sent email successfully to {recipient_email}')
+        tasks._mark_success_direct(delivery, f'Sent email successfully to {recipient_email}')
     except Exception as e:
         logger.error('Failed to send email notification for delivery %s: %s', delivery.id, e)
-        _mark_failure_and_retry(delivery, f'Failed to send email: {e}')
+        tasks._mark_failure_and_retry(delivery, f'Failed to send email: {e}')
 
 
 def handle_email_delivery(delivery: AutomationDelivery):
@@ -309,8 +306,7 @@ def handle_email_delivery(delivery: AutomationDelivery):
     owner = delivery.rule.created_by
     if not owner or not owner.email:
         logger.warning('Automation delivery skipped: owner has no email address: delivery_id=%s', delivery.id)
-        from .tasks import _mark_non_retryable_failure
-        _mark_non_retryable_failure(delivery, 'Owner has no email address.')
+        tasks._mark_non_retryable_failure(delivery, 'Owner has no email address.')
         return
     recipient_email = owner.email
 
@@ -322,8 +318,7 @@ def handle_email_delivery(delivery: AutomationDelivery):
             share_link = ShareLink.objects.filter(id=share_link_id).first()
             if share_link and not share_link.receive_email_notification:
                 logger.info('Skipping email alert: notifications disabled for link %s', share_link_id)
-                from .tasks import _mark_success_direct
-                _mark_success_direct(delivery, 'Skipped: receive_email_notification is False on ShareLink.')
+                tasks._mark_success_direct(delivery, 'Skipped: receive_email_notification is False on ShareLink.')
                 return
         except Exception as e:
             logger.warning('Failed to query ShareLink for notification check: %s', e)
@@ -349,9 +344,8 @@ def handle_email_delivery(delivery: AutomationDelivery):
             latest_delivery = session_deliveries[-1]
             # If the latest activity was within the last 60 seconds, wait for the visitor to go idle.
             # Subsequent scheduled tasks will handle it when they fire.
-            idle_threshold_seconds = EMAIL_COALESCE_DEBOUNCE_SECONDS
             time_since_latest = (timezone.now() - latest_delivery.created_at).total_seconds()
-            if time_since_latest >= idle_threshold_seconds:
+            if time_since_latest >= EMAIL_COALESCE_DEBOUNCE_SECONDS:
                 pending_deliveries = session_deliveries
                 # Atomically update all selected deliveries to PROCESSING under the lock to claim them
                 AutomationDelivery.objects.filter(
@@ -359,10 +353,16 @@ def handle_email_delivery(delivery: AutomationDelivery):
                 ).update(status=AutomationDelivery.Status.PROCESSING)
                 should_send = True
             else:
+                remaining_seconds = max(5, int(EMAIL_COALESCE_DEBOUNCE_SECONDS - time_since_latest) + 5)
                 logger.debug(
-                    'Automation delivery debounced: visitor is still active (%s seconds since last event). view_session_id=%s',
+                    'Automation delivery debounced: visitor is still active (%s seconds since last event). Rescheduling in %s seconds. view_session_id=%s',
                     int(time_since_latest),
+                    remaining_seconds,
                     view_session_id
+                )
+                tasks.deliver_automation_delivery_task.apply_async(
+                    args=[str(delivery.id)],
+                    countdown=remaining_seconds
                 )
                 return
 
