@@ -150,6 +150,7 @@ class DataroomVisit(models.Model):
     dataroom_document = models.ForeignKey('datarooms.DataroomDocument', on_delete=models.SET_NULL, null=True, blank=True)
     dataroom_folder = models.ForeignKey('datarooms.DataroomFolder', on_delete=models.SET_NULL, null=True, blank=True)
     visited_at = models.DateTimeField(default=timezone.now)
+    downloaded_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['visited_at']

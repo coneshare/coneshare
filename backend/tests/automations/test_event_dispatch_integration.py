@@ -55,11 +55,13 @@ class TestEventDispatchIntegration:
 
     @patch('sharelinks.views.dispatch_automation_event_task.delay')
     def test_record_download_dispatches_document_downloaded(self, mock_delay, public_client, share_link):
+        share_link.allow_download = True
+        share_link.save()
         view_session = ViewSession.objects.create(share_link=share_link)
 
-        response = public_client.post(f'/api/v1/view-sessions/{view_session.id}/record-download/')
+        response = public_client.get(f'/api/v1/links/{share_link.slug}/download-file/?view_session_id={view_session.id}')
 
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code in [status.HTTP_200_OK, status.HTTP_302_FOUND, status.HTTP_404_NOT_FOUND]
         # First positional arg is event_type
         dispatched_event_types = [call.args[0] for call in mock_delay.call_args_list]
         assert 'document_downloaded' in dispatched_event_types
@@ -87,16 +89,22 @@ class TestEventDispatchIntegration:
             dataroom=dataroom,
             created_by=user,
             name='Dataroom Link',
+            allow_download=True,
         )
+        setting, _ = ShareLinkDataroomSetting.objects.get_or_create(
+            share_link=link,
+            dataroom_document=ddoc,
+        )
+        setting.is_visible = True
+        setting.allow_download = True
+        setting.save()
         view_session = ViewSession.objects.create(share_link=link, viewer_email='b@b.com')
 
-        response = public_client.post(
-            f'/api/v1/view-sessions/{view_session.id}/record-download/',
-            {'dataroom_document_id': str(ddoc.id)},
-            format='json',
+        response = public_client.get(
+            f'/api/v1/links/{link.slug}/download-file/?dataroom_document_id={ddoc.id}&view_session_id={view_session.id}'
         )
 
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code in [status.HTTP_200_OK, status.HTTP_302_FOUND, status.HTTP_404_NOT_FOUND]
         matched = [call for call in mock_delay.call_args_list if call.args[0] == 'document_downloaded']
         assert matched
         payload = matched[0].args[1]

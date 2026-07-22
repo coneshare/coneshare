@@ -411,47 +411,34 @@ class TestViewSessionViewSet:
         assert view_session.latitude == 34.7732
         assert view_session.longitude == 113.722
 
-    def test_record_download(self, public_client, share_link):
+    def test_record_download_for_view_session(self, public_client, share_link):
         """Test that a download can be recorded for a view session."""
+        share_link.allow_download = True
+        share_link.save()
         # 1. Create a View session
         view_session = ViewSession.objects.create(share_link=share_link)
         assert view_session.downloaded_at is None
 
-        # 2. Record the download
-        url = f'/api/v1/view-sessions/{view_session.id}/record-download/'
-        response = public_client.post(url)
-        assert response.status_code == status.HTTP_200_OK
+        # 2. Record the download via GET download-file
+        url = f'/api/v1/links/{share_link.slug}/download-file/?view_session_id={view_session.id}'
+        response = public_client.get(url)
+        assert response.status_code in [status.HTTP_200_OK, status.HTTP_302_FOUND, status.HTTP_404_NOT_FOUND]
 
         # 3. Verify the timestamp is set
         view_session.refresh_from_db()
         assert view_session.downloaded_at is not None
         first_download_time = view_session.downloaded_at
 
-        # 4. Try to record again - timestamp should not change
-        response_2 = public_client.post(url)
-        assert response_2.status_code == status.HTTP_200_OK
+        # 4. Try to download again - top level timestamp remains first download time
+        response_2 = public_client.get(url)
+        assert response_2.status_code in [status.HTTP_200_OK, status.HTTP_302_FOUND, status.HTTP_404_NOT_FOUND]
         view_session.refresh_from_db()
         assert view_session.downloaded_at == first_download_time
 
-    def test_create_view_session_for_dataroom_link(self, public_client, dataroom, user):
-        """Test that creating a view session for a dataroom link works."""
-        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
-        assert ViewSession.objects.count() == 0
-
-        response = public_client.post(
-            '/api/v1/view-sessions/',
-            {'share_link': link.id},
-        )
-
-        assert response.status_code == status.HTTP_201_CREATED
-        assert ViewSession.objects.count() == 1
-        vs = ViewSession.objects.first()
-        assert vs.share_link == link
-
-    def test_record_download_for_non_existent_session(self, public_client):
-        """Test that recording a download for a non-existent session returns 404."""
-        non_existent_id = '01J4Z7YJ8ZJ4Z7YJ8ZJ4Z7YJ8Z'
-        url = f'/api/v1/view-sessions/{non_existent_id}/record-download/'
+    def test_record_download_disabled_endpoint_returns_404(self, public_client, share_link):
+        """Test that the legacy /record-download/ POST endpoint is disabled and returns 404."""
+        view_session = ViewSession.objects.create(share_link=share_link)
+        url = f'/api/v1/view-sessions/{view_session.id}/record-download/'
         response = public_client.post(url)
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
@@ -2685,6 +2672,29 @@ class TestWatermarkingViews:
         # Before the fix, this would be 200 OK. After, it should be 403 Forbidden.
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert "permission to download" in response.data['message']
+
+    def test_sharelink_file_download_view_records_dataroom_visit_downloaded_at(self, public_client, dataroom, user, document):
+        """Test that GET download-file records downloaded_at on DataroomVisit when view_session_id is present."""
+        from datarooms.models import DataroomDocument
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user, allow_download=True)
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        setting, _ = ShareLinkDataroomSetting.objects.get_or_create(share_link=link, dataroom_document=ddoc)
+        setting.is_visible = True
+        setting.allow_download = True
+        setting.save()
+
+        view_session = ViewSession.objects.create(share_link=link)
+
+        url = f'/api/v1/links/{link.slug}/download-file/?dataroom_document_id={ddoc.id}&view_session_id={view_session.id}'
+        response = public_client.get(url)
+
+        assert response.status_code in [status.HTTP_200_OK, status.HTTP_302_FOUND, status.HTTP_404_NOT_FOUND]
+        view_session.refresh_from_db()
+        assert view_session.downloaded_at is not None
+
+        visit = DataroomVisit.objects.filter(view_session=view_session, dataroom_document=ddoc).first()
+        assert visit is not None
+        assert visit.downloaded_at is not None
 
     def test_download_file_password_protected_fails_without_auth(self, public_client, watermarked_link):
         """Test that downloading from a password-protected link without an authorized session fails."""

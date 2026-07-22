@@ -11,6 +11,14 @@ from documents.services import create_document_from_upload
 User = get_user_model()
 
 
+@pytest.fixture(autouse=True)
+def disable_drf_rate_limiting(settings):
+    """Disable DRF throttling during pytest runs to prevent 429 Too Many Requests in large test suites."""
+    rf_settings = settings.REST_FRAMEWORK.copy()
+    rf_settings['DEFAULT_THROTTLE_CLASSES'] = []
+    settings.REST_FRAMEWORK = rf_settings
+
+
 @pytest.fixture
 def organization(db):
     """Fixture to create a default organization."""

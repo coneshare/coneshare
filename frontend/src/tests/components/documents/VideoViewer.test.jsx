@@ -19,7 +19,6 @@ vi.mock('hls.js', () => {
 
 vi.mock('../../../services/api', () => ({
   recordPageView: vi.fn(),
-  recordDownload: vi.fn().mockResolvedValue({}),
 }));
 
 describe('VideoViewer', () => {
@@ -224,9 +223,9 @@ describe('VideoViewer', () => {
     );
   });
 
-  it('calls recordDownload with viewId and extracted dataroom_document_id', () => {
+  it('triggers download anchor click on download button click', () => {
     const downloadUrl = 'http://example.com/download?dataroom_document_id=doc_123';
-    const { container } = render(
+    render(
       <VideoViewer 
         videoUrl={videoUrl} 
         viewId={viewId} 
@@ -250,7 +249,6 @@ describe('VideoViewer', () => {
       downloadBtn.click();
     });
 
-    expect(api.recordDownload).toHaveBeenCalledWith(viewId, 'doc_123');
     expect(mockClick).toHaveBeenCalled();
 
     document.createElement.mockRestore();

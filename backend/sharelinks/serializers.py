@@ -61,9 +61,10 @@ class DataroomVisitSerializer(serializers.ModelSerializer):
     class Meta:
         model = DataroomVisit
         fields = [
-            'id', 'visited_at', 'dataroom_document_id', 'dataroom_folder_id',
+            'id', 'visited_at', 'downloaded_at', 'dataroom_document_id', 'dataroom_folder_id',
             'dataroom_document_name', 'dataroom_document_type', 'dataroom_folder_name', 'page_views', 'link_clicks'
         ]
+        read_only_fields = ['id', 'visited_at', 'downloaded_at']
 
 
 class ShareLinkDataroomSettingSerializer(serializers.ModelSerializer):

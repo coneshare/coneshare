@@ -2475,9 +2475,29 @@ class ShareLinkFileDownloadView(APIView):
         if view_session_id:
             try:
                 view_session = ViewSession.objects.get(id=view_session_id, share_link=link)
+                now = timezone.now()
                 if not view_session.downloaded_at:
-                    view_session.downloaded_at = timezone.now()
+                    view_session.downloaded_at = now
                     view_session.save(update_fields=['downloaded_at'])
+
+                dataroom_document_id = request.query_params.get('dataroom_document_id')
+                if link.dataroom_id and dataroom_document_id:
+                    visit = DataroomVisit.objects.filter(
+                        view_session=view_session,
+                        dataroom_document_id=dataroom_document_id
+                    ).order_by('-visited_at').first()
+
+                    if not visit:
+                        visit = DataroomVisit.objects.create(
+                            view_session=view_session,
+                            dataroom_document_id=dataroom_document_id,
+                            visited_at=now,
+                            downloaded_at=now,
+                        )
+                    elif visit.downloaded_at is None:
+                        visit.downloaded_at = now
+                        visit.save(update_fields=['downloaded_at'])
+
                 _dispatch_automation_event(
                     link,
                     'document_downloaded',
@@ -2676,9 +2696,27 @@ class DataroomFolderDownloadView(APIView):
         if view_session_id:
             try:
                 view_session = ViewSession.objects.get(id=view_session_id, share_link=link)
+                now = timezone.now()
                 if not view_session.downloaded_at:
-                    view_session.downloaded_at = timezone.now()
+                    view_session.downloaded_at = now
                     view_session.save(update_fields=['downloaded_at'])
+
+                visit = DataroomVisit.objects.filter(
+                    view_session=view_session,
+                    dataroom_folder_id=root_folder.id
+                ).order_by('-visited_at').first()
+
+                if not visit:
+                    visit = DataroomVisit.objects.create(
+                        view_session=view_session,
+                        dataroom_folder_id=root_folder.id,
+                        visited_at=now,
+                        downloaded_at=now,
+                    )
+                elif visit.downloaded_at is None:
+                    visit.downloaded_at = now
+                    visit.save(update_fields=['downloaded_at'])
+
                 _dispatch_automation_event(
                     link,
                     'document_downloaded',
@@ -2737,13 +2775,16 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
             return [permissions.AllowAny()]
         return [permissions.IsAuthenticated()]
 
-    @action(detail=True, methods=['post'], url_path='record-download')
+    # NOTE: Download recording is handled server-side directly in ShareLinkFileDownloadView and DataroomFolderDownloadView.
+    # The @action decorator below is commented out to disable the endpoint while preserving the method body.
+    # @action(detail=True, methods=['post'], url_path='record-download')
     def record_download(self, request, pk=None):
         """Records that a document was downloaded during this view session."""
         try:
             view_session = ViewSession.objects.get(pk=pk)
             share_link = view_session.share_link
             dataroom_document_id = request.data.get('dataroom_document_id')
+            dataroom_folder_id = request.data.get('dataroom_folder_id')
             extra_payload = {
                 'view_session_id': str(view_session.id),
                 'viewer_email': view_session.viewer_email,
@@ -2752,16 +2793,56 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
             if share_link.document:
                 extra_payload['document_id'] = str(share_link.document_id)
                 extra_payload['document_name'] = share_link.document.name
-            elif share_link.dataroom_id and dataroom_document_id:
-                setting = share_link.dataroom_settings.filter(
-                    dataroom_document_id=dataroom_document_id,
-                    is_visible=True,
-                ).select_related('dataroom_document__document').first()
-                if setting:
-                    extra_payload['document_id'] = str(setting.dataroom_document.document_id)
-                    extra_payload['document_name'] = setting.dataroom_document.document.name
+            elif share_link.dataroom_id and (dataroom_document_id or dataroom_folder_id):
+                now = timezone.now()
+                if dataroom_document_id:
+                    setting = share_link.dataroom_settings.filter(
+                        dataroom_document_id=dataroom_document_id,
+                        is_visible=True,
+                    ).select_related('dataroom_document__document').first()
+                    if setting:
+                        extra_payload['document_id'] = str(setting.dataroom_document.document_id)
+                        extra_payload['document_name'] = setting.dataroom_document.document.name
 
-            # Only record the first download
+                    visit = DataroomVisit.objects.filter(
+                        view_session=view_session,
+                        dataroom_document_id=dataroom_document_id
+                    ).order_by('-visited_at').first()
+
+                    if not visit:
+                        visit = DataroomVisit.objects.create(
+                            view_session=view_session,
+                            dataroom_document_id=dataroom_document_id,
+                            visited_at=now,
+                            downloaded_at=now,
+                        )
+                    elif visit.downloaded_at is None:
+                        visit.downloaded_at = now
+                        visit.save(update_fields=['downloaded_at'])
+                elif dataroom_folder_id:
+                    from datarooms.models import DataroomFolder
+                    folder = DataroomFolder.objects.filter(id=dataroom_folder_id, dataroom=share_link.dataroom).first()
+                    if folder:
+                        extra_payload['folder_id'] = str(folder.id)
+                        extra_payload['folder_name'] = folder.name
+
+                    visit = DataroomVisit.objects.filter(
+                        view_session=view_session,
+                        dataroom_folder_id=dataroom_folder_id
+                    ).order_by('-visited_at').first()
+
+                    if not visit:
+                        visit = DataroomVisit.objects.create(
+                            view_session=view_session,
+                            dataroom_folder_id=dataroom_folder_id,
+                            visited_at=now,
+                            downloaded_at=now,
+                        )
+                    elif visit.downloaded_at is None:
+                        visit.downloaded_at = now
+                        visit.save(update_fields=['downloaded_at'])
+
+            # Only record the first download on the view session
             if view_session.downloaded_at is None:
                 view_session.downloaded_at = timezone.now()
                 view_session.save(update_fields=['downloaded_at'])
@@ -2819,8 +2900,9 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def get_queryset(self):
+        org = self.request.user.organization
         return ViewSession.objects.filter(
-            share_link__document__organization=self.request.user.organization
+            Q(share_link__document__organization=org) | Q(share_link__dataroom__organization=org)
         ).prefetch_related(
             'page_views',
             'link_clicks',

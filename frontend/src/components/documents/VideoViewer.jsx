@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback } from 'react';
 import Hls from 'hls.js';
 import { Download } from 'lucide-react';
-import { recordPageView, recordDownload } from '../../services/api';
+import { recordPageView } from '../../services/api';
 
 export const VideoViewer = forwardRef(({
   videoUrl,
@@ -39,19 +39,6 @@ export const VideoViewer = forwardRef(({
   const handleDownload = (e) => {
     e.stopPropagation();
     if (downloadUrl) {
-      if (viewId) {
-        let docId = null;
-        try {
-          const parsedUrl = new URL(downloadUrl, window.location.origin);
-          docId = parsedUrl.searchParams.get('dataroom_document_id');
-        } catch (err) {
-          console.error("Failed to parse downloadUrl", err);
-        }
-
-        recordDownload(viewId, docId).catch(err => 
-          console.error("Failed to record download", err)
-        );
-      }
       const link = document.createElement('a');
       link.href = downloadUrl;
       link.setAttribute('download', '');

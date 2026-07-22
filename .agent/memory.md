@@ -248,3 +248,8 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Gotcha / Architecture Choice
 - **Context/Implication:** User quota, avatar image, and name rendered in the sidebar became stale and out-of-sync when uploads/deletions occurred or when the user modified their profile at the settings page.
 - **Resolution/Action:** Exposed a `refreshUser` callback from [UserProvider](file:///Users/xiez/coneshare/frontend/src/contexts/UserProvider.jsx) and called it inside successful handling paths for uploads, deletions (including single-item deletes via `onDataRefresh`), cloud imports, version promotions, and user settings updates across [DocumentsPage](file:///Users/xiez/coneshare/frontend/src/pages/DocumentsPage.jsx), [DocumentPage](file:///Users/xiez/coneshare/frontend/src/pages/DocumentPage.jsx), [DocumentVersionsPage](file:///Users/xiez/coneshare/frontend/src/pages/DocumentVersionsPage.jsx), and [UserSettingsPage](file:///Users/xiez/coneshare/frontend/src/pages/UserSettingsPage.jsx).
+
+### 2026-07-22 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Refactored download event logging from explicit frontend POST calls (`/record-download/`) to server-side logging inside Django file/folder download views (`ShareLinkFileDownloadView` and `DataroomFolderDownloadView`).
+- **Resolution/Action:** Added `downloaded_at` timestamp field to `DataroomVisit` model/serializer, logged file/folder visits server-side upon download GET requests, disabled legacy `@action` endpoint `/api/v1/view-sessions/{id}/record-download/`, and removed unused `recordDownload` frontend code.
