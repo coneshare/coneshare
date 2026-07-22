@@ -407,12 +407,6 @@ export const createOwnerQnaMessage = (threadId, body) =>
 
 export const createViewSession = (data) => api.post('/view-sessions/', data);
 
-export const recordDownload = (viewSessionId, dataroomDocumentId = null) =>
-  api.post(
-    `/view-sessions/${viewSessionId}/record-download/`,
-    dataroomDocumentId ? { dataroom_document_id: dataroomDocumentId } : {}
-  );
-
 export const recordDataroomVisit = (viewId, { dataroomDocumentId, dataroomFolderId }) => {
   const payload = {};
   if (dataroomDocumentId) {

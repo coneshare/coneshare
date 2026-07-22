@@ -58,6 +58,11 @@ function DataroomVisitRow({ visit }) {
             ? `Viewed folder: ${visit.dataroom_folder_name}`
             : `Viewed document: ${visit.dataroom_document_name}`}
         </span>
+        {visit.downloaded_at && (
+          <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-800">
+            Downloaded
+          </span>
+        )}
         <span className="ml-auto flex-shrink-0 text-xs text-muted-foreground">
           {new Date(visit.visited_at).toLocaleTimeString([], {
             hour: '2-digit',

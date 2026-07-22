@@ -678,4 +678,66 @@ describe('DataroomViewer', () => {
     // Make sure the main document viewer is still rendering Document 1 (and didn't navigate away)
     expect(screen.getByRole('heading', { level: 1, name: 'Document 1' })).toBeInTheDocument();
   });
+
+  it('triggers download with view_session_id and dataroom_document_id when downloading a document from the menu', async () => {
+    let createdAnchor = null;
+    const originalCreateElement = document.createElement;
+    const mockClick = vi.fn();
+    vi.spyOn(document, 'createElement').mockImplementation((tagName) => {
+      const elem = originalCreateElement.call(document, tagName);
+      if (tagName === 'a') {
+        elem.click = mockClick;
+        createdAnchor = elem;
+      }
+      return elem;
+    });
+
+    render(
+      <MemoryRouter>
+        <DataroomViewer data={mockDataroomData} slug="test-slug" viewId="view-123" />
+      </MemoryRouter>
+    );
+
+    const moreBtn = screen.getByRole('button', { name: 'Actions for Root Document' });
+    fireEvent.pointerDown(moreBtn, { button: 0 });
+    fireEvent.click(moreBtn);
+
+    const downloadBtn = await screen.findByText('Download');
+    fireEvent.click(downloadBtn);
+
+    expect(mockClick).toHaveBeenCalled();
+    expect(createdAnchor.href).toContain('view_session_id=view-123');
+    expect(createdAnchor.href).toContain('dataroom_document_id=doc1');
+    vi.restoreAllMocks();
+  });
+
+  it('triggers downloadDataroomFolder with viewId when downloading a folder from the menu', async () => {
+    api.downloadDataroomFolder.mockResolvedValue({
+      data: new Blob(['test']),
+      headers: { 'content-disposition': 'filename="Sub Folder A.zip"' },
+    });
+
+    const folderData = {
+      ...mockDataroomData,
+      items: [
+        { type: 'folder', id: 'folder1', name: 'Sub Folder A', updated_at: new Date().toISOString(), allow_download: true },
+        { type: 'document', id: 'doc1', document_id: 'doc-file-1', name: 'Root Document', document_type: 'pdf', updated_at: new Date().toISOString(), file_size: 1024, allow_download: true },
+      ],
+    };
+
+    render(
+      <MemoryRouter>
+        <DataroomViewer data={folderData} slug="test-slug" viewId="view-123" />
+      </MemoryRouter>
+    );
+
+    const moreBtn = screen.getByRole('button', { name: 'Actions for Sub Folder A' });
+    fireEvent.pointerDown(moreBtn, { button: 0 });
+    fireEvent.click(moreBtn);
+
+    const downloadBtn = await screen.findByText('Download');
+    fireEvent.click(downloadBtn);
+
+    expect(api.downloadDataroomFolder).toHaveBeenCalledWith('test-slug', 'folder1', 'view-123');
+  });
 });

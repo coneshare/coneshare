@@ -11,7 +11,6 @@ import {
   ChevronsLeft,
   ChevronsRight
 } from 'lucide-react';
-import { recordDownload } from '../../services/api';
 import { Button } from '../ui/Button';
 
 export function ViewerToolbar({
@@ -102,12 +101,6 @@ export function ViewerToolbar({
 
   const handleDownload = () => {
     if (downloadUrl) {
-      if (viewId) {
-        recordDownload(viewId, downloadDocumentId).catch(err => 
-          console.error("Failed to record download", err)
-        );
-      }
-      
       const link = document.createElement('a');
       link.href = downloadUrl;
       link.setAttribute('download', downloadFileName || '');
