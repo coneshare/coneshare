@@ -4,6 +4,7 @@ from django.db import models
 
 from core.models import BaseModel, Organization, User
 from documents.models import Document, Folder
+from cloudfiles.models import CloudConnection
 
 
 class FileRequest(BaseModel):
@@ -99,3 +100,34 @@ class SecurityThreatEvent(BaseModel):
 
     def __str__(self):
         return f"{self.event_type} for {self.file_request.slug} ({self.created_at})"
+
+
+class UploadExportJob(BaseModel):
+    class Status(models.TextChoices):
+        QUEUED = 'queued', 'Queued'
+        EXPORTING = 'exporting', 'Exporting'
+        EXPORTED = 'exported', 'Exported'
+        FAILED = 'failed', 'Failed'
+        BLOCKED_SCAN = 'blocked_security_scan', 'Blocked (Security Scan)'
+        BLOCKED_POLICY = 'blocked_policy', 'Blocked (Policy)'
+
+    uploaded_file = models.ForeignKey(
+        'UploadedFile', on_delete=models.CASCADE, related_name='export_jobs'
+    )
+    connection = models.ForeignKey(
+        CloudConnection, on_delete=models.CASCADE, related_name='export_jobs'
+    )
+    destination_folder_id = models.CharField(
+        max_length=1024, help_text="Folder ID or destination path."
+    )
+    status = models.CharField(
+        max_length=32, choices=Status.choices, default=Status.QUEUED
+    )
+    error_message = models.TextField(blank=True, default='')
+    provider_file_id = models.CharField(
+        max_length=1024, blank=True, default='', help_text="File ID in remote storage."
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+

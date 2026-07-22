@@ -211,6 +211,30 @@ class CloudFileListView(APIView):
 
 
 @extend_schema(tags=['cloudfiles'])
+class CloudFolderListView(APIView):
+    """
+    Lists only folders from a specific cloud connection.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(responses={200: dict, 404: dict, 500: dict})
+    def get(self, request, connection_id, *args, **kwargs):
+        try:
+            connection = CloudConnection.objects.get(id=connection_id, user=request.user)
+            provider = get_cloud_provider(connection.provider, connection=connection)
+
+            path = request.query_params.get('path', '/')
+            files = provider.list_files(path)
+
+            folders = [f for f in files if f.get('type') == 'folder']
+            return Response(folders)
+        except CloudConnection.DoesNotExist:
+            return Response({"detail": "Connection not found."}, status=status.HTTP_404_NOT_FOUND)
+        except CloudProviderError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@extend_schema(tags=['cloudfiles'])
 class CloudImportView(APIView):
     """
     Initiates a file import from a cloud service.

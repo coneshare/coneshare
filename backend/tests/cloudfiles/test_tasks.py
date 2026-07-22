@@ -255,7 +255,7 @@ def test_nextcloud_download_file_fallback_size_when_content_length_missing(mock_
     cloud_connection.provider = 'nextcloud'
     cloud_connection.save()
 
-    with patch('core.services.get_dynamic_setting') as mock_setting:
+    with patch('cloudfiles.providers.nextcloud.get_dynamic_setting') as mock_setting:
         mock_setting.side_effect = lambda k: {
             'NEXT_CLOUD_HOST': 'https://nextcloud.example.com',
             'NEXT_CLOUD_CLIENT_ID': 'id',
@@ -290,7 +290,7 @@ def test_google_drive_list_files_handles_refresh_error(mock_build, cloud_connect
     cloud_connection.access_token = 'token'
     cloud_connection.save()
 
-    with patch('core.services.get_dynamic_setting') as mock_setting:
+    with patch('cloudfiles.providers.google_drive.get_dynamic_setting') as mock_setting:
         mock_setting.side_effect = lambda k: {
             'GOOGLE_DRIVE_CLIENT_ID': 'id',
             'GOOGLE_DRIVE_CLIENT_SECRET': 'secret',

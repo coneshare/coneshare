@@ -12,7 +12,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from googleapiclient.http import MediaIoBaseDownload
+from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 
 from .base import BaseCloudProvider, CloudProviderError
 
@@ -27,6 +27,7 @@ class GoogleDriveProvider(BaseCloudProvider):
         'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/userinfo.profile',
         'https://www.googleapis.com/auth/drive.readonly',
+        'https://www.googleapis.com/auth/drive.file',
     ]
 
     def __init__(self, connection=None):
@@ -226,3 +227,26 @@ class GoogleDriveProvider(BaseCloudProvider):
         except Exception as e:
             logger.warning(f"Failed to revoke Google Drive token: {e}")
 
+    def upload_file(self, file_obj, file_name, folder_id) -> str:
+        service = self._get_client()
+        parents = []
+        if folder_id and folder_id.strip().lower() != 'root':
+            parents = [folder_id.strip()]
+
+        file_metadata = {
+            'name': file_name,
+        }
+        if parents:
+            file_metadata['parents'] = parents
+
+        try:
+            file_obj.seek(0)
+            media = MediaIoBaseUpload(file_obj, mimetype='application/octet-stream', resumable=True)
+            uploaded_file = service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields='id'
+            ).execute()
+            return uploaded_file.get('id')
+        except HttpError as e:
+            raise CloudProviderError(f"Google Drive upload failed: {e}")

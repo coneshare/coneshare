@@ -10,6 +10,9 @@ vi.mock('../../services/api', () => ({
   getFileRequest: vi.fn(),
   getDocumentDownloadUrl: vi.fn(),
   updateFileRequest: vi.fn(),
+  getCloudConnections: vi.fn(() => Promise.resolve({ data: [] })),
+  listCloudFolders: vi.fn(() => Promise.resolve({ data: [] })),
+  exportFileRequestUploads: vi.fn(() => Promise.resolve({ data: [] })),
 }));
 
 vi.mock('sonner', () => ({

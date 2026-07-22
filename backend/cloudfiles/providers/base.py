@@ -24,6 +24,13 @@ class BaseCloudProvider:
         """Downloads a file and returns its metadata and a file-like object."""
         raise NotImplementedError
 
+    def upload_file(self, file_obj, file_name, folder_id) -> str:
+        """
+        Uploads a file stream to the cloud provider.
+        Returns: The remote file ID or path.
+        """
+        raise NotImplementedError
+
     def get_user_info(self):
         """Gets user info from the provider, like email."""
         raise NotImplementedError

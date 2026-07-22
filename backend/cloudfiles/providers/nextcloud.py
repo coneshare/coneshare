@@ -261,3 +261,26 @@ class NextcloudProvider(BaseCloudProvider):
         except Exception as e:
             logger.warning(f"Failed to revoke Nextcloud token: {e}")
 
+    def upload_file(self, file_obj, file_name, folder_id) -> str:
+        user_info = self.get_user_info()
+        user_id = user_info.get('user_id')
+        if not user_id:
+            raise CloudProviderError("Could not determine Nextcloud user ID.")
+
+        folder_path = folder_id.strip()
+        if not folder_path.startswith(f"/remote.php/dav/files/{user_id}"):
+            segment = '' if folder_path == '/' else folder_path.lstrip('/')
+            full_path = f"/remote.php/dav/files/{user_id}/{segment}".rstrip('/')
+        else:
+            full_path = folder_path.rstrip('/')
+
+        upload_url = f"{self.host.rstrip('/')}{full_path}/{file_name}"
+        with self._get_client() as client:
+            try:
+                file_obj.seek(0)
+                response = client.put(upload_url, content=file_obj)
+                response.raise_for_status()
+                return f"{full_path}/{file_name}"
+            except httpx.HTTPStatusError as e:
+                logger.error(f"Nextcloud upload failed: {e}")
+                raise CloudProviderError(f"Nextcloud upload failed: {e}")

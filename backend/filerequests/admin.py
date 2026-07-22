@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import FileRequest, SecurityThreatEvent, UploadedFile
+from .models import FileRequest, SecurityThreatEvent, UploadedFile, UploadExportJob
 
 @admin.register(FileRequest)
 class FileRequestAdmin(admin.ModelAdmin):
@@ -22,4 +22,12 @@ class SecurityThreatEventAdmin(admin.ModelAdmin):
     list_display = ('event_type', 'severity', 'status', 'file_request', 'uploader_email', 'file_name', 'created_at')
     list_filter = ('event_type', 'severity', 'status', 'organization')
     search_fields = ('file_request__slug', 'uploader_email', 'file_name', 'scanner_message')
+    readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(UploadExportJob)
+class UploadExportJobAdmin(admin.ModelAdmin):
+    list_display = ('uploaded_file', 'connection', 'destination_folder_id', 'status', 'created_at')
+    list_filter = ('status', 'connection__provider')
+    search_fields = ('uploaded_file__document__name', 'error_message', 'provider_file_id')
     readonly_fields = ('created_at', 'updated_at')
