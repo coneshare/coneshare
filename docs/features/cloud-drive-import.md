@@ -32,11 +32,11 @@ This document outlines the implementation for allowing users to import files fro
 1.  **Admin Configuration**: A system administrator first enables a list of approved cloud providers (e.g., "dropbox,nextcloud") in the system's configuration.
 2.  **Dynamic UI**: The "Upload" dropdown menu in the user interface is dynamically populated with the providers enabled by the administrator.
 3.  **First-Time Connection (API-Driven Flow)**:
-    -   The frontend makes an authenticated API call to Coneshare's backend (e.g., `GET /api/v1/cloudfiles/connect/dropbox/`).
+    -   The frontend makes an authenticated API call to Coneshare's backend (e.g., `GET /api/v1/cloud/connect/dropbox/`).
     -   The backend generates the provider's authorization URL, securely caches a CSRF token, and returns the URL in a JSON response.
     -   The frontend receives the URL and redirects the user's browser to the provider's OAuth2 page.
     -   After granting access, the provider redirects the user back to a dedicated frontend callback route (e.g., `/auth/dropbox/callback`).
-    -   This frontend route extracts the authorization `code` and `state` from the URL and sends them to the backend's callback API.
+    -   This frontend route extracts the authorization `code` and `state` from the URL and sends them to the backend's callback API (`POST /api/v1/cloud/callback/dropbox/`).
     -   The backend verifies the CSRF token, exchanges the code for access tokens, and securely saves the new connection. The frontend then redirects the user back to their documents.
 4.  **Subsequent Imports & Versioning**: After a successful connection, clicking the same "Dropbox" menu item will open a file browser modal, allowing the user to navigate their cloud files and select items to import. Users can also refresh imported documents or upload new versions directly from the cloud.
 5.  **Settings & Revocation**: Users can view their connected accounts in the Integrations settings and disconnect them. Disconnecting performs a best-effort OAuth revocation.
@@ -82,19 +82,19 @@ class CloudConnection(BaseModel):
 
 ### 3. API Endpoints (`cloudfiles/urls.py`)
 
--   **Provider Configuration**: `GET /api/v1/cloudfiles/providers/` returns enabled providers and connection status.
--   **Active Connections**: `GET /api/v1/cloudfiles/connections/` lists the user's active connections.
--   **Disconnect Provider**: `DELETE /api/v1/cloudfiles/connections/<connection_id>/`
+-   **Provider Configuration**: `GET /api/v1/cloud/providers/` returns enabled providers and connection status.
+-   **Active Connections**: `GET /api/v1/cloud/connections/` lists the user's active connections.
+-   **Disconnect Provider**: `DELETE /api/v1/cloud/connections/<connection_id>/`
     - Strictly enforces that the connection belongs to the requesting user.
     - Attempts best-effort OAuth token revocation with the provider before deleting the local database record.
 -   **OAuth2 Flow Endpoints**:
-    -   `GET /api/v1/cloudfiles/connect/<provider>/` (Generates auth URL and CSRF state)
-    -   `POST /api/v1/cloudfiles/callback/<provider>/` (Exchanges code for tokens)
+    -   `GET /api/v1/cloud/connect/<provider>/` (Generates auth URL and CSRF state)
+    -   `POST /api/v1/cloud/callback/<provider>/` (Exchanges code for tokens)
 -   **Cloud File Operations**:
-    -   **File Listing**: `GET /api/v1/cloudfiles/connections/<connection_id>/list/`
-    -   **Initial Import**: `POST /api/v1/cloudfiles/connections/<connection_id>/import/`
-    -   **Refresh Document**: `POST /api/v1/cloudfiles/documents/<doc_id>/cloud_refresh/`
-    -   **Import New Version**: `POST /api/v1/cloudfiles/documents/<doc_id>/cloud_import_version/`
+    -   **File Listing**: `GET /api/v1/cloud/connections/<connection_id>/list/`
+    -   **Initial Import**: `POST /api/v1/cloud/connections/<connection_id>/import/`
+    -   **Refresh Document**: `POST /api/v1/cloud/documents/<doc_id>/refresh/`
+    -   **Import New Version**: `POST /api/v1/cloud/documents/<doc_id>/import_version/`
 
 ---
 

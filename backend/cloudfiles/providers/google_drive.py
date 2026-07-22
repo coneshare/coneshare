@@ -113,19 +113,24 @@ class GoogleDriveProvider(BaseCloudProvider):
 
         return build('drive', 'v3', credentials=creds)
 
+    def _handle_provider_error(self, e, action_name):
+        if isinstance(e, RefreshError) or "invalid_grant" in str(e):
+            raise CloudProviderError("Failed to access Google Drive. Your authorization token may have expired or been revoked. Please reconnect your account.")
+        raise CloudProviderError(f"Google Drive {action_name} failed: {e}")
+
     def get_user_info(self):
         creds = Credentials(token=self.connection.access_token)
         service = build('oauth2', 'v2', credentials=creds)
         try:
             user_info = service.userinfo().get().execute()
             return {'email': user_info.get('email')}
-        except HttpError as e:
-            raise CloudProviderError(f"Google Drive get_user_info failed: {e}")
+        except (HttpError, RefreshError) as e:
+            self._handle_provider_error(e, "get_user_info")
 
     def list_files(self, path='/'):
-        service = self._get_client()
-        folder_id = 'root' if path == '/' else path
         try:
+            service = self._get_client()
+            folder_id = 'root' if path == '/' else path
             results = service.files().list(
                 q=f"'{folder_id}' in parents and trashed = false",
                 pageSize=100,
@@ -143,12 +148,12 @@ class GoogleDriveProvider(BaseCloudProvider):
                     'size': int(file.get('size', 0)) if not is_folder else None,
                 })
             return items
-        except HttpError as e:
-            raise CloudProviderError(f"Google Drive list_files failed: {e}")
+        except (HttpError, RefreshError) as e:
+            self._handle_provider_error(e, "list_files")
 
     def download_file(self, file_id):
-        service = self._get_client()
         try:
+            service = self._get_client()
             file_metadata = service.files().get(fileId=file_id, fields='name, size, md5Checksum, version, mimeType').execute()
             mime_type = file_metadata.get('mimeType', '')
             name = file_metadata.get('name', 'Untitled')
@@ -200,8 +205,8 @@ class GoogleDriveProvider(BaseCloudProvider):
                 'content': fh,
                 'etag_or_rev': etag_or_rev
             }
-        except HttpError as e:
-            raise CloudProviderError(f"Google Drive download failed: {e}")
+        except (HttpError, RefreshError) as e:
+            self._handle_provider_error(e, "download")
 
     def revoke_token(self):
         if not self.connection:

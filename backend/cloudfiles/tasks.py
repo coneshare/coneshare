@@ -3,6 +3,7 @@ from celery import shared_task
 from django.conf import settings
 from django.db import transaction
 
+from core.services import get_dynamic_setting
 from documents.models import Document, DocumentVersion
 from documents.services import process_imported_file, QuotaExceededError
 from .models import CloudConnection
@@ -85,9 +86,10 @@ def import_from_cloud_task(document_id, connection_id, file_id_or_path, version_
         file_data = provider.download_file(file_id_or_path)
 
         # V1 Limitation check
-        max_size_bytes = settings.CLOUD_IMPORT_MAX_SIZE_MB * 1024 * 1024
+        max_size_mb = get_dynamic_setting('CLOUD_IMPORT_MAX_SIZE_MB')
+        max_size_bytes = max_size_mb * 1024 * 1024
         if file_data['size'] > max_size_bytes:
-            raise CloudProviderError(f"File size exceeds the {settings.CLOUD_IMPORT_MAX_SIZE_MB}MB limit for imports.")
+            raise CloudProviderError(f"File size exceeds the {max_size_mb}MB limit for imports.")
 
         process_imported_file(document, file_data, version_id=version_id)
 

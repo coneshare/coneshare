@@ -1,3 +1,4 @@
+from io import BytesIO
 import pytest
 from unittest.mock import patch, MagicMock
 from cloudfiles.tasks import import_from_cloud_task
@@ -208,5 +209,106 @@ def test_import_from_cloud_task_error_truncation(mock_get_provider, cloud_connec
     assert document.status == 'error'
     assert len(document.status_message) <= 255
     assert document.status_message.endswith("...")
+
+
+@pytest.mark.django_db
+@patch('cloudfiles.tasks.get_cloud_provider')
+def test_import_from_cloud_task_respects_dynamic_max_size(mock_get_provider, cloud_connection, user):
+    AppConfiguration.objects.update_or_create(key='CLOUD_IMPORT_MAX_SIZE_MB', defaults={'value': '50'})
+    try:
+        document = Document.objects.create(
+            name="large.pdf",
+            organization=user.organization,
+            created_by=user,
+            status="uploading",
+        )
+        v1 = DocumentVersion.objects.create(
+            document=document,
+            version_number=1,
+            is_primary=True,
+        )
+
+        mock_provider = MagicMock()
+        mock_provider.download_file.return_value = {
+            'name': 'large.pdf',
+            'size': 60 * 1024 * 1024,  # 60MB (under static 100MB, but over dynamic 50MB)
+            'content': BytesIO(b"test data"),
+            'etag_or_rev': 'rev123'
+        }
+        mock_get_provider.return_value = mock_provider
+
+        import_from_cloud_task(document.id, cloud_connection.id, '/large.pdf', version_id=v1.id)
+
+        document.refresh_from_db()
+        assert document.status == 'error'
+        assert "exceeds the 50MB limit" in document.status_message
+    finally:
+        AppConfiguration.objects.filter(key='CLOUD_IMPORT_MAX_SIZE_MB').delete()
+        from django.core.cache import cache
+        cache.clear()
+
+
+@pytest.mark.django_db
+@patch('cloudfiles.providers.nextcloud.httpx.Client')
+def test_nextcloud_download_file_fallback_size_when_content_length_missing(mock_client_cls, cloud_connection):
+    from cloudfiles.providers.nextcloud import NextcloudProvider
+    cloud_connection.provider = 'nextcloud'
+    cloud_connection.save()
+
+    with patch('core.services.get_dynamic_setting') as mock_setting:
+        mock_setting.side_effect = lambda k: {
+            'NEXT_CLOUD_HOST': 'https://nextcloud.example.com',
+            'NEXT_CLOUD_CLIENT_ID': 'id',
+            'NEXT_CLOUD_CLIENT_SECRET': 'secret',
+        }.get(k, '')
+
+        provider = NextcloudProvider(connection=cloud_connection)
+
+        # Mock stream response with NO content-length header
+        mock_response = MagicMock()
+        mock_response.headers = {}  # missing Content-Length
+        mock_response.iter_bytes.return_value = [b"1234567890" * 100]  # 1000 bytes
+        mock_response.__enter__.return_value = mock_response
+
+        mock_client = MagicMock()
+        mock_client.stream.return_value = mock_response
+        mock_client_cls.return_value.__enter__.return_value = mock_client
+
+        result = provider.download_file('/remote.php/dav/files/user/test.pdf')
+
+        # Size must be 1000 bytes, not 0
+        assert result['size'] == 1000
+
+
+@pytest.mark.django_db
+@patch('cloudfiles.providers.google_drive.build')
+def test_google_drive_list_files_handles_refresh_error(mock_build, cloud_connection):
+    from google.auth.exceptions import RefreshError
+    from cloudfiles.providers.google_drive import GoogleDriveProvider
+
+    cloud_connection.provider = 'google_drive'
+    cloud_connection.access_token = 'token'
+    cloud_connection.save()
+
+    with patch('core.services.get_dynamic_setting') as mock_setting:
+        mock_setting.side_effect = lambda k: {
+            'GOOGLE_DRIVE_CLIENT_ID': 'id',
+            'GOOGLE_DRIVE_CLIENT_SECRET': 'secret',
+        }.get(k, '')
+
+        provider = GoogleDriveProvider(connection=cloud_connection)
+
+        mock_service = MagicMock()
+        mock_service.files.return_value.list.return_value.execute.side_effect = RefreshError(
+            "('invalid_grant: Token has been expired or revoked.', {'error': 'invalid_grant'})"
+        )
+        mock_build.return_value = mock_service
+
+        with pytest.raises(CloudProviderError) as exc_info:
+            provider.list_files('/')
+
+        assert "Token has been expired or revoked" in str(exc_info.value) or "Google Drive" in str(exc_info.value)
+
+
 
 

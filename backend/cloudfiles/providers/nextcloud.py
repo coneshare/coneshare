@@ -222,6 +222,11 @@ class NextcloudProvider(BaseCloudProvider):
                     content = tempfile.SpooledTemporaryFile(max_size=5 * 1024 * 1024)
                     for chunk in response.iter_bytes():
                         content.write(chunk)
+                    
+                    if size <= 0:
+                        content.seek(0, 2)
+                        size = content.tell()
+
                     content.seek(0)
 
                     return {
