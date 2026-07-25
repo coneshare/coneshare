@@ -4,7 +4,7 @@ from rest_framework import status
 
 from cloudfiles.models import CloudConnection
 from core.models import AppConfiguration
-from documents.models import Document, Folder
+from documents.models import Document, Folder, DocumentVersion
 
 
 @pytest.fixture
@@ -523,4 +523,69 @@ class TestCloudConnectionDeleteView:
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
         assert CloudConnection.objects.filter(id=cloud_connection.id).exists()
         mock_get_provider.assert_not_called()
+
+
+@pytest.mark.django_db
+@patch('cloudfiles.views.import_from_cloud_task.delay')
+class TestCloudRefreshView:
+    def test_refresh_with_reconnected_cloud_connection(self, mock_task_delay, api_client, user):
+        """
+        Test that when a cloud connection is deleted (disconnected) and a new connection
+        is created (reconnected), refreshing an old document imported under the deleted connection_id
+        successfully falls back to the user's active connection for that provider.
+        """
+        # 1. Create original cloud connection and import document
+        old_connection = CloudConnection.objects.create(
+            user=user,
+            provider='google_drive',
+            email='user@gmail.com',
+            access_token='old_token',
+        )
+        old_conn_id = str(old_connection.id)
+
+        document = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name='Test Drive Doc.pdf',
+            status='ready',
+            file_size=1024,
+        )
+
+        DocumentVersion.objects.create(
+            document=document,
+            version_number=1,
+            file_size=1024,
+            is_primary=True,
+            metadata={
+                "cloud_import": {
+                    "provider": "google_drive",
+                    "provider_display": "Google Drive",
+                    "connection_id": old_conn_id,
+                    "file_id": "google_drive_file_123"
+                }
+            }
+        )
+
+        # 2. Simulate disconnect by deleting old_connection
+        old_connection.delete()
+
+        # 3. Simulate reconnect by creating a new CloudConnection for the same user and provider
+        new_connection = CloudConnection.objects.create(
+            user=user,
+            provider='google_drive',
+            email='user@gmail.com',
+            access_token='new_token',
+        )
+        new_conn_id = str(new_connection.id)
+        assert new_conn_id != old_conn_id
+
+        # 4. Trigger refresh endpoint
+        url = f'/api/v1/cloud/documents/{document.id}/refresh/'
+        response = api_client.post(url)
+
+        # Assertion: Should return 202 ACCEPTED using the fallback active connection
+        assert response.status_code == status.HTTP_202_ACCEPTED
+        mock_task_delay.assert_called_once()
+        assert mock_task_delay.call_args[0][1] == new_connection.id
+
 

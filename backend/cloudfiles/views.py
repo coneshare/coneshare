@@ -314,11 +314,16 @@ class CloudRefreshView(APIView):
         cloud_import_data = primary_version.metadata['cloud_import']
         connection_id = cloud_import_data.get('connection_id')
         file_id = cloud_import_data.get('file_id')
+        provider_name = cloud_import_data.get('provider')
 
         try:
             connection = CloudConnection.objects.get(id=connection_id, user=request.user)
         except CloudConnection.DoesNotExist:
-            return Response({"detail": "Cloud connection not found. Please reconnect your cloud account."}, status=status.HTTP_404_NOT_FOUND)
+            # Fallback: If connection_id changed (e.g. user disconnected and reconnected provider),
+            # attempt to resolve an active connection for the same provider.
+            connection = CloudConnection.objects.filter(user=request.user, provider=provider_name).first()
+            if not connection:
+                return Response({"detail": "Cloud connection not found. Please reconnect your cloud account."}, status=status.HTTP_404_NOT_FOUND)
 
         # 2. Check quota (reuse primary version's size for pre-check).
         # Note: Since new_file_size matches the current file_size, this pre-check has a net change of 0.
