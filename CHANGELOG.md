@@ -1,6 +1,32 @@
 # Changelog
 
 
+## [1.7.0](https://github.com/coneshare/coneshare/compare/v1.6.0...v1.7.0) (2026-07-23)
+
+
+### Features
+
+
+* **automations:** coalesce view-session events for Email notification ([1f3d56d](https://github.com/coneshare/coneshare/commit/1f3d56d0bb47c290e9ad02ce6e021889b30f8e99))
+* **cloudfiles:** display cloud storage integrations and file sync info ([ff7859f](https://github.com/coneshare/coneshare/commit/ff7859f336b9ac59e27021e1467752a249635e03))
+* **filerequests:** file request export to cloud storage ([386b8ea](https://github.com/coneshare/coneshare/commit/386b8ea52fd58c983e7cf9bbcf882e509bad1a05))
+* **frontend:** display user storage quota usage on admin users page ([e5aa7b3](https://github.com/coneshare/coneshare/commit/e5aa7b30f9744126a2292b0947618ae04829c99a))
+* **frontend:** support drag-and-drop file/folder uploads in document list and dataroom ([4efe808](https://github.com/coneshare/coneshare/commit/4efe808c5a2c8c49d1d5d4845e65284369a1db9b))
+* **settings:** support per-user custom storage quota limits ([e42b631](https://github.com/coneshare/coneshare/commit/e42b63194ffd32803a41e29d49771b0c68216f4b))
+* **sharelinks:** clickable links tracking ([ec3adac](https://github.com/coneshare/coneshare/commit/ec3adacabb221abce642aa41f86348976113aeae))
+* **sharelinks:** add nda feature ([ac81a03](https://github.com/coneshare/coneshare/commit/ac81a034bbdc0a5f8b874430932ba05e29561494))
+
+
+### Bug Fixes
+
+* **automations:** ensure destination linking and reschedule debounced email tasks ([63b3fb3](https://github.com/coneshare/coneshare/commit/63b3fb35c2ffc8da206e5479c1ab79d67c0eeaf7))
+* **dataroom:** refactor dataroom sibling nav to file tree ([28b738b](https://github.com/coneshare/coneshare/commit/28b738b521906d5c326152beda78c1572ae9db7f))
+* dynamic check video file size on preview ([a04dac1](https://github.com/coneshare/coneshare/commit/a04dac174a42b274067174c1f0ce826b4b7c401b))
+* **frontend:** fix file request copy link issue ([755273d](https://github.com/coneshare/coneshare/commit/755273d6c3e73c57761d308162d029744335e7c6))
+* **frontend:** sync user profile, quota, and avatar inside sidebar context ([a504abf](https://github.com/coneshare/coneshare/commit/a504abf1b71a914a283ba7edd2a9806b0c2470ba))
+* **preview:** resolve indirect object JSON serialization and add preview retry trigger ([5d78d23](https://github.com/coneshare/coneshare/commit/5d78d2372adb457fdd6d176f6cf1535895dee6b7))
+
+
 ## [1.6.0](https://github.com/coneshare/coneshare/compare/v1.5.1...v1.6.0) (2026-07-09)
 
 
