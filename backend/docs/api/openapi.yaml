@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: ConeShare API
-  version: 1.6.0
+  version: 1.7.0
   description: OpenAPI schema for the ConeShare backend API.
 paths:
   /api/schema/:
@@ -1314,6 +1314,66 @@ paths:
                 items:
                   $ref: '#/components/schemas/CloudConnection'
           description: ''
+  /api/v1/cloud/connections/{connection_id}/:
+    delete:
+      operationId: v1_cloud_connections_destroy
+      description: Handles operations on a specific cloud connection (e.g. deletion).
+      parameters:
+      - in: path
+        name: connection_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - cloudfiles
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/cloud/connections/{connection_id}/folders/:
+    get:
+      operationId: v1_cloud_connections_folders_retrieve
+      description: Lists only folders from a specific cloud connection.
+      parameters:
+      - in: path
+        name: connection_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - cloudfiles
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/cloud/connections/{connection_id}/import/:
     post:
       operationId: v1_cloud_connections_import_create
@@ -2412,6 +2472,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/Document'
           description: ''
+  /api/v1/documents/{id}/rebuild-preview/:
+    post:
+      operationId: v1_documents_rebuild_preview_create
+      description: Forces a rebuild of the document preview by clearing existing pages
+        and enqueuing render.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this document.
+        required: true
+      tags:
+      - documents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Document'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Document'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Document'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
   /api/v1/documents/{id}/stats/:
     get:
       operationId: v1_documents_stats_retrieve
@@ -2657,6 +2752,99 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/file-requests/{id}/exports/:
+    get:
+      operationId: v1_file_requests_exports_list
+      description: API endpoint for managing File Requests.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this file request.
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - filerequests
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUploadExportJobList'
+          description: ''
+    post:
+      operationId: v1_file_requests_exports_create
+      description: API endpoint for managing File Requests.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this file request.
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - filerequests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUploadExportJobList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/folders/:
     get:
       operationId: v1_folders_list
@@ -3023,6 +3211,96 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/link-clicks/record/:
+    post:
+      operationId: v1_link_clicks_record_create
+      description: Receives and records link click tracking events.
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkClickRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LinkClickRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LinkClickRecord'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordLinkClickResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/links/{slug}/accept-nda/:
+    post:
+      operationId: v1_links_accept_nda_create
+      description: Accepts the NDA for a share link and authorizes the session.
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareLinkAcceptNDA'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ShareLinkAcceptNDA'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ShareLinkAcceptNDA'
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/links/{slug}/download-file/:
     get:
       operationId: v1_links_download_file_retrieve
@@ -5028,41 +5306,6 @@ paths:
       responses:
         '204':
           description: No response body
-  /api/v1/view-sessions/{id}/record-download/:
-    post:
-      operationId: v1_view_sessions_record_download_create
-      description: Records that a document was downloaded during this view session.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        description: A unique value identifying this view session.
-        required: true
-      tags:
-      - sharelinks
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ViewSession'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ViewSession'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ViewSession'
-        required: true
-      security:
-      - jwtAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ViewSession'
-          description: ''
   /api/v1/view-sessions/{id}/record-visit/:
     post:
       operationId: v1_view_sessions_record_visit_create
@@ -5292,6 +5535,14 @@ components:
         file_size_quota_mb:
           type: integer
           readOnly: true
+        custom_file_size_quota_mb:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          description: Per-user custom file size quota in MB. If null, the global
+            config is used. 0 means unlimited.
         max_files_per_upload:
           type: integer
           readOnly: true
@@ -5462,12 +5713,14 @@ components:
     AutomationDeliveryStatusEnum:
       enum:
       - pending
+      - processing
       - success
       - failed
       - dead_letter
       type: string
       description: |-
         * `pending` - Pending
+        * `processing` - Processing
         * `success` - Success
         * `failed` - Failed
         * `dead_letter` - Dead Letter
@@ -5491,6 +5744,7 @@ components:
         endpoint_url:
           type: string
           format: uri
+          nullable: true
           maxLength: 2048
         http_method:
           $ref: '#/components/schemas/HttpMethodEnum'
@@ -5513,7 +5767,6 @@ components:
       required:
       - created_at
       - created_by
-      - endpoint_url
       - id
       - name
       - organization
@@ -5603,11 +5856,16 @@ components:
           type: string
           format: date-time
           readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
       required:
       - created_at
       - email
       - id
       - provider
+      - updated_at
     CloudImport:
       type: object
       properties:
@@ -5878,6 +6136,12 @@ components:
         visited_at:
           type: string
           format: date-time
+          readOnly: true
+        downloaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
         dataroom_document_id:
           type: string
           nullable: true
@@ -5900,14 +6164,22 @@ components:
           items:
             $ref: '#/components/schemas/PageView'
           readOnly: true
+        link_clicks:
+          type: array
+          items:
+            $ref: '#/components/schemas/LinkClick'
+          readOnly: true
       required:
       - dataroom_document_id
       - dataroom_document_name
       - dataroom_document_type
       - dataroom_folder_id
       - dataroom_folder_name
+      - downloaded_at
       - id
+      - link_clicks
       - page_views
+      - visited_at
     DestinationTypeEnum:
       enum:
       - slack
@@ -5915,6 +6187,7 @@ components:
       - wechat
       - feishu
       - webhook
+      - email
       type: string
       description: |-
         * `slack` - Slack
@@ -5922,6 +6195,7 @@ components:
         * `wechat` - WeChat Work
         * `feishu` - FeiShu
         * `webhook` - Webhook
+        * `email` - Email
     Document:
       type: object
       properties:
@@ -5973,6 +6247,7 @@ components:
           nullable: true
         download_only:
           type: boolean
+          readOnly: true
         assistant_enabled:
           type: boolean
         is_starred:
@@ -6018,6 +6293,7 @@ components:
       - content_type
       - created_at
       - created_by
+      - download_only
       - id
       - name
       - organization
@@ -6272,6 +6548,22 @@ components:
       description: |-
         * `malware_detected` - Malware Detected
         * `scan_failed` - Scanner Failed
+    ExportRequest:
+      type: object
+      properties:
+        connection_id:
+          type: string
+        uploaded_file_ids:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        destination_folder_id:
+          type: string
+      required:
+      - connection_id
+      - destination_folder_id
+      - uploaded_file_ids
     FileRequest:
       type: object
       properties:
@@ -6529,6 +6821,49 @@ components:
       - file_id
       - file_name
       - file_size
+    LinkClick:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        url:
+          type: string
+        page_number:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        clicked_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - clicked_at
+      - id
+      - page_number
+      - url
+    LinkClickRecord:
+      type: object
+      description: Serializer for validating and creating LinkClick records from tracking
+        data.
+      properties:
+        view_session:
+          type: string
+        dataroom_visit:
+          type: string
+          nullable: true
+        url:
+          type: string
+        page_number:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+      required:
+      - page_number
+      - url
+      - view_session
     LoginActivity:
       type: object
       properties:
@@ -6888,6 +7223,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ShareLink'
+    PaginatedUploadExportJobList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/UploadExportJob'
     PaginatedUserList:
       type: object
       required:
@@ -6967,6 +7325,7 @@ components:
         endpoint_url:
           type: string
           format: uri
+          nullable: true
           maxLength: 2048
         http_method:
           $ref: '#/components/schemas/HttpMethodEnum'
@@ -7160,6 +7519,7 @@ components:
           nullable: true
         download_only:
           type: boolean
+          readOnly: true
         assistant_enabled:
           type: boolean
         is_starred:
@@ -7484,6 +7844,16 @@ components:
           nullable: true
           description: Returns the timestamp of the most recent view session.
           readOnly: true
+        require_nda:
+          type: boolean
+        nda_text:
+          type: string
+        nda_version:
+          type: integer
+          readOnly: true
+        has_accepted_current_nda:
+          type: boolean
+          readOnly: true
     PatchedShareLinkTemplate:
       type: object
       properties:
@@ -7577,6 +7947,14 @@ components:
         file_size_quota_mb:
           type: integer
           readOnly: true
+        custom_file_size_quota_mb:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          description: Per-user custom file size quota in MB. If null, the global
+            config is used. 0 means unlimited.
         max_files_per_upload:
           type: integer
           readOnly: true
@@ -7680,6 +8058,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DataroomVisit'
+          readOnly: true
+        link_clicks:
+          type: array
+          items:
+            $ref: '#/components/schemas/LinkClick'
           readOnly: true
         is_owner_view:
           type: boolean
@@ -7916,6 +8299,13 @@ components:
       description: |-
         * `open` - Open
         * `closed` - Closed
+    RecordLinkClickResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+      - message
     RecordPageResponse:
       type: object
       properties:
@@ -8154,6 +8544,16 @@ components:
           nullable: true
           description: Returns the timestamp of the most recent view session.
           readOnly: true
+        require_nda:
+          type: boolean
+        nda_text:
+          type: string
+        nda_version:
+          type: integer
+          readOnly: true
+        has_accepted_current_nda:
+          type: boolean
+          readOnly: true
       required:
       - created_at
       - created_by
@@ -8161,14 +8561,22 @@ components:
       - dataroom_settings
       - document_name
       - document_type
+      - has_accepted_current_nda
       - has_password
       - id
       - last_viewed_at
       - name
+      - nda_version
       - recent_view_sessions
       - slug
       - updated_at
       - view_count
+    ShareLinkAcceptNDA:
+      type: object
+      properties:
+        view_session_id:
+          type: string
+          nullable: true
     ShareLinkDataroomSetting:
       type: object
       properties:
@@ -8354,6 +8762,71 @@ components:
       required:
       - access
       - refresh
+    UploadExportJob:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        uploaded_file:
+          type: string
+        uploaded_file_name:
+          type: string
+          readOnly: true
+        connection:
+          type: string
+        provider:
+          type: string
+          readOnly: true
+        provider_display:
+          type: string
+          readOnly: true
+        destination_folder_id:
+          type: string
+          description: Folder ID or destination path.
+          maxLength: 1024
+        status:
+          $ref: '#/components/schemas/UploadExportJobStatusEnum'
+        error_message:
+          type: string
+        provider_file_id:
+          type: string
+          description: File ID in remote storage.
+          maxLength: 1024
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - connection
+      - created_at
+      - destination_folder_id
+      - id
+      - provider
+      - provider_display
+      - updated_at
+      - uploaded_file
+      - uploaded_file_name
+    UploadExportJobStatusEnum:
+      enum:
+      - queued
+      - exporting
+      - exported
+      - failed
+      - blocked_security_scan
+      - blocked_policy
+      type: string
+      description: |-
+        * `queued` - Queued
+        * `exporting` - Exporting
+        * `exported` - Exported
+        * `failed` - Failed
+        * `blocked_security_scan` - Blocked (Security Scan)
+        * `blocked_policy` - Blocked (Policy)
     UploadedFile:
       type: object
       properties:
@@ -8364,6 +8837,9 @@ components:
           type: string
           readOnly: true
         document_name:
+          type: string
+          readOnly: true
+        document_status:
           type: string
           readOnly: true
         folder_id:
@@ -8380,6 +8856,11 @@ components:
           format: email
           maxLength: 254
         submitted_fields: {}
+        export_jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/UploadExportJob'
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -8388,6 +8869,8 @@ components:
       - created_at
       - document_id
       - document_name
+      - document_status
+      - export_jobs
       - folder_id
       - folder_name
       - id
@@ -8443,6 +8926,14 @@ components:
         file_size_quota_mb:
           type: integer
           readOnly: true
+        custom_file_size_quota_mb:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          description: Per-user custom file size quota in MB. If null, the global
+            config is used. 0 means unlimited.
         max_files_per_upload:
           type: integer
           readOnly: true
@@ -8562,6 +9053,11 @@ components:
           items:
             $ref: '#/components/schemas/DataroomVisit'
           readOnly: true
+        link_clicks:
+          type: array
+          items:
+            $ref: '#/components/schemas/LinkClick'
+          readOnly: true
         is_owner_view:
           type: boolean
           readOnly: true
@@ -8584,6 +9080,7 @@ components:
       - ip_address
       - is_owner_view
       - latitude
+      - link_clicks
       - longitude
       - page_views
       - share_link
