@@ -20,10 +20,18 @@ export const VideoViewer = forwardRef(({
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const speedMenuRef = useRef(null);
 
-  // Expose play/pause if needed
+  // Expose play/pause/seek methods
   useImperativeHandle(ref, () => ({
     play: () => videoRef.current?.play(),
     pause: () => videoRef.current?.pause(),
+    seekBy: (seconds) => {
+      if (videoRef.current) {
+        const current = videoRef.current.currentTime || 0;
+        const duration = videoRef.current.duration || 0;
+        const targetTime = Math.max(0, Math.min(duration || current + seconds, current + seconds));
+        videoRef.current.currentTime = targetTime;
+      }
+    },
   }));
 
   useEffect(() => {

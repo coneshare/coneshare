@@ -340,15 +340,23 @@ export function ShareLinkViewerPage() {
 
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault();
-        const nextPage = Math.min(currentPage + 1, totalPages);
-        if (nextPage !== currentPage) {
-          viewerComponentRef.current?.goToPage(nextPage);
+        if (viewerComponentRef.current?.seekBy) {
+          viewerComponentRef.current.seekBy(15);
+        } else {
+          const nextPage = Math.min(currentPage + 1, totalPages);
+          if (nextPage !== currentPage) {
+            viewerComponentRef.current?.goToPage(nextPage);
+          }
         }
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault();
-        const prevPage = Math.max(currentPage - 1, 1);
-        if (prevPage !== currentPage) {
-          viewerComponentRef.current?.goToPage(prevPage);
+        if (viewerComponentRef.current?.seekBy) {
+          viewerComponentRef.current.seekBy(-15);
+        } else {
+          const prevPage = Math.max(currentPage - 1, 1);
+          if (prevPage !== currentPage) {
+            viewerComponentRef.current?.goToPage(prevPage);
+          }
         }
       } else if ((e.ctrlKey || e.metaKey) && e.key === '=') {
         e.preventDefault();

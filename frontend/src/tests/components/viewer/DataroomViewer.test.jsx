@@ -740,4 +740,65 @@ describe('DataroomViewer', () => {
 
     expect(api.downloadDataroomFolder).toHaveBeenCalledWith('test-slug', 'folder1', 'view-123');
   });
+
+  it('renders top header Prev and Next File buttons when viewing a document and handles navigation', async () => {
+    const multiDocData = {
+      id: 'dr1',
+      name: 'Test Dataroom',
+      breadcrumbs: [],
+      items: [
+        { type: 'document', id: 'doc1', document_id: 'doc-file-1', name: 'First Document', document_type: 'pdf', updated_at: new Date().toISOString(), file_size: 1024, allow_download: true },
+        { type: 'document', id: 'doc2', document_id: 'doc-file-2', name: 'Second Document (Video)', document_type: 'video', updated_at: new Date().toISOString(), file_size: 2048, allow_download: true },
+      ],
+    };
+
+    api.getShareLinkViewData.mockImplementation((slug, options) => {
+      if (options?.dataroomDocumentId === 'doc1') {
+        return Promise.resolve({
+          data: {
+            id: 'doc1',
+            name: 'First Document',
+            type: 'pdf',
+            preview_mode: 'client_pdf',
+            link_settings: { allow_download: true },
+          },
+        });
+      }
+      if (options?.dataroomDocumentId === 'doc2') {
+        return Promise.resolve({
+          data: {
+            id: 'doc2',
+            name: 'Second Document (Video)',
+            type: 'video',
+            preview_mode: 'video',
+            video_preview_url: 'http://example.com/video.mp4',
+            link_settings: { allow_download: true },
+          },
+        });
+      }
+      return Promise.resolve({ data: multiDocData });
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/view/test-slug?dataroom_document_id=doc1']}>
+        <DataroomViewer data={multiDocData} slug="test-slug" viewId="view-123" />
+      </MemoryRouter>
+    );
+
+    // Verify Prev File is disabled and Next File is enabled for first doc
+    const prevBtns = await screen.findAllByRole('button', { name: /Prev File/i });
+    const nextBtns = await screen.findAllByRole('button', { name: /Next File/i });
+
+    expect(prevBtns[0]).toBeDisabled();
+    expect(nextBtns[0]).toBeEnabled();
+
+    // Click Next File to switch to video document
+    fireEvent.click(nextBtns[0]);
+
+    await waitFor(() => {
+      expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', expect.objectContaining({
+        dataroomDocumentId: 'doc2',
+      }));
+    });
+  });
 });

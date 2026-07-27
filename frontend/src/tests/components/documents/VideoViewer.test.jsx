@@ -253,4 +253,33 @@ describe('VideoViewer', () => {
 
     document.createElement.mockRestore();
   });
+
+  it('exposes seekBy via ref to adjust currentTime', () => {
+    const ref = { current: null };
+    const { container } = render(
+      <VideoViewer ref={ref} videoUrl={videoUrl} viewId={viewId} />
+    );
+
+    const video = container.querySelector('video');
+    Object.defineProperty(video, 'currentTime', {
+      value: 10,
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(video, 'duration', {
+      value: 100,
+      writable: true,
+      configurable: true,
+    });
+
+    act(() => {
+      ref.current.seekBy(5);
+    });
+    expect(video.currentTime).toBe(15);
+
+    act(() => {
+      ref.current.seekBy(-10);
+    });
+    expect(video.currentTime).toBe(5);
+  });
 });

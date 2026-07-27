@@ -8,6 +8,8 @@ import {
   Eye,
   MessageCircle,
   AlertTriangle,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useSearchParams } from 'react-router-dom';
@@ -620,6 +622,8 @@ export function DataroomViewer({ data, slug, viewId }) {
     }
   }, [viewId, searchParams, setSearchParams, documentViewData]);
 
+  const showDocumentViewer = Boolean(selectedDocumentId);
+
   const siblingDocs = useMemo(() => allItems.filter((item) => item.type === 'document'), [allItems]);
   const currentIndex = useMemo(() => {
     if (!selectedDocumentId) return -1;
@@ -652,23 +656,25 @@ export function DataroomViewer({ data, slug, viewId }) {
         return;
       }
 
-      if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowRight')) {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault();
-        onNextSibling();
-      } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowLeft')) {
-        e.preventDefault();
-        onPrevSibling();
-      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-        e.preventDefault();
-        const nextPage = Math.min(currentPage + 1, totalPages);
-        if (nextPage !== currentPage) {
-          viewerComponentRef.current?.goToPage(nextPage);
+        if (viewerComponentRef.current?.seekBy) {
+          viewerComponentRef.current.seekBy(15);
+        } else {
+          const nextPage = Math.min(currentPage + 1, totalPages);
+          if (nextPage !== currentPage) {
+            viewerComponentRef.current?.goToPage(nextPage);
+          }
         }
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault();
-        const prevPage = Math.max(currentPage - 1, 1);
-        if (prevPage !== currentPage) {
-          viewerComponentRef.current?.goToPage(prevPage);
+        if (viewerComponentRef.current?.seekBy) {
+          viewerComponentRef.current.seekBy(-15);
+        } else {
+          const prevPage = Math.max(currentPage - 1, 1);
+          if (prevPage !== currentPage) {
+            viewerComponentRef.current?.goToPage(prevPage);
+          }
         }
       } else if ((e.ctrlKey || e.metaKey) && e.key === '=') {
         e.preventDefault();
@@ -684,7 +690,7 @@ export function DataroomViewer({ data, slug, viewId }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedDocumentId, currentPage, totalPages, onPrevSibling, onNextSibling]);
+  }, [selectedDocumentId, currentPage, totalPages]);
 
   const handlePrint = () => {
     if (!documentViewData) return;
@@ -706,8 +712,6 @@ export function DataroomViewer({ data, slug, viewId }) {
     '--viewer-secondary': scopeData.brand_secondary_color || '#4b5563',
     '--viewer-accent': scopeData.brand_accent_color || '#1f2937',
   };
-
-  const showDocumentViewer = Boolean(selectedDocumentId);
 
   const isDocActive = showDocumentViewer;
   const isCurrentScopeQnaOpen = Boolean(
@@ -828,8 +832,8 @@ export function DataroomViewer({ data, slug, viewId }) {
         </section>
       )}
 
-      <nav className="flex-shrink-0 border-b bg-white px-3 py-2 sm:px-4">
-        <ol className="flex items-center space-x-2 overflow-x-auto whitespace-nowrap text-sm" style={{ color: 'var(--viewer-secondary)' }}>
+      <nav className="flex-shrink-0 border-b bg-white px-3 py-2 sm:px-4 flex items-center justify-between gap-2">
+        <ol className="flex items-center space-x-2 overflow-x-auto whitespace-nowrap text-sm min-w-0 flex-1" style={{ color: 'var(--viewer-secondary)' }}>
           <li>
             <button
               onClick={() => {
@@ -873,12 +877,39 @@ export function DataroomViewer({ data, slug, viewId }) {
           {showDocumentViewer && documentViewData && (
             <li className="flex items-center">
               <ChevronRight className="h-4 w-4" style={{ color: 'var(--viewer-secondary)' }} />
-              <span className="ml-2 font-medium" style={{ color: 'var(--viewer-primary)' }}>
+              <span className="ml-2 font-medium truncate max-w-[200px] sm:max-w-[300px]" style={{ color: 'var(--viewer-primary)' }}>
                 {documentViewData.name}
               </span>
             </li>
           )}
         </ol>
+
+        {showDocumentViewer && (
+          <div className="flex items-center gap-1 shrink-0 ml-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onPrevSibling}
+              disabled={!hasPrevSibling}
+              title="Previous file (Alt+Left)"
+              className="h-8 gap-1 px-2 text-xs"
+            >
+              <ChevronsLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Prev File</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onNextSibling}
+              disabled={!hasNextSibling}
+              title="Next file (Alt+Right)"
+              className="h-8 gap-1 px-2 text-xs"
+            >
+              <span className="hidden sm:inline">Next File</span>
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </nav>
 
       {showDocumentViewer ? (
