@@ -1,6 +1,14 @@
 # Changelog
 
 
+## [1.7.1](https://github.com/coneshare/coneshare/compare/v1.7.0...v1.7.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* **cloudfiles:** fallback to active provider connection during document refresh ([c2b41c2](https://github.com/coneshare/coneshare/commit/c2b41c2938426ca68cb35e7e309443f24771d986))
+* **frontend:** fix dataroom files navigation and video seeking ([3bcec86](https://github.com/coneshare/coneshare/commit/3bcec864de5f6810f4794312d22da0a2bbde0dce))
+
 ## [1.7.0](https://github.com/coneshare/coneshare/compare/v1.6.0...v1.7.0) (2026-07-23)
 
 
