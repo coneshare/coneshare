@@ -828,7 +828,7 @@ export function DataroomViewer({ data, slug, viewId }) {
       </header>
       {scopeData.branding_banner && !showDocumentViewer && (
         <section className="flex-shrink-0 border-b bg-white">
-          <img src={scopeData.branding_banner} alt={`${scopeData.name} banner`} className="h-32 w-full object-cover md:h-44" />
+          <img src={scopeData.branding_banner} alt={`${scopeData.name} banner`} className="h-40 w-full object-cover md:h-56" />
         </section>
       )}
 

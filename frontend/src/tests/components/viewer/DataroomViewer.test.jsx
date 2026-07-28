@@ -65,6 +65,23 @@ describe('DataroomViewer', () => {
     expect(screen.queryByText('Sub Folder Document')).not.toBeInTheDocument();
   });
 
+  it('renders branding banner with updated height classes', () => {
+    const bannerData = {
+      ...mockDataroomData,
+      link_type: 'dataroom',
+      branding_banner: 'http://localhost/banner.png',
+    };
+    render(
+      <MemoryRouter initialEntries={['/view/test-slug']}>
+        <DataroomViewer data={bannerData} slug="test-slug" />
+      </MemoryRouter>
+    );
+
+    const bannerImg = screen.getByAltText('Test Dataroom banner');
+    expect(bannerImg).toBeInTheDocument();
+    expect(bannerImg).toHaveClass('h-40', 'w-full', 'object-cover', 'md:h-56');
+  });
+
   it('navigates into a sub-folder and displays its contents', async () => {
     api.getShareLinkViewData.mockResolvedValueOnce({
       data: {
