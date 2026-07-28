@@ -423,10 +423,10 @@ def test_delete_folder_permission_denied(api_client, user2):
 
 @pytest.mark.django_db
 @patch('documents.services.fileserver_client.delete_file')
-def test_delete_folder_updates_user_size_and_deletes_contents(mock_fs_delete, api_client, user, organization):
+def test_soft_delete_folder_keeps_size_and_files(mock_fs_delete, api_client, user, organization):
     """
-    Test that deleting a folder correctly updates the user's total document
-    size and deletes all nested documents, folders, and associated files.
+    Test that soft-deleting a folder keeps the user's total document
+    size and does not delete associated files.
     """
     # 1. Setup folder structure and documents
     root_folder = Folder.objects.get_root_for_org(organization)
@@ -464,28 +464,26 @@ def test_delete_folder_updates_user_size_and_deletes_contents(mock_fs_delete, ap
     # 4. Assertions
     assert response.status_code == status.HTTP_204_NO_CONTENT
 
-    # Check that everything is deleted from the DB
-    assert not Folder.objects.filter(id=folder_to_delete.id).exists()
-    assert not Folder.objects.filter(id=subfolder.id).exists()
-    assert not Document.objects.filter(id__in=[doc1.id, doc2.id]).exists()
+    # Check that everything is soft deleted from the DB
+    assert not Folder.objects.active().filter(id=folder_to_delete.id).exists()
+    assert Folder.objects.deleted().filter(id=folder_to_delete.id).exists()
+    assert not Folder.objects.active().filter(id=subfolder.id).exists()
+    assert not Document.objects.active().filter(id__in=[doc1.id, doc2.id]).exists()
 
-    # Check user size is updated
+    # Check user size is unchanged
     user.refresh_from_db()
-    assert user.total_document_size == 0
+    assert user.total_document_size == total_size
 
-    # Check that file deletion was called for all associated files
-    assert mock_fs_delete.call_count == 3
-    mock_fs_delete.assert_any_call("doc1.pdf")
-    mock_fs_delete.assert_any_call("doc1_page1.png")
-    mock_fs_delete.assert_any_call("doc2.pdf")
+    # Check that file deletion was NOT called
+    assert mock_fs_delete.call_count == 0
 
 
 @pytest.mark.django_db
 @patch('documents.services.fileserver_client.delete_file')
-def test_delete_folder_file_server_error_returns_500(mock_fs_delete, api_client, user, organization):
+def test_permanent_delete_trash_item_file_server_error_returns_500(mock_fs_delete, api_client, user, organization):
     """
-    Test that if the file server fails during folder deletion, the view returns
-    a 500 error and the database transaction is rolled back.
+    Test that if the file server fails during permanent deletion from trash,
+    the view returns a 500 error and the database transaction is rolled back.
     """
     mock_fs_delete.side_effect = APIException("File server error")
 
@@ -497,13 +495,17 @@ def test_delete_folder_file_server_error_returns_500(mock_fs_delete, api_client,
     user.total_document_size = 100
     user.save()
 
-    response = api_client.delete(f'/api/v1/folders/{folder.id}/')
+    # Soft delete first
+    api_client.delete(f'/api/v1/folders/{folder.id}/')
+
+    # Now permanently delete from trash
+    response = api_client.delete(f'/api/v1/trash/{folder.id}/permanent/')
 
     assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     # The service should raise an exception before deleting DB records,
-    # so the folder should still exist.
-    assert Folder.objects.filter(id=folder.id).exists()
+    # so the folder should still exist in trash.
+    assert Folder.objects.deleted().filter(id=folder.id).exists()
     user.refresh_from_db()
     assert user.total_document_size == 100
 
@@ -1102,8 +1104,8 @@ def test_get_document_preview_data_wrong_org(api_client):
 
 @pytest.mark.django_db
 @patch('documents.services.fileserver_client.delete_file')
-def test_delete_document_success(mock_fs_delete, api_client, user):
-    """Test that a user can successfully delete their own document."""
+def test_soft_delete_document_success(mock_fs_delete, api_client, user):
+    """Test that a user can successfully soft delete their own document."""
     # Setup
     doc = Document.objects.create(organization=user.organization, created_by=user)
     version = DocumentVersion.objects.create(
@@ -1120,12 +1122,11 @@ def test_delete_document_success(mock_fs_delete, api_client, user):
 
     # Assertions
     assert response.status_code == status.HTTP_204_NO_CONTENT
-    assert not Document.objects.filter(id=doc.id).exists()
+    assert not Document.objects.active().filter(id=doc.id).exists()
+    assert Document.objects.deleted().filter(id=doc.id).exists()
     
-    # Check that file cleanup was triggered
-    assert mock_fs_delete.call_count == 2
-    mock_fs_delete.assert_any_call("delete_me.pdf")
-    mock_fs_delete.assert_any_call("delete_me_page_1.png")
+    # Check that file cleanup was NOT triggered
+    assert mock_fs_delete.call_count == 0
 
 
 @pytest.mark.django_db
@@ -1145,11 +1146,9 @@ def test_delete_document_permission_denied(api_client, user, user2):
 
 
 @pytest.mark.django_db
-def test_delete_document_in_subfolder_success(api_client, user, organization):
+def test_soft_delete_document_in_subfolder_success(api_client, user, organization):
     """
-    Test that a user can delete their document via its ID, even if it's in a subfolder.
-    This reproduces a bug where the lookup for destroy actions was incorrectly
-    scoped to the root folder.
+    Test that a user can soft delete their document via its ID, even if it's in a subfolder.
     """
     # Setup: Create a document inside a subfolder
     root_folder = Folder.objects.get_root_for_org(organization)
@@ -1165,7 +1164,8 @@ def test_delete_document_in_subfolder_success(api_client, user, organization):
 
     # Assertions: The request should succeed, not 404
     assert response.status_code == status.HTTP_204_NO_CONTENT
-    assert not Document.objects.filter(id=doc.id).exists()
+    assert not Document.objects.active().filter(id=doc.id).exists()
+    assert Document.objects.deleted().filter(id=doc.id).exists()
 
 
 @pytest.mark.django_db
@@ -1572,8 +1572,14 @@ class TestQuotaAndSizeTracking:
         # Size should now be 2MB, not 3MB (old was replaced)
         assert user.total_document_size == file_size_2
 
-        # 3. Delete the document
+        # 3. Soft Delete the document
         api_client.delete(f'/api/v1/documents/{doc.id}/')
+        user.refresh_from_db()
+        # Size should still be 2MB
+        assert user.total_document_size == file_size_2
+
+        # 4. Permanent Delete the document from trash
+        api_client.delete(f'/api/v1/trash/{doc.id}/permanent/')
         user.refresh_from_db()
         assert user.total_document_size == 0
 
@@ -1922,4 +1928,320 @@ def test_preview_data_endpoint_document_uploading_state(api_client, user, organi
     response = api_client.get(f'/api/v1/documents/{doc.id}/preview-data/?version_id={v1.id}')
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.json()['detail'] == "Document is not ready for preview."
+
+
+@pytest.mark.django_db
+def test_soft_deleted_document_not_accessible_via_document_viewset(api_client, user, organization):
+    """
+    RED Test: Verify soft-deleted documents return 404 on retrieve, status, download,
+    preview-data, versions endpoints, and are excluded from folder list query.
+    """
+    root_folder = Folder.objects.get_root_for_org(organization)
+    doc = Document.objects.create(
+        name="DeletedDoc.pdf",
+        organization=organization,
+        created_by=user,
+        folder=root_folder,
+        status="ready",
+        file_size=100,
+        type="pdf",
+    )
+    DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        is_primary=True,
+        file_size=100,
+        content_type="application/pdf",
+        original_storage_key="v1.pdf",
+        storage_key="v1.pdf",
+        type="pdf",
+    )
+
+    # Soft delete the document
+    api_client.delete(f'/api/v1/documents/{doc.id}/')
+
+    # 1. Retrieve -> 404
+    res = api_client.get(f'/api/v1/documents/{doc.id}/')
+    assert res.status_code == status.HTTP_404_NOT_FOUND
+
+    # 2. List in folder -> should not include doc
+    res = api_client.get(f'/api/v1/documents/?folder={root_folder.id}')
+    assert res.status_code == status.HTTP_200_OK
+    data = res.json()
+    items_list = data['results'] if isinstance(data, dict) and 'results' in data else data
+    doc_ids = [d['id'] for d in items_list]
+    assert doc.id not in doc_ids
+
+    # 3. Status endpoint -> 404
+    res = api_client.get(f'/api/v1/documents/{doc.id}/status/')
+    assert res.status_code == status.HTTP_404_NOT_FOUND
+
+    # 4. Download endpoint -> 404
+    res = api_client.get(f'/api/v1/documents/{doc.id}/download/')
+    assert res.status_code == status.HTTP_404_NOT_FOUND
+
+    # 5. Preview data -> 404
+    res = api_client.get(f'/api/v1/documents/{doc.id}/preview-data/')
+    assert res.status_code == status.HTTP_404_NOT_FOUND
+
+    # 6. Versions endpoint -> 404
+    res = api_client.get(f'/api/v1/documents/{doc.id}/versions/')
+    assert res.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_soft_deleted_folder_not_accessible_via_folder_viewset(api_client, user, organization):
+    """
+    RED Test: Verify soft-deleted folders return 404 on retrieve and cannot be used as parent for new subfolders.
+    """
+    root_folder = Folder.objects.get_root_for_org(organization)
+    folder = Folder.objects.create(
+        name="TrashedFolder",
+        organization=organization,
+        parent=root_folder,
+        created_by=user,
+    )
+
+    # Soft delete the folder
+    api_client.delete(f'/api/v1/folders/{folder.id}/')
+
+    # 1. Retrieve -> 404
+    res = api_client.get(f'/api/v1/folders/{folder.id}/')
+    assert res.status_code == status.HTTP_404_NOT_FOUND
+
+    # 2. Subfolder creation under trashed parent -> rejected
+    res = api_client.post('/api/v1/folders/', {
+        'name': 'NewSubfolder',
+        'parent': folder.id,
+    })
+    assert res.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]
+
+
+@pytest.mark.django_db
+def test_restore_folder_with_duplicate_trashed_document_names_succeeds(api_client, user, organization):
+    """
+    Test: Restoring a folder with active/trashed documents of the same name
+    resolves collisions without throwing a 500 / IntegrityError.
+    """
+    api_client.force_authenticate(user=user)
+    root_folder = Folder.objects.get_root_for_org(organization)
+    reports = Folder.objects.create(name="Reports", organization=organization, created_by=user, parent=root_folder)
+
+    # 1. Create first Q1.pdf and soft delete it independently
+    doc1 = Document.objects.create(name="Q1.pdf", organization=organization, created_by=user, folder=reports, status="ready")
+    api_client.delete(f'/api/v1/documents/{doc1.id}/')
+
+    # 2. Create second Q1.pdf in same folder while doc1 is in trash
+    doc2 = Document.objects.create(name="Q1.pdf", organization=organization, created_by=user, folder=reports, status="ready")
+
+    # 3. Soft delete the folder (soft deletes reports and doc2 together)
+    api_client.delete(f'/api/v1/folders/{reports.id}/')
+
+    # 4. Restore the folder via TrashViewSet (restores reports and doc2)
+    res = api_client.post(f'/api/v1/trash/{reports.id}/restore/')
+    assert res.status_code == status.HTTP_200_OK
+
+    doc2.refresh_from_db()
+    assert doc2.deleted_at is None
+
+    # 5. Restore doc1 independently from trash
+    res_doc1 = api_client.post(f'/api/v1/trash/{doc1.id}/restore/')
+    assert res_doc1.status_code == status.HTTP_200_OK
+
+    doc1.refresh_from_db()
+    assert doc1.deleted_at is None
+    assert doc1.name != doc2.name  # Renamed to avoid DB unique constraint collision
+
+
+@pytest.mark.django_db
+def test_restore_document_with_trashed_parent_folder_is_rejected(api_client, user, organization):
+    """
+    RED Test (macOS 14 Behavior): Restoring a document whose parent folder is in Trash
+    must be rejected with a 400 Bad Request error stating the parent folder is in Trash.
+    """
+    api_client.force_authenticate(user=user)
+    root_folder = Folder.objects.get_root_for_org(organization)
+    parent_folder = Folder.objects.create(name="ParentFolder", organization=organization, created_by=user, parent=root_folder)
+    sub_folder = Folder.objects.create(name="SubFolder", organization=organization, created_by=user, parent=parent_folder)
+    doc = Document.objects.create(name="DocInSub.pdf", organization=organization, created_by=user, folder=sub_folder, status="ready")
+
+    # Soft delete parent folder (cascades to sub_folder and doc)
+    api_client.delete(f'/api/v1/folders/{parent_folder.id}/')
+
+    # Attempt to restore document alone -> rejected
+    res = api_client.post(f'/api/v1/trash/{doc.id}/restore/')
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+    assert "parent folder 'SubFolder' is in Trash" in res.json().get('detail', '')
+
+    # Verify items remain in Trash
+    doc.refresh_from_db()
+    sub_folder.refresh_from_db()
+    assert doc.deleted_at is not None
+    assert sub_folder.deleted_at is not None
+
+
+@pytest.mark.django_db
+def test_trash_list_filters_to_root_level_deleted_items_only(api_client, user, organization):
+    """
+    RED Test: GET /api/v1/trash/ must only list top-level (root) deleted entries.
+    Nested files and subfolders inside a deleted folder must not clog the trash list.
+    """
+    api_client.force_authenticate(user=user)
+    root_folder = Folder.objects.get_root_for_org(organization)
+    parent_folder = Folder.objects.create(name="ParentFolder", organization=organization, created_by=user, parent=root_folder)
+    sub_folder = Folder.objects.create(name="SubFolder", organization=organization, created_by=user, parent=parent_folder)
+    doc = Document.objects.create(name="DocInSub.pdf", organization=organization, created_by=user, folder=sub_folder, status="ready")
+
+    # Soft delete parent folder (cascades to sub_folder and doc)
+    api_client.delete(f'/api/v1/folders/{parent_folder.id}/')
+
+    # Fetch trash list
+    res = api_client.get('/api/v1/trash/')
+    assert res.status_code == status.HTTP_200_OK
+    data = res.json()
+    items = data['results'] if isinstance(data, dict) and 'results' in data else data
+
+    # Trash list should only contain 1 item (ParentFolder), not 3 items
+    item_ids = [item['id'] for item in items]
+    assert len(items) == 1
+    assert str(parent_folder.id) in item_ids
+    assert str(sub_folder.id) not in item_ids
+    assert str(doc.id) not in item_ids
+
+
+@pytest.mark.django_db
+def test_trash_restore_returns_rename_feedback(api_client, user, organization):
+    """
+    RED Test: Restoring a soft-deleted document that undergoes collision renaming
+    must return detailed rename feedback (was_renamed=True, name, original_name) in API response.
+    """
+    api_client.force_authenticate(user=user)
+    root_folder = Folder.objects.get_root_for_org(organization)
+
+    # 1. Trashed document "File.pdf"
+    trashed_doc = Document.objects.create(name="File.pdf", organization=organization, created_by=user, folder=root_folder, status="ready")
+    api_client.delete(f'/api/v1/documents/{trashed_doc.id}/')
+
+    # 2. Active document "File.pdf" in same folder
+    Document.objects.create(name="File.pdf", organization=organization, created_by=user, folder=root_folder, status="ready")
+
+    # 3. Restore trashed document
+    res = api_client.post(f'/api/v1/trash/{trashed_doc.id}/restore/')
+    assert res.status_code == status.HTTP_200_OK
+    res_data = res.json()
+
+    assert res_data.get('was_renamed') is True
+    assert res_data.get('name').startswith("File (")
+    assert "Restored as" in res_data.get('detail', '')
+
+
+@pytest.mark.django_db
+def test_independently_trashed_file_remains_in_trash_when_parent_folder_trashed(api_client, user, organization):
+    """
+    RED Test (Workflow B):
+    1. Trashing foo.c BEFORE trashing its parent folder src makes foo.c an independent trash entry.
+    2. Trashing src afterwards shows BOTH src AND foo.c in Trash (2 items).
+    3. Restoring src restores src and items trashed WITH src, but LEAVES foo.c in Trash.
+    """
+    import time
+    api_client.force_authenticate(user=user)
+    root_folder = Folder.objects.get_root_for_org(organization)
+    src_folder = Folder.objects.create(name="src", organization=organization, created_by=user, parent=root_folder)
+    foo_doc = Document.objects.create(name="foo.c", organization=organization, created_by=user, folder=src_folder, status="ready")
+
+    # 1. Soft delete foo.c first
+    api_client.delete(f'/api/v1/documents/{foo_doc.id}/')
+    time.sleep(0.02)  # Ensure distinct timestamps
+
+    # 2. Soft delete folder src second
+    api_client.delete(f'/api/v1/folders/{src_folder.id}/')
+
+    # 3. GET /api/v1/trash/ should list BOTH src AND foo.c (2 items)
+    res = api_client.get('/api/v1/trash/')
+    assert res.status_code == status.HTTP_200_OK
+    data = res.json()
+    items = data['results'] if isinstance(data, dict) and 'results' in data else data
+    item_ids = [item['id'] for item in items]
+
+    assert len(items) == 2
+    assert str(src_folder.id) in item_ids
+    assert str(foo_doc.id) in item_ids
+
+    # 4. Restoring src should restore src, but LEAVE foo.c in Trash
+    res_restore = api_client.post(f'/api/v1/trash/{src_folder.id}/restore/')
+    assert res_restore.status_code == status.HTTP_200_OK
+
+    src_folder.refresh_from_db()
+    foo_doc.refresh_from_db()
+
+    assert src_folder.deleted_at is None
+    assert foo_doc.deleted_at is not None  # foo.c stays in Trash!
+
+    # 5. Restoring foo.c independently restores foo.c
+    res_restore_foo = api_client.post(f'/api/v1/trash/{foo_doc.id}/restore/')
+    assert res_restore_foo.status_code == status.HTTP_200_OK
+    foo_doc.refresh_from_db()
+    assert foo_doc.deleted_at is None
+
+
+@pytest.mark.django_db
+def test_restore_document_relinks_to_newly_created_active_parent_folder(api_client, user, organization):
+    """
+    RED Test: If original parent folder 'images' was soft-deleted, but user manually created a new
+    active folder named 'images', restoring a document from trash should automatically re-link to the new
+    active 'images' folder instead of failing.
+    """
+    api_client.force_authenticate(user=user)
+    root_folder = Folder.objects.get_root_for_org(organization)
+
+    # 1. Create original folder 'images' and document inside it
+    old_images_folder = Folder.objects.create(name="images", organization=organization, created_by=user, parent=root_folder)
+    doc = Document.objects.create(name="photo.jpeg", organization=organization, created_by=user, folder=old_images_folder, status="ready")
+
+    # 2. Soft delete old_images_folder (soft deletes old_images_folder and doc)
+    api_client.delete(f'/api/v1/folders/{old_images_folder.id}/')
+
+    # 3. User manually creates a NEW active folder named 'images' under root
+    new_images_folder = Folder.objects.create(name="images", organization=organization, created_by=user, parent=root_folder)
+    assert new_images_folder.id != old_images_folder.id
+
+    # 4. Restore photo.jpeg
+    res = api_client.post(f'/api/v1/trash/{doc.id}/restore/')
+    assert res.status_code == status.HTTP_200_OK
+
+    doc.refresh_from_db()
+    assert doc.deleted_at is None
+    assert doc.folder == new_images_folder
+
+
+@pytest.mark.django_db
+def test_restore_document_does_not_relink_to_another_users_active_parent_folder(api_client, user, organization):
+    """
+    Test: Active replacement folder lookup must be scoped to the document owner (created_by).
+    A document restored by User A must NOT be relinked to an active folder 'images' created by User B.
+    """
+    other_user = User.objects.create_user(username="other@example.com", email="other@example.com", password="password", organization=organization)
+    api_client.force_authenticate(user=user)
+    root_folder = Folder.objects.get_root_for_org(organization)
+
+    # 1. User A creates folder 'images' and document inside it
+    old_images_folder = Folder.objects.create(name="images", organization=organization, created_by=user, parent=root_folder)
+    doc = Document.objects.create(name="photo.jpeg", organization=organization, created_by=user, folder=old_images_folder, status="ready")
+
+    # 2. Soft delete old_images_folder
+    api_client.delete(f'/api/v1/folders/{old_images_folder.id}/')
+
+    # 3. Other user (User B) creates an active folder named 'images'
+    other_user_images_folder = Folder.objects.create(name="images", organization=organization, created_by=other_user, parent=root_folder)
+
+    # 4. User A attempts to restore photo.jpeg -> should be rejected because User A has no active 'images' folder
+    res = api_client.post(f'/api/v1/trash/{doc.id}/restore/')
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+    assert "parent folder 'images' is in Trash" in res.json().get('detail', '')
+
+
+
+
+
+
 

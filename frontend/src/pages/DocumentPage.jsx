@@ -521,9 +521,9 @@ export function DocumentPage() {
         isOpen={isDeleteDocDialogOpen}
         onOpenChange={setIsDeleteDocDialogOpen}
         onConfirm={handleConfirmDeleteDoc}
-        title="Delete Document"
-        description={`Are you sure you want to permanently delete "${document?.name}"? All associated links and data will be removed. This action cannot be undone.`}
-        confirmText="Delete"
+        title="Move Document to Trash"
+        description={`Are you sure you want to move "${document?.name}" to trash? You can restore it anytime from Trash.`}
+        confirmText="Move to Trash"
       />
       <ConfirmationDialog
         isOpen={isVersionMismatchDialogOpen}

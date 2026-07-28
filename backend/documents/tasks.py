@@ -9,9 +9,13 @@ from celery import shared_task
 from pdf2image import convert_from_bytes, pdfinfo_from_bytes
 from pypdf import PdfReader
 
+from datetime import timedelta
+from django.utils import timezone
+from django.db.models import Q
+
 from core.services import get_dynamic_setting
 from .fileserver import fileserver_client
-from .models import DocumentVersion, DocumentPage
+from .models import Document, DocumentPage, DocumentVersion, Folder
 
 
 logger = logging.getLogger('tasks')
@@ -410,4 +414,38 @@ def generate_video_stream_task(version_id):
             version.save(update_fields=['render_status', 'render_error', 'updated_at'])
         except Exception:
             pass
+
+
+@shared_task
+def purge_expired_trash_documents_task():
+    """
+    Daily Celery task to permanently purge soft-deleted items that have been
+    in the trash for more than 30 days.
+    """
+    # Inline import required here to prevent circular import loop with documents.services
+    from .services import delete_document_and_files, delete_folder_and_contents
+
+    threshold = timezone.now() - timedelta(days=30)
+
+    expired_folders = Folder.objects.deleted().filter(
+        deleted_at__lt=threshold
+    ).filter(
+        Q(parent__isnull=True) | Q(parent__deleted_at__isnull=True)
+    )
+    for folder in list(expired_folders):
+        try:
+            delete_folder_and_contents(folder)
+        except Exception as e:
+            logger.error(f"Failed to auto-purge expired folder {folder.id}: {e}")
+
+    expired_docs = Document.objects.deleted().filter(
+        deleted_at__lt=threshold
+    ).filter(
+        Q(folder__isnull=True) | Q(folder__deleted_at__isnull=True)
+    )
+    for doc in list(expired_docs):
+        try:
+            delete_document_and_files(doc)
+        except Exception as e:
+            logger.error(f"Failed to auto-purge expired document {doc.id}: {e}")
 

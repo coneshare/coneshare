@@ -5,7 +5,7 @@ from urllib.parse import urljoin
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, Value, CharField, BigIntegerField, F, Q
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import permissions, serializers, status, viewsets, throttling
@@ -31,6 +31,10 @@ from .services import (
     create_new_document_version,
     delete_document_and_files,
     delete_folder_and_contents,
+    soft_delete_document,
+    soft_delete_folder,
+    restore_item,
+    empty_trash,
     generate_storage_key,
     copy_document,
     enqueue_server_preview_render,
@@ -52,7 +56,7 @@ def _get_folder_from_path(requesting_user, folder_path: str) -> Folder | None:
     """
     organization = requesting_user.organization
     try:
-        parent = Folder.objects.get(
+        parent = Folder.objects.active().get(
             organization=organization, name='__root__', parent=None
         )
     except Folder.DoesNotExist:
@@ -63,7 +67,7 @@ def _get_folder_from_path(requesting_user, folder_path: str) -> Folder | None:
     target_folder = parent
     for part in path.parts:
         try:
-            target_folder = Folder.objects.get(
+            target_folder = Folder.objects.active().get(
                 organization=organization,
                 name=part,
                 parent=parent,
@@ -90,7 +94,7 @@ def _get_folder_from_path(requesting_user, folder_path: str) -> Folder | None:
 
 #     path = Path(folder_path)
 #     for part in path.parts:
-#         folder, _ = Folder.objects.get_or_create(
+#         folder, _ = Folder.objects.active().get_or_create(
 #             organization=requesting_user.organization,
 #             name=part,
 #             parent=parent,
@@ -279,7 +283,7 @@ class EnsureFolderPathsView(APIView):
                 path = Path(parent_path)
                 current_folder = Folder.objects.get_root_for_org(organization)
                 for part in path.parts:
-                    current_folder = Folder.objects.get(
+                    current_folder = Folder.objects.active().get(
                         organization=organization,
                         name=part,
                         parent=current_folder,
@@ -351,7 +355,7 @@ class EnsureFolderPathsView(APIView):
                         )
 
                     folder_name = path.name
-                    folder, _ = Folder.objects.get_or_create(
+                    folder, _ = Folder.objects.active().get_or_create(
                         organization=organization,
                         parent=parent_folder,
                         name=folder_name,
@@ -407,7 +411,7 @@ class DocumentVersionUploadRequestView(APIView):
     )
     def post(self, request, document_id, *args, **kwargs):
         try:
-            document = Document.objects.get(id=document_id, created_by=request.user)
+            document = Document.objects.active().get(id=document_id, created_by=request.user)
         except Document.DoesNotExist:
             return Response({"detail": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -458,7 +462,7 @@ class DocumentVersionUploadFinalizeView(APIView):
     )
     def post(self, request, document_id, *args, **kwargs):
         try:
-            document = Document.objects.get(id=document_id, created_by=request.user)
+            document = Document.objects.active().get(id=document_id, created_by=request.user)
         except Document.DoesNotExist:
             return Response({"detail": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -565,7 +569,7 @@ class DocumentDownloadView(APIView):
     )
     def get(self, request, document_id, *args, **kwargs):
         try:
-            document = Document.objects.get(
+            document = Document.objects.active().get(
                 id=document_id,
                 organization=request.user.organization,
                 created_by=request.user
@@ -620,7 +624,7 @@ class DocumentPreviewDataView(APIView):
     def get(self, request, document_id, *args, **kwargs):
         # Authentication & Authorization is handled by DRF + this query
         try:
-            document = Document.objects.get(
+            document = Document.objects.active().get(
                 id=document_id,
                 organization=request.user.organization,
                 created_by=request.user
@@ -720,7 +724,7 @@ class DocumentPreviewDataView(APIView):
 
 @extend_schema(tags=['documents'])
 class FolderViewSet(viewsets.ModelViewSet):
-    queryset = Folder.objects.all()
+    queryset = Folder.objects.active().all()
     serializer_class = FolderSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -736,9 +740,9 @@ class FolderViewSet(viewsets.ModelViewSet):
     def _get_folder_contents(self, folder, request):
         """Helper to fetch and serialize sub-folders and documents for a given folder."""
         logging.debug('get root folder contents...')
-        sub_folders = list(folder.children.filter(created_by=request.user))
+        sub_folders = list(folder.children.active().filter(created_by=request.user))
         logging.debug(f'folders: {sub_folders}')
-        documents = list(folder.documents.filter(created_by=request.user).prefetch_related(
+        documents = list(folder.documents.active().filter(created_by=request.user).prefetch_related(
             'versions', 'share_links', 'share_links__view_sessions'
         ).annotate(share_link_view_count=Count('share_links__view_sessions', distinct=True)))
         logging.debug(f'documents: {documents}')
@@ -791,7 +795,7 @@ class FolderViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         parent = serializer.validated_data.get('parent')
-        if parent and parent.created_by != self.request.user:
+        if parent and (parent.created_by != self.request.user or parent.deleted_at is not None):
             raise serializers.ValidationError(
                 {'parent': "You can only create subfolders in your own folders."}
             )
@@ -806,7 +810,7 @@ class FolderViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         parent = serializer.validated_data.get('parent')
-        if parent and parent.created_by != self.request.user:
+        if parent and (parent.created_by != self.request.user or parent.deleted_at is not None):
             raise serializers.ValidationError(
                 {'parent': "You can only move folders to destinations you own."}
             )
@@ -815,9 +819,9 @@ class FolderViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         folder = self.get_object()
         try:
-            delete_folder_and_contents(folder)
+            soft_delete_folder(folder, request.user)
         except Exception as e:
-            logger.error(f"Error deleting folder {folder.id}: {e}")
+            logger.error(f"Error soft deleting folder {folder.id}: {e}")
             return Response(
                 {"detail": "An error occurred while deleting the folder."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -831,7 +835,7 @@ class DocumentCopyRateThrottle(throttling.UserRateThrottle):
 
 @extend_schema(tags=['documents'])
 class DocumentViewSet(viewsets.ModelViewSet):
-    queryset = Document.objects.all()
+    queryset = Document.objects.active().all()
     serializer_class = DocumentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -861,10 +865,10 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
         if folder_id:
             # Ensure the requested folder belongs to the user's org for security
-            target_folder = get_object_or_404(Folder, id=folder_id, organization=organization)
+            target_folder = get_object_or_404(Folder.objects.active(), id=folder_id, organization=organization)
         else:
             # Default to listing documents in the root folder
-            target_folder = get_object_or_404(Folder, organization=organization, name='__root__', parent=None)
+            target_folder = get_object_or_404(Folder.objects.active(), organization=organization, name='__root__', parent=None)
 
         queryset = queryset.filter(folder=target_folder)
 
@@ -878,7 +882,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         document = self.get_object()
-        delete_document_and_files(document)
+        soft_delete_document(document, request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['get'])
@@ -887,7 +891,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
         Returns a lightweight status object containing only status and status_message.
         """
         document = get_object_or_404(
-            Document.objects.only('status', 'status_message'),
+            Document.objects.active().only('status', 'status_message'),
             id=pk,
             organization=request.user.organization,
             created_by=request.user
@@ -1124,16 +1128,16 @@ class MoveItemsView(APIView):
             with transaction.atomic():
                 # 1. Get and validate destination folder
                 if dest_id:
-                    destination_folder = Folder.objects.get(id=dest_id, created_by=user)
+                    destination_folder = Folder.objects.active().get(id=dest_id, created_by=user)
                 else:
                     destination_folder = Folder.objects.get_root_for_org(organization)
 
                 # 2. Get and validate source items
-                documents_to_move = Document.objects.filter(id__in=doc_ids, created_by=user)
+                documents_to_move = Document.objects.active().filter(id__in=doc_ids, created_by=user)
                 if documents_to_move.count() != len(doc_ids):
                     raise PermissionDenied("You do not have permission to move one or more of the selected documents.")
 
-                folders_to_move = Folder.objects.filter(id__in=folder_ids, created_by=user)
+                folders_to_move = Folder.objects.active().filter(id__in=folder_ids, created_by=user)
                 if folders_to_move.count() != len(folder_ids):
                     raise PermissionDenied("You do not have permission to move one or more of the selected folders.")
 
@@ -1210,3 +1214,112 @@ class RootFolderView(APIView):
             return Response({'id': root_folder.id})
         except Folder.DoesNotExist:
             return Response({'detail': 'Root folder not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@extend_schema(tags=['trash'])
+class TrashViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def list(self, request):
+        """
+        List top-level soft-deleted documents and folders via DB-level SQL UNION ALL pagination.
+        Only items whose parent folder is active (or null) are shown as top-level trash entries.
+        """
+        folders_qs = Folder.objects.deleted().filter(
+            deleted_by=request.user
+        ).filter(
+            Q(parent__isnull=True) | Q(parent__deleted_at__isnull=True) | Q(deleted_at__lt=F('parent__deleted_at'))
+        ).annotate(
+            item_type=Value('folder', CharField()),
+            file_type=Value('folder', CharField()),
+            size=Value(None, BigIntegerField()),
+            parent_name=F('parent__name'),
+            view_count=Value(0, BigIntegerField())
+        ).values('id', 'name', 'item_type', 'file_type', 'size', 'deleted_at', 'deleted_by_id', 'parent_name', 'parent_id', 'view_count')
+
+        docs_qs = Document.objects.deleted().filter(
+            deleted_by=request.user
+        ).filter(
+            Q(folder__isnull=True) | Q(folder__deleted_at__isnull=True) | Q(deleted_at__lt=F('folder__deleted_at'))
+        ).annotate(
+            item_type=Value('document', CharField()),
+            file_type=F('type'),
+            size=F('file_size'),
+            parent_name=F('folder__name'),
+            parent_id=F('folder_id'),
+            view_count=Count('share_links__view_sessions', distinct=True)
+        ).values('id', 'name', 'item_type', 'file_type', 'size', 'deleted_at', 'deleted_by_id', 'parent_name', 'parent_id', 'view_count')
+
+        combined_qs = folders_qs.union(docs_qs).order_by('-deleted_at')
+
+        paginator = StandardResultsSetPagination()
+        page = paginator.paginate_queryset(combined_qs, request, view=self)
+        if page is not None:
+            return paginator.get_paginated_response(page)
+
+        return Response(list(combined_qs))
+
+    @action(detail=True, methods=['post'])
+    def restore(self, request, pk=None):
+        """Restore a soft-deleted document or folder."""
+        # Check both Document and Folder
+        item = Folder.objects.deleted().filter(id=pk, deleted_by=request.user).first()
+        item_type = 'folder'
+        if not item:
+            item = Document.objects.deleted().filter(id=pk, deleted_by=request.user).first()
+            item_type = 'document'
+            if not item:
+                return Response({"detail": "Item not found in trash."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            restored_item, original_name, was_renamed = restore_item(item, item_type, request.user)
+            detail_msg = f'Restored as "{restored_item.name}"' if was_renamed else "Item restored successfully."
+            return Response({
+                "detail": detail_msg,
+                "id": str(restored_item.id),
+                "name": restored_item.name,
+                "original_name": original_name,
+                "was_renamed": was_renamed,
+            })
+        except (DjangoValidationError, APIException) as e:
+            if hasattr(e, 'messages') and e.messages:
+                msg = e.messages[0]
+            elif hasattr(e, 'detail'):
+                msg = e.detail
+            else:
+                msg = str(e)
+            return Response({"detail": str(msg)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Failed to restore item {pk}: {e}")
+            return Response({"detail": "An error occurred during restoration."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['delete'])
+    def permanent(self, request, pk=None):
+        """Permanently hard-delete an item and its storage binary."""
+        item = Folder.objects.deleted().filter(id=pk, deleted_by=request.user).first()
+        item_type = 'folder'
+        if not item:
+            item = Document.objects.deleted().filter(id=pk, deleted_by=request.user).first()
+            item_type = 'document'
+            if not item:
+                return Response({"detail": "Item not found in trash."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            if item_type == 'folder':
+                delete_folder_and_contents(item)
+            else:
+                delete_document_and_files(item)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            logger.error(f"Failed to permanently delete item {pk}: {e}")
+            return Response({"detail": "An error occurred during permanent deletion."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['delete'], url_path='empty')
+    def empty(self, request):
+        """Permanently hard-delete all items in trash."""
+        try:
+            empty_trash(request.user)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            logger.error(f"Failed to empty trash for user {request.user.id}: {e}")
+            return Response({"detail": "An error occurred while emptying trash."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

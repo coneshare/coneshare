@@ -213,10 +213,10 @@ export function DocumentsList({
         <ConfirmationDialog
           isOpen={!!itemToDelete}
           onOpenChange={(isOpen) => !isOpen && setItemToDelete(null)}
-          title={`Delete "${itemToDelete.name}"?`}
-          description="This action cannot be undone. This will permanently delete the item and all of its contents."
+          title={`Move "${itemToDelete.name}" to Trash?`}
+          description="This item will be moved to Trash. You can restore it anytime from Trash."
           onConfirm={handleConfirmDelete}
-          confirmText="Delete"
+          confirmText="Move to Trash"
         />
       )}
       {!onRename && itemToRename && (

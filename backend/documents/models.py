@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from django.core.exceptions import ValidationError
 from django.conf import settings
 
@@ -6,7 +7,14 @@ from core.models import BaseModel, Organization, User
 from core.services import get_dynamic_setting
 
 
-class FolderManager(models.Manager):
+class SoftDeleteQuerySet(models.QuerySet):
+    def active(self):
+        return self.filter(deleted_at__isnull=True)
+
+    def deleted(self):
+        return self.filter(deleted_at__isnull=False)
+
+class FolderManager(models.Manager.from_queryset(SoftDeleteQuerySet)):
     def get_root_for_org(self, organization):
         """
         Retrieves the invisible __root__ folder for a given organization.
@@ -16,17 +24,36 @@ class FolderManager(models.Manager):
         return self.get(organization=organization, name='__root__', parent=None)
 
 
+class DocumentManager(models.Manager.from_queryset(SoftDeleteQuerySet)):
+    pass
+
+
 class Folder(BaseModel):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='folders')
     name = models.CharField(max_length=255, db_index=True)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='folders_created')
     is_starred = models.BooleanField(default=False)
+    
+    deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    deleted_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='folders_deleted'
+    )
 
     objects = FolderManager()
 
     class Meta:
-        unique_together = ('created_by', 'parent', 'name')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['created_by', 'parent', 'name'],
+                condition=Q(deleted_at__isnull=True),
+                name='unique_active_folder_name'
+            )
+        ]
 
     def __str__(self):
         return self.name
@@ -73,9 +100,26 @@ class Document(BaseModel):
     is_starred = models.BooleanField(default=False)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='documents_created')
     metadata = models.JSONField(blank=True, default=dict)
+    
+    deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    deleted_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='documents_deleted'
+    )
+
+    objects = DocumentManager()
 
     class Meta:
-        unique_together = ('created_by', 'folder', 'name')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['created_by', 'folder', 'name'],
+                condition=Q(deleted_at__isnull=True),
+                name='unique_active_document_name'
+            )
+        ]
 
     def __str__(self):
         return self.name

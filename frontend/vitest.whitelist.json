@@ -21,6 +21,7 @@
     "src/tests/components/documents/DocumentPreviewModal.test.jsx",
     "src/tests/pages/AdminUsersPage.test.jsx",
     "src/tests/components/documents/DocumentsList.test.jsx",
-    "src/tests/components/EmptyDocuments.test.jsx"
+    "src/tests/components/EmptyDocuments.test.jsx",
+    "src/tests/pages/TrashPage.test.jsx"
   ]
 }

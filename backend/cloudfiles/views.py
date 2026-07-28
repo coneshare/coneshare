@@ -302,7 +302,7 @@ class CloudRefreshView(APIView):
     )
     def post(self, request, document_id, *args, **kwargs):
         try:
-            document = Document.objects.get(id=document_id, created_by=request.user)
+            document = Document.objects.active().get(id=document_id, created_by=request.user)
         except Document.DoesNotExist:
             return Response({"detail": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -345,7 +345,7 @@ class CloudRefreshView(APIView):
         # celery worker cleans up this version record and restores the previous primary version.
         with transaction.atomic():
             # Lock the document row to prevent concurrent updates
-            locked_document = Document.objects.select_for_update().get(id=document_id)
+            locked_document = Document.objects.active().select_for_update().get(id=document_id)
 
             # Fetch versions inside lock
             current_primary = locked_document.versions.filter(is_primary=True).first()
@@ -401,7 +401,7 @@ class CloudImportVersionView(APIView):
     )
     def post(self, request, document_id, *args, **kwargs):
         try:
-            document = Document.objects.get(id=document_id, created_by=request.user)
+            document = Document.objects.active().get(id=document_id, created_by=request.user)
         except Document.DoesNotExist:
             return Response({"detail": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -443,7 +443,7 @@ class CloudImportVersionView(APIView):
         # celery worker cleans up this version record and restores the previous primary version.
         with transaction.atomic():
             # Lock the document row to prevent concurrent updates
-            locked_document = Document.objects.select_for_update().get(id=document_id)
+            locked_document = Document.objects.active().select_for_update().get(id=document_id)
 
             # Fetch versions inside lock
             current_primary = locked_document.versions.filter(is_primary=True).first()

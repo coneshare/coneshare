@@ -103,7 +103,7 @@ describe("DocumentsList", () => {
     const deleteButton = screen.getByRole("button", { name: /delete document/i });
     await userEvent.click(deleteButton);
 
-    const dialogTitle = await screen.findByRole('heading', { name: /delete "Test Document 1"\?/i });
+    const dialogTitle = await screen.findByRole('heading', { name: /move "Test Document 1" to trash\?/i });
     expect(dialogTitle).toBeInTheDocument();
   });
 

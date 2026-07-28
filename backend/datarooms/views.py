@@ -204,7 +204,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
         try:
             with transaction.atomic():
                 # Add individual documents.
-                docs_to_add = Document.objects.filter(id__in=doc_ids, created_by=request.user)
+                docs_to_add = Document.objects.active().filter(id__in=doc_ids, created_by=request.user)
                 if docs_to_add.count() != len(doc_ids):
                     raise PermissionDenied("You do not have permission to add one or more of the selected documents.")
 
@@ -227,7 +227,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
                         )
 
                 # Add folders and their contents recursively.
-                folders_to_add = Folder.objects.filter(id__in=folder_ids, created_by=request.user)
+                folders_to_add = Folder.objects.active().filter(id__in=folder_ids, created_by=request.user)
                 if folders_to_add.count() != len(folder_ids):
                     raise PermissionDenied("You do not have permission to add one or more of the selected folders.")
 
@@ -288,7 +288,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
             parent = get_object_or_404(DataroomFolder, id=parent_id, dataroom=dataroom)
 
         existing_folders = DataroomFolder.objects.filter(dataroom=dataroom, parent=parent)
-        existing_documents = DataroomDocument.objects.filter(dataroom=dataroom, folder=parent)
+        existing_documents = DataroomDocument.objects.filter(dataroom=dataroom, folder=parent, document__deleted_at__isnull=True)
 
         existing_item_keys = {
             *{("folder", str(folder_id)) for folder_id in existing_folders.values_list('id', flat=True)},
@@ -760,7 +760,9 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         # Custom logic to include sub-folders and documents
         sub_folders = instance.children.all().order_by('created_at', 'id')
-        documents = DataroomDocument.objects.filter(folder=instance).select_related('document', 'document__created_by').annotate(
+        documents = DataroomDocument.objects.filter(
+            folder=instance, document__deleted_at__isnull=True
+        ).select_related('document', 'document__created_by').annotate(
             dataroom_view_count=Count('dataroomvisit', distinct=True)
         ).order_by('created_at', 'id')
 

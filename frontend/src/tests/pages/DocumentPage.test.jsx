@@ -287,10 +287,10 @@ describe('DocumentPage', () => {
       fireEvent.click(deleteButton);
 
       // Check for confirmation dialog
-      const dialog = await screen.findByRole('dialog', { name: /delete document/i });
-      expect(within(dialog).getByText(/are you sure you want to permanently delete/i)).toBeInTheDocument();
+      const dialog = await screen.findByRole('dialog', { name: /move document to trash/i });
+      expect(within(dialog).getByText(/are you sure you want to move/i)).toBeInTheDocument();
       
-      const confirmDeleteButton = within(dialog).getByRole('button', { name: /delete/i });
+      const confirmDeleteButton = within(dialog).getByRole('button', { name: /move to trash/i });
       fireEvent.click(confirmDeleteButton);
 
       await waitFor(() => {

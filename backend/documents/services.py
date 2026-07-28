@@ -3,11 +3,12 @@ import mimetypes
 import logging
 import requests
 import uuid
+from django.utils import timezone
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import F, Sum
+from django.db.models import F, Q, Sum
 from rest_framework.exceptions import APIException
 
 from backend.utils import get_unique_name
@@ -809,3 +810,162 @@ def promote_document_version(document: Document, version: DocumentVersion, reque
     # receives up-to-date metadata in memory.
     document.refresh_from_db()
 
+
+def soft_delete_document(document: Document, user: User):
+    """Soft deletes a document."""
+    document.deleted_at = timezone.now()
+    document.deleted_by = user
+    document.save(update_fields=['deleted_at', 'deleted_by', 'updated_at'])
+
+
+def soft_delete_folder(folder: Folder, user: User):
+    """
+    Soft deletes a folder and all its active contents (subfolders and documents).
+    Preserves original deleted_at timestamps on items that were soft deleted earlier.
+    """
+    now = timezone.now()
+    with transaction.atomic():
+        descendants = folder.get_descendants()
+        all_folders = [folder] + descendants
+        
+        Folder.objects.active().filter(id__in=[f.id for f in all_folders]).update(
+            deleted_at=now,
+            deleted_by=user
+        )
+        Document.objects.active().filter(folder__in=all_folders).update(
+            deleted_at=now,
+            deleted_by=user
+        )
+
+
+def restore_item(item, item_type: str, user: User):
+    """
+    Restores a soft-deleted document or folder.
+    Handles naming collisions by appending a numerical copy suffix if needed.
+    Rejects restoration if parent folder is in Trash.
+    Returns (restored_item, original_name, was_renamed).
+    """
+    original_name = item.name
+
+    if item_type == 'document':
+        if item.folder and item.folder.deleted_at is not None:
+            active_replacement = Folder.objects.active().filter(
+                parent=item.folder.parent,
+                name=item.folder.name,
+                organization=item.organization,
+                created_by=item.created_by
+            ).first()
+            if active_replacement:
+                item.folder = active_replacement
+                item.save(update_fields=['folder', 'updated_at'])
+            else:
+                raise ValidationError(f"Cannot restore '{item.name}' because parent folder '{item.folder.name}' is in Trash. Restore '{item.folder.name}' first.")
+    else:
+        if item.parent and item.parent.deleted_at is not None:
+            active_parent_replacement = Folder.objects.active().filter(
+                parent=item.parent.parent,
+                name=item.parent.name,
+                organization=item.organization,
+                created_by=item.created_by
+            ).first()
+            if active_parent_replacement:
+                item.parent = active_parent_replacement
+                item.save(update_fields=['parent', 'updated_at'])
+            else:
+                raise ValidationError(f"Cannot restore '{item.name}' because parent folder '{item.parent.name}' is in Trash. Restore '{item.parent.name}' first.")
+
+    with transaction.atomic():
+        if item_type == 'folder':
+            descendants = item.get_descendants()
+            all_folders = [item] + descendants
+
+            # Check for active name collision on top-level folder
+            if Folder.objects.active().filter(parent=item.parent, name=item.name).exists():
+                item.name = _get_unique_folder_name(item.created_by, item.parent, item.name)
+                item.save(update_fields=['name', 'updated_at'])
+
+            # Handle duplicate document names within each restoring folder
+            def _make_unique_in_set(name: str, existing_names: set, has_extension: bool = True) -> str:
+                if name not in existing_names:
+                    return name
+                if has_extension:
+                    base, ext = os.path.splitext(name)
+                else:
+                    base, ext = name, ""
+                counter = 1
+                new_name = f"{base} ({counter}){ext}"
+                while new_name in existing_names:
+                    counter += 1
+                    new_name = f"{base} ({counter}){ext}"
+                return new_name
+
+            folder_deleted_at = item.deleted_at
+            # Only restore subfolders and documents that were soft-deleted together with (or after) this folder.
+            # Independently soft-deleted items (deleted_at < folder_deleted_at) remain in Trash.
+            folders_to_restore = [f for f in all_folders if f.deleted_at is None or (folder_deleted_at is None or f.deleted_at >= folder_deleted_at)]
+
+            for f in folders_to_restore:
+                active_doc_names = set(Document.objects.active().filter(folder=f).values_list('name', flat=True))
+                doc_filter = {'folder': f}
+                if folder_deleted_at is not None:
+                    doc_filter['deleted_at__gte'] = folder_deleted_at
+                deleted_docs = list(
+                    Document.objects.deleted().filter(**doc_filter).order_by('created_at', 'id')
+                )
+
+                for doc in deleted_docs:
+                    if doc.name in active_doc_names:
+                        doc.name = _make_unique_in_set(doc.name, active_doc_names, has_extension=True)
+                        doc.save(update_fields=['name', 'updated_at'])
+                    active_doc_names.add(doc.name)
+
+            f_filter = {'id__in': [f.id for f in folders_to_restore]}
+            if folder_deleted_at is not None:
+                f_filter['deleted_at__gte'] = folder_deleted_at
+            Folder.objects.deleted().filter(**f_filter).update(
+                deleted_at=None,
+                deleted_by=None
+            )
+
+            d_filter = {'folder__in': folders_to_restore}
+            if folder_deleted_at is not None:
+                d_filter['deleted_at__gte'] = folder_deleted_at
+            Document.objects.deleted().filter(**d_filter).update(
+                deleted_at=None,
+                deleted_by=None
+            )
+            item.refresh_from_db()
+        else:
+            if Document.objects.active().filter(folder=item.folder, name=item.name).exists():
+                item.name = _get_unique_document_name(item.created_by, item.folder, item.name)
+
+            item.deleted_at = None
+            item.deleted_by = None
+            item.save(update_fields=['name', 'deleted_at', 'deleted_by', 'updated_at'])
+            item.refresh_from_db()
+
+        was_renamed = (item.name != original_name)
+        return item, original_name, was_renamed
+
+
+def empty_trash(user: User):
+    """
+    Permanently hard-deletes all soft-deleted items in the user's trash.
+    Iterates root-level soft-deleted folders first, then orphaned soft-deleted docs.
+    """
+    with transaction.atomic():
+        root_deleted_folders = Folder.objects.deleted().filter(
+            deleted_by=user
+        ).filter(
+            Q(parent__isnull=True) | Q(parent__deleted_at__isnull=True)
+        )
+        for folder in list(root_deleted_folders):
+            delete_folder_and_contents(folder)
+
+        orphan_deleted_docs = Document.objects.deleted().filter(
+            deleted_by=user
+        ).filter(
+            Q(folder__isnull=True) | Q(folder__deleted_at__isnull=True)
+        )
+        for doc in list(orphan_deleted_docs):
+            delete_document_and_files(doc)
