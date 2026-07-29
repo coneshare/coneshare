@@ -59,6 +59,17 @@ services:
       - core
     env_file: .env
 
+  celery_beat:
+    image: coneshare:dev
+    command: celery -A backend beat -l INFO
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - redis
+    env_file: .env
+
   frontend:
     image: coneshare:frontend
     build:

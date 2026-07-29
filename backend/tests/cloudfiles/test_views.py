@@ -589,3 +589,51 @@ class TestCloudRefreshView:
         assert mock_task_delay.call_args[0][1] == new_connection.id
 
 
+@pytest.mark.django_db
+def test_refresh_soft_deleted_document_returns_404(api_client, user):
+    """
+    RED Test: Verify that cloud refresh requests for soft-deleted documents return 404.
+    """
+    connection = CloudConnection.objects.create(
+        user=user,
+        provider='google_drive',
+        email='user@gmail.com',
+        access_token='token_123',
+    )
+
+    doc = Document.objects.create(
+        name="TrashedCloudDoc.pdf",
+        organization=user.organization,
+        created_by=user,
+        status="ready",
+        file_size=1024,
+    )
+    DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        file_size=1024,
+        is_primary=True,
+        metadata={
+            "cloud_import": {
+                "provider": "google_drive",
+                "connection_id": connection.id,
+                "file_id": "file_123"
+            }
+        }
+    )
+
+    # Force authenticate
+    api_client.force_authenticate(user=user)
+
+    # Soft delete doc
+    api_client.delete(f'/api/v1/documents/{doc.id}/')
+
+    # Try refresh
+    url = f'/api/v1/cloud/documents/{doc.id}/refresh/'
+    res = api_client.post(url)
+    assert res.status_code == status.HTTP_404_NOT_FOUND
+
+
+
+
+

@@ -680,4 +680,10 @@ export const getAdminSecurityThreatEvents = ({ page = 1, status = '', severity =
   return api.get('/admin/security-threat-events/', { params });
 };
     
+// Trash
+export const getTrashItems = (page = 1) => api.get(`/trash/?page=${page}`);
+export const restoreTrashItem = (id) => api.post(`/trash/${id}/restore/`);
+export const permanentDeleteTrashItem = (id) => api.delete(`/trash/${id}/permanent/`);
+export const emptyTrash = () => api.delete('/trash/empty/');
+
 export default api;

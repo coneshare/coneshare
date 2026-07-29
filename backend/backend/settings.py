@@ -17,6 +17,7 @@ import re
 import sys
 from urllib.parse import urlparse
 
+from celery.schedules import crontab
 import dj_database_url
 import sentry_sdk
 from django.contrib.gis.geoip2 import GeoIP2
@@ -141,9 +142,16 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
-CELERY_TASK_DEFAULT_QUEUE = 'celery'  # for fast, lightweight tasks like email notifications, PDF rendering, file operations)
+CELERY_TASK_DEFAULT_QUEUE = 'celery'
 CELERY_TASK_ROUTES = {
     'documents.tasks.generate_video_stream_task': {'queue': 'video_processing'},  # for resource-intensive, slow video transcoding
+}
+
+CELERY_BEAT_SCHEDULE = {
+    'purge-expired-trash-documents-daily': {
+        'task': 'documents.tasks.purge_expired_trash_documents_task',
+        'schedule': crontab(hour=0, minute=0),  # Daily at midnight UTC
+    },
 }
 
 # Test-specific Celery settings to run tasks synchronously

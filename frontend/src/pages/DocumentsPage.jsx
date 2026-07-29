@@ -426,10 +426,10 @@ function DocumentsPage() {
       <ConfirmationDialog
         isOpen={isBulkDeleteConfirmOpen}
         onOpenChange={setIsBulkDeleteConfirmOpen}
-        title="Delete Selected Items?"
-        description="This action cannot be undone. This will permanently delete all selected items and their contents."
+        title="Move Selected Items to Trash?"
+        description="Are you sure you want to move the selected item(s) to trash? You can restore them anytime from Trash."
         onConfirm={handleBulkDelete}
-        confirmText="Delete"
+        confirmText="Move to Trash"
       />
       <MoveItemsDialog
         isOpen={isMoveItemsOpen}

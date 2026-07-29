@@ -197,8 +197,8 @@ def _get_active_share_link(slug: str) -> ShareLink:
     except ShareLink.DoesNotExist:
         raise NotFound(detail="Link not found.")
 
-    if not link.is_active:
-        # Treat inactive links as "not found" from a public perspective.
+    if not link.is_active or (link.document and link.document.deleted_at is not None):
+        # Treat inactive links or links targeting soft-deleted documents as "not found"
         raise NotFound(detail="This link is not available.")
 
     return link
@@ -986,7 +986,9 @@ class ShareLinkViewDataView(APIView):
 
             # Fetch only direct children within the requested scope.
             folders_qs = DataroomFolder.objects.filter(dataroom=dataroom)
-            docs_qs = DataroomDocument.objects.filter(dataroom=dataroom).select_related('document', 'folder')
+            docs_qs = DataroomDocument.objects.filter(
+                dataroom=dataroom, document__deleted_at__isnull=True
+            ).select_related('document', 'folder')
             if current_parent_id:
                 folders_qs = folders_qs.filter(parent_id=current_parent_id)
                 docs_qs = docs_qs.filter(folder_id=current_parent_id)
@@ -2580,7 +2582,9 @@ class DataroomFolderDownloadView(APIView):
         """
         # To avoid N+1 queries, fetch settings for all children at once.
         child_folders = folder.children.all()
-        child_docs = DataroomDocument.objects.filter(folder=folder).select_related('document').prefetch_related('document__versions')
+        child_docs = DataroomDocument.objects.filter(
+            folder=folder, document__deleted_at__isnull=True
+        ).select_related('document').prefetch_related('document__versions')
 
         settings_qs = ShareLinkDataroomSetting.objects.filter(share_link=link)
         folder_settings = {s.dataroom_folder_id: s for s in settings_qs.filter(dataroom_folder__in=child_folders)}

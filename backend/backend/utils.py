@@ -20,7 +20,7 @@ def get_client_ip(request):
     return request.META.get('REMOTE_ADDR')
 
 
-def get_unique_name(model_class, original_name: str, filter_kwargs: dict, has_extension: bool) -> str:
+def get_unique_name(model_class, original_name: str, filter_kwargs: dict, has_extension: bool, base_qs=None) -> str:
     """
     Generates a unique name for a model instance within a given scope.
     If 'name' exists, it will suggest 'name (2)', 'name (3)', etc.
@@ -33,14 +33,21 @@ def get_unique_name(model_class, original_name: str, filter_kwargs: dict, has_ex
                        (e.g., {'organization': org, 'folder': folder}).
         has_extension: A boolean indicating if the name has a file extension
                        that should be preserved.
+        base_qs: Optional base queryset to query against (defaults to active items).
     """
     if not original_name:
         return ""
 
+    if base_qs is None:
+        if hasattr(model_class.objects, 'active'):
+            base_qs = model_class.objects.active()
+        else:
+            base_qs = model_class.objects.all()
+
     # Check if the original name is available. If so, use it.
     initial_check_kwargs = filter_kwargs.copy()
     initial_check_kwargs['name'] = original_name
-    if not model_class.objects.filter(**initial_check_kwargs).exists():
+    if not base_qs.filter(**initial_check_kwargs).exists():
         return original_name
 
     if has_extension:
@@ -55,7 +62,7 @@ def get_unique_name(model_class, original_name: str, filter_kwargs: dict, has_ex
         # This makes the query more efficient for names with extensions
         queryset_filter_kwargs['name__endswith'] = ext
 
-    queryset = model_class.objects.filter(**queryset_filter_kwargs).values_list('name', flat=True)
+    queryset = base_qs.filter(**queryset_filter_kwargs).values_list('name', flat=True)
     existing_names = set(queryset)
 
     # Regex to find ' (number)' at the end of the name. It handles names with and without extensions.

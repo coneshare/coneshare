@@ -6,6 +6,7 @@ from . import views
 router = DefaultRouter()
 router.register(r'folders', views.FolderViewSet)
 router.register(r'documents', views.DocumentViewSet)
+router.register(r'trash', views.TrashViewSet, basename='trash')
 
 urlpatterns = [
     path('folders/ensure-paths/', views.EnsureFolderPathsView.as_view(), name='folder-ensure-paths'),

@@ -15,6 +15,7 @@ import { FileRequestDetailPage } from './pages/FileRequestDetailPage';
 import { DocumentPage } from './pages/DocumentPage';
 import { DocumentVersionsPage } from './pages/DocumentVersionsPage';
 import DocumentsPage from './pages/DocumentsPage';
+import TrashPage from './pages/TrashPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
@@ -55,6 +56,7 @@ function App() {
             <Route path="/documents/:documentId" element={<DocumentPage />} />
             <Route path="/documents/:documentId/versions" element={<DocumentVersionsPage />} />
             <Route path="/documents/:documentId/links/:linkId" element={<ShareLinkAnalyticsPage />} />
+            <Route path="/trash" element={<TrashPage />} />
             <Route path="/datarooms" element={<DataroomsPage />} />
             <Route path="/datarooms/:dataroomId" element={<DataroomPage />} />
             <Route path="/file-requests" element={<FileRequestsPage />} />
