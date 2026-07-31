@@ -11,6 +11,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from drf_spectacular.utils import extend_schema, extend_schema_field
 
 from core.pagination import StandardResultsSetPagination
+from core.permissions import APIKeyTierPermission
 from filerequests.models import SecurityThreatEvent
 from .models import AppConfiguration, LoginActivity, Organization
 from .settings_registry import (DEFAULT_SETTINGS, coerce_to_typed_value,
@@ -40,7 +41,7 @@ class AdminSettingsViewSet(viewsets.ModelViewSet):
     """
     queryset = AppConfiguration.objects.all()
     serializer_class = AppConfigurationSerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission]
     lookup_field = 'key'
 
     def list(self, request, *args, **kwargs):
@@ -133,7 +134,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
     """
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission]
     pagination_class = StandardResultsSetPagination
 
     def get_serializer_class(self):
@@ -242,7 +243,7 @@ class AdminLoginActivityViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = LoginActivity.objects.all()
     serializer_class = LoginActivitySerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission]
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
@@ -298,7 +299,7 @@ class AdminSecurityThreatEventViewSet(viewsets.ReadOnlyModelViewSet):
     # Dummy queryset for OpenAPI schema generation to infer lookup field type without executing get_queryset().
     queryset = SecurityThreatEvent.objects.none()
     serializer_class = SecurityThreatEventSerializer
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission]
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
@@ -326,7 +327,7 @@ class AdminOrganizationView(APIView):
     """
     View for admins to retrieve or update their organization's branding/settings.
     """
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     @extend_schema(

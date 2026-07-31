@@ -488,7 +488,6 @@ def _build_qna_event_payload(thread: QnAThread, message: QnAMessage | None = Non
 class ShareLinkTemplateViewSet(viewsets.ModelViewSet):
     queryset = ShareLinkTemplate.objects.all()
     serializer_class = ShareLinkTemplateSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return ShareLinkTemplate.objects.filter(organization=self.request.user.organization)
@@ -498,7 +497,6 @@ class ShareLinkTemplateViewSet(viewsets.ModelViewSet):
 class ShareLinkViewSet(viewsets.ModelViewSet):
     queryset = ShareLink.objects.all()
     serializer_class = ShareLinkSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         queryset = ShareLink.objects.filter(created_by=self.request.user).prefetch_related('dataroom_settings')
@@ -1428,7 +1426,6 @@ class QnAThreadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
     # Dummy queryset for OpenAPI schema generation to infer lookup field type without executing get_queryset().
     queryset = QnAThread.objects.none()
     serializer_class = QnAThreadSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         queryset = (
@@ -2759,7 +2756,6 @@ class DataroomFolderDownloadView(APIView):
 class ViewerViewSet(viewsets.ModelViewSet):
     queryset = Viewer.objects.all()
     serializer_class = ViewerSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return Viewer.objects.filter(organization=self.request.user.organization)
@@ -2777,7 +2773,7 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
         """
         if self.action in ['create', 'record_download', 'record_visit']:
             return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated()]
+        return super().get_permissions()
 
     # NOTE: Download recording is handled server-side directly in ShareLinkFileDownloadView and DataroomFolderDownloadView.
     # The @action decorator below is commented out to disable the endpoint while preserving the method body.

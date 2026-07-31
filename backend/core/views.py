@@ -14,7 +14,9 @@ from django.db import IntegrityError
 from django.db.utils import OperationalError
 from django.utils.encoding import force_bytes
 from django.utils import timezone
+from datetime import timedelta
 from rest_framework import mixins, permissions, serializers, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -25,9 +27,11 @@ from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from core.models import Organization, UserGroup
+from core.models import APIKey, Organization, UserGroup
+from core.authentication import generate_raw_api_key
+from core.permissions import APIKeyTierPermission
 from core.services import get_dynamic_setting
-from core.serializers import (ChangePasswordSerializer, OrganizationSerializer,
+from core.serializers import (APIKeySerializer, APIKeyCreateSerializer, ChangePasswordSerializer, OrganizationSerializer,
                               SignupRequestAcceptedSerializer,
                               SignupRequestSerializer, SignupVerifyResponseSerializer,
                               SignupVerifySerializer, UserGroupSerializer, UserSerializer)
@@ -353,3 +357,55 @@ class HealthCheckView(APIView):
             return Response(health_status, status=status.HTTP_200_OK)
 
         return Response(health_status, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+@extend_schema(tags=['api-keys'])
+class APIKeyViewSet(mixins.CreateModelMixin,
+                    mixins.ListModelMixin,
+                    mixins.DestroyModelMixin,
+                    viewsets.GenericViewSet):
+    permission_classes = [permissions.IsAuthenticated, APIKeyTierPermission]
+    serializer_class = APIKeySerializer
+
+    def get_queryset(self):
+        return APIKey.objects.filter(user=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        serializer = APIKeyCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        name = serializer.validated_data['name']
+        tier = serializer.validated_data['tier']
+        expires_in_days = serializer.validated_data.get('expires_in_days')
+
+        expires_at = None
+        if expires_in_days:
+            expires_at = timezone.now() + timedelta(days=expires_in_days)
+
+        raw_key, prefix, hashed_key = generate_raw_api_key()
+
+        api_key = APIKey.objects.create(
+            user=request.user,
+            name=name,
+            prefix=prefix,
+            hashed_key=hashed_key,
+            tier=tier,
+            expires_at=expires_at,
+        )
+
+        logger.info(
+            "API Key created: user_id=%s, key_id=%s, name='%s', prefix='%s', tier='%s'",
+            request.user.id, api_key.id, name, prefix, tier
+        )
+
+        res_data = APIKeySerializer(api_key).data
+        res_data['raw_key'] = raw_key
+        return Response(res_data, status=status.HTTP_201_CREATED)
+
+    def perform_destroy(self, instance):
+        logger.info(
+            "API Key revoked: user_id=%s, key_id=%s, name='%s', prefix='%s'",
+            self.request.user.id, instance.id, instance.name, instance.prefix
+        )
+        super().perform_destroy(instance)
+

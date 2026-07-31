@@ -257,3 +257,18 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Architecture Choice
 - **Context/Implication:** Refactored download event logging from explicit frontend POST calls (`/record-download/`) to server-side logging inside Django file/folder download views (`ShareLinkFileDownloadView` and `DataroomFolderDownloadView`).
 - **Resolution/Action:** Added `downloaded_at` timestamp field to `DataroomVisit` model/serializer, logged file/folder visits server-side upon download GET requests, disabled legacy `@action` endpoint `/api/v1/view-sessions/{id}/record-download/`, and removed unused `recordDownload` frontend code.
+
+### 2026-07-31 Session Entry
+- **Category:** Architecture Choice / Gotcha
+- **Context/Implication:** Storing plaintext or symmetric-encrypted API keys derived from SECRET_KEY exposed keys to database leaks and bricked active tokens upon SECRET_KEY rotation. Additionally, raising PermissionDenied inside DRF authentication classes coerced 401s into 403s, breaking frontend automatic token refresh.
+- **Resolution/Action:** 
+  1. Implemented HMAC-SHA256 one-way key hashing (`cs_live_<32 hex chars>`, truncated 12-char `prefix` `cs_live_c069`, and `unique=True` prefix index for O(1) single-query lookup).
+  2. Moved scope tier enforcement (`read_only`, `read_write`, `full_access`) to a dedicated DRF permission class (`APIKeyTierPermission`).
+  3. Added `authenticate_header()` returning `'Bearer realm="api"'` to `APIKeyAuthentication` to preserve HTTP 401 Unauthorized status code challenges for downstream JWT auto-refresh interceptors.
+
+### 2026-07-31 Session Entry
+- **Category:** Gotcha / Architecture Choice
+- **Context/Implication:** Explicitly declaring `permission_classes = [permissions.IsAuthenticated]` on DRF ViewSets completely overrides and discards `REST_FRAMEWORK['DEFAULT_PERMISSION_CLASSES']` from `settings.py`, accidentally stripping custom global permission guards like `APIKeyTierPermission`.
+- **Resolution/Action:** Omit `permission_classes` on standard protected ViewSets so they implicitly inherit all global `DEFAULT_PERMISSION_CLASSES`. For ViewSets with dynamic `get_permissions()`, return `super().get_permissions()` for authenticated non-public actions instead of hardcoding `[IsAuthenticated()]`.
+
+

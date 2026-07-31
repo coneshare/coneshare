@@ -183,3 +183,32 @@ class AppConfiguration(models.Model):
         verbose_name = "Application Configuration"
         verbose_name_plural = "Application Configurations"
         ordering = ('key',)
+
+
+class APIKey(BaseModel):
+    """
+    Represents an API key for authenticating external applications (e.g. MCP Server).
+    Stores an HMAC-SHA256 hash of the raw key for secure O(1) authentication.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='api_keys')
+    name = models.CharField(max_length=100)
+    prefix = models.CharField(max_length=16, unique=True, db_index=True)
+    hashed_key = models.CharField(max_length=64, db_index=True)
+    tier = models.CharField(
+        max_length=20,
+        choices=[
+            ('read_only', 'Read Only'),
+            ('read_write', 'Read & Write'),
+            ('full_access', 'Full Access'),
+        ],
+        default='read_only',
+    )
+    expires_at = models.DateTimeField(null=True, blank=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} ({self.prefix}...)"
+

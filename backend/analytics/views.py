@@ -21,7 +21,6 @@ class DashboardSummaryView(APIView):
     """
     Provides a summary of recent activity for the main dashboard.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     class DashboardSummaryResponseSerializer(serializers.Serializer):
         recent_views = ViewSessionSerializer(many=True)
@@ -61,7 +60,6 @@ class DailyVisitsView(APIView):
     """
     Provides aggregated daily view counts for the last 30 days.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     class DailyVisitsItemSerializer(serializers.Serializer):
         date = serializers.CharField()
@@ -103,7 +101,6 @@ class AllLinksView(generics.ListAPIView):
     ordered by the most recently active.
     """
     serializer_class = ShareLinkSerializer
-    permission_classes = [permissions.IsAuthenticated]
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
@@ -126,7 +123,6 @@ class AllViewSessionsView(generics.ListAPIView):
     Provides a paginated list of all view sessions for the organization.
     """
     serializer_class = ViewSessionSerializer
-    permission_classes = [permissions.IsAuthenticated]
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):

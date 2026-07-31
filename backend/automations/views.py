@@ -18,7 +18,6 @@ class AutomationDestinationViewSet(viewsets.ModelViewSet):
     # Dummy queryset for OpenAPI schema generation to infer lookup field type without executing get_queryset().
     queryset = AutomationDestination.objects.none()
     serializer_class = AutomationDestinationSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return AutomationDestination.objects.filter(
@@ -35,7 +34,6 @@ class AutomationRuleViewSet(viewsets.ModelViewSet):
     # Dummy queryset for OpenAPI schema generation to infer lookup field type without executing get_queryset().
     queryset = AutomationRule.objects.none()
     serializer_class = AutomationRuleSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return AutomationRule.objects.filter(
@@ -52,7 +50,6 @@ class AutomationDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
     # Dummy queryset for OpenAPI schema generation to infer lookup field type without executing get_queryset().
     queryset = AutomationDelivery.objects.none()
     serializer_class = AutomationDeliverySerializer
-    permission_classes = [permissions.IsAuthenticated]
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
@@ -97,7 +94,6 @@ class AutomationAssignmentViewSet(viewsets.ReadOnlyModelViewSet):
     # Dummy queryset for OpenAPI schema generation to infer lookup field type without executing get_queryset().
     queryset = AutomationAssignment.objects.none()
     serializer_class = AutomationAssignmentSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return AutomationAssignment.objects.filter(
