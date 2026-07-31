@@ -27,7 +27,6 @@ class CloudProviderListView(APIView):
     """
     Returns a list of cloud providers enabled in the system configuration.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     class CloudProviderSerializer(serializers.Serializer):
         name = serializers.CharField()
@@ -59,7 +58,6 @@ class CloudConnectionListView(APIView):
     """
     Lists the user's active cloud connections.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(responses={200: CloudConnectionSerializer(many=True)})
     def get(self, request, *args, **kwargs):
@@ -73,7 +71,6 @@ class CloudConnectionDetailView(APIView):
     """
     Handles operations on a specific cloud connection (e.g. deletion).
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(responses={204: None, 404: dict})
     def delete(self, request, connection_id, *args, **kwargs):
@@ -99,7 +96,6 @@ class CloudConnectView(APIView):
     """
     Generates a cloud provider authorization URL and returns it to the frontend.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     class CloudConnectResponseSerializer(serializers.Serializer):
         authorization_url = serializers.CharField()
@@ -126,7 +122,6 @@ class CloudCallbackView(APIView):
     Handles the final step of the OAuth2 flow, receiving the code and state
     from the frontend.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
         request=OAuthCallbackSerializer,
@@ -192,7 +187,6 @@ class CloudFileListView(APIView):
     """
     Lists files from a specific cloud connection.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(responses={200: dict, 404: dict, 500: dict})
     def get(self, request, connection_id, *args, **kwargs):
@@ -215,7 +209,6 @@ class CloudFolderListView(APIView):
     """
     Lists only folders from a specific cloud connection.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(responses={200: dict, 404: dict, 500: dict})
     def get(self, request, connection_id, *args, **kwargs):
@@ -239,7 +232,6 @@ class CloudImportView(APIView):
     """
     Initiates a file import from a cloud service.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
         request=CloudImportSerializer,
@@ -294,7 +286,6 @@ class CloudRefreshView(APIView):
     """
     Refreshes a document that was originally imported from a cloud provider.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
         request=None,
@@ -387,7 +378,6 @@ class CloudImportVersionView(APIView):
     """
     Imports a new version of an existing document from a cloud provider.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     class ImportVersionSerializer(serializers.Serializer):
         connection_id = serializers.CharField(max_length=255)

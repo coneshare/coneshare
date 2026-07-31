@@ -109,7 +109,6 @@ class DocumentUploadRequestView(APIView):
     """
     Requests a temporary, secure URL for uploading a document from the file server.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     class DocumentUploadRequestSerializer(serializers.Serializer):
         file_name = serializers.CharField()
@@ -194,7 +193,6 @@ class DocumentUploadFinalizeView(APIView):
     Finalizes a document upload after the file has been sent to the file server.
     Creates the Document records and triggers processing.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     class DocumentUploadFinalizeSerializer(serializers.Serializer):
         storage_key = serializers.CharField()
@@ -255,7 +253,6 @@ class EnsureFolderPathsView(APIView):
     This is designed to be called once before a batch of folder uploads.
     It's atomic, ensuring that if any path fails, the whole transaction is rolled back.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     class EnsureFolderPathsResponseSerializer(serializers.Serializer):
         detail = serializers.CharField()
@@ -395,7 +392,6 @@ class DocumentVersionUploadRequestView(APIView):
     """
     Requests a temporary, secure URL for uploading a new document version.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     class DocumentVersionUploadRequestSerializer(serializers.Serializer):
         file_name = serializers.CharField()
@@ -449,7 +445,6 @@ class DocumentVersionUploadFinalizeView(APIView):
     """
     Finalizes a new document version upload after the file has been sent to the file server.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     class FinalizeSerializer(serializers.Serializer):
         storage_key = serializers.CharField()
@@ -559,7 +554,6 @@ class DocumentDownloadView(APIView):
     """
     Provides a temporary, secure URL for downloading a document's original file.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     class DocumentDownloadResponseSerializer(serializers.Serializer):
         download_url = serializers.CharField()
@@ -602,7 +596,6 @@ class DocumentPreviewDataView(APIView):
     """
     Provides data for rendering an internal document preview.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     class DocumentPreviewResponseSerializer(serializers.Serializer):
         id = serializers.CharField()
@@ -726,7 +719,6 @@ class DocumentPreviewDataView(APIView):
 class FolderViewSet(viewsets.ModelViewSet):
     queryset = Folder.objects.active().all()
     serializer_class = FolderSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def _get_root_folder(self):
         """Helper to get the organization's invisible root folder."""
@@ -837,7 +829,6 @@ class DocumentCopyRateThrottle(throttling.UserRateThrottle):
 class DocumentViewSet(viewsets.ModelViewSet):
     queryset = Document.objects.active().all()
     serializer_class = DocumentSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         """
@@ -1088,7 +1079,6 @@ class MoveItemsView(APIView):
     """
     A dedicated view for moving documents and folders to a new location.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     class MoveItemsSerializer(serializers.Serializer):
         document_ids = serializers.ListField(
@@ -1200,7 +1190,6 @@ class RootFolderView(APIView):
     """
     Provides the ID of the user's root folder.
     """
-    permission_classes = [permissions.IsAuthenticated]
 
     class RootFolderResponseSerializer(serializers.Serializer):
         id = serializers.CharField()
@@ -1218,7 +1207,6 @@ class RootFolderView(APIView):
 
 @extend_schema(tags=['trash'])
 class TrashViewSet(viewsets.ViewSet):
-    permission_classes = [permissions.IsAuthenticated]
 
     def list(self, request):
         """

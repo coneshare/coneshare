@@ -43,7 +43,6 @@ logger = logging.getLogger(__name__)
 class DataroomViewSet(viewsets.ModelViewSet):
     queryset = Dataroom.objects.all()
     serializer_class = DataroomSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -685,7 +684,6 @@ class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
                               mixins.UpdateModelMixin,
                               viewsets.GenericViewSet):
     queryset = DataroomDocument.objects.all()
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
         if self.action in ['update', 'partial_update']:
@@ -743,7 +741,6 @@ class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
 class DataroomFolderViewSet(viewsets.ModelViewSet):
     queryset = DataroomFolder.objects.all()
     serializer_class = DataroomFolderSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         """

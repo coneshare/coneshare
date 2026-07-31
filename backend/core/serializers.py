@@ -7,7 +7,7 @@ from geoip2.errors import AddressNotFoundError
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 
-from core.models import AppConfiguration, LoginActivity, Organization, UserGroup
+from core.models import APIKey, AppConfiguration, LoginActivity, Organization, UserGroup
 from core.services import get_dynamic_setting
 
 User = get_user_model()
@@ -241,3 +241,20 @@ class AppConfigurationSerializer(serializers.ModelSerializer):
         model = AppConfiguration
         fields = ['key', 'value', 'description']
         read_only_fields = ['key', 'description']
+
+
+class APIKeySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = APIKey
+        fields = ['id', 'name', 'prefix', 'tier', 'created_at', 'expires_at', 'last_used_at']
+        read_only_fields = ['id', 'prefix', 'created_at', 'last_used_at']
+
+
+class APIKeyCreateSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+    tier = serializers.ChoiceField(
+        choices=[('read_only', 'Read Only'), ('read_write', 'Read & Write'), ('full_access', 'Full Access')],
+        default='read_only'
+    )
+    expires_in_days = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+

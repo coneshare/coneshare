@@ -105,7 +105,6 @@ class FileRequestViewSet(viewsets.ModelViewSet):
     API endpoint for managing File Requests.
     """
     serializer_class = FileRequestSerializer
-    permission_classes = [permissions.IsAuthenticated]
     pagination_class = StandardResultsSetPagination
 
     def get_serializer_class(self):

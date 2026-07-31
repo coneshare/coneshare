@@ -5,6 +5,7 @@ export function SettingsTabs() {
     { to: '/settings', label: 'Profile', end: true },
     { to: '/settings/password', label: 'Password' },
     { to: '/settings/integrations', label: 'Integrations' },
+    { to: '/settings/api-keys', label: 'API Keys' },
   ];
 
   return (
