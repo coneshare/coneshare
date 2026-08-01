@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "coneshare-mcp"
+version = "0.1.0"
+description = "Remote MCP Server for Coneshare workspace integration"
+readme = "README.md"
+authors = [
+    { name = "Coneshare Team", email = "dev@coneshare.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp>=3.4.0,<4.0.0",
+    "httpx>=0.25.0",
+    "pydantic>=2.0.0",
+]
+
+[project.scripts]
+coneshare-mcp = "coneshare_mcp.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["coneshare_mcp"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

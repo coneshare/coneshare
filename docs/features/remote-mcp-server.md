@@ -1,0 +1,163 @@
+# Remote MCP Server (`coneshare-mcp`)
+
+## Strategy refs
+- [API Keys & Permission Logic](./api-keys-and-permissions.md)
+- [Remote MCP Server Plan](../../plans/remote_mcp_server_plan.md)
+
+## Out of scope
+- Local Stdio transport mode (`MCP_TRANSPORT=stdio` is deprecated; server exclusively uses network HTTP/SSE streamable transport).
+- Server-side master API key (`CONESHARE_API_KEY` is not set on the server; authentication is strictly per-user).
+- File upload & document mutation (`upload_document` and `update_document` are deferred to future iterations).
+
+## Design decisions
+- Decision: Exclusive Remote HTTP/SSE Transport (`streamable-http` on port `8001` at path `/sse`).
+  Rationale: Enables zero-installation integration for AI desktop and CLI tools (Claude Desktop, Claude Code, Antigravity CLI `agy`, Codex, Cursor, VS Code) over network streams.
+  Tradeoff: Requires HTTP network access to port `8001` or Nginx reverse proxy.
+- Decision: Header-driven, per-user API key authentication (`Authorization: Bearer cs_live_...`).
+  Rationale: Eliminates server-side master token storage and key leak risks. Every tool request executes strictly within the permissions of the user's API key tier (`read_only`, `read_write`, `full_access`).
+  Tradeoff: AI client configurations must pass the `Authorization: Bearer cs_live_...` HTTP header on every connection.
+- Decision: Token-efficient view session analytics (`list_view_sessions` summaries vs `get_view_session` detail breakdown).
+  Rationale: Returning large `page_views` and video event arrays on list endpoints wastes LLM context tokens. `list_view_sessions` returns lightweight metadata summaries, while `get_view_session` provides the granular page-by-page timeline.
+  Tradeoff: AI agents requiring deep page-level engagement analysis must call `get_view_session` for specific session IDs.
+
+---
+
+## ⚠️ Gotchas & System Constraints
+
+1. **Docker Container Network Binding (`0.0.0.0`)**:
+   - FastMCP inside Docker Compose MUST bind to `0.0.0.0` (`MCP_HOST=0.0.0.0`). Binding to `127.0.0.1` inside the container causes Docker bridge network forwarding and Nginx proxy requests to fail with `Connection refused`.
+2. **Nginx SSE Proxy Buffering (`proxy_buffering off;`)**:
+   - In production Nginx reverse proxies, `proxy_buffering off;` and `proxy_read_timeout 86400s;` are **mandatory**. If proxy buffering is enabled, Nginx buffers FastMCP event stream chunks in memory instead of flushing them instantly to the client, causing tool call timeouts.
+3. **Stateless Request Context Extraction**:
+   - `ConeshareClient.from_ctx(ctx)` extracts the `Authorization: Bearer cs_live_...` header directly from the incoming HTTP request context (`ctx.request_context.request.headers`). If no valid Bearer header is passed, tool calls immediately return HTTP 401 Unauthorized errors.
+4. **DRF 401 Challenge Retention**:
+   - Backend `APIKeyAuthentication` explicitly returns `'Bearer realm="api"'` via `authenticate_header()`. This prevents Django Rest Framework from coercing unauthenticated API key attempts into HTTP 403 Forbidden.
+5. **Remote Filesystem Isolation**:
+   - Remote MCP servers running in Docker containers cannot read files on the user's local Mac/laptop disk (`/Users/...`). Document upload and file mutation operations are excluded from the Remote MCP MVP to preserve security and architectural isolation.
+
+---
+
+## 1. Architectural Overview
+
+The **Coneshare MCP Server** (`coneshare-mcp`) is a standalone Python service running alongside the Coneshare Docker stack. It translates incoming Model Context Protocol (MCP) tool calls into authenticated REST API calls against the Django backend.
+
+```text
++-----------------------------------------------------------------------------------+
+|                            USER'S MACHINE / AI CLIENT                             |
+|                                                                                   |
+|  +---------------------------------+                                              |
+|  |   AI Client                     |                                              |
+|  |   (Claude Desktop / Code /      |                                              |
+|  |    Cursor / Codex / VS Code)    |                                              |
+|  +---------------------------------+                                              |
+|                  |                                                                |
+|                  | (HTTPS / SSE Remote MCP Protocol)                              |
+|                  | Header: Authorization: Bearer cs_live_...                      |
+|                  v                                                                |
++------------------|----------------------------------------------------------------+
+                   |
++------------------|----------------------------------------------------------------+
+|                  v        CONESHARE HOSTED / DOCKER STACK                         |
+|  +---------------------------------+               +---------------------------+  |
+|  |   coneshare-mcp                 |   (HTTP REST  |   Coneshare Backend       |  |
+|  |   (Remote SSE Endpoint :8001)   |-------------->|   http://backend:8000/api/v1  |  |
+|  +---------------------------------+               +---------------------------+  |
++-----------------------------------------------------------------------------------+
+```
+
+---
+
+## 2. Environment Configuration
+
+The service is configured via environment variables in [docker-compose.yml](../../docker-compose.yml) and [.env.template](../../.env.template):
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `CONESHARE_API_URL` | ❌ | `http://backend:8000/api/v1` | Internal Docker REST API base URL |
+| `MCP_TRANSPORT` | ❌ | `streamable-http` | Transport protocol (`streamable-http` or `sse`) |
+| `MCP_HOST` | ❌ | `0.0.0.0` | Container network bind address (`0.0.0.0` for Docker) |
+| `MCP_PATH` | ❌ | `/sse` | HTTP SSE endpoint path |
+| `MCP_PORT` | ❌ | `8001` | Server listening port |
+| `LOG_LEVEL` | ❌ | `INFO` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+
+---
+
+## 3. Tool Catalog (15 MVP Tools)
+
+### 📁 Documents (4 tools)
+* `list_documents`: Paginated list of workspace documents with folder filtering.
+* `get_document`: Retrieve detailed document metadata, versions, and active links.
+* `search_documents`: Search documents by full-text title or description query.
+* `delete_document`: `[DESTRUCTIVE]` Soft-delete a document (moves to Trash, recoverable via web UI).
+
+### 🏛️ Datarooms (2 tools)
+* `list_datarooms`: List organization datarooms with pagination metadata.
+* `get_dataroom`: Retrieve dataroom hierarchy, settings, and items.
+
+### 🔗 Share Links (3 tools)
+* `list_share_links`: List active share links filterable by document or dataroom.
+* `create_share_link`: Create a share link with NDA, watermark, download controls, and expiration.
+* `update_share_link`: Modify security settings or toggle link active status.
+
+### 📊 Analytics (3 tools)
+* `get_document_analytics`: Overall page view durations, total viewers, and engagement statistics.
+* `list_view_sessions`: List viewer sessions with summary metadata (viewer email, location, total duration, completion rate).
+* `get_view_session`: Retrieve detailed session breakdown including page-by-page view durations, video engagement logs, and link clicks.
+
+### 👑 Admin (3 tools)
+* `list_admin_users`: `[ADMIN ONLY]` List organization users with pagination and search filter.
+* `get_admin_user_details`: `[ADMIN ONLY]` Detailed user profile, created links, datarooms count, and total views.
+* `list_login_activities`: `[ADMIN ONLY]` Organization user login activity logs (IP, user agent, timestamp).
+
+---
+
+## 4. Production Client & Nginx Configuration
+
+### Nginx Reverse Proxy (`/etc/nginx/sites-available/mcp.coneshare.com`)
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name mcp.coneshare.com;
+
+    ssl_certificate     /etc/letsencrypt/live/mcp.coneshare.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/mcp.coneshare.com/privkey.pem;
+
+    location /sse {
+        proxy_pass http://mcp_server:8001/sse;
+
+        # Mandatory SSE Directives:
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+        proxy_set_header Chunked_Transfer_Encoding off;
+        proxy_buffering off;
+        proxy_cache off;
+
+        # Keep long-lived SSE streams active
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+
+        # Forward headers and Bearer token
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Authorization $http_authorization;
+    }
+}
+```
+
+### Claude Desktop Configuration (`claude_desktop_config.json`)
+
+```json
+{
+  "mcpServers": {
+    "coneshare": {
+      "url": "https://mcp.coneshare.com/sse",
+      "headers": {
+        "Authorization": "Bearer cs_live_YOUR_API_KEY_HERE"
+      }
+    }
+  }
+}
+```

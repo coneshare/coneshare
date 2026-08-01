@@ -120,12 +120,47 @@ class AllLinksView(generics.ListAPIView):
 @extend_schema(tags=['analytics'])
 class AllViewSessionsView(generics.ListAPIView):
     """
-    Provides a paginated list of all view sessions for the organization.
+    Provides a paginated list of view sessions, filterable by document_id,
+    share_link_id, dataroom_id, or viewer_email.
     """
     serializer_class = ViewSessionSerializer
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
+        qs = ViewSession.objects.filter(
+            share_link__created_by=self.request.user
+        ).select_related('share_link', 'share_link__document', 'share_link__dataroom')
+
+        document_id = self.request.query_params.get('document_id') or self.request.query_params.get('document')
+        if document_id:
+            qs = qs.filter(share_link__document_id=document_id)
+
+        share_link_id = self.request.query_params.get('share_link_id') or self.request.query_params.get('share_link')
+        if share_link_id:
+            qs = qs.filter(share_link_id=share_link_id)
+
+        dataroom_id = self.request.query_params.get('dataroom_id') or self.request.query_params.get('dataroom')
+        if dataroom_id:
+            qs = qs.filter(share_link__dataroom_id=dataroom_id)
+
+        viewer_email = self.request.query_params.get('viewer_email') or self.request.query_params.get('email')
+        if viewer_email:
+            qs = qs.filter(viewer_email__icontains=viewer_email)
+
+        return qs.order_by('-viewed_at')
+
+
+@extend_schema(tags=['analytics'])
+class ViewSessionDetailView(generics.RetrieveAPIView):
+    """
+    Retrieve detailed metadata, page-by-page view durations, dataroom visits,
+    and link clicks for a single view session.
+    """
+    serializer_class = ViewSessionSerializer
+    lookup_field = 'pk'
+
+    def get_queryset(self):
         return ViewSession.objects.filter(
             share_link__created_by=self.request.user
-        ).select_related('share_link', 'share_link__document').order_by('-viewed_at')
+        ).select_related('share_link', 'share_link__document', 'share_link__dataroom')
+

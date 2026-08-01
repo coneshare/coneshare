@@ -161,3 +161,46 @@ class TestDashboardAnalyticsViews:
         assert data['count'] == 15
         assert len(data['results']) == 10
         assert data['next'] is not None
+
+    def test_all_view_sessions_filters(self, api_client, document, share_link, user):
+        """Test filtering view sessions by document_id, share_link_id, and viewer_email."""
+        link2 = ShareLink.objects.create(document=document, created_by=user, name="Link 2")
+
+        session1 = ViewSession.objects.create(share_link=share_link, viewer_email="alice@example.com")
+        session2 = ViewSession.objects.create(share_link=link2, viewer_email="bob@example.com")
+
+        # Filter by document_id
+        res_doc = api_client.get(f'/api/v1/analytics/view-sessions/?document_id={document.id}')
+        assert res_doc.status_code == status.HTTP_200_OK
+        assert res_doc.json()['count'] == 2
+
+        # Filter by share_link_id
+        res_link = api_client.get(f'/api/v1/analytics/view-sessions/?share_link_id={share_link.id}')
+        assert res_link.status_code == status.HTTP_200_OK
+        assert res_link.json()['count'] == 1
+        assert res_link.json()['results'][0]['id'] == str(session1.id)
+
+        # Filter by viewer_email
+        res_email = api_client.get('/api/v1/analytics/view-sessions/?viewer_email=bob@example.com')
+        assert res_email.status_code == status.HTTP_200_OK
+        assert res_email.json()['count'] == 1
+        assert res_email.json()['results'][0]['id'] == str(session2.id)
+
+    def test_view_session_detail_view(self, api_client, share_link):
+        """Test retrieving single view session details by ID."""
+        session = ViewSession.objects.create(
+            share_link=share_link,
+            viewer_email="viewer@example.com",
+            country="US",
+            city="San Francisco",
+            duration_seconds=120
+        )
+
+        response = api_client.get(f'/api/v1/analytics/view-sessions/{session.id}/')
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data['id'] == str(session.id)
+        assert data['viewer_email'] == "viewer@example.com"
+        assert data['country'] == "US"
+        assert data['duration_seconds'] == 120
+

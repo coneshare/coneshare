@@ -1,31 +1,36 @@
-# 🚀 Coneshare Stdio MCP Server — Design & Implementation Plan
+# 🚀 Coneshare Remote MCP Server — Design & Implementation Plan
 
-> **Decisions finalized:** 2026-07-26 via interactive review session.
+> **Decisions finalized:** 2026-07-30 via interactive review session (Remote SSE HTTP Transport only; per-user API key authentication).
 
 ---
 
 ## 1. 📌 Architectural Overview
 
-The **Stdio MCP Server** is a standalone Python package (`coneshare-mcp`) that runs on the user's host machine. It connects to AI desktop/CLI tools (Claude Desktop, Claude Code, Cursor, VS Code) over standard I/O streams (`stdin`/`stdout`), and translates MCP tool calls into authenticated REST API calls against any local or self-hosted Coneshare server.
+The **Coneshare MCP Server** is a standalone Python package (`coneshare-mcp`) that runs alongside the Coneshare server stack exclusively as a **Remote HTTP/SSE Endpoint**. It connects AI desktop/CLI tools (Claude Desktop, Claude Code, Cursor, Codex, VS Code) over network streams (`http://<server>:8001/sse`) with per-user Bearer token authentication (`Authorization: Bearer cs_live_...`), translating MCP tool calls into authenticated REST API calls against the Coneshare backend.
 
-Built with **FastMCP** (`fastmcp`), the server lives in a new top-level `mcp-server/` directory — fully decoupled from the Django backend. It communicates with Coneshare exclusively over HTTP REST and is distributed independently on PyPI via `uvx coneshare-mcp`.
+Built with **FastMCP** (`fastmcp`), the server lives in a top-level `mcp-server/` directory — fully decoupled from the Django backend. It communicates with Coneshare exclusively over HTTP REST and runs in Docker Compose containerized alongside the backend stack.
 
-```
+```text
 +-----------------------------------------------------------------------------------+
-|                            USER'S LOCAL MACHINE                                   |
+|                            USER'S MACHINE / AI CLIENT                             |
 |                                                                                   |
-|  +---------------------------+               +---------------------------------+  |
-|  |   AI Client               |   (stdin /    |   coneshare-mcp                 |  |
-|  |   (Claude Desktop / Code /|  stdout MCP)  |   (Python / FastMCP)            |  |
-|  |    Cursor / VS Code)      |<------------->|                                 |  |
-|  +---------------------------+               +---------------------------------+  |
-|                                                              |                    |
-|                                                  (HTTP REST  | Multipart Upload)  |
-|                                                              v                    |
-|                                              +---------------------------------+  |
-|                                              |   Self-Hosted Coneshare Server   |  |
-|                                              |   http://192.168.x.x:8000/api/v1|  |
-|                                              +---------------------------------+  |
+|  +---------------------------------+                                              |
+|  |   AI Client                     |                                              |
+|  |   (Claude Desktop / Code /      |                                              |
+|  |    Cursor / Codex / VS Code)    |                                              |
+|  +---------------------------------+                                              |
+|                  |                                                                |
+|                  | (HTTPS / SSE Remote MCP Protocol)                              |
+|                  | Header: Authorization: Bearer cs_live_...                      |
+|                  v                                                                |
++------------------|----------------------------------------------------------------+
+                   |
++------------------|----------------------------------------------------------------+
+|                  v        CONESHARE HOSTED / DOCKER STACK                         |
+|  +---------------------------------+               +---------------------------+  |
+|  |   coneshare-mcp                 |   (HTTP REST  |   Coneshare Backend       |  |
+|  |   (Remote SSE Endpoint :8001)   |-------------->|   http://backend:8000/api/v1  |  |
+|  +---------------------------------+               +---------------------------+  |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -34,9 +39,10 @@ Built with **FastMCP** (`fastmcp`), the server lives in a new top-level `mcp-ser
 | Decision | Choice | Rationale |
 |---|---|---|
 | Language / SDK | Python + FastMCP | Aligns with Django backend stack, shares tooling and CI patterns |
-| Package location | `mcp-server/` (top-level) | Clean separation — MCP server is an API *client*, not part of the backend |
-| Communication | HTTP REST only | No Django ORM imports; distributable independently on PyPI |
-| Distribution | `uvx coneshare-mcp` | Zero-install execution, no pre-installed dependencies required |
+| Transport Mode | Remote SSE (`https://.../sse`) | Zero client-side installation or dependencies; HTTPS URL + Token setup in AI clients (`http://` for localhost/internal) |
+| Package location | `mcp-server/` (top-level) | Clean separation — MCP server is an API *adapter*, not part of core Django |
+| Communication | HTTP REST & SSE | Communicates with Coneshare backend over internal Docker network (`http://backend:8000/api/v1`) |
+| Authentication | Per-User Bearer Token | `CONESHARE_API_KEY` is NOT set on the server; clients pass token in HTTP headers per request |
 
 ---
 
@@ -125,18 +131,22 @@ mcp-server/
 
 ### 3.2 Environment Configuration
 
-The server reads configuration strictly from environment variables:
+The server reads environment configuration for backend connection and listening parameters:
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `CONESHARE_API_KEY` | ✅ | — | API token (e.g., `cs_live_...`) |
-| `CONESHARE_API_URL` | ❌ | `http://localhost:8000/api/v1` | Target server base URL |
+| `CONESHARE_API_URL` | ❌ | `http://backend:8000/api/v1` | Target Coneshare REST API base URL |
+| `MCP_TRANSPORT` | ❌ | `streamable-http` | Transport mode (`streamable-http` or `sse` for Remote HTTP) |
+| `MCP_HOST` | ❌ | `0.0.0.0` | Host interface for Remote SSE HTTP mode |
+| `MCP_PORT` | ❌ | `8001` | Listening port for Remote SSE HTTP mode |
+| `MCP_PATH` | ❌ | `/sse` | Path endpoint for Remote SSE HTTP mode |
+
+> ℹ️ **Note on `CONESHARE_API_KEY`**: The server does NOT require a server-level API key environment variable. Users set their own `CONESHARE_API_KEY` (`cs_live_...`) in their local client configs (Codex, Claude Code, Claude Desktop, Cursor), which pass it via the `Authorization: Bearer` header on each HTTP request.
 
 ### 3.3 HTTP Client (`client.py`)
 
 A thin `httpx.AsyncClient` wrapper that:
-* Sets `Authorization: Bearer {CONESHARE_API_KEY}` on all requests.
-* Handles multipart file uploads for `upload_document`.
+* Extracts `Authorization: Bearer {api_key}` per request from MCP `Context` (`ConeshareClient.from_ctx(ctx)`).
 * Passes through raw HTTP error responses (status + body) without transformation.
 
 ---
@@ -145,15 +155,13 @@ A thin `httpx.AsyncClient` wrapper that:
 
 Phase 1 ships the essential **read → upload → share → track** workflow. Additional tools are deferred to future phases based on user demand.
 
-### 📁 Documents (6 tools)
+### 📁 Documents (4 tools)
 
 | Tool | Method | Endpoint | Description |
 |---|---|---|---|
 | `list_documents` | GET | `/documents/` | Paginated list with folder filtering. Returns first page + `total_count`, `has_next`, `page`, `page_size` metadata |
 | `get_document` | GET | `/documents/{id}/` | Detailed document metadata, versions, and active share links |
 | `search_documents` | GET | `/documents/?search=` | Full-text title/description search |
-| `upload_document` | POST | `/documents/` | Reads local file from `file_path` and executes multipart stream upload |
-| `update_document` | PATCH | `/documents/{id}/` | Rename or move document between folders |
 | `delete_document` | DELETE | `/documents/{id}/` | `[DESTRUCTIVE]` Soft-delete (moves to trash, recoverable) |
 
 ### 🏛️ Datarooms (2 tools)
@@ -177,12 +185,22 @@ Phase 1 ships the essential **read → upload → share → track** workflow. Ad
 |---|---|---|---|
 | `get_document_analytics` | GET | `/analytics/documents/{id}/` | Fetch overall page view durations and viewer counts |
 
+### 👑 Admin (3 tools)
+
+| Tool | Method | Endpoint | Description |
+|---|---|---|---|
+| `list_admin_users` | GET | `/admin/users/` | `[ADMIN ONLY]` List organization users with pagination and search filter |
+| `get_admin_user_details` | GET | `/admin/users/{id}/` | `[ADMIN ONLY]` Detailed user profile, created links, datarooms count, total views |
+| `list_login_activities` | GET | `/admin/login-activities/` | `[ADMIN ONLY]` Organization user login activity logs (IP, user agent, timestamp) |
+
 ### Deferred Tools (Future Phases)
 
 These tools are excluded from MVP and will be added based on user demand:
 
 | Tool | Module | Reason Deferred |
 |---|---|---|
+| `upload_document` | Documents | Deferred (Remote MCP payload/stream architecture required) |
+| `update_document` | Documents | Deferred (Folder/document mutation deferred) |
 | `copy_document` | Documents | Rare operation |
 | `list_document_versions` | Versions | Advanced workflow |
 | `promote_document_version` | Versions | Advanced workflow |
@@ -199,7 +217,10 @@ These tools are excluded from MVP and will be added based on user demand:
 | `list_view_sessions` | Analytics | Deep analytics |
 | `get_link_click_analytics` | Analytics | Deep analytics |
 | `get_video_engagement_logs` | Analytics | Deep analytics |
-| `restore_document` | Documents | Add alongside delete if needed |
+| `list_trash` | Trash | Deferred to future version; trashed items viewable in Web UI |
+| `restore_document` | Trash | Deferred to future version; restore items via Web UI |
+| `permanently_delete_document` | Trash | Deferred to future version; hard purge via Web UI |
+| `empty_trash` | Trash | Deferred to future version; empty trash via Web UI |
 
 ---
 
@@ -316,6 +337,12 @@ async def test_list_documents_returns_paginated():
 
 ## 10. ⚙️ Client Configuration
 
+### Codex CLI
+```bash
+export CONESHARE_API_KEY="cs_live_YOUR_API_KEY_HERE"
+codex mcp add coneshare --url https://mcp.coneshare.com/sse --bearer-token-env-var CONESHARE_API_KEY
+```
+
 ### Claude Desktop
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
@@ -323,23 +350,21 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 {
   "mcpServers": {
     "coneshare": {
-      "command": "uvx",
-      "args": ["coneshare-mcp"],
-      "env": {
-        "CONESHARE_API_KEY": "cs_live_1234567890abcdef",
-        "CONESHARE_API_URL": "http://192.168.1.100:8000/api/v1"
+      "url": "https://mcp.coneshare.com/sse",
+      "headers": {
+        "Authorization": "Bearer cs_live_YOUR_API_KEY_HERE"
       }
     }
   }
 }
 ```
 
-### Claude Code CLI
+### Claude Code CLI / Antigravity CLI (`agy`)
 ```bash
-claude mcp add coneshare -- uvx coneshare-mcp
+agy mcp add coneshare --url https://mcp.coneshare.com/sse --bearer-token-env-var CONESHARE_API_KEY
 ```
 
-### Interactive Debugging (Development)
+### Interactive Debugging (Development Web Inspector)
 ```bash
 fastmcp dev coneshare_mcp/server.py
 ```
@@ -354,13 +379,14 @@ Launches a local web inspector to test tools directly against a running Coneshar
 | **Phase 1: API Key Auth** | `APIKey` model (encrypted), `APIKeyAuthentication` class, management endpoints, Settings UI panel | `backend/core/models.py`, `backend/core/authentication.py`, `backend/core/views.py`, `frontend/src/pages/UserSettingsPage.jsx` |
 | **Phase 2: MCP Server Scaffold** | Initialize `mcp-server/` package, `pyproject.toml`, FastMCP entrypoint, httpx client wrapper, env config | `mcp-server/pyproject.toml`, `mcp-server/coneshare_mcp/server.py`, `mcp-server/coneshare_mcp/client.py`, `mcp-server/coneshare_mcp/config.py` |
 | **Phase 3: MVP Tools** | Implement 12 tools: Documents (6), Datarooms (2), Share Links (3), Analytics (1) | `mcp-server/coneshare_mcp/tools/*.py` |
-| **Phase 4: Tests & Docs** | Mocked HTTP test suite, README with client configuration, docs site page | `mcp-server/tests/`, `mcp-server/README.md`, `docs/docs/en/mcp/stdio.md` |
+| **Phase 4: Tests & Docs** | Mocked HTTP test suite, README with client configuration, docs site page | `mcp-server/tests/`, `mcp-server/README.md`, `docs/docs/en/mcp/remote.md` |
 
 ---
 
 ## 12. 📋 Sample Implementation (`coneshare_mcp/server.py`)
 
 ```python
+import os
 import httpx
 from fastmcp import FastMCP, Context
 from pydantic import BaseModel, Field
@@ -381,19 +407,19 @@ class CreateShareLinkInput(BaseModel):
 @mcp.tool()
 async def list_documents(
     ctx: Context,
-    page: int = Field(default=1, description="Page number"),
-    page_size: int = Field(default=20, description="Items per page (max 100)"),
+    page: int = Field(default=1, ge=1, description="Page number"),
+    page_size: int = Field(default=20, ge=1, le=100, description="Items per page (max 100)"),
     folder_id: str | None = Field(default=None, description="Filter by folder ULID"),
 ) -> dict:
     """List documents in your Coneshare workspace with pagination."""
-    client = ConeshareClient.from_env()
+    client = ConeshareClient.from_ctx(ctx)
     return await client.list_documents(page=page, page_size=page_size, folder_id=folder_id)
 
 
 @mcp.tool()
 async def create_share_link(data: CreateShareLinkInput, ctx: Context) -> dict:
     """Create a new share link for a document with optional security controls."""
-    client = ConeshareClient.from_env()
+    client = ConeshareClient.from_ctx(ctx)
     return await client.create_share_link(data.model_dump(exclude_none=True))
 
 
@@ -403,7 +429,7 @@ async def upload_document(
     file_path: str = Field(description="Absolute path to the local file to upload"),
     folder_id: str | None = Field(default=None, description="Target folder ULID"),
 ) -> dict:
-    """Reads a file from your local disk and uploads it to Coneshare."""
+    """Reads a file and uploads it to Coneshare."""
     client = ConeshareClient.from_env()
     return await client.upload_document(file_path=file_path, folder_id=folder_id)
 
@@ -414,10 +440,18 @@ async def delete_document(
     document_id: str = Field(description="ULID of the document to delete"),
 ) -> dict:
     """[DESTRUCTIVE] Soft-delete a document (moves to trash, recoverable via web UI)."""
-    client = ConeshareClient.from_env()
+    client = ConeshareClient.from_ctx(ctx)
     return await client.delete_document(document_id)
 
 
 if __name__ == "__main__":
-    mcp.run(transport="stdio")
+    transport = os.getenv("MCP_TRANSPORT", "streamable-http").lower()
+    host = os.getenv("MCP_HOST", "0.0.0.0")
+    port = int(os.getenv("MCP_PORT", "8001"))
+    path = os.getenv("MCP_PATH", "/sse")
+
+    if transport in ("http", "streamable-http", "sse"):
+        mcp.run(transport=transport, host=host, port=port, path=path)
+    elif transport == "stdio":
+        mcp.run(transport="stdio")
 ```
