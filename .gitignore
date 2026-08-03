@@ -114,3 +114,4 @@ core/tmp
 
 backend/logs/**
 !backend/logs/.gitkeep
+backend/celerybeat-schedule

@@ -22,11 +22,13 @@ help:
 	@echo "  back.sh         - Attach a shell to the backend container"
 	@echo "  front.sh        - Attach a shell to the frontend container"
 	@echo "  portal.sh       - Attach a shell to the portal container"
+	@echo "  mcp.sh          - Attach a shell to the mcp_server container"
 	@echo "  clean           - Remove migrations, .pyc files, and database"
 	@echo "  test            - Run backend tests with pytest"
 	@echo "  test.bdd        - Run backend BDD tests with pytest"
 	@echo "  test.front      - Run whitelisted frontend tests with vitest"
 	@echo "  test.core       - Run core service tests with go test"
+	@echo "  test.mcp        - Run mcp server tests with unittest"
 	@echo "  lint.portal     - Run portal linter with eslint"
 	@echo "  lint.docs       - Validate feature docs template sections"
 	@echo "  migrate         - Run database migrations"
@@ -87,6 +89,10 @@ front.sh:
 portal.sh:
 	COMPOSE_PROJECT_NAME=coneshare docker-compose exec portal sh
 
+.PHONY: mcp.sh
+mcp.sh:
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec mcp_server sh
+
 
 # ====================================================================================
 # DEVELOPMENT COMMANDS
@@ -119,6 +125,11 @@ test.front:
 test.core:
 	@echo "Running core service Go tests..."
 	COMPOSE_PROJECT_NAME=coneshare docker-compose exec core go test ./...
+
+.PHONY: test.mcp
+test.mcp:
+	@echo "Running MCP server tests..."
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec -T mcp_server python -m unittest discover -s tests
 
 .PHONY: lint.portal
 lint.portal:

@@ -97,6 +97,28 @@ services:
       - "3000:3000"
     restart: unless-stopped
 
+  mcp_server:
+    image: coneshare:mcp
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile-dev
+    command: python -m coneshare_mcp.server
+    ports:
+      - "${MCP_PORT:-8001}:${MCP_PORT:-8001}"
+    volumes:
+      - ./mcp-server:/app
+    environment:
+      - PYTHONPATH=/app
+      - MCP_TRANSPORT=${MCP_TRANSPORT:-streamable-http}
+      - MCP_PATH=${MCP_PATH:-/sse}
+      - MCP_PORT=${MCP_PORT:-8001}
+      - CONESHARE_API_URL=${CONESHARE_API_URL:-http://backend:8000/api/v1}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      - backend
+
   clamav:
     image: clamav/clamav:stable-debian
     restart: unless-stopped

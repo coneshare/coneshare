@@ -1,6 +1,6 @@
 # 🗑️ Document & Folder Soft-Delete Design Plan
 
-> **Prerequisite for:** [Coneshare Stdio MCP Server Plan](file:///Users/xiez/coneshare/plans/todo/stdio_mcp_server_plan.md)  
+> **Prerequisite for:** [Coneshare Remote MCP Server Plan](./remote_mcp_server_plan.md)  
 > **Target Models:** [Document](file:///Users/xiez/coneshare/backend/documents/models.py#L49-L124), [Folder](file:///Users/xiez/coneshare/backend/documents/models.py#L19-L47)
 
 ---
