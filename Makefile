@@ -66,6 +66,8 @@ dist:
 		--build-arg VITE_APP_VERSION=$(APP_VERSION) \
 		--build-arg VITE_GIT_SHA=$(GIT_SHA) \
 		-t coneshare-frontend:latest -f frontend/Dockerfile ./frontend
+	@echo "--> Building remote MCP server image..."
+	docker build -t coneshare-mcp:latest -f mcp-server/Dockerfile ./mcp-server
 	@echo "--> Building final coneshare image..."
 	docker build -t coneshare:latest -f backend/Dockerfile ./backend
 

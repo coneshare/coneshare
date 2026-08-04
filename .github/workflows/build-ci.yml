@@ -17,6 +17,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      mcp: ${{ steps.filter.outputs.mcp }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -32,6 +33,9 @@ jobs:
             - '.github/workflows/build-ci.yml'
           frontend:
             - 'frontend/**'
+            - '.github/workflows/build-ci.yml'
+          mcp:
+            - 'mcp-server/**'
             - '.github/workflows/build-ci.yml'
 
   # Backend testing job (Python/Django tests + Go file server compilation/execution).
@@ -134,12 +138,35 @@ jobs:
       working-directory: ./frontend
       run: npm run test:whitelist
 
+  # MCP testing job (Python unittest under mcp-server/).
+  test-mcp:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.mcp == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      working-directory: ./mcp-server
+      run: pip install -e .
+
+    - name: Run MCP server unit tests
+      working-directory: ./mcp-server
+      run: python -m unittest discover -s tests
+
   # Build and push job that runs only on pushes to the main branch.
   build-and-push:
-    needs: [detect-changes, test-backend, test-frontend]
+    needs: [detect-changes, test-backend, test-frontend, test-mcp]
     runs-on: ubuntu-latest
     # Condition explained:
-    # 1. always(): force evaluation even if parent jobs (test-backend/test-frontend) were skipped.
+    # 1. always(): force evaluation even if parent jobs (test-backend/test-frontend/test-mcp) were skipped.
     # 2. github.event_name == 'push' && github.ref == 'refs/heads/main': restrict execution to pushes on main.
     # 3. needs.detect-changes.result == 'success': ensure path detection completed successfully.
     # 4. Result checks: proceed only if tests succeeded OR were skipped (meaning no changes to test).
@@ -149,7 +176,8 @@ jobs:
       github.ref == 'refs/heads/main' &&
       needs.detect-changes.result == 'success' &&
       (needs.test-backend.result == 'success' || needs.test-backend.result == 'skipped') &&
-      (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped')
+      (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped') &&
+      (needs.test-mcp.result == 'success' || needs.test-mcp.result == 'skipped')
 
     steps:
       - name: Checkout code
@@ -164,8 +192,12 @@ jobs:
       - name: Build Docker images
         run: make dist APP_VERSION=rolling GIT_SHA=${GITHUB_SHA}
 
-      - name: Tag image
-        run: docker tag coneshare:latest conesharedev/coneshare:rolling
+      - name: Tag images
+        run: |
+          docker tag coneshare:latest conesharedev/coneshare:rolling
+          docker tag coneshare-mcp:latest conesharedev/coneshare-mcp:rolling
 
-      - name: Push image to Docker Hub
-        run: docker push conesharedev/coneshare:rolling
+      - name: Push images to Docker Hub
+        run: |
+          docker push conesharedev/coneshare:rolling
+          docker push conesharedev/coneshare-mcp:rolling

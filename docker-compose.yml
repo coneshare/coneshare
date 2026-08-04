@@ -110,8 +110,7 @@ services:
     environment:
       - PYTHONPATH=/app
       - MCP_TRANSPORT=${MCP_TRANSPORT:-streamable-http}
-      - MCP_PATH=${MCP_PATH:-/sse}
-      - MCP_PORT=${MCP_PORT:-8001}
+      - MCP_PATH=${MCP_PATH:-/mcp/sse}
       - CONESHARE_API_URL=${CONESHARE_API_URL:-http://backend:8000/api/v1}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     env_file: .env
