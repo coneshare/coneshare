@@ -47,7 +47,7 @@ SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'http://localhost:5173')
 SITE_HOSTNAME = urlparse(SITE_DOMAIN).hostname
 
 # Default hosts for development and internal Docker networking.
-default_hosts = ['127.0.0.1', 'localhost', 'backend']
+default_hosts = ['127.0.0.1', 'localhost', 'backend', 'web']
 if SITE_HOSTNAME and SITE_HOSTNAME not in default_hosts:
     default_hosts.append(SITE_HOSTNAME)
 
