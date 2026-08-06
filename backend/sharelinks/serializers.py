@@ -1,6 +1,7 @@
 import re
 from datetime import datetime
 
+from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -339,13 +340,13 @@ class ShareLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShareLink
         fields = [
-            'id', 'document', 'dataroom', 'document_name', 'document_type', 'dataroom_name', 'dataroom_settings', 'created_by', 'name', 'slug', 'expires_at',
+            'id', 'document', 'dataroom', 'document_name', 'document_type', 'dataroom_name', 'dataroom_settings', 'created_by', 'name', 'slug', 'url', 'expires_at',
             'has_password', 'password', 'requires_email', 'requires_email_verification', 'allow_download',
             'enable_watermark', 'watermark_text', 'receive_email_notification', 'is_active', 'created_at', 'updated_at',
             'view_count', 'recent_view_sessions', 'last_viewed_at', 'require_nda', 'nda_text', 'nda_version', 'has_accepted_current_nda'
         ]
         read_only_fields = [
-            'id', 'created_by', 'slug', 'created_at', 'updated_at', 'document_name', 'document_type', 'nda_version', 'has_accepted_current_nda'
+            'id', 'created_by', 'slug', 'url', 'created_at', 'updated_at', 'document_name', 'document_type', 'nda_version', 'has_accepted_current_nda'
         ]
         extra_kwargs = {
             'name': {'required': True, 'allow_blank': True},
@@ -358,6 +359,12 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         # Remove the default UniqueTogetherValidator.
         # We handle uniqueness manually in `validate()` for updates and `create()` for creations.
         validators = []
+
+    url = serializers.SerializerMethodField()
+
+    def get_url(self, obj) -> str:
+        site_domain = settings.SITE_DOMAIN.rstrip('/')
+        return f"{site_domain}/view/{obj.slug}"
 
     def get_has_password(self, obj) -> bool:
         """Returns True if the link is password-protected."""

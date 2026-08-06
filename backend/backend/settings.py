@@ -41,6 +41,11 @@ DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 't')
 
 # Site domain is the primary source for host configuration.
 SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'http://localhost:5173')
+if not SITE_DOMAIN.startswith(('http://', 'https://')):
+    raise RuntimeError(
+        f"Invalid SITE_DOMAIN configuration '{SITE_DOMAIN}'. "
+        f"SITE_DOMAIN must include a protocol scheme (e.g. 'https://yourdomain.com' or 'http://localhost:5173')."
+    )
 
 # Derive ALLOWED_HOSTS and CSRF_TRUSTED_ORIGINS from SITE_DOMAIN to simplify setup.
 # These can still be overridden by setting them directly in the environment.

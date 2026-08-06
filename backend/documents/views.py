@@ -1,7 +1,8 @@
 import logging
 import os
+import posixpath
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import unquote, urljoin
 
 from django.conf import settings
 from django.db import transaction
@@ -212,18 +213,31 @@ class DocumentUploadFinalizeView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         validated_data = serializer.validated_data
+        storage_key = validated_data['storage_key']
+        expected_prefix = f"{request.user.organization.id}/"
+        normalized_key = posixpath.normpath(unquote(storage_key))
+        if not normalized_key.startswith(expected_prefix) or ".." in normalized_key:
+            return Response(
+                {"detail": "Invalid or unauthorized storage key for organization."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         parent_folder = None
         relative_path = validated_data.get('path')
         root_folder = Folder.objects.get_root_for_org(request.user.organization)
 
         if relative_path:
-            folder_path, _ = os.path.split(relative_path)
+            folder_path, _ = os.path.split(relative_path.strip('/'))
             if folder_path:
-                parent_folder = _get_folder_from_path(
-                    request.user, folder_path
-                )
-
-        if parent_folder is None:
+                parent_folder = _get_folder_from_path(request.user, folder_path)
+                if parent_folder is None:
+                    return Response(
+                        {"detail": f"Destination folder path '{folder_path}' does not exist or is unauthorized."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            else:
+                parent_folder = root_folder
+        else:
             parent_folder = root_folder
 
         try:

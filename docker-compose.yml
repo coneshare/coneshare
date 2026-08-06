@@ -113,7 +113,12 @@ services:
       - MCP_PATH=${MCP_PATH:-/mcp/sse}
       - CONESHARE_API_URL=${CONESHARE_API_URL:-http://backend:8000/api/v1}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    env_file: .env
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; socket.create_connection(('127.0.0.1', 8001), timeout=2)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
     depends_on:
       - backend

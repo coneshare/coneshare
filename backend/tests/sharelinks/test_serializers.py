@@ -1,4 +1,5 @@
 import pytest
+from django.test import override_settings
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, force_authenticate
 
@@ -38,6 +39,11 @@ class TestShareLinkSerializer:
         assert instance.password == "testpassword"
         assert serializer.data["has_password"] is True
         assert serializer.data["password"] == "testpassword"
+
+    def test_get_url_formatting(self, share_link, serializer_context):
+        with override_settings(SITE_DOMAIN="http://coneshare.example.com"):
+            serializer = ShareLinkSerializer(share_link, context=serializer_context)
+            assert serializer.data["url"].startswith("http://coneshare.example.com/view/")
 
     def test_create_without_password(self, document, serializer_context):
         serializer = ShareLinkSerializer(

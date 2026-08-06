@@ -135,7 +135,7 @@ The server reads environment configuration for backend connection and listening 
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `CONESHARE_API_URL` | ❌ | `http://backend:8000/api/v1` | Target Coneshare REST API base URL |
+| `CONESHARE_API_URL` | ✅ | N/A | Target Coneshare REST API base URL (required at startup) |
 | `MCP_TRANSPORT` | ❌ | `streamable-http` | Transport mode (`streamable-http` or `sse` for Remote HTTP) |
 | `MCP_HOST` | ❌ | `0.0.0.0` | Host interface for Remote SSE HTTP mode |
 | `MCP_PORT` | ❌ | `8001` | Listening port for Remote SSE HTTP mode |

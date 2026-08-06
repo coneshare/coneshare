@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import F, Q, Sum
 from rest_framework.exceptions import APIException
 
@@ -359,24 +359,36 @@ def create_document_from_upload(
             defaults={'created_by': None}
         )
 
-    content_type = _normalize_content_type(content_type, unique_name)
-    doc_type = _get_doc_type_from_content_type(content_type)
+    # Defensive DB Guard: Generate a unique document name at finalize time.
+    # While DocumentUploadRequestView predicts unique_name up front for UI progress,
+    # another upload might finish concurrently, or an external API/MCP client might pass
+    # the original file name in finalize. This retry loop with inner savepoints prevents UNIQUE constraint 500 DB crashes.
+    max_retries = 5
+    document = None
+    target_name = unique_name
 
-    # Create database records within a transaction to include user size update
-    with transaction.atomic():
-        document = Document.objects.create(
-            organization=requesting_user.organization,
-            created_by=requesting_user,
-            name=unique_name,
-            folder=folder,
-            status='uploading',
-            type=doc_type,
-            content_type=content_type,
-            original_storage_key=storage_key,
-        )
+    for attempt in range(max_retries):
+        target_name = _get_unique_document_name(requesting_user, folder, unique_name)
+        content_type = _normalize_content_type(content_type, target_name)
+        doc_type = _get_doc_type_from_content_type(content_type)
 
-        # Update user's total document size
-        User.objects.filter(pk=requesting_user.pk).update(total_document_size=F('total_document_size') + file_size)
+        try:
+            with transaction.atomic():
+                document = Document.objects.create(
+                    organization=requesting_user.organization,
+                    created_by=requesting_user,
+                    name=target_name,
+                    folder=folder,
+                    status='uploading',
+                    type=doc_type,
+                    content_type=content_type,
+                    original_storage_key=storage_key,
+                )
+                User.objects.filter(pk=requesting_user.pk).update(total_document_size=F('total_document_size') + file_size)
+            break
+        except IntegrityError:
+            if attempt == max_retries - 1:
+                raise
 
     version = DocumentVersion.objects.create(
         document=document,

@@ -4,6 +4,53 @@ The **Coneshare Remote MCP Server** (`coneshare-mcp`) is a standalone HTTP/SSE s
 
 ---
 
+## 🏗️ Architecture
+
+The `coneshare-mcp` service is built around a decoupled **Two-Tier Architecture**:
+
+```text
++-----------------------------------------------------------------------+
+|               AI Clients (agy, Claude Desktop, Cursor)               |
++-----------------------------------------------------------------------+
+                                   |
+                                   | MCP Protocol (StreamableHTTP / SSE / JSON-RPC)
+                                   v
++-----------------------------------------------------------------------+
+|  Tier 2: FastMCP Tool Layer (coneshare_mcp/tools/*.py)                |
+|  - Exposes @mcp.tool() functions to LLMs                              |
+|  - Defines Pydantic parameter schemas & descriptions                 |
+|  - Extracts user auth context via ConeshareClient.from_ctx(ctx)       |
++-----------------------------------------------------------------------+
+                                   |
+                                   | Async Python method calls
+                                   v
++-----------------------------------------------------------------------+
+|  Tier 1: ConeshareClient REST SDK Layer (coneshare_mcp/client.py)     |
+|  - Headless async HTTP client for Django REST API                      |
+|  - Manages httpx sessions, Bearer headers, & timeouts                 |
+|  - Normalizes Django DRF pagination & error responses                 |
++-----------------------------------------------------------------------+
+                                   |
+                                   | REST API over HTTP (JSON)
+                                   v
++-----------------------------------------------------------------------+
+|  Django DRF REST API Backend (http://backend:8000/api/v1)            |
++-----------------------------------------------------------------------+
+```
+
+### Tier 1: ConeshareClient REST SDK Layer (`coneshare_mcp/client.py`)
+- **Headless Async HTTP SDK:** A standalone client handling raw HTTP communication with the Coneshare REST API (`http://backend:8000/api/v1`).
+- **Authentication & Headers:** Dynamically extracts `Authorization: Bearer cs_live_...` API keys from FastMCP request context via `ConeshareClient.from_ctx(ctx)`.
+- **Response Normalization:** Normalizes Django DRF outputs (e.g. converting `{ "count": 10, "results": [...] }` into `{ "total_count": 10, "items": [...] }`).
+- **Decoupled Design:** Has zero dependency on FastMCP or MCP protocol constructs; can be used independently in standalone Python scripts or CLI tools.
+
+### Tier 2: FastMCP Tool Layer (`coneshare_mcp/tools/`)
+- **MCP Tool Registration:** Uses FastMCP decorators (`@mcp.tool()`) and Pydantic `Field(description=...)` annotations to declare tool parameters and LLM prompt context across modular files (`documents.py`, `share_links.py`, `datarooms.py`, `analytics.py`, `admin.py`).
+- **Context-Aware Request Handling:** Accepts FastMCP `ctx: Context` objects to resolve request authentication and delegate calls to `ConeshareClient`.
+- **Guardrails & Pre-checks:** Performs initial parameter validation before executing underlying SDK actions.
+
+---
+
 ## 🔒 Authentication Model
 
 The server runs as a shared Remote MCP HTTP endpoint (port `8001`). **No server-wide API key is configured on the server itself.**
@@ -21,7 +68,7 @@ The container / process is configured via environment variables:
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `CONESHARE_API_URL` | ❌ | `http://backend:8000/api/v1` | Target Coneshare REST API base URL |
+| `CONESHARE_API_URL` | ✅ | N/A | Target Coneshare REST API base URL (required at startup) |
 | `MCP_TRANSPORT` | ❌ | `streamable-http` | Transport protocol (`streamable-http` or `sse`) |
 | `MCP_HOST` | ❌ | `0.0.0.0` | Server binding address |
 | `MCP_PORT` | ❌ | `8001` | Server port |
@@ -61,13 +108,15 @@ codex mcp add coneshare --url http://localhost:8001/sse --bearer-token-env-var C
 
 ---
 
-## 🧰 Available Tools (15 Tools)
+## 🧰 Available Tools (17 Tools)
 
-### 📁 Documents (4 tools)
+### 📁 Documents (6 tools)
 * `list_documents`: Paginated list of workspace documents with folder filtering.
 * `get_document`: Retrieve detailed document metadata, versions, and active links.
 * `search_documents`: Search documents by full-text title or description query.
 * `delete_document`: `[DESTRUCTIVE]` Soft-delete a document (moves to Trash).
+* `request_document_upload`: Request a pre-signed URL to upload documents/datasets directly to storage.
+* `finalize_document_upload`: Finalize document creation after streaming file content to pre-signed upload URL.
 
 ### 🏛️ Datarooms (2 tools)
 * `list_datarooms`: List organization datarooms with pagination.

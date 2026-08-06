@@ -2,12 +2,13 @@
 
 ## Strategy refs
 - [API Keys & Permission Logic](./api-keys-and-permissions.md)
+- [Skill Development & Distribution Workflow Strategy](../strategy/skill-development-workflow.md)
 - [Remote MCP Server Plan](../../plans/remote_mcp_server_plan.md)
 
 ## Out of scope
 - Local Stdio transport mode (`MCP_TRANSPORT=stdio` is deprecated; server exclusively uses network HTTP/SSE streamable transport).
 - Server-side master API key (`CONESHARE_API_KEY` is not set on the server; authentication is strictly per-user).
-- File upload & document mutation (`upload_document` and `update_document` are deferred to future iterations).
+- Direct local filesystem path scanning (Document uploads are supported via pre-signed URL tools: request_document_upload, finalize_document_upload).
 
 ## Design decisions
 - Decision: Exclusive Remote HTTP/SSE Transport (`streamable-http` on port `8001` at path `/sse`).
@@ -33,7 +34,7 @@
 4. **DRF 401 Challenge Retention**:
    - Backend `APIKeyAuthentication` explicitly returns `'Bearer realm="api"'` via `authenticate_header()`. This prevents Django Rest Framework from coercing unauthenticated API key attempts into HTTP 403 Forbidden.
 5. **Remote Filesystem Isolation**:
-   - Remote MCP servers running in Docker containers cannot read files on the user's local Mac/laptop disk (`/Users/...`). Document upload and file mutation operations are excluded from the Remote MCP MVP to preserve security and architectural isolation.
+   - Remote MCP servers running in Docker containers cannot read local files directly from the user's laptop disk (`/Users/...`). Document uploads are supported via pre-signed URL flows (`request_document_upload` / `finalize_document_upload`).
 
 ---
 
@@ -73,7 +74,7 @@ The service is configured via environment variables in [docker-compose.yml](../.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `CONESHARE_API_URL` | ❌ | `http://backend:8000/api/v1` | Internal Docker REST API base URL |
+| `CONESHARE_API_URL` | ✅ | N/A | Target Coneshare REST API base URL (required at startup) |
 | `MCP_TRANSPORT` | ❌ | `streamable-http` | Transport protocol (`streamable-http` or `sse`) |
 | `MCP_HOST` | ❌ | `0.0.0.0` | Container network bind address (`0.0.0.0` for Docker) |
 | `MCP_PATH` | ❌ | `/sse` | HTTP SSE endpoint path |
@@ -82,13 +83,15 @@ The service is configured via environment variables in [docker-compose.yml](../.
 
 ---
 
-## 3. Tool Catalog (15 MVP Tools)
+## 3. Tool Catalog (17 Tools)
 
-### 📁 Documents (4 tools)
+### 📁 Documents (6 tools)
 * `list_documents`: Paginated list of workspace documents with folder filtering.
 * `get_document`: Retrieve detailed document metadata, versions, and active links.
 * `search_documents`: Search documents by full-text title or description query.
 * `delete_document`: `[DESTRUCTIVE]` Soft-delete a document (moves to Trash, recoverable via web UI).
+* `request_document_upload`: Request a pre-signed URL to upload documents/datasets directly to storage.
+* `finalize_document_upload`: Finalize document creation after streaming file content to pre-signed upload URL.
 
 ### 🏛️ Datarooms (2 tools)
 * `list_datarooms`: List organization datarooms with pagination metadata.
@@ -161,3 +164,25 @@ server {
   }
 }
 ```
+
+---
+
+## 5. Error Handling & Agent Control Flow Strategy
+
+### Error Response Contract
+All MCP tools catch server, network, and validation errors gracefully, returning structured JSON error objects:
+```json
+{
+  "error": true,
+  "status": 500,
+  "detail": "Failed to finalize document processing: Storage key not found"
+}
+```
+
+### Agent Control Flow & Circuit Breaker Rules
+To prevent AI agents from executing orphaned downstream tool calls after an error:
+
+1. **Stop-on-Error**: When a tool response contains `"error": true` or `"isError": true`, the AI client runner MUST halt multi-step tool execution immediately.
+2. **No Orphaned Downstream Calls**: Downstream tools (such as `create_share_link`) MUST NOT be called if an upstream prerequisite step (such as `finalize_document_upload`) failed.
+3. **Defensive Auto-Deduplication**: Backend endpoints (e.g. `create_document_from_upload`) defensively deduplicate filenames (e.g. `README_zh.md` -> `README_zh (1).md`) to prevent database unique constraint crashes.
+
