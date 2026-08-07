@@ -66,20 +66,16 @@ class ConeshareClient:
 
                 try:
                     error_detail = response.json()
+                    if isinstance(error_detail, dict) and "detail" in error_detail:
+                        msg = str(error_detail["detail"])
+                    else:
+                        msg = str(error_detail)
                 except Exception:
-                    error_detail = response.text
+                    msg = response.text
 
-                return {
-                    "error": True,
-                    "status": response.status_code,
-                    "detail": error_detail,
-                }
-            except Exception as exc:
-                return {
-                    "error": True,
-                    "status": 500,
-                    "detail": str(exc),
-                }
+                raise ValueError(f"Coneshare API Error ({response.status_code}): {msg}")
+            except httpx.RequestError as exc:
+                raise ValueError(f"Network error communicating with Coneshare API: {exc}")
 
     @staticmethod
     def _paginate(res: Any, page: int, page_size: int) -> dict[str, Any]:
@@ -134,6 +130,40 @@ class ConeshareClient:
 
     async def delete_document(self, document_id: str) -> dict[str, Any]:
         return await self._request("DELETE", f"/documents/{document_id}/")
+
+    async def request_document_upload(
+        self,
+        file_name: str,
+        file_size: int,
+        path: Optional[str] = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "file_name": file_name,
+            "file_size": file_size,
+        }
+        if path:
+            payload["path"] = path
+        return await self._request("POST", "/uploads/document/request/", json_data=payload)
+
+    async def finalize_document_upload(
+        self,
+        storage_key: str,
+        unique_name: str,
+        file_size: int,
+        content_type: str = "application/octet-stream",
+        path: Optional[str] = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "storage_key": storage_key,
+            "unique_name": unique_name,
+            "file_size": file_size,
+            "content_type": content_type,
+        }
+        if path:
+            payload["path"] = path
+        return await self._request("POST", "/uploads/document/finalize/", json_data=payload)
+
+
 
     # --- Datarooms API ---
 

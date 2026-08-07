@@ -1,8 +1,11 @@
-import unittest
+from unittest.mock import MagicMock, AsyncMock, patch
+from fastmcp import FastMCP
 from coneshare_mcp.client import ConeshareClient
+from coneshare_mcp.tools.analytics import register_analytics_tools
+from tests.base import BaseMCPTestCase
 
 
-class TestAnalytics(unittest.IsolatedAsyncioTestCase):
+class TestAnalytics(BaseMCPTestCase):
     async def test_get_document_analytics(self):
         async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
             self.assertEqual(method, "GET")
@@ -97,3 +100,17 @@ class TestAnalytics(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(len(res["page_views"]), 1)
         finally:
             ConeshareClient._request = old_request
+
+    async def test_get_document_analytics_tool_execution(self):
+        mcp = FastMCP("test_mcp")
+        register_analytics_tools(mcp)
+
+        mock_client = MagicMock()
+        mock_client.get_document_analytics = AsyncMock(return_value={"total_views": 150})
+        mock_ctx = MagicMock()
+
+        tool = await mcp.get_tool("get_document_analytics")
+        with patch("coneshare_mcp.tools.analytics.ConeshareClient.from_ctx", return_value=mock_client):
+            res = await tool.fn(ctx=mock_ctx, document_id="doc_777")
+        self.assertEqual(res["total_views"], 150)
+        mock_client.get_document_analytics.assert_awaited_once_with(document_id="doc_777")

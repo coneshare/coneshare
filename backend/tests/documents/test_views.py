@@ -836,6 +836,79 @@ def test_upload_duplicate_root_file_is_renamed(mock_fs_upload_url, api_client):
 
 
 @pytest.mark.django_db
+@patch('documents.views.fileserver_client.generate_upload_url')
+def test_finalize_duplicate_name_defensive_rename(mock_fs_upload_url, api_client, user):
+    """Test that calling finalize with a duplicate name automatically renames defensively to prevent 500 crashes."""
+    api_client.force_authenticate(user=user)
+    mock_fs_upload_url.return_value = "/files/upload/some-token"
+
+    # Create initial document named 'README_zh.md'
+    root_folder = Folder.objects.get_root_for_org(user.organization)
+    Document.objects.create(name='README_zh.md', organization=user.organization, created_by=user, folder=root_folder)
+
+    # Finalize a new upload where client passes 'README_zh.md' as unique_name
+    finalize_data = {
+        'storage_key': f"{user.organization.id}/storage/README_zh.md",
+        'unique_name': 'README_zh.md',
+        'file_size': 1024,
+        'content_type': 'text/markdown',
+        'path': None
+    }
+    response = api_client.post('/api/v1/uploads/document/finalize/', finalize_data, format='json')
+    assert response.status_code == status.HTTP_202_ACCEPTED
+    assert response.json()['name'] == 'README_zh (2).md'
+
+
+@pytest.mark.django_db
+def test_finalize_invalid_or_unauthorized_storage_key(api_client, user):
+    """Finalizing an upload with an unauthorized or mismatched storage key prefix returns HTTP 400."""
+    api_client.force_authenticate(user=user)
+
+    # Key from different org
+    response = api_client.post('/api/v1/uploads/document/finalize/', {
+        'storage_key': 'other_org_id/ab/12345.pdf',
+        'unique_name': 'test.pdf',
+        'file_size': 100,
+        'content_type': 'application/pdf',
+    }, format='json')
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    # Path traversal key
+    response = api_client.post('/api/v1/uploads/document/finalize/', {
+        'storage_key': f"{user.organization.id}/../secret.txt",
+        'unique_name': 'secret.txt',
+        'file_size': 100,
+        'content_type': 'text/plain',
+    }, format='json')
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    # URL-encoded path traversal key
+    response = api_client.post('/api/v1/uploads/document/finalize/', {
+        'storage_key': f"{user.organization.id}/%2e%2e/secret.txt",
+        'unique_name': 'secret.txt',
+        'file_size': 100,
+        'content_type': 'text/plain',
+    }, format='json')
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+def test_finalize_nonexistent_destination_path_returns_400(api_client, user):
+    """Finalizing an upload to a non-existent folder path returns HTTP 400 instead of falling back to root."""
+    api_client.force_authenticate(user=user)
+
+    response = api_client.post('/api/v1/uploads/document/finalize/', {
+        'storage_key': f"{user.organization.id}/ab/12345.pdf",
+        'unique_name': 'test.pdf',
+        'file_size': 100,
+        'content_type': 'application/pdf',
+        'path': 'NonExistentFolder/SubFolder/test.pdf'
+    }, format='json')
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "Destination folder path" in response.json()['detail']
+
+
+@pytest.mark.django_db
 @override_settings(SITE_DOMAIN="http://test.coneshare.com")
 @patch('documents.views.fileserver_client.generate_download_url')
 def test_get_document_preview_data_for_image_document(
@@ -1548,7 +1621,7 @@ class TestQuotaAndSizeTracking:
         # 1. Create a document (1MB)
         file_size_1 = 1 * 1024 * 1024
         finalize_data = {
-            'storage_key': 'key1',
+            'storage_key': f"{user.organization.id}/key1",
             'unique_name': 'doc1.pdf',
             'file_size': file_size_1,
             'content_type': 'application/pdf',
@@ -1583,52 +1656,39 @@ class TestQuotaAndSizeTracking:
         user.refresh_from_db()
         assert user.total_document_size == 0
 
-    # @override_settings(FILE_SIZE_QUOTA_MB=1)
-    # @patch('documents.views.fileserver_client.generate_upload_url')
-    # def test_upload_request_respects_quota(self, mock_fs_upload_url, api_client, user):
-    #     """Test that the document upload request endpoint rejects uploads that exceed the quota."""
-    #     # Quota is 1MB. User has 0 usage.
+    @patch('documents.views.fileserver_client.generate_upload_url')
+    def test_upload_request_respects_quota(self, mock_fs_upload_url, api_client, user):
+        """Test that the document upload request endpoint rejects uploads that exceed the quota."""
+        api_client.force_authenticate(user=user)
+        mock_fs_upload_url.return_value = "/files/upload/token"
+        user.custom_file_size_quota_mb = 1
+        user.save()
 
-    #     # This should fail (2MB > 1MB)
-    #     request_data_fail = {'file_name': 'large.pdf', 'file_size': 2 * 1024 * 1024}
-    #     response_fail = api_client.post('/api/v1/uploads/document/request/', request_data_fail)
-    #     assert response_fail.status_code == status.HTTP_400_BAD_REQUEST
-    #     assert "exceed your storage quota" in response_fail.data['detail']
+        # This should fail (2MB > 1MB)
+        request_data_fail = {'file_name': 'large.pdf', 'file_size': 2 * 1024 * 1024}
+        response_fail = api_client.post('/api/v1/uploads/document/request/', request_data_fail)
+        assert response_fail.status_code == status.HTTP_400_BAD_REQUEST
+        assert "exceed your storage quota" in response_fail.data['detail']
 
-    #     # This should succeed (0.5MB < 1MB)
-    #     request_data_ok = {'file_name': 'small.pdf', 'file_size': 512 * 1024}
-    #     response_ok = api_client.post('/api/v1/uploads/document/request/', request_data_ok)
-    #     assert response_ok.status_code == status.HTTP_200_OK
+        # This should succeed (0.5MB < 1MB)
+        request_data_ok = {'file_name': 'small.pdf', 'file_size': 512 * 1024}
+        response_ok = api_client.post('/api/v1/uploads/document/request/', request_data_ok)
+        assert response_ok.status_code == status.HTTP_200_OK
 
-    # @override_settings(FILE_SIZE_QUOTA_MB=2)
-    # @patch('documents.views.fileserver_client.generate_upload_url')
-    # def test_version_upload_request_respects_quota(self, mock_fs_upload_url, api_client, user, document_factory):
-    #     """
-    #     Test that the version upload request endpoint correctly calculates
-    #     potential usage against the quota.
-    #     """
-    #     # Quota is 2MB.
-    #     # 1. Create an initial document of 1.5MB.
-    #     doc_size = int(1.5 * 1024 * 1024)
-    #     doc = document_factory(name="doc1.pdf", file_size=doc_size)
-    #     user.total_document_size = doc_size
-    #     user.save()
+    @patch('documents.views.fileserver_client.generate_upload_url')
+    def test_upload_request_nonexistent_folder_path_returns_400(self, mock_fs_upload_url, api_client, user):
+        """Test that requesting upload with a non-existent folder path returns HTTP 400."""
+        api_client.force_authenticate(user=user)
+        mock_fs_upload_url.return_value = "/files/upload/token"
 
-    #     # 2. Try to upload a new version of 1MB.
-    #     # Potential usage: 1.5MB (current) + 1MB (new) - 1.5MB (old) = 1MB.
-    #     # 1MB < 2MB, so this should succeed.
-    #     request_data_ok = {'file_name': 'v2_ok.pdf', 'file_size': 1 * 1024 * 1024}
-    #     request_url = f'/api/v1/uploads/document/{doc.id}/versions/request/'
-    #     response_ok = api_client.post(request_url, request_data_ok)
-    #     assert response_ok.status_code == status.HTTP_200_OK
-
-    #     # 3. Try to upload a new version of 3MB.
-    #     # Potential usage: 1.5MB (current) + 3MB (new) - 1.5MB (old) = 3MB.
-    #     # 3MB > 2MB, so this should fail.
-    #     request_data_fail = {'file_name': 'v2_fail.pdf', 'file_size': 3 * 1024 * 1024}
-    #     response_fail = api_client.post(request_url, request_data_fail)
-    #     assert response_fail.status_code == status.HTTP_400_BAD_REQUEST
-    #     assert "exceed your storage quota" in response_fail.data['detail']
+        request_data = {
+            'file_name': 'doc.pdf',
+            'file_size': 1024,
+            'path': 'NonExistentFolder/doc.pdf'
+        }
+        response = api_client.post('/api/v1/uploads/document/request/', request_data)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "Folder path 'NonExistentFolder' does not exist." in response.data['detail']
 
 @pytest.mark.django_db
 @patch('documents.views.fileserver_client.generate_preview_url')

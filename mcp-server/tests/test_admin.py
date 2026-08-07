@@ -1,8 +1,11 @@
-import unittest
+from unittest.mock import MagicMock, AsyncMock, patch
+from fastmcp import FastMCP
 from coneshare_mcp.client import ConeshareClient
+from coneshare_mcp.tools.admin import register_admin_tools
+from tests.base import BaseMCPTestCase
 
 
-class TestAdmin(unittest.IsolatedAsyncioTestCase):
+class TestAdmin(BaseMCPTestCase):
     async def test_list_admin_users(self):
         async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
             self.assertEqual(method, "GET")
@@ -76,3 +79,17 @@ class TestAdmin(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(res["items"][0]["ip_address"], "127.0.0.1")
         finally:
             ConeshareClient._request = old_request
+
+    async def test_list_admin_users_tool_execution(self):
+        mcp = FastMCP("test_mcp")
+        register_admin_tools(mcp)
+
+        mock_client = MagicMock()
+        mock_client.list_admin_users = AsyncMock(return_value={"total_count": 2, "items": []})
+        mock_ctx = MagicMock()
+
+        tool = await mcp.get_tool("list_admin_users")
+        with patch("coneshare_mcp.tools.admin.ConeshareClient.from_ctx", return_value=mock_client):
+            res = await tool.fn(ctx=mock_ctx, page=1, page_size=20, search=None)
+        self.assertEqual(res["total_count"], 2)
+        mock_client.list_admin_users.assert_awaited_once_with(page=1, page_size=20, search=None)
