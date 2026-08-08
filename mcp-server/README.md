@@ -108,24 +108,34 @@ codex mcp add coneshare --url http://localhost:8001/sse --bearer-token-env-var C
 
 ---
 
-## 🧰 Available Tools (17 Tools)
+## 🧰 Available Tools (27 Tools)
 
-### 📁 Documents (6 tools)
+### 📁 Documents & Folders (11 tools)
 * `list_documents`: Paginated list of workspace documents with folder filtering.
 * `get_document`: Retrieve detailed document metadata, versions, and active links.
 * `search_documents`: Search documents by full-text title or description query.
+* `update_document`: Rename or update description metadata of an existing document.
 * `delete_document`: `[DESTRUCTIVE]` Soft-delete a document (moves to Trash).
+* `create_folder`: Create a new folder in your workspace documents hierarchy.
+* `update_folder`: Rename an existing workspace folder.
+* `delete_folder`: `[DESTRUCTIVE]` Soft-delete a workspace folder.
+* `move_items`: Move documents and/or subfolders into a destination workspace folder.
 * `request_document_upload`: Request a pre-signed URL to upload documents/datasets directly to storage.
 * `finalize_document_upload`: Finalize document creation after streaming file content to pre-signed upload URL.
 
-### 🏛️ Datarooms (2 tools)
+### 🏛️ Datarooms (7 tools)
 * `list_datarooms`: List organization datarooms with pagination.
 * `get_dataroom`: Retrieve dataroom hierarchy, settings, and items.
+* `create_dataroom`: Create a new dataroom to group and share documents.
+* `add_content_to_dataroom`: Attach workspace documents to an existing dataroom.
+* `remove_content_from_dataroom`: Remove workspace documents from an existing dataroom.
+* `update_dataroom`: Update metadata (name, description) for an existing dataroom.
+* `delete_dataroom`: `[DESTRUCTIVE]` Delete a dataroom.
 
 ### 🔗 Share Links (3 tools)
 * `list_share_links`: List active share links, filterable by document or dataroom.
-* `create_share_link`: Create a share link with NDA/watermark/download controls.
-* `update_share_link`: Modify security settings or toggle link active status.
+* `create_share_link`: Create a share link with NDA text, custom watermark text, email verification, password, and download controls.
+* `update_share_link`: Modify security settings, watermark/NDA text, email controls, or toggle link active status.
 
 ### 📊 Analytics (3 tools)
 * `get_document_analytics`: Fetch view counts, durations, and viewer statistics for a document.

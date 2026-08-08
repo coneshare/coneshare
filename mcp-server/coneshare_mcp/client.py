@@ -163,6 +163,46 @@ class ConeshareClient:
             payload["path"] = path
         return await self._request("POST", "/uploads/document/finalize/", json_data=payload)
 
+    async def update_document(
+        self,
+        document_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        if name is not None:
+            payload["name"] = name
+        if description is not None:
+            payload["description"] = description
+        return await self._request("PATCH", f"/documents/{document_id}/", json_data=payload)
+
+    async def create_folder(self, name: str, parent_folder_id: Optional[str] = None) -> dict[str, Any]:
+        payload: dict[str, Any] = {"name": name}
+        if parent_folder_id:
+            payload["parent"] = parent_folder_id
+        return await self._request("POST", "/folders/", json_data=payload)
+
+    async def update_folder(self, folder_id: str, name: str) -> dict[str, Any]:
+        return await self._request("PATCH", f"/folders/{folder_id}/", json_data={"name": name})
+
+    async def delete_folder(self, folder_id: str) -> dict[str, Any]:
+        return await self._request("DELETE", f"/folders/{folder_id}/")
+
+    async def move_items(
+        self,
+        destination_folder_id: Optional[str] = None,
+        document_ids: Optional[list[str]] = None,
+        folder_ids: Optional[list[str]] = None,
+    ) -> dict[str, Any]:
+        if not document_ids and not folder_ids:
+            raise ValueError("Provide at least one document ID or folder ID.")
+        payload: dict[str, Any] = {
+            "destination_folder_id": destination_folder_id,
+            "document_ids": document_ids or [],
+            "folder_ids": folder_ids or [],
+        }
+        return await self._request("POST", "/actions/move/", json_data=payload)
+
 
 
     # --- Datarooms API ---
@@ -176,6 +216,59 @@ class ConeshareClient:
 
     async def get_dataroom(self, dataroom_id: str) -> dict[str, Any]:
         return await self._request("GET", f"/datarooms/{dataroom_id}/")
+
+    async def create_dataroom(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        document_ids: Optional[list[str]] = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"name": name}
+        if description:
+            payload["description"] = description
+        res = await self._request("POST", "/datarooms/", json_data=payload)
+        if isinstance(res, dict) and res.get("error"):
+            return res
+
+        if document_ids and isinstance(res, dict) and "id" in res:
+            try:
+                add_res = await self.add_content_to_dataroom(dataroom_id=res["id"], document_ids=document_ids)
+                if isinstance(add_res, dict) and add_res.get("error"):
+                    await self.delete_dataroom(dataroom_id=res["id"])
+                    return {
+                        "error": True,
+                        "message": "Failed to attach documents to dataroom. Rolled back created dataroom.",
+                        "details": add_res,
+                    }
+            except Exception as err:
+                await self.delete_dataroom(dataroom_id=res["id"])
+                raise err
+
+        return res
+
+    async def add_content_to_dataroom(self, dataroom_id: str, document_ids: list[str]) -> dict[str, Any]:
+        payload = {"document_ids": document_ids}
+        return await self._request("POST", f"/datarooms/{dataroom_id}/add-content/", json_data=payload)
+
+    async def remove_content_from_dataroom(self, dataroom_id: str, document_ids: list[str]) -> dict[str, Any]:
+        payload = {"document_ids": document_ids}
+        return await self._request("POST", f"/datarooms/{dataroom_id}/remove-content/", json_data=payload)
+
+    async def update_dataroom(
+        self,
+        dataroom_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        if name is not None:
+            payload["name"] = name
+        if description is not None:
+            payload["description"] = description
+        return await self._request("PATCH", f"/datarooms/{dataroom_id}/", json_data=payload)
+
+    async def delete_dataroom(self, dataroom_id: str) -> dict[str, Any]:
+        return await self._request("DELETE", f"/datarooms/{dataroom_id}/")
 
     # --- Share Links API ---
 

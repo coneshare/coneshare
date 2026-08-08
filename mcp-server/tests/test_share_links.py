@@ -58,17 +58,24 @@ class TestShareLinks(BaseMCPTestCase):
                 ctx=mock_ctx,
                 document_id="doc_999",
                 enable_watermark=True,
+                watermark_text="CONFIDENTIAL - {{email}}",
                 allow_download=True,
                 name=None,
                 password=None,
                 expires_in_days=None,
                 require_nda=None,
+                nda_text=None,
                 dataroom_id=None,
+                requires_email=None,
+                requires_email_verification=None,
+                receive_email_notification=None,
             )
         self.assertEqual(res["id"], "lnk_100")
         mock_client.create_share_link.assert_awaited_once_with({
             "document": "doc_999",
             "name": "Share Link",
             "enable_watermark": True,
+            "watermark_text": "CONFIDENTIAL - {{email}}",
             "allow_download": True,
+            "receive_email_notification": True,
         })

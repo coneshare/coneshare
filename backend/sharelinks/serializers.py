@@ -296,27 +296,41 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         document = data.get('document')
         dataroom = data.get('dataroom')
 
-        # On update, we need to consider the instance's state
+        # On update, targets are immutable. Use instance target state.
         if self.instance:
-            document = document or self.instance.document
-            dataroom = dataroom or self.instance.dataroom
-            if 'document' in data and data['document'] is None:  # Explicitly setting to null
-                document = None
-            if 'dataroom' in data and data['dataroom'] is None:
-                dataroom = None
+            if 'document' in data and data['document'] != self.instance.document:
+                raise serializers.ValidationError({'document': 'Share link target document cannot be changed after creation.'})
+            if 'dataroom' in data and data['dataroom'] != self.instance.dataroom:
+                raise serializers.ValidationError({'dataroom': 'Share link target dataroom cannot be changed after creation.'})
+            document = self.instance.document
+            dataroom = self.instance.dataroom
 
         if not document and not dataroom:
             raise serializers.ValidationError("A share link must be associated with either a document or a dataroom.")
         if document and dataroom:
             raise serializers.ValidationError("A share link cannot be associated with both a document and a dataroom.")
 
+        request = self.context.get('request')
+        if request and hasattr(request, 'user') and request.user and request.user.is_authenticated:
+            user = request.user
+            if document and document.created_by_id and document.created_by_id != user.id:
+                raise serializers.ValidationError({'document': 'You do not have permission to share this document.'})
+            if dataroom and dataroom.created_by_id and dataroom.created_by_id != user.id:
+                raise serializers.ValidationError({'dataroom': 'You do not have permission to share this dataroom.'})
+
+        enable_watermark = data.get('enable_watermark', self.instance.enable_watermark if self.instance else False)
         if document:
-            if document.type == 'video' and data.get('enable_watermark'):
+            if document.type == 'video' and enable_watermark:
                 raise serializers.ValidationError(
                     "Watermarking is not supported for video files."
                 )
             if document.is_download_only:
                 data['allow_download'] = True
+
+        if enable_watermark:
+            watermark_text = data.get('watermark_text', self.instance.watermark_text if self.instance else '')
+            if not watermark_text or not watermark_text.strip():
+                data['watermark_text'] = 'CONFIDENTIAL - {{email}}'
 
         # Manually handle uniqueness validation on update only.
         # On create, the `create` method handles finding a unique name.

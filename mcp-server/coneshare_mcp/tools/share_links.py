@@ -35,8 +35,13 @@ def register_share_link_tools(mcp: FastMCP) -> None:
         password: Optional[str] = Field(default=None, description="Optional protection password"),
         expires_in_days: Optional[int] = Field(default=None, description="Link expiration in days"),
         require_nda: Optional[bool] = Field(default=None, description="Enforce NDA sign-off before viewing"),
+        nda_text: Optional[str] = Field(default=None, description="Custom NDA agreement text body"),
         enable_watermark: Optional[bool] = Field(default=None, description="Overlay dynamic watermark on document preview"),
+        watermark_text: Optional[str] = Field(default=None, description="Custom watermark text overlay (e.g. 'CONFIDENTIAL - {{email}}')"),
         allow_download: Optional[bool] = Field(default=True, description="Allow original binary file download"),
+        requires_email: Optional[bool] = Field(default=None, description="Require viewer to enter email address before viewing"),
+        requires_email_verification: Optional[bool] = Field(default=None, description="Require viewer to verify email via OTP code before viewing"),
+        receive_email_notification: Optional[bool] = Field(default=True, description="Send email alert to link owner whenever viewed"),
     ) -> dict:
         """Create a new share link for a document or dataroom with optional security controls.
 
@@ -59,10 +64,22 @@ def register_share_link_tools(mcp: FastMCP) -> None:
             payload["expires_at"] = (datetime.now(timezone.utc) + timedelta(days=expires_in_days)).isoformat()
         if require_nda is not None:
             payload["require_nda"] = require_nda
+        if nda_text is not None:
+            payload["nda_text"] = nda_text
         if enable_watermark is not None:
             payload["enable_watermark"] = enable_watermark
+        if watermark_text is not None:
+            payload["watermark_text"] = watermark_text
         if allow_download is not None:
             payload["allow_download"] = allow_download
+        if requires_email is not None:
+            payload["requires_email"] = requires_email
+        if requires_email_verification is not None:
+            payload["requires_email_verification"] = requires_email_verification
+        if receive_email_notification is not None:
+            payload["receive_email_notification"] = receive_email_notification
+        else:
+            payload["receive_email_notification"] = True
 
         return await client.create_share_link(payload)
 
@@ -76,15 +93,20 @@ def register_share_link_tools(mcp: FastMCP) -> None:
         expires_at: Optional[str] = Field(default=None, description="ISO timestamp for link expiration"),
         clear_expiration: bool = Field(default=False, description="Set True to clear link expiration"),
         require_nda: Optional[bool] = Field(default=None, description="Enforce NDA sign-off"),
+        nda_text: Optional[str] = Field(default=None, description="Updated custom NDA agreement text body"),
         enable_watermark: Optional[bool] = Field(default=None, description="Overlay dynamic watermark"),
+        watermark_text: Optional[str] = Field(default=None, description="Updated custom watermark text overlay"),
         allow_download: Optional[bool] = Field(default=None, description="Allow binary file download"),
+        requires_email: Optional[bool] = Field(default=None, description="Require viewer to enter email address"),
+        requires_email_verification: Optional[bool] = Field(default=None, description="Require viewer to verify email via OTP code"),
+        receive_email_notification: Optional[bool] = Field(default=None, description="Send email alert to link owner whenever viewed"),
         is_active: Optional[bool] = Field(default=None, description="Enable or disable share link"),
     ) -> dict:
         """Modify security parameters or active state of an existing share link."""
         client = ConeshareClient.from_ctx(ctx)
         payload: dict = {}
 
-        if name:
+        if name is not None:
             payload["name"] = name
         if password is not None:
             payload["password"] = password
@@ -96,10 +118,20 @@ def register_share_link_tools(mcp: FastMCP) -> None:
             payload["expires_at"] = expires_at
         if require_nda is not None:
             payload["require_nda"] = require_nda
+        if nda_text is not None:
+            payload["nda_text"] = nda_text
         if enable_watermark is not None:
             payload["enable_watermark"] = enable_watermark
+        if watermark_text is not None:
+            payload["watermark_text"] = watermark_text
         if allow_download is not None:
             payload["allow_download"] = allow_download
+        if requires_email is not None:
+            payload["requires_email"] = requires_email
+        if requires_email_verification is not None:
+            payload["requires_email_verification"] = requires_email_verification
+        if receive_email_notification is not None:
+            payload["receive_email_notification"] = receive_email_notification
         if is_active is not None:
             payload["is_active"] = is_active
 
