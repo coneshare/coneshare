@@ -108,6 +108,34 @@ codex mcp add coneshare --url http://localhost:8001/sse --bearer-token-env-var C
 
 ---
 
+## 🧠 AI Agent Skill Integration (`coneshare-it`)
+
+The **[`coneshare-it`](https://github.com/coneshare/coneshare/blob/main/.agent/skills/coneshare-it/SKILL.md)** skill provides automated operational workflows, sensible defaults, streaming file uploads, and interactive Dataroom sharing policies for AI coding assistants (Claude Code, Codex, Antigravity `agy`).
+
+### 📥 1-Line Quick Skill Installation
+
+Self-hosted users can install the `coneshare-it` skill into their workspace or global configuration:
+
+#### Workspace Installation (Current Repository Only):
+```bash
+# Works across Antigravity, Claude Code, and Codex
+mkdir -p .agent/skills/coneshare-it
+curl -sSL https://raw.githubusercontent.com/coneshare/coneshare/main/.agent/skills/coneshare-it/SKILL.md -o .agent/skills/coneshare-it/SKILL.md
+```
+
+#### Global Machine-Wide Installation (All Local Workspaces):
+```bash
+# Antigravity CLI (agy)
+mkdir -p ~/.gemini/config/skills/coneshare-it
+curl -sSL https://raw.githubusercontent.com/coneshare/coneshare/main/.agent/skills/coneshare-it/SKILL.md -o ~/.gemini/config/skills/coneshare-it/SKILL.md
+
+# Claude Code CLI
+mkdir -p ~/.claude/skills/coneshare-it
+curl -sSL https://raw.githubusercontent.com/coneshare/coneshare/main/.agent/skills/coneshare-it/SKILL.md -o ~/.claude/skills/coneshare-it/SKILL.md
+```
+
+---
+
 ## 🧰 Available Tools (27 Tools)
 
 ### 📁 Documents & Folders (11 tools)

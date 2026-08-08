@@ -1,9 +1,10 @@
 ---
 name: coneshare-it
+version: 1.0.0
 description: Standard operational workflows, sensible defaults, zero-friction uploading, link sharing, and analytics via Coneshare MCP.
 ---
 
-# Coneshare-It Skill Guide
+# Coneshare-It Skill Guide (v1.0.0)
 
 ## 1. Core Operational Rule: Sensible Defaults + Proactive Notice
 Always prioritize **zero-friction execution**. Execute user requests instantly using sensible defaults, present the result, and offer a proactive notice for optional security or configuration tweaks.
@@ -51,3 +52,8 @@ Always prioritize **zero-friction execution**. Execute user requests instantly u
 - **Stop-on-Error**: If any step in a multi-tool chain (e.g. `request_document_upload`, `finalize_document_upload`) returns an error object (`{"error": true, ...}`), **HALT IMMEDIATELY**.
 - **Partial-Batch Failure Policy**: In a multi-file upload, if file N fails after earlier files finalize, halt downstream share link generation per the stop-on-error rule, and report both the successfully finalized document IDs and the failed file details to the user.
 - **No Orphaned Calls**: Never invoke downstream tools (such as `create_share_link`) if an upstream prerequisite step failed. Report the error detail directly to the user.
+
+---
+
+## 6. Version History
+- **`v1.0.0`**: Initial release — 2-step streaming uploads, single vs multi-file Dataroom prompt policies, 50-file batch guardrail, default watermark resolution, and circuit breaker rules.
