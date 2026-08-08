@@ -94,3 +94,58 @@ def register_document_tools(mcp: FastMCP) -> None:
             content_type=content_type,
             path=path,
         )
+
+    @mcp.tool()
+    async def update_document(
+        ctx: Context,
+        document_id: str = Field(description="ULID of the document to update"),
+        name: Optional[str] = Field(default=None, description="Updated file name (e.g. 'report_v2.pdf')"),
+        description: Optional[str] = Field(default=None, description="Updated document description"),
+    ) -> dict:
+        """Rename or update description metadata of an existing document."""
+        client = ConeshareClient.from_ctx(ctx)
+        return await client.update_document(document_id=document_id, name=name, description=description)
+
+    @mcp.tool()
+    async def create_folder(
+        ctx: Context,
+        name: str = Field(description="Name of the new workspace folder"),
+        parent_folder_id: Optional[str] = Field(default=None, description="Optional ULID of the parent folder"),
+    ) -> dict:
+        """Create a new folder in your workspace documents hierarchy."""
+        client = ConeshareClient.from_ctx(ctx)
+        return await client.create_folder(name=name, parent_folder_id=parent_folder_id)
+
+    @mcp.tool()
+    async def update_folder(
+        ctx: Context,
+        folder_id: str = Field(description="ULID of the workspace folder to update"),
+        name: str = Field(description="New name for the folder"),
+    ) -> dict:
+        """Rename an existing workspace folder."""
+        client = ConeshareClient.from_ctx(ctx)
+        return await client.update_folder(folder_id=folder_id, name=name)
+
+    @mcp.tool()
+    async def delete_folder(
+        ctx: Context,
+        folder_id: str = Field(description="ULID of the workspace folder to delete"),
+    ) -> dict:
+        """[DESTRUCTIVE] Soft-delete a workspace folder."""
+        client = ConeshareClient.from_ctx(ctx)
+        return await client.delete_folder(folder_id=folder_id)
+
+    @mcp.tool()
+    async def move_items(
+        ctx: Context,
+        destination_folder_id: Optional[str] = Field(default=None, description="ULID of target destination folder (None for root workspace)"),
+        document_ids: Optional[list[str]] = Field(default=None, description="List of document ULIDs to move"),
+        folder_ids: Optional[list[str]] = Field(default=None, description="List of folder ULIDs to move"),
+    ) -> dict:
+        """Move documents and/or subfolders into a destination workspace folder."""
+        client = ConeshareClient.from_ctx(ctx)
+        return await client.move_items(
+            destination_folder_id=destination_folder_id,
+            document_ids=document_ids,
+            folder_ids=folder_ids,
+        )

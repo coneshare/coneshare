@@ -271,4 +271,9 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** Explicitly declaring `permission_classes = [permissions.IsAuthenticated]` on DRF ViewSets completely overrides and discards `REST_FRAMEWORK['DEFAULT_PERMISSION_CLASSES']` from `settings.py`, accidentally stripping custom global permission guards like `APIKeyTierPermission`.
 - **Resolution/Action:** Omit `permission_classes` on standard protected ViewSets so they implicitly inherit all global `DEFAULT_PERMISSION_CLASSES`. For ViewSets with dynamic `get_permissions()`, return `super().get_permissions()` for authenticated non-public actions instead of hardcoding `[IsAuthenticated()]`.
 
+### 2026-08-08 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** `ShareLinkSerializer` validated `document` and `dataroom` existence but omitted target ownership checks, allowing an authenticated user to generate a public share link for another user's private document or dataroom if the target ULID was known.
+- **Resolution/Action:** Enforced user-scoped ownership validation in `ShareLinkSerializer.validate()` (`if document.created_by_id != user.id: raise ValidationError`), restricting share link creation strictly to resources owned by the requesting user.
+
 

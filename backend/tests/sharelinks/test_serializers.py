@@ -56,6 +56,63 @@ class TestShareLinkSerializer:
         assert instance.password is None
         assert serializer.data["has_password"] is False
 
+    def test_create_with_enable_watermark_defaults_watermark_text(self, document, serializer_context):
+        serializer = ShareLinkSerializer(
+            data={"document": document.id, "name": "", "enable_watermark": True},
+            context=serializer_context,
+        )
+        assert serializer.is_valid(), serializer.errors
+        instance = serializer.save()
+
+        assert instance.enable_watermark is True
+        assert instance.watermark_text == "CONFIDENTIAL - {{email}}"
+
+    def test_update_with_enable_watermark_defaults_watermark_text(self, share_link, serializer_context):
+        share_link.watermark_text = ""
+        share_link.save()
+
+        serializer = ShareLinkSerializer(
+            instance=share_link,
+            data={"enable_watermark": True},
+            context=serializer_context,
+            partial=True,
+        )
+        assert serializer.is_valid(), serializer.errors
+        instance = serializer.save()
+
+        assert instance.enable_watermark is True
+        assert instance.watermark_text == "CONFIDENTIAL - {{email}}"
+
+    def test_cannot_create_share_link_for_other_user_document(self, document, user2):
+        factory = APIRequestFactory()
+        request = factory.post("/")
+        force_authenticate(request, user=user2)
+        context = {"request": Request(request)}
+
+        serializer = ShareLinkSerializer(
+            data={"document": document.id, "name": ""},
+            context=context,
+        )
+        assert not serializer.is_valid()
+        assert "document" in serializer.errors
+
+    def test_cannot_change_share_link_target_document_on_update(self, share_link, serializer_context, user, organization):
+        other_document = Document.objects.create(
+            name="Other Doc.pdf",
+            organization=organization,
+            created_by=user,
+            type="pdf",
+            content_type="application/pdf",
+        )
+        serializer = ShareLinkSerializer(
+            instance=share_link,
+            data={"document": other_document.id},
+            context=serializer_context,
+            partial=True,
+        )
+        assert not serializer.is_valid()
+        assert "document" in serializer.errors
+
     def test_update_to_add_password(self, share_link, serializer_context):
         assert share_link.password is None
 
