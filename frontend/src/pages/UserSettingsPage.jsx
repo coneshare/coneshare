@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { jwtDecode } from "jwt-decode";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { useUser } from "../contexts/UserProvider";
 import { getUser, updateUser } from "../services/api";
 import { Button } from "../components/ui/Button";
@@ -8,11 +9,14 @@ import { Input } from "../components/ui/Input";
 import { Label } from "../components/ui/Label";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/Avatar";
 import { SettingsTabs } from "../components/settings/SettingsTabs";
+import { SUPPORTED_LANGUAGES } from "../lib/constants";
 
 function UserSettingsPage() {
+  const { t, i18n } = useTranslation();
   const { refreshUser } = useUser();
   const [user, setUser] = useState(null);
   const [name, setName] = useState("");
+  const [language, setLanguage] = useState(i18n.language || "en");
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
   const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
@@ -32,12 +36,13 @@ function UserSettingsPage() {
           if (isMounted) {
             setUser(response.data);
             setName(response.data.name || "");
+            setLanguage(response.data.language || i18n.language || "en");
             setAvatarPreview(response.data.avatar_url || null);
           }
         } catch (error) {
           if (isMounted) {
             console.error("Failed to fetch user:", error);
-            toast.error("Failed to load user data.");
+            toast.error(t('settings.profileLoadFailed'));
           }
         } finally {
           if (isMounted) {
@@ -76,18 +81,13 @@ function UserSettingsPage() {
     }
   };
 
-  const handleRemoveAvatar = () => {
-    setAvatarFile(null);
-    setAvatarPreview(null);
-    setIsRemovingAvatar(true);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
 
     const formData = new FormData();
     formData.append("name", name);
+    formData.append("language", language);
     if (avatarFile) {
       formData.append("avatar", avatarFile);
     } else if (isRemovingAvatar) {
@@ -98,35 +98,37 @@ function UserSettingsPage() {
       const response = await updateUser(user.id, formData);
       setUser(response.data);
       setName(response.data.name || "");
+      setLanguage(response.data.language || language);
       setAvatarPreview(response.data.avatar_url || null);
       setAvatarFile(null); // Reset file input state
       setIsRemovingAvatar(false); // Reset removal state
-      toast.success("Settings updated successfully!");
+      await i18n.changeLanguage(response.data.language || language);
+      toast.success(t('settings.settingsUpdated'));
       refreshUser(response.data);
     } catch (error) {
       console.error("Failed to update user:", error);
-      toast.error("Failed to update settings.");
+      toast.error(t('settings.settingsUpdateFailed'));
     } finally {
       setIsSaving(false);
     }
   };
 
   if (isLoading) {
-    return <div className="p-4 sm:mx-4 sm:pt-8">Loading...</div>;
+    return <div className="p-4 sm:mx-4 sm:pt-8">{t('common.loading')}</div>;
   }
 
   if (!user) {
-    return <div className="p-4 sm:mx-4 sm:pt-8">Could not load user data.</div>;
+    return <div className="p-4 sm:mx-4 sm:pt-8">{t('common.error')}</div>;
   }
 
   return (
     <div className="p-4 sm:mx-4 sm:pt-8">
       <div className="mx-auto max-w-2xl">
-        <h1 className="text-2xl font-bold mb-6">User Settings</h1>
+        <h1 className="text-2xl font-bold mb-6">{t('settings.title')}</h1>
         <SettingsTabs />
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t('settings.email')}</Label>
             <Input
               id="email"
               type="email"
@@ -136,17 +138,35 @@ function UserSettingsPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
+            <Label htmlFor="name">{t('settings.name')}</Label>
             <Input
               id="name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Your name"
+              placeholder={t('auth.name')}
             />
           </div>
           <div className="space-y-2">
-            <Label>Avatar</Label>
+            <Label htmlFor="language">{t('settings.language')}</Label>
+            <select
+              id="language"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {SUPPORTED_LANGUAGES.map((lang) => (
+                <option key={lang.code} value={lang.code}>
+                  {lang.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground">
+              {t('settings.languageDescription')}
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label>{t('settings.avatar')}</Label>
             <div className="flex items-center gap-4">
               <Avatar className="h-20 w-20">
                 <AvatarImage src={avatarPreview} />
@@ -158,17 +178,8 @@ function UserSettingsPage() {
                   variant="outline"
                   onClick={() => fileInputRef.current.click()}
                 >
-                  Change
+                  {t('common.change')}
                 </Button>
-                {/* {avatarPreview && ( */}
-                {/*   <Button */}
-                {/*     type="button" */}
-                {/*     variant="ghost" */}
-                {/*     onClick={handleRemoveAvatar} */}
-                {/*   > */}
-                {/*     Remove */}
-                {/*   </Button> */}
-                {/* )} */}
               </div>
               <Input
                 ref={fileInputRef}
@@ -181,7 +192,7 @@ function UserSettingsPage() {
             </div>
           </div>
           <Button type="submit" disabled={isSaving}>
-            {isSaving ? "Saving..." : "Save Changes"}
+            {isSaving ? t('common.saving') : t('common.save')}
           </Button>
         </form>
       </div>

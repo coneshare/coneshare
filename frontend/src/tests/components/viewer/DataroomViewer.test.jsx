@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { DataroomViewer } from '../../../components/viewer/DataroomViewer';
 import * as api from '../../../services/api';
+import '../../../i18n';
 import { DATAROOM_VIEWER_PAGE_SIZE } from '../../../constants/pagination';
 
 vi.mock('../../../services/api', () => ({
@@ -245,7 +246,7 @@ describe('DataroomViewer', () => {
 
     renderComponent({ viewId: 'view-123' });
 
-    fireEvent.pointerDown(screen.getByLabelText(/actions for root document/i));
+    fireEvent.keyDown(screen.getByLabelText(/actions for root document/i), { key: 'Enter', code: 'Enter' });
     fireEvent.click(await screen.findByRole('menuitem', { name: /download/i }));
 
     expect(screen.queryByRole('menuitem', { name: /download/i })).not.toBeInTheDocument();
@@ -262,7 +263,7 @@ describe('DataroomViewer', () => {
   it('opens Q&A panel for a dataroom folder from row actions', async () => {
     renderComponent({ viewId: 'view-123' });
 
-    fireEvent.pointerDown(screen.getByLabelText(/actions for sub folder a/i));
+    fireEvent.keyDown(screen.getByLabelText(/actions for sub folder a/i), { key: 'Enter', code: 'Enter' });
     fireEvent.click(await screen.findByRole('menuitem', { name: /q&a/i }));
 
     expect(screen.queryByRole('menuitem', { name: /q&a/i })).not.toBeInTheDocument();
@@ -325,7 +326,7 @@ describe('DataroomViewer', () => {
   it('opens Q&A panel for a dataroom document from row actions', async () => {
     renderComponent({ viewId: 'view-123' });
 
-    fireEvent.pointerDown(screen.getByLabelText(/actions for root document/i));
+    fireEvent.keyDown(screen.getByLabelText(/actions for root document/i), { key: 'Enter', code: 'Enter' });
     fireEvent.click(await screen.findByRole('menuitem', { name: /q&a/i }));
 
     expect(screen.queryByRole('menuitem', { name: /q&a/i })).not.toBeInTheDocument();
@@ -716,8 +717,7 @@ describe('DataroomViewer', () => {
     );
 
     const moreBtn = screen.getByRole('button', { name: 'Actions for Root Document' });
-    fireEvent.pointerDown(moreBtn, { button: 0 });
-    fireEvent.click(moreBtn);
+    fireEvent.keyDown(moreBtn, { key: 'Enter', code: 'Enter' });
 
     const downloadBtn = await screen.findByText('Download');
     fireEvent.click(downloadBtn);
@@ -749,8 +749,7 @@ describe('DataroomViewer', () => {
     );
 
     const moreBtn = screen.getByRole('button', { name: 'Actions for Sub Folder A' });
-    fireEvent.pointerDown(moreBtn, { button: 0 });
-    fireEvent.click(moreBtn);
+    fireEvent.keyDown(moreBtn, { key: 'Enter', code: 'Enter' });
 
     const downloadBtn = await screen.findByText('Download');
     fireEvent.click(downloadBtn);

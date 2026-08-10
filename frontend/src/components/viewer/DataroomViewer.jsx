@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { formatBytes } from '../../lib/formatters';
 import { FileTypeIcon } from '../documents/FileTypeIcon';
@@ -37,6 +38,7 @@ import {
 } from '../../services/api';
 import { DATAROOM_VIEWER_PAGE_SIZE } from '../../constants/pagination';
 import { useBranding } from '../../contexts/BrandingProvider';
+import { LanguagePicker } from '../common/LanguagePicker';
 
 const PREVIEW_POLL_INTERVAL_MS = 3000;
 
@@ -147,6 +149,7 @@ function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = 
 }
 
 export function DataroomViewer({ data, slug, viewId }) {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { brandName, brandLogoUrl, brandWebsiteUrl } = useBranding();
   const dataroomDocumentIdFromUrl = searchParams.get('dataroom_document_id');
@@ -820,8 +823,13 @@ export function DataroomViewer({ data, slug, viewId }) {
                 <span className="hidden sm:inline">{brandName}</span>
               </a>
             )}
-            <div className="text-[9px] text-gray-400 select-none mr-2">
-              Powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 hover:underline dark:text-gray-100 dark:hover:text-gray-300 transition-colors font-medium">Coneshare</a>
+            <div className="flex items-center gap-1.5 text-[9px] text-gray-400 select-none mr-2">
+              <span>
+                {t('viewer.poweredBy')}{' '}
+                <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 hover:underline dark:text-gray-100 dark:hover:text-gray-300 transition-colors font-medium">Coneshare</a>
+              </span>
+              <span className="text-gray-300 select-none">&bull;</span>
+              <LanguagePicker />
             </div>
           </div>
         </div>

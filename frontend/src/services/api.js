@@ -8,9 +8,11 @@ const api = axios.create({
   },
 });
 
-// Request interceptor to add the auth token header to requests
+// Request interceptor to add the auth token header and language preference to requests
 api.interceptors.request.use(
   (config) => {
+    const lang = localStorage.getItem('i18nextLng') || 'en';
+    config.headers['Accept-Language'] = lang;
     const accessToken = localStorage.getItem('access_token');
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;

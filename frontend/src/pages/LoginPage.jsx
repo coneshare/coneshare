@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { authService } from '../services/authService'
 import { APP_DISPLAY_VERSION } from '../lib/constants'
 import { Button } from '../components/ui/Button'
 import { useBranding } from '../contexts/BrandingProvider'
+import { LanguagePicker } from '../components/common/LanguagePicker'
 
 function LoginPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const { brandName, brandLogoUrl, brandWebsiteUrl, termsUrl, privacyPolicyUrl } = useBranding()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -34,8 +37,8 @@ function LoginPage() {
   }, [])
 
   useEffect(() => {
-    document.title = `Sign In - ${brandName}`;
-  }, [brandName])
+    document.title = `${t('auth.signIn')} - ${brandName}`;
+  }, [brandName, t])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -47,7 +50,7 @@ function LoginPage() {
       // Redirect to homepage on successful login
       navigate('/')
     } catch (err) {
-      setError('Invalid credentials. Please try again.')
+      setError('auth.invalidCredentials')
     } finally {
       setIsLoading(false)
     }
@@ -67,17 +70,17 @@ function LoginPage() {
             </div>
           ) : null}
           <h2 className="text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-            Sign In
+            {t('auth.signIn')}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            Welcome back to {brandName}.
+            {t('auth.welcomeBack', { brandName })}
           </p>
         </div>
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="space-y-4 rounded-md shadow-sm">
             <div>
               <label htmlFor="email" className="sr-only">
-                Email address
+                {t('auth.email')}
               </label>
               <input
                 id="email"
@@ -92,7 +95,7 @@ function LoginPage() {
             </div>
             <div>
               <label htmlFor="password" className="sr-only">
-                Password
+                {t('auth.password')}
               </label>
               <input
                 id="password"
@@ -108,7 +111,7 @@ function LoginPage() {
           </div>
 
           {error && (
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            <p className="text-sm text-red-600 dark:text-red-400">{t(error)}</p>
           )}
 
           <div>
@@ -118,15 +121,15 @@ function LoginPage() {
               disabled={isLoading}
               className="w-full active:scale-[0.98] transition-transform"
             >
-              {isLoading ? "Signing In..." : "Sign In"}
+              {isLoading ? t('auth.signingIn') : t('auth.signIn')}
             </Button>
           </div>
         </form>
         {showSignupLink && (
           <p className="text-center text-sm text-gray-600 dark:text-gray-400">
-            New to {brandName}?{' '}
+            {t('auth.newTo', { brandName })}{' '}
             <Link className="font-medium text-indigo-600 hover:text-indigo-500" to="/signup">
-              Create an account
+              {t('auth.signUp')}
             </Link>
           </p>
         )}
@@ -142,7 +145,7 @@ function LoginPage() {
             rel="noopener noreferrer"
             className="hover:text-gray-600 transition-colors"
           >
-            {brandWebsiteUrl ? `About ${brandName}` : "About Coneshare"}
+            {t('auth.aboutBrand', { brandName: brandName || 'Coneshare' })}
           </a>
           <span className="text-gray-300">&bull;</span>
           <a
@@ -151,7 +154,7 @@ function LoginPage() {
             rel="noopener noreferrer"
             className="hover:text-gray-600 transition-colors"
           >
-            Terms
+            {t('auth.terms')}
           </a>
           <span className="text-gray-300">&bull;</span>
           <a
@@ -160,12 +163,12 @@ function LoginPage() {
             rel="noopener noreferrer"
             className="hover:text-gray-600 transition-colors"
           >
-            Privacy Policy
+            {t('auth.privacy')}
           </a>
         </div>
         <div className="flex items-center gap-1.5 text-[11px] text-gray-400/80">
           <span>
-            Powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 dark:text-gray-100 dark:hover:text-gray-300 font-semibold underline transition-colors">Coneshare</a>
+            {t('viewer.poweredBy')}{' '}<a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 dark:text-gray-100 dark:hover:text-gray-300 font-semibold underline transition-colors">Coneshare</a>
           </span>
           {APP_DISPLAY_VERSION && (
             <>
@@ -173,6 +176,8 @@ function LoginPage() {
               <span>{`ver-${APP_DISPLAY_VERSION}`}</span>
             </>
           )}
+          <span className="text-gray-300 select-none">&bull;</span>
+          <LanguagePicker />
         </div>
       </div>
     </div>

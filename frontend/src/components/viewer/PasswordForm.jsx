@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Lock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { verifyShareLinkPassword } from '../../services/api';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 import { AccessOwnerCard } from './AccessOwnerCard';
 import { useBranding } from '../../contexts/BrandingProvider';
+import { LanguagePicker } from '../common/LanguagePicker';
 
 export function PasswordForm({ slug, onSuccess, publicMeta = null }) {
+  const { t } = useTranslation();
   const { brandName, brandLogoUrl, brandWebsiteUrl, termsUrl, privacyPolicyUrl } = useBranding();
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -23,10 +26,8 @@ export function PasswordForm({ slug, onSuccess, publicMeta = null }) {
       onSuccess(); // Notify parent to refetch data
     } catch (err) {
       // Error is handled by the global interceptor's toast.
-      // We just need to reset the loading state on failure.
       setIsLoading(false);
     }
-    // Don't set isLoading to false on success, as the parent will take over.
   };
 
   return (
@@ -39,7 +40,7 @@ export function PasswordForm({ slug, onSuccess, publicMeta = null }) {
             <span className="text-xl font-bold tracking-tight text-gray-900">{brandName}</span>
           </div>
           <p className="mt-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-            Secure File Share
+            {t('viewer.secureFileShare')}
           </p>
         </div>
 
@@ -48,13 +49,13 @@ export function PasswordForm({ slug, onSuccess, publicMeta = null }) {
 
         {/* Section 3: Verification Methods */}
         <p className="mb-6 text-left text-sm text-gray-500">
-          This secure link is password protected. Enter the password below to continue.
+          {t('viewer.passwordSubtitle')}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="password" className="text-xs font-semibold text-gray-600">
-              Password
+              {t('auth.password')}
             </Label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -66,7 +67,7 @@ export function PasswordForm({ slug, onSuccess, publicMeta = null }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="pl-10"
-                placeholder="Enter password"
+                placeholder={t('viewer.enterPassword')}
                 autoFocus
               />
             </div>
@@ -74,7 +75,7 @@ export function PasswordForm({ slug, onSuccess, publicMeta = null }) {
 
           <div className="pt-2">
             <Button type="submit" size="lg" className="w-full active:scale-[0.98] transition-transform" disabled={isLoading}>
-              {isLoading ? 'Verifying...' : 'Unlock Document'}
+              {isLoading ? t('viewer.verifying') : t('viewer.unlockDocument')}
             </Button>
           </div>
         </form>
@@ -89,7 +90,7 @@ export function PasswordForm({ slug, onSuccess, publicMeta = null }) {
             rel="noopener noreferrer"
             className="hover:text-gray-600 transition-colors"
           >
-            {brandWebsiteUrl ? `About ${brandName}` : "About Coneshare"}
+            {t('auth.aboutBrand', { brandName: brandName || 'Coneshare' })}
           </a>
           <span className="text-gray-300">&bull;</span>
           <a
@@ -98,7 +99,7 @@ export function PasswordForm({ slug, onSuccess, publicMeta = null }) {
             rel="noopener noreferrer"
             className="hover:text-gray-600 transition-colors"
           >
-            Terms
+            {t('auth.terms')}
           </a>
           <span className="text-gray-300">&bull;</span>
           <a
@@ -107,11 +108,16 @@ export function PasswordForm({ slug, onSuccess, publicMeta = null }) {
             rel="noopener noreferrer"
             className="hover:text-gray-600 transition-colors"
           >
-            Privacy Policy
+            {t('auth.privacy')}
           </a>
         </div>
-        <div className="text-[11px] text-gray-400/80">
-          Powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 dark:text-gray-100 dark:hover:text-gray-300 font-semibold underline transition-colors">Coneshare</a>
+        <div className="flex items-center gap-1.5 text-[11px] text-gray-400/80">
+          <span>
+            {t('viewer.poweredBy')}{' '}
+            <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 dark:text-gray-100 dark:hover:text-gray-300 font-semibold underline transition-colors">Coneshare</a>
+          </span>
+          <span className="text-gray-300 select-none">&bull;</span>
+          <LanguagePicker />
         </div>
       </div>
     </div>

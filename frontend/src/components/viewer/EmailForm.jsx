@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Mail } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { requestShareLinkAccess, confirmShareLinkEmailAccess } from '../../services/api';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 import { AccessOwnerCard } from './AccessOwnerCard';
 import { useBranding } from '../../contexts/BrandingProvider';
+import { LanguagePicker } from '../common/LanguagePicker';
 
 function LogoHeader({ brandLogoUrl, brandName }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center mb-8">
       <div className="flex items-center gap-2">
@@ -16,13 +19,14 @@ function LogoHeader({ brandLogoUrl, brandName }) {
         <span className="text-xl font-bold tracking-tight text-gray-900">{brandName}</span>
       </div>
       <p className="mt-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-        Secure File Share
+        {t('viewer.secureFileShare')}
       </p>
     </div>
   );
 }
 
 function OpenSourceFooter({ brandWebsiteUrl, brandName, termsUrl, privacyPolicyUrl }) {
+  const { t } = useTranslation();
   return (
     <div className="mt-6 flex flex-col items-center justify-center gap-2 text-xs text-gray-400">
       <div className="flex items-center gap-3">
@@ -32,7 +36,7 @@ function OpenSourceFooter({ brandWebsiteUrl, brandName, termsUrl, privacyPolicyU
           rel="noopener noreferrer"
           className="hover:text-gray-600 transition-colors"
         >
-          {brandWebsiteUrl ? `About ${brandName}` : "About Coneshare"}
+          {t('auth.aboutBrand', { brandName: brandName || 'Coneshare' })}
         </a>
         <span className="text-gray-300">&bull;</span>
         <a
@@ -41,7 +45,7 @@ function OpenSourceFooter({ brandWebsiteUrl, brandName, termsUrl, privacyPolicyU
           rel="noopener noreferrer"
           className="hover:text-gray-600 transition-colors"
         >
-          Terms
+          {t('auth.terms')}
         </a>
         <span className="text-gray-300">&bull;</span>
         <a
@@ -50,11 +54,16 @@ function OpenSourceFooter({ brandWebsiteUrl, brandName, termsUrl, privacyPolicyU
           rel="noopener noreferrer"
           className="hover:text-gray-600 transition-colors"
         >
-          Privacy Policy
+          {t('auth.privacy')}
         </a>
       </div>
-      <div className="text-[11px] text-gray-400/80">
-        Powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 dark:text-gray-100 dark:hover:text-gray-300 font-semibold underline transition-colors">Coneshare</a>
+      <div className="flex items-center gap-1.5 text-[11px] text-gray-400/80">
+        <span>
+          {t('viewer.poweredBy')}{' '}
+          <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 dark:text-gray-100 dark:hover:text-gray-300 font-semibold underline transition-colors">Coneshare</a>
+        </span>
+        <span className="text-gray-300 select-none">&bull;</span>
+        <LanguagePicker />
       </div>
     </div>
   );
@@ -68,6 +77,7 @@ export function EmailForm({
   emailToConfirm = '',
   token = '',
 }) {
+  const { t } = useTranslation();
   const { brandName, brandLogoUrl, brandWebsiteUrl, termsUrl, privacyPolicyUrl } = useBranding();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -115,11 +125,11 @@ export function EmailForm({
 
           {/* Section 3: Verification Methods */}
           <p className="mb-6 text-left text-sm text-gray-500">
-            You are verifying access to this document as <strong className="break-all text-gray-900">{emailToConfirm}</strong>.
+            {t('viewer.verifyingAccessAs')} <strong className="break-all text-gray-900">{emailToConfirm}</strong>.
           </p>
           <div className="space-y-4">
             <Button onClick={handleConfirm} size="lg" className="w-full active:scale-[0.98] transition-transform" disabled={isLoading}>
-              {isLoading ? 'Verifying...' : 'Continue to Document'}
+              {isLoading ? t('viewer.verifying') : t('viewer.continueToDocument')}
             </Button>
             <div className="text-center">
               <button
@@ -127,7 +137,7 @@ export function EmailForm({
                 className="text-xs font-semibold text-blue-600 hover:underline"
                 disabled={isLoading}
               >
-                Use a different email address
+                {t('viewer.useDifferentEmail')}
               </button>
             </div>
           </div>
@@ -147,9 +157,9 @@ export function EmailForm({
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600">
             <Mail className="h-6 w-6" />
           </div>
-          <h1 className="mb-2 text-xl font-bold text-gray-900">Check Your Email</h1>
+          <h1 className="mb-2 text-xl font-bold text-gray-900">{t('viewer.checkYourEmail')}</h1>
           <p className="mb-6 text-sm text-gray-500 leading-relaxed">
-            A verification link has been sent to <strong className="text-gray-900">{email}</strong>. Please click the link in the email to continue.
+            {t('viewer.emailSentNotice')} <strong className="text-gray-900">{email}</strong>. {t('viewer.clickLinkNotice')}
           </p>
         </div>
 
@@ -168,13 +178,13 @@ export function EmailForm({
 
         {/* Section 3: Verification Methods */}
         <p className="mb-6 text-left text-sm text-gray-500">
-          This secure link requires email verification. Enter your email below to continue.
+          {t('viewer.emailVerificationSubtitle')}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-xs font-semibold text-gray-600">
-              Email Address
+              {t('auth.email')}
             </Label>
             <div className="relative">
               <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -186,7 +196,7 @@ export function EmailForm({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-10"
-                placeholder="Enter your email"
+                placeholder="you@company.com"
                 autoFocus
               />
             </div>
@@ -194,7 +204,7 @@ export function EmailForm({
 
           <div className="pt-2">
             <Button type="submit" size="lg" className="w-full active:scale-[0.98] transition-transform" disabled={isLoading}>
-              {isLoading ? 'Submitting...' : 'Continue'}
+              {isLoading ? t('auth.submitting') : t('viewer.continue')}
             </Button>
           </div>
         </form>

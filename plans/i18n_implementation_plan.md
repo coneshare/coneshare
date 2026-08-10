@@ -127,7 +127,7 @@ flowchart TB
 ### Phase 1: Backend i18n Infrastructure
 > **Goal:** Set up Django i18n plumbing, add `language` field to User, expose it via API.
 
-#### 1.1 Django Settings ([`backend/settings.py`](file:///Users/xiez/coneshare/backend/backend/settings.py))
+#### 1.1 Django Settings ([`backend/settings.py`](../backend/backend/settings.py))
 
 ```diff
 +from django.utils.translation import gettext_lazy as _
@@ -156,7 +156,7 @@ flowchart TB
 > [!NOTE]
 > `LocaleMiddleware` must be placed **after** `SessionMiddleware` and **before** `CommonMiddleware` per Django docs.
 
-#### 1.2 User Model — Add `language` Field ([`core/models.py`](file:///Users/xiez/coneshare/backend/core/models.py))
+#### 1.2 User Model — Add `language` Field ([`core/models.py`](../backend/core/models.py))
 
 ```diff
 +from django.conf import settings
@@ -175,7 +175,7 @@ flowchart TB
 - **Migration:** New migration for the `language` field on `core.User`.
 - **Note:** Per project memory, AI agents must NOT run `makemigrations`/`migrate` — the human developer handles this.
 
-#### 1.3 User Serializer & API ([`core/serializers.py`](file:///Users/xiez/coneshare/backend/core/serializers.py))
+#### 1.3 User Serializer & API ([`core/serializers.py`](../backend/core/serializers.py))
 
 ```diff
  class UserSerializer(serializers.ModelSerializer):
@@ -250,7 +250,7 @@ backend/
 
 #### Example Transformations
 
-**API views** ([`core/views.py`](file:///Users/xiez/coneshare/backend/core/views.py)):
+**API views** ([`core/views.py`](../backend/core/views.py)):
 ```diff
 +from django.utils.translation import gettext as _
 +
@@ -263,7 +263,7 @@ backend/
 +return Response({"detail": _("Incorrect current password.")}, status=400)
 ```
 
-**Serializers** ([`core/serializers.py`](file:///Users/xiez/coneshare/backend/core/serializers.py)):
+**Serializers** ([`core/serializers.py`](../backend/core/serializers.py)):
 ```diff
 +from django.utils.translation import gettext_lazy as _
 +
@@ -272,7 +272,7 @@ backend/
 +raise serializers.ValidationError(_("The two password fields didn't match."))
 ```
 
-**Email templates** ([`core/templates/core/signup_verification_email.html`](file:///Users/xiez/coneshare/backend/core/templates/core/signup_verification_email.html)):
+**Email templates** ([`core/templates/core/signup_verification_email.html`](../backend/core/templates/core/signup_verification_email.html)):
 ```diff
 +{% load i18n %}
 -<h2>Verify your email</h2>
@@ -361,7 +361,7 @@ frontend/src/
 
 #### 3.3 i18n Configuration Module
 
-Create [`src/i18n.js`](file:///Users/xiez/coneshare/frontend/src/i18n.js):
+Create [`src/i18n.js`](../frontend/src/i18n.js):
 
 ```javascript
 import i18n from 'i18next';
@@ -398,7 +398,7 @@ export default i18n;
 
 #### 3.4 Wire Into App Entry Point
 
-[`src/main.jsx`](file:///Users/xiez/coneshare/frontend/src/main.jsx):
+[`src/main.jsx`](../frontend/src/main.jsx):
 ```diff
 +import './i18n';  // Must be imported before App
  import App from './App';
@@ -406,7 +406,7 @@ export default i18n;
 
 #### 3.5 Axios Accept-Language Request Interceptor
 
-Add `Accept-Language` header in [`src/services/api.js`](file:///Users/xiez/coneshare/frontend/src/services/api.js):
+Add `Accept-Language` header in [`src/services/api.js`](../frontend/src/services/api.js):
 
 ```diff
  api.interceptors.request.use(
@@ -423,7 +423,7 @@ Add `Accept-Language` header in [`src/services/api.js`](file:///Users/xiez/cones
 
 #### 3.6 Centralized Date & Time Formatter Utility
 
-Create [`src/utils/formatters.js`](file:///Users/xiez/coneshare/frontend/src/utils/formatters.js):
+Create [`src/utils/formatters.js`](../frontend/src/utils/formatters.js):
 
 ```javascript
 import { format } from 'date-fns';
@@ -446,7 +446,7 @@ export function formatDate(date, formatStr = 'PP') {
 
 #### 3.7 Language Sync Hook
 
-Create [`src/hooks/useLanguageSync.js`](file:///Users/xiez/coneshare/frontend/src/hooks/useLanguageSync.js):
+Create [`src/hooks/useLanguageSync.js`](../frontend/src/hooks/useLanguageSync.js):
 
 ```javascript
 import { useEffect } from 'react';
@@ -517,7 +517,7 @@ All ~48 pages and shared components will be extracted in one pass to avoid a hal
  }
 ```
 
-**Navigation arrays** ([`SidebarContent.jsx`](file:///Users/xiez/coneshare/frontend/src/components/layout/SidebarContent.jsx)):
+**Navigation arrays** ([`SidebarContent.jsx`](../frontend/src/components/layout/SidebarContent.jsx)):
 ```diff
 +import { useTranslation } from 'react-i18next';
 
@@ -551,7 +551,7 @@ All ~48 pages and shared components will be extracted in one pass to avoid a hal
 #### Locations & Behavior
 
 1. **User Settings (Profile tab):**
-   Add a **Language** section to [`UserSettingsPage.jsx`](file:///Users/xiez/coneshare/frontend/src/pages/UserSettingsPage.jsx), below Name:
+   Add a **Language** section to [`UserSettingsPage.jsx`](../frontend/src/pages/UserSettingsPage.jsx), below Name:
    ```jsx
    <div className="space-y-2">
      <Label htmlFor="language">{t('settings.language')}</Label>
@@ -605,7 +605,7 @@ All ~48 pages and shared components will be extracted in one pass to avoid a hal
 
 #### Backend Tests
 
-Create [`backend/tests/core/test_i18n.py`](file:///Users/xiez/coneshare/backend/tests/core/test_i18n.py):
+Create [`backend/tests/core/test_i18n.py`](../backend/tests/core/test_i18n.py):
 
 ```python
 class TestUserLanguagePreference:
@@ -631,7 +631,7 @@ class TestUserLanguagePreference:
 
 #### Frontend Tests
 
-Create [`frontend/src/tests/i18n.test.jsx`](file:///Users/xiez/coneshare/frontend/src/tests/i18n.test.jsx):
+Create [`frontend/src/tests/i18n.test.jsx`](../frontend/src/tests/i18n.test.jsx):
 
 ```javascript
 describe('i18n', () => {
@@ -653,7 +653,7 @@ describe('i18n', () => {
 ```
 
 > [!NOTE]
-> Per project rules, new Vitest test files must be appended to [`frontend/vitest.whitelist.json`](file:///Users/xiez/coneshare/frontend/vitest.whitelist.json).
+> Per project rules, new Vitest test files must be appended to [`frontend/vitest.whitelist.json`](../frontend/vitest.whitelist.json).
 
 #### Smoke Test Checklist
 - [ ] Login page renders correctly in en / zh-hans / ru
@@ -677,7 +677,7 @@ describe('i18n', () => {
 | **Phase 5** | Language selector UI | 0.5 days | Phase 1 + 3 | Frontend PR |
 | **Phase 6** | Translation content (zh-hans + ru) | 1-2 days | Phase 2 + 4 | Both PRs |
 | **Phase 7** | Testing & QA | 1 day | Phase 5 + 6 | Both PRs |
-| | **Total** | **~7-9 days** | |
+| | **Total** | **~7-9 days** | | |
 
 > [!TIP]
 > Phases 1-2 (backend) and Phases 3-4 (frontend) can be worked in parallel to reduce calendar time to ~4-5 days.
@@ -687,8 +687,8 @@ describe('i18n', () => {
 ## Documentation Updates
 
 After implementation, update:
-1. **[`README.md`](file:///Users/xiez/coneshare/README.md)**: Add "Supported Languages" section listing en, zh, ru.
-2. **[`docs/strategy/coneshare-techstack.md`](file:///Users/xiez/coneshare/docs/strategy/coneshare-techstack.md)**: Document i18n stack choices (`react-i18next`, Django `gettext`).
+1. **[`README.md`](../README.md)**: Add "Supported Languages" section listing en, zh, ru.
+2. **[`docs/strategy/coneshare-techstack.md`](../docs/strategy/coneshare-techstack.md)**: Document i18n stack choices (`react-i18next`, Django `gettext`).
 3. **Contributing guide**: Add instructions for adding new translations (how to add a new locale, tooling, review process).
 
 ---

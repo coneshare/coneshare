@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { FileText } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { acceptShareLinkNda } from '../../services/api';
 import { Button } from '../ui/Button';
 import { AccessOwnerCard } from './AccessOwnerCard';
 import { useBranding } from '../../contexts/BrandingProvider';
+import { LanguagePicker } from '../common/LanguagePicker';
 
 export function NDAForm({ slug, onSuccess, publicMeta = null }) {
+  const { t } = useTranslation();
   const { brandName, brandLogoUrl, brandWebsiteUrl, termsUrl, privacyPolicyUrl } = useBranding();
   const [agreed, setAgreed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -22,7 +25,6 @@ export function NDAForm({ slug, onSuccess, publicMeta = null }) {
 
     setIsLoading(true);
     try {
-      // Get any existing session if it was passed via query params (optional)
       const searchParams = new URLSearchParams(window.location.search);
       const viewSessionId = searchParams.get('view_session_id');
 
@@ -31,7 +33,7 @@ export function NDAForm({ slug, onSuccess, publicMeta = null }) {
       });
 
       toast.success('NDA accepted successfully.');
-      onSuccess(response.data?.view_session_id); // Pass the session ID back to parent
+      onSuccess(response.data?.view_session_id);
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to accept NDA. Please try again.');
     } finally {
@@ -49,7 +51,7 @@ export function NDAForm({ slug, onSuccess, publicMeta = null }) {
             <span className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">{brandName}</span>
           </div>
           <p className="mt-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-            Secure File Share
+            {t('viewer.secureFileShare')}
           </p>
         </div>
 
@@ -60,7 +62,7 @@ export function NDAForm({ slug, onSuccess, publicMeta = null }) {
         <div className="mb-4 flex items-start gap-2.5 rounded-lg bg-indigo-50/50 p-3 text-xs text-indigo-800 border border-indigo-100/60 dark:bg-indigo-950/20 dark:text-indigo-300 dark:border-indigo-900/40">
           <FileText className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
           <div className="leading-relaxed">
-            <span className="font-semibold">NDA Required:</span> The owner requires you to review and accept the Non-Disclosure Agreement before viewing this content.
+            <span className="font-semibold">{t('viewer.ndaRequired')}</span> {t('viewer.ndaNotice')}
           </div>
         </div>
 
@@ -80,7 +82,7 @@ export function NDAForm({ slug, onSuccess, publicMeta = null }) {
               disabled={isLoading}
             />
             <span className="text-xs text-gray-600 dark:text-zinc-400 group-hover:text-gray-900 dark:group-hover:text-zinc-200 transition-colors leading-tight">
-              I agree to the terms of the Non-Disclosure Agreement above and acknowledge my acceptance is recorded.
+              {t('viewer.ndaAgreeCheckbox')}
             </span>
           </label>
 
@@ -92,8 +94,8 @@ export function NDAForm({ slug, onSuccess, publicMeta = null }) {
               disabled={isLoading || !agreed}
             >
               {isLoading
-                ? 'Processing...'
-                : `Accept & View ${publicMeta?.target_type === 'dataroom' ? 'Dataroom' : 'Document'}`}
+                ? t('viewer.processing')
+                : t('viewer.acceptAndView')}
             </Button>
           </div>
         </form>
@@ -108,7 +110,7 @@ export function NDAForm({ slug, onSuccess, publicMeta = null }) {
             rel="noopener noreferrer"
             className="hover:text-gray-600 dark:hover:text-zinc-300 transition-colors"
           >
-            {brandWebsiteUrl ? `About ${brandName}` : "About Coneshare"}
+            {t('auth.aboutBrand', { brandName: brandName || 'Coneshare' })}
           </a>
           <span className="text-gray-300 dark:text-zinc-800">&bull;</span>
           <a
@@ -117,7 +119,7 @@ export function NDAForm({ slug, onSuccess, publicMeta = null }) {
             rel="noopener noreferrer"
             className="hover:text-gray-600 dark:hover:text-zinc-300 transition-colors"
           >
-            Terms
+            {t('auth.terms')}
           </a>
           <span className="text-gray-300 dark:text-zinc-800">&bull;</span>
           <a
@@ -126,11 +128,16 @@ export function NDAForm({ slug, onSuccess, publicMeta = null }) {
             rel="noopener noreferrer"
             className="hover:text-gray-600 dark:hover:text-zinc-300 transition-colors"
           >
-            Privacy Policy
+            {t('auth.privacy')}
           </a>
         </div>
-        <div className="text-[11px] text-gray-400/80 dark:text-zinc-600">
-          This website is powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 dark:text-gray-100 dark:hover:text-gray-300 font-semibold underline transition-colors">Coneshare</a>
+        <div className="flex items-center gap-1.5 text-[11px] text-gray-400/80 dark:text-zinc-600">
+          <span>
+            {t('viewer.poweredBy')}{' '}
+            <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 dark:text-gray-100 dark:hover:text-gray-300 font-semibold underline transition-colors">Coneshare</a>
+          </span>
+          <span className="text-gray-300 select-none">&bull;</span>
+          <LanguagePicker />
         </div>
       </div>
     </div>
