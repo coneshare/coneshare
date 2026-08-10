@@ -73,6 +73,9 @@ RUN pip install --no-cache-dir -r ${APP_DIR}/requirements.txt
 # Copy application code
 COPY . ${APP_DIR}
 
+# Compile translation catalogs (.po -> .mo)
+RUN python ${APP_DIR}/compile_po.py
+
 # Set up application and its running environment
 COPY docker.dist/build/ ${BUILD_DIR}/
 COPY docker.dist/runtime/ ${RUNTIME_DIR}/

@@ -1,0 +1,54 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ConeShare 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-10 10:00+0000\n"
+"PO-Revision-Date: 2026-08-10 10:00+0000\n"
+"Last-Translator: ConeShare <dev@coneshare.com>\n"
+"Language-Team: Simplified Chinese\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "English"
+msgstr "英文"
+
+msgid "Simplified Chinese"
+msgstr "简体中文"
+
+msgid "Russian"
+msgstr "俄语"
+
+msgid "Public signup is disabled."
+msgstr "公开注册已被禁用。"
+
+msgid "If this email is valid, a verification email has been sent."
+msgstr "如果该邮箱有效，验证邮件已发送。"
+
+msgid "Server is not configured with a default organization."
+msgstr "服务器未配置默认组织。"
+
+msgid "Invalid verification link."
+msgstr "无效的验证链接。"
+
+msgid "Account is already verified."
+msgstr "账号已经完成验证。"
+
+msgid "Wrong password."
+msgstr "密码错误。"
+
+msgid "Verify your Coneshare account"
+msgstr "验证您的 Coneshare 账号"
+
+msgid "Welcome to Coneshare."
+msgstr "欢迎使用 Coneshare。"
+
+msgid "Please verify your email to activate your account:"
+msgstr "请验证您的邮箱以激活您的账号："
+
+msgid "Verify account"
+msgstr "验证账号"
+
+msgid "If you did not request this, you can ignore this email."
+msgstr "如果您没有请求此操作，可以忽略此邮件。"

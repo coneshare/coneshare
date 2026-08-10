@@ -1,5 +1,6 @@
 import os
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.contrib.auth.models import AbstractUser, Group
@@ -99,6 +100,12 @@ class User(AbstractUser):
     avatar = models.ImageField(upload_to=user_avatar_path, null=True, blank=True)
     role = models.CharField(max_length=20, default='member')
     name = models.CharField(max_length=255, blank=True)
+    language = models.CharField(
+        max_length=10,
+        choices=settings.LANGUAGES,
+        default='en',
+        help_text='Preferred UI language'
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     # TODO: add a periodic background task (e.g., a nightly Celery job) to recalculate

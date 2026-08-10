@@ -9,3 +9,4 @@ Feature docs in `docs/features/` should link to at least one file in this direct
 - [Testing Strategy](./testing-strategy.md)
 - [Coneshare Roadmap](./coneshare-roadmap.md)
 - [Coneshare Technology Stack](./coneshare-techstack.md)
+- [Internationalization (i18n) Strategy & Architecture](./i18n-strategy-and-architecture.md)
