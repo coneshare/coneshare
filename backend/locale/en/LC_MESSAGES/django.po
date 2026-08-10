@@ -1,0 +1,39 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ConeShare 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-10 10:00+0000\n"
+"PO-Revision-Date: 2026-08-10 10:00+0000\n"
+"Last-Translator: ConeShare <dev@coneshare.com>\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "English"
+msgstr "English"
+
+msgid "Simplified Chinese"
+msgstr "Simplified Chinese"
+
+msgid "Russian"
+msgstr "Russian"
+
+msgid "Public signup is disabled."
+msgstr "Public signup is disabled."
+
+msgid "If this email is valid, a verification email has been sent."
+msgstr "If this email is valid, a verification email has been sent."
+
+msgid "Server is not configured with a default organization."
+msgstr "Server is not configured with a default organization."
+
+msgid "Invalid verification link."
+msgstr "Invalid verification link."
+
+msgid "Account is already verified."
+msgstr "Account is already verified."
+
+msgid "Wrong password."
+msgstr "Wrong password."

@@ -81,7 +81,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'email', 'name', 'role', 'organization', 'password',
-            'avatar', 'avatar_url', 'date_joined', 'updated_at',
+            'avatar', 'avatar_url', 'language', 'date_joined', 'updated_at',
             'total_document_size', 'file_size_quota_mb', 'custom_file_size_quota_mb', 'max_files_per_upload',
             'is_superuser', 'is_active'
         ]
@@ -94,6 +94,7 @@ class UserSerializer(serializers.ModelSerializer):
             'password': {'write_only': True, 'required': False},
             'avatar': {'write_only': True, 'required': False}
         }
+
 
     @extend_schema_field(serializers.URLField(allow_null=True))
     def get_avatar_url(self, obj) -> str:

@@ -276,4 +276,9 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** `ShareLinkSerializer` validated `document` and `dataroom` existence but omitted target ownership checks, allowing an authenticated user to generate a public share link for another user's private document or dataroom if the target ULID was known.
 - **Resolution/Action:** Enforced user-scoped ownership validation in `ShareLinkSerializer.validate()` (`if document.created_by_id != user.id: raise ValidationError`), restricting share link creation strictly to resources owned by the requesting user.
 
+### 2026-08-10 Session Entry
+- **Category:** Gotcha / Tooling Update
+- **Context/Implication:** The Docker backend container lacks GNU `msgfmt` binary required by `django-admin compilemessages`. Additionally, custom `.po` parsing requires unescaping literal `\n` sequences into ASCII 0x0A so standard Python `gettext` parses the `Content-Type: text/plain; charset=UTF-8` header correctly.
+- **Resolution/Action:** Created `backend/compile_po.py` script to parse `.po` files and emit binary `.mo` catalogs directly in Python without `msgfmt`. Execute `docker-compose exec -T backend python compile_po.py` to compile translation catalogs.
+
 

@@ -22,7 +22,7 @@ from django.views.generic import TemplateView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from core.views import (CustomTokenObtainPairView, LogoutView, PublicSettingsView,
+from core.views import (CustomTokenObtainPairView, LanguagesView, LogoutView, PublicSettingsView,
                         SetPasswordView, SignupRequestView,
                         SignupVerifyView)
 
@@ -35,6 +35,7 @@ urlpatterns = [
     # path('api/v1/register/', RegisterView.as_view(), name='register'),
     path('api/v1/signup/', SignupRequestView.as_view(), name='signup_request'),
     path('api/v1/signup/verify/', SignupVerifyView.as_view(), name='signup_verify'),
+    path('api/v1/languages/', LanguagesView.as_view(), name='languages'),
     path('api/v1/public/settings/', PublicSettingsView.as_view(), name='public_settings'),
     path('api/v1/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/v1/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 
 from celery.schedules import crontab
 import dj_database_url
+from django.utils.translation import gettext_lazy as _
 import sentry_sdk
 from django.contrib.gis.geoip2 import GeoIP2
 from sentry_sdk.integrations.celery import CeleryIntegration
@@ -207,6 +208,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -315,6 +317,16 @@ print("AUTH_PASSWORD_VALIDATORS", AUTH_PASSWORD_VALIDATORS)
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
+
+LANGUAGES = [
+    ('en', _('English')),
+    ('zh-hans', _('Simplified Chinese')),
+    ('ru', _('Russian')),
+]
+
+LOCALE_PATHS = [
+    BASE_DIR / 'locale',
+]
 
 TIME_ZONE = 'UTC'
 
