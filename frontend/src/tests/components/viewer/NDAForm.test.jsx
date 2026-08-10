@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NDAForm } from '../../../components/viewer/NDAForm';
 import * as api from '../../../services/api';
 import { toast } from 'sonner';
+import '../../../i18n';
 
 vi.mock('../../../services/api', () => ({
   acceptShareLinkNda: vi.fn(),
@@ -47,7 +48,7 @@ describe('NDAForm', () => {
   it('renders initial state correctly', () => {
     render(<NDAForm {...defaultProps} />);
 
-    expect(screen.getByText('Coneshare')).toBeInTheDocument();
+    expect(screen.getAllByText('Coneshare')[0]).toBeInTheDocument();
     expect(screen.getByText('Alice Owner')).toBeInTheDocument();
     expect(screen.getByText('Confidential Plan.pdf')).toBeInTheDocument();
     expect(screen.getByText('This is the confidential NDA text.')).toBeInTheDocument();
@@ -55,7 +56,7 @@ describe('NDAForm', () => {
     const checkbox = screen.getByRole('checkbox');
     expect(checkbox).not.toBeChecked();
 
-    const submitButton = screen.getByRole('button', { name: /accept & view document/i });
+    const submitButton = screen.getByRole('button', { name: /accept & view/i });
     expect(submitButton).toBeDisabled();
   });
 
@@ -63,7 +64,7 @@ describe('NDAForm', () => {
     render(<NDAForm {...defaultProps} />);
 
     const checkbox = screen.getByRole('checkbox');
-    const submitButton = screen.getByRole('button', { name: /accept & view document/i });
+    const submitButton = screen.getByRole('button', { name: /accept & view/i });
 
     // Tick checkbox
     fireEvent.click(checkbox);
@@ -89,7 +90,7 @@ describe('NDAForm', () => {
     const checkbox = screen.getByRole('checkbox');
     fireEvent.click(checkbox);
 
-    const submitButton = screen.getByRole('button', { name: /accept & view document/i });
+    const submitButton = screen.getByRole('button', { name: /accept & view/i });
     fireEvent.click(submitButton);
 
     expect(submitButton).toBeDisabled();
@@ -114,7 +115,7 @@ describe('NDAForm', () => {
     const checkbox = screen.getByRole('checkbox');
     fireEvent.click(checkbox);
 
-    const submitButton = screen.getByRole('button', { name: /accept & view document/i });
+    const submitButton = screen.getByRole('button', { name: /accept & view/i });
     fireEvent.click(submitButton);
 
     await waitFor(() => {
@@ -138,7 +139,7 @@ describe('NDAForm', () => {
     const checkbox = screen.getByRole('checkbox');
     fireEvent.click(checkbox);
 
-    expect(screen.getByRole('button', { name: /accept & view dataroom/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /accept & view/i })).toBeInTheDocument();
   });
 
   it('applies text wrap classes to scroll container', () => {

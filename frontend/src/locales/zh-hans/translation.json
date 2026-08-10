@@ -55,6 +55,7 @@
     "newTo": "第一次使用 {{brandName}}？",
     "alreadyHaveAccount": "已有账号？",
     "invalidCredentials": "登录凭据无效，请重试。",
+    "signupFailed": "提交注册请求失败。",
     "verificationSent": "如果该邮箱有效，验证邮件已发送。",
     "about": "关于",
     "aboutBrand": "关于 {{brandName}}",

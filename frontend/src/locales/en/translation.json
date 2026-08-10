@@ -55,6 +55,7 @@
     "newTo": "New to {{brandName}}?",
     "alreadyHaveAccount": "Already have an account?",
     "invalidCredentials": "Invalid credentials. Please try again.",
+    "signupFailed": "Failed to submit signup request.",
     "verificationSent": "If this email is valid, a verification email has been sent.",
     "about": "About",
     "aboutBrand": "About {{brandName}}",

@@ -9,10 +9,11 @@ import { useUser } from '../contexts/UserProvider';
 export function useLanguageSync() {
   const { i18n } = useTranslation();
   const { user } = useUser();
+  const changeLanguage = i18n.changeLanguage;
 
   useEffect(() => {
     if (user?.language && user.language !== i18n.language) {
-      i18n.changeLanguage(user.language);
+      changeLanguage(user.language);
     }
-  }, [user?.language, i18n]);
+  }, [user?.language, i18n.language, changeLanguage]);
 }

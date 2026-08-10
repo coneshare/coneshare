@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { SignupPage } from '../../pages/SignupPage'
 import { authService } from '../../services/authService'
+import '../../i18n'
 
 vi.mock('../../services/authService')
 
