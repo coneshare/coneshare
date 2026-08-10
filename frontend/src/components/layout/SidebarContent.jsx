@@ -1,6 +1,7 @@
 import React from "react";
 import { Bot, File, Home, LayoutGrid, UploadCloud, Trash2 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/utils";
 import { useSidebar } from "./SidebarProvider";
 
@@ -13,13 +14,26 @@ export const NAV_ITEMS = [
   { href: "/trash", label: "Trash", icon: Trash2, hasDivider: true },
 ];
 
+export function useNavItems() {
+  const { t } = useTranslation();
+  return [
+    { href: "/", label: t('nav.dashboard'), icon: Home },
+    { href: "/documents", label: t('nav.documents'), icon: File },
+    { href: "/datarooms", label: t('nav.datarooms'), icon: LayoutGrid },
+    { href: "/file-requests", label: t('nav.fileRequests'), icon: UploadCloud },
+    { href: "/automations", label: t('nav.automations'), icon: Bot },
+    { href: "/trash", label: t('nav.trash'), icon: Trash2, hasDivider: true },
+  ];
+}
+
 function SidebarContent() {
   const { pathname } = useLocation();
   const { isCollapsed } = useSidebar();
+  const navItems = useNavItems();
 
   return (
     <nav className="mt-4 flex flex-col gap-1 p-2">
-      {NAV_ITEMS.map((item) => (
+      {navItems.map((item) => (
         <React.Fragment key={item.href}>
           {item.hasDivider && (
             <hr className="my-1.5 border-t border-gray-200 dark:border-gray-800" />

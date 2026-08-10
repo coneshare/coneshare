@@ -27,6 +27,8 @@ import {
 import { Button } from '../components/ui/Button';
 import { formatBytes } from '../lib/formatters';
 import { useBranding } from '../contexts/BrandingProvider';
+import { LanguagePicker } from '../components/common/LanguagePicker';
+import { useTranslation } from 'react-i18next';
 
 const PREVIEW_POLL_INTERVAL_MS = 3000;
 
@@ -81,6 +83,7 @@ function PreviewBanner({ onClose }) {
 }
 
 export function ShareLinkViewerPage() {
+  const { t } = useTranslation();
   const { slug } = useParams();
   const [searchParams] = useSearchParams();
   const previewToken = searchParams.get('previewToken');
@@ -504,8 +507,10 @@ export function ShareLinkViewerPage() {
             <img src={brandLogoUrl} alt={`${brandName} logo`} className="h-6 w-6 object-contain" />
             <span>{brandName}</span>
           </a>
-          <div className="pl-1 text-[9px] text-gray-400/80 bg-white/40 px-1 rounded backdrop-blur-xs select-none">
-            Powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 hover:underline dark:text-gray-100 dark:hover:text-gray-300 transition-colors font-medium">Coneshare</a>
+          <div className="pl-1 text-[9px] text-gray-400/80 bg-white/40 px-1 rounded backdrop-blur-xs select-none flex items-center gap-1.5">
+            <span>{t('viewer.poweredBy')}{' '}<a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 hover:underline dark:text-gray-100 dark:hover:text-gray-300 transition-colors font-medium">Coneshare</a></span>
+            <span className="text-gray-300 select-none">&bull;</span>
+            <LanguagePicker />
           </div>
         </div>
         <div className="flex h-full items-center justify-center p-4">
@@ -570,8 +575,10 @@ export function ShareLinkViewerPage() {
             <img src={brandLogoUrl} alt={`${brandName} logo`} className="h-6 w-6 object-contain" />
             <span>{brandName}</span>
           </a>
-          <div className="pl-1 text-[9px] text-gray-400/80 bg-white/40 px-1 rounded backdrop-blur-xs select-none">
-            Powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 hover:underline dark:text-gray-100 dark:hover:text-gray-300 transition-colors font-medium">Coneshare</a>
+          <div className="pl-1 text-[9px] text-gray-400/80 bg-white/40 px-1 rounded backdrop-blur-xs select-none flex items-center gap-1.5">
+            <span>{t('viewer.poweredBy')}{' '}<a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 hover:underline dark:text-gray-100 dark:hover:text-gray-300 transition-colors font-medium">Coneshare</a></span>
+            <span className="text-gray-300 select-none">&bull;</span>
+            <LanguagePicker />
           </div>
         </div>
         <PreviewStatePanel
@@ -625,8 +632,10 @@ export function ShareLinkViewerPage() {
           <img src={brandLogoUrl} alt={`${brandName} logo`} className="h-6 w-6 object-contain" />
           <span>{brandName}</span>
         </a>
-        <div className="pl-1 text-[9px] text-gray-400/80 bg-white/40 px-1 rounded backdrop-blur-xs select-none">
-          Powered by <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 hover:underline dark:text-gray-100 dark:hover:text-gray-300 transition-colors font-medium">Coneshare</a>
+        <div className="pl-1 text-[9px] text-gray-400/80 bg-white/40 px-1 rounded backdrop-blur-xs select-none flex items-center gap-1.5">
+          <span>{t('viewer.poweredBy')}{' '}<a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 hover:underline dark:text-gray-100 dark:hover:text-gray-300 transition-colors font-medium">Coneshare</a></span>
+          <span className="text-gray-300 select-none">&bull;</span>
+          <LanguagePicker />
         </div>
       </div>
       {viewData && (

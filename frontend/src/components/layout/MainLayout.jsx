@@ -6,8 +6,10 @@ import { SidebarProvider, useSidebar } from "./SidebarProvider";
 import { cn } from "../../lib/utils";
 import { UserProvider } from "../../contexts/UserProvider";
 import { UploadProgressIndicator } from "../documents/UploadProgressIndicator";
+import { useLanguageSync } from "../../hooks/useLanguageSync";
 
 function Layout() {
+  useLanguageSync();
   const { isCollapsed } = useSidebar();
   return (
     <div

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PasswordForm } from '../../../components/viewer/PasswordForm';
 import * as api from '../../../services/api';
+import '../../../i18n';
 
 // Mock the API service
 vi.mock('../../../services/api', () => ({

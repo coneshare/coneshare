@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { toast } from 'sonner';
 import { EmailForm } from '../../../components/viewer/EmailForm';
 import * as api from '../../../services/api';
+import '../../../i18n';
 
 vi.mock('../../../services/api');
 vi.mock('sonner');

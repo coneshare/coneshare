@@ -1,15 +1,16 @@
 import { Link, useLocation } from "react-router-dom";
 import { Breadcrumbs } from "../documents/Breadcrumbs";
 import { useBreadcrumb } from "./BreadcrumbProvider";
-import { NAV_ITEMS } from "./SidebarContent";
+import { useNavItems } from "./SidebarContent";
 import { DataroomBreadcrumbs } from "../datarooms/DataroomBreadcrumbs";
 
 function Header() {
   const { breadcrumbData } = useBreadcrumb();
   const { pathname } = useLocation();
+  const navItems = useNavItems();
 
   // Find the current nav item. Reverse to match more specific paths first (e.g., /documents before /)
-  const currentNavItem = NAV_ITEMS.slice()
+  const currentNavItem = navItems.slice()
     .reverse()
     .find((item) => pathname.startsWith(item.href));
   let title = currentNavItem ? currentNavItem.label : "";

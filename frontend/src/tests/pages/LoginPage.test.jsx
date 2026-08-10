@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import LoginPage from "../../pages/LoginPage";
 import { authService } from "../../services/authService";
+import "../../i18n";
 
 // Mock the authService
 vi.mock("../../services/authService");
@@ -95,7 +96,7 @@ describe("LoginPage", () => {
     renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByRole('link', { name: /create an account/i })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /sign up/i })).toBeInTheDocument();
     });
   });
 
@@ -104,7 +105,7 @@ describe("LoginPage", () => {
     renderComponent();
 
     await waitFor(() => {
-      expect(screen.queryByRole('link', { name: /create an account/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /sign up/i })).not.toBeInTheDocument();
     });
   });
 
