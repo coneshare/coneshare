@@ -30,6 +30,9 @@ describe('Frontend i18n System', () => {
     const testI18n = createTestI18n();
     expect(testI18n.t('common.save')).toBe('Save Changes');
     expect(testI18n.t('nav.dashboard')).toBe('Dashboard');
+    expect(testI18n.t('dashboard.title')).toBe('Dashboard');
+    expect(testI18n.t('dashboard.dailyVisits')).toBe('Daily Visits (Last 30 Days)');
+    expect(testI18n.t('analytics.visitor')).toBe('Visitor');
     expect(testI18n.t('settings.title')).toBe('User Settings');
   });
 
@@ -38,6 +41,9 @@ describe('Frontend i18n System', () => {
     await testI18n.changeLanguage('zh-hans');
     expect(testI18n.t('common.save')).toBe('保存修改');
     expect(testI18n.t('nav.dashboard')).toBe('仪表盘');
+    expect(testI18n.t('dashboard.title')).toBe('仪表盘');
+    expect(testI18n.t('dashboard.dailyVisits')).toBe('每日访问量（近30天）');
+    expect(testI18n.t('analytics.visitor')).toBe('访客');
     expect(testI18n.t('settings.title')).toBe('用户设置');
   });
 
@@ -46,6 +52,9 @@ describe('Frontend i18n System', () => {
     await testI18n.changeLanguage('ru');
     expect(testI18n.t('common.save')).toBe('Сохранить изменения');
     expect(testI18n.t('nav.dashboard')).toBe('Панель управления');
+    expect(testI18n.t('dashboard.title')).toBe('Панель управления');
+    expect(testI18n.t('dashboard.dailyVisits')).toBe('Ежедневные посещения (последние 30 дней)');
+    expect(testI18n.t('analytics.visitor')).toBe('Посетитель');
     expect(testI18n.t('settings.title')).toBe('Настройки пользователя');
   });
 

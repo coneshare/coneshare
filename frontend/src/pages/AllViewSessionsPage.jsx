@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft } from 'lucide-react';
 import { getAllViewSessions } from '../services/api';
 import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
@@ -8,6 +9,7 @@ import { Pagination } from '../components/ui/Pagination';
 import { Button } from '../components/ui/Button';
 
 export function AllViewSessionsPage() {
+  const { t } = useTranslation();
   const [viewsData, setViewsData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,7 +39,7 @@ export function AllViewSessionsPage() {
         <Button asChild variant="outline">
           <Link to="/" className="flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
-            <span>Back to Dashboard</span>
+            <span>{t('common.backToDashboard')}</span>
           </Link>
         </Button>
       </div>

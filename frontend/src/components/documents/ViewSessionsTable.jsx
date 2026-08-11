@@ -1,5 +1,6 @@
 import { Fragment, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, FolderIcon } from 'lucide-react';
 import { FileTypeIcon } from './FileTypeIcon';
 import { PageViewsChart } from './PageViewsChart';
@@ -126,6 +127,7 @@ function formatDuration(seconds) {
 }
 
 export function ViewSessionsTable({ views, totalCount, loading, currentPage, onPageChange, pageSize, isDashboardWidget, contextType = 'document' }) {
+  const { t } = useTranslation();
   const [expandedRowId, setExpandedRowId] = useState(null);
 
   const totalPages = pageSize > 0 ? Math.ceil(totalCount / pageSize) : 0;
@@ -133,7 +135,7 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
   if (loading) {
     return (
       <div>
-        {!isDashboardWidget && <h2 className="text-xl font-semibold">View Sessions</h2>}
+        {!isDashboardWidget && <h2 className="text-xl font-semibold">{t('analytics.viewSessions')}</h2>}
         <div className="mt-4 space-y-4">
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-full" />
@@ -146,12 +148,12 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
   if (!views || totalCount === 0) {
     return (
       <div>
-        {!isDashboardWidget && <h2 className="text-xl font-semibold">View Sessions</h2>}
+        {!isDashboardWidget && <h2 className="text-xl font-semibold">{t('analytics.viewSessions')}</h2>}
         <div className="mt-4 rounded-lg border px-4 py-8 text-center">
           <p className="text-muted-foreground">
             {contextType === 'dataroom'
-              ? 'This dataroom has not been viewed yet.'
-              : 'This document has not been viewed yet.'}
+              ? t('analytics.noViewsYetDataroom')
+              : t('analytics.noViewsYetDocument')}
           </p>
         </div>
       </div>
@@ -161,25 +163,25 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
   return (
     <TooltipProvider>
       <div>
-        {!isDashboardWidget && <h2 className="text-xl font-semibold">View Sessions</h2>}
+        {!isDashboardWidget && <h2 className="text-xl font-semibold">{t('analytics.viewSessions')}</h2>}
         <div className="mt-4 overflow-hidden rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8" />
-                <TableHead>Visitor</TableHead>
-                <TableHead>Link</TableHead>
-                {isDashboardWidget && <TableHead>Document</TableHead>}
-                <TableHead>Viewed At</TableHead>
-                <TableHead>Downloaded At</TableHead>
-                <TableHead className="text-right">Duration</TableHead>
-                <TableHead className="text-right">Completion</TableHead>
+                <TableHead>{t('analytics.visitor')}</TableHead>
+                <TableHead>{t('analytics.link')}</TableHead>
+                {isDashboardWidget && <TableHead>{t('analytics.document')}</TableHead>}
+                <TableHead>{t('analytics.viewedAt')}</TableHead>
+                <TableHead>{t('analytics.downloadedAt')}</TableHead>
+                <TableHead className="text-right">{t('analytics.duration')}</TableHead>
+                <TableHead className="text-right">{t('analytics.completion')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {views.map((view) => {
                 const { browser, os } = parseUserAgent(view.user_agent);
-                const deviceInfo = browser !== 'Unknown' ? `${browser} on ${os}` : 'Unknown device';
+                const deviceInfo = browser !== 'Unknown' ? `${browser} on ${os}` : t('analytics.unknownDevice');
                 const locationParts = [view.city, view.country].filter(Boolean);
                 const hasLocation = locationParts.length > 0;
                 const isExpanded = expandedRowId === view.id;

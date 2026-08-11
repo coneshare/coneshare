@@ -11,7 +11,36 @@
     "remove": "Remove",
     "actions": "Actions",
     "search": "Search...",
-    "none": "None"
+    "none": "None",
+    "viewAll": "View all",
+    "backToDashboard": "Back to Dashboard"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "dailyVisits": "Daily Visits (Last 30 Days)",
+    "latestViewSessions": "Latest View Sessions",
+    "recentActiveLinks": "Recent Active Links"
+  },
+  "analytics": {
+    "visitor": "Visitor",
+    "link": "Link",
+    "document": "Document",
+    "viewedAt": "Viewed At",
+    "downloadedAt": "Downloaded At",
+    "duration": "Duration",
+    "completion": "Completion",
+    "status": "Status",
+    "visits": "Visits",
+    "created": "Created",
+    "name": "Name",
+    "viewSessions": "View Sessions",
+    "shareLinks": "Share Links",
+    "noViewsYetDataroom": "This dataroom has not been viewed yet.",
+    "noViewsYetDocument": "This document has not been viewed yet.",
+    "unknownDevice": "Unknown device",
+    "active": "Active",
+    "disabled": "Disabled",
+    "expired": "Expired"
   },
   "nav": {
     "dashboard": "Dashboard",

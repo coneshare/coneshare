@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Eye, Pencil, Trash2, ChevronRight, ChevronDown, FolderIcon } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import { FileTypeIcon } from './FileTypeIcon';
@@ -94,6 +95,7 @@ export function LinksTable({
   isDashboardWidget,
   contextType = 'document',
 }) {
+  const { t } = useTranslation();
   const [expandedRowId, setExpandedRowId] = useState(null);
 
   const handleStatusChange = async (link, newStatus) => {
@@ -120,7 +122,7 @@ export function LinksTable({
   if (!links || links.length === 0) {
     return (
       <div>
-        {!isDashboardWidget && <h2 className="text-xl font-semibold">Share Links</h2>}
+        {!isDashboardWidget && <h2 className="text-xl font-semibold">{t('analytics.shareLinks')}</h2>}
         <p className="mt-2 text-sm text-gray-500">
           {contextType === 'dataroom'
             ? 'No share links have been created for this dataroom yet.'
@@ -133,20 +135,20 @@ export function LinksTable({
   return (
     <TooltipProvider>
       <div>
-        {!isDashboardWidget && <h2 className="text-xl font-semibold">Share Links</h2>}
+        {!isDashboardWidget && <h2 className="text-xl font-semibold">{t('analytics.shareLinks')}</h2>}
       <div className="mt-4 overflow-hidden rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-8" />
-              <TableHead>Name</TableHead>
-              <TableHead>Link</TableHead>
-              {isDashboardWidget && <TableHead>Document</TableHead>}
-              <TableHead>Views</TableHead>
-              <TableHead>Created At</TableHead>
-              <TableHead>Last Viewed At</TableHead>
+              <TableHead>{t('analytics.name')}</TableHead>
+              <TableHead>{t('analytics.link')}</TableHead>
+              {isDashboardWidget && <TableHead>{t('analytics.document')}</TableHead>}
+              <TableHead>{t('analytics.visits')}</TableHead>
+              <TableHead>{t('analytics.created')}</TableHead>
+              <TableHead>{t('analytics.viewedAt')}</TableHead>
               <TableHead>Settings</TableHead>
-              {!isDashboardWidget && <TableHead>Status</TableHead>}
+              {!isDashboardWidget && <TableHead>{t('analytics.status')}</TableHead>}
               {!isDashboardWidget && (
                 <TableHead>
                   <span className="sr-only">Actions</span>
@@ -183,7 +185,7 @@ export function LinksTable({
                         <span>{link.name || 'Untitled Link'}</span>
                         {isExpired && (
                           <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-                            Expired
+                            {t('analytics.expired')}
                           </span>
                         )}
                       </div>
@@ -245,7 +247,7 @@ export function LinksTable({
                               </span>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>{link.is_active ? 'Active' : 'Inactive'}</p>
+                              <p>{link.is_active ? t('analytics.active') : t('analytics.disabled')}</p>
                             </TooltipContent>
                           </Tooltip>
                         </TableCell>

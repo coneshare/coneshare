@@ -11,7 +11,36 @@
     "remove": "Удалить",
     "actions": "Действия",
     "search": "Поиск...",
-    "none": "Нет"
+    "none": "Нет",
+    "viewAll": "Посмотреть все",
+    "backToDashboard": "Назад к панели управления"
+  },
+  "dashboard": {
+    "title": "Панель управления",
+    "dailyVisits": "Ежедневные посещения (последние 30 дней)",
+    "latestViewSessions": "Последние сеансы просмотра",
+    "recentActiveLinks": "Недавние активные ссылки"
+  },
+  "analytics": {
+    "visitor": "Посетитель",
+    "link": "Ссылка",
+    "document": "Документ",
+    "viewedAt": "Время просмотра",
+    "downloadedAt": "Время скачивания",
+    "duration": "Длительность",
+    "completion": "Прогресс",
+    "status": "Статус",
+    "visits": "Переходы",
+    "created": "Создано",
+    "name": "Название",
+    "viewSessions": "Сеансы просмотра",
+    "shareLinks": "Ссылки для доступа",
+    "noViewsYetDataroom": "Этот датарум еще не просматривали.",
+    "noViewsYetDocument": "Этот документ еще не просматривали.",
+    "unknownDevice": "Неизвестное устройство",
+    "active": "Активна",
+    "disabled": "Отключена",
+    "expired": "Истекла"
   },
   "nav": {
     "dashboard": "Панель управления",

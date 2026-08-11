@@ -11,7 +11,36 @@
     "remove": "移除",
     "actions": "操作",
     "search": "搜索...",
-    "none": "无"
+    "none": "无",
+    "viewAll": "查看全部",
+    "backToDashboard": "返回仪表盘"
+  },
+  "dashboard": {
+    "title": "仪表盘",
+    "dailyVisits": "每日访问量（近30天）",
+    "latestViewSessions": "最新浏览记录",
+    "recentActiveLinks": "最近活跃链接"
+  },
+  "analytics": {
+    "visitor": "访客",
+    "link": "链接",
+    "document": "文档",
+    "viewedAt": "浏览时间",
+    "downloadedAt": "下载时间",
+    "duration": "时长",
+    "completion": "完成度",
+    "status": "状态",
+    "visits": "访问次数",
+    "created": "创建时间",
+    "name": "名称",
+    "viewSessions": "浏览记录",
+    "shareLinks": "分享链接",
+    "noViewsYetDataroom": "该数据室尚未有浏览记录。",
+    "noViewsYetDocument": "该文档尚未有浏览记录。",
+    "unknownDevice": "未知设备",
+    "active": "生效中",
+    "disabled": "已禁用",
+    "expired": "已失效"
   },
   "nav": {
     "dashboard": "仪表盘",
