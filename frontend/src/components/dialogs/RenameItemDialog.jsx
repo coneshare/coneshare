@@ -66,7 +66,7 @@ export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess, contex
           <DialogHeader>
             <DialogTitle>{t('documents.renameTitle')}</DialogTitle>
             <DialogDescription>
-              Enter a new name for &quot;{item.name}&quot;.
+              {t('documents.renameDescription', { name: item.name })}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">

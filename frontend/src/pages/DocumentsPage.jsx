@@ -501,14 +501,14 @@ function DocumentsPage() {
                 className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
               >
                 <DocumentPlusIcon className="h-5 w-5" aria-hidden="true" />
-                <span>Files</span>
+                <span>{t('documents.files')}</span>
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 onSelect={handleFolderSelect}
                 className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
               >
                 <FolderPlusIcon className="h-5 w-5" aria-hidden="true" />
-                <span>Folder</span>
+                <span>{t('documents.folder')}</span>
               </DropdownMenu.Item>
               {cloudProviders.length > 0 && <DropdownMenu.Separator className="my-1 h-px bg-gray-200 dark:bg-gray-700" />}
               {cloudProviders.map((provider) => (
@@ -577,7 +577,7 @@ function DocumentsPage() {
         onCopy={handleCopy}
         onShare={handleShare}
         onRequestFiles={handleRequestFiles}
-        viewsTooltip="Direct views from this document's own share links."
+        viewsTooltip={t('documents.viewsTooltip')}
       />
       </div>
     </TooltipProvider>

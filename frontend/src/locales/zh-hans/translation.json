@@ -136,7 +136,11 @@
     "deleteConfirmTitle": "删除项目？",
     "deleteConfirmMessage": "确定要删除此项目吗？它将被移动到回收站。",
     "deleteBulkConfirmTitle": "删除选中项目？",
-    "deleteBulkConfirmMessage": "确定要删除选中的项目吗？它们将被移动到回收站。"
+    "deleteBulkConfirmMessage": "确定要删除选中的项目吗？它们将被移动到回收站。",
+    "files": "文件",
+    "folder": "文件夹",
+    "renameDescription": "请输入 \"{{name}}\" 的新名称。",
+    "viewsTooltip": "来自此文档自身分享链接的直接浏览次数。"
   },
   "datarooms": {
     "title": "数据室",
