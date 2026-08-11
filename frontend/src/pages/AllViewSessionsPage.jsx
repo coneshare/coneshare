@@ -44,9 +44,9 @@ export function AllViewSessionsPage() {
         </Button>
       </div>
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold">All View Sessions</h1>
+        <h1 className="text-2xl font-bold">{t('analytics.allViewSessionsTitle')}</h1>
         <p className="text-muted-foreground">
-          Showing all {viewsData?.count || 0} recorded view sessions across all links.
+          {t('analytics.allViewSessionsSubtitle', { count: viewsData?.count || 0 })}
         </p>
       </div>
       <div className="mt-8">

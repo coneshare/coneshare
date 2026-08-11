@@ -44,9 +44,9 @@ export function AllLinksPage() {
         </Button>
       </div>
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold">All Active Links</h1>
+        <h1 className="text-2xl font-bold">{t('analytics.allActiveLinksTitle')}</h1>
         <p className="text-muted-foreground">
-          Showing all {linksData?.count || 0} active links, sorted by the most recently viewed.
+          {t('analytics.allActiveLinksSubtitle', { count: linksData?.count || 0 })}
         </p>
       </div>
       <div className="mt-8">

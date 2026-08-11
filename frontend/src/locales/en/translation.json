@@ -40,7 +40,11 @@
     "unknownDevice": "Unknown device",
     "active": "Active",
     "disabled": "Disabled",
-    "expired": "Expired"
+    "expired": "Expired",
+    "allViewSessionsTitle": "All View Sessions",
+    "allViewSessionsSubtitle": "Showing all {{count}} recorded view sessions across all links.",
+    "allActiveLinksTitle": "All Active Links",
+    "allActiveLinksSubtitle": "Showing all {{count}} active links, sorted by the most recently viewed."
   },
   "nav": {
     "dashboard": "Dashboard",

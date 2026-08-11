@@ -40,7 +40,11 @@
     "unknownDevice": "未知设备",
     "active": "生效中",
     "disabled": "已禁用",
-    "expired": "已失效"
+    "expired": "已失效",
+    "allViewSessionsTitle": "所有浏览记录",
+    "allViewSessionsSubtitle": "显示所有链接共计 {{count}} 条已记录的浏览会话。",
+    "allActiveLinksTitle": "所有活跃链接",
+    "allActiveLinksSubtitle": "显示所有 {{count}} 条活跃链接，按最近浏览时间排序。"
   },
   "nav": {
     "dashboard": "仪表盘",

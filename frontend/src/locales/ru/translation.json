@@ -40,7 +40,11 @@
     "unknownDevice": "Неизвестное устройство",
     "active": "Активна",
     "disabled": "Отключена",
-    "expired": "Истекла"
+    "expired": "Истекла",
+    "allViewSessionsTitle": "Все сеансы просмотра",
+    "allViewSessionsSubtitle": "Отображаются все {{count}} записанных сеансов просмотра по всем ссылкам.",
+    "allActiveLinksTitle": "Все активные ссылки",
+    "allActiveLinksSubtitle": "Отображаются все {{count}} активных ссылок, отсортированных по времени последнего просмотра."
   },
   "nav": {
     "dashboard": "Панель управления",
