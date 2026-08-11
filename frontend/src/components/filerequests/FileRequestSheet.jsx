@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -40,13 +41,13 @@ const parseAllowedFileTypes = (rawValue) => {
   return [...new Set(normalized)];
 };
 
-const FIELD_TYPES = [
-  { value: 'text', label: 'Text' },
-  { value: 'textarea', label: 'Long text' },
-  { value: 'select', label: 'Select' },
-  { value: 'date', label: 'Date' },
-  { value: 'number', label: 'Number' },
-  { value: 'checkbox', label: 'Checkbox' },
+const getFieldTypes = (t) => [
+  { value: 'text', label: t('fileRequests.textType') },
+  { value: 'textarea', label: t('fileRequests.longTextType') },
+  { value: 'select', label: t('fileRequests.selectType') },
+  { value: 'date', label: t('fileRequests.dateType') },
+  { value: 'number', label: t('fileRequests.numberType') },
+  { value: 'checkbox', label: t('fileRequests.checkboxType') },
 ];
 
 const makeFieldId = () => `field_${Date.now().toString(36)}`;
@@ -112,6 +113,7 @@ const hydrateCustomFields = (fields) =>
     : [];
 
 export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest, onSuccess }) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
@@ -124,6 +126,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
 
   // State for folder browser
   const [destinationFolder, setDestinationFolder] = useState(null);
+  const fieldTypes = getFieldTypes(t);
 
   useEffect(() => {
     if (isOpen) {
@@ -214,17 +217,17 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-3xl flex flex-col">
         <SheetHeader>
-          <SheetTitle>{isEditing ? 'Edit File Request' : 'Create File Request'}</SheetTitle>
+          <SheetTitle>{isEditing ? t('fileRequests.editFileRequest') : t('fileRequests.createFileRequestTitle')}</SheetTitle>
           <SheetDescription>
             {isEditing
-              ? `Editing file request for folder "${currentRequest.folder_name === ROOT_FOLDER_NAME ? 'Root' : currentRequest.folder_name}".`
-              : 'Create a link to request files. Select a destination folder and set your options.'}
+              ? t('fileRequests.editDescription', { folder: currentRequest.folder_name === ROOT_FOLDER_NAME ? t('viewer.root') : currentRequest.folder_name })
+              : t('fileRequests.createDescription')}
           </SheetDescription>
         </SheetHeader>
         <form id="file-request-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="space-y-4 py-4 pr-6">
             <div className="space-y-2">
-              <Label>Destination Folder</Label>
+              <Label>{t('fileRequests.destinationFolder')}</Label>
             <FolderBrowser
               initialFolderId={isEditing ? (currentRequest.folder_name === ROOT_FOLDER_NAME ? null : currentRequest.folder) : (folder?.id || null)}
               onCurrentFolderChange={setDestinationFolder}
@@ -233,25 +236,25 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
           </div>
 
           <div>
-            <Label htmlFor="name">Name (Visible to public)</Label>
+            <Label htmlFor="name">{t('fileRequests.namePublic')}</Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Q1 Financials from Client"
+              placeholder={t('fileRequests.namePlaceholder')}
             />
           </div>
           <div>
-            <Label htmlFor="message">Message (Optional)</Label>
+            <Label htmlFor="message">{t('fileRequests.messageOptional')}</Label>
             <Input
               id="message"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="e.g., A short message to display on the upload page"
+              placeholder={t('fileRequests.messagePlaceholder')}
             />
           </div>
           <div>
-            <Label htmlFor="expires_at">Expires At (Optional)</Label>
+            <Label htmlFor="expires_at">{t('fileRequests.expiresAtOptional')}</Label>
             <Input
               id="expires_at"
               type="datetime-local"
@@ -260,38 +263,38 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
             />
           </div>
           <div>
-            <Label htmlFor="max_file_size">Max File Size (MB, Optional)</Label>
+            <Label htmlFor="max_file_size">{t('fileRequests.maxFileSizeOptional')}</Label>
             <Input
               id="max_file_size"
               type="number"
               value={maxFileSize}
               onChange={(e) => setMaxFileSize(e.target.value)}
-              placeholder="e.g., 10 for 10MB"
+              placeholder={t('fileRequests.maxFileSizePlaceholder')}
             />
           </div>
           <div>
-            <Label htmlFor="allowed_file_types">Allowed File Types (Optional)</Label>
+            <Label htmlFor="allowed_file_types">{t('fileRequests.allowedFileTypesOptional')}</Label>
             <Input
               id="allowed_file_types"
               value={allowedFileTypes}
               onChange={(e) => setAllowedFileTypes(e.target.value)}
-              placeholder="e.g., .pdf, docx, xlsx"
+              placeholder={t('fileRequests.allowedFileTypesPlaceholder')}
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Comma-separated extensions. Matching is case-insensitive and values are normalized (for example, `pdf` becomes `.pdf`).
+              {t('fileRequests.allowedFileTypesHelp')}
             </p>
           </div>
           <div className="space-y-3 rounded-md border p-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <Label>Custom Intake Fields</Label>
+                <Label>{t('fileRequests.customIntakeFields')}</Label>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Collect project, case, order, or document metadata from uploaders.
+                  {t('fileRequests.customIntakeFieldsHelp')}
                 </p>
               </div>
               <Button type="button" variant="outline" size="sm" onClick={addCustomField}>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Field
+                {t('fileRequests.addField')}
               </Button>
             </div>
 
@@ -300,14 +303,14 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
                 {customFields.map((field, index) => (
                   <div key={field.id} className="rounded-md border bg-muted/20 p-3">
                     <div className="mb-3 flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium">Field {index + 1}</span>
+                      <span className="text-sm font-medium">{t('fileRequests.fieldIndex', { index: index + 1 })}</span>
                       <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeCustomField(field.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
-                        <Label htmlFor={`${field.id}-label`}>Label</Label>
+                        <Label htmlFor={`${field.id}-label`}>{t('fileRequests.fieldLabel')}</Label>
                         <Input
                           id={`${field.id}-label`}
                           value={field.label}
@@ -316,25 +319,25 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
                         />
                       </div>
                       <div>
-                        <Label htmlFor={`${field.id}-type`}>Type</Label>
+                        <Label htmlFor={`${field.id}-type`}>{t('fileRequests.fieldType')}</Label>
                         <select
                           id={`${field.id}-type`}
                           value={field.type}
                           onChange={(e) => updateCustomField(field.id, { type: e.target.value })}
                           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                         >
-                          {FIELD_TYPES.map((type) => (
+                          {fieldTypes.map((type) => (
                             <option key={type.value} value={type.value}>{type.label}</option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <Label htmlFor={`${field.id}-placeholder`}>Placeholder</Label>
+                        <Label htmlFor={`${field.id}-placeholder`}>{t('fileRequests.fieldPlaceholder')}</Label>
                         <Input
                           id={`${field.id}-placeholder`}
                           value={field.placeholder}
                           onChange={(e) => updateCustomField(field.id, { placeholder: e.target.value })}
-                          placeholder="Optional"
+                          placeholder={t('common.none')}
                         />
                       </div>
                       <label className="flex items-center gap-2 sm:pt-7 text-sm">
@@ -343,18 +346,18 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
                           checked={field.required}
                           onChange={(e) => updateCustomField(field.id, { required: e.target.checked })}
                         />
-                        Required
+                        {t('fileRequests.fieldRequired')}
                       </label>
                     </div>
                     {field.type === 'select' && (
                       <div className="mt-3">
-                        <Label htmlFor={`${field.id}-options`}>Options</Label>
+                        <Label htmlFor={`${field.id}-options`}>{t('fileRequests.fieldOptions')}</Label>
                         <Textarea
                           id={`${field.id}-options`}
                           value={field.optionsText}
                           onChange={(e) => updateCustomField(field.id, { optionsText: e.target.value })}
                           rows={2}
-                          placeholder="Invoice, Contract, ID Document"
+                          placeholder={t('fileRequests.fieldOptionsPlaceholder')}
                         />
                       </div>
                     )}
@@ -367,7 +370,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
         </form>
         <SheetFooter>
           <Button type="submit" form="file-request-form" disabled={isSubmitting || isFolderLoading}>
-            {isSubmitting ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Link'}
+            {isSubmitting ? t('common.saving') : isEditing ? t('common.save') : t('fileRequests.createLink')}
           </Button>
         </SheetFooter>
       </SheetContent>

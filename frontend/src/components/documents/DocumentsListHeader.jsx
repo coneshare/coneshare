@@ -19,7 +19,7 @@ export function DocumentsListHeader({
 
   const columns = [
     { key: "name", label: t('documents.name'), className: "w-[34%]" },
-    { key: "owner", label: t('analytics.visitor'), className: "w-[18%]" },
+    { key: "owner", label: t('analytics.owner'), className: "w-[18%]" },
     { key: "updated_at", label: t('documents.modified'), className: "w-[18%]" },
     { key: "file_size", label: t('documents.size'), className: "w-[10%]" },
     { key: "view_count", label: t('analytics.visits'), className: "w-[10%]" },

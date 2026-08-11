@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { formatDate, formatRelativeTime } from '../../utils/formatters';
 import { AlertTriangle, RefreshCw, Trash2, Folder, HardDrive, Calendar, Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -20,11 +21,13 @@ export function TrashItemInspectDialog({
   onRestore,
   onPermanentDelete,
 }) {
+  const { t } = useTranslation();
+
   if (!item) return null;
 
   const isFolder = item.item_type === 'folder';
   const isRoot = !item.parent_name || item.parent_name === '__root__';
-  const locationLabel = isRoot ? 'ROOT' : item.parent_name;
+  const locationLabel = isRoot ? t('viewer.root') : item.parent_name;
   const locationLink = isRoot ? '/documents' : `/documents/folders/${item.parent_id}`;
 
   return (
@@ -40,7 +43,7 @@ export function TrashItemInspectDialog({
                 {item.name}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground capitalize mt-0.5">
-                Trashed {isFolder ? 'Folder' : 'Document'} Details
+                {t('trash.trashedDetails', { type: isFolder ? t('trash.folderType') : t('trash.documentType') })}
               </DialogDescription>
             </div>
           </div>
@@ -50,7 +53,7 @@ export function TrashItemInspectDialog({
         <div className="rounded-md bg-amber-500/10 p-3 text-amber-700 dark:text-amber-400 border border-amber-500/20 text-xs flex items-start gap-2.5 my-1">
           <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
           <div className="leading-normal">
-            This item is in the Trash. Previews, downloads, and share links are disabled until restored.
+            {t('trash.disabledWarning')}
           </div>
         </div>
 
@@ -59,7 +62,7 @@ export function TrashItemInspectDialog({
           <div className="flex items-center justify-between py-2.5 min-w-0 gap-2">
             <div className="flex items-center gap-2 text-muted-foreground flex-shrink-0">
               <Folder className="h-4 w-4" />
-              <span>Location</span>
+              <span>{t('trash.location')}</span>
             </div>
             <Link
               to={locationLink}
@@ -74,7 +77,7 @@ export function TrashItemInspectDialog({
             <div className="flex items-center justify-between py-2.5">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <HardDrive className="h-4 w-4" />
-                <span>File Size</span>
+                <span>{t('trash.fileSize')}</span>
               </div>
               <span className="font-medium">{item.size != null ? formatBytes(item.size) : '—'}</span>
             </div>
@@ -83,7 +86,7 @@ export function TrashItemInspectDialog({
           <div className="flex items-center justify-between py-2.5">
             <div className="flex items-center gap-2 text-muted-foreground">
               <Calendar className="h-4 w-4" />
-              <span>Deleted Date</span>
+              <span>{t('trash.deletedDate')}</span>
             </div>
             <span className="font-medium">
               {item.deleted_at
@@ -96,7 +99,7 @@ export function TrashItemInspectDialog({
             <div className="flex items-center justify-between py-2.5">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Eye className="h-4 w-4" />
-                <span>Total Views</span>
+                <span>{t('trash.totalViews')}</span>
               </div>
               <span className="font-medium">{item.view_count ?? 0}</span>
             </div>
@@ -114,7 +117,7 @@ export function TrashItemInspectDialog({
             className="gap-1.5"
           >
             <Trash2 className="h-4 w-4" />
-            Delete Permanently
+            {t('trash.deletePermanently')}
           </Button>
           <Button
             type="button"
@@ -125,7 +128,7 @@ export function TrashItemInspectDialog({
             className="gap-1.5"
           >
             <RefreshCw className="h-4 w-4" />
-            Restore {isFolder ? 'Folder' : 'Document'}
+            {t('trash.restoreItem', { type: isFolder ? t('trash.folderType') : t('trash.documentType') })}
           </Button>
         </DialogFooter>
       </DialogContent>

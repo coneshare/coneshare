@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Trash2, RefreshCw } from 'lucide-react';
 import { formatRelativeTime } from '../../utils/formatters';
 import { Link } from 'react-router-dom';
@@ -5,9 +6,9 @@ import { Button } from '../ui/Button';
 import { formatBytes } from '../../lib/formatters';
 import { FileTypeIcon } from '../documents/FileTypeIcon';
 
-function LocationCell({ item }) {
+function LocationCell({ item, t }) {
   const isRoot = !item.parent_name || item.parent_name === '__root__';
-  const label = isRoot ? 'Root' : item.parent_name;
+  const label = isRoot ? t('viewer.root') : item.parent_name;
   const linkTo = isRoot ? '/documents' : `/documents/folders/${item.parent_id}`;
 
   return (
@@ -30,12 +31,14 @@ export function TrashList({
   onPermanentDelete,
   onInspectItem,
 }) {
+  const { t } = useTranslation();
+
   if (!items || items.length === 0) {
     return (
       <div className="p-8 text-center text-muted-foreground">
         <Trash2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/60" />
-        <p className="font-medium text-foreground">Trash is empty</p>
-        <p className="text-sm mt-1">Items you delete will appear here.</p>
+        <p className="font-medium text-foreground">{t('trash.trashIsEmpty')}</p>
+        <p className="text-sm mt-1">{t('trash.emptyStateNotice')}</p>
       </div>
     );
   }
@@ -59,12 +62,12 @@ export function TrashList({
                 onChange={(e) => onSelectAll(e.target.checked)}
               />
             </th>
-            <th className="px-4 py-3">Name</th>
-            <th className="px-4 py-3">Type</th>
-            <th className="px-4 py-3">Location</th>
-            <th className="px-4 py-3">Deleted Date</th>
-            <th className="px-4 py-3">Size</th>
-            <th className="px-4 py-3 text-right">Actions</th>
+            <th className="px-4 py-3">{t('analytics.name')}</th>
+            <th className="px-4 py-3">{t('fileRequests.fieldType')}</th>
+            <th className="px-4 py-3">{t('trash.location')}</th>
+            <th className="px-4 py-3">{t('trash.deletedDate')}</th>
+            <th className="px-4 py-3">{t('trash.size')}</th>
+            <th className="px-4 py-3 text-right">{t('common.actions')}</th>
           </tr>
         </thead>
         <tbody className="divide-y border-b text-sm">
@@ -105,7 +108,7 @@ export function TrashList({
                 </td>
                 <td className="px-4 py-3 capitalize text-muted-foreground">{item.file_type || item.item_type}</td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  <LocationCell item={item} />
+                  <LocationCell item={item} t={t} />
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {item.deleted_at ? formatRelativeTime(item.deleted_at) : '-'}
@@ -122,14 +125,14 @@ export function TrashList({
                       className="gap-1.5"
                     >
                       <RefreshCw className="h-3.5 w-3.5" />
-                      Restore
+                      {t('trash.restore')}
                     </Button>
                     <Button
                       variant="destructive"
                       size="sm"
                       onClick={() => onPermanentDelete(item)}
                     >
-                      Delete
+                      {t('common.delete')}
                     </Button>
                   </div>
                 </td>

@@ -1,15 +1,19 @@
+import { useTranslation } from "react-i18next";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { ArrowUpDown, Check } from "lucide-react";
 import { Button } from "../../ui/Button";
 
-const SORT_OPTIONS = [
-  { value: "name", label: "Name" },
-  { value: "created_by", label: "Owner" },
-  { value: "updated_at", label: "Last Modified" },
-  { value: "file_size", label: "File Size" },
+const getSortOptions = (t) => [
+  { value: "name", label: t('analytics.name') },
+  { value: "created_by", label: t('analytics.owner') },
+  { value: "updated_at", label: t('documents.modified') },
+  { value: "file_size", label: t('trash.size') },
 ];
 
 export function SortButton({ onSort, sortConfig }) {
+  const { t } = useTranslation();
+  const sortOptions = getSortOptions(t);
+
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
@@ -22,7 +26,7 @@ export function SortButton({ onSort, sortConfig }) {
         align="end"
         className="w-48 rounded-md bg-white p-1 shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-gray-800"
       >
-        {SORT_OPTIONS.map((option) => (
+        {sortOptions.map((option) => (
           <DropdownMenu.Item
             key={option.value}
             onSelect={() => onSort(option.value)}
