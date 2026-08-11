@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { formatRelativeTime } from '../utils/formatters';
 import * as api from '../services/api';
 import { AdminNav } from '../components/admin/AdminNav';
@@ -36,6 +37,7 @@ function SkeletonRow() {
 }
 
 export function AdminLoginActivityPage() {
+  const { t } = useTranslation();
   const [activities, setActivities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -65,15 +67,15 @@ export function AdminLoginActivityPage() {
   return (
     <div className="container mx-auto py-6">
       <AdminNav />
-      <h2 className="mb-4 text-2xl font-bold">User Login Activity</h2>
+      <h2 className="mb-4 text-2xl font-bold">{t('admin.loginActivityTitle')}</h2>
       <div className="overflow-hidden rounded-lg border">
         <table className="min-w-full">
           <thead className="bg-muted/50">
             <tr className="border-b">
-              <th className="p-4 text-left font-semibold">User</th>
-              <th className="p-4 text-left font-semibold">Time</th>
-              <th className="p-4 text-left font-semibold">Location</th>
-              <th className="p-4 text-left font-semibold">User Agent</th>
+              <th className="p-4 text-left font-semibold">{t('analytics.visitor')}</th>
+              <th className="p-4 text-left font-semibold">{t('analytics.viewedAt')}</th>
+              <th className="p-4 text-left font-semibold">{t('analytics.location')}</th>
+              <th className="p-4 text-left font-semibold">{t('analytics.userAgent')}</th>
             </tr>
           </thead>
           <tbody>
@@ -88,7 +90,7 @@ export function AdminLoginActivityPage() {
                           <>
                             <div className="font-medium">
                               <Link to={`/admin/users/${activity.user_id}`} className="hover:underline">
-                                {activity.user_name || 'Unnamed User'}
+                                {activity.user_name || t('common.unnamed')}
                               </Link>
                             </div>
                             <div className="text-sm text-muted-foreground">
@@ -99,7 +101,7 @@ export function AdminLoginActivityPage() {
                           </>
                         ) : (
                           <>
-                            <div className="font-medium">{activity.user_name || 'Unnamed User'}</div>
+                            <div className="font-medium">{activity.user_name || t('common.unnamed')}</div>
                             <div className="text-sm text-muted-foreground">
                               {activity.user_email}
                             </div>
@@ -121,7 +123,7 @@ export function AdminLoginActivityPage() {
                       </td>
                       <td className="p-4 text-sm text-muted-foreground">
                         <div>
-                          {browser} on {os}
+                          {t('admin.browserOnOs', { browser, os })}
                         </div>
                         <div className="w-64 truncate text-xs" title={activity.user_agent}>
                           {activity.user_agent}

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { AdminSettingsPage } from '../../pages/AdminSettingsPage'
 import * as api from '../../services/api'
+import '../../i18n';
 
 vi.mock('../../services/api', () => ({
   getAdminSettings: vi.fn(),

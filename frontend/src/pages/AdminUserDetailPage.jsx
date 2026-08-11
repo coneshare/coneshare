@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ExternalLink, HardDrive, Link as LinkIcon, FolderOpen, Calendar, Mail, ShieldAlert } from 'lucide-react';
 
 import * as api from '../services/api';
@@ -12,6 +13,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '.
 import { formatBytes } from '../lib/formatters';
 
 export function AdminUserDetailPage() {
+  const { t } = useTranslation();
   const { userId } = useParams();
   const [user, setUser] = useState(null);
   const [links, setLinks] = useState([]);
@@ -118,7 +120,6 @@ export function AdminUserDetailPage() {
     <div className="container mx-auto py-6">
       <AdminNav />
 
-
       {/* User Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6 mb-6">
         <div className="flex items-center gap-4">
@@ -135,7 +136,7 @@ export function AdminUserDetailPage() {
               <span>•</span>
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
-                Joined {new Date(user.date_joined).toLocaleDateString()}
+                {t('admin.joinedDate', { date: new Date(user.date_joined).toLocaleDateString() })}
               </span>
             </div>
           </div>
@@ -146,10 +147,10 @@ export function AdminUserDetailPage() {
               ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' 
               : 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400'
           }`}>
-            {user.is_active ? 'Active' : 'Inactive'}
+            {user.is_active ? t('common.active') : t('common.inactive')}
           </span>
           <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 capitalize">
-            {user.role}
+            {user.role === 'admin' ? t('admin.roleAdmin') : user.role === 'member' ? t('admin.roleMember') : user.role}
           </span>
         </div>
       </div>
@@ -161,19 +162,19 @@ export function AdminUserDetailPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
               <HardDrive className="h-5 w-5 text-muted-foreground" />
-              Storage Quota
+              {t('admin.storageQuota')}
             </CardTitle>
             <CardDescription>
-              The user's storage usage in relation to their assigned quota limit.
+              {t('admin.storageQuotaDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between text-sm font-medium mb-2">
-                  <span className="text-muted-foreground">Used Space</span>
+                  <span className="text-muted-foreground">{t('admin.usedSpace')}</span>
                   <span>
-                    {formatBytes(usageBytes)} / {quotaMB > 0 ? `${quotaMB} MB` : 'Unlimited'}
+                    {formatBytes(usageBytes)} / {quotaMB > 0 ? `${quotaMB} MB` : t('admin.unlimited')}
                   </span>
                 </div>
                 <Progress 
@@ -185,13 +186,13 @@ export function AdminUserDetailPage() {
               
               <div className="grid grid-cols-2 gap-4 pt-2 text-sm border-t">
                 <div>
-                  <span className="text-xs text-muted-foreground block">Max Files Per Upload</span>
-                  <span className="font-semibold text-foreground">{user.max_files_per_upload} files</span>
+                  <span className="text-xs text-muted-foreground block">{t('admin.maxFilesPerUpload')}</span>
+                  <span className="font-semibold text-foreground">{user.max_files_per_upload}</span>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground block">Storage Status</span>
+                  <span className="text-xs text-muted-foreground block">{t('admin.storageStatus')}</span>
                   <span className="font-semibold text-foreground">
-                    {quotaMB > 0 ? `${usagePercentage.toFixed(1)}% full` : 'Unlimited Quota'}
+                    {quotaMB > 0 ? t('admin.pctFull', { pct: usagePercentage.toFixed(1) }) : t('admin.unlimitedQuota')}
                   </span>
                 </div>
               </div>
@@ -202,29 +203,29 @@ export function AdminUserDetailPage() {
         {/* Activity Summary Card */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold">Activity Summary</CardTitle>
-            <CardDescription>Key metrics for user-created resources.</CardDescription>
+            <CardTitle className="text-lg font-semibold">{t('admin.activitySummary')}</CardTitle>
+            <CardDescription>{t('admin.activitySummaryDesc')}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b pb-2">
                 <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                   <LinkIcon className="h-4 w-4 text-muted-foreground" />
-                  Share Links
+                  {t('analytics.link')}
                 </span>
                 <span className="text-xl font-bold text-foreground">{user.total_links || 0}</span>
               </div>
               <div className="flex items-center justify-between border-b pb-2">
                 <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                   <FolderOpen className="h-4 w-4 text-muted-foreground" />
-                  Datarooms
+                  Data Rooms
                 </span>
                 <span className="text-xl font-bold text-foreground">{user.total_datarooms || 0}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                   <ShieldAlert className="h-4 w-4 text-muted-foreground" />
-                  Total Views
+                  {t('trash.totalViews')}
                 </span>
                 <span className="text-xl font-bold text-foreground">{user.total_views || 0}</span>
               </div>
@@ -236,17 +237,17 @@ export function AdminUserDetailPage() {
       {/* Share Links Card */}
       <Card className="mb-8">
         <CardHeader className="pb-3">
-          <CardTitle className="text-xl font-bold">Share Links ({user.total_links || 0})</CardTitle>
+          <CardTitle className="text-xl font-bold">{t('admin.shareLinksCount', { count: user.total_links || 0 })}</CardTitle>
           <CardDescription>Public sharing links created by this user.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="px-6">Name</TableHead>
-                <TableHead>Views</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
+                <TableHead className="px-6">{t('analytics.name')}</TableHead>
+                <TableHead>{t('trash.totalViews')}</TableHead>
+                <TableHead>{t('analytics.status')}</TableHead>
+                <TableHead>{t('analytics.created')}</TableHead>
                 <TableHead className="text-right px-6"></TableHead>
               </TableRow>
             </TableHeader>
@@ -254,7 +255,7 @@ export function AdminUserDetailPage() {
               {links.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan="5" className="h-24 text-center text-muted-foreground px-6">
-                    No share links found.
+                    {t('admin.noShareLinksFound')}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -268,7 +269,7 @@ export function AdminUserDetailPage() {
                           ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' 
                           : 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400'
                       }`}>
-                        {link.is_active ? 'Active' : 'Inactive'}
+                        {link.is_active ? t('common.active') : t('common.inactive')}
                       </span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
@@ -277,7 +278,7 @@ export function AdminUserDetailPage() {
                     <TableCell className="text-right px-6">
                       <Button variant="ghost" size="sm" asChild>
                         <a href={`/view/${link.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center">
-                          <ExternalLink className="h-4 w-4 mr-2" /> View Link
+                          <ExternalLink className="h-4 w-4 mr-2" /> {t('admin.viewLink')}
                         </a>
                       </Button>
                     </TableCell>
@@ -292,23 +293,23 @@ export function AdminUserDetailPage() {
       {/* Datarooms Card */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-xl font-bold">Datarooms ({user.total_datarooms || 0})</CardTitle>
+          <CardTitle className="text-xl font-bold">{t('admin.dataroomsCount', { count: user.total_datarooms || 0 })}</CardTitle>
           <CardDescription>Secure workspaces created by this user.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="px-6">Name</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="px-6">Updated</TableHead>
+                <TableHead className="px-6">{t('analytics.name')}</TableHead>
+                <TableHead>{t('analytics.created')}</TableHead>
+                <TableHead className="px-6">{t('common.updated')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {datarooms.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan="3" className="h-24 text-center text-muted-foreground px-6">
-                    No datarooms found.
+                    {t('admin.noDataroomsFound')}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -331,3 +332,5 @@ export function AdminUserDetailPage() {
     </div>
   );
 }
+
+export default AdminUserDetailPage;
