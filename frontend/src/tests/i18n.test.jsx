@@ -33,6 +33,9 @@ describe('Frontend i18n System', () => {
     expect(testI18n.t('dashboard.title')).toBe('Dashboard');
     expect(testI18n.t('dashboard.dailyVisits')).toBe('Daily Visits (Last 30 Days)');
     expect(testI18n.t('analytics.visitor')).toBe('Visitor');
+    expect(testI18n.t('documents.newFolderTitle')).toBe('Create New Folder');
+    expect(testI18n.t('documents.renameTitle')).toBe('Rename Item');
+    expect(testI18n.t('documents.moveTitle')).toBe('Move Items');
     expect(testI18n.t('settings.title')).toBe('User Settings');
   });
 
@@ -44,6 +47,9 @@ describe('Frontend i18n System', () => {
     expect(testI18n.t('dashboard.title')).toBe('仪表盘');
     expect(testI18n.t('dashboard.dailyVisits')).toBe('每日访问量（近30天）');
     expect(testI18n.t('analytics.visitor')).toBe('访客');
+    expect(testI18n.t('documents.newFolderTitle')).toBe('新建文件夹');
+    expect(testI18n.t('documents.renameTitle')).toBe('重命名项目');
+    expect(testI18n.t('documents.moveTitle')).toBe('移动项目');
     expect(testI18n.t('settings.title')).toBe('用户设置');
   });
 
@@ -55,6 +61,9 @@ describe('Frontend i18n System', () => {
     expect(testI18n.t('dashboard.title')).toBe('Панель управления');
     expect(testI18n.t('dashboard.dailyVisits')).toBe('Ежедневные посещения (последние 30 дней)');
     expect(testI18n.t('analytics.visitor')).toBe('Посетитель');
+    expect(testI18n.t('documents.newFolderTitle')).toBe('Создать новую папку');
+    expect(testI18n.t('documents.renameTitle')).toBe('Переименовать объект');
+    expect(testI18n.t('documents.moveTitle')).toBe('Переместить элементы');
     expect(testI18n.t('settings.title')).toBe('Настройки пользователя');
   });
 

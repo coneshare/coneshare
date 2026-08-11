@@ -1,7 +1,9 @@
+import { useTranslation } from "react-i18next";
 import { ChevronRight as ChevronRightIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export function Breadcrumbs({ currentFolder: data }) {
+  const { t } = useTranslation();
   const { dataroomContext, documentName } = data || {};
 
   if (dataroomContext) {
@@ -11,7 +13,7 @@ export function Breadcrumbs({ currentFolder: data }) {
         <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-medium text-muted-foreground sm:text-lg">
           <li>
             <Link to="/datarooms" className="hover:text-foreground">
-              Datarooms
+              {t('datarooms.title')}
             </Link>
           </li>
           <li className="flex items-center">
@@ -62,7 +64,7 @@ export function Breadcrumbs({ currentFolder: data }) {
             to="/documents"
             className="flex items-center gap-x-2 hover:text-foreground"
           >
-            <span className="hidden sm:inline">Documents</span>
+            <span className="hidden sm:inline">{t('documents.title')}</span>
           </Link>
         </li>
         {folder?.ancestors?.map((ancestor) => (

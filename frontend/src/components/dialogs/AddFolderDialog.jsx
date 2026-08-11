@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +13,7 @@ import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 
 export function AddFolderDialog({ isOpen, onOpenChange, onConfirm }) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
 
   // Reset name when dialog is closed
@@ -32,19 +34,20 @@ export function AddFolderDialog({ isOpen, onOpenChange, onConfirm }) {
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Add New Folder</DialogTitle>
+          <DialogTitle>{t('documents.newFolderTitle')}</DialogTitle>
           <DialogDescription>
-            Enter a name for your new folder.
+            {t('documents.folderNamePlaceholder')}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} id="add-folder-form">
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">{t('documents.folderNameLabel')}</Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                placeholder={t('documents.folderNamePlaceholder')}
                 autoFocus
               />
             </div>
@@ -52,10 +55,10 @@ export function AddFolderDialog({ isOpen, onOpenChange, onConfirm }) {
         </form>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" form="add-folder-form" disabled={!name.trim()}>
-            Create
+            {t('documents.createFolder')}
           </Button>
         </DialogFooter>
       </DialogContent>

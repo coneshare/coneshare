@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Edit, MoreHorizontal, Share2, Trash2, UploadCloud, Download, Copy } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -13,6 +14,8 @@ export function ActionsDropdown({
   onDownload,
   onCopy,
 }) {
+  const { t } = useTranslation();
+
   return (
     <DropdownMenu.Root onOpenChange={onOpenChange}>
       <DropdownMenu.Trigger asChild>
@@ -46,7 +49,7 @@ export function ActionsDropdown({
             className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
           >
             <Edit className="h-4 w-4" aria-hidden="true" />
-            <span>Rename</span>
+            <span>{t('documents.rename')}</span>
           </DropdownMenu.Item>
 
           {type === 'document' && onCopy && (
@@ -71,7 +74,7 @@ export function ActionsDropdown({
               className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
              >
               <Share2 className="h-4 w-4" aria-hidden="true" />
-              <span>Share</span>
+              <span>{t('documents.getLink')}</span>
             </DropdownMenu.Item>
           )}
 
@@ -84,7 +87,7 @@ export function ActionsDropdown({
               className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
             >
               <Download className="h-4 w-4" aria-hidden="true" />
-              <span>Download</span>
+              <span>{t('documents.download')}</span>
             </DropdownMenu.Item>
           )}
 
@@ -111,7 +114,7 @@ export function ActionsDropdown({
             className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 focus:bg-red-50 focus:text-red-700 focus:outline-none dark:text-red-500 dark:hover:bg-red-900/20 dark:focus:bg-red-900/20"
           >
             <Trash2 className="h-4 w-4" aria-hidden="true" />
-            <span>Delete</span>
+            <span>{t('common.delete')}</span>
           </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>

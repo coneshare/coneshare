@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ArrowUp, ArrowDown, Info } from "lucide-react";
 import { Button } from "../ui/Button";
 import { cn } from "../../lib/utils";
@@ -7,14 +8,6 @@ import {
   TooltipTrigger,
 } from "../ui/Tooltip";
 
-const columns = [
-  { key: "name", label: "Name", className: "w-[34%]" },
-  { key: "owner", label: "Owner", className: "w-[18%]" },
-  { key: "updated_at", label: "Last Modified", className: "w-[18%]" },
-  { key: "file_size", label: "Size", className: "w-[10%]" },
-  { key: "view_count", label: "Views", className: "w-[10%]" },
-];
-
 export function DocumentsListHeader({
   onSort,
   sortConfig,
@@ -22,6 +15,16 @@ export function DocumentsListHeader({
   showIndex = false,
   viewsTooltip = "Views recorded for this item.",
 }) {
+  const { t } = useTranslation();
+
+  const columns = [
+    { key: "name", label: t('documents.name'), className: "w-[34%]" },
+    { key: "owner", label: t('analytics.visitor'), className: "w-[18%]" },
+    { key: "updated_at", label: t('documents.modified'), className: "w-[18%]" },
+    { key: "file_size", label: t('documents.size'), className: "w-[10%]" },
+    { key: "view_count", label: t('analytics.visits'), className: "w-[10%]" },
+  ];
+
   return (
     <div
       className="flex items-center border-b border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-500 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-400"
