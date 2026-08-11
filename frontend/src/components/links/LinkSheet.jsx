@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   createShareLink,
@@ -26,6 +27,7 @@ export function LinkSheet({
   currentLink,
   onSuccess,
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [requiresEmail, setRequiresEmail] = useState(false);
   const [requiresEmailVerification, setRequiresEmailVerification] = useState(false);
@@ -144,33 +146,29 @@ export function LinkSheet({
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-3xl flex flex-col">
         <SheetHeader>
-          <SheetTitle>{isEditing ? 'Edit Link' : 'Create New Link'}</SheetTitle>
+          <SheetTitle>{isEditing ? t('linkSheet.editTitle') : t('linkSheet.createTitle')}</SheetTitle>
           <SheetDescription>
-            Configure the settings for your share link below. Click save when you're done.
+            {t('linkSheet.description')}
           </SheetDescription>
         </SheetHeader>
         <form id="link-sheet-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="space-y-6 py-6 pr-6">
           <div className="space-y-2">
-            <Label htmlFor="name">Name link</Label>
+            <Label htmlFor="name">{t('linkSheet.nameLabel')}</Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., 'Marketing Campaign Link'"
+              placeholder={t('linkSheet.namePlaceholder')}
             />
-            {/* <p className="text-sm text-muted-foreground"> */}
-            {/*   Organize link audiences to aggregate metrics. Leave blank to assign to a generic */}
-            {/*   Example Account. This field is not visible to visitors. */}
-            {/* </p> */}
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label htmlFor="require-email" className="flex flex-col space-y-1">
-                <span>Require email to view</span>
+                <span>{t('linkSheet.requireEmail')}</span>
                 <span className="text-sm font-normal text-muted-foreground">
-                  Viewers must enter their email address to view.
+                  {t('linkSheet.requireEmailSubtitle')}
                 </span>
               </Label>
               <Switch
@@ -188,9 +186,9 @@ export function LinkSheet({
             {requiresEmail && (
               <div className="flex items-center justify-between rounded-md border bg-gray-50 p-4 dark:bg-gray-800/50">
                 <Label htmlFor="verify-email" className="flex flex-col space-y-1">
-                  <span>Verify email to view</span>
+                  <span>{t('linkSheet.verifyEmail')}</span>
                   <span className="text-sm font-normal text-muted-foreground">
-                    Viewers must click a link in an email to verify their identity.
+                    {t('linkSheet.verifyEmailSubtitle')}
                   </span>
                 </Label>
                 <Switch
@@ -204,9 +202,9 @@ export function LinkSheet({
 
           <div className="flex items-center justify-between">
             <Label htmlFor="email-notification" className="flex flex-col space-y-1">
-              <span>Receive email notification</span>
+              <span>{t('linkSheet.emailNotification')}</span>
               <span className="text-sm font-normal text-muted-foreground">
-                Get notified via email when someone views your content.
+                {t('linkSheet.emailNotificationSubtitle')}
               </span>
             </Label>
             <Switch
@@ -218,7 +216,7 @@ export function LinkSheet({
 
           <div className="flex items-center justify-between">
             <Label htmlFor="password-enabled" className="flex flex-col space-y-1">
-              <span>Password protection</span>
+              <span>{t('linkSheet.passwordProtection')}</span>
             </Label>
             <Switch
               id="password-enabled"
@@ -228,12 +226,12 @@ export function LinkSheet({
           </div>
           {isPasswordEnabled && (
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('linkSheet.password')}</Label>
               <PasswordInput
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter a password"
+                placeholder={t('linkSheet.passwordPlaceholder')}
                 autoFocus
               />
             </div>
@@ -241,9 +239,9 @@ export function LinkSheet({
 
           <div className="flex items-center justify-between">
             <Label htmlFor="nda-enabled" className="flex flex-col space-y-1">
-              <span>Require NDA</span>
+              <span>{t('linkSheet.requireNda')}</span>
               <span className="text-sm font-normal text-muted-foreground">
-                Viewers must accept a Non-Disclosure Agreement before viewing the content.
+                {t('linkSheet.requireNdaSubtitle')}
               </span>
             </Label>
             <Switch
@@ -254,29 +252,29 @@ export function LinkSheet({
           </div>
           {requireNda && (
             <div className="space-y-2">
-              <Label htmlFor="nda-text">NDA Terms</Label>
+              <Label htmlFor="nda-text">{t('linkSheet.ndaTerms')}</Label>
               <textarea
                 id="nda-text"
                 rows={4}
                 className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 value={ndaText}
                 onChange={(e) => setNdaText(e.target.value)}
-                placeholder="Enter NDA terms..."
+                placeholder={t('linkSheet.ndaTermsPlaceholder')}
                 required
               />
               {isEditing && currentLink?.require_nda && (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
-                  Note: Editing the NDA terms will increment the version number, forcing previous viewers to re-accept.
+                  {t('linkSheet.ndaWarning')}
                 </p>
               )}
             </div>
           )}
           <div className="flex items-center justify-between">
             <Label htmlFor="allow-download" className="flex flex-col space-y-1">
-              <span>Allow download</span>
+              <span>{t('linkSheet.allowDownload')}</span>
               {document?.download_only && (
                 <span className="text-sm font-normal text-muted-foreground">
-                  Download cannot be disabled for this file type.
+                  {t('linkSheet.downloadDisabledNote')}
                 </span>
               )}
             </Label>
@@ -291,11 +289,11 @@ export function LinkSheet({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label htmlFor="enable-watermark" className="flex flex-col space-y-1">
-                <span>Enable watermark</span>
+                <span>{t('linkSheet.enableWatermark')}</span>
                 <span className="text-sm font-normal text-muted-foreground">
                   {isWatermarkable
-                    ? 'Display a watermark on the document.'
-                    : 'Watermarks are available for PDF, Office, and image documents.'}
+                    ? t('linkSheet.watermarkSubtitle')
+                    : t('linkSheet.watermarkNotAvailable')}
                 </span>
               </Label>
               <Switch
@@ -311,7 +309,7 @@ export function LinkSheet({
                   id="watermark-text"
                   value={watermarkText}
                   onChange={(e) => setWatermarkText(e.target.value)}
-                  placeholder="e.g., Confidential, {{ip-address}}"
+                  placeholder={t('linkSheet.watermarkPlaceholder')}
                 />
                 <div className="flex items-center gap-2 pt-1">
                   <span
@@ -336,7 +334,7 @@ export function LinkSheet({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="expires-at">Expiration date and time</Label>
+            <Label htmlFor="expires-at">{t('linkSheet.expirationDate')}</Label>
             <Input
               id="expires-at"
               type="datetime-local"
@@ -345,14 +343,14 @@ export function LinkSheet({
               className="w-full"
             />
             <p className="text-sm text-muted-foreground">
-              Set a date and time after which the link will no longer be accessible.
+              {t('linkSheet.expirationSubtitle')}
             </p>
           </div>
           </div>
         </form>
         <SheetFooter>
           <Button type="submit" form="link-sheet-form" disabled={isSaving}>
-            {isSaving ? 'Saving...' : 'Save Changes'}
+            {isSaving ? t('common.saving') : t('common.save')}
           </Button>
         </SheetFooter>
       </SheetContent>

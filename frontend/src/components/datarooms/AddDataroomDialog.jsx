@@ -10,10 +10,12 @@ import {
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { createDataroom } from '../../services/api';
 
 export function AddDataroomDialog({ isOpen, onOpenChange, onSuccess }) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -40,9 +42,9 @@ export function AddDataroomDialog({ isOpen, onOpenChange, onSuccess }) {
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add New Dataroom</DialogTitle>
+          <DialogTitle>{t('datarooms.addTitle')}</DialogTitle>
           <DialogDescription>
-            Create a new dataroom to group and share documents.
+            {t('datarooms.addDescription')}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -52,14 +54,14 @@ export function AddDataroomDialog({ isOpen, onOpenChange, onSuccess }) {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="name" className="text-right">
-                Name
+                {t('datarooms.nameLabel')}
               </Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="col-span-3"
-                placeholder="e.g., Project Alpha"
+                placeholder={t('datarooms.namePlaceholder')}
                 disabled={isSubmitting}
                 autoFocus
               />
@@ -68,7 +70,7 @@ export function AddDataroomDialog({ isOpen, onOpenChange, onSuccess }) {
         </form>
         <DialogFooter>
           <Button type="submit" form="add-dataroom-form" disabled={isSubmitting}>
-            {isSubmitting ? 'Creating...' : 'Create Dataroom'}
+            {isSubmitting ? t('datarooms.creating') : t('datarooms.create')}
           </Button>
         </DialogFooter>
       </DialogContent>

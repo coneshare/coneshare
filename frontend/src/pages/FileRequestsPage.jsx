@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast, Toaster } from 'sonner';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '../utils/formatters';
 import { MoreHorizontal, Edit, Trash2, Copy, UploadCloud } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
@@ -225,7 +225,7 @@ export function FileRequestsPage() {
                     </Tooltip>
                   </div>
                   <div className="w-[20%]">
-                    {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
+                    {formatRelativeTime(request.created_at)}
                   </div>
                   <div className="w-16 flex justify-end">
                     <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>

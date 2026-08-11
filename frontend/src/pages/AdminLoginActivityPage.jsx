@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '../utils/formatters';
 import * as api from '../services/api';
 import { AdminNav } from '../components/admin/AdminNav';
 import { Pagination } from '../components/ui/Pagination';
@@ -108,7 +108,7 @@ export function AdminLoginActivityPage() {
                       </td>
                       <td className="p-4 text-muted-foreground">
                         <div title={new Date(activity.created_at).toLocaleString()}>
-                          {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                          {formatRelativeTime(activity.created_at)}
                         </div>
                       </td>
                       <td className="p-4 font-mono text-sm text-muted-foreground">

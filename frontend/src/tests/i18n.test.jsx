@@ -4,7 +4,7 @@ import { initReactI18next } from 'react-i18next';
 import en from '../locales/en/translation.json';
 import zhHans from '../locales/zh-hans/translation.json';
 import ru from '../locales/ru/translation.json';
-import { formatDate } from '../utils/formatters';
+import { formatDate, formatRelativeTime } from '../utils/formatters';
 import appI18n from '../i18n';
 
 function createTestI18n() {
@@ -29,6 +29,8 @@ describe('Frontend i18n System', () => {
   it('loads English translations by default', () => {
     const testI18n = createTestI18n();
     expect(testI18n.t('common.save')).toBe('Save Changes');
+    expect(testI18n.t('common.edit')).toBe('Edit');
+    expect(testI18n.t('viewer.preview')).toBe('Preview');
     expect(testI18n.t('nav.dashboard')).toBe('Dashboard');
     expect(testI18n.t('dashboard.title')).toBe('Dashboard');
     expect(testI18n.t('dashboard.dailyVisits')).toBe('Daily Visits (Last 30 Days)');
@@ -43,6 +45,8 @@ describe('Frontend i18n System', () => {
     const testI18n = createTestI18n();
     await testI18n.changeLanguage('zh-hans');
     expect(testI18n.t('common.save')).toBe('保存修改');
+    expect(testI18n.t('common.edit')).toBe('编辑');
+    expect(testI18n.t('viewer.preview')).toBe('预览');
     expect(testI18n.t('nav.dashboard')).toBe('仪表盘');
     expect(testI18n.t('dashboard.title')).toBe('仪表盘');
     expect(testI18n.t('dashboard.dailyVisits')).toBe('每日访问量（近30天）');
@@ -57,6 +61,8 @@ describe('Frontend i18n System', () => {
     const testI18n = createTestI18n();
     await testI18n.changeLanguage('ru');
     expect(testI18n.t('common.save')).toBe('Сохранить изменения');
+    expect(testI18n.t('common.edit')).toBe('Редактировать');
+    expect(testI18n.t('viewer.preview')).toBe('Предпросмотр');
     expect(testI18n.t('nav.dashboard')).toBe('Панель управления');
     expect(testI18n.t('dashboard.title')).toBe('Панель управления');
     expect(testI18n.t('dashboard.dailyVisits')).toBe('Ежедневные посещения (последние 30 дней)');
@@ -84,13 +90,25 @@ describe('Frontend i18n System', () => {
     const formattedZh = formatDate(testDate);
     expect(formattedZh).toContain('2026');
 
+    // Relative date test (e.g. 60 days ago)
+    const pastDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+
+    await appI18n.changeLanguage('en');
+    const relativeEn = formatRelativeTime(pastDate);
+    expect(relativeEn).toContain('ago');
+
+    await appI18n.changeLanguage('zh-hans');
+    const relativeZh = formatRelativeTime(pastDate);
+    expect(relativeZh).toContain('前');
+
     await appI18n.changeLanguage('ru');
-    const formattedRu = formatDate(testDate);
-    expect(formattedRu).toContain('авг');
+    const relativeRu = formatRelativeTime(pastDate);
+    expect(relativeRu).toContain('назад');
 
     // Edge cases
     expect(formatDate(0)).toBeTruthy();
     expect(formatDate(null)).toBe('');
+    expect(formatRelativeTime(null)).toBe('');
 
     // Restore default locale
     await appI18n.changeLanguage('en');

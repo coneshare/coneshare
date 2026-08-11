@@ -1,4 +1,4 @@
-import { formatDistanceToNow, format } from 'date-fns';
+import { formatDate, formatRelativeTime } from '../../utils/formatters';
 import { AlertTriangle, RefreshCw, Trash2, Folder, HardDrive, Calendar, Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../ui/Button';
@@ -87,7 +87,7 @@ export function TrashItemInspectDialog({
             </div>
             <span className="font-medium">
               {item.deleted_at
-                ? `${format(new Date(item.deleted_at), 'PPP')} (${formatDistanceToNow(new Date(item.deleted_at), { addSuffix: true })})`
+                ? `${formatDate(item.deleted_at, 'PPP')} (${formatRelativeTime(item.deleted_at)})`
                 : '—'}
             </span>
           </div>

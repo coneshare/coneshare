@@ -1,5 +1,5 @@
 import { Trash2, RefreshCw } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '../../utils/formatters';
 import { Link } from 'react-router-dom';
 import { Button } from '../ui/Button';
 import { formatBytes } from '../../lib/formatters';
@@ -108,7 +108,7 @@ export function TrashList({
                   <LocationCell item={item} />
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  {item.deleted_at ? formatDistanceToNow(new Date(item.deleted_at), { addSuffix: true }) : '-'}
+                  {item.deleted_at ? formatRelativeTime(item.deleted_at) : '-'}
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {item.item_type === 'folder' || item.size == null ? '-' : formatBytes(item.size)}

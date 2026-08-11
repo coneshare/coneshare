@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { getDataroom, updateDataroomLinkSettings } from '../../services/api';
 import {
@@ -46,6 +47,7 @@ const buildTree = (items) => {
 
 // --- Recursive Row Component ---
 function PermissionRow({ item, level, settings, onSettingChange, onBulkSettingChange, expandedFolders, toggleFolder }) {
+  const { t } = useTranslation();
   const setting = settings[item.id];
   const isFolder = item.type === 'folder';
   const isExpanded = isFolder && expandedFolders[item.id];
@@ -102,7 +104,7 @@ function PermissionRow({ item, level, settings, onSettingChange, onBulkSettingCh
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Watermark settings are applied to individual documents, not folders.</p>
+                <p>{t('datarooms.watermarkFolderHelp')}</p>
               </TooltipContent>
             </Tooltip>
           ) : (
@@ -129,6 +131,7 @@ function PermissionRow({ item, level, settings, onSettingChange, onBulkSettingCh
 
 // --- Main Dialog Component ---
 export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess }) {
+  const { t } = useTranslation();
   const [dataroomTree, setDataroomTree] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [settings, setSettings] = useState({});
@@ -232,28 +235,21 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
       <DialogContent className="sm:max-w-4xl">
         <TooltipProvider>
           <DialogHeader>
-            <DialogTitle>Manage Permissions for "{link?.name || 'Untitled Link'}"</DialogTitle>
+            <DialogTitle>{t('datarooms.managePermissionsTitle', { name: link?.name || t('links.untitledLink') })}</DialogTitle>
           <DialogDescription>
-            Set visibility, download, and watermark permissions for each item. Changes apply only to
-            this link.
+            {t('datarooms.managePermissionsDescription')}
           </DialogDescription>
           <p className="text-xs text-muted-foreground">
-            Folder permission changes apply recursively to all nested folders and documents.
+            {t('datarooms.managePermissionsHelp')}
           </p>
         </DialogHeader>
         <div className="py-4 space-y-2">
           <div className={`${PERMISSION_GRID_CLASS} px-2 text-sm font-medium text-muted-foreground`}>
-            <span>Content</span>
-            <Label className="text-center">Visible</Label>
-            <Label className="text-center">Download</Label>
-            <Label className="text-center">Watermark</Label>
+            <span>{t('datarooms.contentColumn')}</span>
+            <Label className="text-center">{t('datarooms.visibleColumn')}</Label>
+            <Label className="text-center">{t('datarooms.downloadColumn')}</Label>
+            <Label className="text-center">{t('datarooms.watermarkColumn')}</Label>
           </div>
-          {/* <div className={`${PERMISSION_GRID_CLASS} px-2 text-xs font-medium text-muted-foreground bg-muted/50 rounded-md py-1`}> */}
-          {/*   <span className="ml-8">Folder controls (recursive):</span> */}
-          {/*   <Label className="text-center">Visible</Label> */}
-          {/*   <Label className="text-center">Download</Label> */}
-          {/*   <Label className="text-center">Watermark</Label> */}
-          {/* </div> */}
           <div className="max-h-[50vh] overflow-y-auto rounded-md border p-2">
             {isLoading ? (
               <div className="flex items-center justify-center p-8">
@@ -276,8 +272,8 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={isLoading}>Save Changes</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
+          <Button onClick={handleSave} disabled={isLoading}>{t('common.save')}</Button>
         </DialogFooter>
         </TooltipProvider>
       </DialogContent>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { MoreVertical, Eye, Pencil, Trash2, ShieldCheck, Copy } from 'lucide-react';
 import { Button } from '../ui/Button';
 import {
@@ -21,36 +22,38 @@ export function LinkActionsDropdown({
   onManagePermissions,
   contextType,
 }) {
+  const { t } = useTranslation();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
           <MoreVertical className="h-4 w-4" />
-          <span className="sr-only">Open actions menu</span>
+          <span className="sr-only">{t('common.actions')}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
         {onPreview && (
           <DropdownMenuItem onSelect={() => onPreview(link.id, link.slug)}>
-            <Eye className="mr-2 h-4 w-4" /> <span>Preview</span>
+            <Eye className="mr-2 h-4 w-4" /> <span>{t('viewer.preview')}</span>
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onSelect={() => onEdit(link)}>
-          <Pencil className="mr-2 h-4 w-4" /> <span>Edit</span>
+          <Pencil className="mr-2 h-4 w-4" /> <span>{t('common.edit')}</span>
         </DropdownMenuItem>
         {contextType === 'dataroom' && (
           <DropdownMenuItem onSelect={() => onManagePermissions(link)}>
-            <ShieldCheck className="mr-2 h-4 w-4" /> <span>Manage Permissions</span>
+            <ShieldCheck className="mr-2 h-4 w-4" /> <span>{t('documents.managePermissions')}</span>
           </DropdownMenuItem>
         )}
         <DropdownMenuItem
           onSelect={() => copyLinkToClipboard(link.slug)}
           data-testid={`copy-link-menu-item-${link.id}`}
         >
-          <Copy className="mr-2 h-4 w-4" /> <span>Copy Link</span>
+          <Copy className="mr-2 h-4 w-4" /> <span>{t('links.copyLink')}</span>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onDelete(link)} className="text-red-600 focus:text-red-600">
-          <Trash2 className="mr-2 h-4 w-4" /> <span>Delete</span>
+          <Trash2 className="mr-2 h-4 w-4" /> <span>{t('common.delete')}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { toast, Toaster } from 'sonner';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '../utils/formatters';
 import { getFileRequest, getDocumentDownloadUrl, updateFileRequest } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Download, Copy, CloudUpload, CheckCircle, AlertCircle, XCircle, RefreshCw } from 'lucide-react';
@@ -48,7 +48,7 @@ const renderExportStatus = (file) => {
   const { status, error_message, provider_display, updated_at } = latestJob;
 
   const timeInfo = updated_at
-    ? ` (${formatDistanceToNow(new Date(updated_at), { addSuffix: true })})`
+    ? ` (${formatRelativeTime(updated_at)})`
     : '';
 
   switch (status) {
@@ -353,7 +353,7 @@ export function FileRequestDetailPage() {
                     <div className="w-[15%] truncate">{file.uploader_name}</div>
                     <div className="w-[15%]">{renderExportStatus(file)}</div>
                     <div className="w-[15%]">
-                      {formatDistanceToNow(new Date(file.created_at), { addSuffix: true })}
+                      {formatRelativeTime(file.created_at)}
                     </div>
                     <div className="w-[10%] flex justify-end gap-x-1">
                       <Button

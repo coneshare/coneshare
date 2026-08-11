@@ -1,4 +1,4 @@
-import { formatDistanceToNow } from "date-fns";
+import { formatRelativeTime } from "../../utils/formatters";
 import { Star } from "lucide-react";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -141,7 +141,7 @@ export function DraggableItem({
       </div>
       <div className="w-[18%]" style={themed ? { color: "var(--dataroom-secondary)" } : undefined}>
         {item.updated_at
-          ? formatDistanceToNow(new Date(item.updated_at), { addSuffix: true })
+          ? formatRelativeTime(item.updated_at)
           : "—"}
       </div>
       <div className="w-[10%]" style={themed ? { color: "var(--dataroom-secondary)" } : undefined}>
