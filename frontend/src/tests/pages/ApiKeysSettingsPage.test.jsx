@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import ApiKeysSettingsPage from "../../pages/ApiKeysSettingsPage";
 import * as api from "../../services/api";
+import "../../i18n";
 
 vi.mock("../../services/api", () => ({
   getApiKeys: vi.fn(),

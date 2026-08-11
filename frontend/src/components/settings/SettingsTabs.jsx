@@ -1,11 +1,14 @@
 import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export function SettingsTabs() {
+  const { t } = useTranslation();
+
   const tabs = [
-    { to: '/settings', label: 'Profile', end: true },
-    { to: '/settings/password', label: 'Password' },
-    { to: '/settings/integrations', label: 'Integrations' },
-    { to: '/settings/api-keys', label: 'API Keys' },
+    { to: '/settings', label: t('settings.profile'), end: true },
+    { to: '/settings/password', label: t('settings.password') },
+    { to: '/settings/integrations', label: t('settings.integrations') },
+    { to: '/settings/api-keys', label: t('settings.apiKeys') },
   ];
 
   return (
