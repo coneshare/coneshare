@@ -11,3 +11,5 @@ class CoreConfig(AppConfig):
         """
         # Import signals to connect them
         import core.signals
+        # Apply sqlite pragmas (WAL/synchronous) on sqlite connections.
+        import core.sqlite_pragmas
