@@ -1,9 +1,11 @@
+import { useTranslation } from 'react-i18next';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '../ui/Tooltip';
+import { formatDate } from '../../utils/formatters';
 
 function formatDuration(seconds) {
   if (seconds < 60) {
@@ -15,8 +17,10 @@ function formatDuration(seconds) {
 }
 
 export function PageViewsChart({ pageViews, documentType }) {
+  const { t } = useTranslation();
+
   if (!pageViews || pageViews.length === 0) {
-    return <p className="text-sm text-gray-500">No detailed page view data available.</p>;
+    return <p className="text-sm text-gray-500">{t('viewSessions.noPageViewData')}</p>;
   }
 
   const isVideo = documentType === 'video' || pageViews[0]?.media_type === 'video';
@@ -29,41 +33,29 @@ export function PageViewsChart({ pageViews, documentType }) {
       return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     };
 
-    const formatDate = (dateStr) => {
-      const d = new Date(dateStr);
-      return d.toLocaleString([], {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      });
-    };
-
     const totalVideoDuration = pageViews.reduce((sum, v) => sum + v.duration_seconds, 0);
 
     return (
       <div className="space-y-3">
         <p className="text-sm font-medium text-gray-700">
-          Total time watched: {formatDuration(totalVideoDuration)}
+          {t('viewSessions.totalTimeWatched', { duration: formatDuration(totalVideoDuration) })}
         </p>
         <div className="overflow-x-auto rounded border">
           <table className="min-w-full divide-y divide-gray-200 text-xs text-gray-700">
             <thead>
               <tr className="bg-gray-50 text-gray-500 uppercase font-semibold text-[10px] tracking-wider">
-                <th className="px-3 py-2 text-left">Event Time</th>
-                <th className="px-3 py-2 text-left">Playback Timespan</th>
-                <th className="px-3 py-2 text-right">Duration</th>
-                <th className="px-3 py-2 text-center">Audio</th>
-                <th className="px-3 py-2 text-center">Screen</th>
-                <th className="px-3 py-2 text-center">Speed</th>
+                <th className="px-3 py-2 text-left">{t('viewSessions.eventTime')}</th>
+                <th className="px-3 py-2 text-left">{t('viewSessions.playbackTimespan')}</th>
+                <th className="px-3 py-2 text-right">{t('viewSessions.duration')}</th>
+                <th className="px-3 py-2 text-center">{t('viewSessions.audio')}</th>
+                <th className="px-3 py-2 text-center">{t('viewSessions.screen')}</th>
+                <th className="px-3 py-2 text-center">{t('viewSessions.speed')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
               {pageViews.map((view, idx) => (
                 <tr key={view.id || idx} className="hover:bg-gray-50">
-                  <td className="px-3 py-2 whitespace-nowrap">{formatDate(view.created_at)}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{formatDate(view.created_at, 'PP p')}</td>
                   <td className="px-3 py-2 whitespace-nowrap font-mono">
                     {formatTime(view.video_start_time)} - {formatTime(view.video_end_time)}
                   </td>
@@ -72,18 +64,18 @@ export function PageViewsChart({ pageViews, documentType }) {
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-center">
                     {view.video_volume === 0 ? (
-                      <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-red-700 font-medium">Muted</span>
+                      <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-red-700 font-medium">{t('viewSessions.muted')}</span>
                     ) : (
                       <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-green-700 font-medium">
-                        {view.video_volume != null ? `${view.video_volume}%` : 'Sound On'}
+                        {view.video_volume != null ? `${view.video_volume}%` : t('viewSessions.soundOn')}
                       </span>
                     )}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-center">
                     {view.is_fullscreen ? (
-                      <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-blue-700 font-medium">Fullscreen</span>
+                      <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-blue-700 font-medium">{t('viewSessions.fullscreen')}</span>
                     ) : (
-                      <span className="text-gray-400">Standard</span>
+                      <span className="text-gray-400">{t('viewSessions.standard')}</span>
                     )}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-center font-mono">
@@ -121,7 +113,7 @@ export function PageViewsChart({ pageViews, documentType }) {
     <TooltipProvider>
       <div className="space-y-2">
         <p className="text-sm font-medium text-gray-700">
-          Total time spent: {formatDuration(totalDuration)}
+          {t('viewSessions.totalTimeSpent', { duration: formatDuration(totalDuration) })}
         </p>
         <div className="space-y-1">
           {uniquePageViews
@@ -129,7 +121,7 @@ export function PageViewsChart({ pageViews, documentType }) {
             .map((view) => (
               <div key={view.page_number} className="flex items-center gap-4 text-sm">
                 <span className="w-16 flex-shrink-0 text-right text-gray-500">
-                  Page {view.page_number}
+                  {t('viewSessions.pageNumber', { number: view.page_number })}
                 </span>
                 <Tooltip>
                   <TooltipTrigger asChild>

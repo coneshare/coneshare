@@ -1,5 +1,6 @@
 import { ChevronsUpDown, CircleUserRound, KeyRound, LogOut, Shield, Link2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import {
@@ -15,6 +16,7 @@ import { cn } from "../../lib/utils";
 import { useUser } from "../../contexts/UserProvider";
 
 function NavUser() {
+  const { t } = useTranslation();
   const { isCollapsed } = useSidebar();
   const navigate = useNavigate();
   const { user, handleLogout } = useUser();
@@ -54,15 +56,15 @@ function NavUser() {
         <DropdownMenuGroup>
           <DropdownMenuItem onSelect={() => navigate("/settings")}>
             <CircleUserRound className="mr-2 h-4 w-4" />
-            <span>User Settings</span>
+            <span>{t('settings.userSettings')}</span>
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => navigate("/settings/password")}>
             <KeyRound className="mr-2 h-4 w-4" />
-            <span>Change Password</span>
+            <span>{t('settings.changePassword')}</span>
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => navigate("/settings/integrations")}>
             <Link2 className="mr-2 h-4 w-4" />
-            <span>Integrations</span>
+            <span>{t('settings.integrations')}</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         {user?.role == 'admin' && (
@@ -70,14 +72,14 @@ function NavUser() {
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => navigate("/admin/settings")}>
               <Shield className="mr-2 h-4 w-4" />
-              <span>Admin Panel</span>
+              <span>{t('settings.adminPanel')}</span>
             </DropdownMenuItem>
           </>
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
-          <span>Log out</span>
+          <span>{t('auth.logout')}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Eye, Pencil, Trash2, ChevronRight, ChevronDown, FolderIcon } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import { FileTypeIcon } from './FileTypeIcon';
@@ -25,6 +26,7 @@ import {
 } from '../ui/Tooltip';
 import { copyTextToClipboard } from '../../lib/utils';
 import { parseUserAgent } from '../../lib/utils';
+import { formatDate } from '../../utils/formatters';
 
 function formatDuration(seconds) {
   if (seconds < 60) {
@@ -94,6 +96,7 @@ export function LinksTable({
   isDashboardWidget,
   contextType = 'document',
 }) {
+  const { t } = useTranslation();
   const [expandedRowId, setExpandedRowId] = useState(null);
 
   const handleStatusChange = async (link, newStatus) => {
@@ -120,11 +123,11 @@ export function LinksTable({
   if (!links || links.length === 0) {
     return (
       <div>
-        {!isDashboardWidget && <h2 className="text-xl font-semibold">Share Links</h2>}
+        {!isDashboardWidget && <h2 className="text-xl font-semibold">{t('analytics.shareLinks')}</h2>}
         <p className="mt-2 text-sm text-gray-500">
           {contextType === 'dataroom'
-            ? 'No share links have been created for this dataroom yet.'
-            : 'No share links have been created for this document yet.'}
+            ? t('analytics.noLinksDataroom')
+            : t('analytics.noLinksDocument')}
         </p>
       </div>
     );
@@ -133,23 +136,23 @@ export function LinksTable({
   return (
     <TooltipProvider>
       <div>
-        {!isDashboardWidget && <h2 className="text-xl font-semibold">Share Links</h2>}
+        {!isDashboardWidget && <h2 className="text-xl font-semibold">{t('analytics.shareLinks')}</h2>}
       <div className="mt-4 overflow-hidden rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-8" />
-              <TableHead>Name</TableHead>
-              <TableHead>Link</TableHead>
-              {isDashboardWidget && <TableHead>Document</TableHead>}
-              <TableHead>Views</TableHead>
-              <TableHead>Created At</TableHead>
-              <TableHead>Last Viewed At</TableHead>
-              <TableHead>Settings</TableHead>
-              {!isDashboardWidget && <TableHead>Status</TableHead>}
+              <TableHead>{t('analytics.name')}</TableHead>
+              <TableHead>{t('analytics.link')}</TableHead>
+              {isDashboardWidget && <TableHead>{t('analytics.document')}</TableHead>}
+              <TableHead>{t('analytics.visits')}</TableHead>
+              <TableHead>{t('analytics.created')}</TableHead>
+              <TableHead>{t('analytics.viewedAt')}</TableHead>
+              <TableHead>{t('analytics.settings')}</TableHead>
+              {!isDashboardWidget && <TableHead>{t('analytics.status')}</TableHead>}
               {!isDashboardWidget && (
                 <TableHead>
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">{t('common.actions')}</span>
                 </TableHead>
               )}
             </TableRow>
@@ -180,10 +183,10 @@ export function LinksTable({
                     </TableCell>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
-                        <span>{link.name || 'Untitled Link'}</span>
+                        <span>{link.name || t('links.untitledLink')}</span>
                         {isExpired && (
                           <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-                            Expired
+                            {t('analytics.expired')}
                           </span>
                         )}
                       </div>
@@ -221,10 +224,10 @@ export function LinksTable({
                       </TableCell>
                     )}
                     <TableCell>{link.view_count}</TableCell>
-                    <TableCell>{new Date(link.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>{formatDate(link.created_at, 'PP')}</TableCell>
                     <TableCell>
                       {link.last_viewed_at
-                        ? new Date(link.last_viewed_at).toLocaleDateString()
+                        ? formatDate(link.last_viewed_at, 'PP')
                         : '—'}
                     </TableCell>
                     <TableCell>
@@ -245,7 +248,7 @@ export function LinksTable({
                               </span>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>{link.is_active ? 'Active' : 'Inactive'}</p>
+                              <p>{link.is_active ? t('analytics.active') : t('analytics.disabled')}</p>
                             </TooltipContent>
                           </Tooltip>
                         </TableCell>
@@ -266,34 +269,31 @@ export function LinksTable({
                     <TableRow className="bg-gray-50 hover:bg-gray-50">
                       <TableCell colSpan={isDashboardWidget ? 8 : 9} className="p-4">
                         <div className="p-2">
-                          {/* <h4 className="mb-2 text-sm font-semibold text-gray-600"> */}
-                          {/*   View Sessions */}
-                          {/* </h4> */}
                           <Table>
                             <TableHeader>
                               <TableRow>
-                                <TableHead>Visitor</TableHead>
-                                <TableHead>Viewed At</TableHead>
-                                <TableHead>Downloaded At</TableHead>
-                                <TableHead className="text-right">Duration</TableHead>
-                                <TableHead className="text-right">Completion</TableHead>
+                                <TableHead>{t('analytics.visitor')}</TableHead>
+                                <TableHead>{t('analytics.viewedAt')}</TableHead>
+                                <TableHead>{t('analytics.downloadedAt')}</TableHead>
+                                <TableHead className="text-right">{t('viewSessions.duration')}</TableHead>
+                                <TableHead className="text-right">{t('analytics.completion')}</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {link.recent_view_sessions.map((view) => {
                                 const { browser, os } = parseUserAgent(view.user_agent);
                                 const deviceInfo =
-                                  browser !== 'Unknown' ? `${browser} on ${os}` : 'Unknown device';
+                                  browser !== 'Unknown' ? `${browser} on ${os}` : t('analytics.unknownDevice');
                                 const locationParts = [view.city, view.country].filter(Boolean);
                                 const hasLocation = locationParts.length > 0;
                                 return (
                                   <TableRow key={view.id}>
                                     <TableCell>
                                       <div className="flex items-center gap-2 font-medium">
-                                        <span>{view.viewer_email || 'Anonymous'}</span>
+                                        <span>{view.viewer_email || t('viewSessions.anonymous')}</span>
                                         {view.is_owner_view && (
                                           <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">
-                                            You
+                                            {t('viewSessions.you')}
                                           </span>
                                         )}
                                       </div>
@@ -304,7 +304,7 @@ export function LinksTable({
                                         ) : (
                                           <Tooltip>
                                             <TooltipTrigger asChild>
-                                              <span className="cursor-default"> - Unknown location</span>
+                                              <span className="cursor-default"> - {t('viewSessions.unknownLocation')}</span>
                                             </TooltipTrigger>
                                             {view.ip_address && (
                                               <TooltipContent>
@@ -316,20 +316,11 @@ export function LinksTable({
                                       </div>
                                     </TableCell>
                                     <TableCell>
-                                      {new Date(view.viewed_at).toLocaleString(undefined, {
-                                        dateStyle: 'medium',
-                                        timeStyle: 'short',
-                                      })}
+                                      {formatDate(view.viewed_at, 'PP p')}
                                     </TableCell>
                                     <TableCell>
                                       {view.downloaded_at
-                                        ? new Date(view.downloaded_at).toLocaleString(
-                                            undefined,
-                                            {
-                                              dateStyle: 'medium',
-                                              timeStyle: 'short',
-                                            }
-                                          )
+                                        ? formatDate(view.downloaded_at, 'PP p')
                                         : '—'}
                                     </TableCell>
                                     <TableCell className="text-right">
@@ -349,7 +340,7 @@ export function LinksTable({
                                 to={`/documents/${link.document}/links/${link.id}`}
                                 className="text-sm font-medium text-blue-600 hover:underline"
                               >
-                                View all {link.view_count} sessions
+                                {t('analytics.viewAllSessions', { count: link.view_count })}
                               </Link>
                             </div>
                           )}

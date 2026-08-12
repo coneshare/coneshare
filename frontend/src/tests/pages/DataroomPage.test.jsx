@@ -7,6 +7,7 @@ import { DataroomPage } from '../../pages/DataroomPage';
 import { BreadcrumbProvider } from '../../components/layout/BreadcrumbProvider';
 import Header from '../../components/layout/Header';
 import * as api from '../../services/api';
+import '../../i18n';
 
 vi.mock('../../services/api');
 
@@ -150,7 +151,7 @@ describe('DataroomPage', () => {
         it('should display not found message if dataroom fails to load', async () => {
             api.getDataroom.mockRejectedValue({ response: { status: 404 } });
             renderComponent();
-            expect(await screen.findByText('Dataroom not found.')).toBeInTheDocument();
+            expect(await screen.findByText(/no datarooms found/i)).toBeInTheDocument();
         });
 
         it('should display empty state for a dataroom with no content', async () => {
@@ -242,7 +243,7 @@ describe('DataroomPage', () => {
 
             await waitFor(() => {
                 // This tests that the empty state is shown for a sub-folder.
-                expect(screen.getByText('This folder is empty')).toBeInTheDocument();
+                expect(screen.getByText(/this folder is empty/i)).toBeInTheDocument();
             });
         });
     });
@@ -288,13 +289,13 @@ describe('DataroomPage', () => {
             expect(screen.queryByText('New Test Folder')).not.toBeInTheDocument();
 
             // Open the dialog
-            const addFolderButton = screen.getByTitle('Add Folder');
+            const addFolderButton = screen.getByTitle(/new folder|add folder/i);
             await user.click(addFolderButton);
 
             // Interact with the dialog
-            expect(await screen.findByRole('heading', { name: /Add New Folder/i })).toBeInTheDocument();
-            await user.type(screen.getByLabelText('Name'), 'New Test Folder');
-            await user.click(screen.getByRole('button', { name: 'Create' }));
+            expect(await screen.findByRole('heading', { name: /new folder|add folder/i })).toBeInTheDocument();
+            await user.type(screen.getByLabelText(/folder name|name/i), 'New Test Folder');
+            await user.click(screen.getByRole('button', { name: /^new folder$/i }));
 
             // Assert API call
             await waitFor(() => {
@@ -480,11 +481,11 @@ describe('DataroomPage', () => {
                 const renameMenuItem = await screen.findByRole('menuitem', { name: /rename/i });
                 await user.click(renameMenuItem);
         
-                const dialog = await screen.findByRole('dialog', { name: /rename document/i });
+                const dialog = await screen.findByRole('dialog', { name: /rename/i });
                 const input = within(dialog).getByLabelText('Name');
                 await user.clear(input);
                 await user.type(input, 'New Document Name.pdf');
-                await user.click(within(dialog).getByRole('button', { name: 'Rename' }));
+                await user.click(within(dialog).getByRole('button', { name: /save|rename/i }));
                 
                 await waitFor(() => {
                     expect(api.renameDataroomDocument).toHaveBeenCalledWith('ddoc1', 'New Document Name.pdf');
@@ -537,14 +538,14 @@ describe('DataroomPage', () => {
             const folderRow = screen.getByText('Sub Folder').closest('[data-testid^="draggable-item-"]');
             await user.click(folderRow);
             
-            expect(await screen.findByText(/1 folder selected/)).toBeInTheDocument();
+            expect(await screen.findByText(/1 selected/i)).toBeInTheDocument();
     
             await user.keyboard('{Meta>}');
             const docRow = screen.getByText('Root Document').closest('[data-testid^="draggable-item-"]');
             await user.click(docRow);
             await user.keyboard('{/Meta}');
     
-            expect(await screen.findByText(/1 document, 1 folder selected/)).toBeInTheDocument();
+            expect(await screen.findByText(/2 selected/i)).toBeInTheDocument();
     
             const clearButton = screen.getByRole('button', { name: 'Clear Selection' });
             await user.click(clearButton);
@@ -564,7 +565,7 @@ describe('DataroomPage', () => {
             await user.keyboard('{/Meta}');
 
             const actionBar = await screen.findByText(/selected/);
-            expect(actionBar).toHaveTextContent('1 document, 1 folder selected');
+            expect(actionBar).toHaveTextContent(/2 selected/i);
         });
     
         it('should open move dialog when move is clicked', async () => {
@@ -645,7 +646,7 @@ describe('DataroomPage', () => {
             renderComponent();
             expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
 
-            const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
+            const linksTab = await screen.findByRole('tab', { name: /links|share links/i });
             await user.click(linksTab);
 
             const linksTable = (await screen.findByRole('columnheader', { name: /settings/i })).closest('table');
@@ -663,7 +664,7 @@ describe('DataroomPage', () => {
             renderComponent();
             expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
 
-            const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
+            const linksTab = await screen.findByRole('tab', { name: /links|share links/i });
             await user.click(linksTab);
 
             const createLinkButton = await screen.findByRole('button', { name: /create link/i });
@@ -677,7 +678,7 @@ describe('DataroomPage', () => {
             renderComponent();
             expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
 
-            const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
+            const linksTab = await screen.findByRole('tab', { name: /links|share links/i });
             await user.click(linksTab);
 
             const linksTable = (await screen.findByRole('columnheader', { name: /settings/i })).closest('table');
@@ -704,7 +705,7 @@ describe('DataroomPage', () => {
             renderComponent();
             expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
 
-            const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
+            const linksTab = await screen.findByRole('tab', { name: /links|share links/i });
             await user.click(linksTab);
 
             const linksTable = (await screen.findByRole('columnheader', { name: /settings/i })).closest('table');
@@ -725,7 +726,7 @@ describe('DataroomPage', () => {
             renderComponent();
             expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
 
-            const linksTab = await screen.findByRole('tab', { name: /links and permissions/i });
+            const linksTab = await screen.findByRole('tab', { name: /links|share links/i });
             await user.click(linksTab);
 
             expect(await screen.findByText('test0@example.com')).toBeInTheDocument();

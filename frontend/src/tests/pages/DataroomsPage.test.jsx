@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { DataroomsPage } from '../../pages/DataroomsPage';
 import * as api from '../../services/api';
+import '../../i18n';
 
 vi.mock('../../services/api');
 
@@ -103,7 +104,7 @@ describe('DataroomsPage', () => {
             await user.click(renameMenuItem);
 
             await waitFor(() => {
-                expect(screen.getByRole('heading', { name: /Rename Dataroom/i })).toBeInTheDocument();
+                expect(screen.getByRole('heading', { name: /Rename/i })).toBeInTheDocument();
             });
             expect(screen.getByLabelText('Name')).toHaveValue('Dataroom One');
         });
@@ -119,21 +120,21 @@ describe('DataroomsPage', () => {
             await user.click(actionsButton);
             await user.click(await screen.findByText('Rename'));
 
-            const dialogTitle = await screen.findByRole('heading', { name: /Rename Dataroom/i });
+            const dialogTitle = await screen.findByRole('heading', { name: /Rename/i });
             expect(dialogTitle).toBeInTheDocument();
 
             const nameInput = screen.getByLabelText('Name');
             await user.clear(nameInput);
             await user.type(nameInput, 'Renamed Dataroom');
 
-            const renameButton = screen.getByRole('button', { name: 'Rename' });
+            const renameButton = screen.getByRole('button', { name: /Save|Rename/i });
             await user.click(renameButton);
 
             await waitFor(() => {
                 expect(api.updateDataroom).toHaveBeenCalledWith('dr1', { name: 'Renamed Dataroom' });
             });
 
-            expect(screen.queryByRole('heading', { name: /Rename Dataroom/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('heading', { name: /Rename/i })).not.toBeInTheDocument();
             await waitFor(() => {
                 expect(api.getDatarooms).toHaveBeenCalledTimes(2);
             });

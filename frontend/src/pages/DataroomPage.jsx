@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
 import { ShareIcon, Star, ArrowLeft, ChevronDown, FolderUp, Plus } from 'lucide-react';
@@ -49,6 +50,7 @@ const BRAND_PRESETS = [
 ];
 
 export function DataroomPage() {
+  const { t } = useTranslation();
   const { dataroomId } = useParams();
   const navigate = useNavigate();
   const { setBreadcrumbData } = useBreadcrumb();
@@ -709,8 +711,8 @@ export function DataroomPage() {
 
         <Tabs value={activeTab} className="mt-4">
           <TabsList>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
-            <TabsTrigger value="links">Links and Permissions</TabsTrigger>
+            <TabsTrigger value="documents">{t('datarooms.tabDocuments')}</TabsTrigger>
+            <TabsTrigger value="links">{t('datarooms.tabLinks')}</TabsTrigger>
           </TabsList>
           <TabsContent value="documents" className="mt-6">
             <div className="border-y border-gray-200 dark:border-gray-800">
@@ -734,7 +736,7 @@ export function DataroomPage() {
   }
 
   if (!dataroom) {
-    return <div className="p-6">Dataroom not found.</div>;
+    return <div className="p-6">{t('datarooms.noDataroomsFound')}</div>;
   }
 
   const hasContent = documents.length > 0 || folders.length > 0;
@@ -772,18 +774,18 @@ export function DataroomPage() {
                 size="icon"
                 className="h-10 w-10"
                 onClick={() => setIsAddFolderOpen(true)}
-                title="Add Folder"
+                title={t('documents.createFolder')}
               >
                 <FolderPlusIcon className="h-5 w-5" />
               </Button>
-              <Button variant="outline" onClick={() => setIsAddContentOpen(true)} title="Add existing documents from library" className="px-3">
+              <Button variant="outline" onClick={() => setIsAddContentOpen(true)} title={t('datarooms.addContent')} className="px-3">
                 <Plus className="mr-2 h-4 w-4 shrink-0" />
-                <span className="text-xs sm:text-base">Add Content</span>
+                <span className="text-xs sm:text-base">{t('datarooms.addContent')}</span>
               </Button>
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger asChild>
                   <Button className="flex items-center gap-1 sm:gap-x-2 px-3">
-                    <span className="text-xs sm:text-base">Upload</span>
+                    <span className="text-xs sm:text-base">{t('documents.upload')}</span>
                     <ChevronDown className="h-4 w-4 shrink-0" />
                   </Button>
                 </DropdownMenu.Trigger>
@@ -797,14 +799,14 @@ export function DataroomPage() {
                       className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
                     >
                       <DocumentPlusIcon className="h-5 w-5" aria-hidden="true" />
-                      <span>Files</span>
+                      <span>{t('documents.files')}</span>
                     </DropdownMenu.Item>
                     <DropdownMenu.Item
                       onSelect={handleFolderSelect}
                       className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
                     >
                       <FolderPlusIcon className="h-5 w-5" aria-hidden="true" />
-                      <span>Folders</span>
+                      <span>{t('documents.folder')}</span>
                     </DropdownMenu.Item>
                   </DropdownMenu.Content>
                 </DropdownMenu.Portal>
@@ -814,7 +816,7 @@ export function DataroomPage() {
           {activeTab === 'links' && (
             <Button onClick={handleCreateLink}>
               <ShareIcon className="mr-2 h-4 w-4" />
-              Create Link
+              {t('links.createLink')}
             </Button>
           )}
         </div>
@@ -832,10 +834,10 @@ export function DataroomPage() {
 
       <Tabs value={activeTab} onValueChange={(tab) => updateSearchParam('tab', tab)} className="mt-4">
         <TabsList>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="links">Links and Permissions</TabsTrigger>
-          <TabsTrigger value="qna">Q&amp;A</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="documents">{t('datarooms.tabDocuments')}</TabsTrigger>
+          <TabsTrigger value="links">{t('datarooms.tabLinks')}</TabsTrigger>
+          <TabsTrigger value="qna">{t('datarooms.tabQna')}</TabsTrigger>
+          <TabsTrigger value="settings">{t('datarooms.tabSettings')}</TabsTrigger>
         </TabsList>
         <TabsContent value="documents" className="mt-6">
           <div className="mb-4">
@@ -873,7 +875,7 @@ export function DataroomPage() {
                   onClick={() => setShowStarredOnly(prev => !prev)}
                 >
                   <Star className="mr-2 h-4 w-4" />
-                  Starred
+                  {t('documents.starred')}
                 </Button>
                 <Button
                   variant="ghost"
@@ -882,7 +884,7 @@ export function DataroomPage() {
                   onClick={() => setIsReorderDialogOpen(true)}
                   disabled={!hasContent}
                 >
-                  Reorder
+                  {t('datarooms.reorderItems')}
                 </Button>
               </div>
             )}
@@ -904,18 +906,18 @@ export function DataroomPage() {
               onRename={handleRenameItem}
               onDelete={handleRemoveItem}
               onToggleStar={handleToggleStar}
-              viewsTooltip="Views from opening this item inside this dataroom."
+              viewsTooltip={t('datarooms.viewsTooltip')}
               emptyState={
                 <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted bg-muted/20 p-12 text-center my-4">
                   <h3 className="text-xl font-semibold tracking-tight">
-                    {currentDataroomFolder ? 'This folder is empty' : 'This dataroom is empty'}
+                    {currentDataroomFolder ? t('datarooms.folderEmpty') : t('datarooms.dataroomEmpty')}
                   </h3>
                   <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
-                    Drag and drop files or folders here, or use the "Add Content" button to securely organize and share documents with granular access control.
+                    {t('datarooms.emptyStateNotice')}
                   </p>
                   <Button className="mt-4" variant="outline" onClick={() => setIsAddContentOpen(true)}>
                     <DocumentPlusIcon className="mr-2 h-4 w-4" />
-                    Add Content
+                    {t('datarooms.addContent')}
                   </Button>
                 </div>
               }
@@ -949,32 +951,32 @@ export function DataroomPage() {
           <section className="space-y-8">
             <div className="pb-6 border-b border-gray-200 dark:border-gray-800">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold">General</h3>
+                <h3 className="text-sm font-semibold">{t('datarooms.generalSettings')}</h3>
                 <Button size="sm" onClick={handleSaveGeneral} disabled={isSavingGeneral}>
-                  {isSavingGeneral ? 'Saving...' : 'Save'}
+                  {isSavingGeneral ? t('common.saving') : t('common.save')}
                 </Button>
               </div>
-              <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">Rename this dataroom.</p>
+              <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">{t('datarooms.renameDataroomNotice')}</p>
               <div className="max-w-md">
-                <Label htmlFor="dataroom-name">Dataroom Name</Label>
+                <Label htmlFor="dataroom-name">{t('datarooms.dataroomName')}</Label>
                 <Input
                   id="dataroom-name"
                   value={dataroomName}
                   onChange={(e) => setDataroomName(e.target.value)}
-                  placeholder="Enter dataroom name"
+                  placeholder={t('datarooms.namePlaceholder')}
                 />
               </div>
             </div>
 
             <div className="pb-6 border-b border-gray-200 dark:border-gray-800">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold">Banner Image</h3>
+                <h3 className="text-sm font-semibold">{t('datarooms.bannerImage')}</h3>
                 <Button size="sm" onClick={handleSaveBanner} disabled={isSavingBanner}>
-                  {isSavingBanner ? 'Saving...' : 'Save'}
+                  {isSavingBanner ? t('common.saving') : t('common.save')}
                 </Button>
               </div>
               <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">
-                Display a client-specific banner at the top of the dataroom page.
+                {t('datarooms.bannerDescription')}
               </p>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
@@ -997,14 +999,14 @@ export function DataroomPage() {
                       size="sm"
                       onClick={() => bannerFileInputRef.current?.click()}
                     >
-                      Choose Banner
+                      {t('datarooms.uploadBanner')}
                     </Button>
                     <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {brandingBannerFile ? brandingBannerFile.name : 'No file selected'}
+                      {brandingBannerFile ? brandingBannerFile.name : t('datarooms.noFileSelected')}
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    Recommended: wide image (for example 1600x400), JPG/PNG.
+                    {t('datarooms.bannerRecommendation')}
                   </p>
                   {(dataroom.branding_banner || brandingBannerFile) && (
                     <div className="mt-3 flex gap-2">
@@ -1017,17 +1019,17 @@ export function DataroomPage() {
                           setRemoveBrandingBanner(true);
                         }}
                       >
-                        Remove Banner
+                        {t('datarooms.removeBanner')}
                       </Button>
                     </div>
                   )}
                 </div>
                 <div>
-                  <Label>Preview</Label>
+                  <Label>{t('datarooms.preview')}</Label>
                   <div className="mt-2 overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">
                     {removeBrandingBanner ? (
                       <div className="flex h-28 items-center justify-center text-xs text-gray-500">
-                        Banner will be removed after saving.
+                        {t('datarooms.bannerWillBeRemoved')}
                       </div>
                     ) : (brandingBannerFile || dataroom.branding_banner) ? (
                       <img
@@ -1037,7 +1039,7 @@ export function DataroomPage() {
                       />
                     ) : (
                       <div className="flex h-28 items-center justify-center text-xs text-gray-500">
-                        No banner uploaded.
+                        {t('datarooms.noBannerUploaded')}
                       </div>
                     )}
                   </div>
@@ -1047,16 +1049,16 @@ export function DataroomPage() {
 
             <div className="pb-6 border-b border-gray-200 dark:border-gray-800">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold">Theme Colors</h3>
+                <h3 className="text-sm font-semibold">{t('datarooms.brandCustomization')}</h3>
                 <Button size="sm" onClick={handleSaveColors} disabled={isSavingColors}>
-                  {isSavingColors ? 'Saving...' : 'Save'}
+                  {isSavingColors ? t('common.saving') : t('common.save')}
                 </Button>
               </div>
               <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">
-                Apply brand colors to dataroom headers, lists, and accents.
+                {t('datarooms.brandColorsNotice')}
               </p>
               <div className="mb-4">
-                <Label>Preset Palettes</Label>
+                <Label>{t('datarooms.presetPalettes')}</Label>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {BRAND_PRESETS.map((preset) => (
                     <button
@@ -1077,7 +1079,7 @@ export function DataroomPage() {
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
-                  <Label htmlFor="brand-primary">Primary Color</Label>
+                  <Label htmlFor="brand-primary">{t('datarooms.primaryColor')}</Label>
                   <Input
                     id="brand-primary-picker"
                     type="color"
@@ -1093,7 +1095,7 @@ export function DataroomPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="brand-secondary">Secondary Color</Label>
+                  <Label htmlFor="brand-secondary">{t('datarooms.secondaryColor')}</Label>
                   <Input
                     id="brand-secondary-picker"
                     type="color"
@@ -1109,7 +1111,7 @@ export function DataroomPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="brand-accent">Accent Color</Label>
+                  <Label htmlFor="brand-accent">{t('datarooms.accentColor')}</Label>
                   <Input
                     id="brand-accent-picker"
                     type="color"
@@ -1127,17 +1129,17 @@ export function DataroomPage() {
               </div>
 
               <div className="mt-6">
-                <Label>Live Preview</Label>
+                <Label>{t('datarooms.livePreview')}</Label>
                 <div className="mt-2 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
                   <div
                     className="px-4 py-3"
                     style={{ backgroundColor: brandingForm.brandPrimaryColor || '#111827', color: '#ffffff' }}
                   >
-                    Preview Header
+                    {t('datarooms.previewHeader')}
                   </div>
                   <div className="p-4">
                     <p style={{ color: brandingForm.brandSecondaryColor || '#4b5563' }}>
-                      Secondary text preview for dataroom descriptions.
+                      {t('datarooms.secondaryTextPreview')}
                     </p>
                     <Button
                       type="button"
@@ -1148,7 +1150,7 @@ export function DataroomPage() {
                         color: '#ffffff',
                       }}
                     >
-                      Accent Button
+                      {t('datarooms.accentButton')}
                     </Button>
                   </div>
                 </div>
@@ -1157,15 +1159,15 @@ export function DataroomPage() {
 
             <div>
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold">Display</h3>
+                <h3 className="text-sm font-semibold">{t('datarooms.displaySettings')}</h3>
               </div>
               <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">
-                Configure dataroom list display behavior.
+                {t('datarooms.displayNotice')}
               </p>
               <div className="flex items-center justify-between rounded border border-gray-200 p-3 dark:border-gray-700">
                 <div>
-                  <p className="text-sm font-medium">Display File Index</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Show numeric index next to files/folders.</p>
+                  <p className="text-sm font-medium">{t('datarooms.showFileIndex')}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('datarooms.showFileIndexHelp')}</p>
                 </div>
                 <Switch checked={showFileIndex} onCheckedChange={handleToggleShowFileIndex} />
               </div>
@@ -1173,13 +1175,13 @@ export function DataroomPage() {
 
             <div className="rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-900/60 dark:bg-red-950/20">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-red-700 dark:text-red-300">Danger Zone</h3>
+                <h3 className="text-sm font-semibold text-red-700 dark:text-red-300">{t('datarooms.dangerZone')}</h3>
                 <Button variant="destructive" size="sm" onClick={handleOpenDeleteDataroomDialog}>
-                  Delete Dataroom
+                  {t('datarooms.deleteDataroomTitle')}
                 </Button>
               </div>
               <p className="text-sm text-red-700/90 dark:text-red-200/90">
-                Permanently delete this dataroom and remove its links and contained structure. This action cannot be undone.
+                {t('datarooms.deleteDataroomNotice')}
               </p>
             </div>
           </section>
@@ -1269,15 +1271,13 @@ export function DataroomPage() {
       >
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Delete Dataroom</DialogTitle>
+            <DialogTitle>{t('datarooms.deleteDataroomTitle')}</DialogTitle>
             <DialogDescription>
-              This action cannot be undone. To confirm, type the dataroom name exactly:
-              {' '}
-              <span className="font-semibold text-foreground">{dataroom.name}</span>
+              {t('datarooms.confirmDeletePrompt', { name: dataroom.name })}
             </DialogDescription>
           </DialogHeader>
           <div className="py-2">
-            <Label htmlFor="confirm-delete-dataroom-name">Dataroom name</Label>
+            <Label htmlFor="confirm-delete-dataroom-name">{t('datarooms.nameLabel')}</Label>
             <Input
               id="confirm-delete-dataroom-name"
               value={deleteConfirmationName}
@@ -1296,7 +1296,7 @@ export function DataroomPage() {
               }}
               disabled={isDeletingDataroom}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               type="button"
@@ -1304,7 +1304,7 @@ export function DataroomPage() {
               onClick={handleDeleteDataroom}
               disabled={isDeletingDataroom || deleteConfirmationName !== dataroom.name}
             >
-              {isDeletingDataroom ? 'Deleting...' : 'Delete Dataroom'}
+              {isDeletingDataroom ? t('common.deleting') : t('datarooms.deleteDataroomTitle')}
             </Button>
           </DialogFooter>
         </DialogContent>

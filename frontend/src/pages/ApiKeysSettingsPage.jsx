@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Key, Plus, Trash2, Copy, Check, ShieldAlert } from "lucide-react";
 import { SettingsTabs } from "../components/settings/SettingsTabs";
@@ -9,6 +10,7 @@ import { Select } from "../components/ui/Select";
 import { getApiKeys, createApiKey, deleteApiKey } from "../services/api";
 
 export default function ApiKeysSettingsPage() {
+  const { t } = useTranslation();
   const [keys, setKeys] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -29,7 +31,7 @@ export default function ApiKeysSettingsPage() {
       setKeys(results);
     } catch (error) {
       console.error("Failed to fetch API keys:", error);
-      toast.error("Failed to load API keys.");
+      toast.error(t('settings.settingsUpdateFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -42,7 +44,7 @@ export default function ApiKeysSettingsPage() {
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast.error("Please enter a name for the API key.");
+      toast.error(t('settings.settingsUpdateFailed'));
       return;
     }
     setIsCreating(true);
@@ -53,14 +55,14 @@ export default function ApiKeysSettingsPage() {
         expires_in_days: expiresInDays ? parseInt(expiresInDays, 10) : null,
       };
       const response = await createApiKey(payload);
-      toast.success("API key created successfully!");
+      toast.success(t('settings.settingsUpdated'));
       setCreatedRawKey(response.data.raw_key);
       setName("");
       setExpiresInDays("");
       fetchKeys();
     } catch (error) {
       console.error("Failed to create API key:", error);
-      toast.error("Failed to create API key.");
+      toast.error(t('settings.settingsUpdateFailed'));
     } finally {
       setIsCreating(false);
     }
@@ -71,12 +73,12 @@ export default function ApiKeysSettingsPage() {
     setIsDeleting(true);
     try {
       await deleteApiKey(deleteTarget.id);
-      toast.success("API key revoked.");
+      toast.success(t('settings.settingsUpdated'));
       setDeleteTarget(null);
       fetchKeys();
     } catch (error) {
       console.error("Failed to revoke API key:", error);
-      toast.error("Failed to revoke API key.");
+      toast.error(t('settings.settingsUpdateFailed'));
     } finally {
       setIsDeleting(false);
     }
@@ -85,25 +87,25 @@ export default function ApiKeysSettingsPage() {
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     setCopiedKey(true);
-    toast.success("Copied to clipboard!");
+    toast.success(t('common.success'));
     setTimeout(() => setCopiedKey(false), 2000);
   };
 
-  const getTierBadge = (t) => {
-    switch (t) {
+  const getTierBadge = (tierType) => {
+    switch (tierType) {
       case "full_access":
-        return <span className="px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">Full Access</span>;
+        return <span className="px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">{t('settings.fullAccess')}</span>;
       case "read_write":
-        return <span className="px-2 py-0.5 text-xs font-semibold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">Read & Write</span>;
+        return <span className="px-2 py-0.5 text-xs font-semibold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">{t('settings.readWrite')}</span>;
       default:
-        return <span className="px-2 py-0.5 text-xs font-semibold rounded bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">Read Only</span>;
+        return <span className="px-2 py-0.5 text-xs font-semibold rounded bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">{t('settings.readOnly')}</span>;
     }
   };
 
   return (
     <div className="p-4 sm:mx-4 sm:pt-8">
       <div className="mx-auto max-w-3xl">
-        <h1 className="text-2xl font-bold mb-6">User Settings</h1>
+        <h1 className="text-2xl font-bold mb-6">{t('settings.title')}</h1>
         <SettingsTabs />
 
         {/* Newly Created Key Alert Modal/Banner */}
@@ -111,7 +113,7 @@ export default function ApiKeysSettingsPage() {
           <div className="mb-6 p-4 border border-green-300 bg-green-50 dark:bg-green-900/20 dark:border-green-800 rounded-lg space-y-3">
             <div className="flex items-center gap-2 text-green-800 dark:text-green-300 font-semibold">
               <Key className="h-5 w-5" />
-              <span>API Key Created — Save It Now!</span>
+              <span>{t('settings.apiKeyCreatedAlert')}</span>
             </div>
             <p className="text-sm text-green-700 dark:text-green-400">
               Please copy your API key now. For security reasons, you will <strong>not</strong> be able to view the full raw key again.
@@ -135,11 +137,11 @@ export default function ApiKeysSettingsPage() {
         {/* Create API Key Form */}
         <div className="mb-8 p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 space-y-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Plus className="h-5 w-5 text-primary" /> Create New API Key
+            <Plus className="h-5 w-5 text-primary" /> {t('settings.createApiKeyTitle')}
           </h2>
           <form onSubmit={handleCreate} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
             <div className="space-y-1">
-              <Label htmlFor="key-name">Key Name</Label>
+              <Label htmlFor="key-name">{t('settings.keyName')}</Label>
               <Input
                 id="key-name"
                 placeholder="e.g. MCP Server / Claude Desktop"
@@ -148,15 +150,15 @@ export default function ApiKeysSettingsPage() {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="key-tier">Permissions Tier</Label>
+              <Label htmlFor="key-tier">{t('settings.permissionsTier')}</Label>
               <Select id="key-tier" value={tier} onChange={(e) => setTier(e.target.value)}>
-                <option value="read_only">Read Only</option>
-                <option value="read_write">Read & Write</option>
-                <option value="full_access">Full Access (Includes Deletes)</option>
+                <option value="read_only">{t('settings.readOnly')}</option>
+                <option value="read_write">{t('settings.readWrite')}</option>
+                <option value="full_access">{t('settings.fullAccess')}</option>
               </Select>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="key-expires">Expires (Days, optional)</Label>
+              <Label htmlFor="key-expires">{t('settings.expiresInDays')}</Label>
               <Input
                 id="key-expires"
                 type="number"
@@ -167,7 +169,7 @@ export default function ApiKeysSettingsPage() {
             </div>
             <div className="sm:col-span-3 flex justify-end">
               <Button type="submit" disabled={isCreating}>
-                {isCreating ? "Creating..." : "Generate API Key"}
+                {isCreating ? t('common.saving') : t('settings.generateApiKey')}
               </Button>
             </div>
           </form>
@@ -176,12 +178,12 @@ export default function ApiKeysSettingsPage() {
         {/* Active Keys List */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-semibold">Active API Keys</h2>
+            <h2 className="text-lg font-semibold">{t('settings.activeApiKeysTitle')}</h2>
             <p className="text-sm text-gray-500">API keys authenticate external tools (like MCP servers) with your Coneshare account.</p>
           </div>
 
           {isLoading ? (
-            <div className="p-6 text-center text-gray-500">Loading API keys...</div>
+            <div className="p-6 text-center text-gray-500">{t('common.loading')}</div>
           ) : keys.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
               No API keys generated yet. Create one above to connect AI tools.
@@ -211,7 +213,7 @@ export default function ApiKeysSettingsPage() {
                       className="text-red-600 hover:text-red-700 dark:text-red-400"
                       onClick={() => setDeleteTarget(k)}
                     >
-                      <Trash2 className="h-4 w-4 mr-1" /> Revoke
+                      <Trash2 className="h-4 w-4 mr-1" /> {t('settings.revoke')}
                     </Button>
                   </div>
                 </div>
@@ -225,17 +227,17 @@ export default function ApiKeysSettingsPage() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full space-y-4 shadow-xl border border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-2 font-semibold text-lg text-red-600 dark:text-red-400">
-                <ShieldAlert className="h-5 w-5" /> Revoke API Key
+                <ShieldAlert className="h-5 w-5" /> {t('settings.revokeKeyTitle')}
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Are you sure you want to revoke the API key <strong>"{deleteTarget.name}"</strong>? Any application or MCP server using this key will immediately lose access.
+                {t('settings.revokeKeyDescription', { name: deleteTarget.name })}
               </p>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)}>
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button variant="danger" disabled={isDeleting} onClick={confirmDelete}>
-                  {isDeleting ? "Revoking..." : "Revoke Key"}
+                  {isDeleting ? t('settings.revoking') : t('settings.revoke')}
                 </Button>
               </div>
             </div>

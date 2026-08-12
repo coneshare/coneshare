@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -26,6 +27,7 @@ import { FileRequestSheet } from '../components/filerequests/FileRequestSheet';
 import { TooltipProvider } from '../components/ui/Tooltip';
 
 function DocumentsPage() {
+  const { t } = useTranslation();
   const { folderId } = useParams();
   const { setBreadcrumbData } = useBreadcrumb();
   const { addUploads, updateUpload } = useUpload();
@@ -426,10 +428,10 @@ function DocumentsPage() {
       <ConfirmationDialog
         isOpen={isBulkDeleteConfirmOpen}
         onOpenChange={setIsBulkDeleteConfirmOpen}
-        title="Move Selected Items to Trash?"
-        description="Are you sure you want to move the selected item(s) to trash? You can restore them anytime from Trash."
+        title={t('documents.deleteBulkConfirmTitle')}
+        description={t('documents.deleteBulkConfirmMessage')}
         onConfirm={handleBulkDelete}
-        confirmText="Move to Trash"
+        confirmText={t('common.delete')}
       />
       <MoveItemsDialog
         isOpen={isMoveItemsOpen}
@@ -459,7 +461,7 @@ function DocumentsPage() {
             size="icon"
             className="h-10 w-10"
             onClick={handleAddFolder}
-            title="Add Folder"
+            title={t('documents.createFolder')}
           >
             <FolderPlusIcon className="h-5 w-5" />
           </Button>
@@ -481,9 +483,9 @@ function DocumentsPage() {
             <DropdownMenu.Trigger asChild>
               <Button
                 className="group flex items-center justify-center gap-x-1 whitespace-nowrap px-3 text-left sm:gap-x-2"
-                title="Upload"
+                title={t('documents.upload')}
               >
-                <span className="text-xs sm:text-base">Upload</span>
+                <span className="text-xs sm:text-base">{t('documents.upload')}</span>
                 <ChevronDownIcon
                   className="h-4 w-4 shrink-0"
                   aria-hidden="true"
@@ -499,14 +501,14 @@ function DocumentsPage() {
                 className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
               >
                 <DocumentPlusIcon className="h-5 w-5" aria-hidden="true" />
-                <span>Files</span>
+                <span>{t('documents.files')}</span>
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 onSelect={handleFolderSelect}
                 className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
               >
                 <FolderPlusIcon className="h-5 w-5" aria-hidden="true" />
-                <span>Folder</span>
+                <span>{t('documents.folder')}</span>
               </DropdownMenu.Item>
               {cloudProviders.length > 0 && <DropdownMenu.Separator className="my-1 h-px bg-gray-200 dark:bg-gray-700" />}
               {cloudProviders.map((provider) => (
@@ -548,7 +550,7 @@ function DocumentsPage() {
               onClick={() => setShowStarredOnly(prev => !prev)}
             >
               <Star className="mr-2 h-4 w-4" />
-              Starred
+              {t('documents.starred')}
             </Button>
           </div>
         )}
@@ -575,7 +577,7 @@ function DocumentsPage() {
         onCopy={handleCopy}
         onShare={handleShare}
         onRequestFiles={handleRequestFiles}
-        viewsTooltip="Direct views from this document's own share links."
+        viewsTooltip={t('documents.viewsTooltip')}
       />
       </div>
     </TooltipProvider>

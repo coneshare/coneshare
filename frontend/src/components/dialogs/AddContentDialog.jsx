@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -15,6 +16,7 @@ import { Checkbox } from '../ui/Checkbox';
 import { FileTypeIcon } from '../documents/FileTypeIcon';
 
 function Breadcrumbs({ path, onNavigate }) {
+  const { t } = useTranslation();
   return (
     <nav className="flex items-center text-sm" aria-label="Breadcrumb">
       <ol className="flex items-center space-x-2">
@@ -23,7 +25,7 @@ function Breadcrumbs({ path, onNavigate }) {
             onClick={() => onNavigate(null)}
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
           >
-            All Files
+            {t('datarooms.allFiles')}
           </button>
         </li>
         {path.map((folder, index) => (
@@ -50,6 +52,7 @@ function Breadcrumbs({ path, onNavigate }) {
 }
 
 export function AddContentDialog({ isOpen, onOpenChange, onConfirm }) {
+  const { t } = useTranslation();
   const [currentFolder, setCurrentFolder] = useState(null);
   const [folders, setFolders] = useState([]);
   const [documents, setDocuments] = useState([]);
@@ -114,14 +117,15 @@ export function AddContentDialog({ isOpen, onOpenChange, onConfirm }) {
   };
 
   const breadcrumbPath = currentFolder ? [...currentFolder.ancestors, currentFolder] : [];
+  const selectedCount = selection.documents.length + selection.folders.length;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl h-[70vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Add Content to Dataroom</DialogTitle>
+          <DialogTitle>{t('datarooms.addContentTitle')}</DialogTitle>
           <DialogDescription>
-            Select documents and folders from your library to add to this dataroom.
+            {t('datarooms.addContentDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -131,7 +135,7 @@ export function AddContentDialog({ isOpen, onOpenChange, onConfirm }) {
 
         <div className="flex-grow overflow-y-auto pr-2">
           {loading ? (
-            <p className="text-center py-8">Loading content...</p>
+            <p className="text-center py-8">{t('qna.loading')}</p>
           ) : (
             <ul className="space-y-1">
               {folders.map((folder) => (
@@ -166,7 +170,7 @@ export function AddContentDialog({ isOpen, onOpenChange, onConfirm }) {
                 </li>
               ))}
               {folders.length === 0 && documents.length === 0 && (
-                <p className="text-center text-gray-500 py-8">This folder is empty.</p>
+                <p className="text-center text-gray-500 py-8">{t('datarooms.folderEmpty')}</p>
               )}
             </ul>
           )}
@@ -174,10 +178,10 @@ export function AddContentDialog({ isOpen, onOpenChange, onConfirm }) {
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('common.cancel')}
           </Button>
-          <Button onClick={handleConfirm} disabled={isConfirming || (selection.documents.length === 0 && selection.folders.length === 0)}>
-            {isConfirming ? 'Adding...' : `Add ${selection.documents.length + selection.folders.length} items`}
+          <Button onClick={handleConfirm} disabled={isConfirming || selectedCount === 0}>
+            {isConfirming ? t('common.saving') : t('datarooms.addSelectedItems', { count: selectedCount })}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { AdminUsersPage } from '../../pages/AdminUsersPage';
 import * as api from '../../services/api';
 import { toast } from 'sonner';
+import '../../i18n';
 
 vi.mock('../../services/api', () => ({
   getAdminUsers: vi.fn(),
@@ -110,7 +111,7 @@ describe('AdminUsersPage', () => {
     await screen.findByText('Alice Smith');
 
     // Click edit on the first user
-    const editButtons = screen.getAllByTitle('Edit User');
+    const editButtons = screen.getAllByTitle(/edit/i);
     fireEvent.click(editButtons[0]);
 
     // Name input should show the current name
@@ -123,7 +124,7 @@ describe('AdminUsersPage', () => {
     fireEvent.change(quotaInput, { target: { value: '250' } });
 
     // Click Save
-    const saveButton = screen.getByTitle('Save');
+    const saveButton = screen.getByTitle(/save/i);
     fireEvent.click(saveButton);
 
     await waitFor(() => {

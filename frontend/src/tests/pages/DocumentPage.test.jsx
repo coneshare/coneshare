@@ -7,6 +7,7 @@ import * as api from '../../services/api';
 vi.mock('../../services/api');
 import { BreadcrumbProvider } from '../../components/layout/BreadcrumbProvider';
 import { DocumentPage } from '../../pages/DocumentPage';
+import '../../i18n';
 
 // Mock child components to isolate the page
 vi.mock('../../components/documents/DocumentHeader', () => ({
@@ -125,7 +126,7 @@ describe('DocumentPage', () => {
 
     it('clicking upload button triggers file input', async () => {
       const { container } = renderComponent();
-      await waitFor(() => expect(api.getDocumentDetails).toHaveBeenCalled());
+      await screen.findByText('Document Header');
 
       const fileInput = container.querySelector('input[type="file"]');
       const clickSpy = vi.spyOn(fileInput, 'click').mockImplementation(() => {});
@@ -139,7 +140,7 @@ describe('DocumentPage', () => {
 
     it('uploads a new version with a matching file type', async () => {
       const { container } = renderComponent();
-      await waitFor(() => expect(api.getDocumentDetails).toHaveBeenCalled());
+      await screen.findByText('Document Header');
 
       const fileInput = container.querySelector('input[type="file"]');
       const mockPdfFile = new File(['new content'], 'new-version.pdf', { type: 'application/pdf' });
@@ -239,7 +240,7 @@ describe('DocumentPage', () => {
       });
 
       // The action button is a dropdown menu trigger with an sr-only label "Open actions menu".
-      const actionButton = screen.getByRole('button', { name: /open actions menu/i });
+      const actionButton = screen.getByRole('button', { name: /actions/i });
       expect(actionButton).toBeInTheDocument();
 
       await userEvent.click(actionButton);

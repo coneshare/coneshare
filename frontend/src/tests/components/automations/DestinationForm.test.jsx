@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { DestinationForm } from "../../../components/automations/DestinationForm";
+import '../../../i18n';
 
 describe("DestinationForm", () => {
   it("renders default inputs for name, type select, method select, and endpoint url", () => {

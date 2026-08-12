@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Upload, X, Globe, Type, Image as ImageIcon, FileText, Shield } from 'lucide-react';
 import { AdminNav } from '../components/admin/AdminNav';
@@ -10,6 +11,7 @@ import { useBranding } from '../contexts/BrandingProvider';
 import * as api from '../services/api';
 
 export function AdminBrandingPage() {
+  const { t } = useTranslation();
   const { refetchBranding } = useBranding();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -50,7 +52,7 @@ export function AdminBrandingPage() {
       setInitialLogoUrl(org.brand_logo_url || '');
     } catch (error) {
       console.error('Failed to load branding settings:', error);
-      toast.error('Failed to load branding settings.');
+      toast.error(t('admin.brandingLoadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -102,12 +104,12 @@ export function AdminBrandingPage() {
   const validateFile = (file) => {
     const validTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
     if (!validTypes.includes(file.type)) {
-      toast.error('Invalid file type. Please upload a PNG, JPG, or SVG.');
+      toast.error(t('admin.invalidFileType'));
       return false;
     }
     const maxSize = 2 * 1024 * 1024; // 2MB
     if (file.size > maxSize) {
-      toast.error('File size exceeds 2MB limit.');
+      toast.error(t('admin.fileTooLarge'));
       return false;
     }
     return true;
@@ -155,7 +157,7 @@ export function AdminBrandingPage() {
 
     try {
       await api.updateAdminBranding(formData);
-      toast.success('Branding settings saved successfully!');
+      toast.success(t('admin.brandingSaved'));
       
       // Update global context
       await refetchBranding();
@@ -166,7 +168,7 @@ export function AdminBrandingPage() {
     } catch (error) {
       console.error('Failed to save branding:', error);
       
-      let errMsg = 'Failed to save branding settings.';
+      let errMsg = t('settings.settingsUpdateFailed');
       if (error.response?.data) {
         const data = error.response.data;
         if (typeof data === 'object') {
@@ -199,9 +201,9 @@ export function AdminBrandingPage() {
     <div className="container mx-auto py-6">
       <AdminNav />
       <div className="mb-6">
-        <h2 className="text-2xl font-bold">White-Labeling & Branding</h2>
+        <h2 className="text-2xl font-bold">{t('admin.brandingTitle')}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Customize the site name, website links, and logo.
+          {t('admin.brandingSubtitle')}
         </p>
       </div>
 
@@ -222,7 +224,7 @@ export function AdminBrandingPage() {
               <div>
                 <Label htmlFor="brandName" className="flex items-center gap-2">
                   <Type className="h-4 w-4 text-muted-foreground" />
-                  Brand Name
+                  {t('admin.brandName')}
                 </Label>
                 <Input
                   id="brandName"
@@ -233,7 +235,7 @@ export function AdminBrandingPage() {
                   className="mt-1.5"
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Overrides references to &quot;Coneshare&quot; in headers and login forms.
+                  {t('admin.brandNameHelp')}
                 </p>
               </div>
 
@@ -241,7 +243,7 @@ export function AdminBrandingPage() {
               <div>
                 <Label htmlFor="brandWebsiteUrl" className="flex items-center gap-2">
                   <Globe className="h-4 w-4 text-muted-foreground" />
-                  Brand Website URL
+                  {t('admin.brandWebsiteUrl')}
                 </Label>
                 <Input
                   id="brandWebsiteUrl"
@@ -253,7 +255,7 @@ export function AdminBrandingPage() {
                   className="mt-1.5"
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Admins and public logo clicks will redirect to this URL.
+                  {t('admin.brandWebsiteUrlHelp')}
                 </p>
               </div>
 
@@ -261,7 +263,7 @@ export function AdminBrandingPage() {
               <div>
                 <Label htmlFor="termsUrl" className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground" />
-                  Terms of Service URL
+                  {t('admin.termsUrl')}
                 </Label>
                 <Input
                   id="termsUrl"
@@ -273,7 +275,7 @@ export function AdminBrandingPage() {
                   className="mt-1.5"
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Overrides default link for Terms of Service.
+                  {t('admin.termsUrlHelp')}
                 </p>
               </div>
 
@@ -281,7 +283,7 @@ export function AdminBrandingPage() {
               <div>
                 <Label htmlFor="privacyPolicyUrl" className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-muted-foreground" />
-                  Privacy Policy URL
+                  {t('admin.privacyPolicyUrl')}
                 </Label>
                 <Input
                   id="privacyPolicyUrl"
@@ -293,7 +295,7 @@ export function AdminBrandingPage() {
                   className="mt-1.5"
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Overrides default link for Privacy Policy.
+                  {t('admin.privacyPolicyUrlHelp')}
                 </p>
               </div>
 
@@ -301,7 +303,7 @@ export function AdminBrandingPage() {
               <div>
                 <Label className="flex items-center gap-2">
                   <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                  Brand Logo
+                  {t('admin.brandLogo')}
                 </Label>
                 <div
                   onDragOver={handleDragOver}
@@ -323,7 +325,7 @@ export function AdminBrandingPage() {
                         {logoFile.name}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {(logoFile.size / 1024).toFixed(1)} KB &bull; Staged for upload
+                        {(logoFile.size / 1024).toFixed(1)} KB &bull; {t('admin.stagedForUpload')}
                       </p>
                       <button
                         type="button"
@@ -333,17 +335,17 @@ export function AdminBrandingPage() {
                         }}
                         className="mt-3 text-xs text-red-600 hover:text-red-500 font-medium underline"
                       >
-                        Remove
+                        {t('common.remove')}
                       </button>
                     </div>
                   ) : (
                     <>
                       <Upload className="h-8 w-8 text-muted-foreground/80 mb-2" />
                       <p className="text-sm text-muted-foreground">
-                        <span className="font-semibold text-primary">Click to upload</span> or drag and drop
+                        <span className="font-semibold text-primary">{t('admin.clickToUpload')}</span> {t('admin.orDragAndDrop')}
                       </p>
                       <p className="text-xs text-muted-foreground/80 mt-1">
-                        PNG, JPG, or SVG (max 2MB)
+                        {t('admin.uploadLimits')}
                       </p>
                     </>
                   )}
@@ -366,10 +368,10 @@ export function AdminBrandingPage() {
                 onClick={handleReset}
                 disabled={!isDirty || isSaving}
               >
-                Reset
+                {t('admin.reset')}
               </Button>
               <Button type="submit" disabled={!isDirty || isSaving}>
-                {isSaving ? 'Saving...' : 'Save Changes'}
+                {isSaving ? t('common.saving') : t('common.save')}
               </Button>
             </div>
           </form>
@@ -377,13 +379,13 @@ export function AdminBrandingPage() {
           {/* Preview Panel */}
           <div className="space-y-6">
             <div className="rounded-lg border bg-card p-6 shadow-sm">
-              <h3 className="text-lg font-semibold mb-4">Preview</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('admin.preview')}</h3>
               
               {/* Logo Preview */}
               <div className="space-y-4">
                 <div>
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Portal Logo Preview
+                    {t('admin.portalLogoPreview')}
                   </span>
                   <div className="mt-2 flex items-center justify-between rounded-lg border bg-muted/30 p-4">
                     {logoPreviewUrl ? (
@@ -418,7 +420,7 @@ export function AdminBrandingPage() {
                 {/* Login Form Branding Mock */}
                 <div>
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Sign In Preview
+                    {t('admin.signInPreview')}
                   </span>
                   <div className="mt-2 rounded-lg border bg-muted/10 p-6 text-center">
                     <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-muted/40">
@@ -433,10 +435,10 @@ export function AdminBrandingPage() {
                       )}
                     </div>
                     <h4 className="mt-3 text-sm font-semibold">
-                      Sign In
+                      {t('auth.signIn')}
                     </h4>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Welcome back to {brandName || 'Coneshare'}.
+                      {t('auth.welcomeBack', { brandName: brandName || 'Coneshare' })}
                     </p>
                   </div>
                 </div>
@@ -448,3 +450,5 @@ export function AdminBrandingPage() {
     </div>
   );
 }
+
+export default AdminBrandingPage;

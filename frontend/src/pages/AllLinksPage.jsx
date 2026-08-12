@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft } from 'lucide-react';
 import { getAllActiveLinks } from '../services/api';
 import { LinksTable } from '../components/documents/LinksTable';
@@ -8,6 +9,7 @@ import { Pagination } from '../components/ui/Pagination';
 import { Button } from '../components/ui/Button';
 
 export function AllLinksPage() {
+  const { t } = useTranslation();
   const [linksData, setLinksData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,14 +39,14 @@ export function AllLinksPage() {
         <Button asChild variant="outline">
           <Link to="/" className="flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
-            <span>Back to Dashboard</span>
+            <span>{t('common.backToDashboard')}</span>
           </Link>
         </Button>
       </div>
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold">All Active Links</h1>
+        <h1 className="text-2xl font-bold">{t('analytics.allActiveLinksTitle')}</h1>
         <p className="text-muted-foreground">
-          Showing all {linksData?.count || 0} active links, sorted by the most recently viewed.
+          {t('analytics.allActiveLinksSubtitle', { count: linksData?.count || 0 })}
         </p>
       </div>
       <div className="mt-8">

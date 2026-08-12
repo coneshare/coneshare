@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { FileRequestSheet } from '../../../components/filerequests/FileRequestSheet';
+import '../../../i18n';
 import {
   createFileRequest,
   updateFileRequest,

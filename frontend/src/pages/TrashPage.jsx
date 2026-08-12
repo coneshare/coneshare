@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast, Toaster } from 'sonner';
 import { Trash2, RefreshCw, X } from 'lucide-react';
 import { Button } from '../components/ui/Button';
@@ -10,6 +11,7 @@ import { TooltipProvider } from '../components/ui/Tooltip';
 import { useUser } from '../contexts/UserProvider';
 
 export default function TrashPage() {
+  const { t } = useTranslation();
   const { refreshUser } = useUser();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -181,9 +183,9 @@ export default function TrashPage() {
         {/* Page Top Header */}
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold text-foreground">Trash</h1>
+            <h1 className="text-lg font-semibold text-foreground">{t('trash.title')}</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Items in Trash are retained for 30 days before automatic purge.
+              {t('trash.subtitle')}
             </p>
           </div>
           <Button
@@ -191,13 +193,13 @@ export default function TrashPage() {
             disabled={items.length === 0 || loading}
             onClick={() => setIsConfirmEmptyOpen(true)}
           >
-            Empty Trash
+            {t('trash.emptyTrash')}
           </Button>
         </div>
 
         {/* Table Content */}
         {loading ? (
-          <div className="p-8 text-center text-muted-foreground">Loading...</div>
+          <div className="p-8 text-center text-muted-foreground">{t('common.loading')}</div>
         ) : (
           <>
             <TrashList
@@ -211,7 +213,7 @@ export default function TrashPage() {
             />
             {totalPages > 1 && (
               <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-                <span>Page {page} of {totalPages}</span>
+                <span>{t('viewSessions.pageNumber', { number: `${page} / ${totalPages}` })}</span>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
@@ -219,7 +221,7 @@ export default function TrashPage() {
                     disabled={page <= 1 || loading}
                     onClick={() => handlePageChange(page - 1)}
                   >
-                    Previous
+                    {t('common.previous')}
                   </Button>
                   <Button
                     variant="outline"
@@ -227,7 +229,7 @@ export default function TrashPage() {
                     disabled={page >= totalPages || loading}
                     onClick={() => handlePageChange(page + 1)}
                   >
-                    Next
+                    {t('common.next')}
                   </Button>
                 </div>
               </div>
@@ -238,7 +240,7 @@ export default function TrashPage() {
         {/* Floating Action Bar for Multi-Selection */}
         {selectedCount > 0 && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 bg-gray-900 text-white px-6 py-3 rounded-full shadow-2xl border border-gray-800 animate-in fade-in slide-in-from-bottom-4 duration-200">
-            <span className="text-sm font-medium">{selectedCount} item{selectedCount > 1 ? 's' : ''} selected</span>
+            <span className="text-sm font-medium">{t('trash.itemsSelected', { count: selectedCount })}</span>
             <div className="h-4 w-px bg-gray-700" />
             <Button
               variant="outline"
@@ -247,7 +249,7 @@ export default function TrashPage() {
               className="gap-1.5 bg-gray-800 text-white border-gray-700 hover:bg-gray-700 hover:text-white"
             >
               <RefreshCw className="h-3.5 w-3.5" />
-              Restore Selected
+              {t('trash.restoreSelected')}
             </Button>
             <Button
               variant="destructive"
@@ -256,7 +258,7 @@ export default function TrashPage() {
               className="gap-1.5"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Delete Selected Permanently
+              {t('trash.deleteSelectedPermanently')}
             </Button>
             <button
               onClick={() => setSelectedKeys(new Set())}
@@ -281,36 +283,36 @@ export default function TrashPage() {
           isOpen={isConfirmDeleteOpen}
           onOpenChange={(open) => setIsConfirmDeleteOpen(open)}
           onConfirm={handlePermanentDelete}
-          title="Permanently Delete Item?"
-          description={`Are you sure you want to permanently delete "${itemToDelete?.name}"? This action cannot be undone.`}
-          confirmText="Delete Permanently"
+          title={t('trash.deleteSingleTitle')}
+          description={t('trash.deleteSingleDescription', { name: itemToDelete?.name || '' })}
+          confirmText={t('trash.deletePermanently')}
         />
 
         <ConfirmationDialog
           isOpen={isConfirmEmptyOpen}
           onOpenChange={(open) => setIsConfirmEmptyOpen(open)}
           onConfirm={handleEmptyTrash}
-          title="Empty Trash?"
-          description="Are you sure you want to permanently delete all items in the trash? This action cannot be undone."
-          confirmText="Empty Trash"
+          title={t('trash.emptyTrashTitle')}
+          description={t('trash.emptyTrashDescription')}
+          confirmText={t('trash.emptyTrash')}
         />
 
         <ConfirmationDialog
           isOpen={isBulkDeleteOpen}
           onOpenChange={(open) => setIsBulkDeleteOpen(open)}
           onConfirm={handleBulkDelete}
-          title="Permanently Delete Selected Items?"
-          description={`Are you sure you want to permanently delete ${selectedCount} selected item(s)? This action cannot be undone.`}
-          confirmText="Delete Permanently"
+          title={t('trash.deleteSelectedTitle')}
+          description={t('trash.deleteSelectedDescription', { count: selectedCount })}
+          confirmText={t('trash.deletePermanently')}
         />
 
         <ConfirmationDialog
           isOpen={isBulkRestoreOpen}
           onOpenChange={(open) => setIsBulkRestoreOpen(open)}
           onConfirm={handleBulkRestore}
-          title="Restore Selected Items?"
-          description={`Restore ${selectedCount} selected item(s) back to their original locations?`}
-          confirmText="Restore Selected"
+          title={t('trash.restoreSelectedTitle')}
+          description={t('trash.restoreSelectedDescription', { count: selectedCount })}
+          confirmText={t('trash.restoreSelected')}
         />
       </div>
     </TooltipProvider>

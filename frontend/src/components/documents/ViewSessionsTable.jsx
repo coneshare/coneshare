@@ -1,5 +1,6 @@
 import { Fragment, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, FolderIcon } from 'lucide-react';
 import { FileTypeIcon } from './FileTypeIcon';
 import { PageViewsChart } from './PageViewsChart';
@@ -20,8 +21,10 @@ import {
   TooltipTrigger,
 } from '../ui/Tooltip';
 import { parseUserAgent, isSafeUrl } from '../../lib/utils';
+import { formatDate } from '../../utils/formatters';
 
 function DataroomVisitRow({ visit }) {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
   const hasPageViews = visit.page_views && visit.page_views.length > 0;
   const hasLinkClicks = visit.link_clicks && visit.link_clicks.length > 0;
@@ -55,20 +58,16 @@ function DataroomVisitRow({ visit }) {
         )}
         <span className="truncate">
           {visit.dataroom_folder_name
-            ? `Viewed folder: ${visit.dataroom_folder_name}`
-            : `Viewed document: ${visit.dataroom_document_name}`}
+            ? t('viewSessions.viewedFolder', { name: visit.dataroom_folder_name })
+            : t('viewSessions.viewedDocument', { name: visit.dataroom_document_name })}
         </span>
         {visit.downloaded_at && (
           <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-800">
-            Downloaded
+            {t('viewSessions.downloaded')}
           </span>
         )}
         <span className="ml-auto flex-shrink-0 text-xs text-muted-foreground">
-          {new Date(visit.visited_at).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          })}
+          {formatDate(visit.visited_at, 'p')}
         </span>
       </div>
       {isExpanded && (hasPageViews || hasLinkClicks) && (
@@ -78,11 +77,11 @@ function DataroomVisitRow({ visit }) {
           )}
           {hasLinkClicks && (
             <div className="mt-2 text-xs">
-              <h5 className="font-semibold text-gray-600 mb-1">Clicked Links:</h5>
+              <h5 className="font-semibold text-gray-600 mb-1">{t('viewSessions.clickedLinks')}:</h5>
               <ul className="space-y-1">
                 {visit.link_clicks.map((click) => (
                   <li key={click.id} className="flex items-center gap-1">
-                    <span className="text-muted-foreground">Page {click.page_number}:</span>
+                    <span className="text-muted-foreground">{t('viewSessions.pageNumber', { number: click.page_number })}:</span>
                     {click.url && isSafeUrl(click.url) ? (
                       <a
                         href={click.url}
@@ -99,11 +98,7 @@ function DataroomVisitRow({ visit }) {
                       </span>
                     )}
                     <span className="text-[10px] text-muted-foreground ml-auto">
-                      {new Date(click.clicked_at).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                      })}
+                      {formatDate(click.clicked_at, 'p')}
                     </span>
                   </li>
                 ))}
@@ -126,6 +121,7 @@ function formatDuration(seconds) {
 }
 
 export function ViewSessionsTable({ views, totalCount, loading, currentPage, onPageChange, pageSize, isDashboardWidget, contextType = 'document' }) {
+  const { t } = useTranslation();
   const [expandedRowId, setExpandedRowId] = useState(null);
 
   const totalPages = pageSize > 0 ? Math.ceil(totalCount / pageSize) : 0;
@@ -133,7 +129,7 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
   if (loading) {
     return (
       <div>
-        {!isDashboardWidget && <h2 className="text-xl font-semibold">View Sessions</h2>}
+        {!isDashboardWidget && <h2 className="text-xl font-semibold">{t('analytics.viewSessions')}</h2>}
         <div className="mt-4 space-y-4">
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-full" />
@@ -146,12 +142,12 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
   if (!views || totalCount === 0) {
     return (
       <div>
-        {!isDashboardWidget && <h2 className="text-xl font-semibold">View Sessions</h2>}
+        {!isDashboardWidget && <h2 className="text-xl font-semibold">{t('analytics.viewSessions')}</h2>}
         <div className="mt-4 rounded-lg border px-4 py-8 text-center">
           <p className="text-muted-foreground">
             {contextType === 'dataroom'
-              ? 'This dataroom has not been viewed yet.'
-              : 'This document has not been viewed yet.'}
+              ? t('analytics.noViewsYetDataroom')
+              : t('analytics.noViewsYetDocument')}
           </p>
         </div>
       </div>
@@ -161,25 +157,25 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
   return (
     <TooltipProvider>
       <div>
-        {!isDashboardWidget && <h2 className="text-xl font-semibold">View Sessions</h2>}
+        {!isDashboardWidget && <h2 className="text-xl font-semibold">{t('analytics.viewSessions')}</h2>}
         <div className="mt-4 overflow-hidden rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8" />
-                <TableHead>Visitor</TableHead>
-                <TableHead>Link</TableHead>
-                {isDashboardWidget && <TableHead>Document</TableHead>}
-                <TableHead>Viewed At</TableHead>
-                <TableHead>Downloaded At</TableHead>
-                <TableHead className="text-right">Duration</TableHead>
-                <TableHead className="text-right">Completion</TableHead>
+                <TableHead>{t('analytics.visitor')}</TableHead>
+                <TableHead>{t('analytics.link')}</TableHead>
+                {isDashboardWidget && <TableHead>{t('analytics.document')}</TableHead>}
+                <TableHead>{t('analytics.viewedAt')}</TableHead>
+                <TableHead>{t('analytics.downloadedAt')}</TableHead>
+                <TableHead className="text-right">{t('analytics.duration')}</TableHead>
+                <TableHead className="text-right">{t('analytics.completion')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {views.map((view) => {
                 const { browser, os } = parseUserAgent(view.user_agent);
-                const deviceInfo = browser !== 'Unknown' ? `${browser} on ${os}` : 'Unknown device';
+                const deviceInfo = browser !== 'Unknown' ? `${browser} on ${os}` : t('analytics.unknownDevice');
                 const locationParts = [view.city, view.country].filter(Boolean);
                 const hasLocation = locationParts.length > 0;
                 const isExpanded = expandedRowId === view.id;
@@ -209,10 +205,10 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2 font-medium">
-                          <span>{view.viewer_email || 'Anonymous'}</span>
+                          <span>{view.viewer_email || t('viewSessions.anonymous')}</span>
                           {view.is_owner_view && (
                             <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">
-                              You
+                              {t('viewSessions.you')}
                             </span>
                           )}
                         </div>
@@ -223,7 +219,7 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                           ) : (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <span className="cursor-default"> - Unknown location</span>
+                                <span className="cursor-default"> - {t('viewSessions.unknownLocation')}</span>
                               </TooltipTrigger>
                               {view.ip_address && (
                                 <TooltipContent>
@@ -234,7 +230,7 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{view.share_link_name || 'Untitled Link'}</TableCell>
+                      <TableCell>{view.share_link_name || t('links.untitledLink')}</TableCell>
                       {isDashboardWidget && (
                         <TableCell>
                           {view.document_id ? (
@@ -261,17 +257,11 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                         </TableCell>
                       )}
                       <TableCell>
-                        {new Date(view.viewed_at).toLocaleString(undefined, {
-                          dateStyle: 'medium',
-                          timeStyle: 'short',
-                        })}
+                        {formatDate(view.viewed_at, 'PP p')}
                       </TableCell>
                       <TableCell>
                         {view.downloaded_at
-                          ? new Date(view.downloaded_at).toLocaleString(undefined, {
-                              dateStyle: 'medium',
-                              timeStyle: 'short',
-                            })
+                          ? formatDate(view.downloaded_at, 'PP p')
                           : '—'}
                       </TableCell>
                       <TableCell className="text-right">
@@ -286,7 +276,7 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                         <TableCell colSpan={isDashboardWidget ? 8 : 7}>
                           {hasDataroomVisits ? (
                             <div className="p-4">
-                              <h4 className="mb-2 text-sm font-semibold">Activity Log</h4>
+                              <h4 className="mb-2 text-sm font-semibold">{t('viewSessions.activityLog')}</h4>
                               <ul className="space-y-3">
                                 {view.dataroom_visits.map((visit) => (
                                   <DataroomVisitRow key={visit.id} visit={visit} />
@@ -300,11 +290,11 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                               )}
                               {hasLinkClicks && (
                                 <div className={`${hasPageViews ? 'border-t pt-3' : ''}`}>
-                                  <h4 className="text-sm font-semibold mb-2">Clicked Links</h4>
+                                  <h4 className="text-sm font-semibold mb-2">{t('viewSessions.clickedLinks')}</h4>
                                   <ul className="space-y-2 text-xs">
                                     {view.link_clicks.map((click) => (
                                       <li key={click.id} className="flex items-center gap-1">
-                                        <span className="text-muted-foreground">Page {click.page_number}:</span>
+                                        <span className="text-muted-foreground">{t('viewSessions.pageNumber', { number: click.page_number })}:</span>
                                         {click.url && isSafeUrl(click.url) ? (
                                           <a
                                             href={click.url}
@@ -321,11 +311,7 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                                           </span>
                                         )}
                                         <span className="text-[10px] text-muted-foreground ml-auto">
-                                          {new Date(click.clicked_at).toLocaleTimeString([], {
-                                            hour: '2-digit',
-                                            minute: '2-digit',
-                                            second: '2-digit',
-                                          })}
+                                          {formatDate(click.clicked_at, 'p')}
                                         </span>
                                       </li>
                                     ))}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   createAutomation,
@@ -58,6 +59,7 @@ const handleActionError = (title, error) => {
 };
 
 export function AutomationsPage() {
+  const { t } = useTranslation();
   const [automations, setAutomations] = useState([]);
   const [destinations, setDestinations] = useState([]);
   const [deliveriesData, setDeliveriesData] = useState({ results: [], count: 0 });
@@ -108,10 +110,9 @@ export function AutomationsPage() {
   }, [fetchCoreData]);
 
   const automationCountText = useMemo(() => {
-    if (automations.length === 0) return 'No automations created yet.';
-    if (automations.length === 1) return '1 automation configured.';
-    return `${automations.length} automations configured.`;
-  }, [automations]);
+    if (automations.length === 0) return t('automations.noRulesYet');
+    return `${automations.length} ${t('automations.rules').toLowerCase()}.`;
+  }, [automations, t]);
 
   const selectedRule = useMemo(
     () => automations.find((automation) => automation.id === selectedRuleIdForLogs) || null,
@@ -123,11 +124,11 @@ export function AutomationsPage() {
   );
   const logsRangeText = useMemo(() => {
     const total = deliveriesData.count || 0;
-    if (total === 0) return 'Showing 0 logs.';
+    if (total === 0) return t('automations.noLogs');
     const start = (logsCurrentPage - 1) * logsPageSize + 1;
     const end = Math.min(start + (deliveriesData.results?.length || 0) - 1, total);
     return `Showing ${start}-${end} of ${total} logs.`;
-  }, [deliveriesData.count, deliveriesData.results, logsCurrentPage]);
+  }, [deliveriesData.count, deliveriesData.results, logsCurrentPage, t]);
 
   const fetchDeliveries = useCallback(async () => {
     try {
@@ -302,20 +303,20 @@ export function AutomationsPage() {
   return (
     <div className="container mx-auto space-y-8 p-4 sm:p-6">
       <section className="space-y-2">
-        <h1 className="text-2xl font-bold">Automations</h1>
+        <h1 className="text-2xl font-bold">{t('automations.title')}</h1>
         <p className="text-sm text-gray-500">
-          Build event-driven workflows using webhooks, Slack, WeChat Work, FeiShu, or Discord destinations.
+          {t('automations.subtitle')}
         </p>
       </section>
 
       {isInitialLoading ? (
-        <div className="rounded-lg border p-4 text-sm text-gray-500">Loading automations...</div>
+        <div className="rounded-lg border p-4 text-sm text-gray-500">{t('automations.loading')}</div>
       ) : (
         <>
           <Dialog open={isCreateRuleOpen} onOpenChange={setIsCreateRuleOpen}>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Create Automation Rule</DialogTitle>
+                <DialogTitle>{t('automations.createRuleTitle')}</DialogTitle>
               </DialogHeader>
               <AutomationBuilder
                 destinations={destinations}
@@ -327,9 +328,9 @@ export function AutomationsPage() {
                   setIsCreateRuleOpen(false);
                 }}
                 loading={isSavingAutomation}
-                submitLabel="Create Rule"
-                title="New Rule"
-                description="Define scope, events, and destination routing."
+                submitLabel={t('automations.createRule')}
+                title={t('automations.newRule')}
+                description={t('automations.ruleDescription')}
               />
             </DialogContent>
           </Dialog>
@@ -337,7 +338,7 @@ export function AutomationsPage() {
           <Dialog open={isCreateDestinationOpen} onOpenChange={setIsCreateDestinationOpen}>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Create Destination</DialogTitle>
+                <DialogTitle>{t('automations.createDestination')}</DialogTitle>
               </DialogHeader>
               <DestinationForm
                 onSubmit={async (payload) => {
@@ -345,9 +346,9 @@ export function AutomationsPage() {
                   setIsCreateDestinationOpen(false);
                 }}
                 loading={isSavingDestination}
-                submitLabel="Create Destination"
-                title="New Destination"
-                description="Add where automation notifications should be delivered."
+                submitLabel={t('automations.createDestination')}
+                title={t('automations.newDestination')}
+                description={t('automations.destinationDescription')}
               />
             </DialogContent>
           </Dialog>
@@ -358,7 +359,7 @@ export function AutomationsPage() {
           }}>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Edit Automation Rule</DialogTitle>
+                <DialogTitle>{t('automations.editRuleTitle')}</DialogTitle>
               </DialogHeader>
               {editingAutomation && (
                 <AutomationBuilder
@@ -369,13 +370,13 @@ export function AutomationsPage() {
                   onSubmit={handleUpdateAutomation}
                   loading={isSavingAutomation}
                   initialValues={editingAutomation}
-                  submitLabel="Save Changes"
+                  submitLabel={t('common.save')}
                   onCancel={() => {
                     setIsEditingOpen(false);
                     setEditingAutomation(null);
                   }}
-                  title="Edit Rule"
-                  description="Update scope, event triggers, and destinations."
+                  title={t('automations.editRuleTitle')}
+                  description={t('automations.ruleDescription')}
                 />
               )}
             </DialogContent>
@@ -387,20 +388,20 @@ export function AutomationsPage() {
           }}>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Edit Destination</DialogTitle>
+                <DialogTitle>{t('automations.editDestinationTitle')}</DialogTitle>
               </DialogHeader>
               {editingDestination && (
                 <DestinationForm
                   onSubmit={handleUpdateDestination}
                   loading={isSavingDestination}
                   initialValues={editingDestination}
-                  submitLabel="Save Changes"
+                  submitLabel={t('common.save')}
                   onCancel={() => {
                     setIsEditingDestinationOpen(false);
                     setEditingDestination(null);
                   }}
-                  title="Edit Destination"
-                  description="Update destination type, endpoint URL, and method."
+                  title={t('automations.editDestinationTitle')}
+                  description={t('automations.destinationDescription')}
                 />
               )}
             </DialogContent>
@@ -408,9 +409,9 @@ export function AutomationsPage() {
 
           <section className="space-y-3 rounded-lg border p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold">Rules</h2>
+              <h2 className="text-lg font-semibold">{t('automations.rules')}</h2>
               <Button size="sm" onClick={() => setIsCreateRuleOpen(true)}>
-                New Rule
+                {t('automations.newRule')}
               </Button>
             </div>
             <div>
@@ -418,7 +419,7 @@ export function AutomationsPage() {
             </div>
             <div className="space-y-2">
               {automations.length === 0 && (
-                <p className="text-sm text-gray-500">Create your first automation above.</p>
+                <p className="text-sm text-gray-500">{t('automations.noRulesYet')}</p>
               )}
               {automations.map((automation) => (
                 <div
@@ -439,19 +440,19 @@ export function AutomationsPage() {
                             : 'bg-gray-200 text-gray-600'
                         }`}
                       >
-                        {automation.is_active ? 'Enabled' : 'Disabled'}
+                        {automation.is_active ? t('automations.enabled') : t('automations.disabled')}
                       </span>
                     </div>
                     <p
                       className={`truncate text-xs ${automation.is_active ? 'text-gray-600' : 'text-gray-500'}`}
-                      title={`scope: ${automation.scope_type} | events: ${(automation.subscribed_events || []).join(', ') || '-'}`}
+                      title={`${t('analytics.scope')}: ${automation.scope_type} | ${t('automations.event')}: ${(automation.subscribed_events || []).join(', ') || '-'}`}
                     >
-                      scope: {automation.scope_type} | events: {(automation.subscribed_events || []).join(', ') || '-'}
+                      {t('analytics.scope')}: {automation.scope_type} | {t('automations.event')}: {(automation.subscribed_events || []).join(', ') || '-'}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <Button variant="outline" size="sm" onClick={() => handleOpenEdit(automation)}>
-                      Edit
+                      {t('common.edit')}
                     </Button>
                     <Button
                       variant="outline"
@@ -461,13 +462,13 @@ export function AutomationsPage() {
                         setSelectedRuleIdForLogs((prev) => (prev === automation.id ? null : automation.id));
                       }}
                     >
-                      {selectedRuleIdForLogs === automation.id ? 'Show All Logs' : 'View Logs'}
+                      {selectedRuleIdForLogs === automation.id ? t('automations.showAllLogs') : t('automations.viewLogs')}
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => handleToggleAutomation(automation)}>
-                      {automation.is_active ? 'Disable' : 'Enable'}
+                      {automation.is_active ? t('automations.disable') : t('automations.enable')}
                     </Button>
                     <Button variant="destructive" size="sm" onClick={() => handleDeleteAutomation(automation.id)}>
-                      Delete
+                      {t('common.delete')}
                     </Button>
                   </div>
                 </div>
@@ -477,13 +478,13 @@ export function AutomationsPage() {
 
           <section className="space-y-3 rounded-lg border p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold">Destinations</h2>
+              <h2 className="text-lg font-semibold">{t('automations.destinations')}</h2>
               <Button size="sm" onClick={() => setIsCreateDestinationOpen(true)}>
-                New Destination
+                {t('automations.newDestination')}
               </Button>
             </div>
             <div className="space-y-2">
-              {destinations.length === 0 && <p className="text-sm text-gray-500">No destinations configured.</p>}
+              {destinations.length === 0 && <p className="text-sm text-gray-500">{t('automations.noDestinationsYet')}</p>}
               {destinations.map((destination) => (
                 <div key={destination.id} className="flex items-start justify-between gap-3 rounded-md border p-3">
                   <div className="min-w-0 flex-1">
@@ -494,7 +495,7 @@ export function AutomationsPage() {
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <Button variant="outline" size="sm" onClick={() => handleOpenEditDestination(destination)}>
-                      Edit
+                      {t('common.edit')}
                     </Button>
                     <Button
                       variant="outline"
@@ -504,10 +505,10 @@ export function AutomationsPage() {
                         setSelectedDestinationIdForLogs((prev) => (prev === destination.id ? null : destination.id));
                       }}
                     >
-                      {selectedDestinationIdForLogs === destination.id ? 'Show All Logs' : 'View Logs'}
+                      {selectedDestinationIdForLogs === destination.id ? t('automations.showAllLogs') : t('automations.viewLogs')}
                     </Button>
                     <Button variant="destructive" size="sm" onClick={() => handleDeleteDestination(destination.id)}>
-                      Delete
+                      {t('common.delete')}
                     </Button>
                   </div>
                 </div>
@@ -517,12 +518,9 @@ export function AutomationsPage() {
 
           <section className="space-y-3">
             <div>
-              <h2 className="text-lg font-semibold">Delivery Logs</h2>
+              <h2 className="text-lg font-semibold">{t('automations.deliveryLogs')}</h2>
               <p className="text-sm text-gray-500">
-                Replay failed or dead-letter deliveries.
-                {selectedRuleIdForLogs || selectedDestinationIdForLogs
-                  ? ' Showing filtered logs.'
-                  : ' Showing all rules.'}
+                {t('automations.deliveryLogsSubtitle')}
               </p>
               <p className="text-xs text-gray-500">{logsRangeText}</p>
             </div>

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { toast, Toaster } from 'sonner';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '../utils/formatters';
 import { getFileRequest, getDocumentDownloadUrl, updateFileRequest } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Download, Copy, CloudUpload, CheckCircle, AlertCircle, XCircle, RefreshCw } from 'lucide-react';
@@ -23,18 +24,18 @@ const formatSubmittedFieldValue = (field) => {
   return String(field.value);
 };
 
-const renderExportStatus = (file) => {
+const renderExportStatus = (file, t) => {
   if (file.document_status && file.document_status !== 'ready') {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
           <span className="inline-flex items-center gap-x-1.5 rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700 ring-1 ring-inset ring-slate-600/20 dark:bg-slate-900/30 dark:text-slate-400">
             <RefreshCw className="h-3 w-3 animate-spin text-slate-500" />
-            Processing
+            {t('viewer.processing')}
           </span>
         </TooltipTrigger>
         <TooltipContent>
-          <p>File is currently being processed/scanned. Export will be available once ready.</p>
+          <p>{t('fileRequests.fileProcessing')}</p>
         </TooltipContent>
       </Tooltip>
     );
@@ -48,7 +49,7 @@ const renderExportStatus = (file) => {
   const { status, error_message, provider_display, updated_at } = latestJob;
 
   const timeInfo = updated_at
-    ? ` (${formatDistanceToNow(new Date(updated_at), { addSuffix: true })})`
+    ? ` (${formatRelativeTime(updated_at)})`
     : '';
 
   switch (status) {
@@ -56,14 +57,14 @@ const renderExportStatus = (file) => {
       return (
         <span className="inline-flex items-center gap-x-1.5 rounded-full bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20 dark:bg-yellow-950/20 dark:text-yellow-400">
           <span className="h-1.5 w-1.5 rounded-full bg-yellow-500 animate-pulse" />
-          Queued
+          {t('fileRequests.queued')}
         </span>
       );
     case 'exporting':
       return (
         <span className="inline-flex items-center gap-x-1.5 rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-800 ring-1 ring-inset ring-blue-600/20 dark:bg-blue-950/20 dark:text-blue-400">
           <RefreshCw className="h-3 w-3 animate-spin" />
-          Exporting
+          {t('fileRequests.exporting')}
         </span>
       );
     case 'exported':
@@ -72,11 +73,11 @@ const renderExportStatus = (file) => {
           <TooltipTrigger asChild>
             <span className="inline-flex items-center gap-x-1.5 rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-950/20 dark:text-green-400">
               <CheckCircle className="h-3.5 w-3.5 text-green-600 dark:text-green-500" />
-              Exported
+              {t('fileRequests.exported')}
             </span>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Exported to {provider_display}{timeInfo}</p>
+            <p>{t('fileRequests.exportedTo', { provider: provider_display })}{timeInfo}</p>
           </TooltipContent>
         </Tooltip>
       );
@@ -86,15 +87,15 @@ const renderExportStatus = (file) => {
           <TooltipTrigger asChild>
             <span className="inline-flex items-center gap-x-1.5 rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10 dark:bg-red-950/20 dark:text-red-400 cursor-help">
               <XCircle className="h-3.5 w-3.5 text-red-600 dark:text-red-500" />
-              Failed
+              {t('fileRequests.failed')}
             </span>
           </TooltipTrigger>
           <TooltipContent>
             <div className="space-y-1">
-              <p className="max-w-xs">{error_message || 'Unknown export error.'}</p>
+              <p className="max-w-xs">{error_message || t('common.error')}</p>
               {updated_at && (
                 <p className="text-xs text-muted-foreground">
-                  Failed{timeInfo}
+                  {t('fileRequests.failed')}{timeInfo}
                 </p>
               )}
             </div>
@@ -107,15 +108,15 @@ const renderExportStatus = (file) => {
           <TooltipTrigger asChild>
             <span className="inline-flex items-center gap-x-1.5 rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10 dark:bg-red-950/20 dark:text-red-400 cursor-help">
               <AlertCircle className="h-3.5 w-3.5 text-red-600 dark:text-red-500" />
-              Blocked (Scan)
+              {t('fileRequests.blockedScan')}
             </span>
           </TooltipTrigger>
           <TooltipContent>
             <div className="space-y-1">
-              <p className="max-w-xs">{error_message || 'Blocked due to security scan requirements.'}</p>
+              <p className="max-w-xs">{error_message || t('fileRequests.blockedScan')}</p>
               {updated_at && (
                 <p className="text-xs text-muted-foreground">
-                  Blocked{timeInfo}
+                  {t('fileRequests.blockedScan')}{timeInfo}
                 </p>
               )}
             </div>
@@ -128,15 +129,15 @@ const renderExportStatus = (file) => {
           <TooltipTrigger asChild>
             <span className="inline-flex items-center gap-x-1.5 rounded-full bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/10 dark:bg-gray-950/20 dark:text-gray-400 cursor-help">
               <AlertCircle className="h-3.5 w-3.5 text-gray-500" />
-              Blocked (Policy)
+              {t('fileRequests.blockedPolicy')}
             </span>
           </TooltipTrigger>
           <TooltipContent>
             <div className="space-y-1">
-              <p className="max-w-xs">{error_message || 'Blocked by organization export policies.'}</p>
+              <p className="max-w-xs">{error_message || t('fileRequests.blockedPolicy')}</p>
               {updated_at && (
                 <p className="text-xs text-muted-foreground">
-                  Blocked{timeInfo}
+                  {t('fileRequests.blockedPolicy')}{timeInfo}
                 </p>
               )}
             </div>
@@ -149,6 +150,7 @@ const renderExportStatus = (file) => {
 };
 
 export function FileRequestDetailPage() {
+  const { t } = useTranslation();
   const { requestId } = useParams();
   const { setBreadcrumbData } = useBreadcrumb();
   const [fileRequest, setFileRequest] = useState(null);
@@ -187,7 +189,7 @@ export function FileRequestDetailPage() {
     if (!fileRequest?.slug) return;
     const url = `${window.location.origin}/upload/${fileRequest.slug}`;
     navigator.clipboard.writeText(url);
-    toast.success('File request link copied to clipboard!');
+    toast.success(t('fileRequests.copyLinkSuccess') || 'Link copied to clipboard!');
   };
 
   const handleDownload = async (documentId, documentName) => {
@@ -241,7 +243,7 @@ export function FileRequestDetailPage() {
   }, [fetchData, setBreadcrumbData]);
 
   if (!loading && !fileRequest) {
-    return <div className="p-4 sm:p-6 text-center">File request not found.</div>;
+    return <div className="p-4 sm:p-6 text-center">{t('fileRequests.noRequestsFound')}</div>;
   }
 
   const isExpired = fileRequest?.expires_at && new Date(fileRequest.expires_at) < new Date();
@@ -252,10 +254,10 @@ export function FileRequestDetailPage() {
         <Toaster richColors />
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold">Uploaded Files ({fileRequest?.uploaded_files?.length || 0})</h2>
+            <h2 className="text-xl font-semibold">{t('fileRequests.uploadedFiles', { count: fileRequest?.uploaded_files?.length || 0 })}</h2>
             {isExpired && (
               <span className="flex-shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-                Expired
+                {t('analytics.expired')}
               </span>
             )}
           </div>
@@ -272,18 +274,18 @@ export function FileRequestDetailPage() {
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{fileRequest.is_active ? 'Active' : 'Inactive'}</p>
+                  <p>{fileRequest.is_active ? t('analytics.active') : t('analytics.disabled')}</p>
                 </TooltipContent>
               </Tooltip>
               {selectedFileIds.length > 0 && (
                 <Button onClick={() => handleOpenExportDialog()} className="bg-indigo-600 hover:bg-indigo-700 text-white">
                   <CloudUpload className="mr-2 h-4 w-4" />
-                  Export Selected ({selectedFileIds.length})
+                  {t('fileRequests.exportSelected', { count: selectedFileIds.length })}
                 </Button>
               )}
               <Button onClick={handleCopyLink} variant="outline">
                 <Copy className="mr-2 h-4 w-4" />
-                Copy Link
+                {t('fileRequests.copyLink')}
               </Button>
             </div>
           )}
@@ -302,19 +304,19 @@ export function FileRequestDetailPage() {
               className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
             />
           </div>
-          <div className="w-[25%]">File Name</div>
-          <div className="w-[15%]">Destination Folder</div>
-          <div className="w-[15%]">Uploader</div>
-          <div className="w-[15%]">Export Status</div>
-          <div className="w-[15%]">Uploaded At</div>
-          <div className="w-[10%] text-right">Actions</div>
+          <div className="w-[25%]">{t('fileRequests.fileName')}</div>
+          <div className="w-[15%]">{t('fileRequests.destinationFolder')}</div>
+          <div className="w-[15%]">{t('fileRequests.uploader')}</div>
+          <div className="w-[15%]">{t('fileRequests.exportStatus')}</div>
+          <div className="w-[15%]">{t('fileRequests.uploadedAt')}</div>
+          <div className="w-[10%] text-right">{t('common.actions')}</div>
         </div>
         <div>
           {loading ? (
-            <div className="p-4 text-center">Loading...</div>
+            <div className="p-4 text-center">{t('common.loading')}</div>
           ) : fileRequest.uploaded_files.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
-              <p>No files have been uploaded to this link yet.</p>
+              <p>{t('fileRequests.noUploadedFilesYet')}</p>
             </div>
           ) : (
             fileRequest.uploaded_files.map((file) => {
@@ -342,7 +344,7 @@ export function FileRequestDetailPage() {
                     <div className="w-[15%] truncate">
                       {file.folder_name === ROOT_FOLDER_NAME ? (
                         <Link to="/documents" className="hover:underline">
-                          Root
+                          {t('viewer.root')}
                         </Link>
                       ) : (
                         <Link to={`/documents/folders/${file.folder_id}`} className="hover:underline">
@@ -351,9 +353,9 @@ export function FileRequestDetailPage() {
                       )}
                     </div>
                     <div className="w-[15%] truncate">{file.uploader_name}</div>
-                    <div className="w-[15%]">{renderExportStatus(file)}</div>
+                    <div className="w-[15%]">{renderExportStatus(file, t)}</div>
                     <div className="w-[15%]">
-                      {formatDistanceToNow(new Date(file.created_at), { addSuffix: true })}
+                      {formatRelativeTime(file.created_at)}
                     </div>
                     <div className="w-[10%] flex justify-end gap-x-1">
                       <Button
@@ -380,7 +382,7 @@ export function FileRequestDetailPage() {
                           </span>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>{isReady ? 'Export to cloud' : 'File is still being processed and scanned'}</p>
+                          <p>{isReady ? t('fileRequests.exportToCloud') : t('fileRequests.fileProcessing')}</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>

@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 
-const EVENT_OPTIONS = [
-  { value: 'dataroom_opened', label: 'Dataroom opened' },
-  { value: 'document_viewed', label: 'Document viewed' },
-  { value: 'document_downloaded', label: 'Document downloaded' },
-  { value: 'email_identified', label: 'Email identified' },
-  { value: 'file_request_uploaded', label: 'File request uploaded' },
+const getEventOptions = (t) => [
+  { value: 'dataroom_opened', label: t('automations.eventDataroomOpened') },
+  { value: 'document_viewed', label: t('automations.eventDocumentViewed') },
+  { value: 'document_downloaded', label: t('automations.eventDocumentDownloaded') },
+  { value: 'email_identified', label: t('automations.eventEmailIdentified') },
+  { value: 'file_request_uploaded', label: t('automations.eventFileRequestUploaded') },
 ];
 
 export function AutomationBuilder({
@@ -24,12 +25,15 @@ export function AutomationBuilder({
   title = 'Automation Rule',
   description = 'Define event triggers and route alerts to one or more destinations.',
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initialValues?.name || '');
   const [scopeType, setScopeType] = useState(initialValues?.scope_type || 'global');
   const [shareLinkId, setShareLinkId] = useState(initialValues?.share_link || '');
   const [dataroomId, setDataroomId] = useState(initialValues?.dataroom || '');
   const [subscribedEvents, setSubscribedEvents] = useState(initialValues?.subscribed_events || ['document_viewed']);
   const [selectedDestinationIds, setSelectedDestinationIds] = useState(initialValues?.destinations || []);
+
+  const eventOptions = getEventOptions(t);
 
   useEffect(() => {
     if (!initialValues) return;
@@ -87,16 +91,6 @@ export function AutomationBuilder({
       destinations: selectedDestinationIds,
       is_active: true,
     });
-
-    // if (!initialValues) {
-    //   setName('');
-    //   setScopeType('global');
-    //   setShareLinkId('');
-    //   setDataroomId('');
-    //   setSubscribedEvents(['document_viewed']);
-    //   setSelectedDestinationIds([]);
-    // }
-
   };
 
   return (
@@ -107,7 +101,7 @@ export function AutomationBuilder({
       </div>
 
       <div>
-        <Label htmlFor="automation-name">Name</Label>
+        <Label htmlFor="automation-name">{t('analytics.name')}</Label>
         <Input
           id="automation-name"
           value={name}
@@ -118,22 +112,22 @@ export function AutomationBuilder({
       </div>
 
       <div>
-        <Label htmlFor="scope-type">Scope</Label>
+        <Label htmlFor="scope-type">{t('analytics.scope')}</Label>
         <select
           id="scope-type"
           className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm"
           value={scopeType}
           onChange={(e) => setScopeType(e.target.value)}
         >
-          <option value="global">Global</option>
-          <option value="share_link">Per Link</option>
-          <option value="dataroom">Per Dataroom</option>
+          <option value="global">{t('automations.scopeGlobal')}</option>
+          <option value="share_link">{t('automations.scopeLink')}</option>
+          <option value="dataroom">{t('automations.scopeDataroom')}</option>
         </select>
       </div>
 
       {scopeType === 'share_link' && (
         <div>
-          <Label htmlFor="share-link">Share Link</Label>
+          <Label htmlFor="share-link">{t('shareLinks.title')}</Label>
           <select
             id="share-link"
             className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm"
@@ -141,7 +135,7 @@ export function AutomationBuilder({
             onChange={(e) => setShareLinkId(e.target.value)}
             required
           >
-            <option value="">Select a link</option>
+            <option value="">{t('common.none')}</option>
             {shareLinks.map((link) => (
               <option key={link.id} value={link.id}>
                 {link.name || 'Untitled Link'}
@@ -153,7 +147,7 @@ export function AutomationBuilder({
 
       {scopeType === 'dataroom' && (
         <div>
-          <Label htmlFor="dataroom">Dataroom</Label>
+          <Label htmlFor="dataroom">{t('datarooms.title')}</Label>
           <select
             id="dataroom"
             className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm"
@@ -161,7 +155,7 @@ export function AutomationBuilder({
             onChange={(e) => setDataroomId(e.target.value)}
             required
           >
-            <option value="">Select a dataroom</option>
+            <option value="">{t('common.none')}</option>
             {datarooms.map((dataroom) => (
               <option key={dataroom.id} value={dataroom.id}>
                 {dataroom.name}
@@ -172,9 +166,9 @@ export function AutomationBuilder({
       )}
 
       <div>
-        <Label>Events</Label>
+        <Label>{t('automations.event')}</Label>
         <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {EVENT_OPTIONS.map((option) => (
+          {eventOptions.map((option) => (
             <label
               key={option.value}
               className={`flex items-center gap-2 rounded border px-2 py-1 text-sm ${
@@ -193,22 +187,17 @@ export function AutomationBuilder({
             </label>
           ))}
         </div>
-        {scopeType !== 'global' && (
-          <p className="mt-2 text-xs text-gray-500">
-            File request uploaded is only available for global scope rules.
-          </p>
-        )}
       </div>
 
       <div>
         <div className="flex items-center justify-between">
-          <Label>Destinations</Label>
+          <Label>{t('automations.destinations')}</Label>
           <span className="text-xs text-gray-500">
             Selected: {selectedDestinationIds.length}
           </span>
         </div>
         <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {destinations.length === 0 && <p className="text-sm text-gray-500">Create a destination first.</p>}
+          {destinations.length === 0 && <p className="text-sm text-gray-500">{t('automations.createDestinationFirst')}</p>}
           {destinations.map((destination) => (
             <label key={destination.id} className="flex items-center gap-2 rounded border px-2 py-1 text-sm">
               <input
@@ -221,17 +210,17 @@ export function AutomationBuilder({
           ))}
         </div>
         {destinations.length > 0 && selectedDestinationIds.length === 0 && (
-          <p className="mt-2 text-xs text-amber-700">Select at least one destination to enable rule creation.</p>
+          <p className="mt-2 text-xs text-amber-700">{t('automations.selectDestinationWarning')}</p>
         )}
       </div>
 
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={!canSubmit || loading} className="w-full sm:w-auto">
-          {loading ? 'Saving...' : submitLabel}
+          {loading ? t('common.saving') : submitLabel}
         </Button>
         {onCancel && (
           <Button type="button" variant="outline" onClick={onCancel} className="w-full sm:w-auto">
-            Cancel
+            {t('common.cancel')}
           </Button>
         )}
       </div>

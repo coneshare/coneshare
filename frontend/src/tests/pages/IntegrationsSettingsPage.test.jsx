@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import { IntegrationsSettingsPage } from '../../pages/IntegrationsSettingsPage';
 import * as api from '../../services/api';
+import '../../i18n';
 
 vi.mock('../../services/api');
 

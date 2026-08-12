@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CheckCircle2, Lock, MessageCircle, Plus, RefreshCw, Send, X } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '../../utils/formatters';
 import { toast } from 'sonner';
 import {
   createOwnerQnaMessage,
@@ -14,24 +15,16 @@ import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
 
-function formatRelativeTime(value) {
-  if (!value) return '';
-  try {
-    return formatDistanceToNow(new Date(value), { addSuffix: true });
-  } catch {
-    return '';
-  }
-}
 
 function senderLabel(message) {
   if (message.sender_type === 'user') return message.sender_name || 'Owner';
   return message.sender_email || 'Viewer';
 }
 
-function contextLabel(thread) {
+function contextLabel(thread, t) {
   if (thread.context_name) return thread.context_name;
-  if (thread.context_type === 'dataroom') return 'Dataroom';
-  return 'Document';
+  if (thread.context_type === 'dataroom') return t ? t('datarooms.title') : 'Dataroom';
+  return t ? t('analytics.document') : 'Document';
 }
 
 function shareLinkLabel(link, index) {
@@ -41,6 +34,7 @@ function shareLinkLabel(link, index) {
 const EMPTY_SHARE_LINKS = [];
 
 export function OwnerQnAManager({ documentId = null, dataroomId = null, shareLinks = EMPTY_SHARE_LINKS }) {
+  const { t } = useTranslation();
   const [threads, setThreads] = useState([]);
   const [selectedThreadId, setSelectedThreadId] = useState(null);
   const [statusFilter, setStatusFilter] = useState('open');
@@ -186,17 +180,17 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null, shareLin
   };
 
   const statusFilters = [
-    { value: 'open', label: 'Open' },
-    { value: 'closed', label: 'Closed' },
-    { value: 'all', label: 'All' },
+    { value: 'open', label: t('qna.open') },
+    { value: 'closed', label: t('qna.closed') },
+    { value: 'all', label: t('qna.all') },
   ];
 
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Q&amp;A</h2>
-          <p className="text-sm text-gray-500">Review viewer questions and respond in context.</p>
+          <h2 className="text-lg font-semibold text-gray-900">{t('qna.title')}</h2>
+          <p className="text-sm text-gray-500">{t('qna.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-md border bg-white p-1">
@@ -222,16 +216,16 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null, shareLin
             {isCreateOpen ? (
               <>
                 <X className="mr-2 h-4 w-4" />
-                Cancel
+                {t('common.cancel')}
               </>
             ) : (
               <>
                 <Plus className="mr-2 h-4 w-4" />
-                Start Q&amp;A
+                {t('qna.startQna')}
               </>
             )}
           </Button>
-          <Button type="button" variant="outline" size="icon" onClick={loadThreads} disabled={isLoading} aria-label="Refresh Q&A">
+          <Button type="button" variant="outline" size="icon" onClick={loadThreads} disabled={isLoading} aria-label={t('qna.refreshQna')}>
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
@@ -242,7 +236,7 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null, shareLin
           <div className="grid gap-3 md:grid-cols-[220px,1fr]">
             <div>
               <label htmlFor="owner-qna-share-link" className="mb-1 block text-xs font-medium text-gray-600">
-                Share link
+                {t('qna.shareLink')}
               </label>
               <Select
                 id="owner-qna-share-link"
@@ -252,7 +246,7 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null, shareLin
                 disabled={availableShareLinks.length === 0 || isCreatingThread}
               >
                 {availableShareLinks.length === 0 ? (
-                  <option value="">No share links</option>
+                  <option value="">{t('qna.noShareLinks')}</option>
                 ) : (
                   availableShareLinks.map((link, index) => (
                     <option key={link.id} value={link.id}>
@@ -264,14 +258,14 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null, shareLin
             </div>
             <div>
               <label htmlFor="owner-qna-subject" className="mb-1 block text-xs font-medium text-gray-600">
-                Subject
+                {t('qna.subject')}
               </label>
               <Input
                 id="owner-qna-subject"
                 aria-label="Owner Q&A subject"
                 value={newSubject}
                 onChange={(event) => setNewSubject(event.target.value)}
-                placeholder="Start a contextual Q&A thread"
+                placeholder={t('qna.startThreadPlaceholder')}
                 disabled={availableShareLinks.length === 0 || isCreatingThread}
               />
             </div>
@@ -283,8 +277,8 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null, shareLin
               onChange={(event) => setNewBody(event.target.value)}
               placeholder={
                 availableShareLinks.length === 0
-                  ? 'Create a share link before starting Q&A'
-                  : 'Write the first message'
+                  ? t('qna.createLinkBeforeQna')
+                  : t('qna.writeFirstMessage')
               }
               disabled={availableShareLinks.length === 0 || isCreatingThread}
               className="min-h-[64px]"
@@ -294,7 +288,7 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null, shareLin
               disabled={!selectedShareLinkId || !newSubject.trim() || !newBody.trim() || isCreatingThread}
               className="self-end"
             >
-              Start Q&amp;A
+              {t('qna.startQna')}
             </Button>
           </div>
         </form>
@@ -303,10 +297,10 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null, shareLin
       <div className="grid min-h-[440px] overflow-hidden rounded-md border bg-white md:grid-cols-[280px,1fr]">
         <div className="border-b md:border-b-0 md:border-r">
           {isLoading ? (
-            <div className="p-4 text-sm text-gray-500">Loading...</div>
+            <div className="p-4 text-sm text-gray-500">{t('qna.loading')}</div>
           ) : threads.length === 0 ? (
             <div className="flex h-full min-h-[220px] items-center justify-center p-6 text-center text-sm text-gray-500">
-              No Q&amp;A threads found.
+              {t('qna.noThreadsFound')}
             </div>
           ) : (
             <div className="divide-y">
@@ -321,7 +315,7 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null, shareLin
                     <span className="truncate text-sm font-medium text-gray-900">{thread.subject}</span>
                     {thread.status === 'closed' ? <Lock className="h-3.5 w-3.5 text-gray-400" /> : null}
                   </div>
-                  <div className="mt-1 truncate text-xs text-gray-500">{contextLabel(thread)}</div>
+                  <div className="mt-1 truncate text-xs text-gray-500">{contextLabel(thread, t)}</div>
                   <div className="mt-1 text-xs text-gray-400">
                     {formatRelativeTime(thread.updated_at || thread.created_at)}
                   </div>
@@ -335,7 +329,7 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null, shareLin
           {!selectedThread ? (
             <div className="flex min-h-[300px] flex-1 items-center justify-center text-sm text-gray-500">
               <MessageCircle className="mr-2 h-4 w-4" />
-              Select a Q&amp;A thread.
+              {t('qna.selectThread')}
             </div>
           ) : (
             <>
@@ -343,20 +337,20 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null, shareLin
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="truncate text-base font-semibold text-gray-900">{selectedThread.subject}</h3>
-                    <p className="mt-1 text-sm text-gray-500">{contextLabel(selectedThread)}</p>
+                    <p className="mt-1 text-sm text-gray-500">{contextLabel(selectedThread, t)}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge className={selectedThread.status === 'closed' ? 'border-gray-300 text-gray-600' : 'border-emerald-200 text-emerald-700'}>
-                      {selectedThread.status === 'closed' ? 'Closed' : 'Open'}
+                      {selectedThread.status === 'closed' ? t('qna.closed') : t('qna.open')}
                     </Badge>
                     {selectedThread.status === 'closed' ? (
                       <Button type="button" variant="outline" size="sm" onClick={() => handleStatusChange('open')}>
-                        Reopen
+                        {t('qna.reopen')}
                       </Button>
                     ) : (
                       <Button type="button" variant="outline" size="sm" onClick={() => handleStatusChange('closed')}>
                         <CheckCircle2 className="mr-2 h-4 w-4" />
-                        Close
+                        {t('qna.close')}
                       </Button>
                     )}
                   </div>
@@ -380,7 +374,7 @@ export function OwnerQnAManager({ documentId = null, dataroomId = null, shareLin
                   aria-label="Owner Q&A reply"
                   value={replyBody}
                   onChange={(event) => setReplyBody(event.target.value)}
-                  placeholder={isSelectedThreadClosed ? 'Reopen this thread to reply' : 'Reply to this thread'}
+                  placeholder={isSelectedThreadClosed ? t('qna.reopenToReply') : t('qna.replyPlaceholder')}
                   disabled={isSubmittingReply || isSelectedThreadClosed}
                   className="min-h-[52px]"
                 />

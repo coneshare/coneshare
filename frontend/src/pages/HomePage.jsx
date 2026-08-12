@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import { getDashboardSummary, getDailyVisits } from '../services/api';
@@ -27,6 +28,7 @@ function DailyVisitsChart({ data, loading }) {
 }
 
 function HomePage() {
+  const { t } = useTranslation();
   const [summaryData, setSummaryData] = useState(null);
   const [visitsData, setVisitsData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,20 +54,20 @@ function HomePage() {
 
   return (
     <div className="space-y-8 p-4 sm:p-6">
-      <h1 className="text-3xl font-bold">Dashboard</h1>
+      <h1 className="text-3xl font-bold">{t('dashboard.title')}</h1>
 
       <div className="rounded-lg border bg-white p-6 shadow-sm dark:bg-gray-900">
-        <h2 className="mb-4 text-xl font-semibold">Daily Visits (Last 30 Days)</h2>
+        <h2 className="mb-4 text-xl font-semibold">{t('dashboard.dailyVisits')}</h2>
         <DailyVisitsChart data={visitsData} loading={loading} />
       </div>
 
       <div className="space-y-8">
         <div className="rounded-lg border bg-white p-6 shadow-sm dark:bg-gray-900">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Latest View Sessions</h2>
+            <h2 className="text-xl font-semibold">{t('dashboard.latestViewSessions')}</h2>
             <Button asChild variant="link">
               <Link to="/analytics/view-sessions">
-                View all <ArrowRight className="ml-2 h-4 w-4" />
+                {t('common.viewAll')} <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           </div>
@@ -84,10 +86,10 @@ function HomePage() {
         </div>
         <div className="rounded-lg border bg-white p-6 shadow-sm dark:bg-gray-900">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Recent Active Links</h2>
+            <h2 className="text-xl font-semibold">{t('dashboard.recentActiveLinks')}</h2>
             <Button asChild variant="link">
               <Link to="/analytics/links">
-                View all <ArrowRight className="ml-2 h-4 w-4" />
+                {t('common.viewAll')} <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           </div>

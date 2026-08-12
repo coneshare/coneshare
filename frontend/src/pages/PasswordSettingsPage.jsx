@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -9,6 +10,7 @@ import { setPassword } from '../services/api';
 import { SettingsTabs } from '../components/settings/SettingsTabs';
 
 function PasswordSettingsPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -21,7 +23,7 @@ function PasswordSettingsPage() {
     setErrors({});
 
     if (newPassword !== confirmPassword) {
-      setErrors({ confirmPassword: "Passwords do not match." });
+      setErrors({ confirmPassword: t('settings.passwordsDoNotMatch') });
       return;
     }
 
@@ -32,7 +34,7 @@ function PasswordSettingsPage() {
         new_password1: newPassword,
         new_password2: confirmPassword,
       });
-      toast.success('Password updated successfully. Please log in again.');
+      toast.success(t('settings.passwordUpdatedSuccess'));
       await authService.logout();
       navigate('/login');
     } catch (error) {
@@ -51,11 +53,11 @@ function PasswordSettingsPage() {
   return (
     <div className="p-4 sm:mx-4 sm:pt-8">
       <div className="mx-auto max-w-2xl">
-        <h1 className="text-2xl font-bold mb-6">Change Password</h1>
+        <h1 className="text-2xl font-bold mb-6">{t('settings.title')}</h1>
         <SettingsTabs />
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="current-password">Current Password</Label>
+            <Label htmlFor="current-password">{t('settings.currentPassword')}</Label>
             <Input
               id="current-password"
               type="password"
@@ -66,7 +68,7 @@ function PasswordSettingsPage() {
             {errors.currentPassword && <p className="text-sm text-red-500">{errors.currentPassword}</p>}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="new-password">New Password</Label>
+            <Label htmlFor="new-password">{t('settings.newPassword')}</Label>
             <Input
               id="new-password"
               type="password"
@@ -77,7 +79,7 @@ function PasswordSettingsPage() {
             {errors.newPassword && <p className="text-sm text-red-500">{errors.newPassword}</p>}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirm-password">Confirm New Password</Label>
+            <Label htmlFor="confirm-password">{t('settings.confirmPassword')}</Label>
             <Input
               id="confirm-password"
               type="password"
@@ -88,7 +90,7 @@ function PasswordSettingsPage() {
             {errors.confirmPassword && <p className="text-sm text-red-500">{errors.confirmPassword}</p>}
           </div>
           <Button type="submit" disabled={isSaving}>
-            {isSaving ? 'Saving...' : 'Save Password'}
+            {isSaving ? t('common.saving') : t('settings.savePassword')}
           </Button>
         </form>
       </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FolderPlusIcon } from 'lucide-react';
 import {
   Dialog,
@@ -14,6 +15,7 @@ import { AddFolderDialog } from './AddFolderDialog';
 import { FolderBrowser } from '../documents/FolderBrowser';
 
 export function MoveItemsDialog({ isOpen, onOpenChange, onConfirm, selectedFolderIds = [] }) {
+  const { t } = useTranslation();
   const [destinationFolder, setDestinationFolder] = useState(null);
   const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
   // A key to force re-mounting of FolderBrowser when a new folder is created
@@ -44,9 +46,9 @@ export function MoveItemsDialog({ isOpen, onOpenChange, onConfirm, selectedFolde
       />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Move Items</DialogTitle>
+          <DialogTitle>{t('documents.moveTitle')}</DialogTitle>
           <DialogDescription>
-            Select a destination folder.
+            {t('documents.selectTargetFolder')}
           </DialogDescription>
         </DialogHeader>
         
@@ -61,14 +63,14 @@ export function MoveItemsDialog({ isOpen, onOpenChange, onConfirm, selectedFolde
         <DialogFooter className="sm:justify-between">
           <Button variant="outline" onClick={() => setIsAddFolderOpen(true)}>
             <FolderPlusIcon className="mr-2 h-4 w-4" />
-            New Folder
+            {t('documents.createFolder')}
           </Button>
           <div className="flex gap-x-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleMoveHere}>
-              Move Here
+              {t('documents.move')}
             </Button>
           </div>
         </DialogFooter>

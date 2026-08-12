@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Button } from '../ui/Button';
 import {
   Dialog,
@@ -14,9 +15,13 @@ export function ConfirmationDialog({
   title,
   description,
   onConfirm,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
+  confirmText,
+  cancelText,
 }) {
+  const { t } = useTranslation();
+  const actualConfirmText = confirmText || t('common.save');
+  const actualCancelText = cancelText || t('common.cancel');
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
@@ -26,10 +31,10 @@ export function ConfirmationDialog({
         </DialogHeader>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            {cancelText}
+            {actualCancelText}
           </Button>
           <Button type="button" variant="destructive" onClick={onConfirm}>
-            {confirmText}
+            {actualConfirmText}
           </Button>
         </DialogFooter>
       </DialogContent>

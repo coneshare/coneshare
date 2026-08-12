@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ArrowDown, ArrowUp, FileIcon, FolderIcon, GripVertical } from 'lucide-react';
 import {
   Dialog,
@@ -36,6 +37,7 @@ export function DataroomReorderItemsDialog({
   onConfirm,
   currentFolderName = null,
 }) {
+  const { t } = useTranslation();
   const [orderedItems, setOrderedItems] = useState(items);
   const [dragIndex, setDragIndex] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -45,8 +47,8 @@ export function DataroomReorderItemsDialog({
   }, [isOpen, items]);
 
   const titleScope = useMemo(
-    () => (currentFolderName ? `Folder: ${currentFolderName}` : 'Dataroom Root'),
-    [currentFolderName]
+    () => (currentFolderName ? t('datarooms.reorderScopeFolder', { name: currentFolderName }) : t('datarooms.reorderScopeRoot')),
+    [currentFolderName, t]
   );
 
   const handleDrop = (targetIndex) => {
@@ -72,15 +74,15 @@ export function DataroomReorderItemsDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Reorder Items</DialogTitle>
+          <DialogTitle>{t('datarooms.reorderItemsTitle')}</DialogTitle>
           <DialogDescription>
-            Drag and drop folders/documents to set display order for {titleScope}.
+            {t('datarooms.reorderDescription', { scope: titleScope })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="overflow-y-auto rounded border border-gray-200 dark:border-gray-800">
           {orderedItems.length === 0 ? (
-            <div className="p-4 text-sm text-gray-500">No items to reorder.</div>
+            <div className="p-4 text-sm text-gray-500">{t('datarooms.noItemsToReorder')}</div>
           ) : (
             <ul className="divide-y divide-gray-200 dark:divide-gray-800">
               {orderedItems.map((item, index) => (
@@ -136,13 +138,13 @@ export function DataroomReorderItemsDialog({
             onClick={handleResetOrder}
             disabled={isSaving || items.length === 0}
           >
-            Reset order (folders first)
+            {t('datarooms.resetOrder')}
           </Button>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="button" onClick={handleSave} disabled={isSaving || orderedItems.length === 0}>
-            {isSaving ? 'Saving...' : 'Save Order'}
+            {isSaving ? t('common.saving') : t('datarooms.saveOrder')}
           </Button>
         </DialogFooter>
       </DialogContent>

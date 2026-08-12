@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { AdminBrandingPage } from '../../pages/AdminBrandingPage';
 import * as api from '../../services/api';
 import { toast } from 'sonner';
+import '../../i18n';
 
 const mockRefetchBranding = vi.fn();
 

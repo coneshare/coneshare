@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { renameDocument, renameFolder, updateDataroom, renameDataroomFolder, renameDataroomDocument } from "../../services/api";
 import { Button } from "../ui/Button";
@@ -14,6 +15,7 @@ import { Input } from "../ui/Input";
 import { Label } from "../ui/Label";
 
 export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess, context = 'documents' }) {
+  const { t } = useTranslation();
   const [newName, setNewName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -44,7 +46,7 @@ export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess, contex
         }
         await renameFn(item.id, newName);
       }
-      toast.success(`${item.type} "${item.name}" was renamed to "${newName}".`);
+      toast.success(`"${item.name}" was renamed to "${newName}".`);
       onSuccess(); // This will trigger a data refresh
       onOpenChange(false); // Close the dialog
     } catch (err) {
@@ -62,15 +64,15 @@ export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess, contex
       <DialogContent className="sm:max-w-[425px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Rename {item.type}</DialogTitle>
+            <DialogTitle>{t('documents.renameTitle')}</DialogTitle>
             <DialogDescription>
-              Enter a new name for &quot;{item.name}&quot;.
+              {t('documents.renameDescription', { name: item.name })}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="name" className="text-right">
-                Name
+                {t('documents.name')}
               </Label>
               <Input
                 id="name"
@@ -88,10 +90,10 @@ export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess, contex
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={isSaving}>
-              {isSaving ? "Renaming..." : "Rename"}
+              {isSaving ? t('common.saving') : t('documents.rename')}
             </Button>
           </DialogFooter>
         </form>

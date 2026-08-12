@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { SettingsTabs } from '../components/settings/SettingsTabs';
 import { Button } from '../components/ui/Button';
@@ -54,6 +55,7 @@ const PROVIDER_CONFIG = {
 };
 
 export function IntegrationsSettingsPage() {
+  const { t } = useTranslation();
   const [providers, setProviders] = useState([]);
   const [connections, setConnections] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,7 +76,7 @@ export function IntegrationsSettingsPage() {
     } catch (err) {
       console.error(err);
       if (isMounted.current) {
-        toast.error('Failed to load integrations settings.');
+        toast.error(t('settings.settingsUpdateFailed'));
       }
     } finally {
       if (isMounted.current) {
@@ -102,7 +104,7 @@ export function IntegrationsSettingsPage() {
       window.location.href = res.data.authorization_url;
     } catch (err) {
       console.error(err);
-      toast.error('Failed to initiate connection. Please check configurations.');
+      toast.error(t('settings.settingsUpdateFailed'));
     }
   };
 
@@ -111,14 +113,14 @@ export function IntegrationsSettingsPage() {
     setIsDisconnecting(true);
     try {
       await deleteCloudConnection(selectedConnection.id);
-      toast.success('Disconnected successfully.');
+      toast.success(t('settings.settingsUpdated'));
       await fetchIntegrations();
       if (isMounted.current) {
         setSelectedConnection(null);
       }
     } catch (err) {
       console.error(err);
-      toast.error('Failed to disconnect cloud provider.');
+      toast.error(t('settings.settingsUpdateFailed'));
     } finally {
       if (isMounted.current) {
         setIsDisconnecting(false);
@@ -145,14 +147,14 @@ export function IntegrationsSettingsPage() {
   return (
     <div className="p-4 sm:mx-4 sm:pt-8">
       <div className="mx-auto max-w-2xl">
-        <h1 className="text-2xl font-bold mb-6">User Settings</h1>
+        <h1 className="text-2xl font-bold mb-6">{t('settings.title')}</h1>
         <SettingsTabs />
 
         <div className="space-y-6">
           <div>
-            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Cloud Storage Integrations</h2>
+            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">{t('settings.cloudIntegrationsTitle')}</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Connect external cloud providers to import documents or sync folders.
+              {t('settings.cloudIntegrationsSubtitle')}
             </p>
           </div>
 
@@ -179,11 +181,11 @@ export function IntegrationsSettingsPage() {
                       {isConnected ? (
                         <Badge className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800">
                           <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-                          Connected
+                          {t('settings.connected')}
                         </Badge>
                       ) : (
                         <Badge className="bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700">
-                          Not Connected
+                          {t('settings.notConnected')}
                         </Badge>
                       )}
                     </div>
@@ -192,18 +194,18 @@ export function IntegrationsSettingsPage() {
                     {isConnected ? (
                       <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-100 dark:border-gray-800/80">
                         <div className="flex justify-between items-center py-0.5">
-                          <span className="text-gray-500">Account:</span>
+                          <span className="text-gray-500">{t('settings.account')}:</span>
                           <span className="font-medium text-gray-900 dark:text-gray-200">{connection.email || 'Connected Account'}</span>
                         </div>
                         <div className="flex justify-between items-center py-0.5">
                           <span className="text-gray-500 flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5" /> Connected On:
+                            <Calendar className="h-3.5 w-3.5" /> {t('settings.connectedOn')}:
                           </span>
                           <span>{new Date(connection.created_at).toLocaleDateString()}</span>
                         </div>
                         <div className="flex justify-between items-center py-0.5">
                           <span className="text-gray-500 flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5" /> Last Accessed:
+                            <Clock className="h-3.5 w-3.5" /> {t('settings.lastAccessed')}:
                           </span>
                           <span>
                             {connection.updated_at
@@ -226,12 +228,12 @@ export function IntegrationsSettingsPage() {
                         onClick={() => setSelectedConnection(connection)}
                       >
                         <Trash2 className="mr-1.5 h-4 w-4" />
-                        Disconnect
+                        {t('settings.disconnect')}
                       </Button>
                     ) : (
                       <Button onClick={() => handleConnect(provider.name)}>
                         <RefreshCw className="mr-1.5 h-4 w-4" />
-                        Connect Provider
+                        {t('settings.connectProvider')}
                       </Button>
                     )}
                   </CardFooter>
@@ -248,14 +250,10 @@ export function IntegrationsSettingsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
               <AlertTriangle className="h-5 w-5" />
-              Disconnect Cloud Account?
+              {t('settings.disconnectTitle')}
             </DialogTitle>
             <DialogDescription className="pt-2">
-              Are you sure you want to disconnect{' '}
-              <span className="font-semibold text-gray-900 dark:text-gray-200">
-                {selectedConnection ? getProviderDisplayName(selectedConnection.provider) : ''}
-              </span>
-              ?
+              {t('settings.disconnectDescription', { provider: selectedConnection ? getProviderDisplayName(selectedConnection.provider) : '' })}
             </DialogDescription>
           </DialogHeader>
           <div className="py-2 text-sm text-gray-500 dark:text-gray-400">
@@ -267,7 +265,7 @@ export function IntegrationsSettingsPage() {
               onClick={() => setSelectedConnection(null)}
               disabled={isDisconnecting}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               className="bg-red-600 hover:bg-red-700 text-white dark:bg-red-600 dark:hover:bg-red-700"
@@ -277,10 +275,10 @@ export function IntegrationsSettingsPage() {
               {isDisconnecting ? (
                 <>
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                  Disconnecting...
+                  {t('settings.disconnecting')}
                 </>
               ) : (
-                'Disconnect'
+                t('settings.disconnect')
               )}
             </Button>
           </DialogFooter>

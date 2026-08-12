@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatDate } from '../../utils/formatters';
 import { Eye, Upload, RefreshCw, Pencil } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
@@ -31,6 +33,7 @@ export function DocumentHeader({
   isProcessing,
   cloudProviders = []
 }) {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(document.name);
 
@@ -102,12 +105,12 @@ export function DocumentHeader({
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {document.updated_at && (
               <span className="text-xs text-gray-500 mr-1">
-                Last updated: {new Date(document.updated_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                {t('documents.lastUpdated', { date: formatDate(document.updated_at, 'PP p') })}
               </span>
             )}
             {document.uploader_info && (
               <Badge variant="secondary">
-                Uploaded by {document.uploader_info.name} ({document.uploader_info.email})
+                {t('documents.uploadedBy', { name: document.uploader_info.name, email: document.uploader_info.email })}
               </Badge>
             )}
             {document.cloud_import && (
@@ -154,15 +157,15 @@ export function DocumentHeader({
                   style={document.download_only ? { pointerEvents: 'none' } : {}}
                 >
                   <Eye className="h-5 w-5" />
-                  <span className="sr-only">Preview</span>
+                  <span className="sr-only">{t('viewer.preview')}</span>
                 </Button>
               </span>
             </TooltipTrigger>
             <TooltipContent>
               {document.download_only ? (
-                <p>Preview not available for this file type.</p>
+                <p>{t('documents.previewNotAvailable')}</p>
               ) : (
-                <p>Preview</p>
+                <p>{t('viewer.preview')}</p>
               )}
             </TooltipContent>
           </Tooltip>
@@ -179,12 +182,12 @@ export function DocumentHeader({
                     disabled={isProcessing}
                   >
                     <RefreshCw className={`h-5 w-5 ${isProcessing ? 'animate-spin' : ''}`} />
-                    <span className="sr-only">Refresh from {document.cloud_import.provider_display}</span>
+                    <span className="sr-only">{t('documents.refreshFromCloud', { provider: document.cloud_import.provider_display })}</span>
                   </Button>
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Refresh from {document.cloud_import.provider_display}</p>
+                <p>{t('documents.refreshFromCloud', { provider: document.cloud_import.provider_display })}</p>
               </TooltipContent>
             </Tooltip>
           )}
@@ -201,23 +204,23 @@ export function DocumentHeader({
                       disabled={isProcessing}
                     >
                       <Upload className="h-5 w-5" />
-                      <span className="sr-only">Upload New Version</span>
+                      <span className="sr-only">{t('documents.uploadNewVersion')}</span>
                     </Button>
                   </DropdownMenuTrigger>
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Upload New Version</p>
+                <p>{t('documents.uploadNewVersion')}</p>
               </TooltipContent>
             </Tooltip>
             <DropdownMenuContent>
               <DropdownMenuItem onSelect={onUploadNewVersion}>
-                Upload from Computer
+                {t('documents.uploadFromComputer')}
               </DropdownMenuItem>
               {cloudProviders.length > 0 && <div className="my-1 h-px bg-gray-100 dark:bg-gray-800" />}
               {cloudProviders.map((provider) => (
                 <DropdownMenuItem key={provider.name} onSelect={() => onImportVersionFromCloud(provider)}>
-                  Import from {provider.display_name} {provider.is_connected ? '' : '(Connect)'}
+                  {t('documents.importFrom', { provider: provider.display_name })} {provider.is_connected ? '' : t('documents.connect')}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -225,23 +228,23 @@ export function DocumentHeader({
 
           <Button className="mr-2" onClick={onCreateLink} disabled={isProcessing}>
             <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
-            Create Link
+            {t('documents.getLink')}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild disabled={isProcessing}>
               <Button variant="outline" size="icon" disabled={isProcessing}>
                 <ChevronDownIcon className="h-5 w-5" />
-                <span className="sr-only">More actions</span>
+                <span className="sr-only">{t('common.actions')}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={onDownload}>Download</DropdownMenuItem>
-              <DropdownMenuItem onSelect={onVersionHistory}>Version History</DropdownMenuItem>
+              <DropdownMenuItem onSelect={onDownload}>{t('documents.download')}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={onVersionHistory}>{t('documents.versions')}</DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={onDelete}
                 className="text-red-600 hover:!text-red-600 hover:!bg-red-50 focus:!text-red-600 focus:!bg-red-50"
               >
-                Delete
+                {t('common.delete')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { describe, it, expect, vi } from "vitest";
 import { DocumentsList } from "../../../components/documents/DocumentsList";
+import '../../../i18n';
 
 // Mock child components and hooks to isolate the DocumentsList component
 vi.mock("../../../components/documents/DraggableItem", () => ({
@@ -60,7 +61,7 @@ describe("DocumentsList", () => {
     const renameButton = screen.getByRole("button", { name: /rename document/i });
     await userEvent.click(renameButton);
 
-    const dialogTitle = await screen.findByRole('heading', { name: /rename document/i });
+    const dialogTitle = await screen.findByRole('heading', { name: /rename/i });
     expect(dialogTitle).toBeInTheDocument();    
 
     const nameInput = screen.getByDisplayValue("Test Document 1");
@@ -83,7 +84,7 @@ describe("DocumentsList", () => {
     const renameButton = screen.getByRole("button", { name: /rename folder/i });
     await userEvent.click(renameButton);
 
-    const dialogTitle = await screen.findByRole('heading', { name: /rename folder/i });
+    const dialogTitle = await screen.findByRole('heading', { name: /rename/i });
     expect(dialogTitle).toBeInTheDocument();    
     
     const nameInput = screen.getByDisplayValue("Test Folder 1");
@@ -118,7 +119,7 @@ describe("DocumentsList", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Views" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^visits$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "About Views" })).toBeInTheDocument();
   });
 

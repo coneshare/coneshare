@@ -11,7 +11,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '../../utils/formatters';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -45,7 +45,7 @@ const PREVIEW_POLL_INTERVAL_MS = 3000;
 function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = false, index = null }) {
   const isFolder = item.type === 'folder';
   const mobileMeta = [
-    item.updated_at ? formatDistanceToNow(new Date(item.updated_at), { addSuffix: true }) : null,
+    item.updated_at ? formatRelativeTime(item.updated_at) : null,
     !isFolder && typeof item.file_size === 'number' ? formatBytes(item.file_size) : null,
   ].filter(Boolean).join(' • ');
   return (
@@ -79,7 +79,7 @@ function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = 
         )}
       </div>
       <div className="hidden w-[20%] text-sm sm:block" style={{ color: 'var(--viewer-secondary)' }}>
-        {item.updated_at && formatDistanceToNow(new Date(item.updated_at), { addSuffix: true })}
+        {item.updated_at && formatRelativeTime(item.updated_at)}
       </div>
       <div className="hidden w-[10%] text-sm sm:block" style={{ color: 'var(--viewer-secondary)' }}>
         {!isFolder && typeof item.file_size === 'number' ? formatBytes(item.file_size) : '—'}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Lock, MessageCircle, Send, X } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '../../utils/formatters';
 import { toast } from 'sonner';
 import {
   createPublicQnaMessage,
@@ -15,15 +15,6 @@ import { Textarea } from '../ui/Textarea';
 function messageSenderLabel(message) {
   if (message.sender_type === 'user') return message.sender_name || 'Owner';
   return message.sender_email || 'Viewer';
-}
-
-function formatRelativeTime(value) {
-  if (!value) return '';
-  try {
-    return formatDistanceToNow(new Date(value), { addSuffix: true });
-  } catch {
-    return '';
-  }
 }
 
 export function QnAPanel({

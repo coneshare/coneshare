@@ -1,6 +1,7 @@
 import { Button } from '../components/ui/Button';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { MoreVertical, Pencil, Share2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -10,8 +11,10 @@ import { RenameItemDialog } from '../components/dialogs/RenameItemDialog';
 import { PlusIcon } from '../components/icons/PlusIcon';
 import { Skeleton } from '../components/ui/Skeleton';
 import { getDatarooms, updateDataroom, deleteDataroom } from '../services/api';
+import { formatDate } from '../utils/formatters';
 
 export function DataroomsPage() {
+  const { t } = useTranslation();
   const [datarooms, setDatarooms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddDataroomOpen, setIsAddDataroomOpen] = useState(false);
@@ -55,10 +58,10 @@ export function DataroomsPage() {
   return (
     <div className="container mx-auto p-4 md:p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">Datarooms</h1>
+        <h1 className="text-2xl font-semibold">{t('datarooms.title')}</h1>
         <Button onClick={() => setIsAddDataroomOpen(true)}>
           <PlusIcon className="mr-2 h-4 w-4" />
-          Add Dataroom
+          {t('datarooms.addDataroom')}
         </Button>
       </div>
 
@@ -73,13 +76,13 @@ export function DataroomsPage() {
         </div>
       ) : datarooms.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted bg-muted/20 p-12 text-center">
-          <h3 className="text-xl font-semibold tracking-tight">No datarooms found</h3>
+          <h3 className="text-xl font-semibold tracking-tight">{t('datarooms.noDataroomsFound')}</h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            Get started by creating your first dataroom.
+            {t('datarooms.getStartedNotice')}
           </p>
           <Button className="mt-4" onClick={() => setIsAddDataroomOpen(true)}>
             <PlusIcon className="mr-2 h-4 w-4" />
-            Add Dataroom
+            {t('datarooms.addDataroom')}
           </Button>
         </div>
       ) : (
@@ -100,7 +103,7 @@ export function DataroomsPage() {
                       onClick={(e) => e.stopPropagation()}
                     >
                       <MoreVertical className="h-4 w-4" />
-                      <span className="sr-only">Actions</span>
+                      <span className="sr-only">{t('common.actions')}</span>
                     </Button>
                   </DropdownMenu.Trigger>
                   <DropdownMenu.Content
@@ -114,14 +117,14 @@ export function DataroomsPage() {
                       className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
                     >
                       <Pencil className="mr-2 h-4 w-4" />
-                      <span>Rename</span>
+                      <span>{t('documents.rename')}</span>
                     </DropdownMenu.Item>
                     <DropdownMenu.Item
                       onClick={() => navigate(`/datarooms/${dataroom.id}?tab=links&openCreateLink=true`)}
                       className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
                     >
                       <Share2 className="mr-2 h-4 w-4" />
-                      <span>Share</span>
+                      <span>{t('documents.share')}</span>
                     </DropdownMenu.Item>
                     <DropdownMenu.Separator className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
                     <DropdownMenu.Item
@@ -129,14 +132,14 @@ export function DataroomsPage() {
                       className="flex w-full cursor-pointer items-center gap-x-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 focus:bg-red-50 focus:outline-none dark:text-red-400 hover:dark:bg-red-900/50 focus:dark:bg-red-900/50"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
-                      <span>Delete</span>
+                      <span>{t('common.delete')}</span>
                     </DropdownMenu.Item>
                   </DropdownMenu.Content>
                 </DropdownMenu.Root>
               </div>
               <h3 className="font-semibold pr-8">{dataroom.name}</h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Created on {new Date(dataroom.created_at).toLocaleDateString()}
+                {t('datarooms.createdOn', { date: formatDate(dataroom.created_at, 'PP') })}
               </p>
             </div>
           ))}
@@ -151,10 +154,10 @@ export function DataroomsPage() {
       <ConfirmationDialog
         isOpen={!!dataroomToDelete}
         onOpenChange={() => setDataroomToDelete(null)}
-        title={`Delete "${dataroomToDelete?.name}"?`}
-        description="This action cannot be undone. This will permanently delete the dataroom and all its contents."
+        title={t('datarooms.deleteConfirmTitle', { name: dataroomToDelete?.name })}
+        description={t('datarooms.deleteConfirmDescription')}
         onConfirm={handleDeleteDataroom}
-        confirmText="Delete"
+        confirmText={t('common.delete')}
       />
       <RenameItemDialog
         isOpen={!!dataroomToRename}

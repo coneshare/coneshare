@@ -4,6 +4,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { BreadcrumbProvider } from '../../components/layout/BreadcrumbProvider';
 import { DocumentVersionsPage } from '../../pages/DocumentVersionsPage';
 import * as api from '../../services/api';
+import '../../i18n';
 
 vi.mock('../../services/api');
 

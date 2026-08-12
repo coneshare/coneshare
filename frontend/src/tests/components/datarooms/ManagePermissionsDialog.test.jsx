@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ManagePermissionsDialog } from '../../../components/datarooms/ManagePermissionsDialog';
 import * as api from '../../../services/api';
+import '../../../i18n';
 
 // Mocks
 vi.mock('../../../services/api');
@@ -68,7 +69,7 @@ describe('ManagePermissionsDialog', () => {
 
   // Helper to get checkboxes for a specific item row
   const getCheckboxesForRow = (name) => {
-    const row = screen.getByText(name).closest('div.flex.items-center.justify-between');
+    const row = screen.getByText(name).closest('div.grid');
     return within(row).getAllByRole('checkbox');
   };
 

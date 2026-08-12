@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import * as api from '../services/api';
 import { AdminNav } from '../components/admin/AdminNav';
@@ -8,13 +9,14 @@ import { Input } from '../components/ui/Input';
 import { PlusIcon } from '../components/icons/PlusIcon';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Select } from '../components/ui/Select';
-import { Pencil, Trash2, Check, X, ExternalLink } from 'lucide-react';
+import { Pencil, Trash2, Check, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatBytes } from '../lib/formatters';
 import { Progress } from '../components/ui/Progress';
 import { Pagination } from '../components/ui/Pagination';
 
 function AddUserForm({ onAddUser, onCancel }) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -46,12 +48,12 @@ function AddUserForm({ onAddUser, onCancel }) {
 
   return (
     <div className="mb-6 rounded-lg border bg-card p-4">
-      <h3 className="mb-4 text-lg font-semibold">Add New User</h3>
+      <h3 className="mb-4 text-lg font-semibold">{t('admin.addNewUser')}</h3>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label htmlFor="name" className="mb-1 block text-sm font-medium">
-              Full Name
+              {t('admin.fullName')}
             </label>
             <Input
               id="name"
@@ -63,7 +65,7 @@ function AddUserForm({ onAddUser, onCancel }) {
           </div>
           <div>
             <label htmlFor="email" className="mb-1 block text-sm font-medium">
-              Email Address
+              {t('admin.emailAddress')}
             </label>
             <Input
               id="email"
@@ -79,7 +81,7 @@ function AddUserForm({ onAddUser, onCancel }) {
               htmlFor="username"
               className="mb-1 block text-sm font-medium"
             >
-              Username
+              {t('admin.username')}
             </label>
             <Input
               id="username"
@@ -94,7 +96,7 @@ function AddUserForm({ onAddUser, onCancel }) {
               htmlFor="password"
               className="mb-1 block text-sm font-medium"
             >
-              Password
+              {t('settings.password')}
             </label>
             <Input
               id="password"
@@ -108,7 +110,7 @@ function AddUserForm({ onAddUser, onCancel }) {
           </div>
           <div>
             <label htmlFor="role" className="mb-1 block text-sm font-medium">
-              Role
+              {t('admin.role')}
             </label>
             <Select
               id="role"
@@ -116,19 +118,19 @@ function AddUserForm({ onAddUser, onCancel }) {
               value={formData.role}
               onChange={handleChange}
             >
-              <option value="member">Member</option>
-              <option value="admin">Admin</option>
+              <option value="member">{t('admin.roleMember')}</option>
+              <option value="admin">{t('admin.roleAdmin')}</option>
             </Select>
           </div>
           <div>
             <label htmlFor="custom_file_size_quota_mb" className="mb-1 block text-sm font-medium">
-              Storage Quota (MB)
+              {t('admin.storageQuota')}
             </label>
             <Input
               id="custom_file_size_quota_mb"
               name="custom_file_size_quota_mb"
               type="number"
-              placeholder="Default (from settings)"
+              placeholder={t('common.default')}
               value={formData.custom_file_size_quota_mb}
               onChange={handleChange}
               min="0"
@@ -137,10 +139,10 @@ function AddUserForm({ onAddUser, onCancel }) {
         </div>
         <div className="flex items-center justify-end gap-x-2">
           <Button type="button" variant="ghost" onClick={onCancel}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" disabled={isSaving}>
-            {isSaving ? 'Adding...' : 'Add User'}
+            {isSaving ? t('admin.adding') : t('admin.addUser')}
           </Button>
         </div>
       </form>
@@ -207,6 +209,7 @@ function UserStorageUsage({ user }) {
 }
 
 export function AdminUsersPage() {
+  const { t } = useTranslation();
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingUser, setIsAddingUser] = useState(false);
@@ -262,7 +265,7 @@ export function AdminUsersPage() {
           user.id === userId ? { ...user, ...response.data } : user
         )
       );
-      toast.success(`User updated successfully.`);
+      toast.success(t('admin.userUpdatedSuccess'));
       return response.data;
     } catch (error) {
       // Error is handled by interceptor
@@ -274,7 +277,7 @@ export function AdminUsersPage() {
     try {
       const response = await api.createAdminUser(userData);
       setUsers((prev) => [response.data, ...prev]);
-      toast.success(`User '${response.data.name}' created successfully.`);
+      toast.success(t('admin.userCreatedSuccess', { name: response.data.name }));
       setIsAddingUser(false);
     } catch (error) {
       // Error toast is handled by the global interceptor
@@ -286,7 +289,7 @@ export function AdminUsersPage() {
     try {
       await api.deleteAdminUser(userToDelete.id);
       setUsers((prev) => prev.filter((user) => user.id !== userToDelete.id));
-      toast.success(`User '${userToDelete.name}' deleted successfully.`);
+      toast.success(t('admin.userDeletedSuccess', { name: userToDelete.name }));
       setUserToDelete(null);
     } catch (error) {
       // Error toast is handled by the global interceptor
@@ -337,18 +340,18 @@ export function AdminUsersPage() {
       <ConfirmationDialog
         isOpen={!!userToDelete}
         onOpenChange={() => setUserToDelete(null)}
-        title="Delete User"
-        description={`Are you sure you want to delete the user '${userToDelete?.name}'? This action cannot be undone.`}
+        title={t('admin.deleteUserTitle')}
+        description={t('admin.deleteUserConfirm', { name: userToDelete?.name })}
         onConfirm={handleDeleteUser}
-        confirmText="Delete"
+        confirmText={t('common.delete')}
       />
       <AdminNav />
 
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-2xl font-bold">User Management</h2>
+        <h2 className="text-2xl font-bold">{t('admin.userManagement')}</h2>
         {!isAddingUser && (
           <Button onClick={() => setIsAddingUser(true)}>
-            <PlusIcon className="mr-2 h-4 w-4" /> Add User
+            <PlusIcon className="mr-2 h-4 w-4" /> {t('admin.addUser')}
           </Button>
         )}
       </div>
@@ -364,13 +367,13 @@ export function AdminUsersPage() {
         <table className="min-w-full">
           <thead className="bg-muted/50">
             <tr className="border-b">
-              <th className="p-4 text-left font-semibold">Name</th>
-              <th className="p-4 text-left font-semibold">Email</th>
-              <th className="p-4 text-left font-semibold">Role</th>
-              <th className="p-4 text-left font-semibold">Status</th>
-              <th className="p-4 text-left font-semibold">Storage</th>
-              <th className="p-4 text-left font-semibold">Joined</th>
-              <th className="p-4 text-left font-semibold">Actions</th>
+              <th className="p-4 text-left font-semibold">{t('analytics.name')}</th>
+              <th className="p-4 text-left font-semibold">{t('settings.email')}</th>
+              <th className="p-4 text-left font-semibold">{t('admin.role')}</th>
+              <th className="p-4 text-left font-semibold">{t('analytics.status')}</th>
+              <th className="p-4 text-left font-semibold">{t('admin.groupQuota')}</th>
+              <th className="p-4 text-left font-semibold">{t('analytics.created')}</th>
+              <th className="p-4 text-left font-semibold">{t('common.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -395,8 +398,8 @@ export function AdminUsersPage() {
                           value={editedUserData.role}
                           onChange={handleEditDataChange}
                         >
-                          <option value="member">Member</option>
-                          <option value="admin">Admin</option>
+                          <option value="member">{t('admin.roleMember')}</option>
+                          <option value="admin">{t('admin.roleAdmin')}</option>
                         </Select>
                       </td>
                       <td className="p-4 text-muted-foreground">
@@ -405,8 +408,8 @@ export function AdminUsersPage() {
                           value={editedUserData.is_active}
                           onChange={handleEditDataChange}
                         >
-                          <option value={true}>Active</option>
-                          <option value={false}>Inactive</option>
+                          <option value={true}>{t('common.active')}</option>
+                          <option value={false}>{t('common.inactive')}</option>
                         </Select>
                       </td>
                       <td className="p-4">
@@ -414,7 +417,7 @@ export function AdminUsersPage() {
                           <Input
                             name="custom_file_size_quota_mb"
                             type="number"
-                            placeholder="Default"
+                            placeholder={t('common.default')}
                             value={editedUserData.custom_file_size_quota_mb ?? ''}
                             onChange={handleEditDataChange}
                             className="w-24 text-sm"
@@ -432,7 +435,7 @@ export function AdminUsersPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleSave(user.id)}
-                            title="Save"
+                            title={t('common.save')}
                           >
                             <Check className="h-5 w-5" />
                           </Button>
@@ -440,7 +443,7 @@ export function AdminUsersPage() {
                             variant="ghost"
                             size="icon"
                             onClick={handleCancel}
-                            title="Cancel"
+                            title={t('common.cancel')}
                           >
                             <X className="h-5 w-5" />
                           </Button>
@@ -451,7 +454,7 @@ export function AdminUsersPage() {
                     <tr key={user.id} className="border-b">
                       <td className="p-4 font-medium">
                         <Link to={`/admin/users/${user.id}`} className="hover:underline">
-                          {user.name || 'Unnamed User'}
+                          {user.name || t('common.unnamed')}
                         </Link>
                       </td>
                       <td className="p-4 text-muted-foreground">
@@ -459,7 +462,9 @@ export function AdminUsersPage() {
                           {user.email}
                         </Link>
                       </td>
-                      <td className="p-4 text-muted-foreground">{user.role}</td>
+                      <td className="p-4 text-muted-foreground capitalize">
+                        {user.role === 'admin' ? t('admin.roleAdmin') : user.role === 'member' ? t('admin.roleMember') : user.role}
+                      </td>
                       <td className="p-4">
                         <span
                           className={`rounded-full px-2 py-1 text-xs font-medium ${
@@ -468,7 +473,7 @@ export function AdminUsersPage() {
                               : 'bg-red-100 text-red-800'
                           }`}
                         >
-                          {user.is_active ? 'Active' : 'Inactive'}
+                          {user.is_active ? t('common.active') : t('common.inactive')}
                         </span>
                       </td>
                       <td className="p-4">
@@ -483,7 +488,7 @@ export function AdminUsersPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleEdit(user)}
-                            title="Edit User"
+                            title={t('common.edit')}
                           >
                             <Pencil className="h-5 w-5" />
                           </Button>
@@ -491,7 +496,7 @@ export function AdminUsersPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => setUserToDelete(user)}
-                            title="Delete User"
+                            title={t('common.delete')}
                           >
                             <Trash2 className="h-5 w-5" />
                           </Button>

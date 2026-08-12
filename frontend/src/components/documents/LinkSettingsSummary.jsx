@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { ShieldCheck, Mail, CalendarOff, Download, Droplets } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import {
@@ -6,6 +7,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../ui/Tooltip';
+import { formatDate } from '../../utils/formatters';
 
 function LinkSetting({ icon, text }) {
   return (
@@ -17,6 +19,7 @@ function LinkSetting({ icon, text }) {
 }
 
 export function LinkSettingsSummary({ link, onClick }) {
+  const { t } = useTranslation();
   const settings = [];
 
   if (link.has_password) {
@@ -24,7 +27,7 @@ export function LinkSettingsSummary({ link, onClick }) {
       <LinkSetting
         key="password"
         icon={<ShieldCheck className="h-4 w-4 text-gray-500" />}
-        text="Password protected"
+        text={t('links.passwordProtected')}
       />
     );
   }
@@ -34,24 +37,18 @@ export function LinkSettingsSummary({ link, onClick }) {
       <LinkSetting
         key="email"
         icon={<Mail className="h-4 w-4 text-gray-500" />}
-        text="Requires email to view"
+        text={t('links.requiresEmail')}
       />
     );
   }
 
   if (link.expires_at) {
-    const formattedDateTime = new Date(link.expires_at).toLocaleString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-    });
+    const formattedDateTime = formatDate(link.expires_at, 'PP p');
     settings.push(
       <LinkSetting
         key="expires"
         icon={<CalendarOff className="h-4 w-4 text-gray-500" />}
-        text={`Expires on ${formattedDateTime}`}
+        text={t('links.expiresOn', { date: formattedDateTime })}
       />
     );    
   }
@@ -61,7 +58,7 @@ export function LinkSettingsSummary({ link, onClick }) {
       <LinkSetting
         key="download"
         icon={<Download className="h-4 w-4 text-gray-500" />}
-        text="Download enabled"
+        text={t('links.downloadEnabled')}
       />
     );
   }
@@ -71,7 +68,7 @@ export function LinkSettingsSummary({ link, onClick }) {
       <LinkSetting
         key="watermark"
         icon={<Droplets className="h-4 w-4 text-gray-500" />}
-        text="Watermark enabled"
+        text={t('links.watermarkEnabled')}
       />
     );
   }
@@ -85,7 +82,7 @@ export function LinkSettingsSummary({ link, onClick }) {
       <Tooltip>
         <TooltipTrigger asChild onClick={onClick}>
           <Badge variant="outline" className="cursor-pointer whitespace-nowrap">
-            {settings.length} Setting{settings.length !== 1 ? 's' : ''}
+            {t('links.settingCount', { count: settings.length })}
           </Badge>
         </TooltipTrigger>
         <TooltipContent>

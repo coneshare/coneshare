@@ -1,4 +1,6 @@
+import { useTranslation } from 'react-i18next';
 import { formatBytes } from '../../lib/formatters';
+import { formatDate } from '../../utils/formatters';
 import { Eye, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Pagination } from '../ui/Pagination';
@@ -28,10 +30,12 @@ export function VersionHistoryTable({
   onPreviewVersion,
   onPromoteVersion,
 }) {
+  const { t } = useTranslation();
+
   if (loading) {
     return (
       <div>
-        <h2 className="text-xl font-semibold">Version History</h2>
+        <h2 className="text-xl font-semibold">{t('documents.versions')}</h2>
         <div className="mt-4 space-y-4">
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-full" />
@@ -44,8 +48,8 @@ export function VersionHistoryTable({
   if (!versions || versions.length === 0) {
     return (
       <div>
-        <h2 className="text-xl font-semibold">Version History</h2>
-        <p className="mt-2 text-sm text-gray-500">No versions found for this document.</p>
+        <h2 className="text-xl font-semibold">{t('documents.versions')}</h2>
+        <p className="mt-2 text-sm text-gray-500">{t('documents.noVersions')}</p>
       </div>
     );
   }
@@ -55,9 +59,9 @@ export function VersionHistoryTable({
   const getSourceDisplay = (version) => {
     const cloudImport = version.cloud_import;
     if (cloudImport) {
-      return `Imported from ${cloudImport.provider_display || cloudImport.provider}`;
+      return t('documents.importedFrom', { provider: cloudImport.provider_display || cloudImport.provider });
     }
-    return 'Manual Upload';
+    return t('documents.manualUpload');
   };
 
   const getStatusBadge = (version) => {
@@ -69,7 +73,7 @@ export function VersionHistoryTable({
         <Tooltip key="failed">
           <TooltipTrigger asChild>
             <span className="inline-flex cursor-help items-center rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10">
-              Error
+              {t('documents.errorStatus')}
             </span>
           </TooltipTrigger>
           {version.render_error && (
@@ -82,13 +86,13 @@ export function VersionHistoryTable({
     } else if (version.render_status === 'processing' || version.render_status === 'queued') {
       badges.push(
         <span key="processing" className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
-          Processing
+          {t('documents.processingStatus')}
         </span>
       );
     } else if (version.render_status === 'ready') {
       badges.push(
         <span key="ready" className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800 ring-1 ring-inset ring-gray-500/20">
-          Ready
+          {t('documents.readyStatus')}
         </span>
       );
     } else {
@@ -120,17 +124,17 @@ export function VersionHistoryTable({
   return (
     <TooltipProvider>
       <div>
-        <h2 className="text-xl font-semibold">Version History</h2>
+        <h2 className="text-xl font-semibold">{t('documents.versions')}</h2>
         <div className="mt-4 overflow-hidden rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Version</TableHead>
-                <TableHead>Upload Date</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>File Size</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t('documents.versionColumn')}</TableHead>
+                <TableHead>{t('documents.uploadDateColumn')}</TableHead>
+                <TableHead>{t('documents.sourceColumn')}</TableHead>
+                <TableHead>{t('documents.fileSizeColumn')}</TableHead>
+                <TableHead>{t('documents.statusColumn')}</TableHead>
+                <TableHead className="text-right">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -141,16 +145,13 @@ export function VersionHistoryTable({
                       <span>v{version.version_number}</span>
                       {version.is_primary && (
                         <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
-                          Active
+                          {t('documents.activeStatus')}
                         </span>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    {new Date(version.created_at).toLocaleString(undefined, {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    })}
+                    {formatDate(version.created_at, 'PP p')}
                   </TableCell>
                   <TableCell className="text-gray-600">{getSourceDisplay(version)}</TableCell>
                   <TableCell className="text-gray-600">
@@ -164,10 +165,10 @@ export function VersionHistoryTable({
                         size="sm"
                         onClick={() => onPreviewVersion(version)}
                         className="inline-flex items-center gap-1"
-                        title="Preview this version"
+                        title={t('viewer.preview')}
                       >
                         <Eye className="h-4 w-4" />
-                        <span>Preview</span>
+                        <span>{t('viewer.preview')}</span>
                       </Button>
                       {!version.is_primary && (
                         <Button
@@ -175,10 +176,10 @@ export function VersionHistoryTable({
                           size="sm"
                           onClick={() => onPromoteVersion(version)}
                           className="inline-flex items-center gap-1 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                          title="Restore this version as active"
+                          title={t('documents.restore')}
                         >
                           <RefreshCw className="h-4 w-4" />
-                          <span>Restore</span>
+                          <span>{t('documents.restore')}</span>
                         </Button>
                       )}
                     </div>

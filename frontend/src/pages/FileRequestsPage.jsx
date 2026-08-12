@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { toast, Toaster } from 'sonner';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '../utils/formatters';
 import { MoreHorizontal, Edit, Trash2, Copy, UploadCloud } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
@@ -21,6 +22,7 @@ import {
 } from '../components/ui/Tooltip';
 
 export function FileRequestsPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { setBreadcrumbData } = useBreadcrumb();
   const [fileRequests, setFileRequests] = useState([]);
@@ -112,7 +114,7 @@ export function FileRequestsPage() {
   const handleCopyLink = (slug) => {
     const url = `${window.location.origin}/upload/${slug}`;
     navigator.clipboard.writeText(url);
-    toast.success('Link copied to clipboard!');
+    toast.success(t('fileRequests.copyLinkSuccess') || 'Link copied to clipboard!');
   };
 
   return (
@@ -135,35 +137,35 @@ export function FileRequestsPage() {
       <ConfirmationDialog
         isOpen={isDeleteConfirmOpen}
         onOpenChange={setIsDeleteConfirmOpen}
-        title="Delete File Request?"
-        description="This action cannot be undone. This will permanently delete the file request link."
+        title={t('fileRequests.deleteConfirmTitle')}
+        description={t('fileRequests.deleteConfirmDescription')}
         onConfirm={confirmDelete}
-        confirmText="Delete"
+        confirmText={t('common.delete')}
       />
 
       <div className="mb-4 flex items-center justify-end">
         <Button onClick={() => setIsCreateSheetOpen(true)}>
           <UploadCloud className="mr-2 h-4 w-4" />
-          Create File Request
+          {t('fileRequests.createFileRequest')}
         </Button>
       </div>
 
       <div className="rounded-lg border">
         <div className="flex items-center border-b bg-gray-50 px-4 py-3 text-sm font-medium text-muted-foreground dark:bg-gray-900/50">
-          <div className="w-[30%] pl-8">Name</div>
-          <div className="w-[25%]">Destination Folder</div>
-          <div className="w-[10%]">Uploaded</div>
-          <div className="w-[10%]">Status</div>
-          <div className="w-[20%]">Created</div>
-          <div className="w-16 text-right">Actions</div>
+          <div className="w-[30%] pl-8">{t('analytics.name')}</div>
+          <div className="w-[25%]">{t('fileRequests.destinationFolder')}</div>
+          <div className="w-[10%]">{t('fileRequests.uploaded')}</div>
+          <div className="w-[10%]">{t('analytics.status')}</div>
+          <div className="w-[20%]">{t('analytics.created')}</div>
+          <div className="w-16 text-right">{t('common.actions')}</div>
         </div>
         <div>
-          {loading && <div className="p-4 text-center">Loading...</div>}
+          {loading && <div className="p-4 text-center">{t('common.loading')}</div>}
           {!loading && fileRequests.length === 0 && (
             <div className="p-8 text-center text-muted-foreground">
-              <p>No file requests found.</p>
+              <p>{t('fileRequests.noRequestsFound')}</p>
               <p className="mt-2 text-sm">
-                Click "Create File Request" to get started.
+                {t('fileRequests.getStartedNotice')}
               </p>
             </div>
           )}
@@ -184,7 +186,7 @@ export function FileRequestsPage() {
                     <span className="truncate">{request.name || 'Untitled Request'}</span>
                     {isExpired && (
                       <span className="flex-shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-                        Expired
+                        {t('analytics.expired')}
                       </span>
                     )}
                   </div>
@@ -195,7 +197,7 @@ export function FileRequestsPage() {
                         className="hover:underline"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        Root
+                        {t('viewer.root')}
                       </Link>
                     ) : (
                       <Link
@@ -220,12 +222,12 @@ export function FileRequestsPage() {
                         </span>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{request.is_active ? 'Active' : 'Inactive'}</p>
+                        <p>{request.is_active ? t('analytics.active') : t('analytics.disabled')}</p>
                       </TooltipContent>
                     </Tooltip>
                   </div>
                   <div className="w-[20%]">
-                    {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
+                    {formatRelativeTime(request.created_at)}
                   </div>
                   <div className="w-16 flex justify-end">
                     <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
@@ -248,16 +250,16 @@ export function FileRequestsPage() {
                           >
                             <DropdownMenu.Item onSelect={() => handleCopyLink(request.slug)} className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700">
                               <Copy className="h-4 w-4" />
-                              <span>Copy Link</span>
+                              <span>{t('fileRequests.copyLink')}</span>
                             </DropdownMenu.Item>
                             <DropdownMenu.Item onSelect={() => handleEditRequest(request)} className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700">
                               <Edit className="h-4 w-4" />
-                              <span>Edit</span>
+                              <span>{t('common.edit')}</span>
                             </DropdownMenu.Item>
                             <DropdownMenu.Separator className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
                             <DropdownMenu.Item onSelect={() => handleDeleteRequest(request)} className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 focus:text-red-700 dark:text-red-500 dark:hover:bg-red-900/20">
                               <Trash2 className="h-4 w-4" />
-                              <span>Delete</span>
+                              <span>{t('common.delete')}</span>
                             </DropdownMenu.Item>
                           </DropdownMenu.Content>
                         </DropdownMenu.Portal>

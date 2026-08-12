@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LinkSheet } from '../../../components/links/LinkSheet';
 import * as api from '../../../services/api';
+import '../../../i18n';
 
 // Mock ResizeObserver for Radix UI components in JSDOM
 const ResizeObserverMock = vi.fn(() => ({

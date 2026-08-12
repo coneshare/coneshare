@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useUser } from '../contexts/UserProvider';
 import { toast } from 'sonner';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
@@ -12,6 +13,7 @@ import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 
 export function DocumentVersionsPage() {
+  const { t } = useTranslation();
   const { documentId } = useParams();
   const { setBreadcrumbData } = useBreadcrumb();
   const { refreshUser } = useUser();
@@ -33,14 +35,14 @@ export function DocumentVersionsPage() {
       setBreadcrumbData({
         folder: response.data.folder,
         documentName: response.data.name,
-        extraCrumb: 'Version History',
+        extraCrumb: t('documents.versions'),
       });
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [documentId, setBreadcrumbData]);
+  }, [documentId, setBreadcrumbData, t]);
 
   const fetchVersions = useCallback(async () => {
     try {
@@ -115,7 +117,7 @@ export function DocumentVersionsPage() {
         <Button asChild variant="outline">
           <Link to={`/documents/${documentId}`} className="flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
-            <span>Back to Document</span>
+            <span>{t('documents.backToDocument')}</span>
           </Link>
         </Button>
       </div>
@@ -123,10 +125,10 @@ export function DocumentVersionsPage() {
       <div className="space-y-8">
         <div>
           <h1 className="text-2xl font-bold leading-6 text-gray-900">
-            Version History for "{document.name}"
+            {t('documents.versionHistoryFor', { name: document.name })}
           </h1>
           <p className="mt-2 text-sm text-gray-500">
-            Preview older versions or restore them as the active version.
+            {t('documents.versionHistorySubtitle')}
           </p>
         </div>
 
@@ -153,9 +155,9 @@ export function DocumentVersionsPage() {
         isOpen={isRestoreDialogOpen}
         onOpenChange={setIsRestoreDialogOpen}
         onConfirm={handleConfirmRestoreVersion}
-        title="Restore Document Version"
-        description={versionToRestore ? `Are you sure you want to restore version v${versionToRestore.version_number} as the active version? This will immediately update all active share links to point to this version.` : ''}
-        confirmText="Restore"
+        title={t('documents.restoreTitle')}
+        description={versionToRestore ? t('documents.restoreDescription', { version: versionToRestore.version_number }) : ''}
+        confirmText={t('documents.restore')}
       />
     </div>
   );
