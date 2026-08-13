@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle, FileDown, Loader2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { formatBytes } from '../../lib/formatters';
+import { getLocalizedErrorMessage } from '../../utils/errorTranslator';
 
 export function isPreviewPending(documentData) {
   return ['not_generated', 'processing'].includes(documentData?.preview_status);
@@ -22,12 +24,13 @@ export function PreviewStatePanel({
   className = '',
   onRetry = null,
 }) {
+  const { t } = useTranslation();
   const isFailed = isPreviewFailed(documentData);
   const isPending = isPreviewPending(documentData);
-  const title = isFailed ? 'Preview unavailable' : 'Preparing document preview';
+  const title = isFailed ? t('viewer.previewUnavailable') : t('viewer.preparingPreview');
   const message = isFailed
-    ? documentData?.render_error || 'The preview could not be generated.'
-    : 'This may take a moment for large documents.';
+    ? getLocalizedErrorMessage(documentData?.render_error || documentData?.render_message, 'viewer.previewCouldNotBeGenerated')
+    : t('viewer.preparingPreviewNotice');
   const href = downloadUrl || documentData?.download_url;
 
   const [showStuckRetry, setShowStuckRetry] = useState(false);
@@ -72,30 +75,30 @@ export function PreviewStatePanel({
         <p className="mb-6 text-gray-700">{message}</p>
         {onRetry && (isFailed || (isPending && showStuckRetry)) && (
           <div className="mb-6 -mt-2 text-sm text-gray-500">
-            Having trouble viewing?{' '}
+            {t('viewer.havingTroubleViewing')}{' '}
             <button
               type="button"
               onClick={onRetry}
               className="font-semibold text-blue-600 hover:text-blue-800 hover:underline focus:outline-none"
             >
-              Retry generation
+              {t('viewer.retryGeneration')}
             </button>
           </div>
         )}
         {allowDownload && href ? (
           <Button asChild size="lg" className="w-full">
             <a href={href} download={documentData?.name}>
-              Download
+              {t('viewer.download')}
             </a>
           </Button>
         ) : (
           <>
             <Button size="lg" className="w-full" disabled>
-              Download
+              {t('viewer.download')}
             </Button>
             {!allowDownload && (
               <p className="mt-2 text-sm text-gray-500">
-                Download is disabled for this document by the link permissions.
+                {t('viewer.downloadDisabledNotice')}
               </p>
             )}
           </>

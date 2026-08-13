@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import Hls from 'hls.js';
 import { Download } from 'lucide-react';
 import { recordPageView } from '../../services/api';
@@ -10,6 +11,7 @@ export const VideoViewer = forwardRef(({
   allowDownload = false,
   downloadUrl = '',
 }, ref) => {
+  const { t } = useTranslation();
   const videoRef = useRef(null);
   const hlsRef = useRef(null);
   const timeWatchedAccumulator = useRef(0);
@@ -255,7 +257,7 @@ export const VideoViewer = forwardRef(({
       >
         <button
           onClick={toggleSpeedMenu}
-          title="Playback Speed"
+          title={t('viewer.playbackSpeed')}
           className="flex h-10 px-3 items-center justify-center rounded-full bg-black/40 text-xs font-bold text-white backdrop-blur transition-all duration-200 hover:bg-black/70 hover:scale-105 shadow-md font-mono"
         >
           {playbackSpeed}x
@@ -287,7 +289,7 @@ export const VideoViewer = forwardRef(({
       {allowDownload && downloadUrl && (
         <button
           onClick={handleDownload}
-          title="Download video"
+          title={t('viewer.downloadVideo')}
           className="absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur transition-all duration-200 hover:bg-black/70 hover:scale-105 shadow-md"
         >
           <Download className="h-5 w-5" />

@@ -57,7 +57,7 @@ describe('UploadProgressIndicator', () => {
 
     it('should render and show correct status when uploads are in progress', () => {
         renderComponent(mockUploads);
-        expect(screen.getByText('Uploading 2 file(s)...')).toBeInTheDocument();
+        expect(screen.getByText('Uploading 2 files...')).toBeInTheDocument();
         expect(screen.getByText('file1.txt')).toBeInTheDocument();
         expect(screen.getByText('file2.txt')).toBeInTheDocument();
     });
@@ -79,7 +79,7 @@ describe('UploadProgressIndicator', () => {
 
     it('should show failure status when some uploads have errors', () => {
         renderComponent(mockErrorUploads);
-        expect(screen.getByText('1 upload(s) failed.')).toBeInTheDocument();
+        expect(screen.getByText('1 upload failed.')).toBeInTheDocument();
         expect(screen.getByText('Network Error')).toBeInTheDocument();
     });
 

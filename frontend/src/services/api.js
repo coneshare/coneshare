@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { toast } from 'sonner';
+import { getLocalizedErrorMessage } from '../utils/errorTranslator';
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -107,11 +108,8 @@ api.interceptors.response.use(
       });
     }
 
-    // For other errors, show a toast, preferring 'message' over 'detail'.
-    const errorMessage =
-      error.response?.data?.message ||
-      error.response?.data?.detail ||
-      error.message;
+    // For other errors, show a toast, preferring translated/mapped error messages.
+    const errorMessage = getLocalizedErrorMessage(error);
 
     // Avoid showing a toast for the initial password prompt on the viewer page.
     if (!isInitialPasswordPrompt && errorMessage) {

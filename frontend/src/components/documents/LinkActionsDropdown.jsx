@@ -9,9 +9,9 @@ import {
 } from '../ui/DropdownMenu';
 import { copyTextToClipboard } from '../../lib/utils';
 
-const copyLinkToClipboard = (slug) => {
+const copyLinkToClipboard = (slug, t) => {
   const url = `${window.location.origin}/view/${slug}`;
-  copyTextToClipboard(url, 'Link copied to clipboard!');
+  copyTextToClipboard(url, t('links.copiedToClipboard'));
 };
 
 export function LinkActionsDropdown({
@@ -47,7 +47,7 @@ export function LinkActionsDropdown({
           </DropdownMenuItem>
         )}
         <DropdownMenuItem
-          onSelect={() => copyLinkToClipboard(link.slug)}
+          onSelect={() => copyLinkToClipboard(link.slug, t)}
           data-testid={`copy-link-menu-item-${link.id}`}
         >
           <Copy className="mr-2 h-4 w-4" /> <span>{t('links.copyLink')}</span>

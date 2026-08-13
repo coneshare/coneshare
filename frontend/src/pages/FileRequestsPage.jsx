@@ -114,7 +114,7 @@ export function FileRequestsPage() {
   const handleCopyLink = (slug) => {
     const url = `${window.location.origin}/upload/${slug}`;
     navigator.clipboard.writeText(url);
-    toast.success(t('fileRequests.copyLinkSuccess') || 'Link copied to clipboard!');
+    toast.success(t('fileRequests.copyLinkSuccess'));
   };
 
   return (

@@ -1,11 +1,13 @@
 import { CheckCircle2, ChevronDown, ChevronUp, File, Loader2, UploadCloud, X, XCircle } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUpload } from '../../contexts/UploadProvider';
 import { formatBytes } from '../../lib/formatters';
 import { Button } from '../ui/Button';
 import { Progress } from '../ui/Progress';
 
 export function UploadProgressIndicator() {
+  const { t } = useTranslation();
   const { uploads, clearCompleted } = useUpload();
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -39,11 +41,11 @@ export function UploadProgressIndicator() {
   const getStatusText = () => {
     if (isComplete) {
       if (errorCount > 0) {
-        return `${errorCount} upload(s) failed.`;
+        return t('uploads.failedCount', { count: errorCount });
       }
-      return 'All uploads complete!';
+      return t('uploads.allComplete');
     }
-    return `Uploading ${activeUploads.length} file(s)...`;
+    return t('uploads.uploading', { count: activeUploads.length });
   };
 
   return (
@@ -54,11 +56,11 @@ export function UploadProgressIndicator() {
             <span className="font-semibold text-sm">{getStatusText()}</span>
         </div>
         <div className="flex items-center">
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsExpanded(!isExpanded)} title={isExpanded ? "Collapse" : "Expand"}>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsExpanded(!isExpanded)} title={isExpanded ? t('uploads.collapse') : t('uploads.expand')}>
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
             </Button>
             {isComplete && (
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={clearCompleted} title="Close">
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={clearCompleted} title={t('uploads.close')}>
                     <X className="h-4 w-4" />
                 </Button>
             )}
@@ -90,7 +92,7 @@ export function UploadProgressIndicator() {
 
       <div className="p-3 border-t border-gray-200 dark:border-gray-700">
         <div className="flex justify-between text-xs mb-1 font-medium">
-            <span>Overall Progress</span>
+            <span>{t('uploads.overallProgress')}</span>
             <span>{Math.round(totalProgress)}%</span>
         </div>
         <Progress value={totalProgress} className="h-2" />

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/Table';
@@ -6,8 +7,10 @@ import { Folder as FolderIcon, File as FileIcon, ArrowLeft, Loader2, AlertTriang
 import { toast } from 'sonner';
 import { listCloudFiles, importCloudFile } from '../../services/api';
 import { formatBytes } from '../../lib/formatters';
+import { getLocalizedErrorMessage } from '../../utils/errorTranslator';
 
 export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, onImportSuccess, onImport }) {
+  const { t } = useTranslation();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -29,13 +32,13 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
       });
       setItems(sortedItems);
     } catch (error) {
-      console.error(`Failed to list files from ${provider.display_name}:`, error);
+      console.error(`Failed to list files from ${provider?.display_name}:`, error);
       // Toast is shown by interceptor, but we also show an error in the dialog
-      setError(error.response?.data?.detail || `Failed to load files. Please try again.`);
+      setError(getLocalizedErrorMessage(error, 'cloudImport.failedToLoad'));
     } finally {
       setLoading(false);
     }
-  }, [connection, provider]);
+  }, [connection, provider, t]);
 
   useEffect(() => {
     if (isOpen) {
@@ -76,7 +79,7 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
           fileName: file.name,
           fileSize: file.size,
         });
-        toast.success(`Import started for "${file.name}". It will appear in your documents list shortly.`);
+        toast.success(t('cloudImport.importStarted', { name: file.name }));
       }
       onImportSuccess();
       onOpenChange(false);
@@ -89,13 +92,14 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
   };
 
   const breadcrumbs = currentPath.split('/').filter(Boolean);
+  const breadcrumbsPath = '/' + breadcrumbs.join('/');
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Import from {provider?.display_name}</DialogTitle>
-          <DialogDescription>Browsing: /{breadcrumbs.join('/')}</DialogDescription>
+          <DialogTitle>{t('cloudImport.title', { provider: provider?.display_name || '' })}</DialogTitle>
+          <DialogDescription>{t('cloudImport.browsing', { path: breadcrumbsPath })}</DialogDescription>
         </DialogHeader>
       <div className="mt-4 flex items-center">
         <Button
@@ -105,7 +109,7 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
           disabled={pathHistory.length === 0 || loading}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
+          {t('cloudImport.back')}
         </Button>
       </div>
       <div className="mt-4 h-[400px] overflow-y-auto rounded-md border">
@@ -118,16 +122,16 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
             <AlertTriangle className="mb-2 h-8 w-8 text-destructive" />
             <p className="text-sm text-muted-foreground">{error}</p>
             <Button variant="outline" size="sm" className="mt-4" onClick={() => fetchFiles(currentPath)}>
-              Retry
+              {t('cloudImport.retry')}
             </Button>
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className="w-32 text-right">Size</TableHead>
-                <TableHead className="w-32 text-right">Actions</TableHead>
+                <TableHead>{t('documents.name')}</TableHead>
+                <TableHead className="w-32 text-right">{t('documents.size')}</TableHead>
+                <TableHead className="w-32 text-right">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -165,7 +169,7 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
                         {importingFileId === item.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          'Import'
+                          t('cloudImport.import')
                         )}
                       </Button>
                     )}
@@ -178,7 +182,7 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
       </div>
       <div className="mt-6 flex justify-end">
         <Button variant="outline" onClick={() => onOpenChange(false)}>
-          Close
+          {t('uploads.close')}
         </Button>
       </div>
     </DialogContent>

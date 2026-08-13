@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -40,6 +41,7 @@ export function ViewerToolbar({
   onPrevSibling,
   onNextSibling,
 }) {
+  const { t } = useTranslation();
   const [isVisible, setIsVisible] = useState(true);
   const hideTimeoutRef = useRef(null);
   const isHoveredRef = useRef(false);
@@ -158,7 +160,7 @@ export function ViewerToolbar({
               size="icon" 
               onClick={onPrevSibling} 
               disabled={!hasPrevSibling}
-              title="Previous file"
+              title={t('viewer.previousFile')}
               className="h-8 w-8 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               <ChevronsLeft className="h-4 w-4 text-gray-600 dark:text-gray-400" />
@@ -170,7 +172,7 @@ export function ViewerToolbar({
             size="icon" 
             onClick={() => onPageChange(currentPage - 1)} 
             disabled={currentPage <= 1}
-            title="Previous page"
+            title={t('viewer.previousPage')}
             className="h-8 w-8 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             <ChevronLeft className="h-4 w-4 text-gray-600 dark:text-gray-400" />
@@ -195,7 +197,7 @@ export function ViewerToolbar({
             size="icon" 
             onClick={() => onPageChange(currentPage + 1)} 
             disabled={currentPage >= totalPages}
-            title="Next page"
+            title={t('viewer.nextPage')}
             className="h-8 w-8 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             <ChevronRight className="h-4 w-4 text-gray-600 dark:text-gray-400" />
@@ -207,7 +209,7 @@ export function ViewerToolbar({
               size="icon" 
               onClick={onNextSibling} 
               disabled={!hasNextSibling}
-              title="Next file"
+              title={t('viewer.nextFile')}
               className="h-8 w-8 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               <ChevronsRight className="h-4 w-4 text-gray-600 dark:text-gray-400" />
@@ -223,7 +225,7 @@ export function ViewerToolbar({
             size="icon" 
             onClick={onZoomOut} 
             disabled={zoomLevel <= 0.5}
-            title="Zoom out"
+            title={t('viewer.zoomOut')}
             className="h-8 w-8 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             <Minus className="h-4 w-4 text-gray-600 dark:text-gray-400" />
@@ -238,7 +240,7 @@ export function ViewerToolbar({
             size="icon" 
             onClick={onZoomIn} 
             disabled={zoomLevel >= 3.0}
-            title="Zoom in"
+            title={t('viewer.zoomIn')}
             className="h-8 w-8 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             <Plus className="h-4 w-4 text-gray-600 dark:text-gray-400" />
@@ -248,7 +250,7 @@ export function ViewerToolbar({
             variant="ghost" 
             size="icon" 
             onClick={onFitWidth} 
-            title="Fit to width"
+            title={t('viewer.fitToWidth')}
             className="hidden h-8 w-8 hover:bg-gray-100 dark:hover:bg-gray-800 md:inline-flex"
           >
             <Expand className="h-4 w-4 text-gray-600 dark:text-gray-400" />
@@ -263,7 +265,7 @@ export function ViewerToolbar({
               variant="ghost" 
               size="icon" 
               onClick={handleDownload} 
-              title="Download file"
+              title={t('viewer.downloadFile')}
               className="h-8 w-8 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               <Download className="h-4 w-4 text-gray-600 dark:text-gray-400" />
@@ -274,7 +276,7 @@ export function ViewerToolbar({
             variant="ghost" 
             size="icon" 
             onClick={onPrint} 
-            title="Print document"
+            title={t('viewer.printDocument')}
             className="hidden h-8 w-8 hover:bg-gray-100 dark:hover:bg-gray-800 md:inline-flex"
           >
             <Printer className="h-4 w-4 text-gray-600 dark:text-gray-400" />
@@ -284,7 +286,7 @@ export function ViewerToolbar({
             variant="ghost" 
             size="icon" 
             onClick={onFullScreen} 
-            title="Toggle fullscreen"
+            title={t('viewer.toggleFullscreen')}
             className="hidden h-8 w-8 hover:bg-gray-100 dark:hover:bg-gray-800 md:inline-flex"
           >
             <Maximize className="h-4 w-4 text-gray-600 dark:text-gray-400" />

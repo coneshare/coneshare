@@ -22,7 +22,7 @@ export function PasswordForm({ slug, onSuccess, publicMeta = null }) {
 
     try {
       await verifyShareLinkPassword(slug, password);
-      toast.success('Access granted. Loading document...');
+      toast.success(t('viewer.accessGrantedLoading', { defaultValue: 'Access granted. Loading document...' }));
       onSuccess(); // Notify parent to refetch data
     } catch (err) {
       // Error is handled by the global interceptor's toast.

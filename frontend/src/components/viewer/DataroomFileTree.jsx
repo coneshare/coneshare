@@ -1,10 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PanelLeftClose, PanelLeftOpen, ChevronRight, ChevronDown } from 'lucide-react';
 import { FileTypeIcon } from '../documents/FileTypeIcon';
 import { getShareLinkViewData } from '../../services/api';
 import { toast } from 'sonner';
 
 function SidebarItem({ item, selectedDocumentId, onItemClick, isCollapsed, onToggleCollapse, level = 0, slug, viewId, activePathFolderIds }) {
+  const { t } = useTranslation();
   const isFolder = item.type === 'folder';
   const isActive = !isFolder && String(item.id) === String(selectedDocumentId);
   const displayName = item.name || item.document_name;
@@ -55,7 +57,7 @@ function SidebarItem({ item, selectedDocumentId, onItemClick, isCollapsed, onTog
           setChildrenItems(response.data.items || []);
         } catch (err) {
           console.error('Failed to load folder contents', err);
-          toast.error('Could not load folder contents.');
+          toast.error(t('viewer.couldNotLoadFolder', { defaultValue: 'Could not load folder contents.' }));
           setIsExpanded(false);
         } finally {
           setIsLoading(false);
@@ -64,7 +66,7 @@ function SidebarItem({ item, selectedDocumentId, onItemClick, isCollapsed, onTog
     } else {
       onItemClick(item);
     }
-  }, [isFolder, isCollapsed, onToggleCollapse, isExpanded, childrenItems, isLoading, item, slug, viewId, onItemClick]);
+  }, [isFolder, isCollapsed, onToggleCollapse, isExpanded, childrenItems, isLoading, item, slug, viewId, onItemClick, t]);
 
   return (
     <div className="w-full">
@@ -136,7 +138,7 @@ function SidebarItem({ item, selectedDocumentId, onItemClick, isCollapsed, onTog
               className="py-2 text-xs text-gray-400 text-left italic"
               style={{ paddingLeft: `${((level + 1) * 16) + 12 + 32}px` }}
             >
-              Empty folder
+              {t('viewer.emptyFolder')}
             </div>
           )}
         </div>
@@ -156,6 +158,7 @@ export function DataroomFileTree({
   viewId,
   activePathFolderIds,
 }) {
+  const { t } = useTranslation();
   return (
     <aside
       className={`group/sidebar flex flex-col border-r bg-white transition-all duration-300 h-full shrink-0 relative ${
@@ -167,13 +170,13 @@ export function DataroomFileTree({
       }`}>
         {!isCollapsed && (
           <span className="truncate text-xs font-semibold uppercase tracking-wider text-gray-400 select-none">
-            {currentFolderName || 'Folder Contents'}
+            {currentFolderName || t('viewer.folderContents', { defaultValue: 'Folder Contents' })}
           </span>
         )}
         <button
           onClick={onToggleCollapse}
           className="rounded-lg p-1.5 hover:bg-gray-100 text-gray-500 hover:text-gray-900"
-          title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          title={isCollapsed ? t('viewer.expandSidebar', { defaultValue: 'Expand Sidebar' }) : t('viewer.collapseSidebar', { defaultValue: 'Collapse Sidebar' })}
         >
           {isCollapsed ? (
             <PanelLeftOpen className="h-4.5 w-4.5" />
@@ -202,7 +205,7 @@ export function DataroomFileTree({
         
         {items.length === 0 && !isCollapsed && (
           <div className="py-8 text-center text-xs text-gray-400">
-            No other items in this folder
+            {t('viewer.noOtherItemsInFolder', { defaultValue: 'No other items in this folder' })}
           </div>
         )}
       </div>

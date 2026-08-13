@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import { useTranslation } from 'react-i18next';
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { deleteDocument, deleteFolder } from "../../services/api";
@@ -50,6 +51,7 @@ export function DocumentsList({
   viewsTooltip = "Views recorded for this item.",
   emptyState = null,
 }) {
+  const { t } = useTranslation();
   const [itemToDelete, setItemToDelete] = useState(null);
   const [itemToRename, setItemToRename] = useState(null);
   const indexMap = new Map(
@@ -198,7 +200,7 @@ export function DocumentsList({
       } else {
         await deleteFolder(itemToDelete.id);
       }
-      toast.success(`"${itemToDelete.name}" deleted successfully.`);
+      toast.success(t('documents.deleteItemSuccess', { name: itemToDelete.name }));
       onDataRefresh();
     } catch (error) {
       console.error(`Failed to delete ${itemToDelete.name}:`, error);
@@ -213,10 +215,10 @@ export function DocumentsList({
         <ConfirmationDialog
           isOpen={!!itemToDelete}
           onOpenChange={(isOpen) => !isOpen && setItemToDelete(null)}
-          title={`Move "${itemToDelete.name}" to Trash?`}
-          description="This item will be moved to Trash. You can restore it anytime from Trash."
+          title={t('documents.deleteConfirmTitleName', { name: itemToDelete.name })}
+          description={t('documents.deleteConfirmMessage')}
           onConfirm={handleConfirmDelete}
-          confirmText="Move to Trash"
+          confirmText={t('documents.moveToTrash')}
         />
       )}
       {!onRename && itemToRename && (

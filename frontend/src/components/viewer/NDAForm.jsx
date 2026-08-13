@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { acceptShareLinkNda } from '../../services/api';
+import { getLocalizedErrorMessage } from '../../utils/errorTranslator';
 import { Button } from '../ui/Button';
 import { AccessOwnerCard } from './AccessOwnerCard';
 import { useBranding } from '../../contexts/BrandingProvider';
@@ -19,7 +20,7 @@ export function NDAForm({ slug, onSuccess, publicMeta = null }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!agreed) {
-      toast.error('You must agree to the NDA terms to proceed.');
+      toast.error(t('viewer.mustAgreeNda'));
       return;
     }
 
@@ -32,10 +33,10 @@ export function NDAForm({ slug, onSuccess, publicMeta = null }) {
         view_session_id: viewSessionId,
       });
 
-      toast.success('NDA accepted successfully.');
+      toast.success(getLocalizedErrorMessage(response.data?.message || 'NDA accepted successfully.'));
       onSuccess(response.data?.view_session_id);
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to accept NDA. Please try again.');
+      toast.error(getLocalizedErrorMessage(err, 'viewer.ndaAcceptFailed'));
     } finally {
       setIsLoading(false);
     }

@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { Mail } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { requestShareLinkAccess, confirmShareLinkEmailAccess } from '../../services/api';
+import { getLocalizedErrorMessage } from '../../utils/errorTranslator';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
@@ -90,7 +91,7 @@ export function EmailForm({
 
     try {
       const response = await requestShareLinkAccess(slug, email);
-      toast.success(response.data.message);
+      toast.success(getLocalizedErrorMessage(response.data.message));
       
       if (response.data.verification_required) {
         setHasSubmitted(true); // Show "check your email" message
@@ -107,7 +108,7 @@ export function EmailForm({
     setIsLoading(true);
     try {
       const response = await confirmShareLinkEmailAccess(slug, token);
-      toast.success(response.data.message);
+      toast.success(getLocalizedErrorMessage(response.data.message));
       onSuccess();
     } catch (err) {
       setIsLoading(false);

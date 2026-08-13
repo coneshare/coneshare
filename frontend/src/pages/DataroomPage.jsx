@@ -421,7 +421,7 @@ export function DataroomPage() {
         dataroom: dataroomId,
         parent: currentFolderId,
       });
-      toast.success(`Folder "${name}" created successfully.`);
+      toast.success(t('documents.folderCreatedSuccess', { name }));
       fetchContent(); // Refresh
     } catch (error) {
       // Toast is handled by api interceptor
@@ -516,7 +516,7 @@ export function DataroomPage() {
         dataroom_document_ids: selection.documents,
         dataroom_folder_ids: selection.folders,
       });
-      toast.success('Items removed from dataroom successfully.');
+      toast.success(t('datarooms.removeItemsSuccess'));
       fetchContent(); // Refresh
       handleClearSelection();
     } catch (error) {
@@ -532,6 +532,23 @@ export function DataroomPage() {
 
   const handleRemoveItem = (item) => {
     setItemToRemove(item);
+  };
+
+  const handleConfirmRemoveItem = async () => {
+    if (!itemToRemove) return;
+
+    try {
+      await removeContentFromDataroom(dataroomId, {
+        dataroom_document_ids: itemToRemove.type === 'document' ? [itemToRemove.id] : [],
+        dataroom_folder_ids: itemToRemove.type === 'folder' ? [itemToRemove.id] : [],
+      });
+      toast.success(t('datarooms.removeItemSuccess', { name: itemToRemove.name }));
+      fetchContent();
+    } catch (error) {
+      // Error toast handled by interceptor
+    } finally {
+      setItemToRemove(null);
+    }
   };
 
   const handleToggleStar = useCallback(async (id, type) => {
@@ -564,23 +581,6 @@ export function DataroomPage() {
       toast.error(`Failed to update star for "${originalItem.name}".`);
     }
   }, [documents, folders]);
-
-  const handleConfirmRemoveItem = async () => {
-    if (!itemToRemove) return;
-
-    try {
-      await removeContentFromDataroom(dataroomId, {
-        dataroom_document_ids: itemToRemove.type === 'document' ? [itemToRemove.id] : [],
-        dataroom_folder_ids: itemToRemove.type === 'folder' ? [itemToRemove.id] : [],
-      });
-      toast.success(`'${itemToRemove.name}' removed from dataroom.`);
-      fetchContent();
-    } catch (error) {
-      // Error toast handled by interceptor
-    } finally {
-      setItemToRemove(null);
-    }
-  };
 
   const handleSaveGeneral = async () => {
     setIsSavingGeneral(true);
@@ -1239,9 +1239,9 @@ export function DataroomPage() {
         isOpen={isRemoveContentDialogOpen}
         onOpenChange={setIsRemoveContentDialogOpen}
         onConfirm={handleConfirmRemoveContent}
-        title="Remove Items from Dataroom"
-        description={`Are you sure you want to remove the selected items from this dataroom? This will not delete the original files from your document library.`}
-        confirmText="Remove"
+        title={t('datarooms.removeItemsTitle')}
+        description={t('datarooms.removeItemsDescription')}
+        confirmText={t('datarooms.remove')}
       />
       {itemToRename && (
         <RenameItemDialog
@@ -1256,9 +1256,9 @@ export function DataroomPage() {
         isOpen={!!itemToRemove}
         onOpenChange={(isOpen) => !isOpen && setItemToRemove(null)}
         onConfirm={handleConfirmRemoveItem}
-        title={`Remove "${itemToRemove?.name}"?`}
-        description={`Are you sure you want to remove this item from the dataroom? This will not delete the original file.`}
-        confirmText="Remove"
+        title={t('datarooms.removeItemTitle', { name: itemToRemove?.name })}
+        description={t('datarooms.removeItemDescription')}
+        confirmText={t('datarooms.remove')}
       />
       <Dialog
         open={isDeleteDataroomDialogOpen}

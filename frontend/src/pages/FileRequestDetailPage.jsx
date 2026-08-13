@@ -189,7 +189,7 @@ export function FileRequestDetailPage() {
     if (!fileRequest?.slug) return;
     const url = `${window.location.origin}/upload/${fileRequest.slug}`;
     navigator.clipboard.writeText(url);
-    toast.success(t('fileRequests.copyLinkSuccess') || 'Link copied to clipboard!');
+    toast.success(t('fileRequests.copyLinkSuccess'));
   };
 
   const handleDownload = async (documentId, documentName) => {

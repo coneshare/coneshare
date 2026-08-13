@@ -41,11 +41,11 @@ export default function TrashPage() {
         setTotalPages(1);
       }
     } catch (error) {
-      toast.error('Failed to load trash items');
+      toast.error(t('trash.failedToLoad'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchTrash(page);
@@ -83,11 +83,11 @@ export default function TrashPage() {
   const handleRestore = async (item) => {
     try {
       const res = await restoreTrashItem(item.id);
-      const msg = res?.data?.detail || `"${item.name}" restored successfully`;
+      const msg = res?.data?.detail || t('trash.restoreSuccess', { name: item.name });
       toast.success(msg);
       fetchTrash(page);
     } catch (error) {
-      const errorMsg = error.response?.data?.detail || `Failed to restore "${item.name}"`;
+      const errorMsg = error.response?.data?.detail || t('trash.restoreFailed', { name: item.name });
       toast.error(errorMsg);
     }
   };
@@ -102,11 +102,11 @@ export default function TrashPage() {
     if (!itemToDelete) return;
     try {
       await permanentDeleteTrashItem(itemToDelete.id);
-      toast.success(`"${itemToDelete.name}" permanently deleted`);
+      toast.success(t('trash.deleteSingleSuccess', { name: itemToDelete.name }));
       if (refreshUser) refreshUser();
       fetchTrash(page);
     } catch (error) {
-      toast.error(`Failed to delete "${itemToDelete.name}"`);
+      toast.error(t('trash.deleteSingleFailed', { name: itemToDelete.name }));
     } finally {
       setIsConfirmDeleteOpen(false);
       setItemToDelete(null);
@@ -124,17 +124,17 @@ export default function TrashPage() {
         await restoreTrashItem(item.id);
         successCount++;
       } catch (err) {
-        lastErrorMessage = err.response?.data?.detail || `Failed to restore "${item.name}"`;
+        lastErrorMessage = err.response?.data?.detail || t('trash.restoreFailed', { name: item.name });
         console.error(`Failed to restore ${item.id}`, err);
       }
     }
 
     if (successCount === selectedItems.length) {
-      toast.success(`Restored ${successCount} of ${selectedItems.length} items`);
+      toast.success(t('trash.restoreBulkSuccess', { successCount, totalCount: selectedItems.length }));
     } else if (successCount > 0) {
-      toast.warning(`Restored ${successCount} of ${selectedItems.length} items. ${lastErrorMessage || ''}`);
+      toast.warning(`${t('trash.restoreBulkSuccess', { successCount, totalCount: selectedItems.length })}. ${lastErrorMessage || ''}`);
     } else {
-      toast.error(lastErrorMessage || 'Failed to restore selected items');
+      toast.error(lastErrorMessage || t('trash.restoreBulkFailed'));
     }
     setIsBulkRestoreOpen(false);
     fetchTrash(page);
@@ -153,7 +153,7 @@ export default function TrashPage() {
       }
     }
 
-    toast.success(`Permanently deleted ${successCount} of ${selectedItems.length} items`);
+    toast.success(t('trash.deleteBulkSuccess', { successCount, totalCount: selectedItems.length }));
     setIsBulkDeleteOpen(false);
     if (refreshUser) refreshUser();
     fetchTrash();
@@ -163,11 +163,11 @@ export default function TrashPage() {
   const handleEmptyTrash = async () => {
     try {
       await emptyTrash();
-      toast.success('Trash emptied successfully');
+      toast.success(t('trash.emptyTrashSuccess'));
       if (refreshUser) refreshUser();
       fetchTrash();
     } catch (error) {
-      toast.error('Failed to empty trash');
+      toast.error(t('trash.emptyTrashFailed'));
     } finally {
       setIsConfirmEmptyOpen(false);
     }

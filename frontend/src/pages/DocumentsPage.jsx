@@ -124,17 +124,17 @@ function DocumentsPage() {
   }, [folderId, setBreadcrumbData]);
 
   const handleCopy = useCallback(async (item) => {
-    const toastId = toast.loading(`Copying "${item.name}"...`);
+    const toastId = toast.loading(t('documents.copyingItem', { name: item.name }));
     try {
       await copyDocument(item.id);
-      toast.success(`"${item.name}" was copied successfully.`, { id: toastId });
+      toast.success(t('documents.copySuccess', { name: item.name }), { id: toastId });
       fetchData(); // Refresh list
       refreshUser(); // Refresh user quota
     } catch (error) {
       // API interceptor will show an error toast.
       toast.dismiss(toastId);
     }
-  }, [fetchData, refreshUser]);
+  }, [fetchData, refreshUser, t]);
 
   useEffect(() => {
     setSelection({ documents: [], folders: [] });
@@ -245,9 +245,9 @@ function DocumentsPage() {
     });    
 
     if (failedCount > 0) {
-      toast.error(`${failedCount} item(s) could not be deleted.`);
+      toast.error(t('documents.deleteBulkFailed', { count: failedCount }));
     } else {
-      toast.success("Selected items deleted successfully.");
+      toast.success(t('documents.deleteBulkSuccess'));
     }
 
     setIsBulkDeleteConfirmOpen(false);
@@ -264,7 +264,7 @@ function DocumentsPage() {
         folderIds,
         destinationFolderId,
       });
-      toast.success("Selected items moved successfully.");
+      toast.success(t('documents.moveSuccess'));
       fetchData(); // Refresh data
     } catch (error) {
       console.error("Failed to move items:", error);
@@ -285,7 +285,7 @@ function DocumentsPage() {
   const handleCreateFolder = async (name) => {
     try {
       await createFolder(name, folderId || null);
-      toast.success(`Folder "${name}" created successfully.`);
+      toast.success(t('documents.folderCreatedSuccess', { name }));
       fetchData();
     } catch (error) {
       console.error("Failed to create folder:", error);

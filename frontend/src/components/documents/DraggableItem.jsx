@@ -1,6 +1,7 @@
 import { formatRelativeTime } from "../../utils/formatters";
 import { Star } from "lucide-react";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import { formatBytes } from "../../lib/formatters";
@@ -33,6 +34,7 @@ export function DraggableItem({
   showIndex = false,
   itemIndex = null,
 }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
 
@@ -123,7 +125,7 @@ export function DraggableItem({
         )}
       </div>
       <div className="w-[18%] truncate" style={themed ? { color: "var(--dataroom-secondary)" } : undefined}>
-        {item.created_by?.name || "Me"}
+        {item.created_by?.name || t('documents.me')}
         {item.uploader_info && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -133,7 +135,7 @@ export function DraggableItem({
             </TooltipTrigger>
             <TooltipContent>
               <p>
-                Uploaded by {item.uploader_info.name} ({item.uploader_info.email})
+                {t('documents.uploadedBy', { name: item.uploader_info.name, email: item.uploader_info.email })}
               </p>
             </TooltipContent>
           </Tooltip>

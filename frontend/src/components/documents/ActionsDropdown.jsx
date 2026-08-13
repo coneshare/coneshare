@@ -61,7 +61,7 @@ export function ActionsDropdown({
               className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
             >
               <Copy className="h-4 w-4" aria-hidden="true" />
-              <span>Copy</span>
+              <span>{t('documents.copy')}</span>
             </DropdownMenu.Item>
           )}
 
@@ -100,7 +100,7 @@ export function ActionsDropdown({
               className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 hover:dark:bg-gray-700 focus:dark:bg-gray-700"
             >
               <UploadCloud className="h-4 w-4" aria-hidden="true" />
-              <span>Request files</span>
+              <span>{t('documents.requestFiles')}</span>
             </DropdownMenu.Item>
           )}
 

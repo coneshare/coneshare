@@ -281,4 +281,9 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** The Docker backend container lacks GNU `msgfmt` binary required by `django-admin compilemessages`. Additionally, custom `.po` parsing requires unescaping literal `\n` sequences into ASCII 0x0A so standard Python `gettext` parses the `Content-Type: text/plain; charset=UTF-8` header correctly.
 - **Resolution/Action:** Created `backend/compile_po.py` script to parse `.po` files and emit binary `.mo` catalogs directly in Python without `msgfmt`. Execute `docker-compose exec -T backend python compile_po.py` to compile translation catalogs.
 
+### 2026-08-13 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Django backend exceptions (e.g. Google Drive cloud provider token errors) return raw un-translated English detail strings which bypassed frontend i18n when displayed in toasts or dialogs.
+- **Resolution/Action:** Route backend error messages through `frontend/src/utils/errorTranslator.js` (`getLocalizedErrorMessage`) inside the global Axios response interceptor (`api.js`) and dialog error handlers to map raw backend strings to localized `errors.*` translation keys.
+
 

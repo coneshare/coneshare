@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CheckCircle2, Lock, MessageCircle, Send, X } from 'lucide-react';
 import { formatRelativeTime } from '../../utils/formatters';
 import { toast } from 'sonner';
@@ -12,9 +13,9 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 
-function messageSenderLabel(message) {
-  if (message.sender_type === 'user') return message.sender_name || 'Owner';
-  return message.sender_email || 'Viewer';
+function messageSenderLabel(message, t) {
+  if (message.sender_type === 'user') return message.sender_name || t('qna.owner');
+  return message.sender_email || t('qna.viewer');
 }
 
 export function QnAPanel({
@@ -27,6 +28,7 @@ export function QnAPanel({
   contextLabel = 'Q&A',
   onThreadCountChange,
 }) {
+  const { t } = useTranslation();
   const [threads, setThreads] = useState([]);
   const [selectedThreadId, setSelectedThreadId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -92,7 +94,7 @@ export function QnAPanel({
       });
       setSelectedThreadId(response.data.id);
       resetComposer();
-      toast.success('Question sent.');
+      toast.success(t('qna.questionSent'));
     } catch (error) {
       console.error('Failed to create Q&A thread:', error);
     } finally {
@@ -115,7 +117,7 @@ export function QnAPanel({
           : thread
       )));
       setReplyBody('');
-      toast.success('Reply sent.');
+      toast.success(t('qna.replySent'));
     } catch (error) {
       console.error('Failed to send Q&A reply:', error);
     } finally {
@@ -130,14 +132,14 @@ export function QnAPanel({
   return (
     <aside
       className="fixed inset-y-0 right-0 z-30 flex w-full flex-col border-l bg-white shadow-xl sm:max-w-xl lg:w-[34rem] lg:max-w-none xl:w-[38rem]"
-      aria-label="Q&A panel"
+      aria-label={t('qna.panelLabel', { defaultValue: 'Q&A panel' })}
     >
       <header className="border-b px-5 py-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
               <MessageCircle className="h-5 w-5" />
-              Q&A
+              {t('qna.title')}
             </h2>
             <p className="truncate text-sm text-gray-500">{contextLabel}</p>
           </div>
@@ -146,7 +148,7 @@ export function QnAPanel({
             variant="ghost"
             size="icon"
             onClick={() => onOpenChange(false)}
-            aria-label="Close Q&A"
+            aria-label={t('qna.closePanel', { defaultValue: 'Close Q&A' })}
           >
             <X className="h-4 w-4" />
           </Button>
@@ -157,17 +159,17 @@ export function QnAPanel({
           <section className="border-b p-4">
             <form className="space-y-3" onSubmit={handleCreateThread}>
               <Input
-                aria-label="Question subject"
+                aria-label={t('qna.questionSubject', { defaultValue: 'Question subject' })}
                 value={subject}
                 onChange={(event) => setSubject(event.target.value)}
-                placeholder="Subject"
+                placeholder={t('qna.subjectPlaceholder')}
                 disabled={!viewId || isSubmittingThread}
               />
               <Textarea
-                aria-label="Question message"
+                aria-label={t('qna.questionMessage', { defaultValue: 'Question message' })}
                 value={newThreadBody}
                 onChange={(event) => setNewThreadBody(event.target.value)}
-                placeholder="Ask a question"
+                placeholder={t('qna.askPlaceholder')}
                 disabled={!viewId || isSubmittingThread}
                 className="min-h-[92px]"
               />
@@ -177,7 +179,7 @@ export function QnAPanel({
                   disabled={!viewId || !subject.trim() || !newThreadBody.trim() || isSubmittingThread}
                 >
                   <Send className="mr-2 h-4 w-4" />
-                  {isSubmittingThread ? 'Sending...' : 'Ask'}
+                  {isSubmittingThread ? t('qna.sending') : t('qna.ask')}
                 </Button>
               </div>
             </form>
@@ -186,9 +188,9 @@ export function QnAPanel({
           <section className="grid min-h-0 grid-cols-1 border-b md:grid-cols-[190px,1fr]">
             <div className="max-h-56 overflow-y-auto border-b md:max-h-none md:border-b-0 md:border-r">
               {isLoading ? (
-                <div className="p-4 text-sm text-gray-500">Loading...</div>
+                <div className="p-4 text-sm text-gray-500">{t('qna.loading')}</div>
               ) : threads.length === 0 ? (
-                <div className="p-4 text-sm text-gray-500">No questions yet.</div>
+                <div className="p-4 text-sm text-gray-500">{t('qna.noQuestionsYet')}</div>
               ) : (
                 <div className="divide-y">
                   {threads.map((thread) => (
@@ -212,21 +214,21 @@ export function QnAPanel({
             <div className="min-h-0 overflow-y-auto p-4">
               {!selectedThread ? (
                 <div className="flex h-full items-center justify-center text-sm text-gray-500">
-                  Select a question to view its history.
+                  {t('qna.selectQuestionNotice')}
                 </div>
               ) : (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between gap-3">
                     <h3 className="truncate text-sm font-semibold text-gray-900">{selectedThread.subject}</h3>
                     <Badge className={isClosed ? 'border-gray-300 text-gray-600' : 'border-emerald-200 text-emerald-700'}>
-                      {isClosed ? 'Closed' : 'Open'}
+                      {isClosed ? t('qna.closed') : t('qna.open')}
                     </Badge>
                   </div>
                   <div className="space-y-3">
                     {(selectedThread.messages || []).map((message) => (
                       <article key={message.id} className="rounded-md border bg-white p-3">
                         <div className="flex items-center justify-between gap-3 text-xs text-gray-500">
-                          <span className="truncate font-medium text-gray-700">{messageSenderLabel(message)}</span>
+                          <span className="truncate font-medium text-gray-700">{messageSenderLabel(message, t)}</span>
                           <span className="shrink-0">{formatRelativeTime(message.created_at)}</span>
                         </div>
                         <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-800 [overflow-wrap:anywhere]">{message.body}</p>
@@ -242,15 +244,15 @@ export function QnAPanel({
             {isClosed ? (
               <div className="flex items-center gap-2 rounded-md border bg-gray-50 p-3 text-sm text-gray-600">
                 <CheckCircle2 className="h-4 w-4" />
-                This thread is closed.
+                {t('qna.threadIsClosed')}
               </div>
             ) : (
               <form className="flex gap-2" onSubmit={handleReply}>
                 <Textarea
-                  aria-label="Reply message"
+                  aria-label={t('qna.replyMessage', { defaultValue: 'Reply message' })}
                   value={replyBody}
                   onChange={(event) => setReplyBody(event.target.value)}
-                  placeholder={selectedThread ? 'Reply' : 'Select a question to reply'}
+                  placeholder={selectedThread ? t('qna.reply') : t('qna.selectQuestionToReply')}
                   disabled={!selectedThread || !viewId || isSubmittingReply}
                   className="min-h-[44px]"
                 />
@@ -258,7 +260,7 @@ export function QnAPanel({
                   type="submit"
                   size="icon"
                   disabled={!selectedThread || !replyBody.trim() || isSubmittingReply}
-                  aria-label="Send reply"
+                  aria-label={t('qna.sendReply', { defaultValue: 'Send reply' })}
                 >
                   <Send className="h-4 w-4" />
                 </Button>

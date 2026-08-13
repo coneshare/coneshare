@@ -478,9 +478,10 @@ export function ShareLinkViewerPage() {
   const showPreviewState = viewData && isPreviewable && !viewData.download_only && (
     isVideo ? !isVideoReady : (!canRenderPages && viewData.preview_mode !== 'client_pdf')
   );
-  const qnaButtonLabel = `${isQnaOpen ? 'Close Q&A' : 'Open Q&A'}${
-    qnaThreadCount > 0 ? `, ${qnaThreadCount} threads` : ''
-  }`;
+  const qnaButtonLabel = (isQnaOpen
+    ? t('qna.closeQna', { defaultValue: 'Close Q&A' })
+    : t('qna.openQna', { defaultValue: 'Open Q&A' })) +
+    (qnaThreadCount > 0 ? `, ${t('qna.threadsCount', { count: qnaThreadCount, defaultValue: `${qnaThreadCount} threads` })}` : '');
 
   let downloadUrl = `/api/v1/links/${slug}/download-file/`;
   if (dataroomDocumentIdFromUrl) {
@@ -530,26 +531,26 @@ export function ShareLinkViewerPage() {
             ) : null}
             <p className="mb-6 text-gray-700">
               {isWatermarkedVideoBlocked
-                ? "This video exceeds the size limit to preview, and download is restricted due to watermark requirements."
-                : "This type of file is not available for online preview. Download the file and open it on your device."}
+                ? t('viewer.watermarkedVideoBlockedNotice')
+                : t('viewer.previewNotAvailableNotice')}
             </p>
             {isWatermarkedVideoBlocked ? (
               <Button size="lg" className="w-full" disabled>
-                Download Restricted
+                {t('viewer.downloadRestricted')}
               </Button>
             ) : canDownload ? (
               <Button asChild size="lg" className="w-full">
                 <a href={downloadUrl} download={viewData.name}>
-                  Download
+                  {t('viewer.download')}
                 </a>
               </Button>
             ) : (
               <>
                 <Button size="lg" className="w-full" disabled>
-                  Download
+                  {t('viewer.download')}
                 </Button>
                 <p className="mt-2 text-sm text-gray-500">
-                  Download is disabled for this document by the link permissions.
+                  {t('viewer.downloadDisabledNotice')}
                 </p>
               </>
             )}
@@ -596,7 +597,7 @@ export function ShareLinkViewerPage() {
             title={qnaButtonLabel}
           >
             <MessageCircle className="h-5 w-5" />
-            <span className="ml-2 font-semibold">Q&amp;A</span>
+            <span className="ml-2 font-semibold">{t('qna.title', { defaultValue: 'Q&A' })}</span>
           </Button>
         )}
         <QnAPanel
@@ -706,7 +707,7 @@ export function ShareLinkViewerPage() {
             title={qnaButtonLabel}
           >
             <MessageCircle className="h-5 w-5" />
-            <span className="ml-2 font-semibold">Q&amp;A</span>
+            <span className="ml-2 font-semibold">{t('qna.title', { defaultValue: 'Q&A' })}</span>
             {qnaThreadCount > 0 && (
               <span
                 className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 text-xs font-semibold text-primary"

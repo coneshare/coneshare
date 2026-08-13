@@ -43,6 +43,7 @@ import { LanguagePicker } from '../common/LanguagePicker';
 const PREVIEW_POLL_INTERVAL_MS = 3000;
 
 function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = false, index = null }) {
+  const { t } = useTranslation();
   const isFolder = item.type === 'folder';
   const mobileMeta = [
     item.updated_at ? formatRelativeTime(item.updated_at) : null,
@@ -116,7 +117,7 @@ function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = 
                 className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
               >
                 <Eye className="h-4 w-4" aria-hidden="true" />
-                <span>View</span>
+                <span>{t('viewer.view')}</span>
               </DropdownMenu.Item>
               {item.allow_download && (
                 <DropdownMenu.Item
@@ -127,7 +128,7 @@ function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = 
                   className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
                 >
                   <DownloadIcon className="h-4 w-4" aria-hidden="true" />
-                  <span>Download</span>
+                  <span>{t('viewer.download')}</span>
                 </DropdownMenu.Item>
               )}
               <DropdownMenu.Item
@@ -138,7 +139,7 @@ function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = 
                 className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-700 dark:hover:bg-gray-100 dark:focus:bg-gray-100"
               >
                 <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                <span>Q&amp;A</span>
+                <span>{t('qna.title')}</span>
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
@@ -749,10 +750,13 @@ export function DataroomViewer({ data, slug, viewId }) {
   };
 
   const currentScopeQnaButtonLabel = isDocActive
-    ? `${isDocQnaOpen ? 'Close' : 'Open'} Q&A for this document`
-    : `${isCurrentScopeQnaOpen ? 'Close' : 'Open'} Q&A for current folder${
-        currentScopeQnaThreadCount > 0 ? `, ${currentScopeQnaThreadCount} threads` : ''
-      }`;
+    ? (isDocQnaOpen
+        ? t('qna.closeDocumentQna', { defaultValue: 'Close Q&A for this document' })
+        : t('qna.openDocumentQna', { defaultValue: 'Open Q&A for this document' }))
+    : (isCurrentScopeQnaOpen
+        ? t('qna.closeFolderQna', { defaultValue: 'Close Q&A for current folder' })
+        : t('qna.openFolderQna', { defaultValue: 'Open Q&A for current folder' })) +
+      (currentScopeQnaThreadCount > 0 ? `, ${t('qna.threadsCount', { count: currentScopeQnaThreadCount, defaultValue: `${currentScopeQnaThreadCount} threads` })}` : '');
 
   // Inline Document Viewer specific layout parameters
   const PREVIEWABLE_TYPES = ['image', 'pdf', 'document', 'video'];
@@ -791,7 +795,7 @@ export function DataroomViewer({ data, slug, viewId }) {
             title={currentScopeQnaButtonLabel}
           >
             <MessageCircle className="h-4 w-4" />
-            <span className="ml-2 font-semibold">{isDocActive ? 'Document Q&A' : 'Q&A'}</span>
+            <span className="ml-2 font-semibold">{isDocActive ? t('qna.documentQna', { defaultValue: 'Document Q&A' }) : t('qna.title', { defaultValue: 'Q&A' })}</span>
             {!isDocActive && currentScopeQnaThreadCount > 0 && (
               <span
                 className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground"
@@ -899,21 +903,21 @@ export function DataroomViewer({ data, slug, viewId }) {
               size="sm"
               onClick={onPrevSibling}
               disabled={!hasPrevSibling}
-              title="Previous file (Alt+Left)"
+              title={`${t('viewer.previousFile')} (Alt+Left)`}
               className="h-8 gap-1 px-2 text-xs"
             >
               <ChevronsLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Prev File</span>
+              <span className="hidden sm:inline">{t('viewer.prevFile')}</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={onNextSibling}
               disabled={!hasNextSibling}
-              title="Next file (Alt+Right)"
+              title={`${t('viewer.nextFile')} (Alt+Right)`}
               className="h-8 gap-1 px-2 text-xs"
             >
-              <span className="hidden sm:inline">Next File</span>
+              <span className="hidden sm:inline">{t('viewer.nextFileLabel')}</span>
               <ChevronsRight className="h-4 w-4" />
             </Button>
           </div>
@@ -960,26 +964,26 @@ export function DataroomViewer({ data, slug, viewId }) {
                     ) : null}
                     <p className="mb-6 text-gray-700">
                       {documentViewData.type === 'video' && documentViewData.link_settings?.enable_watermark && documentViewData.download_only
-                        ? "This video exceeds the size limit to preview, and download is restricted due to watermark requirements."
-                        : "This type of file is not available for online preview. Download the file and open it on your device."}
+                        ? t('viewer.watermarkedVideoBlockedNotice')
+                        : t('viewer.previewNotAvailableNotice')}
                     </p>
                     {documentViewData.type === 'video' && documentViewData.link_settings?.enable_watermark && documentViewData.download_only ? (
                       <Button size="lg" className="w-full" disabled>
-                        Download Restricted
+                        {t('viewer.downloadRestricted')}
                       </Button>
                     ) : canDownload ? (
                       <Button asChild size="lg" className="w-full">
                         <a href={docDownloadUrl} download={documentViewData.name}>
-                          Download
+                          {t('viewer.download')}
                         </a>
                       </Button>
                     ) : (
                       <>
                         <Button size="lg" className="w-full" disabled>
-                          Download
+                          {t('viewer.download')}
                         </Button>
                         <p className="mt-2 text-sm text-gray-500">
-                          Download is disabled for this document by the link permissions.
+                          {t('viewer.downloadDisabledNotice')}
                         </p>
                       </>
                     )}
@@ -1076,10 +1080,10 @@ export function DataroomViewer({ data, slug, viewId }) {
           >
             {scopeData.show_file_index && <div className="hidden w-10 sm:block">#</div>}
             <div className="w-7 sm:w-8" />
-            <div className="min-w-0 flex-1 pr-2 sm:pr-4">Name</div>
-            <div className="hidden w-[20%] sm:block">Last Modified</div>
-            <div className="hidden w-[10%] sm:block">Size</div>
-            <div className="w-9 shrink-0 text-right sm:w-[10%]">Actions</div>
+            <div className="min-w-0 flex-1 pr-2 sm:pr-4">{t('documents.name')}</div>
+            <div className="hidden w-[20%] sm:block">{t('documents.modified')}</div>
+            <div className="hidden w-[10%] sm:block">{t('documents.size')}</div>
+            <div className="w-9 shrink-0 text-right sm:w-[10%]">{t('common.actions')}</div>
           </div>
           {isNavigating ? (
             <div className="divide-y">
@@ -1114,14 +1118,14 @@ export function DataroomViewer({ data, slug, viewId }) {
                     onClick={handleLoadMore}
                     disabled={isLoadingMore}
                   >
-                    {isLoadingMore ? 'Loading...' : 'Load more'}
+                    {isLoadingMore ? t('viewer.loading') : t('documents.loadMore', { defaultValue: 'Load more' })}
                   </Button>
                 </div>
               )}
             </div>
           )}
           {!isNavigating && allItems.length === 0 && (
-            <div className="p-12 text-center" style={{ color: 'var(--viewer-secondary)' }}>This folder is empty.</div>
+            <div className="p-12 text-center" style={{ color: 'var(--viewer-secondary)' }}>{t('viewer.emptyFolder')}</div>
           )}
         </main>
       )}

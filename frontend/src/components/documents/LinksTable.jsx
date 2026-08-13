@@ -38,12 +38,13 @@ function formatDuration(seconds) {
 }
 
 function CopyableLink({ slug, isExpired, expires_at }) {
+  const { t } = useTranslation();
   const url = `${window.location.origin}/view/${slug}`;
   const displayUrl = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
   const handleCopy = () => {
     if (isExpired) return;
-    copyTextToClipboard(url, 'Link copied to clipboard!', 'Failed to copy link.');
+    copyTextToClipboard(url, t('links.copiedToClipboard'), t('links.copyFailed'));
   };
 
   if (isExpired) {
@@ -102,7 +103,9 @@ export function LinksTable({
   const handleStatusChange = async (link, newStatus) => {
     try {
       const response = await updateShareLink(link.id, { is_active: newStatus });
-      toast.success(`Link "${link.name || 'Untitled Link'}" is now ${newStatus ? 'active' : 'inactive'}.`);
+      const statusText = newStatus ? t('links.activeStatus') : t('links.inactiveStatus');
+      const linkName = link.name || t('links.untitledLink');
+      toast.success(t('links.statusToggleSuccess', { name: linkName, status: statusText }));
       if (onLinkUpdate) {
         onLinkUpdate(response.data);
       }
@@ -116,7 +119,7 @@ export function LinksTable({
       const { previewToken } = response.data;
       window.open(`/view/${slug}?previewToken=${previewToken}`, '_blank');
     } catch (error) {
-      toast.error('Could not generate preview link. Please try again.');
+      toast.error(t('links.previewFailed'));
     }
   };
 
