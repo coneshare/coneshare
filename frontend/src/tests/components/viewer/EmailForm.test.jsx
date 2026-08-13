@@ -150,7 +150,7 @@ describe('EmailForm', () => {
       expect(api.confirmShareLinkEmailAccess).toHaveBeenCalledWith(slug, 'my-token-123');
     });
 
-    expect(toast.success).toHaveBeenCalledWith('Access granted successfully.');
+    expect(toast.success).toHaveBeenCalledWith('Access granted.');
     expect(mockOnSuccess).toHaveBeenCalled();
   });
 

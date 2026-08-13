@@ -1,5 +1,6 @@
 import { render, screen, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import '../../../i18n';
 import { VideoViewer } from '../../../components/documents/VideoViewer';
 import * as api from '../../../services/api';
 import Hls from 'hls.js';
