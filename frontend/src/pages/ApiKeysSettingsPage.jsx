@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Key, Plus, Trash2, Copy, Check, ShieldAlert } from "lucide-react";
+import { Key, Plus, Trash2, Copy, Check, ShieldAlert, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { SettingsTabs } from "../components/settings/SettingsTabs";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Label } from "../components/ui/Label";
 import { Select } from "../components/ui/Select";
 import { getApiKeys, createApiKey, deleteApiKey } from "../services/api";
+import { McpSetupGuide } from "../components/settings/McpSetupGuide";
 
 export default function ApiKeysSettingsPage() {
   const { t } = useTranslation();
@@ -19,6 +20,7 @@ export default function ApiKeysSettingsPage() {
   const [expiresInDays, setExpiresInDays] = useState("");
   const [createdRawKey, setCreatedRawKey] = useState(null);
   const [copiedKey, setCopiedKey] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
 
   // Delete Confirmation Modal State
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -46,6 +48,13 @@ export default function ApiKeysSettingsPage() {
     if (!name.trim()) {
       toast.error(t('settings.settingsUpdateFailed'));
       return;
+    }
+    if (expiresInDays) {
+      const parsedDays = parseInt(expiresInDays, 10);
+      if (isNaN(parsedDays) || parsedDays < 1 || parsedDays > 3650) {
+        toast.error(t('settings.settingsUpdateFailed'));
+        return;
+      }
     }
     setIsCreating(true);
     try {
@@ -85,10 +94,21 @@ export default function ApiKeysSettingsPage() {
   };
 
   const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(true);
-    toast.success(t('common.success'));
-    setTimeout(() => setCopiedKey(false), 2000);
+    if (!navigator.clipboard) {
+      toast.error(t('settings.settingsUpdateFailed'));
+      return;
+    }
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopiedKey(true);
+        toast.success(t('common.success'));
+        setTimeout(() => setCopiedKey(false), 2000);
+      })
+      .catch((err) => {
+        console.error("Clipboard copy failed:", err);
+        toast.error(t('settings.settingsUpdateFailed'));
+      });
   };
 
   const getTierBadge = (tierType) => {
@@ -108,12 +128,39 @@ export default function ApiKeysSettingsPage() {
         <h1 className="text-2xl font-bold mb-6">{t('settings.title')}</h1>
         <SettingsTabs />
 
-        {/* Newly Created Key Alert Modal/Banner */}
+        {/* Collapsible MCP Setup Guide */}
+        <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+          <button
+            type="button"
+            aria-expanded={isGuideOpen}
+            aria-controls="mcp-setup-guide-container"
+            onClick={() => setIsGuideOpen(!isGuideOpen)}
+            className="w-full p-4 text-left flex items-center justify-between font-semibold hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+          >
+            <div className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <span>{t('settings.mcpSetupGuideTitle', 'How to connect your AI agent to Coneshare MCP')}</span>
+            </div>
+            {isGuideOpen ? <ChevronUp className="h-5 w-5 text-gray-500" /> : <ChevronDown className="h-5 w-5 text-gray-500" />}
+          </button>
+          {isGuideOpen && (
+            <div id="mcp-setup-guide-container" className="p-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+              <McpSetupGuide />
+            </div>
+          )}
+        </div>
+
+        {/* Newly Created Key Alert Banner */}
         {createdRawKey && (
-          <div className="mb-6 p-4 border border-green-300 bg-green-50 dark:bg-green-900/20 dark:border-green-800 rounded-lg space-y-3">
-            <div className="flex items-center gap-2 text-green-800 dark:text-green-300 font-semibold">
-              <Key className="h-5 w-5" />
-              <span>{t('settings.apiKeyCreatedAlert')}</span>
+          <div className="mb-6 p-4 border border-green-300 bg-green-50 dark:bg-green-900/20 dark:border-green-800 rounded-lg space-y-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-green-800 dark:text-green-300 font-semibold">
+                <Key className="h-5 w-5" />
+                <span>{t('settings.apiKeyCreatedAlert')}</span>
+              </div>
+              <Button size="sm" variant="secondary" onClick={() => setCreatedRawKey(null)}>
+                {t('common.done')}
+              </Button>
             </div>
             <p className="text-sm text-green-700 dark:text-green-400">
               {t('settings.apiKeyCreatedWarning')}
@@ -128,9 +175,11 @@ export default function ApiKeysSettingsPage() {
                 {copiedKey ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
               </Button>
             </div>
-            <Button size="sm" variant="secondary" onClick={() => setCreatedRawKey(null)}>
-              {t('common.done')}
-            </Button>
+
+            {/* Embedded Live Secret Setup Snippets */}
+            <div className="pt-3 border-t border-green-200 dark:border-green-800">
+              <McpSetupGuide rawKey={createdRawKey} />
+            </div>
           </div>
         )}
 
@@ -162,6 +211,8 @@ export default function ApiKeysSettingsPage() {
               <Input
                 id="key-expires"
                 type="number"
+                min="1"
+                max="3650"
                 placeholder={t('settings.expiresInDaysPlaceholder')}
                 value={expiresInDays}
                 onChange={(e) => setExpiresInDays(e.target.value)}

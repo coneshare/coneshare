@@ -240,7 +240,22 @@
     "revoking": "正在撤销...",
     "apiKeyCreatedAlert": "API 密钥已创建 — 请立即保存！",
     "revokeKeyTitle": "撤销 API 密钥",
-    "revokeKeyDescription": "您确定要撤销 API 密钥“{{name}}”吗？任何使用此密钥的应用或 MCP 服务器将立即失去访问权限。"
+    "revokeKeyDescription": "您确定要撤销 API 密钥“{{name}}”吗？任何使用此密钥的应用或 MCP 服务器将立即失去访问权限。",
+    "mcpSetupGuideTitle": "如何将 AI 助手连接到 Coneshare MCP",
+    "mcpSetupGuideSubtitle": "在下方选择您的 AI 工具，获取连接到 Remote MCP 服务器的预配置设置。",
+    "mcpTabClaudeDesktop": "Claude Desktop",
+    "mcpTabClaudeCode": "Claude Code",
+    "mcpTabAgy": "Antigravity CLI (agy)",
+    "mcpTabCursor": "Cursor",
+    "mcpTabVsCode": "VS Code",
+    "mcpTabCodex": "Codex",
+    "mcpConfigLocation": "配置文件 / 命令位置",
+    "mcpConfigMode": "配置模式",
+    "mcpModeCli": "单行 CLI 命令",
+    "mcpModeJson": "JSON 配置文件",
+    "mcpTierTip": "权限提示：如果您的 AI 助手需要上传文件或生成分享链接，请确保 API 密钥具有“读写”或“完全权限”。",
+    "mcpSkillInstall": "安装 coneshare-it skill 以启用文档分发、上传和 Data Room 自动化。",
+    "mcpNeedHelp": "需要帮助？查看完整的 MCP 设置文档"
   },
   "auth": {
     "login": "登录",

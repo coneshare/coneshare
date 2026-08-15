@@ -242,7 +242,22 @@
     "revoking": "Revoking...",
     "apiKeyCreatedAlert": "API Key Created — Save It Now!",
     "revokeKeyTitle": "Revoke API Key",
-    "revokeKeyDescription": "Are you sure you want to revoke the API key \"{{name}}\"? Any application or MCP server using this key will immediately lose access."
+    "revokeKeyDescription": "Are you sure you want to revoke the API key \"{{name}}\"? Any application or MCP server using this key will immediately lose access.",
+    "mcpSetupGuideTitle": "How to connect your AI agent to Coneshare MCP",
+    "mcpSetupGuideSubtitle": "Select your AI tool below to get pre-configured settings to connect to the Remote MCP Server.",
+    "mcpTabClaudeDesktop": "Claude Desktop",
+    "mcpTabClaudeCode": "Claude Code",
+    "mcpTabAgy": "Antigravity CLI (agy)",
+    "mcpTabCursor": "Cursor",
+    "mcpTabVsCode": "VS Code",
+    "mcpTabCodex": "Codex",
+    "mcpConfigLocation": "Target File / Location",
+    "mcpConfigMode": "Configuration Mode",
+    "mcpModeCli": "1-Line CLI Command",
+    "mcpModeJson": "JSON File Config",
+    "mcpTierTip": "Permissions Tip: Make sure your API key has Read & Write or Full Access if your AI agent needs to upload files or generate share links.",
+    "mcpSkillInstall": "Install the coneshare-it skill for automated uploading, link sharing, and dataroom workflows.",
+    "mcpNeedHelp": "Need help? Read the full setup documentation"
   },
   "auth": {
     "login": "Log In",

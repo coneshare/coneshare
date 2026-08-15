@@ -246,7 +246,22 @@
     "revoking": "Отзыв...",
     "apiKeyCreatedAlert": "Ключ API создан — сохраните его прямо сейчас!",
     "revokeKeyTitle": "Отозвать ключ API",
-    "revokeKeyDescription": "Вы уверены, что хотите отозвать ключ API «{{name}}»? Любое приложение или MCP-сервер, использующие этот ключ, немедленно потеряют доступ."
+    "revokeKeyDescription": "Вы уверены, что хотите отозвать ключ API «{{name}}»? Любое приложение или MCP-сервер, использующие этот ключ, немедленно потеряют доступ.",
+    "mcpSetupGuideTitle": "Как подключить ИИ-агента к Coneshare MCP",
+    "mcpSetupGuideSubtitle": "Выберите ИИ-инструмент ниже, чтобы получить предварительно настроенные параметры для подключения к удаленному серверу MCP.",
+    "mcpTabClaudeDesktop": "Claude Desktop",
+    "mcpTabClaudeCode": "Claude Code",
+    "mcpTabAgy": "Antigravity CLI (agy)",
+    "mcpTabCursor": "Cursor",
+    "mcpTabVsCode": "VS Code",
+    "mcpTabCodex": "Codex",
+    "mcpConfigLocation": "Файл / Расположение",
+    "mcpConfigMode": "Режим конфигурации",
+    "mcpModeCli": "Однострочная команда CLI",
+    "mcpModeJson": "Конфигурация JSON",
+    "mcpTierTip": "Совет по правам: убедитесь, что ваш ключ API имеет права «Чтение и запись» или «Полный доступ», если ИИ-агент должен загружать файлы или создавать ссылки.",
+    "mcpSkillInstall": "Установите навык coneshare-it для автоматической загрузки, публикации ссылок и работы с Data Room.",
+    "mcpNeedHelp": "Нужна помощь? Прочитайте полную документацию по настройке"
   },
   "auth": {
     "login": "Войти",

@@ -51,7 +51,30 @@ describe("ApiKeysSettingsPage", () => {
     });
   });
 
-  it("creates a new API key and displays raw key banner", async () => {
+  it("toggles the collapsible MCP setup guide", async () => {
+    api.getApiKeys.mockImplementation(() => Promise.resolve({ data: [] }));
+
+    render(
+      <MemoryRouter>
+        <ApiKeysSettingsPage />
+      </MemoryRouter>
+    );
+
+    const guideToggleBtn = screen.getByRole("button", { name: /How to connect your AI agent to Coneshare MCP/i });
+    expect(screen.queryByText(/Select your AI tool below/i)).not.toBeInTheDocument();
+
+    fireEvent.click(guideToggleBtn);
+    expect(screen.getByText(/Select your AI tool below/i)).toBeInTheDocument();
+
+    // Click Claude Code tab
+    const claudeCodeTab = screen.getByRole("button", { name: /Claude Code/i });
+    fireEvent.click(claudeCodeTab);
+
+    // Verify default CLI command string
+    expect(screen.getByText(/claude mcp add --transport sse coneshare/i)).toBeInTheDocument();
+  });
+
+  it("creates a new API key and displays raw key banner with embedded setup guide", async () => {
     api.getApiKeys.mockImplementation(() => Promise.resolve({ data: [] }));
     api.createApiKey.mockImplementation(() =>
       Promise.resolve({
@@ -84,6 +107,8 @@ describe("ApiKeysSettingsPage", () => {
         expires_in_days: null,
       });
       expect(screen.getByDisplayValue("cs_live_1234567890abcdef")).toBeInTheDocument();
+      // Confirm the live key is embedded in the post-creation setup guide snippet
+      expect(screen.getAllByText(/cs_live_1234567890abcdef/i).length).toBeGreaterThan(0);
     });
   });
 });
