@@ -11,6 +11,8 @@ import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
 import { LinksTable } from '../components/documents/LinksTable';
 
 function DailyVisitsChart({ data, loading }) {
+  const { t } = useTranslation();
+
   if (loading) {
     return <Skeleton className="h-[300px] w-full" />;
   }
@@ -20,8 +22,8 @@ function DailyVisitsChart({ data, loading }) {
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="date" tickFormatter={(str) => format(parseISO(str), 'MMM d')} />
         <YAxis />
-        <Tooltip />
-        <Bar dataKey="visits" fill="#8884d8" />
+        <Tooltip name={t('dashboard.visits')} />
+        <Bar dataKey="visits" name={t('dashboard.visits')} fill="#8884d8" />
       </BarChart>
     </ResponsiveContainer>
   );

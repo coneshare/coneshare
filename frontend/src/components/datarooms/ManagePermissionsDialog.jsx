@@ -258,6 +258,8 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
               <div className="flex items-center justify-center p-8">
                 <Loader2 className="h-6 w-6 animate-spin" />
               </div>
+            ) : dataroomTree.length === 0 ? (
+              <p className="text-center p-4 text-sm text-muted-foreground">{t('datarooms.dataroomEmpty')}</p>
             ) : (
               dataroomTree.map(item => (
                  <PermissionRow

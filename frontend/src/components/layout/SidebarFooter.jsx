@@ -1,5 +1,6 @@
 import { cn } from "../../lib/utils";
 import { BookOpen } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Progress } from "../ui/Progress";
 import NavUser from "./NavUser";
 import { useSidebar } from "./SidebarProvider";
@@ -8,6 +9,7 @@ import { useUser } from "../../contexts/UserProvider";
 import { APP_DISPLAY_VERSION } from "../../lib/constants";
 
 function SidebarFooter() {
+  const { t } = useTranslation();
   const { isCollapsed } = useSidebar();
   const { user } = useUser();
 
@@ -28,16 +30,16 @@ function SidebarFooter() {
         )}
       >
         <BookOpen className="h-5 w-5" />
-        <span className={cn(isCollapsed && "hidden")}>API Docs (Swagger)</span>
+        <span className={cn(isCollapsed && "hidden")}>{t('nav.apiDocs')}</span>
       </a>
       {user && (
         <div className={cn("px-2 text-xs", isCollapsed && "hidden")}>
           <div className="mb-2 flex justify-between font-medium text-muted-foreground">
-            <span>{formatBytes(usageBytes)} used</span>
+            <span>{t('nav.usedQuota', { size: formatBytes(usageBytes) })}</span>
             {quotaMB > 0 ? (
               <span>{formatBytes(quotaBytes, 0)}</span>
             ) : (
-              <span>Unlimited</span>
+              <span>{t('nav.unlimited')}</span>
             )}
           </div>
           <Progress value={usagePercentage} className="h-2" />

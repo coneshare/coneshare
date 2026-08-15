@@ -38,19 +38,19 @@ const PROVIDER_CONFIG = {
     displayName: 'Google Drive',
     icon: <HardDrive className="h-8 w-8 text-green-500" />,
     getConnectUrl: getGoogleDriveConnectUrl,
-    description: 'Public cloud storage',
+    descriptionKey: 'settings.publicCloudStorage',
   },
   dropbox: {
     displayName: 'Dropbox',
     icon: <Database className="h-8 w-8 text-blue-500" />,
     getConnectUrl: getDropboxConnectUrl,
-    description: 'Public cloud storage',
+    descriptionKey: 'settings.publicCloudStorage',
   },
   nextcloud: {
     displayName: 'Nextcloud',
     icon: <Cloud className="h-8 w-8 text-cyan-500" />,
     getConnectUrl: getNextcloudConnectUrl,
-    description: 'Self-hosted or hosted Nextcloud instances',
+    descriptionKey: 'settings.nextcloudDescription',
   },
 };
 
@@ -96,7 +96,7 @@ export function IntegrationsSettingsPage() {
   const handleConnect = async (providerName) => {
     const config = PROVIDER_CONFIG[providerName];
     if (!config) {
-      toast.error(`Unsupported provider: ${providerName}`);
+      toast.error(t('settings.unsupportedProvider', { provider: providerName }));
       return;
     }
     try {
@@ -173,7 +173,9 @@ export function IntegrationsSettingsPage() {
                           {getProviderDisplayName(provider.name)}
                         </CardTitle>
                         <CardDescription className="text-xs">
-                          {PROVIDER_CONFIG[provider.name]?.description || 'Cloud storage provider'}
+                          {PROVIDER_CONFIG[provider.name]?.descriptionKey
+                            ? t(PROVIDER_CONFIG[provider.name].descriptionKey)
+                            : t('settings.cloudStorageProvider')}
                         </CardDescription>
                       </div>
                     </div>
@@ -195,7 +197,7 @@ export function IntegrationsSettingsPage() {
                       <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-100 dark:border-gray-800/80">
                         <div className="flex justify-between items-center py-0.5">
                           <span className="text-gray-500">{t('settings.account')}:</span>
-                          <span className="font-medium text-gray-900 dark:text-gray-200">{connection.email || 'Connected Account'}</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-200">{connection.email || t('settings.connectedAccount')}</span>
                         </div>
                         <div className="flex justify-between items-center py-0.5">
                           <span className="text-gray-500 flex items-center gap-1">
@@ -210,13 +212,13 @@ export function IntegrationsSettingsPage() {
                           <span>
                             {connection.updated_at
                               ? new Date(connection.updated_at).toLocaleString()
-                              : 'N/A'}
+                              : t('settings.notAvailableShort')}
                           </span>
                         </div>
                       </div>
                     ) : (
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Link your {getProviderDisplayName(provider.name)} account to seamlessly browse and import your documents directly.
+                        {t('settings.linkAccountNotice', { provider: getProviderDisplayName(provider.name) })}
                       </p>
                     )}
                   </CardContent>
@@ -257,7 +259,7 @@ export function IntegrationsSettingsPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-2 text-sm text-gray-500 dark:text-gray-400">
-            Documents imported from this provider will remain in Coneshare but can no longer be refreshed/synced.
+            {t('settings.disconnectNotice')}
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button

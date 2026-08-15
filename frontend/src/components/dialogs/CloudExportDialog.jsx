@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/Table';
 import { Folder as FolderIcon, ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { getCloudConnections, listCloudFolders, exportFileRequestUploads } from '../../services/api';
+import { getLocalizedErrorMessage } from '../../utils/errorTranslator';
 
 export function CloudExportDialog({ isOpen, onOpenChange, requestId, selectedFileIds, onExportSuccess }) {
+  const { t } = useTranslation();
   const [connections, setConnections] = useState([]);
   const [selectedConnection, setSelectedConnection] = useState(null);
   const [folders, setFolders] = useState([]);
@@ -29,11 +32,11 @@ export function CloudExportDialog({ isOpen, onOpenChange, requestId, selectedFil
       }
     } catch (err) {
       console.error('Failed to load cloud connections:', err);
-      setError('Failed to load connected storage accounts.');
+      setError(t('cloudExport.loadConnectionsFailed'));
     } finally {
       setLoadingConnections(false);
     }
-  }, []);
+  }, [t]);
 
   // Fetch folders for selected connection
   const fetchFolders = useCallback(async (connectionId, path) => {
@@ -47,7 +50,7 @@ export function CloudExportDialog({ isOpen, onOpenChange, requestId, selectedFil
       setFolders(sortedFolders);
     } catch (err) {
       console.error('Failed to list folders:', err);
-      setError(err.response?.data?.detail || 'Failed to load folders. Please try again.');
+      setError(getLocalizedErrorMessage(err, 'cloudExport.loadFoldersFailed'));
     } finally {
       setLoadingFolders(false);
     }
@@ -94,7 +97,7 @@ export function CloudExportDialog({ isOpen, onOpenChange, requestId, selectedFil
         uploaded_file_ids: selectedFileIds,
         destination_folder_id: currentPath,
       });
-      toast.success('File export initiated successfully.');
+      toast.success(t('cloudExport.exportSuccess'));
       if (onExportSuccess) {
         onExportSuccess();
       }
@@ -113,9 +116,9 @@ export function CloudExportDialog({ isOpen, onOpenChange, requestId, selectedFil
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Export Uploads to Cloud Storage</DialogTitle>
+          <DialogTitle>{t('cloudExport.title')}</DialogTitle>
           <DialogDescription>
-            Choose a connected storage account and target directory.
+            {t('cloudExport.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -127,17 +130,17 @@ export function CloudExportDialog({ isOpen, onOpenChange, requestId, selectedFil
           <div className="my-6 rounded-md border border-yellow-200 bg-yellow-50 p-4 text-center dark:border-yellow-900/30 dark:bg-yellow-950/20">
             <AlertTriangle className="mx-auto mb-2 h-8 w-8 text-yellow-600 dark:text-yellow-500" />
             <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-              No cloud storage accounts connected.
+              {t('cloudExport.noConnections')}
             </p>
             <p className="mt-1 text-xs text-yellow-700 dark:text-yellow-400">
-              Please go to your Account Settings to connect Google Drive, Dropbox, or Nextcloud.
+              {t('cloudExport.noConnectionsNotice')}
             </p>
           </div>
         ) : (
           <div className="space-y-4 py-2">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <label htmlFor="connection-select" className="text-sm font-medium text-muted-foreground min-w-[120px]">
-                Storage Account:
+                {t('cloudExport.storageAccount')}
               </label>
               <select
                 id="connection-select"
@@ -164,10 +167,10 @@ export function CloudExportDialog({ isOpen, onOpenChange, requestId, selectedFil
                 disabled={pathHistory.length === 0 || loadingFolders}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
+                {t('cloudImport.back')}
               </Button>
               <span className="text-xs text-muted-foreground truncate max-w-[400px]">
-                Browsing: /{breadcrumbs.join('/')}
+                {t('cloudImport.browsing', { path: '/' + breadcrumbs.join('/') })}
               </span>
             </div>
 
@@ -186,18 +189,18 @@ export function CloudExportDialog({ isOpen, onOpenChange, requestId, selectedFil
                     className="mt-4"
                     onClick={() => fetchFolders(selectedConnection?.id, currentPath)}
                   >
-                    Retry
+                    {t('cloudImport.retry')}
                   </Button>
                 </div>
               ) : folders.length === 0 ? (
                 <div className="flex h-full items-center justify-center p-4 text-muted-foreground text-sm">
-                  No folders found in this directory.
+                  {t('cloudExport.noFolders')}
                 </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Folder Name</TableHead>
+                      <TableHead>{t('cloudExport.folderName')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -223,7 +226,7 @@ export function CloudExportDialog({ isOpen, onOpenChange, requestId, selectedFil
 
         <div className="mt-4 flex justify-end gap-x-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={exporting}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={handleExport}
@@ -232,10 +235,10 @@ export function CloudExportDialog({ isOpen, onOpenChange, requestId, selectedFil
             {exporting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Exporting...
+                {t('automations.replaying')}
               </>
             ) : (
-              `Export (${selectedFileIds?.length || 0})`
+              t('cloudExport.exportCount', { count: selectedFileIds?.length || 0 })
             )}
           </Button>
         </div>

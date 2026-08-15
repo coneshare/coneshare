@@ -1,5 +1,6 @@
 import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useSidebar } from "./SidebarProvider";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/Button";
@@ -13,6 +14,7 @@ import {
 import { useBranding } from "../../contexts/BrandingProvider";
 
 function SidebarHeader() {
+  const { t } = useTranslation();
   const { isCollapsed, toggleSidebar } = useSidebar();
   const { brandName, brandLogoUrl, brandWebsiteUrl } = useBranding();
 
@@ -58,11 +60,11 @@ function SidebarHeader() {
               ) : (
                 <ChevronsLeft className="h-5 w-5" />
               )}
-              <span className="sr-only">Toggle sidebar</span>
+              <span className="sr-only">{t('nav.toggleSidebar')}</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right">
-            <p>Press ] to toggle sidebar</p>
+            <p>{t('nav.pressToToggleSidebar')}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

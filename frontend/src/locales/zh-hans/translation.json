@@ -10,6 +10,7 @@
     "change": "更改",
     "remove": "移除",
     "actions": "操作",
+    "done": "完成",
     "search": "搜索...",
     "none": "无",
     "viewAll": "查看全部",
@@ -27,7 +28,8 @@
   "dashboard": {
     "title": "仪表盘",
     "dailyVisits": "每日访问量（近30天）",
-    "latestViewSessions": "最新浏览记录",
+    "visits": "访问量",
+    "latestViewSessions": "最新访问会话",
     "recentActiveLinks": "最近活跃链接"
   },
   "analytics": {
@@ -166,7 +168,12 @@
     "automations": "自动化",
     "trash": "回收站",
     "settings": "设置",
-    "admin": "管理"
+    "admin": "管理后台",
+    "apiDocs": "API 文档 (Swagger)",
+    "usedQuota": "已用 {{size}}",
+    "unlimited": "无限制",
+    "toggleSidebar": "切换侧边栏",
+    "pressToToggleSidebar": "按 ] 键切换侧边栏"
   },
   "settings": {
     "title": "用户设置",
@@ -203,8 +210,25 @@
     "lastAccessed": "上次访问",
     "disconnectTitle": "断开云账号连接？",
     "disconnectDescription": "您确定要断开与 {{provider}} 的连接吗？",
+    "publicCloudStorage": "公有云存储",
+    "nextcloudDescription": "私有部署或托管的 Nextcloud 实例",
+    "cloudStorageProvider": "云存储服务商",
+    "linkAccountNotice": "关联您的 {{provider}} 账号，以便直接浏览和导入文档。",
+    "connectedAccount": "已关联账号",
+    "notAvailableShort": "暂无",
+    "disconnectNotice": "从该服务商导入的文档将保留在 Coneshare 中，但无法再刷新或同步。",
+    "unsupportedProvider": "不支持的服务商：{{provider}}",
     "createApiKeyTitle": "创建新 API 密钥",
     "activeApiKeysTitle": "活跃的 API 密钥",
+    "apiKeySubtitle": "API 密钥可用于授权外部工具（如 MCP 服务器）访问您的 Coneshare 账号。",
+    "apiKeyCreatedWarning": "请立即复制您的 API 密钥。出于安全考虑，系统将无法再次显示完整的原始密钥。",
+    "keyNamePlaceholder": "例如：MCP 服务器 / Claude Desktop",
+    "expiresInDaysPlaceholder": "例如：30 (留空表示永不过期)",
+    "noApiKeys": "暂未生成任何 API 密钥。请在上方创建密钥以连接 AI 工具。",
+    "prefix": "前缀",
+    "created": "创建时间",
+    "lastUsed": "上次使用",
+    "neverUsed": "从未使用",
     "keyName": "密钥名称",
     "permissionsTier": "权限级别",
     "expiresInDays": "有效期 (天，可选)",
@@ -793,6 +817,20 @@
     "collapse": "折叠",
     "expand": "展开",
     "close": "关闭"
+  },
+  "cloudExport": {
+    "title": "导出文件至云端存储",
+    "description": "选择已关联的存储账号和目标目录。",
+    "noConnections": "未关联任何云存储账号。",
+    "noConnectionsNotice": "请前往账号设置关联 Google Drive、Dropbox 或 Nextcloud。",
+    "storageAccount": "存储账号：",
+    "noFolders": "该目录下未找到文件夹。",
+    "folderName": "文件夹名称",
+    "exportCount_one": "导出 ({{count}})",
+    "exportCount_other": "导出 ({{count}})",
+    "exportSuccess": "文件导出请求发起成功。",
+    "loadConnectionsFailed": "加载已关联存储账号失败。",
+    "loadFoldersFailed": "加载文件夹失败，请重试。"
   },
   "cloudImport": {
     "title": "从 {{provider}} 导入",

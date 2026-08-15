@@ -222,10 +222,8 @@ describe('ManagePermissionsDialog', () => {
     expect(screen.queryByText('Folder A')).not.toBeInTheDocument();
     expect(screen.queryByText('Root Doc 3')).not.toBeInTheDocument();
 
-    // Assert that the content area is empty
-    const contentHeader = screen.getByText('Content');
-    const contentArea = contentHeader.closest('.space-y-2').querySelector('.max-h-\\[50vh\\]');
-    expect(contentArea.childElementCount).toBe(0);
+    // Assert that the empty state notice is displayed
+    expect(screen.getByText('This dataroom is empty')).toBeInTheDocument();
   });
 
   it('should handle bulk changes with individual overrides', async () => {

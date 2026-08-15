@@ -116,7 +116,7 @@ export default function ApiKeysSettingsPage() {
               <span>{t('settings.apiKeyCreatedAlert')}</span>
             </div>
             <p className="text-sm text-green-700 dark:text-green-400">
-              Please copy your API key now. For security reasons, you will <strong>not</strong> be able to view the full raw key again.
+              {t('settings.apiKeyCreatedWarning')}
             </p>
             <div className="flex items-center gap-2">
               <Input
@@ -129,7 +129,7 @@ export default function ApiKeysSettingsPage() {
               </Button>
             </div>
             <Button size="sm" variant="secondary" onClick={() => setCreatedRawKey(null)}>
-              Done
+              {t('common.done')}
             </Button>
           </div>
         )}
@@ -144,7 +144,7 @@ export default function ApiKeysSettingsPage() {
               <Label htmlFor="key-name">{t('settings.keyName')}</Label>
               <Input
                 id="key-name"
-                placeholder="e.g. MCP Server / Claude Desktop"
+                placeholder={t('settings.keyNamePlaceholder')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
@@ -162,7 +162,7 @@ export default function ApiKeysSettingsPage() {
               <Input
                 id="key-expires"
                 type="number"
-                placeholder="e.g. 30 (blank = never)"
+                placeholder={t('settings.expiresInDaysPlaceholder')}
                 value={expiresInDays}
                 onChange={(e) => setExpiresInDays(e.target.value)}
               />
@@ -179,14 +179,14 @@ export default function ApiKeysSettingsPage() {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold">{t('settings.activeApiKeysTitle')}</h2>
-            <p className="text-sm text-gray-500">API keys authenticate external tools (like MCP servers) with your Coneshare account.</p>
+            <p className="text-sm text-gray-500">{t('settings.apiKeySubtitle')}</p>
           </div>
 
           {isLoading ? (
             <div className="p-6 text-center text-gray-500">{t('common.loading')}</div>
           ) : keys.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
-              No API keys generated yet. Create one above to connect AI tools.
+              {t('settings.noApiKeys')}
             </div>
           ) : (
             <div className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -198,11 +198,11 @@ export default function ApiKeysSettingsPage() {
                       {getTierBadge(k.tier)}
                     </div>
                     <div className="text-sm font-mono text-gray-500 dark:text-gray-400">
-                      Prefix: <span className="font-bold text-gray-700 dark:text-gray-300">{k.prefix}****</span>
+                      {t('settings.prefix')}: <span className="font-bold text-gray-700 dark:text-gray-300">{k.prefix}****</span>
                     </div>
                     <div className="text-xs text-gray-400">
-                      Created: {new Date(k.created_at).toLocaleDateString()}
-                      {k.last_used_at ? ` • Last used: ${new Date(k.last_used_at).toLocaleDateString()}` : " • Never used"}
+                      {t('settings.created')}: {new Date(k.created_at).toLocaleDateString()}
+                      {k.last_used_at ? ` • ${t('settings.lastUsed')}: ${new Date(k.last_used_at).toLocaleDateString()}` : ` • ${t('settings.neverUsed')}`}
                     </div>
                   </div>
 
