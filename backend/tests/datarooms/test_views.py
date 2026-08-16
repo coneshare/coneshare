@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone
 from rest_framework import status
 
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
@@ -402,6 +403,29 @@ class TestDataroomViewSet:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "ordered_items" in response.data["detail"]
 
+    def test_dataroom_root_items_excludes_soft_deleted_documents(self, api_client, dataroom, document, user, organization):
+        doc_active = document
+        doc_trashed = Document.objects.create(name="Trashed Doc", organization=organization, created_by=user, deleted_at=timezone.now())
+        ddoc_active = DataroomDocument.objects.create(dataroom=dataroom, document=doc_active, name=doc_active.name)
+        ddoc_trashed = DataroomDocument.objects.create(dataroom=dataroom, document=doc_trashed, name=doc_trashed.name)
+
+        # 1. Check GET /api/v1/datarooms/{id}/ does not return trashed document in items
+        detail_url = f'/api/v1/datarooms/{dataroom.id}/'
+        detail_res = api_client.get(detail_url)
+        assert detail_res.status_code == status.HTTP_200_OK
+        returned_item_ids = [item['id'] for item in detail_res.data['items']]
+        assert str(ddoc_active.id) in returned_item_ids
+        assert str(ddoc_trashed.id) not in returned_item_ids
+
+        # 2. Check reorder-items succeeds when passing only active items returned from detail
+        reorder_url = f'/api/v1/datarooms/{dataroom.id}/reorder-items/'
+        reorder_res = api_client.post(reorder_url, {
+            "ordered_items": [
+                {"type": "document", "id": str(ddoc_active.id)},
+            ],
+        }, format="json")
+        assert reorder_res.status_code == status.HTTP_200_OK
+
     def test_reorder_items_other_user_dataroom_returns_404(self, api_client, user2, organization, document):
         other_room = Dataroom.objects.create(name="Other", organization=organization, created_by=user2)
         ddoc = DataroomDocument.objects.create(dataroom=other_room, document=document, name=document.name)
@@ -433,6 +457,59 @@ class TestDataroomViewSet:
             dataroom_document=ddoc,
             position=0,
         ).exists()
+
+        # Check that GET detail endpoint returns items with position and respects custom order
+        detail_res = api_client.get(f'/api/v1/datarooms/{dataroom.id}/')
+        assert detail_res.status_code == status.HTTP_200_OK
+        assert detail_res.data["items"][0]["id"] == str(ddoc.id)
+        assert detail_res.data["items"][0]["position"] == 0
+
+    def test_dataroom_folder_retrieve_preserves_item_order_when_file_index_disabled(self, api_client, dataroom, document, user, organization):
+        parent_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Parent", parent=None)
+        sub_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Sub", parent=parent_folder)
+        doc2 = Document.objects.create(name="Doc In Folder", organization=organization, created_by=user)
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=doc2, name=doc2.name, folder=parent_folder)
+        dataroom.show_file_index = False
+        dataroom.save(update_fields=["show_file_index"])
+
+        DataroomItemOrder.objects.create(
+            dataroom=dataroom,
+            parent_folder=parent_folder,
+            item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
+            dataroom_document=ddoc,
+            position=0,
+        )
+        DataroomItemOrder.objects.create(
+            dataroom=dataroom,
+            parent_folder=parent_folder,
+            item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
+            folder=sub_folder,
+            position=1,
+        )
+
+        folder_url = f'/api/v1/dataroom-folders/{parent_folder.id}/'
+        response = api_client.get(folder_url)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["items"][0]["type"] == "document"
+        assert response.data["items"][0]["id"] == str(ddoc.id)
+        assert response.data["items"][0]["position"] == 0
+        assert response.data["items"][1]["type"] == "folder"
+        assert response.data["items"][1]["id"] == str(sub_folder.id)
+        assert response.data["items"][1]["position"] == 1
+
+    def test_dataroom_folder_retrieve_excludes_soft_deleted_documents(self, api_client, dataroom, document, user, organization):
+        parent_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Parent Folder", parent=None)
+        doc_active = document
+        doc_trashed = Document.objects.create(name="Trashed Doc in Folder", organization=organization, created_by=user, deleted_at=timezone.now())
+        ddoc_active = DataroomDocument.objects.create(dataroom=dataroom, document=doc_active, name=doc_active.name, folder=parent_folder)
+        ddoc_trashed = DataroomDocument.objects.create(dataroom=dataroom, document=doc_trashed, name=doc_trashed.name, folder=parent_folder)
+
+        folder_url = f'/api/v1/dataroom-folders/{parent_folder.id}/'
+        response = api_client.get(folder_url)
+        assert response.status_code == status.HTTP_200_OK
+        returned_item_ids = [item['id'] for item in response.data['items']]
+        assert str(ddoc_active.id) in returned_item_ids
+        assert str(ddoc_trashed.id) not in returned_item_ids
 
     def test_reorder_items_after_moving_content_should_succeed(self, api_client, dataroom, document, user, organization):
         # 1. Setup a destination folder and a document inside it.

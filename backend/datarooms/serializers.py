@@ -7,6 +7,7 @@ from django.conf import settings
 from django.db.models import Count
 
 from .models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
+from .utils import build_ordered_dataroom_items
 
 HEX_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 
@@ -167,55 +168,34 @@ class DataroomDetailSerializer(serializers.ModelSerializer):
 
         if request and request.query_params.get('content') == 'full':
             folders = obj.folders.all().order_by('created_at', 'id')
-            documents = obj.documents.all().select_related('document', 'document__created_by').annotate(
+            documents = obj.documents.filter(document__deleted_at__isnull=True).select_related('document', 'document__created_by').annotate(
                 dataroom_view_count=Count('dataroomvisit', distinct=True)
             ).order_by('created_at', 'id')
         else:
             folders = obj.folders.filter(parent__isnull=True).order_by('created_at', 'id')
-            documents = obj.documents.filter(folder__isnull=True).select_related('document', 'document__created_by').annotate(
+            documents = obj.documents.filter(folder__isnull=True, document__deleted_at__isnull=True).select_related('document', 'document__created_by').annotate(
                 dataroom_view_count=Count('dataroomvisit', distinct=True)
             ).order_by('created_at', 'id')
         folders_list = list(folders)
         documents_list = list(documents)
 
-        if obj.show_file_index and not use_full_content:
+        folders_data = [
+            DataroomFolderSerializer(folder, context=serializer_context).data
+            for folder in folders_list
+        ]
+        documents_data = [
+            DataroomDocumentSerializer(document, context=serializer_context).data
+            for document in documents_list
+        ]
+
+        scope_rows = None
+        if not use_full_content:
             scope_rows = list(
                 DataroomItemOrder.objects.filter(dataroom=obj, parent_folder__isnull=True)
                 .order_by("position", "created_at", "id")
             )
-            if scope_rows and len(scope_rows) == (len(folders_list) + len(documents_list)):
-                folder_data_map = {
-                    str(folder.id): DataroomFolderSerializer(folder, context=serializer_context).data
-                    for folder in folders_list
-                }
-                document_data_map = {
-                    str(document.id): DataroomDocumentSerializer(document, context=serializer_context).data
-                    for document in documents_list
-                }
-                ordered_items = []
-                for row in scope_rows:
-                    if row.item_type == DataroomItemOrder.ITEM_TYPE_FOLDER and row.folder_id and str(row.folder_id) in folder_data_map:
-                        ordered_items.append({"type": "folder", **folder_data_map[str(row.folder_id)], "position": row.position})
-                    elif row.item_type == DataroomItemOrder.ITEM_TYPE_DOCUMENT and row.dataroom_document_id and str(row.dataroom_document_id) in document_data_map:
-                        ordered_items.append({"type": "document", **document_data_map[str(row.dataroom_document_id)], "position": row.position})
-                return ordered_items
 
-        merged = []
-        for folder in folders_list:
-            merged.append({
-                'type': 'folder',
-                'created_at': folder.created_at,
-                'data': DataroomFolderSerializer(folder, context=serializer_context).data,
-            })
-        for document in documents_list:
-            merged.append({
-                'type': 'document',
-                'created_at': document.created_at,
-                'data': DataroomDocumentSerializer(document, context=serializer_context).data,
-            })
-
-        merged.sort(key=lambda i: (i['type'] != 'folder', i['created_at'], i['data']['id']))
-        return [{'type': i['type'], **i['data']} for i in merged]
+        return build_ordered_dataroom_items(scope_rows, folders_data, documents_data)
 
 
 class AddContentSerializer(serializers.Serializer):

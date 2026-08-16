@@ -26,7 +26,7 @@ from documents.fileserver import fileserver_client
 from sharelinks.models import ViewSession
 from sharelinks.serializers import ViewSessionSerializer
 from .models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
-from .utils import get_dataroom_storage_folder_name
+from .utils import get_dataroom_storage_folder_name, build_ordered_dataroom_items
 from .serializers import (
     AddContentSerializer, DataroomDetailSerializer,
     DataroomDocumentSerializer, DataroomDocumentUpdateSerializer,
@@ -769,33 +769,11 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
         data['sub_folders'] = sub_folder_data
         data['documents'] = document_data
 
-        if instance.dataroom.show_file_index:
-            scope_rows = list(
-                DataroomItemOrder.objects.filter(dataroom=instance.dataroom, parent_folder=instance)
-                .order_by("position", "created_at", "id")
-            )
-            if scope_rows and len(scope_rows) == (len(sub_folder_data) + len(document_data)):
-                folder_map = {item["id"]: item for item in sub_folder_data}
-                doc_map = {item["id"]: item for item in document_data}
-                merged = []
-                for row in scope_rows:
-                    if row.item_type == DataroomItemOrder.ITEM_TYPE_FOLDER and row.folder_id in folder_map:
-                        merged.append({"type": "folder", **folder_map[row.folder_id], "position": row.position})
-                    elif row.item_type == DataroomItemOrder.ITEM_TYPE_DOCUMENT and row.dataroom_document_id in doc_map:
-                        merged.append({"type": "document", **doc_map[row.dataroom_document_id], "position": row.position})
-            else:
-                merged = (
-                    [{'type': 'folder', **item} for item in sub_folder_data] +
-                    [{'type': 'document', **item} for item in document_data]
-                )
-                merged.sort(key=lambda i: (i['type'] != 'folder', i.get('created_at', ''), i.get('id', '')))
-        else:
-            merged = (
-                [{'type': 'folder', **item} for item in sub_folder_data] +
-                [{'type': 'document', **item} for item in document_data]
-            )
-            merged.sort(key=lambda i: (i['type'] != 'folder', i.get('created_at', ''), i.get('id', '')))
-        data['items'] = merged
+        scope_rows = list(
+            DataroomItemOrder.objects.filter(dataroom=instance.dataroom, parent_folder=instance)
+            .order_by("position", "created_at", "id")
+        )
+        data['items'] = build_ordered_dataroom_items(scope_rows, sub_folder_data, document_data)
         return Response(data)
 
     def perform_create(self, serializer):
