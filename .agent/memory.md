@@ -286,4 +286,9 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** Django backend exceptions (e.g. Google Drive cloud provider token errors) return raw un-translated English detail strings which bypassed frontend i18n when displayed in toasts or dialogs.
 - **Resolution/Action:** Route backend error messages through `frontend/src/utils/errorTranslator.js` (`getLocalizedErrorMessage`) inside the global Axios response interceptor (`api.js`) and dialog error handlers to map raw backend strings to localized `errors.*` translation keys.
 
+### 2026-08-16 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** The documents list reset to default sorting upon page reloads. In contrast, Datarooms rely on manual index/position order for due diligence workflows.
+- **Resolution/Action:** Added optional `storageKey` persistence to `useSortedList` (`frontend/src/hooks/useSortedList.js`) with validation and fallback to defaults. Enabled `coneshare_documents_sort` on `DocumentsPage` (`frontend/src/pages/DocumentsPage.jsx`) while intentionally keeping `DataroomPage` (`frontend/src/pages/DataroomPage.jsx`) unpersisted to preserve canonical position ordering on reloads.
+
 

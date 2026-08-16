@@ -26,6 +26,8 @@ import { CloudImportDialog } from '../components/dialogs/CloudImportDialog';
 import { FileRequestSheet } from '../components/filerequests/FileRequestSheet';
 import { TooltipProvider } from '../components/ui/Tooltip';
 
+const ALLOWED_SORT_KEYS = ['name', 'owner', 'updated_at', 'file_size', 'view_count'];
+
 function DocumentsPage() {
   const { t } = useTranslation();
   const { folderId } = useParams();
@@ -68,7 +70,15 @@ function DocumentsPage() {
     return combined;
   }, [folders, documents, showStarredOnly]);
 
-  const { sortedItems: allItems, sortConfig, handleSort } = useSortedList(combinedItems);
+  const { sortedItems: allItems, sortConfig, handleSort } = useSortedList(
+    combinedItems,
+    { key: 'name', direction: 'ascending' },
+    {
+      groupByType: true,
+      storageKey: 'coneshare_documents_sort',
+      allowedKeys: ALLOWED_SORT_KEYS,
+    }
+  );
   const { selection, setSelection, setLastSelectedItem, handleItemSelect, handleClearSelection } = useItemSelection(allItems);
 
   const handleShare = (document) => {
