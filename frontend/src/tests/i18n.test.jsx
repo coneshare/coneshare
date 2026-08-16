@@ -205,7 +205,7 @@ describe('Frontend i18n System', () => {
     // Russian
     await testI18n.changeLanguage('ru');
     expect(testI18n.t('documents.folderCreatedSuccess', { name: 'Projects' })).toBe('Папка «Projects» успешно создана.');
-    expect(testI18n.t('documents.requestFiles')).toBe('Запросить файлы');
+    expect(testI18n.t('documents.requestFiles')).toBe('Собрать файлы');
     expect(testI18n.t('documents.copy')).toBe('Копировать');
     expect(testI18n.t('documents.copyingItem', { name: 'Doc.pdf' })).toBe('Копирование «Doc.pdf»...');
     expect(testI18n.t('documents.copySuccess', { name: 'Doc.pdf' })).toBe('«Doc.pdf» успешно скопирован.');
