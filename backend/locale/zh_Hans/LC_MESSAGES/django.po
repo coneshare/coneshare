@@ -52,3 +52,104 @@ msgstr "验证账号"
 
 msgid "If you did not request this, you can ignore this email."
 msgstr "如果您没有请求此操作，可以忽略此邮件。"
+
+msgid "Verify your email to view '%(target_name)s'"
+msgstr "请验证您的邮箱以查看“%(target_name)s”"
+
+msgid "Your shared item '%(target_name)s' was viewed"
+msgstr "您分享的“%(target_name)s”已被查看"
+
+msgid "Hello,"
+msgstr "您好，"
+
+msgid "Please click the link below to view '%(target_name)s'."
+msgstr "请点击下方链接查看“%(target_name)s”："
+
+msgid "Please click the button below to view <strong>%(target_name)s</strong>."
+msgstr "请点击下方按钮查看 <strong>%(target_name)s</strong>："
+
+msgid "This link will expire in 15 minutes."
+msgstr "此链接将在 15 分钟后失效。"
+
+msgid "Thank you."
+msgstr "谢谢。"
+
+msgid "Verify and View"
+msgstr "验证并查看"
+
+msgid "If the button does not work, you can copy and paste this link into your browser:"
+msgstr "如果按钮无法点击，您可以复制以下链接并粘贴到浏览器中打开："
+
+msgid "Coneshare Activity Notification"
+msgstr "Coneshare 动态通知"
+
+msgid "Coneshare Alert"
+msgstr "Coneshare 动态提醒"
+
+msgid "Hi %(owner_name)s,"
+msgstr "您好 %(owner_name)s，"
+
+msgid "Hi,"
+msgstr "您好，"
+
+msgid "Just letting you know that your shared item, '%(target_name)s', was viewed."
+msgstr "特此通知：您分享的“%(target_name)s”已被查看。"
+
+msgid "Just letting you know that your shared item, <strong>%(target_name)s</strong>, was viewed."
+msgstr "特此通知：您分享的 <strong>%(target_name)s</strong> 已被查看。"
+
+msgid "View Details:"
+msgstr "查看详情："
+
+msgid "Activity Details"
+msgstr "访问详情"
+
+msgid "Operating System:"
+msgstr "操作系统："
+
+msgid "Browser:"
+msgstr "浏览器："
+
+msgid "Time:"
+msgstr "访问时间："
+
+msgid "IP Address:"
+msgstr "IP 地址："
+
+msgid "Approximate Location:"
+msgstr "大致位置："
+
+msgid "Location:"
+msgstr "地理位置："
+
+msgid "File View Details:"
+msgstr "文件查看详情："
+
+msgid "Engagement Statistics"
+msgstr "互动数据统计"
+
+msgid "View Session Details:"
+msgstr "查看访问会话详情："
+
+msgid "Show Details"
+msgstr "查看详情"
+
+msgid "Sent by Coneshare Automations."
+msgstr "由 Coneshare 自动化工作流发送。"
+
+msgid "All rights reserved."
+msgstr "保留所有权利。"
+
+msgid "Thank you,"
+msgstr "顺祝商祺，"
+
+msgid "The Coneshare Team"
+msgstr "Coneshare 团队"
+
+msgid "Anonymous"
+msgstr "匿名访客"
+
+msgid "Unknown Location"
+msgstr "未知位置"
+
+

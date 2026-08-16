@@ -1,12 +1,14 @@
-<p>Hello,</p>
-<p>Please click the button below to view <strong>{{ target_name }}</strong>.</p>
+{% load i18n %}
+<p>{% trans "Hello," %}</p>
+<p>{% blocktrans %}Please click the button below to view <strong>{{ target_name }}</strong>.{% endblocktrans %}</p>
 <table width="100%" cellspacing="0" cellpadding="0" style="margin-top: 20px; margin-bottom: 20px;"><tr><td>
 <table cellspacing="0" cellpadding="0"><tr><td style="border-radius: 4px;" bgcolor="#0d6efd">
 <a href="{{ access_url }}" target="_blank" style="padding: 12px 24px; border: 1px solid #0d6efd; border-radius: 4px; font-family: sans-serif; font-size: 16px; line-height: 1; text-align: center; text-decoration: none; display: block; color: #ffffff;">
-Verify and View</a>
+{% trans "Verify and View" %}</a>
 </td></tr></table>
 </td></tr></table>
-<p>If the button does not work, you can copy and paste this link into your browser:</p>
+<p>{% trans "If the button does not work, you can copy and paste this link into your browser:" %}</p>
 <p><a href="{{ access_url }}">{{ access_url }}</a></p>
-<p style="color: #6c757d; font-size: 14px;">This link will expire in 15 minutes.</p>
-<p>Thank you.</p>
+<p style="color: #6c757d; font-size: 14px;">{% trans "This link will expire in 15 minutes." %}</p>
+<p>{% trans "Thank you." %}</p>
+

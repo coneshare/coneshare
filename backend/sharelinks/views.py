@@ -16,6 +16,7 @@ from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.translation import gettext as _, override as translation_override
 from django.utils.http import quote_etag
 from django.utils.text import get_valid_filename
 from rest_framework import mixins, permissions, serializers, status, viewsets
@@ -29,6 +30,7 @@ from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, inline_serializer
 
 from backend.utils import get_client_ip
+from core.i18n_utils import resolve_email_language
 from core.services import get_dynamic_setting
 from datarooms.models import (DataroomDocument, DataroomFolder, DataroomItemOrder)
 from datarooms.serializers import (PublicDataroomDocumentSerializer,
@@ -1240,7 +1242,7 @@ class ShareLinkQnAThreadListCreateView(APIView):
         organization = _get_share_link_organization(link)
         viewer = view_session.viewer
         if not viewer and view_session.viewer_email and organization:
-            viewer, _ = Viewer.objects.get_or_create(
+            viewer, _created = Viewer.objects.get_or_create(
                 organization=organization,
                 email=view_session.viewer_email,
             )
@@ -1397,7 +1399,7 @@ class ShareLinkQnAMessageListCreateView(APIView):
         organization = _get_share_link_organization(link)
         viewer = view_session.viewer
         if not viewer and view_session.viewer_email and organization:
-            viewer, _ = Viewer.objects.get_or_create(
+            viewer, _created = Viewer.objects.get_or_create(
                 organization=organization,
                 email=view_session.viewer_email,
             )
@@ -1781,7 +1783,7 @@ class ShareLinkRequestAccessView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        viewer, _ = Viewer.objects.get_or_create(
+        Viewer.objects.get_or_create(
             organization=organization,
             email=email
         )
@@ -1811,6 +1813,12 @@ class ShareLinkRequestAccessView(APIView):
                 settings.SITE_DOMAIN,
                 f"/view/{link.slug}?accessToken={verification.token}"
             )
+            # Determine language for email (external viewer falls back to 'en' per i18n plan)
+            target_lang = resolve_email_language(
+                accept_header=request.META.get('HTTP_ACCEPT_LANGUAGE', ''),
+                default_lang='en',
+            )
+
             # Send email
             try:
                 target_name = link.document.name if link.document else link.dataroom.name
@@ -1820,11 +1828,13 @@ class ShareLinkRequestAccessView(APIView):
                     'access_url': access_url,
                 }
                 
-                text_content = render_to_string('sharelinks/verification_email.txt', context)
-                html_content = render_to_string('sharelinks/verification_email.html', context)
+                with translation_override(target_lang):
+                    subject = _("Verify your email to view '%(target_name)s'") % {'target_name': target_name}
+                    text_content = render_to_string('sharelinks/verification_email.txt', context)
+                    html_content = render_to_string('sharelinks/verification_email.html', context)
                 
                 send_mail(
-                    subject=f"Verify your email to view '{target_name}'",
+                    subject=subject,
                     message=text_content,
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[email],
@@ -1832,7 +1842,7 @@ class ShareLinkRequestAccessView(APIView):
                     html_message=html_content
                 )
             except Exception as e:
-                logger.error(f"Failed to send verification email: {e}")
+                logger.exception("Failed to send verification email")
                 return Response(
                     {"message": "Could not send verification email. Please try again later."},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -2939,7 +2949,7 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
         if viewer_email and share_link:
             organization = share_link.document.organization if share_link.document else share_link.dataroom.organization
             if organization:
-                viewer, _ = Viewer.objects.get_or_create(
+                viewer, _created = Viewer.objects.get_or_create(
                     organization=organization,
                     email=viewer_email,
                 )

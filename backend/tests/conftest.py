@@ -1,8 +1,10 @@
+import os
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
 
+from compile_po import BASE_LOCALE, make_mo
 from core.models import Organization
 from documents.models import Document, DocumentVersion
 from sharelinks.models import ShareLink
@@ -11,6 +13,17 @@ from documents.services import create_document_from_upload
 User = get_user_model()
 
 DEFAULT_TEST_PASSWORD = "StrongPassword123!"
+
+
+@pytest.fixture(autouse=True, scope="session")
+def ensure_mo_catalogs_compiled():
+    """Ensure binary .mo catalogs exist and are compiled before running backend tests."""
+    for lang in ['en', 'zh_Hans', 'ru']:
+        po_path = os.path.join(BASE_LOCALE, lang, 'LC_MESSAGES', 'django.po')
+        mo_path = os.path.join(BASE_LOCALE, lang, 'LC_MESSAGES', 'django.mo')
+        if os.path.exists(po_path):
+            make_mo(po_path, mo_path)
+
 
 
 @pytest.fixture(autouse=True)

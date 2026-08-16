@@ -37,3 +37,104 @@ msgstr "Account is already verified."
 
 msgid "Wrong password."
 msgstr "Wrong password."
+
+msgid "Verify your email to view '%(target_name)s'"
+msgstr "Verify your email to view '%(target_name)s'"
+
+msgid "Your shared item '%(target_name)s' was viewed"
+msgstr "Your shared item '%(target_name)s' was viewed"
+
+msgid "Hello,"
+msgstr "Hello,"
+
+msgid "Please click the link below to view '%(target_name)s'."
+msgstr "Please click the link below to view '%(target_name)s'."
+
+msgid "Please click the button below to view <strong>%(target_name)s</strong>."
+msgstr "Please click the button below to view <strong>%(target_name)s</strong>."
+
+msgid "This link will expire in 15 minutes."
+msgstr "This link will expire in 15 minutes."
+
+msgid "Thank you."
+msgstr "Thank you."
+
+msgid "Verify and View"
+msgstr "Verify and View"
+
+msgid "If the button does not work, you can copy and paste this link into your browser:"
+msgstr "If the button does not work, you can copy and paste this link into your browser:"
+
+msgid "Coneshare Activity Notification"
+msgstr "Coneshare Activity Notification"
+
+msgid "Coneshare Alert"
+msgstr "Coneshare Alert"
+
+msgid "Hi %(owner_name)s,"
+msgstr "Hi %(owner_name)s,"
+
+msgid "Hi,"
+msgstr "Hi,"
+
+msgid "Just letting you know that your shared item, '%(target_name)s', was viewed."
+msgstr "Just letting you know that your shared item, '%(target_name)s', was viewed."
+
+msgid "Just letting you know that your shared item, <strong>%(target_name)s</strong>, was viewed."
+msgstr "Just letting you know that your shared item, <strong>%(target_name)s</strong>, was viewed."
+
+msgid "View Details:"
+msgstr "View Details:"
+
+msgid "Activity Details"
+msgstr "Activity Details"
+
+msgid "Operating System:"
+msgstr "Operating System:"
+
+msgid "Browser:"
+msgstr "Browser:"
+
+msgid "Time:"
+msgstr "Time:"
+
+msgid "IP Address:"
+msgstr "IP Address:"
+
+msgid "Approximate Location:"
+msgstr "Approximate Location:"
+
+msgid "Location:"
+msgstr "Location:"
+
+msgid "File View Details:"
+msgstr "File View Details:"
+
+msgid "Engagement Statistics"
+msgstr "Engagement Statistics"
+
+msgid "View Session Details:"
+msgstr "View Session Details:"
+
+msgid "Show Details"
+msgstr "Show Details"
+
+msgid "Sent by Coneshare Automations."
+msgstr "Sent by Coneshare Automations."
+
+msgid "All rights reserved."
+msgstr "All rights reserved."
+
+msgid "Thank you,"
+msgstr "Thank you,"
+
+msgid "The Coneshare Team"
+msgstr "The Coneshare Team"
+
+msgid "Anonymous"
+msgstr "Anonymous"
+
+msgid "Unknown Location"
+msgstr "Unknown Location"
+
+
