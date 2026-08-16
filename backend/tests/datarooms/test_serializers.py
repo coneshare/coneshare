@@ -105,8 +105,40 @@ class TestDataroomSerializer:
         data = serializer.data
         assert data["items"][0]["type"] == "document"
         assert data["items"][0]["id"] == str(ddoc.id)
+        assert data["items"][0]["position"] == 0
         assert data["items"][1]["type"] == "folder"
         assert data["items"][1]["id"] == str(folder.id)
+        assert data["items"][1]["position"] == 1
+
+    def test_dataroom_detail_serializer_preserves_item_order_when_file_index_disabled(self, dataroom, document, serializer_context):
+        folder = DataroomFolder.objects.create(dataroom=dataroom, name="A Folder", parent=None)
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name)
+        dataroom.show_file_index = False
+        dataroom.save(update_fields=["show_file_index"])
+
+        DataroomItemOrder.objects.create(
+            dataroom=dataroom,
+            parent_folder=None,
+            item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
+            dataroom_document=ddoc,
+            position=0,
+        )
+        DataroomItemOrder.objects.create(
+            dataroom=dataroom,
+            parent_folder=None,
+            item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
+            folder=folder,
+            position=1,
+        )
+
+        serializer = DataroomDetailSerializer(instance=dataroom, context=serializer_context)
+        data = serializer.data
+        assert data["items"][0]["type"] == "document"
+        assert data["items"][0]["id"] == str(ddoc.id)
+        assert data["items"][0]["position"] == 0
+        assert data["items"][1]["type"] == "folder"
+        assert data["items"][1]["id"] == str(folder.id)
+        assert data["items"][1]["position"] == 1
 
 
 class TestDataroomFolderSerializer:

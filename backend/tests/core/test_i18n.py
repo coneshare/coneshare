@@ -132,12 +132,12 @@ class TestUserLanguagePreference:
         user = User.objects.create_user(
             username="inactive@example.com",
             email="inactive@example.com",
-            password="password123",
+            password="StrongPassword123!",
             language="zh-hans",
             is_active=False
         )
         client = APIClient()
         url = reverse('signup_request')
-        resp = client.post(url, {'email': 'inactive@example.com', 'password': 'password123', 'name': 'Inactive User'})
+        resp = client.post(url, {'email': 'inactive@example.com', 'password': 'StrongPassword123!', 'name': 'Inactive User'})
         assert resp.status_code == status.HTTP_202_ACCEPTED
         assert captured.get('language') == 'zh-hans'

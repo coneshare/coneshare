@@ -286,9 +286,14 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** Django backend exceptions (e.g. Google Drive cloud provider token errors) return raw un-translated English detail strings which bypassed frontend i18n when displayed in toasts or dialogs.
 - **Resolution/Action:** Route backend error messages through `frontend/src/utils/errorTranslator.js` (`getLocalizedErrorMessage`) inside the global Axios response interceptor (`api.js`) and dialog error handlers to map raw backend strings to localized `errors.*` translation keys.
 
-### 2026-08-16 Session Entry
+### 2026-08-16 Session Entry (Documents List Sorting Persistence)
 - **Category:** Architecture Choice
 - **Context/Implication:** The documents list reset to default sorting upon page reloads. In contrast, Datarooms rely on manual index/position order for due diligence workflows.
 - **Resolution/Action:** Added optional `storageKey` persistence to `useSortedList` (`frontend/src/hooks/useSortedList.js`) with validation and fallback to defaults. Enabled `coneshare_documents_sort` on `DocumentsPage` (`frontend/src/pages/DocumentsPage.jsx`) while intentionally keeping `DataroomPage` (`frontend/src/pages/DataroomPage.jsx`) unpersisted to preserve canonical position ordering on reloads.
+
+### 2026-08-16 Session Entry (Dataroom Re-ordering & Position Preservation)
+- **Category:** Gotcha
+- **Context/Implication:** Custom item ordering in Dataroom was previously gated behind `show_file_index` and a strict `len(scope_rows) == total_items` check in `DataroomDetailSerializer.get_items` and `DataroomFolderViewSet.retrieve`. When index number badges were disabled (`show_file_index=False`) or when new items lacked order rows, the `position` field was omitted and custom ordering was discarded, reverting the list to `created_at`.
+- **Resolution/Action:** Apply `DataroomItemOrder` unconditionally across root and subfolder serializers regardless of `show_file_index`, attaching sequential fallback `position` values for newly added items so manual item ordering is always preserved.
 
 
