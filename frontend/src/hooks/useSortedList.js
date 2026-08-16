@@ -3,10 +3,37 @@ import { useState, useMemo } from 'react';
 export function useSortedList(
   items,
   initialConfig = { key: 'name', direction: 'ascending' },
-  options = { groupByType: true }
+  options = { groupByType: true, storageKey: null, allowedKeys: null }
 ) {
-  const [sortConfig, setSortConfig] = useState(initialConfig);
   const groupByType = options?.groupByType ?? true;
+  const storageKey = options?.storageKey ?? null;
+  const allowedKeys = options?.allowedKeys ?? null;
+
+  const [sortConfig, setSortConfig] = useState(() => {
+    if (storageKey && typeof window !== 'undefined') {
+      try {
+        const storage = window.localStorage;
+        if (storage) {
+          const saved = storage.getItem(storageKey);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            const isKeyValid =
+              typeof parsed?.key === 'string' &&
+              (!Array.isArray(allowedKeys) || allowedKeys.includes(parsed.key));
+            const isDirValid =
+              parsed?.direction === 'ascending' || parsed?.direction === 'descending';
+
+            if (isKeyValid && isDirValid) {
+              return parsed;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`Failed to parse sort configuration from localStorage for key "${storageKey}":`, err);
+      }
+    }
+    return initialConfig;
+  });
 
   const sortedItems = useMemo(() => {
     if (!items) return [];
@@ -49,14 +76,27 @@ export function useSortedList(
 
   const handleSort = (key) => {
     setSortConfig((prevConfig) => {
-      if (prevConfig.key === key) {
-        return {
-          ...prevConfig,
-          direction:
-            prevConfig.direction === "ascending" ? "descending" : "ascending",
-        };
+      const nextConfig =
+        prevConfig.key === key
+          ? {
+              ...prevConfig,
+              direction:
+                prevConfig.direction === "ascending" ? "descending" : "ascending",
+            }
+          : { key, direction: "ascending" };
+
+      if (storageKey && typeof window !== 'undefined') {
+        try {
+          const storage = window.localStorage;
+          if (storage) {
+            storage.setItem(storageKey, JSON.stringify(nextConfig));
+          }
+        } catch (err) {
+          console.warn(`Failed to save sort configuration to localStorage for key "${storageKey}":`, err);
+        }
       }
-      return { key, direction: "ascending" };
+
+      return nextConfig;
     });
   };
 
