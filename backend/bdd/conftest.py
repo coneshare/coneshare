@@ -6,6 +6,16 @@ from core.models import Organization
 
 User = get_user_model()
 
+DEFAULT_TEST_PASSWORD = "StrongPassword123!"
+
+
+@pytest.fixture(autouse=True)
+def relax_password_validators(settings):
+    """Use relaxed password validators during pytest runs to allow simple passwords in test assertions."""
+    settings.AUTH_PASSWORD_VALIDATORS = [
+        {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 3}}
+    ]
+
 
 @pytest.fixture(scope="session")
 def django_db_setup(django_db_setup, django_db_blocker):

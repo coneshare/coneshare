@@ -10,6 +10,8 @@ from documents.services import create_document_from_upload
 
 User = get_user_model()
 
+DEFAULT_TEST_PASSWORD = "StrongPassword123!"
+
 
 @pytest.fixture(autouse=True)
 def disable_drf_rate_limiting(settings):
@@ -17,6 +19,20 @@ def disable_drf_rate_limiting(settings):
     rf_settings = settings.REST_FRAMEWORK.copy()
     rf_settings['DEFAULT_THROTTLE_CLASSES'] = []
     settings.REST_FRAMEWORK = rf_settings
+
+
+@pytest.fixture(autouse=True)
+def relax_password_validators(settings):
+    """Use relaxed password validators during pytest runs to allow simple passwords in test assertions."""
+    settings.AUTH_PASSWORD_VALIDATORS = [
+        {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 3}}
+    ]
+
+
+@pytest.fixture
+def default_password():
+    """Provides standard default password constant for test assertions."""
+    return DEFAULT_TEST_PASSWORD
 
 
 @pytest.fixture
