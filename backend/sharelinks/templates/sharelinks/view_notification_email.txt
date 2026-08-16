@@ -1,23 +1,24 @@
-Hi {{ owner_name }},
+{% load i18n %}{% if owner_name %}{% blocktrans %}Hi {{ owner_name }},{% endblocktrans %}{% else %}{% trans "Hi," %}{% endif %}
 
-{% if headline %}{{ headline }}{% else %}Just letting you know that your shared item, '{{ target_name }}', was viewed.{% endif %}
+{% if headline %}{{ headline }}{% else %}{% blocktrans %}Just letting you know that your shared item, '{{ target_name }}', was viewed.{% endblocktrans %}{% endif %}
 
-View Details:
-- Operating System: {{ os }}
-- Browser: {{ browser }}
-- Time: {{ viewed_at|date:"F j, Y, P" }}
-- IP Address: {{ ip_address }}
-- Approximate Location: {{ location }}
+{% trans "View Details:" %}
+- {% trans "Operating System:" %} {{ os }}
+- {% trans "Browser:" %} {{ browser }}
+- {% trans "Time:" %} {{ viewed_at|date:"F j, Y, P" }}
+- {% trans "IP Address:" %} {{ ip_address }}
+- {% trans "Approximate Location:" %} {{ location }}
 
 {% if activity_stats_txt %}
-File View Details:
+{% trans "File View Details:" %}
 {% for stat in activity_stats_txt %}{{ stat }}
 {% endfor %}
 {% endif %}
 {% if show_details_url %}
-View Session Details:
+{% trans "View Session Details:" %}
 {{ show_details_url }}
 {% endif %}
 
-Thank you,
-The Coneshare Team
+{% trans "Thank you," %}
+{% trans "The Coneshare Team" %}
+

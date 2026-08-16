@@ -30,6 +30,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from core.models import APIKey, Organization, UserGroup
 from core.authentication import generate_raw_api_key
+from core.i18n_utils import resolve_email_language
 from core.permissions import APIKeyTierPermission
 from core.services import get_dynamic_setting
 from core.serializers import (APIKeySerializer, APIKeyCreateSerializer, ChangePasswordSerializer, OrganizationSerializer,
@@ -149,9 +150,19 @@ class SignupRequestView(APIView):
             status=status.HTTP_202_ACCEPTED
         )
 
+        accept_header = request.META.get('HTTP_ACCEPT_LANGUAGE', '')
+
         try:
             with transaction.atomic():
                 user = User.objects.select_for_update().filter(email=email).first()
+                user_lang = getattr(user, 'language', None) if user else None
+                target_lang = resolve_email_language(
+                    accept_header=accept_header,
+                    user_lang=user_lang,
+                    request_lang=getattr(request, 'LANGUAGE_CODE', None),
+                    default_lang='en',
+                )
+
                 if not user:
                     organization = Organization.objects.first()
                     if not organization:
@@ -165,43 +176,21 @@ class SignupRequestView(APIView):
                         password=serializer.validated_data['password'],
                         name=serializer.validated_data.get('name', ''),
                         organization=organization,
+                        language=target_lang,
                         is_active=False,
                     )
                 elif not user.is_active:
                     user.set_password(serializer.validated_data['password'])
                     user.name = serializer.validated_data.get('name', '')
+                    user.language = target_lang
                     user.updated_at = timezone.now()
-                    user.save(update_fields=['password', 'name', 'updated_at'])
+                    user.save(update_fields=['password', 'name', 'language', 'updated_at'])
                 else:
                     return accepted_response
 
                 uid = urlsafe_base64_encode(force_bytes(user.pk))
                 token = signup_activation_token_generator.make_token(user)
                 verify_url = f"{settings.SITE_DOMAIN.rstrip('/')}/signup/verify?uid={uid}&token={token}"
-                # Determine language code: prefer explicit Accept-Language header, then user.language, then request default
-                supported_codes = dict(settings.LANGUAGES)
-                user_lang = getattr(user, 'language', None)
-                req_lang = getattr(request, 'LANGUAGE_CODE', None)
-                has_header = bool(request.META.get('HTTP_ACCEPT_LANGUAGE'))
-
-                def normalize(c):
-                    if not c:
-                        return None
-                    c = c.lower()
-                    if c in supported_codes:
-                        return c
-                    p = c.split('-')[0]
-                    return p if p in supported_codes else None
-
-                target_lang = None
-                if has_header and normalize(req_lang):
-                    target_lang = normalize(req_lang)
-                elif user_lang and normalize(user_lang):
-                    target_lang = normalize(user_lang)
-                elif req_lang and normalize(req_lang):
-                    target_lang = normalize(req_lang)
-                else:
-                    target_lang = 'en'
 
                 transaction.on_commit(
                     lambda: send_signup_verification_email_task.delay(

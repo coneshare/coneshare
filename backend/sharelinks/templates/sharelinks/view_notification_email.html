@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coneshare Activity Notification</title>
+    <title>{% trans "Coneshare Activity Notification" %}</title>
     <style>
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -123,40 +124,40 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Coneshare Alert</h1>
+            <h1>{% trans "Coneshare Alert" %}</h1>
         </div>
         <div class="content">
-            <p class="salutation">Hi {{ owner_name }},</p>
+            <p class="salutation">{% if owner_name %}{% blocktrans %}Hi {{ owner_name }},{% endblocktrans %}{% else %}{% trans "Hi," %}{% endif %}</p>
             
             <div class="intro-text">
                 {% if headline %}
                     {{ headline }}
                 {% else %}
-                    Just letting you know that your shared item, <strong>{{ target_name }}</strong>, was viewed.
+                    {% blocktrans %}Just letting you know that your shared item, <strong>{{ target_name }}</strong>, was viewed.{% endblocktrans %}
                 {% endif %}
             </div>
 
             <div class="card">
-                <div class="card-title">Activity Details</div>
+                <div class="card-title">{% trans "Activity Details" %}</div>
                 <ul class="detail-list">
                     <li class="detail-item">
-                        <span class="detail-label">Operating System:</span>
+                        <span class="detail-label">{% trans "Operating System:" %}</span>
                         <span class="detail-value">{{ os }}</span>
                     </li>
                     <li class="detail-item">
-                        <span class="detail-label">Browser:</span>
+                        <span class="detail-label">{% trans "Browser:" %}</span>
                         <span class="detail-value">{{ browser }}</span>
                     </li>
                     <li class="detail-item">
-                        <span class="detail-label">Time:</span>
+                        <span class="detail-label">{% trans "Time:" %}</span>
                         <span class="detail-value">{{ viewed_at|date:"F j, Y, P" }}</span>
                     </li>
                     <li class="detail-item">
-                        <span class="detail-label">IP Address:</span>
+                        <span class="detail-label">{% trans "IP Address:" %}</span>
                         <span class="detail-value">{{ ip_address }}</span>
                     </li>
                     <li class="detail-item">
-                        <span class="detail-label">Location:</span>
+                        <span class="detail-label">{% trans "Location:" %}</span>
                         <span class="detail-value">{{ location }}</span>
                     </li>
                 </ul>
@@ -164,7 +165,7 @@
 
             {% if activity_stats %}
             <div class="card">
-                <div class="card-title">Engagement Statistics</div>
+                <div class="card-title">{% trans "Engagement Statistics" %}</div>
                 <ul class="detail-list">
                     {% for stat in activity_stats %}
                     <li class="detail-item">
@@ -178,13 +179,13 @@
 
             {% if show_details_url %}
             <div class="cta-container">
-                <a href="{{ show_details_url }}" class="cta-button">Show Details</a>
+                <a href="{{ show_details_url }}" class="cta-button">{% trans "Show Details" %}</a>
             </div>
             {% endif %}
         </div>
         <div class="footer">
-            <p>Sent by Coneshare Automations.</p>
-            <p>&copy; 2026 Coneshare. All rights reserved.</p>
+            <p>{% trans "Sent by Coneshare Automations." %}</p>
+            <p>&copy; 2026 Coneshare. {% trans "All rights reserved." %}</p>
         </div>
     </div>
 </body>

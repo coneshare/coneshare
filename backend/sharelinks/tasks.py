@@ -3,6 +3,7 @@ import logging
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+from django.utils.translation import gettext as _, override as translation_override
 from celery import shared_task
 
 from .models import ViewSession
@@ -46,18 +47,26 @@ def send_view_notification_email_task(view_session_id: str):
         logger.error(f"Invalid share link: {share_link}")
         return
 
-    context = {
-        'owner_name': owner.name or '',
-        'target_name': target_name,
-        'viewer_email': view_session.viewer_email or "Anonymous",
-        'viewed_at': view_session.viewed_at,
-        'ip_address': view_session.ip_address,
-        'location': f"{view_session.city}, {view_session.country}" if view_session.city and view_session.country else "Unknown Location",
-    }
-    
-    subject = f"Your shared item '{target_name}' was viewed"
-    text_content = render_to_string('sharelinks/view_notification_email.txt', context)
-    html_content = render_to_string('sharelinks/view_notification_email.html', context)
+    owner_lang = getattr(owner, 'language', 'en') or 'en'
+
+    with translation_override(owner_lang):
+        viewer_email = view_session.viewer_email or _("Anonymous")
+        location = (
+            f"{view_session.city}, {view_session.country}"
+            if view_session.city and view_session.country
+            else _("Unknown Location")
+        )
+        context = {
+            'owner_name': owner.name or '',
+            'target_name': target_name,
+            'viewer_email': viewer_email,
+            'viewed_at': view_session.viewed_at,
+            'ip_address': view_session.ip_address,
+            'location': location,
+        }
+        subject = _("Your shared item '%(target_name)s' was viewed") % {'target_name': target_name}
+        text_content = render_to_string('sharelinks/view_notification_email.txt', context)
+        html_content = render_to_string('sharelinks/view_notification_email.html', context)
 
     try:
         send_mail(

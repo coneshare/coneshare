@@ -52,3 +52,104 @@ msgstr "Подтвердить аккаунт"
 
 msgid "If you did not request this, you can ignore this email."
 msgstr "Если вы не запрашивали это, вы можете проигнорировать это письмо."
+
+msgid "Verify your email to view '%(target_name)s'"
+msgstr "Подтвердите email для просмотра «%(target_name)s»"
+
+msgid "Your shared item '%(target_name)s' was viewed"
+msgstr "Ваш общий объект «%(target_name)s» был просмотрен"
+
+msgid "Hello,"
+msgstr "Здравствуйте,"
+
+msgid "Please click the link below to view '%(target_name)s'."
+msgstr "Пожалуйста, перейдите по ссылке ниже для просмотра «%(target_name)s»."
+
+msgid "Please click the button below to view <strong>%(target_name)s</strong>."
+msgstr "Пожалуйста, нажмите кнопку ниже для просмотра <strong>%(target_name)s</strong>."
+
+msgid "This link will expire in 15 minutes."
+msgstr "Срок действия ссылки истекает через 15 минут."
+
+msgid "Thank you."
+msgstr "Спасибо."
+
+msgid "Verify and View"
+msgstr "Подтвердить и просмотреть"
+
+msgid "If the button does not work, you can copy and paste this link into your browser:"
+msgstr "Если кнопка не работает, скопируйте и вставьте эту ссылку в браузер:"
+
+msgid "Coneshare Activity Notification"
+msgstr "Уведомление об активности Coneshare"
+
+msgid "Coneshare Alert"
+msgstr "Оповещение Coneshare"
+
+msgid "Hi %(owner_name)s,"
+msgstr "Здравствуйте, %(owner_name)s,"
+
+msgid "Hi,"
+msgstr "Здравствуйте,"
+
+msgid "Just letting you know that your shared item, '%(target_name)s', was viewed."
+msgstr "Сообщаем, что ваш общий объект «%(target_name)s» был просмотрен."
+
+msgid "Just letting you know that your shared item, <strong>%(target_name)s</strong>, was viewed."
+msgstr "Сообщаем, что ваш общий объект <strong>%(target_name)s</strong> был просмотрен."
+
+msgid "View Details:"
+msgstr "Детали просмотра:"
+
+msgid "Activity Details"
+msgstr "Детали активности"
+
+msgid "Operating System:"
+msgstr "Операционная система:"
+
+msgid "Browser:"
+msgstr "Браузер:"
+
+msgid "Time:"
+msgstr "Время:"
+
+msgid "IP Address:"
+msgstr "IP-адрес:"
+
+msgid "Approximate Location:"
+msgstr "Примерное местоположение:"
+
+msgid "Location:"
+msgstr "Местоположение:"
+
+msgid "File View Details:"
+msgstr "Детали просмотра файлов:"
+
+msgid "Engagement Statistics"
+msgstr "Статистика взаимодействий"
+
+msgid "View Session Details:"
+msgstr "Детали сеанса просмотра:"
+
+msgid "Show Details"
+msgstr "Показать детали"
+
+msgid "Sent by Coneshare Automations."
+msgstr "Отправлено автоматизацией Coneshare."
+
+msgid "All rights reserved."
+msgstr "Все права защищены."
+
+msgid "Thank you,"
+msgstr "С уважением,"
+
+msgid "The Coneshare Team"
+msgstr "Команда Coneshare"
+
+msgid "Anonymous"
+msgstr "Анонимный пользователь"
+
+msgid "Unknown Location"
+msgstr "Неизвестное местоположение"
+
+

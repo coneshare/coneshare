@@ -1,9 +1,10 @@
-Hello,
+{% load i18n %}{% trans "Hello," %}
 
-Please click the link below to view '{{ target_name }}'.
+{% blocktrans %}Please click the link below to view '{{ target_name }}'.{% endblocktrans %}
 
 {{ access_url }}
 
-This link will expire in 15 minutes.
+{% trans "This link will expire in 15 minutes." %}
 
-Thank you.
+{% trans "Thank you." %}
+
