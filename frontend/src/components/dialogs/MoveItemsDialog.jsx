@@ -44,7 +44,7 @@ export function MoveItemsDialog({ isOpen, onOpenChange, onConfirm, selectedFolde
         onOpenChange={setIsAddFolderOpen}
         onConfirm={handleCreateFolder}
       />
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md overflow-hidden">
         <DialogHeader>
           <DialogTitle>{t('documents.moveTitle')}</DialogTitle>
           <DialogDescription>
@@ -52,7 +52,7 @@ export function MoveItemsDialog({ isOpen, onOpenChange, onConfirm, selectedFolde
           </DialogDescription>
         </DialogHeader>
         
-        <div className="my-2">
+        <div className="my-2 min-w-0">
           <FolderBrowser
             key={browserKey}
             onCurrentFolderChange={setDestinationFolder}

@@ -23,7 +23,9 @@
     "active": "有效",
     "inactive": "已禁用",
     "updated": "更新时间",
-    "name": "名称"
+    "name": "名称",
+    "back": "返回",
+    "moving": "移动中..."
   },
   "dashboard": {
     "title": "仪表盘",
@@ -325,6 +327,10 @@
     "renamePlaceholder": "请输入新名称...",
     "moveTitle": "移动项目",
     "selectTargetFolder": "选择目标文件夹",
+    "moveHere": "移动到此处",
+    "root": "根目录",
+    "noSubfolders": "暂无子文件夹",
+    "loadingFolders": "正在加载文件夹...",
     "deleteConfirmTitle": "删除项目？",
     "deleteConfirmTitleName": "将“{{name}}”移动到回收站？",
     "deleteConfirmMessage": "确定要删除此项目吗？它将被移动到回收站。",
@@ -371,6 +377,8 @@
     "title": "资料室",
     "create": "创建资料室",
     "addDataroom": "添加资料室",
+    "dataroomRoot": "资料室根目录",
+    "moveItemsDescription": "选择要将所选项目移动到的目标文件夹。",
     "noDatarooms": "尚无资料室",
     "noDataroomsFound": "未找到资料室",
     "getStartedNotice": "创建您的第一个资料室以开始使用。",

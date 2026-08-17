@@ -23,7 +23,9 @@
     "active": "Active",
     "inactive": "Inactive",
     "updated": "Updated",
-    "name": "Name"
+    "name": "Name",
+    "back": "Back",
+    "moving": "Moving..."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -328,6 +330,10 @@
     "renamePlaceholder": "Enter new name...",
     "moveTitle": "Move Items",
     "selectTargetFolder": "Select destination folder",
+    "moveHere": "Move Here",
+    "root": "Root",
+    "noSubfolders": "No subfolders",
+    "loadingFolders": "Loading folders...",
     "deleteConfirmTitle": "Delete Item?",
     "deleteConfirmTitleName": "Move \"{{name}}\" to Trash?",
     "deleteConfirmMessage": "Are you sure you want to delete this item? It will be moved to Trash.",
@@ -374,6 +380,8 @@
     "title": "Datarooms",
     "create": "Create Dataroom",
     "addDataroom": "Add Dataroom",
+    "dataroomRoot": "Dataroom Root",
+    "moveItemsDescription": "Select a destination folder to move the selected items.",
     "noDatarooms": "No datarooms created yet",
     "noDataroomsFound": "No datarooms found",
     "getStartedNotice": "Get started by creating your first dataroom.",

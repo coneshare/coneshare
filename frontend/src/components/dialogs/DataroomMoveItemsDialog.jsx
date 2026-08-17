@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +13,7 @@ import { getDataroom, getDataroomFolderContents } from '../../services/api';
 import { Folder as FolderIcon, ChevronRight } from 'lucide-react';
 
 function Breadcrumbs({ path, onNavigate }) {
+  const { t } = useTranslation();
   const handleNavigate = (folderId, isRoot = false) => {
     if (isRoot) {
       onNavigate(null);
@@ -28,7 +30,7 @@ function Breadcrumbs({ path, onNavigate }) {
             onClick={() => handleNavigate(null, true)}
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
           >
-            Dataroom Root
+            {t('datarooms.dataroomRoot')}
           </button>
         </li>
         {/* Placeholder for ancestors - requires backend support */}
@@ -38,6 +40,7 @@ function Breadcrumbs({ path, onNavigate }) {
 }
 
 export function DataroomMoveItemsDialog({ isOpen, onOpenChange, onConfirm, dataroomId, selectedFolderIds = [] }) {
+  const { t } = useTranslation();
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -80,9 +83,9 @@ export function DataroomMoveItemsDialog({ isOpen, onOpenChange, onConfirm, datar
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg h-[60vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Move Items</DialogTitle>
+          <DialogTitle>{t('documents.moveTitle')}</DialogTitle>
           <DialogDescription>
-            Select a destination folder to move the selected items.
+            {t('datarooms.moveItemsDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -90,25 +93,26 @@ export function DataroomMoveItemsDialog({ isOpen, onOpenChange, onConfirm, datar
           <Breadcrumbs path={[]} onNavigate={handleNavigate} />
         </div>
 
-        <div className="flex-grow overflow-y-auto pr-2">
+        <div className="flex-grow overflow-y-auto pr-2 min-w-0">
           {loading ? (
-            <p className="text-center py-8">Loading folders...</p>
+            <p className="text-center py-8">{t('documents.loadingFolders')}</p>
           ) : (
-            <ul className="space-y-1">
+            <ul className="space-y-1 min-w-0">
               {folders.map((folder) => (
-                <li key={folder.id}>
+                <li key={folder.id} className="min-w-0">
                   <button
                     onClick={() => handleNavigate(folder.id)}
-                    className="flex w-full items-center gap-3 rounded-md p-2 text-left hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-gray-800"
+                    className="flex w-full min-w-0 items-center gap-3 rounded-md p-2 text-left hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-gray-800"
                     disabled={selectedFolderIds.includes(folder.id)}
+                    title={folder.name}
                   >
-                    <FolderIcon className="h-5 w-5 text-gray-500" />
-                    <span>{folder.name}</span>
+                    <FolderIcon className="h-5 w-5 flex-shrink-0 text-gray-500" />
+                    <span className="truncate min-w-0 flex-1">{folder.name}</span>
                   </button>
                 </li>
               ))}
               {folders.length === 0 && (
-                <p className="text-center text-gray-500 py-8">No subfolders.</p>
+                <p className="text-center text-gray-500 py-8">{t('documents.noSubfolders')}</p>
               )}
             </ul>
           )}
@@ -116,10 +120,10 @@ export function DataroomMoveItemsDialog({ isOpen, onOpenChange, onConfirm, datar
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleConfirm} disabled={isConfirming}>
-            {isConfirming ? 'Moving...' : 'Move Here'}
+            {isConfirming ? t('common.moving') : t('documents.moveHere')}
           </Button>
         </DialogFooter>
       </DialogContent>
