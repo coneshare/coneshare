@@ -4,6 +4,7 @@ import secrets
 from django.conf import settings
 from django.utils import timezone
 from rest_framework import authentication, exceptions
+from drf_spectacular.extensions import OpenApiAuthenticationExtension
 
 from core.models import APIKey
 
@@ -77,3 +78,16 @@ class APIKeyAuthentication(authentication.BaseAuthentication):
         APIKey.objects.filter(id=api_key.id).update(last_used_at=timezone.now())
 
         return (api_key.user, api_key)
+
+
+class APIKeyScheme(OpenApiAuthenticationExtension):
+    target_class = 'core.authentication.APIKeyAuthentication'
+    name = 'apiKeyAuth'
+
+    def get_security_definition(self, auto_schema):
+        return {
+            'type': 'http',
+            'scheme': 'bearer',
+            'bearerFormat': 'API Key (cs_live_...)',
+            'description': 'API Key authentication using Bearer cs_live_<key>',
+        }

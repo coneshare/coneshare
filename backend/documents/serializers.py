@@ -306,3 +306,24 @@ class DocumentSerializer(serializers.ModelSerializer):
         validated_data['organization'] = request.user.organization
         validated_data['created_by'] = request.user
         return super().create(validated_data)
+
+
+class TrashItemSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    name = serializers.CharField()
+    item_type = serializers.CharField()
+    file_type = serializers.CharField(allow_null=True)
+    size = serializers.IntegerField(allow_null=True)
+    deleted_at = serializers.DateTimeField()
+    deleted_by_id = serializers.CharField()
+    parent_name = serializers.CharField(allow_null=True)
+    parent_id = serializers.CharField(allow_null=True)
+    view_count = serializers.IntegerField()
+
+
+class TrashRestoreResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    id = serializers.CharField()
+    name = serializers.CharField()
+    original_name = serializers.CharField()
+    was_renamed = serializers.BooleanField()

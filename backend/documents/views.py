@@ -14,14 +14,15 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 
 from core.pagination import StandardResultsSetPagination
 
 
 from .models import (Document, Folder, DocumentVersion)
 from .serializers import (DocumentSerializer, EnsureFolderPathsSerializer,
-                          FolderSerializer, DocumentVersionListSerializer)
+                          FolderSerializer, DocumentVersionListSerializer,
+                          TrashItemSerializer, TrashRestoreResponseSerializer)
 from .fileserver import fileserver_client
 from .services import (
     _get_unique_folder_name,
@@ -1221,7 +1222,12 @@ class RootFolderView(APIView):
 
 @extend_schema(tags=['trash'])
 class TrashViewSet(viewsets.ViewSet):
+    serializer_class = TrashItemSerializer
 
+    @extend_schema(
+        summary="List trash items",
+        responses={200: TrashItemSerializer(many=True)}
+    )
     def list(self, request):
         """
         List top-level soft-deleted documents and folders via DB-level SQL UNION ALL pagination.
@@ -1261,6 +1267,17 @@ class TrashViewSet(viewsets.ViewSet):
 
         return Response(list(combined_qs))
 
+    @extend_schema(
+        summary="Restore a soft-deleted document or folder",
+        parameters=[
+            OpenApiParameter(name="id", type=str, location=OpenApiParameter.PATH, description="Item ID to restore")
+        ],
+        responses={
+            200: TrashRestoreResponseSerializer,
+            400: OpenApiResponse(description="Bad Request"),
+            404: OpenApiResponse(description="Item not found in trash"),
+        }
+    )
     @action(detail=True, methods=['post'])
     def restore(self, request, pk=None):
         """Restore a soft-deleted document or folder."""
@@ -1295,6 +1312,16 @@ class TrashViewSet(viewsets.ViewSet):
             logger.error(f"Failed to restore item {pk}: {e}")
             return Response({"detail": "An error occurred during restoration."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @extend_schema(
+        summary="Permanently hard-delete an item and its storage binary",
+        parameters=[
+            OpenApiParameter(name="id", type=str, location=OpenApiParameter.PATH, description="Item ID to permanently delete")
+        ],
+        responses={
+            204: OpenApiResponse(description="No Content"),
+            404: OpenApiResponse(description="Item not found in trash"),
+        }
+    )
     @action(detail=True, methods=['delete'])
     def permanent(self, request, pk=None):
         """Permanently hard-delete an item and its storage binary."""
@@ -1316,6 +1343,12 @@ class TrashViewSet(viewsets.ViewSet):
             logger.error(f"Failed to permanently delete item {pk}: {e}")
             return Response({"detail": "An error occurred during permanent deletion."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @extend_schema(
+        summary="Permanently hard-delete all items in trash",
+        responses={
+            204: OpenApiResponse(description="No Content"),
+        }
+    )
     @action(detail=False, methods=['delete'], url_path='empty')
     def empty(self, request):
         """Permanently hard-delete all items in trash."""

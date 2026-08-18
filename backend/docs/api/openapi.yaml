@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: ConeShare API
-  version: 1.7.0
+  version: 1.8.0
   description: OpenAPI schema for the ConeShare backend API.
 paths:
   /api/schema/:
@@ -25,108 +25,13 @@ paths:
         schema:
           type: string
           enum:
-          - af
-          - ar
-          - ar-dz
-          - ast
-          - az
-          - be
-          - bg
-          - bn
-          - br
-          - bs
-          - ca
-          - ckb
-          - cs
-          - cy
-          - da
-          - de
-          - dsb
-          - el
           - en
-          - en-au
-          - en-gb
-          - eo
-          - es
-          - es-ar
-          - es-co
-          - es-mx
-          - es-ni
-          - es-ve
-          - et
-          - eu
-          - fa
-          - fi
-          - fr
-          - fy
-          - ga
-          - gd
-          - gl
-          - he
-          - hi
-          - hr
-          - hsb
-          - hu
-          - hy
-          - ia
-          - id
-          - ig
-          - io
-          - is
-          - it
-          - ja
-          - ka
-          - kab
-          - kk
-          - km
-          - kn
-          - ko
-          - ky
-          - lb
-          - lt
-          - lv
-          - mk
-          - ml
-          - mn
-          - mr
-          - ms
-          - my
-          - nb
-          - ne
-          - nl
-          - nn
-          - os
-          - pa
-          - pl
-          - pt
-          - pt-br
-          - ro
           - ru
-          - sk
-          - sl
-          - sq
-          - sr
-          - sr-latn
-          - sv
-          - sw
-          - ta
-          - te
-          - tg
-          - th
-          - tk
-          - tr
-          - tt
-          - udm
-          - ug
-          - uk
-          - ur
-          - uz
-          - vi
           - zh-hans
-          - zh-hant
       tags:
       - schema
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -158,6 +63,7 @@ paths:
       tags:
       - core
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -192,6 +98,7 @@ paths:
               $ref: '#/components/schemas/MoveItems'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -248,6 +155,7 @@ paths:
       tags:
       - v1
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -270,6 +178,7 @@ paths:
       tags:
       - v1
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -285,6 +194,7 @@ paths:
       tags:
       - v1
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -310,6 +220,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedOrganization'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -339,6 +250,7 @@ paths:
       tags:
       - v1
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -362,6 +274,7 @@ paths:
       tags:
       - v1
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -379,6 +292,7 @@ paths:
       tags:
       - v1
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -408,6 +322,7 @@ paths:
             schema:
               $ref: '#/components/schemas/AppConfiguration'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '201':
@@ -432,6 +347,7 @@ paths:
       tags:
       - v1
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -466,6 +382,7 @@ paths:
             schema:
               $ref: '#/components/schemas/AppConfiguration'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -500,6 +417,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedAppConfiguration'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -523,6 +441,7 @@ paths:
       tags:
       - v1
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '204':
@@ -547,6 +466,7 @@ paths:
       tags:
       - v1
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -573,6 +493,7 @@ paths:
               $ref: '#/components/schemas/User'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '201':
@@ -595,6 +516,7 @@ paths:
       tags:
       - v1
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -628,6 +550,7 @@ paths:
               $ref: '#/components/schemas/User'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -660,6 +583,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedUser'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -681,6 +605,7 @@ paths:
       tags:
       - v1
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '204':
@@ -699,6 +624,7 @@ paths:
       tags:
       - v1
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -721,6 +647,7 @@ paths:
       tags:
       - v1
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -736,6 +663,7 @@ paths:
       tags:
       - analytics
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -753,6 +681,7 @@ paths:
       tags:
       - analytics
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -783,6 +712,7 @@ paths:
       tags:
       - analytics
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -794,7 +724,9 @@ paths:
   /api/v1/analytics/view-sessions/:
     get:
       operationId: v1_analytics_view_sessions_list
-      description: Provides a paginated list of all view sessions for the organization.
+      description: |-
+        Provides a paginated list of view sessions, filterable by document_id,
+        share_link_id, dataroom_id, or viewer_email.
       parameters:
       - name: page
         required: false
@@ -811,6 +743,7 @@ paths:
       tags:
       - analytics
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -819,12 +752,98 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedViewSessionList'
           description: ''
+  /api/v1/analytics/view-sessions/{id}/:
+    get:
+      operationId: v1_analytics_view_sessions_retrieve
+      description: |-
+        Retrieve detailed metadata, page-by-page view durations, dataroom visits,
+        and link clicks for a single view session.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - analytics
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViewSession'
+          description: ''
+  /api/v1/api-keys/:
+    get:
+      operationId: v1_api_keys_list
+      tags:
+      - api-keys
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/APIKey'
+          description: ''
+    post:
+      operationId: v1_api_keys_create
+      tags:
+      - api-keys
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/APIKey'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/APIKey'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/APIKey'
+        required: true
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKey'
+          description: ''
+  /api/v1/api-keys/{id}/:
+    delete:
+      operationId: v1_api_keys_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this api key.
+        required: true
+      tags:
+      - api-keys
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/automation-assignments/:
     get:
       operationId: v1_automation_assignments_list
       tags:
       - automations
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -848,6 +867,7 @@ paths:
       tags:
       - automations
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -875,6 +895,7 @@ paths:
       tags:
       - automations
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -896,6 +917,7 @@ paths:
       tags:
       - automations
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -928,6 +950,7 @@ paths:
             schema:
               $ref: '#/components/schemas/AutomationDelivery'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -942,6 +965,7 @@ paths:
       tags:
       - automations
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -969,6 +993,7 @@ paths:
               $ref: '#/components/schemas/AutomationDestination'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '201':
@@ -990,6 +1015,7 @@ paths:
       tags:
       - automations
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1022,6 +1048,7 @@ paths:
               $ref: '#/components/schemas/AutomationDestination'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1053,6 +1080,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedAutomationDestination'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1073,6 +1101,7 @@ paths:
       tags:
       - automations
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '204':
@@ -1083,6 +1112,7 @@ paths:
       tags:
       - automations
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1110,6 +1140,7 @@ paths:
               $ref: '#/components/schemas/AutomationRule'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '201':
@@ -1131,6 +1162,7 @@ paths:
       tags:
       - automations
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1163,6 +1195,7 @@ paths:
               $ref: '#/components/schemas/AutomationRule'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1194,6 +1227,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedAutomationRule'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1214,6 +1248,7 @@ paths:
       tags:
       - automations
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '204':
@@ -1245,6 +1280,7 @@ paths:
               $ref: '#/components/schemas/OAuthCallback'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1282,6 +1318,7 @@ paths:
       tags:
       - cloudfiles
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1304,6 +1341,7 @@ paths:
       tags:
       - cloudfiles
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1327,6 +1365,7 @@ paths:
       tags:
       - cloudfiles
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '204':
@@ -1351,6 +1390,7 @@ paths:
       tags:
       - cloudfiles
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1399,6 +1439,7 @@ paths:
               $ref: '#/components/schemas/CloudImport'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '202':
@@ -1441,6 +1482,7 @@ paths:
       tags:
       - cloudfiles
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1489,6 +1531,7 @@ paths:
               $ref: '#/components/schemas/ImportVersion'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '202':
@@ -1532,6 +1575,7 @@ paths:
       tags:
       - cloudfiles
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '202':
@@ -1568,6 +1612,7 @@ paths:
       tags:
       - cloudfiles
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1591,6 +1636,7 @@ paths:
       tags:
       - v1
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1622,6 +1668,7 @@ paths:
             schema:
               $ref: '#/components/schemas/DataroomDocumentUpdate'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1653,6 +1700,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedDataroomDocumentUpdate'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1667,6 +1715,7 @@ paths:
       tags:
       - datarooms
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1694,6 +1743,7 @@ paths:
               $ref: '#/components/schemas/DataroomFolder'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '201':
@@ -1715,6 +1765,7 @@ paths:
       tags:
       - datarooms
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1747,6 +1798,7 @@ paths:
               $ref: '#/components/schemas/DataroomFolder'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1778,6 +1830,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedDataroomFolder'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1798,6 +1851,7 @@ paths:
       tags:
       - datarooms
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '204':
@@ -1808,6 +1862,7 @@ paths:
       tags:
       - datarooms
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1835,6 +1890,7 @@ paths:
               $ref: '#/components/schemas/Dataroom'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '201':
@@ -1856,6 +1912,7 @@ paths:
       tags:
       - datarooms
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1888,6 +1945,7 @@ paths:
               $ref: '#/components/schemas/Dataroom'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1919,6 +1977,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedDataroom'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -1939,6 +1998,7 @@ paths:
       tags:
       - datarooms
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '204':
@@ -1968,6 +2028,7 @@ paths:
               $ref: '#/components/schemas/Dataroom'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2001,6 +2062,7 @@ paths:
               $ref: '#/components/schemas/Dataroom'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2034,6 +2096,7 @@ paths:
               $ref: '#/components/schemas/Dataroom'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2067,6 +2130,7 @@ paths:
               $ref: '#/components/schemas/Dataroom'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2100,6 +2164,7 @@ paths:
               $ref: '#/components/schemas/Dataroom'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2133,6 +2198,7 @@ paths:
               $ref: '#/components/schemas/Dataroom'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2166,6 +2232,7 @@ paths:
               $ref: '#/components/schemas/Dataroom'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2187,6 +2254,7 @@ paths:
       tags:
       - datarooms
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2204,6 +2272,7 @@ paths:
       tags:
       - documents
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2231,6 +2300,7 @@ paths:
               $ref: '#/components/schemas/Document'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '201':
@@ -2253,6 +2323,7 @@ paths:
       tags:
       - documents
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2281,6 +2352,7 @@ paths:
       tags:
       - documents
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2316,6 +2388,7 @@ paths:
       tags:
       - documents
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2348,6 +2421,7 @@ paths:
               $ref: '#/components/schemas/Document'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2379,6 +2453,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedDocument'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2399,6 +2474,7 @@ paths:
       tags:
       - documents
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '204':
@@ -2429,6 +2505,7 @@ paths:
               $ref: '#/components/schemas/Document'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2464,6 +2541,7 @@ paths:
               $ref: '#/components/schemas/Document'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2499,6 +2577,7 @@ paths:
               $ref: '#/components/schemas/Document'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2520,6 +2599,7 @@ paths:
       tags:
       - documents
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2543,6 +2623,7 @@ paths:
       tags:
       - documents
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2565,6 +2646,7 @@ paths:
       tags:
       - documents
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2586,6 +2668,7 @@ paths:
       tags:
       - documents
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2614,6 +2697,7 @@ paths:
       tags:
       - filerequests
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2640,6 +2724,7 @@ paths:
               $ref: '#/components/schemas/FileRequest'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '201':
@@ -2662,6 +2747,7 @@ paths:
       tags:
       - filerequests
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2695,6 +2781,7 @@ paths:
               $ref: '#/components/schemas/FileRequest'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2727,6 +2814,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedFileRequest'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2748,6 +2836,7 @@ paths:
       tags:
       - filerequests
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '204':
@@ -2778,6 +2867,7 @@ paths:
       tags:
       - filerequests
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2823,6 +2913,7 @@ paths:
               $ref: '#/components/schemas/ExportRequest'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '201':
@@ -2854,6 +2945,7 @@ paths:
       tags:
       - documents
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2881,6 +2973,7 @@ paths:
               $ref: '#/components/schemas/Folder'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '201':
@@ -2904,6 +2997,7 @@ paths:
       tags:
       - documents
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2936,6 +3030,7 @@ paths:
               $ref: '#/components/schemas/Folder'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2967,6 +3062,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedFolder'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2987,6 +3083,7 @@ paths:
       tags:
       - documents
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '204':
@@ -3013,6 +3110,7 @@ paths:
               $ref: '#/components/schemas/EnsureFolderPaths'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '201':
@@ -3049,6 +3147,7 @@ paths:
       tags:
       - documents
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -3071,6 +3170,7 @@ paths:
       tags:
       - core
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -3099,6 +3199,7 @@ paths:
               $ref: '#/components/schemas/UserGroup'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '201':
@@ -3121,6 +3222,7 @@ paths:
       tags:
       - core
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -3154,6 +3256,7 @@ paths:
               $ref: '#/components/schemas/UserGroup'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -3186,6 +3289,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedUserGroup'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -3207,10 +3311,32 @@ paths:
       tags:
       - core
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '204':
           description: No response body
+  /api/v1/languages/:
+    get:
+      operationId: v1_languages_list
+      description: |-
+        Return a list of supported UI languages with native display names (autonyms).
+        Publicly accessible endpoint.
+      tags:
+      - core
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Language'
+          description: ''
   /api/v1/link-clicks/record/:
     post:
       operationId: v1_link_clicks_record_create
@@ -3230,6 +3356,7 @@ paths:
               $ref: '#/components/schemas/LinkClickRecord'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -3277,6 +3404,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ShareLinkAcceptNDA'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -3317,6 +3445,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -3391,6 +3520,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -3452,6 +3582,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -3505,6 +3636,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -3534,6 +3666,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -3555,6 +3688,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -3589,6 +3723,7 @@ paths:
               $ref: '#/components/schemas/QnAThreadCreate'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -3615,6 +3750,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -3654,6 +3790,7 @@ paths:
               $ref: '#/components/schemas/QnAMessageCreate'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -3683,6 +3820,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -3764,6 +3902,7 @@ paths:
               $ref: '#/components/schemas/ShareLinkEmail'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -3824,6 +3963,7 @@ paths:
               type: object
               additionalProperties: {}
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -3873,6 +4013,7 @@ paths:
               $ref: '#/components/schemas/ShareLinkPassword'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -3919,6 +4060,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -3975,6 +4117,7 @@ paths:
               $ref: '#/components/schemas/LogoutRequest'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '205':
@@ -3993,6 +4136,7 @@ paths:
       tags:
       - core
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4017,6 +4161,7 @@ paths:
       tags:
       - core
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4044,6 +4189,7 @@ paths:
               $ref: '#/components/schemas/PageViewRecord'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -4080,6 +4226,7 @@ paths:
       tags:
       - filerequests
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -4128,6 +4275,7 @@ paths:
               $ref: '#/components/schemas/FileRequestUploadFinalize'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -4185,6 +4333,7 @@ paths:
               $ref: '#/components/schemas/FileRequestUploadRequest'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -4214,6 +4363,7 @@ paths:
       tags:
       - core
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -4229,6 +4379,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4255,6 +4406,7 @@ paths:
             schema:
               $ref: '#/components/schemas/QnAThread'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '201':
@@ -4276,6 +4428,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4307,6 +4460,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedQnAThread'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4339,6 +4493,7 @@ paths:
             schema:
               $ref: '#/components/schemas/QnAThread'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4353,6 +4508,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4380,6 +4536,7 @@ paths:
               $ref: '#/components/schemas/ShareLinkTemplate'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '201':
@@ -4401,6 +4558,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4433,6 +4591,7 @@ paths:
               $ref: '#/components/schemas/ShareLinkTemplate'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4464,6 +4623,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedShareLinkTemplate'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4484,6 +4644,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '204':
@@ -4494,6 +4655,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4521,6 +4683,7 @@ paths:
               $ref: '#/components/schemas/ShareLink'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '201':
@@ -4542,6 +4705,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4574,6 +4738,7 @@ paths:
               $ref: '#/components/schemas/ShareLink'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4605,6 +4770,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedShareLink'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4625,6 +4791,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '204':
@@ -4654,6 +4821,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedShareLink'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4689,6 +4857,7 @@ paths:
               $ref: '#/components/schemas/ShareLink'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4710,6 +4879,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4736,6 +4906,7 @@ paths:
               $ref: '#/components/schemas/SignupRequest'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -4777,6 +4948,7 @@ paths:
               $ref: '#/components/schemas/SignupVerify'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -4856,6 +5028,102 @@ paths:
               schema:
                 $ref: '#/components/schemas/TokenRefresh'
           description: ''
+  /api/v1/trash/:
+    get:
+      operationId: v1_trash_list
+      description: |-
+        List top-level soft-deleted documents and folders via DB-level SQL UNION ALL pagination.
+        Only items whose parent folder is active (or null) are shown as top-level trash entries.
+      summary: List trash items
+      tags:
+      - trash
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrashItem'
+          description: ''
+  /api/v1/trash/{id}/permanent/:
+    delete:
+      operationId: v1_trash_permanent_destroy
+      description: Permanently hard-delete an item and its storage binary.
+      summary: Permanently hard-delete an item and its storage binary
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: Item ID to permanently delete
+        required: true
+      tags:
+      - trash
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No Content
+        '404':
+          description: Item not found in trash
+  /api/v1/trash/{id}/restore/:
+    post:
+      operationId: v1_trash_restore_create
+      description: Restore a soft-deleted document or folder.
+      summary: Restore a soft-deleted document or folder
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: Item ID to restore
+        required: true
+      tags:
+      - trash
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrashItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TrashItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TrashItem'
+        required: true
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrashRestoreResponse'
+          description: ''
+        '400':
+          description: Bad Request
+        '404':
+          description: Item not found in trash
+  /api/v1/trash/empty/:
+    delete:
+      operationId: v1_trash_empty_destroy
+      description: Permanently hard-delete all items in trash.
+      summary: Permanently hard-delete all items in trash
+      tags:
+      - trash
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No Content
   /api/v1/uploads/document/{document_id}/versions/finalize/:
     post:
       operationId: v1_uploads_document_versions_finalize_create
@@ -4882,6 +5150,7 @@ paths:
               $ref: '#/components/schemas/Finalize'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '202':
@@ -4936,6 +5205,7 @@ paths:
               $ref: '#/components/schemas/DocumentVersionUploadRequest'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -4979,6 +5249,7 @@ paths:
               $ref: '#/components/schemas/DocumentUploadFinalize'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '202':
@@ -5021,6 +5292,7 @@ paths:
               $ref: '#/components/schemas/DocumentUploadRequest'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -5043,6 +5315,7 @@ paths:
       tags:
       - core
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -5067,6 +5340,7 @@ paths:
       tags:
       - core
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -5097,6 +5371,7 @@ paths:
               $ref: '#/components/schemas/User'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -5126,6 +5401,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedUser'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -5153,6 +5429,7 @@ paths:
               $ref: '#/components/schemas/ChangePassword'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '204':
@@ -5170,6 +5447,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -5197,6 +5475,7 @@ paths:
               $ref: '#/components/schemas/ViewSession'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -5219,6 +5498,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -5251,6 +5531,7 @@ paths:
               $ref: '#/components/schemas/ViewSession'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -5282,6 +5563,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedViewSession'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -5302,6 +5584,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '204':
@@ -5333,6 +5616,7 @@ paths:
               $ref: '#/components/schemas/ViewSession'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       - {}
       responses:
@@ -5348,6 +5632,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -5375,6 +5660,7 @@ paths:
               $ref: '#/components/schemas/Viewer'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '201':
@@ -5396,6 +5682,7 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -5428,6 +5715,7 @@ paths:
               $ref: '#/components/schemas/Viewer'
         required: true
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -5459,6 +5747,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedViewer'
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -5479,12 +5768,46 @@ paths:
       tags:
       - sharelinks
       security:
+      - apiKeyAuth: []
       - jwtAuth: []
       responses:
         '204':
           description: No response body
 components:
   schemas:
+    APIKey:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        prefix:
+          type: string
+          readOnly: true
+        tier:
+          $ref: '#/components/schemas/TierEnum'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_used_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - created_at
+      - id
+      - last_used_at
+      - name
+      - prefix
     AdminUserDetail:
       type: object
       description: Serializer for the User model.
@@ -5520,6 +5843,15 @@ components:
           format: uri
           nullable: true
           readOnly: true
+        language:
+          allOf:
+          - $ref: '#/components/schemas/LanguageEnum'
+          description: |-
+            Preferred UI language
+
+            * `en` - English
+            * `zh-hans` - Simplified Chinese
+            * `ru` - Russian
         date_joined:
           type: string
           format: date-time
@@ -6821,6 +7153,26 @@ components:
       - file_id
       - file_name
       - file_size
+    Language:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+      required:
+      - code
+      - name
+    LanguageEnum:
+      enum:
+      - en
+      - zh-hans
+      - ru
+      type: string
+      description: |-
+        * `en` - English
+        * `zh-hans` - Simplified Chinese
+        * `ru` - Russian
     LinkClick:
       type: object
       properties:
@@ -7792,6 +8144,9 @@ components:
         slug:
           type: string
           readOnly: true
+        url:
+          type: string
+          readOnly: true
         expires_at:
           type: string
           format: date-time
@@ -7932,6 +8287,15 @@ components:
           format: uri
           nullable: true
           readOnly: true
+        language:
+          allOf:
+          - $ref: '#/components/schemas/LanguageEnum'
+          description: |-
+            Preferred UI language
+
+            * `en` - English
+            * `zh-hans` - Simplified Chinese
+            * `ru` - Russian
         date_joined:
           type: string
           format: date-time
@@ -8492,6 +8856,9 @@ components:
         slug:
           type: string
           readOnly: true
+        url:
+          type: string
+          readOnly: true
         expires_at:
           type: string
           format: date-time
@@ -8570,6 +8937,7 @@ components:
       - recent_view_sessions
       - slug
       - updated_at
+      - url
       - view_count
     ShareLinkAcceptNDA:
       type: object
@@ -8731,6 +9099,16 @@ components:
         * `pending` - Pending
         * `deleted` - Deleted
         * `failed` - Failed
+    TierEnum:
+      enum:
+      - read_only
+      - read_write
+      - full_access
+      type: string
+      description: |-
+        * `read_only` - Read Only
+        * `read_write` - Read & Write
+        * `full_access` - Full Access
     TokenObtainPair:
       type: object
       properties:
@@ -8762,6 +9140,64 @@ components:
       required:
       - access
       - refresh
+    TrashItem:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        item_type:
+          type: string
+        file_type:
+          type: string
+          nullable: true
+        size:
+          type: integer
+          nullable: true
+        deleted_at:
+          type: string
+          format: date-time
+        deleted_by_id:
+          type: string
+        parent_name:
+          type: string
+          nullable: true
+        parent_id:
+          type: string
+          nullable: true
+        view_count:
+          type: integer
+      required:
+      - deleted_at
+      - deleted_by_id
+      - file_type
+      - id
+      - item_type
+      - name
+      - parent_id
+      - parent_name
+      - size
+      - view_count
+    TrashRestoreResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+        original_name:
+          type: string
+        was_renamed:
+          type: boolean
+      required:
+      - detail
+      - id
+      - name
+      - original_name
+      - was_renamed
     UploadExportJob:
       type: object
       properties:
@@ -8911,6 +9347,15 @@ components:
           format: uri
           nullable: true
           readOnly: true
+        language:
+          allOf:
+          - $ref: '#/components/schemas/LanguageEnum'
+          description: |-
+            Preferred UI language
+
+            * `en` - English
+            * `zh-hans` - Simplified Chinese
+            * `ru` - Russian
         date_joined:
           type: string
           format: date-time
@@ -9110,6 +9555,11 @@ components:
       - id
       - organization
   securitySchemes:
+    apiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key (cs_live_...)
+      description: API Key authentication using Bearer cs_live_<key>
     jwtAuth:
       type: http
       scheme: bearer
