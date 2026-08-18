@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { renameDocument, getDocumentDetails, getDocumentStatus, getDocumentViews, getDocumentStats, deleteShareLink, uploadNewVersion, getDocumentDownloadUrl, deleteDocument, getDataroom, getDataroomFolderContents, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl, refreshCloudDocument, importCloudVersion } from '../services/api';
+import { getLocalizedErrorMessage } from '../utils/errorTranslator';
 import { DocumentHeader } from '../components/documents/DocumentHeader';
 import { LinksTable } from '../components/documents/LinksTable';
 import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
@@ -259,7 +260,7 @@ export function DocumentPage() {
       toast.success("Document renamed successfully.");
     } catch (error) {
       console.error("Failed to rename document:", error);
-      toast.error(error.response?.data?.detail || "Failed to rename document.");
+      toast.error(getLocalizedErrorMessage(error, "Failed to rename document."));
     }
   };
 

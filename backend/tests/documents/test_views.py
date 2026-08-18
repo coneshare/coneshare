@@ -2300,8 +2300,24 @@ def test_restore_document_does_not_relink_to_another_users_active_parent_folder(
     assert "parent folder 'images' is in Trash" in res.json().get('detail', '')
 
 
+@pytest.mark.django_db
+def test_rename_document_with_duplicate_name_fails(api_client, user, organization):
+    """
+    RED Test: Renaming a document to a name that already exists in the same folder
+    should return 400 Bad Request with a clear validation error, instead of crashing
+    with a 500 SQLite IntegrityError.
+    """
+    api_client.force_authenticate(user=user)
+    root_folder = Folder.objects.get_root_for_org(organization)
 
+    # 1. Create two documents in the same folder
+    doc1 = Document.objects.create(name="foo.c", organization=organization, created_by=user, folder=root_folder, status="ready")
+    doc2 = Document.objects.create(name="foo.txt", organization=organization, created_by=user, folder=root_folder, status="ready")
 
+    # 2. Attempt to rename doc1 to "foo.txt"
+    response = api_client.patch(f'/api/v1/documents/{doc1.id}/', {'name': 'foo.txt'}, format='json')
 
-
-
+    # 3. Must return 400 Bad Request with field validation error
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert 'name' in response.json()
+    assert 'already exists' in str(response.json()['name'])

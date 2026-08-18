@@ -152,4 +152,8 @@ msgstr "匿名访客"
 msgid "Unknown Location"
 msgstr "未知位置"
 
+msgid "A document with this name already exists in this location."
+msgstr "该位置已存在同名文档。"
 
+msgid "A folder with this name already exists in this location."
+msgstr "该位置已存在同名文件夹。"

@@ -1,3 +1,4 @@
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 
@@ -80,7 +81,7 @@ class FolderSerializer(serializers.ModelSerializer):
 
             if queryset.exists():
                 raise serializers.ValidationError({
-                    'name': "A folder with this name already exists in this location."
+                    'name': _("A folder with this name already exists in this location.")
                 })
         return data
 
@@ -275,6 +276,29 @@ class DocumentSerializer(serializers.ModelSerializer):
                     'etag_or_rev': ci.get('etag_or_rev'),
                 }
         return None
+
+    def validate(self, data):
+        data = super().validate(data)
+        request = self.context.get('request')
+        if not request or not request.user:
+            return data
+
+        name = data.get('name')
+        if self.instance and name:
+            folder = data.get('folder', self.instance.folder)
+            queryset = Document.objects.filter(
+                created_by=request.user,
+                folder=folder,
+                name=name,
+                deleted_at__isnull=True
+            ).exclude(pk=self.instance.pk)
+
+            if queryset.exists():
+                raise serializers.ValidationError({
+                    'name': _("A document with this name already exists in this location.")
+                })
+
+        return data
 
     def create(self, validated_data):
         request = self.context['request']

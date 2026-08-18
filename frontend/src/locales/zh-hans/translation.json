@@ -891,6 +891,8 @@
     "noPermissionToView": "您没有权限查看此文档。",
     "documentTooManyPages": "文档页数过多，无法生成预览。",
     "previewGenerationFailed": "生成预览时发生错误。",
-    "previewCouldNotBeGenerated": "无法生成预览。"
+    "previewCouldNotBeGenerated": "无法生成预览。",
+    "documentNameExists": "该位置已存在同名文档。",
+    "folderNameExists": "该位置已存在同名文件夹。"
   }
 }

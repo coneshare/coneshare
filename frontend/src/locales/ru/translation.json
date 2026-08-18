@@ -912,6 +912,8 @@
     "noPermissionToView": "У вас нет разрешения на просмотр этого документа.",
     "documentTooManyPages": "В документе слишком много страниц для создания предпросмотра.",
     "previewGenerationFailed": "Произошла ошибка при создании предпросмотра.",
-    "previewCouldNotBeGenerated": "Не удалось создать предпросмотр."
+    "previewCouldNotBeGenerated": "Не удалось создать предпросмотр.",
+    "documentNameExists": "Документ с таким именем уже существует в этой папке.",
+    "folderNameExists": "Папка с таким именем уже существует в этой папке."
   }
 }

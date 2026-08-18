@@ -57,11 +57,15 @@ const ERROR_STRING_MAPPINGS = {
     "errors.previewGenerationFailed",
   "The preview could not be generated.":
     "errors.previewCouldNotBeGenerated",
+  "A document with this name already exists in this location.":
+    "errors.documentNameExists",
+  "A folder with this name already exists in this location.":
+    "errors.folderNameExists",
 };
 
 /**
  * Translates backend error messages or objects to current i18n language string.
- * @param {Error|string} errorOrDetail - Axios error object or raw message string.
+ * @param {Error|string|Array} errorOrDetail - Axios error object or raw message string.
  * @param {string} [fallbackKey] - Optional fallback key if message is unmapped.
  * @returns {string} Localized error message string.
  */
@@ -70,6 +74,10 @@ export function getLocalizedErrorMessage(errorOrDetail, fallbackKey) {
 
   if (typeof errorOrDetail === 'string') {
     rawDetail = errorOrDetail;
+  } else if (Array.isArray(errorOrDetail)) {
+    rawDetail = errorOrDetail.flat().join(' ');
+  } else if (errorOrDetail?.response?.data?.name) {
+    rawDetail = [errorOrDetail.response.data.name].flat().join(' ');
   } else if (errorOrDetail?.response?.data?.detail) {
     rawDetail = errorOrDetail.response.data.detail;
   } else if (errorOrDetail?.response?.data?.message) {

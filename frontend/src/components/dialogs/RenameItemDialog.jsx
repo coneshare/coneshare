@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { renameDocument, renameFolder, updateDataroom, renameDataroomFolder, renameDataroomDocument } from "../../services/api";
+import { getLocalizedErrorMessage } from "../../utils/errorTranslator";
 import { Button } from "../ui/Button";
 import {
   Dialog,
@@ -50,9 +51,7 @@ export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess, contex
       onSuccess(); // This will trigger a data refresh
       onOpenChange(false); // Close the dialog
     } catch (err) {
-      const nameError = err.response?.data?.name;
-      const apiError =
-        (nameError && [nameError].flat().join(" ")) || `Failed to rename ${item.type}.`;
+      const apiError = getLocalizedErrorMessage(err, `Failed to rename ${item.type}.`);
       setError(apiError);
     } finally {
       setIsSaving(false);

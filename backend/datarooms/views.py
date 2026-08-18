@@ -2,6 +2,7 @@ import logging
 import os
 from pathlib import Path
 
+from django.utils.translation import gettext_lazy as _
 from django.db import transaction
 
 from django.db.models import Count
@@ -706,7 +707,7 @@ class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
                 folder=instance.folder,
                 name=new_name
             ).exclude(pk=instance.pk).exists():
-                raise serializers.ValidationError({'name': 'A document with this name already exists in this location.'})
+                raise serializers.ValidationError({'name': _('A document with this name already exists in this location.')})
 
         serializer.save()
 
@@ -817,7 +818,7 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
                 parent=instance.parent,
                 name=new_name
             ).exclude(pk=instance.pk).exists():
-                raise serializers.ValidationError({'name': 'A folder with this name already exists in this location.'})
+                raise serializers.ValidationError({'name': _('A folder with this name already exists in this location.')})
 
         serializer.save()
 

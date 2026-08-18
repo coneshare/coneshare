@@ -898,6 +898,8 @@
     "noPermissionToView": "You do not have permission to view this document.",
     "documentTooManyPages": "Document has too many pages to generate a preview.",
     "previewGenerationFailed": "An error occurred during preview generation.",
-    "previewCouldNotBeGenerated": "The preview could not be generated."
+    "previewCouldNotBeGenerated": "The preview could not be generated.",
+    "documentNameExists": "A document with this name already exists in this location.",
+    "folderNameExists": "A folder with this name already exists in this location."
   }
 }

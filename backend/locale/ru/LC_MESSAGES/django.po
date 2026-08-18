@@ -152,4 +152,8 @@ msgstr "Анонимный пользователь"
 msgid "Unknown Location"
 msgstr "Неизвестное местоположение"
 
+msgid "A document with this name already exists in this location."
+msgstr "Документ с таким именем уже существует в этой папке."
 
+msgid "A folder with this name already exists in this location."
+msgstr "Папка с таким именем уже существует в этой папке."
