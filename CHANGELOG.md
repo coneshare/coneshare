@@ -1,6 +1,30 @@
 # Changelog
 
 
+## [1.8.0](https://github.com/coneshare/coneshare/compare/v1.7.1...v1.8.0) (2026-08-18)
+
+
+### Features
+
+* **api:** add api keys for external integration (e.g. MCP servers) ([37df3d6](https://github.com/coneshare/coneshare/commit/37df3d603d51394e26c511224d703a5a4c9c3002))
+* **documents:** add soft-delete and trash page ([0934ce0](https://github.com/coneshare/coneshare/commit/0934ce05531a0b834f074ffc0e6293e90676a12c))
+* **backend:** add i18n support for backend ([6c015b2](https://github.com/coneshare/coneshare/commit/6c015b2aba8f2d89a56f73745bb9cf62e764f6c7))
+* **frontend:** add i18n support for frontend ([cd54bfa](https://github.com/coneshare/coneshare/commit/cd54bfaac51bf14b72f705a6d2de6be1e5a5ef77))
+* **frontend:** add in-page MCP setup instructions to API keys page ([887e8e3](https://github.com/coneshare/coneshare/commit/887e8e30bb0f6410ad9cd2e21a0e21ce5c8290c6))
+* **frontend:** persist document list sorting configuration across reloads ([38ec57e](https://github.com/coneshare/coneshare/commit/38ec57ed60c1457ded019c4a05693b056d8be5f3))
+* **mcp-server:** add remote MCP server ([4d1724e](https://github.com/coneshare/coneshare/commit/4d1724e36ca677da8977f04b264dc48c37b2f2ae))
+* **mcp:** add dataroom and document CRUD tools and default watermark resolution ([3bb9b3d](https://github.com/coneshare/coneshare/commit/3bb9b3dfe79253818bc0350b29dc38ac2e79dac7))
+* **mcp:** add upload document ([3e16c5f](https://github.com/coneshare/coneshare/commit/3e16c5f7cc0a1d12fd613b34c4e680b6c5722e01))
+
+
+### Bug Fixes
+
+* **datarooms:** preserve custom item order and exclude soft-deleted documents ([c2ddf26](https://github.com/coneshare/coneshare/commit/c2ddf2629f114658bdfada7fae35b6847113bcaa))
+* **documents:** handle name collisions on rename and add translations ([334e6a6](https://github.com/coneshare/coneshare/commit/334e6a66c0244ea3d69c6851f60791006f24baa2))
+* **frontend:** prevent move dialog overflow and add missing translations ([25c888a](https://github.com/coneshare/coneshare/commit/25c888a2ec915a5c0157c05f54e0f5db36c63c06))
+* **frontend:** resolve dataroom move dialog folder extraction and translate remove actions ([55905f9](https://github.com/coneshare/coneshare/commit/55905f97d9fa17d3d0c70a7acbc0d9e5de570bf4))
+
+
 ## [1.7.1](https://github.com/coneshare/coneshare/compare/v1.7.0...v1.7.1) (2026-07-27)
 
 
