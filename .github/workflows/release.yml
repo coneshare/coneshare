@@ -28,7 +28,9 @@ jobs:
           SHORT_SHA=$(git rev-parse --short=10 HEAD)
           make dist APP_VERSION=$CLEAN_VERSION GIT_SHA=$SHORT_SHA
           docker tag coneshare:latest conesharedev/coneshare:$CLEAN_VERSION
+          docker tag coneshare-mcp:latest conesharedev/coneshare-mcp:$CLEAN_VERSION
           docker push conesharedev/coneshare:$CLEAN_VERSION
+          docker push conesharedev/coneshare-mcp:$CLEAN_VERSION
 
   update-compose-repository:
     name: Update Coneshare Compose Repository
@@ -57,6 +59,7 @@ jobs:
           cd coneshare-compose
           git checkout -b "release-${CLEAN_VERSION}"
           sed -i "s|CONESHARE_IMAGE=conesharedev/coneshare:rolling|CONESHARE_IMAGE=conesharedev/coneshare:${CLEAN_VERSION}|" .env
+          sed -i "s|CONESHARE_MCP_IMAGE=conesharedev/coneshare-mcp:rolling|CONESHARE_MCP_IMAGE=conesharedev/coneshare-mcp:${CLEAN_VERSION}|" .env
           sed -i "s|SENTRY_RELEASE=rolling|SENTRY_RELEASE=${CLEAN_VERSION}|" app.env.example
           git add .env app.env.example
           git commit -m "release: ${CLEAN_VERSION}"
@@ -96,6 +99,7 @@ jobs:
           git checkout main
           git reset --hard origin/main 
           sed -i "s|CONESHARE_IMAGE=conesharedev/coneshare:${CLEAN_VERSION}|CONESHARE_IMAGE=conesharedev/coneshare:rolling|" .env
+          sed -i "s|CONESHARE_MCP_IMAGE=conesharedev/coneshare-mcp:${CLEAN_VERSION}|CONESHARE_MCP_IMAGE=conesharedev/coneshare-mcp:rolling|" .env
           sed -i "s|SENTRY_RELEASE=${CLEAN_VERSION}|SENTRY_RELEASE=rolling|" app.env.example
           git add .env app.env.example
           git commit -m "build: Set main version back to rolling"
