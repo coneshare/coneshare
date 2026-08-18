@@ -33,6 +33,7 @@ export function DraggableItem({
   themed = false,
   showIndex = false,
   itemIndex = null,
+  deleteLabel,
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -170,6 +171,7 @@ export function DraggableItem({
               onRequestFiles={onRequestFiles}
               onDownload={onDownload}
               onCopy={onCopy}
+              deleteLabel={deleteLabel}
             />
           </div>
         )}

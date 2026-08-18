@@ -25,6 +25,7 @@
     "src/tests/pages/TrashPage.test.jsx",
     "src/tests/pages/ApiKeysSettingsPage.test.jsx",
     "src/tests/i18n.test.jsx",
-    "src/tests/hooks/useSortedList.test.js"
+    "src/tests/hooks/useSortedList.test.js",
+    "src/tests/components/dialogs/DataroomMoveItemsDialog.test.jsx"
   ]
 }

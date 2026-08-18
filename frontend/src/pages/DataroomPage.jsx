@@ -865,7 +865,7 @@ export function DataroomPage() {
                 onClearSelection={handleClearSelection}
                 onMove={() => setIsMoveItemsOpen(true)}
                 onDelete={handleRemoveContent}
-                deleteText="Remove"
+                deleteText={t('common.remove')}
               />
             ) : (
               <div className="flex min-h-[48px] items-center">
@@ -905,6 +905,7 @@ export function DataroomPage() {
               sortConfig={sortConfig}
               onRename={handleRenameItem}
               onDelete={handleRemoveItem}
+              deleteLabel={t('common.remove')}
               onToggleStar={handleToggleStar}
               viewsTooltip={t('datarooms.viewsTooltip')}
               emptyState={

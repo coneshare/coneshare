@@ -50,6 +50,7 @@ export function DocumentsList({
   showIndex = false,
   viewsTooltip = "Views recorded for this item.",
   emptyState = null,
+  deleteLabel,
 }) {
   const { t } = useTranslation();
   const [itemToDelete, setItemToDelete] = useState(null);
@@ -300,6 +301,7 @@ export function DocumentsList({
                   themed={themed}
                   showIndex={showIndex}
                   itemIndex={showIndex ? indexMap.get(`${item.type}:${item.id}`) : null}
+                  deleteLabel={deleteLabel}
                 />
               ))}
             </div>
