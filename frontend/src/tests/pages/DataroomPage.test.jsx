@@ -505,7 +505,7 @@ describe('DataroomPage', () => {
                 const menuTrigger = within(folderRow).getByRole('button', { name: /actions for/i });
                 await user.click(menuTrigger);
         
-                const deleteMenuItem = await screen.findByRole('menuitem', { name: /delete/i });
+                const deleteMenuItem = await screen.findByRole('menuitem', { name: /remove/i });
                 await user.click(deleteMenuItem);
         
                 const dialog = await screen.findByRole('dialog', { name: /remove "Sub Folder"\?/i });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Dialog,
@@ -12,29 +12,42 @@ import { Button } from '../ui/Button';
 import { getDataroom, getDataroomFolderContents } from '../../services/api';
 import { Folder as FolderIcon, ChevronRight } from 'lucide-react';
 
-function Breadcrumbs({ path, onNavigate }) {
+function Breadcrumbs({ currentFolder, onNavigate }) {
   const { t } = useTranslation();
-  const handleNavigate = (folderId, isRoot = false) => {
-    if (isRoot) {
-      onNavigate(null);
-    } else {
-      onNavigate(folderId);
-    }
-  };
 
   return (
-    <nav className="flex items-center text-sm" aria-label="Breadcrumb">
-      <ol className="flex items-center space-x-2">
-        <li>
+    <nav className="flex flex-wrap items-center gap-1 text-sm font-medium text-muted-foreground min-w-0" aria-label="Breadcrumb">
+      <button
+        type="button"
+        onClick={() => onNavigate(null)}
+        className={`hover:text-foreground flex-shrink-0 ${!currentFolder ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}
+      >
+        {t('datarooms.dataroomRoot')}
+      </button>
+      {currentFolder?.ancestors?.map((ancestor) => (
+        <div key={ancestor.id} className="flex items-center gap-1 min-w-0">
+          <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
           <button
-            onClick={() => handleNavigate(null, true)}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            type="button"
+            onClick={() => onNavigate(ancestor.id)}
+            className="truncate max-w-[140px] sm:max-w-[180px] hover:text-foreground text-muted-foreground"
+            title={ancestor.name}
           >
-            {t('datarooms.dataroomRoot')}
+            {ancestor.name}
           </button>
-        </li>
-        {/* Placeholder for ancestors - requires backend support */}
-      </ol>
+        </div>
+      ))}
+      {currentFolder && (
+        <div className="flex items-center gap-1 min-w-0">
+          <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+          <span
+            className="font-semibold text-foreground truncate max-w-[180px] sm:max-w-[240px]"
+            title={currentFolder.name}
+          >
+            {currentFolder.name}
+          </span>
+        </div>
+      )}
     </nav>
   );
 }
@@ -42,28 +55,59 @@ function Breadcrumbs({ path, onNavigate }) {
 export function DataroomMoveItemsDialog({ isOpen, onOpenChange, onConfirm, dataroomId, selectedFolderIds = [] }) {
   const { t } = useTranslation();
   const [currentFolderId, setCurrentFolderId] = useState(null);
+  const [currentFolderInfo, setCurrentFolderInfo] = useState(null);
   const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isConfirming, setIsConfirming] = useState(false);
+  const requestIdRef = useRef(0);
 
   const fetchData = useCallback(async (folderId) => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     try {
       const response = folderId
         ? await getDataroomFolderContents(folderId)
         : await getDataroom(dataroomId);
       
-      const subFolders = response.data.sub_folders || response.data.folders || [];
+      // Ignore stale responses from earlier navigation requests
+      if (requestId !== requestIdRef.current) return;
+
+      // Update breadcrumb navigation metadata:
+      // When at root, currentFolderInfo is null; inside a subfolder, track name and ancestors.
+      if (folderId) {
+        setCurrentFolderInfo({
+          id: response.data.id,
+          name: response.data.name,
+          ancestors: response.data.ancestors || [],
+        });
+      } else {
+        setCurrentFolderInfo(null);
+      }
+
+      // API Schema Note:
+      // - getDataroom (root) returns an `items` array with { type: 'folder' | 'document' }.
+      // - getDataroomFolderContents (subfolder) returns `sub_folders` and `items`.
+      // We check sub_folders first, then filter `items` for folder types to ensure folders
+      // at both root level and subfolder levels are correctly listed.
+      const subFolders = response.data.sub_folders
+        || (response.data.items ? response.data.items.filter((item) => item.type === 'folder') : [])
+        || [];
       setFolders(subFolders);
     } catch (error) {
-      console.error('Failed to fetch dataroom content:', error);
+      if (requestId === requestIdRef.current) {
+        console.error('Failed to fetch dataroom content:', error);
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [dataroomId]);
 
   useEffect(() => {
     if (isOpen) {
+      setCurrentFolderId(null);
+      setCurrentFolderInfo(null);
       fetchData(null);
     }
   }, [isOpen, fetchData]);
@@ -90,7 +134,7 @@ export function DataroomMoveItemsDialog({ isOpen, onOpenChange, onConfirm, datar
         </DialogHeader>
 
         <div className="border-t border-b border-gray-200 dark:border-gray-700 py-2 px-4">
-          <Breadcrumbs path={[]} onNavigate={handleNavigate} />
+          <Breadcrumbs currentFolder={currentFolderInfo} onNavigate={handleNavigate} />
         </div>
 
         <div className="flex-grow overflow-y-auto pr-2 min-w-0">
