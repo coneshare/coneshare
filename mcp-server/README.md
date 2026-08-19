@@ -72,7 +72,7 @@ The container / process is configured via environment variables:
 | `MCP_TRANSPORT` | ❌ | `streamable-http` | Transport protocol (`streamable-http` or `sse`) |
 | `MCP_HOST` | ❌ | `0.0.0.0` | Server binding address |
 | `MCP_PORT` | ❌ | `8001` | Server port |
-| `MCP_PATH` | ❌ | `/sse` | SSE stream endpoint path |
+| `MCP_PATH` | ❌ | `/mcp/sse` | SSE stream endpoint path |
 
 ---
 
@@ -85,7 +85,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 {
   "mcpServers": {
     "coneshare": {
-      "url": "http://localhost:8001/sse",
+      "url": "http://localhost:8001/mcp/sse",
       "headers": {
         "Authorization": "Bearer cs_live_YOUR_API_KEY_HERE"
       }
@@ -97,13 +97,13 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ### 2. Claude Code CLI / Antigravity CLI (`agy`)
 ```bash
 export CONESHARE_API_KEY="cs_live_1234567890abcdef"
-agy mcp add coneshare --url http://localhost:8001/sse --bearer-token-env-var CONESHARE_API_KEY
+agy mcp add coneshare --url http://localhost:8001/mcp/sse --bearer-token-env-var CONESHARE_API_KEY
 ```
 
 ### 3. Codex CLI
 ```bash
 export CONESHARE_API_KEY="cs_live_1234567890abcdef"
-codex mcp add coneshare --url http://localhost:8001/sse --bearer-token-env-var CONESHARE_API_KEY
+codex mcp add coneshare --url http://localhost:8001/mcp/sse --bearer-token-env-var CONESHARE_API_KEY
 ```
 
 ---

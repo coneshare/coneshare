@@ -68,6 +68,7 @@ export default async function sitemap() {
     '/terms',
     '/demo',
     '/virtual-dataroom',
+    '/agents',
     '/alternatives/docsend',
   ].map((route) => ({
     url: `${URL}${route}`,
