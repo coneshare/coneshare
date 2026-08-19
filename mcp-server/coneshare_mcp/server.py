@@ -28,7 +28,7 @@ def main() -> None:
     transport = os.getenv("MCP_TRANSPORT", "streamable-http").lower()
     host = os.getenv("MCP_HOST", "0.0.0.0")
     port = int(os.getenv("MCP_PORT", "8001"))
-    path = os.getenv("MCP_PATH", "/sse")
+    path = os.getenv("MCP_PATH", "/mcp/sse")
 
     if transport in ("http", "streamable-http", "sse"):
         mcp.run(transport=transport, host=host, port=port, path=path)

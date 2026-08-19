@@ -25,5 +25,5 @@ def get_settings() -> Settings:
         mcp_transport=os.getenv("MCP_TRANSPORT", "streamable-http").lower(),
         mcp_host=os.getenv("MCP_HOST", "0.0.0.0"),
         mcp_port=int(os.getenv("MCP_PORT", "8001")),
-        mcp_path=os.getenv("MCP_PATH", "/sse"),
+        mcp_path=os.getenv("MCP_PATH", "/mcp/sse"),
     )

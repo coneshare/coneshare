@@ -4,13 +4,13 @@ export function Footer() {
       title: 'Product',
       links: [
         { label: 'Virtual Dataroom', href: '/virtual-dataroom' },
+        { label: 'Agents & MCP', href: '/agents' },
         { label: 'Nextcloud Integration', href: '/integrations/nextcloud' },
         { label: 'Google Drive Integration', href: '/integrations/google-drive' },
         { label: 'Dropbox Integration', href: '/integrations/dropbox' },
         { label: 'Features', href: '/features' },
         { label: 'Solutions', href: '/solutions' },
         { label: 'Get Started', href: 'https://app.coneshare.com/signup', external: true },
-
       ],
     },
     {

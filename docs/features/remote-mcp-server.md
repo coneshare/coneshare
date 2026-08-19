@@ -6,13 +6,13 @@
 - [Remote MCP Server Plan](../../plans/remote_mcp_server_plan.md)
 
 ## Out of scope
-- Local Stdio transport mode (`MCP_TRANSPORT=stdio` is deprecated; server exclusively uses network HTTP/SSE streamable transport).
+- Local Stdio transport mode (`MCP_TRANSPORT=stdio` is deprecated in production; server exclusively uses network HTTP/SSE streamable transport).
 - Server-side master API key (`CONESHARE_API_KEY` is not set on the server; authentication is strictly per-user).
 - Direct local filesystem path scanning (Document uploads are supported via pre-signed URL tools: request_document_upload, finalize_document_upload).
 
 ## Design decisions
-- Decision: Exclusive Remote HTTP/SSE Transport (`streamable-http` on port `8001` at path `/sse`).
-  Rationale: Enables zero-installation integration for AI desktop and CLI tools (Claude Desktop, Claude Code, Antigravity CLI `agy`, Codex, Cursor, VS Code) over network streams.
+- Decision: Exclusive Remote HTTP/SSE Transport (`streamable-http` at path `/mcp/sse`).
+  Rationale: Enables zero-installation integration for AI desktop and CLI tools (Claude Desktop, Claude Code, Antigravity CLI `agy`, Codex) over network streams.
   Tradeoff: Requires HTTP network access to port `8001` or Nginx reverse proxy.
 - Decision: Header-driven, per-user API key authentication (`Authorization: Bearer cs_live_...`).
   Rationale: Eliminates server-side master token storage and key leak risks. Every tool request executes strictly within the permissions of the user's API key tier (`read_only`, `read_write`, `full_access`).
@@ -20,6 +20,9 @@
 - Decision: Token-efficient view session analytics (`list_view_sessions` summaries vs `get_view_session` detail breakdown).
   Rationale: Returning large `page_views` and video event arrays on list endpoints wastes LLM context tokens. `list_view_sessions` returns lightweight metadata summaries, while `get_view_session` provides the granular page-by-page timeline.
   Tradeoff: AI agents requiring deep page-level engagement analysis must call `get_view_session` for specific session IDs.
+- Decision: Direct chunked pre-signed uploads for remote filesystem isolation.
+  Rationale: Remote containers cannot read files directly from user host disks. The two-stage `request_document_upload` and `finalize_document_upload` pattern streams files safely directly to object storage.
+  Tradeoff: Agent tool execution requires two sequential tool steps for file ingestion.
 
 ---
 
@@ -75,32 +78,42 @@ The service is configured via environment variables in [docker-compose.yml](../.
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `CONESHARE_API_URL` | ✅ | N/A | Target Coneshare REST API base URL (required at startup) |
-| `MCP_TRANSPORT` | ❌ | `streamable-http` | Transport protocol (`streamable-http` or `sse`) |
+| `MCP_TRANSPORT` | ❌ | `streamable-http` | Transport protocol (`streamable-http`, `http`, or `sse`) |
 | `MCP_HOST` | ❌ | `0.0.0.0` | Container network bind address (`0.0.0.0` for Docker) |
-| `MCP_PATH` | ❌ | `/sse` | HTTP SSE endpoint path |
+| `MCP_PATH` | ❌ | `/mcp/sse` | HTTP SSE endpoint path |
 | `MCP_PORT` | ❌ | `8001` | Server listening port |
 | `LOG_LEVEL` | ❌ | `INFO` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 
 ---
 
-## 3. Tool Catalog (17 Tools)
+## 3. Tool Catalog (27 Tools)
 
-### 📁 Documents (6 tools)
+### 📁 Documents & Folders (11 tools)
 * `list_documents`: Paginated list of workspace documents with folder filtering.
 * `get_document`: Retrieve detailed document metadata, versions, and active links.
 * `search_documents`: Search documents by full-text title or description query.
+* `update_document`: Rename or update description metadata of an existing document.
 * `delete_document`: `[DESTRUCTIVE]` Soft-delete a document (moves to Trash, recoverable via web UI).
-* `request_document_upload`: Request a pre-signed URL to upload documents/datasets directly to storage.
+* `create_folder`: Create a new folder in your workspace documents hierarchy.
+* `update_folder`: Rename an existing workspace folder.
+* `delete_folder`: `[DESTRUCTIVE]` Soft-delete a workspace folder.
+* `move_items`: Move documents and/or subfolders into a destination workspace folder.
+* `request_document_upload`: Request a pre-signed URL to upload documents/datasets directly to storage (supports optional destination `path`).
 * `finalize_document_upload`: Finalize document creation after streaming file content to pre-signed upload URL.
 
-### 🏛️ Datarooms (2 tools)
+### 🏛️ Datarooms (7 tools)
 * `list_datarooms`: List organization datarooms with pagination metadata.
 * `get_dataroom`: Retrieve dataroom hierarchy, settings, and items.
+* `create_dataroom`: Create a new dataroom to group and share multiple workspace documents.
+* `add_content_to_dataroom`: Attach workspace documents to an existing dataroom.
+* `remove_content_from_dataroom`: Remove workspace documents from an existing dataroom.
+* `update_dataroom`: Update metadata (name, description) for an existing dataroom.
+* `delete_dataroom`: `[DESTRUCTIVE]` Soft-delete a dataroom.
 
 ### 🔗 Share Links (3 tools)
 * `list_share_links`: List active share links filterable by document or dataroom.
-* `create_share_link`: Create a share link with NDA, watermark, download controls, and expiration.
-* `update_share_link`: Modify security settings or toggle link active status.
+* `create_share_link`: Create a share link with NDA gate, custom agreement body (`nda_text`), dynamic watermark (`watermark_text`), download controls (`allow_download`), OTP email verification (`requires_email_verification`), email gating (`requires_email`), owner view notifications (`receive_email_notification`), password, and expiration.
+* `update_share_link`: Modify security settings, custom texts, expiration, or toggle link active status (`is_active`).
 
 ### 📊 Analytics (3 tools)
 * `get_document_analytics`: Overall page view durations, total viewers, and engagement statistics.
@@ -116,18 +129,18 @@ The service is configured via environment variables in [docker-compose.yml](../.
 
 ## 4. Production Client & Nginx Configuration
 
-### Nginx Reverse Proxy (`/etc/nginx/sites-available/mcp.coneshare.com`)
+### Nginx Reverse Proxy (`/etc/nginx/sites-available/app.coneshare.com`)
 
 ```nginx
 server {
     listen 443 ssl http2;
-    server_name mcp.coneshare.com;
+    server_name app.coneshare.com;
 
-    ssl_certificate     /etc/letsencrypt/live/mcp.coneshare.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/mcp.coneshare.com/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/app.coneshare.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/app.coneshare.com/privkey.pem;
 
-    location /sse {
-        proxy_pass http://mcp_server:8001/sse;
+    location /mcp/sse {
+        proxy_pass http://mcp_server:8001/mcp/sse;
 
         # Mandatory SSE Directives:
         proxy_http_version 1.1;
@@ -150,13 +163,36 @@ server {
 }
 ```
 
-### Claude Desktop Configuration (`claude_desktop_config.json`)
+### Client Integration Examples
+
+#### 1. Claude Desktop (`claude_desktop_config.json`)
 
 ```json
 {
   "mcpServers": {
     "coneshare": {
-      "url": "https://mcp.coneshare.com/sse",
+      "url": "https://app.coneshare.com/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer cs_live_YOUR_API_KEY_HERE"
+      }
+    }
+  }
+}
+```
+
+#### 2. Claude Code CLI
+
+```bash
+claude mcp add --transport sse coneshare https://app.coneshare.com/mcp/sse --header "Authorization: Bearer cs_live_YOUR_API_KEY_HERE"
+```
+
+#### 3. Antigravity CLI (`agy`) & Other JSON-configured AI Clients
+
+```json
+{
+  "mcpServers": {
+    "coneshare": {
+      "url": "https://app.coneshare.com/mcp/sse",
       "headers": {
         "Authorization": "Bearer cs_live_YOUR_API_KEY_HERE"
       }
@@ -185,4 +221,3 @@ To prevent AI agents from executing orphaned downstream tool calls after an erro
 1. **Stop-on-Error**: When a tool response contains `"error": true` or `"isError": true`, the AI client runner MUST halt multi-step tool execution immediately.
 2. **No Orphaned Downstream Calls**: Downstream tools (such as `create_share_link`) MUST NOT be called if an upstream prerequisite step (such as `finalize_document_upload`) failed.
 3. **Defensive Auto-Deduplication**: Backend endpoints (e.g. `create_document_from_upload`) defensively deduplicate filenames (e.g. `README_zh.md` -> `README_zh (1).md`) to prevent database unique constraint crashes.
-
