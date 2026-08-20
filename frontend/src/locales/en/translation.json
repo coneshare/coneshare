@@ -116,7 +116,10 @@
     "watermarkNotAvailable": "Watermarks are available for PDF, Office, and image documents.",
     "watermarkPlaceholder": "e.g., Confidential, {{ip-address}}",
     "expirationDate": "Expiration date and time",
-    "expirationSubtitle": "Set a date and time after which the link will no longer be accessible."
+    "expirationSubtitle": "Set a date and time after which the link will no longer be accessible.",
+    "enableQna": "Enable Q&A",
+    "qnaSubtitle": "Let viewers ask questions through this link.",
+    "qnaDisabledForDataroom": "Q&A is disabled for this dataroom."
   },
   "qna": {
     "title": "Q&A",
@@ -463,7 +466,10 @@
     "secondaryTextPreview": "Secondary text preview for dataroom descriptions.",
     "accentButton": "Accent Button",
     "displaySettings": "Display",
-    "displayNotice": "Configure dataroom list display behavior."
+    "displayNotice": "Configure dataroom list display behavior.",
+    "enableQna": "Enable Q&A",
+    "enableQnaHelp": "Let viewers ask questions inside this dataroom. Turning this off disables Q&A on every link into this room.",
+    "qnaDisabledNotice": "Q&A is disabled for this dataroom. Existing threads stay visible here, but viewers cannot start or reply to them."
   },
   "fileRequests": {
     "title": "File Requests",

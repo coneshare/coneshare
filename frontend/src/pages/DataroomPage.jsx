@@ -92,6 +92,7 @@ export function DataroomPage() {
   const [isSavingBanner, setIsSavingBanner] = useState(false);
   const [isSavingColors, setIsSavingColors] = useState(false);
   const [showFileIndex, setShowFileIndex] = useState(true);
+  const [enableQna, setEnableQna] = useState(true);
   const [isDeleteDataroomDialogOpen, setIsDeleteDataroomDialogOpen] = useState(false);
   const [deleteConfirmationName, setDeleteConfirmationName] = useState('');
   const [isDeletingDataroom, setIsDeletingDataroom] = useState(false);
@@ -386,6 +387,7 @@ export function DataroomPage() {
     setRemoveBrandingBanner(false);
     setBrandingPreviewUrl(null);
     setShowFileIndex(Boolean(dataroom.show_file_index));
+    setEnableQna(dataroom.enable_qna !== false);
   }, [dataroom]);
 
   useEffect(() => {
@@ -642,6 +644,20 @@ export function DataroomPage() {
       toast.success('Display settings updated.');
     } catch (error) {
       setShowFileIndex((prev) => !prev);
+      // Error toast handled by interceptor
+    }
+  };
+
+  const handleToggleEnableQna = async (checked) => {
+    setEnableQna(checked);
+    try {
+      const response = await updateDataroomBranding(dataroomId, {
+        enableQna: checked,
+      });
+      setDataroom(response.data);
+      toast.success('Q&A settings updated.');
+    } catch (error) {
+      setEnableQna((prev) => !prev);
       // Error toast handled by interceptor
     }
   };
@@ -946,6 +962,11 @@ export function DataroomPage() {
           </div>
         </TabsContent>
         <TabsContent value="qna" className="mt-6">
+          {!enableQna && (
+            <p className="mb-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300">
+              {t('datarooms.qnaDisabledNotice')}
+            </p>
+          )}
           <OwnerQnAManager dataroomId={dataroomId} shareLinks={links} />
         </TabsContent>
         <TabsContent value="settings" className="mt-6">
@@ -1171,6 +1192,17 @@ export function DataroomPage() {
                   <p className="text-xs text-gray-500 dark:text-gray-400">{t('datarooms.showFileIndexHelp')}</p>
                 </div>
                 <Switch checked={showFileIndex} onCheckedChange={handleToggleShowFileIndex} />
+              </div>
+              <div className="mt-3 flex items-center justify-between rounded border border-gray-200 p-3 dark:border-gray-700">
+                <div>
+                  <p className="text-sm font-medium">{t('datarooms.enableQna')}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('datarooms.enableQnaHelp')}</p>
+                </div>
+                <Switch
+                  checked={enableQna}
+                  onCheckedChange={handleToggleEnableQna}
+                  aria-label={t('datarooms.enableQna')}
+                />
               </div>
             </div>
 

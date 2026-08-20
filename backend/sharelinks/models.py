@@ -40,6 +40,7 @@ class ShareLink(BaseModel):
     requires_email = models.BooleanField(default=False)
     requires_email_verification = models.BooleanField(default=False)
     allow_download = models.BooleanField(default=True)
+    enable_qna = models.BooleanField(default=True)
     enable_watermark = models.BooleanField(default=False)
     watermark_text = models.CharField(max_length=255, blank=True)
     receive_email_notification = models.BooleanField(default=False)
@@ -61,6 +62,21 @@ class ShareLink(BaseModel):
 
     def __str__(self):
         return f"{self.name}-{str(self.id)}"
+
+    @property
+    def qna_enabled(self) -> bool:
+        """
+        Effective Q&A availability for this link.
+
+        A dataroom acts as the master switch: turning Q&A off there disables it
+        for every link into that room. Individual links can only be more
+        restrictive, never more permissive.
+        """
+        if not self.enable_qna:
+            return False
+        if self.dataroom_id:
+            return self.dataroom.enable_qna
+        return True
 
     def save(self, *args, **kwargs):
         if not self.slug:

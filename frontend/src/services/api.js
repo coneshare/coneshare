@@ -555,7 +555,7 @@ export const renameDataroomDocument = (id, name) => api.patch(`/dataroom-documen
 export const updateDataroomFolder = (id, data) => api.patch(`/dataroom-folders/${id}/`, data);
 export const updateDataroomDocument = (id, data) => api.patch(`/dataroom-documents/${id}/`, data);
 export const updateDataroom = (id, data) => api.patch(`/datarooms/${id}/`, data);
-export const updateDataroomBranding = (id, { name, bannerFile, removeBanner = false, brandPrimaryColor, brandSecondaryColor, brandAccentColor, showFileIndex }) => {
+export const updateDataroomBranding = (id, { name, bannerFile, removeBanner = false, brandPrimaryColor, brandSecondaryColor, brandAccentColor, showFileIndex, enableQna }) => {
   const formData = new FormData();
   if (name !== undefined) {
     formData.append('name', name);
@@ -575,6 +575,9 @@ export const updateDataroomBranding = (id, { name, bannerFile, removeBanner = fa
   }
   if (showFileIndex !== undefined) {
     formData.append('show_file_index', showFileIndex ? 'true' : 'false');
+  }
+  if (enableQna !== undefined) {
+    formData.append('enable_qna', enableQna ? 'true' : 'false');
   }
   return api.patch(`/datarooms/${id}/`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },

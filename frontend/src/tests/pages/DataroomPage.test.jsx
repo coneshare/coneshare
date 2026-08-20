@@ -659,6 +659,48 @@ describe('DataroomPage', () => {
             expect(api.getDataroomViewSessions).toHaveBeenCalledWith('dr123', 1);
         });
 
+        it('should toggle dataroom Q&A and persist it', async () => {
+            const user = userEvent.setup();
+            api.getDataroom.mockResolvedValue({
+                data: { ...mockDataroomRoot, enable_qna: true },
+            });
+            api.updateDataroomBranding.mockResolvedValue({
+                data: { ...mockDataroomRoot, enable_qna: false },
+            });
+            renderComponent();
+            expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
+
+            const settingsTab = await screen.findByRole('tab', { name: /settings/i });
+            await user.click(settingsTab);
+
+            const qnaSwitch = await screen.findByRole('switch', { name: /enable q&a/i });
+            await user.click(qnaSwitch);
+
+            await waitFor(() => {
+                expect(api.updateDataroomBranding).toHaveBeenCalledWith('dr123', { enableQna: false });
+            });
+        });
+
+        it('should disable the link-level Q&A switch when the dataroom has Q&A off', async () => {
+            const user = userEvent.setup();
+            api.getDataroom.mockResolvedValue({
+                data: { ...mockDataroomRoot, enable_qna: false },
+            });
+            renderComponent();
+            expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
+
+            const linksTab = await screen.findByRole('tab', { name: /links|share links/i });
+            await user.click(linksTab);
+
+            const createLinkButton = await screen.findByRole('button', { name: /create link/i });
+            await user.click(createLinkButton);
+
+            expect(await screen.findByText('Create New Link')).toBeInTheDocument();
+            const qnaSwitch = screen.getByRole('switch', { name: /enable q&a/i });
+            expect(qnaSwitch).toBeDisabled();
+            expect(screen.getByText('Q&A is disabled for this dataroom.')).toBeInTheDocument();
+        });
+
         it('should open the link sheet when "Create Link" is clicked', async () => {
             const user = userEvent.setup();
             renderComponent();

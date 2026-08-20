@@ -472,6 +472,7 @@ export function ShareLinkViewerPage() {
   const PREVIEWABLE_TYPES = ['image', 'pdf', 'document', 'video'];
   const isPreviewable = viewData && PREVIEWABLE_TYPES.includes(viewData.type);
   const canDownload = Boolean(viewData?.link_settings?.allow_download);
+  const isQnaEnabled = viewData?.link_settings?.enable_qna !== false;
   const isVideo = viewData && viewData.type === 'video';
   const isVideoReady = isVideo && viewData.preview_status === 'ready';
   const canRenderPages = hasRenderablePages(viewData);
@@ -587,7 +588,7 @@ export function ShareLinkViewerPage() {
           allowDownload={canDownload}
           downloadUrl={downloadUrl}
         />
-        {isPreviewFailed(viewData) && (
+        {isQnaEnabled && isPreviewFailed(viewData) && (
           <Button
             type="button"
             className="absolute bottom-6 right-6 z-20 h-12 rounded-full px-4 shadow-lg"
@@ -601,7 +602,7 @@ export function ShareLinkViewerPage() {
           </Button>
         )}
         <QnAPanel
-          open={isQnaOpen}
+          open={isQnaEnabled && isQnaOpen}
           onOpenChange={setIsQnaOpen}
           slug={slug}
           viewId={viewId}
@@ -698,6 +699,7 @@ export function ShareLinkViewerPage() {
               dataroomVisitId={dataroomVisitId}
             />
           )}
+          {isQnaEnabled && (
           <Button
             type="button"
             className={`absolute bottom-6 z-20 h-12 rounded-full px-4 shadow-lg transition-[right] duration-200 ${isQnaOpen ? 'right-6 lg:right-[35.5rem] xl:right-[39.5rem]' : 'right-6'}`}
@@ -717,8 +719,9 @@ export function ShareLinkViewerPage() {
               </span>
             )}
           </Button>
+          )}
           <QnAPanel
-            open={isQnaOpen}
+            open={isQnaEnabled && isQnaOpen}
             onOpenChange={setIsQnaOpen}
             slug={slug}
             viewId={viewId}

@@ -20,6 +20,7 @@ class Dataroom(BaseModel):
     name = models.CharField(max_length=255)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='datarooms_created')
     show_file_index = models.BooleanField(default=True)
+    enable_qna = models.BooleanField(default=True)
     branding_banner = models.ImageField(upload_to=dataroom_branding_banner_path, null=True, blank=True)
     brand_primary_color = models.CharField(max_length=9, null=True, blank=True)
     brand_secondary_color = models.CharField(max_length=9, null=True, blank=True)

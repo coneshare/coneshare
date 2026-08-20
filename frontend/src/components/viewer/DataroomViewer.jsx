@@ -42,7 +42,7 @@ import { LanguagePicker } from '../common/LanguagePicker';
 
 const PREVIEW_POLL_INTERVAL_MS = 3000;
 
-function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = false, index = null }) {
+function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, qnaEnabled = true, showIndex = false, index = null }) {
   const { t } = useTranslation();
   const isFolder = item.type === 'folder';
   const mobileMeta = [
@@ -131,16 +131,18 @@ function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, showIndex = 
                   <span>{t('viewer.download')}</span>
                 </DropdownMenu.Item>
               )}
-              <DropdownMenu.Item
-                onSelect={(e) => {
-                  e.stopPropagation();
-                  onQnaClick(item);
-                }}
-                className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-700 dark:hover:bg-gray-100 dark:focus:bg-gray-100"
-              >
-                <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                <span>{t('qna.title')}</span>
-              </DropdownMenu.Item>
+              {qnaEnabled && (
+                <DropdownMenu.Item
+                  onSelect={(e) => {
+                    e.stopPropagation();
+                    onQnaClick(item);
+                  }}
+                  className="flex w-full cursor-pointer items-center gap-x-2 rounded-sm px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-700 dark:hover:bg-gray-100 dark:focus:bg-gray-100"
+                >
+                  <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                  <span>{t('qna.title')}</span>
+                </DropdownMenu.Item>
+              )}
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
@@ -718,6 +720,11 @@ export function DataroomViewer({ data, slug, viewId }) {
   };
 
   const isDocActive = showDocumentViewer;
+  const isQnaEnabled = (
+    documentViewData?.link_settings?.enable_qna
+    ?? scopeData?.link_settings?.enable_qna
+    ?? true
+  ) !== false;
   const isCurrentScopeQnaOpen = Boolean(
     qnaContext
       && !isDocActive
@@ -779,12 +786,13 @@ export function DataroomViewer({ data, slug, viewId }) {
 
   return (
     <div
-      className={`flex h-screen w-screen flex-col bg-gray-50 transition-[padding] duration-200 ${qnaContext ? 'lg:pr-[34rem] xl:pr-[38rem]' : ''}`}
+      className={`flex h-screen w-screen flex-col bg-gray-50 transition-[padding] duration-200 ${isQnaEnabled && qnaContext ? 'lg:pr-[34rem] xl:pr-[38rem]' : ''}`}
       style={themeStyle}
     >
       <header className="flex flex-shrink-0 items-center justify-between border-b bg-white p-3 sm:p-4">
         <h1 className="mr-2 truncate text-base font-semibold sm:text-xl" style={{ color: 'var(--viewer-primary)' }}>{scopeData.name}</h1>
         <div className="flex shrink-0 items-center gap-2">
+          {isQnaEnabled && (
           <Button
             type="button"
             variant="outline"
@@ -805,6 +813,7 @@ export function DataroomViewer({ data, slug, viewId }) {
               </span>
             )}
           </Button>
+          )}
           <div className="flex flex-col gap-0.5 items-end">
             {brandWebsiteUrl ? (
               <a
@@ -1107,6 +1116,7 @@ export function DataroomViewer({ data, slug, viewId }) {
                   onItemClick={handleItemClick}
                   onDownloadClick={handleDownloadClick}
                   onQnaClick={handleQnaClick}
+                  qnaEnabled={isQnaEnabled}
                   showIndex={Boolean(scopeData.show_file_index)}
                   index={idx + 1}
                 />
@@ -1131,7 +1141,7 @@ export function DataroomViewer({ data, slug, viewId }) {
       )}
 
       <QnAPanel
-        open={Boolean(qnaContext)}
+        open={isQnaEnabled && Boolean(qnaContext)}
         onOpenChange={(nextOpen) => {
           if (!nextOpen) setQnaContext(null);
         }}

@@ -36,6 +36,7 @@ export function LinkSheet({
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [isPasswordEnabled, setIsPasswordEnabled] = useState(false);
   const [allowDownload, setAllowDownload] = useState(true);
+  const [enableQna, setEnableQna] = useState(true);
   const [enableWatermark, setEnableWatermark] = useState(false);
   const [watermarkText, setWatermarkText] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
@@ -45,6 +46,7 @@ export function LinkSheet({
 
   const isEditing = !!currentLink;
   const isWatermarkable = ['pdf', 'document', 'image'].includes(document?.type) || !!dataroom;
+  const isQnaAvailable = dataroom ? dataroom.enable_qna !== false : true;
     
   useEffect(() => {
     if (isOpen) {
@@ -53,6 +55,7 @@ export function LinkSheet({
         setRequiresEmail(currentLink.requires_email || false);
         setRequiresEmailVerification(currentLink.requires_email_verification || false);
         setAllowDownload(currentLink.allow_download);
+        setEnableQna(isQnaAvailable && currentLink.enable_qna !== false);
         setIsPasswordEnabled(currentLink.has_password || currentLink.is_password_protected || false);
         setPassword(currentLink.password || '');
         setPasswordTouched(false);
@@ -77,6 +80,7 @@ export function LinkSheet({
         setRequiresEmail(false);
         setRequiresEmailVerification(false);
         setAllowDownload(true);
+        setEnableQna(isQnaAvailable);
         setIsPasswordEnabled(false);
         setPassword('');
         setPasswordTouched(false);
@@ -92,7 +96,7 @@ export function LinkSheet({
     if (document?.download_only) {
       setAllowDownload(true);
     }
-  }, [currentLink, document, dataroom, isEditing, isOpen, isWatermarkable]);
+  }, [currentLink, document, dataroom, isEditing, isOpen, isWatermarkable, isQnaAvailable]);
     
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -104,6 +108,7 @@ export function LinkSheet({
       requires_email_verification: requiresEmail && requiresEmailVerification,
       receive_email_notification: receiveEmailNotification,
       allow_download: allowDownload,
+      enable_qna: isQnaAvailable && enableQna,
       enable_watermark: isWatermarkable && enableWatermark,
       watermark_text: isWatermarkable && enableWatermark ? watermarkText : '',
       expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
@@ -290,6 +295,23 @@ export function LinkSheet({
               checked={allowDownload}
               onCheckedChange={setAllowDownload}
               disabled={document?.download_only}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Label htmlFor="enable-qna" className="flex flex-col space-y-1">
+              <span>{t('linkSheet.enableQna')}</span>
+              <span className="text-sm font-normal text-muted-foreground">
+                {isQnaAvailable
+                  ? t('linkSheet.qnaSubtitle')
+                  : t('linkSheet.qnaDisabledForDataroom')}
+              </span>
+            </Label>
+            <Switch
+              id="enable-qna"
+              checked={isQnaAvailable && enableQna}
+              onCheckedChange={setEnableQna}
+              disabled={!isQnaAvailable}
             />
           </div>
 

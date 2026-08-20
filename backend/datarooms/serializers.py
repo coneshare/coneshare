@@ -43,6 +43,7 @@ class DataroomSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'organization', 'created_at', 'updated_at', 'created_by',
             'show_file_index',
+            'enable_qna',
             'branding_banner', 'brand_primary_color', 'brand_secondary_color', 'brand_accent_color',
             'remove_branding_banner',
         ]
@@ -137,6 +138,7 @@ class DataroomDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'organization', 'created_at', 'updated_at', 'created_by',
             'show_file_index',
+            'enable_qna',
             'branding_banner', 'brand_primary_color', 'brand_secondary_color', 'brand_accent_color',
             'items'
         ]

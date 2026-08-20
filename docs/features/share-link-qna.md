@@ -20,6 +20,11 @@
 - Decision: Scope all external viewer access through `ShareLink` and `ViewSession`.
   Rationale: Q&A permissions must match the same public access gates used by viewing.
   Tradeoff: Public Q&A APIs need explicit session validation and cannot be generic dataroom APIs.
+- Decision: Gate Q&A with a two-level switch (`Dataroom.enable_qna`, `ShareLink.enable_qna`).
+  Rationale: Owners need one master switch per room plus per-audience control, so one
+  group can use Q&A while another cannot.
+  Tradeoff: The effective value is the AND of both flags; a link can never re-enable
+  Q&A that its dataroom turned off.
 - Decision: Use dataroom item context for dataroom Q&A.
   Rationale: Dataroom permissions are link-specific and stored on `ShareLinkDataroomSetting`.
   Tradeoff: Dataroom Q&A should target `DataroomDocument` or `DataroomFolder`, not raw `Document`.
@@ -153,6 +158,37 @@ Owner/admin actions:
 
 ---
 
+## Availability Switch
+
+Q&A can be switched off at two levels:
+
+- `Dataroom.enable_qna` (default `True`): master switch for the room. Turning it off
+  disables Q&A on every share link into that dataroom.
+- `ShareLink.enable_qna` (default `True`): per-link switch. Lets one audience use Q&A
+  while another does not.
+
+The effective value is exposed as `ShareLink.qna_enabled`:
+
+```
+qna_enabled = share_link.enable_qna and (dataroom.enable_qna if dataroom else True)
+```
+
+Enforcement:
+
+- `_get_authorized_qna_view_session` rejects every public Q&A request with `403` when
+  `qna_enabled` is `False`. This covers thread list/create, message list/create, and
+  the summary endpoint.
+- Owners cannot create new threads on a disabled link, but keep read, reply, close,
+  and reopen access so existing conversations can be wound down.
+- The effective flag ships to viewers as `link_settings.enable_qna` in both the
+  document and the dataroom public payloads, so the frontend hides all Q&A entry
+  points instead of rendering controls that would fail.
+
+Existing threads are never deleted by the switch; they simply become unreachable for
+viewers.
+
+---
+
 ## Permission Rules
 
 ### Viewer permissions
@@ -276,6 +312,11 @@ Backend:
 - owner/admin can close and reopen threads
 - viewer cannot reply to closed thread
 - automation events are dispatched with expected payload fields
+- dataroom-level switch disables Q&A on every link into that room
+- link-level switch disables Q&A for that link only
+- a link cannot re-enable Q&A that its dataroom turned off
+- viewers cannot reply to existing threads once Q&A is disabled
+- owners cannot create threads on a disabled link but can still moderate
 
 Frontend:
 
@@ -284,3 +325,5 @@ Frontend:
 - message history renders sender, timestamp, and state
 - closed threads disable viewer reply controls
 - owner/admin moderation controls call the expected APIs
+- all Q&A entry points are hidden when `link_settings.enable_qna` is `false`
+- the link-level Q&A switch is disabled when the dataroom has Q&A off
