@@ -91,6 +91,12 @@ const resources = [
     external: true,
   },
   {
+    key: 'release-notes',
+    name: 'Release Notes',
+    href: 'https://docs.coneshare.com/en/release-notes/',
+    external: true,
+  },
+  {
     key: 'forum',
     name: 'Forum',
     href: 'https://github.com/orgs/coneshare/discussions',
@@ -356,6 +362,7 @@ export function Header() {
                     key={item.key}
                     href={item.href}
                     {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                    onClick={() => setIsMobileMenuOpen(false)}
                     className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                   >
                     {item.name}

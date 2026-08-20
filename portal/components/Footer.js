@@ -17,6 +17,7 @@ export function Footer() {
       title: 'Resources',
       links: [
         { label: 'Blog', href: '/blog' },
+        { label: 'Release Notes', href: 'https://docs.coneshare.com/en/release-notes/', external: true },
         { label: 'Community Forum', href: 'https://github.com/orgs/coneshare/discussions', external: true },
         { label: 'Contribute', href: 'https://github.com/coneshare/coneshare', external: true },
         { label: 'Documentation', href: 'https://docs.coneshare.com/en/', external: true },
