@@ -17,8 +17,7 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path, re_path
-from django.views.generic import TemplateView
+from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -55,7 +54,3 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-# This catch-all route serves the React app for non-API paths only.
-# It must be the last URL pattern in the list so API 404s are not swallowed.
-urlpatterns.append(re_path(r'^(?!api/).*$', TemplateView.as_view(template_name="index.html")))
