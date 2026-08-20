@@ -29,11 +29,7 @@ export default function HomePage() {
                 Turn your cloud storage into a secure, trackable data room
               </h1>
               <p className="mt-6 text-lg leading-8 text-gray-600">
-                Coneshare helps teams keep existing storage workflows while adding controlled sharing, visibility,
-                and action workflows for external document distribution.
-              </p>
-              <p className="mt-3 text-sm font-medium text-gray-500">
-                Keep your storage workflow. Add secure links, data rooms, tracking, and automation.
+                Share documents securely, track page-by-page reader engagement, and automate follow-ups without moving files away from your existing cloud storage.
               </p>
               <div className="mt-10 flex items-center justify-center gap-x-6">
                 <Link
@@ -50,24 +46,6 @@ export default function HomePage() {
             <div className="mt-16 sm:mt-20 mx-auto max-w-5xl px-6 lg:px-8">
               <HomepageMockupCarousel />
             </div>
-
-    {/*
-            <div className="mx-auto mt-12 grid max-w-5xl grid-cols-1 gap-5 sm:grid-cols-3">
-              <div className="rounded-xl border border-gray-200 bg-white p-5 text-left">
-                <p className="text-sm font-semibold text-gray-900">Control Layer</p>
-                <p className="mt-2 text-sm text-gray-600">Apply secure link controls, download rules, watermarking, and data room permissions.</p>
-              </div>
-              <div className="rounded-xl border border-gray-200 bg-white p-5 text-left">
-                <p className="text-sm font-semibold text-gray-900">Intelligence Layer</p>
-                <p className="mt-2 text-sm text-gray-600">Track views, revisits, downloads, and page-level behavior across documents and data rooms.</p>
-              </div>
-              <div className="rounded-xl border border-gray-200 bg-white p-5 text-left">
-                <p className="text-sm font-semibold text-gray-900">Action Layer</p>
-                <p className="mt-2 text-sm text-gray-600">Route high-signal events to Slack, webhooks, and internal systems for fast follow-up.</p>
-              </div>
-            </div>
-     */}
-
           </div>
         </div>
       </div>
@@ -77,24 +55,21 @@ export default function HomePage() {
         <div className="mx-auto max-w-5xl px-6 lg:px-8">
           <div className="grid gap-10 lg:grid-cols-12 lg:items-start">
             <div className="lg:col-span-5">
-              <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">Why Coneshare Exists</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">Why Coneshare</p>
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-                Storage is not the same as controlled distribution
+                Storage is not the same as controlled sharing
               </h2>
             </div>
             <div className="space-y-5 text-base leading-7 text-gray-600 lg:col-span-7">
               <p>
-                Cloud drives are good at holding files, but sensitive external sharing often needs stronger controls,
-                clearer viewer context, and a workflow for what happens after someone opens a document.
+                Cloud storage works well for internal team edits, but standard share links give you almost no control once files leave your organization. You cannot see who opened a document, which pages they read, or if they forwarded the link.
               </p>
               <p>
-                Coneshare is built for teams that want those controls without replacing their existing storage workflow.
-                Import selected files into a controlled distribution layer, then add secure links, data rooms,
-                engagement visibility, and event-driven follow-up.
+                Coneshare connects to your storage (Nextcloud, Google Drive, or Dropbox) and adds password protection, NDA agreements, dynamic watermarks, viewer analytics, and instant email alerts.
               </p>
               <div className="flex flex-wrap gap-4 pt-2">
                 <Link href="/about" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
-                  Read the product story <span aria-hidden="true">→</span>
+                  Read why we built it <span aria-hidden="true">→</span>
                 </Link>
                 <Link href="/demo" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
                   Try the live demo <span aria-hidden="true">→</span>
@@ -109,12 +84,12 @@ export default function HomePage() {
       <div id="features" className="bg-gray-50 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl lg:text-center">
-            <h2 className="text-base font-semibold leading-7 text-gray-900">Core Features</h2>
-            <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Add VDR workflows without replacing your storage workflow
-            </p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">Core Features</p>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+              Virtual data rooms that work with your storage
+            </h2>
             <p className="mt-6 text-lg leading-8 text-gray-600">
-              Start with secure control over shared links and data rooms, then add engagement intelligence and workflow actions on top of your current stack.
+              Add access controls, dynamic watermarks, and page-level analytics on top of your existing files.
             </p>
           </div>
           <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-4xl">
@@ -144,12 +119,12 @@ export default function HomePage() {
       <div id="solutions" className="bg-white py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl lg:text-center">
-            <h2 className="text-base font-semibold leading-7 text-gray-900">Use Cases</h2>
-            <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Built for high-stakes sharing workflows
-            </p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">Use Cases</p>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+              Built for deals, diligence, and client sharing
+            </h2>
             <p className="mt-6 text-lg leading-8 text-gray-600">
-              See how teams use Coneshare to add control and visibility where plain storage links are not enough.
+              How teams use Coneshare when standard cloud links fall short.
             </p>
           </div>
           <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-5xl">
