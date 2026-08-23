@@ -27,6 +27,7 @@ from documents.fileserver import fileserver_client
 from sharelinks.models import ViewSession
 from sharelinks.serializers import ViewSessionSerializer
 from .models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
+from .services import delete_dataroom, remove_dataroom_content
 from .utils import get_dataroom_storage_folder_name, build_ordered_dataroom_items
 from .serializers import (
     AddContentSerializer, DataroomDetailSerializer,
@@ -67,29 +68,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
         )
 
     def perform_destroy(self, instance):
-        # 1. Find the corresponding library folder: "Dataroom Uploads / <Dataroom-Name> (<Dataroom-ID>)"
-        root_folder = Folder.objects.get_root_for_org(instance.organization)
-        if root_folder:
-            dataroom_uploads_folder = Folder.objects.filter(
-                organization=instance.organization,
-                parent=root_folder,
-                name="Dataroom Uploads",
-                created_by=instance.created_by
-            ).first()
-            if dataroom_uploads_folder:
-                # Find the specific folder for this dataroom name
-                dataroom_folder = Folder.objects.filter(
-                    organization=instance.organization,
-                    parent=dataroom_uploads_folder,
-                    name=get_dataroom_storage_folder_name(instance.name, instance),
-                    created_by=instance.created_by
-                ).first()
-                if dataroom_folder:
-                    # Delete the folder and its contents using documents.services.delete_folder_and_contents
-                    delete_folder_and_contents(dataroom_folder)
-
-        # 2. Perform the actual dataroom deletion
-        super().perform_destroy(instance)
+        delete_dataroom(instance)
 
     def perform_update(self, serializer):
         old_name = self.get_object().name
@@ -114,7 +93,6 @@ class DataroomViewSet(viewsets.ModelViewSet):
                     if dataroom_folder:
                         dataroom_folder.name = get_dataroom_storage_folder_name(instance.name, instance)
                         dataroom_folder.save()
-
 
     def _scope_has_item_order_rows(self, dataroom, parent_folder):
         return DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=parent_folder).exists()
@@ -254,11 +232,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
         dataroom_doc_ids = data.get('dataroom_document_ids', [])
         dataroom_folder_ids = data.get('dataroom_folder_ids', [])
 
-        with transaction.atomic():
-            DataroomDocument.objects.filter(id__in=dataroom_doc_ids, dataroom=dataroom).delete()
-            # Deleting a folder will cascade and delete its children and document references.
-            DataroomFolder.objects.filter(id__in=dataroom_folder_ids, dataroom=dataroom).delete()
-
+        remove_dataroom_content(dataroom, dataroom_doc_ids, dataroom_folder_ids)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def _get_unique_dataroom_folder_name(self, dataroom, parent_folder, original_name):
@@ -851,3 +825,6 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
                 if curr_folder:
                     curr_folder.name = new_name
                     curr_folder.save()
+
+    def perform_destroy(self, instance):
+        remove_dataroom_content(instance.dataroom, dataroom_doc_ids=[], dataroom_folder_ids=[instance.id])

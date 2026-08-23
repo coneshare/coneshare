@@ -3,8 +3,10 @@ from unittest.mock import patch, MagicMock
 from rest_framework import status
 
 from cloudfiles.models import CloudConnection
+from cloudfiles.services import create_document_for_import
 from core.models import AppConfiguration
 from documents.models import Document, Folder, DocumentVersion
+from documents.services import delete_document_and_files, process_imported_file
 
 
 @pytest.fixture
@@ -634,6 +636,210 @@ def test_refresh_soft_deleted_document_returns_404(api_client, user):
     assert res.status_code == status.HTTP_404_NOT_FOUND
 
 
+@pytest.mark.django_db
+@patch('documents.services.fileserver_client.delete_file')
+@patch('cloudfiles.services.import_from_cloud_task.delay')
+def test_cloud_import_premature_deletion_quota_accounting(mock_task, mock_fs_delete, api_client, user):
+    """
+    RED Test: Initiating a cloud import and deleting the document before download
+    must not result in a negative total_document_size for the user.
+    """
+    connection = CloudConnection.objects.create(
+        user=user,
+        provider='google_drive',
+        email='import_user@gmail.com',
+        access_token='token_123',
+    )
+    user.total_document_size = 0
+    user.save()
 
+    api_client.force_authenticate(user=user)
+    import_url = f'/api/v1/cloud/connections/{connection.id}/import/'
+    file_size = 102656
+
+    # 1. Initiate cloud import
+    res = api_client.post(import_url, {
+        'file_id': 'cloud_file_123',
+        'file_name': 'sample.pdf',
+        'file_size': file_size
+    })
+    assert res.status_code == status.HTTP_202_ACCEPTED
+    doc_id = res.data['id']
+
+    # User's quota must reflect the imported document
+    user.refresh_from_db()
+    assert user.total_document_size == file_size
+
+    # 2. Prematurely delete the document (before download finishes)
+    doc = Document.objects.get(id=doc_id)
+    delete_document_and_files(doc)
+
+    user.refresh_from_db()
+    assert user.total_document_size == 0
+
+
+@pytest.mark.django_db
+@patch('documents.services.fileserver_client.delete_file')
+@patch('cloudfiles.services.import_from_cloud_task.delay')
+def test_cloud_import_process_imported_file_near_quota_limit(mock_task, mock_fs_delete, api_client, user):
+    """
+    Test that process_imported_file does not double-count declared document size
+    when verifying user quota upon download completion.
+    """
+    # Set user quota to 10MB, with 9MB already used
+    user.custom_file_size_quota_mb = 10
+    used_bytes = 9 * 1024 * 1024
+    user.total_document_size = used_bytes
+    user.save()
+
+    # Import a 600KB file (0.6MB). 9MB + 0.6MB = 9.6MB <= 10MB (Valid!)
+    import_size = 600 * 1024
+    connection = CloudConnection.objects.create(
+        user=user,
+        provider='google_drive',
+        email='import_limit@gmail.com',
+        access_token='token_123',
+    )
+
+    doc = create_document_for_import(
+        requesting_user=user,
+        file_name='near_limit.pdf',
+        file_size=import_size,
+        connection=connection,
+        file_id_or_path='cloud_file_near_limit',
+    )
+
+    # Quota is now 9.6MB
+    user.refresh_from_db()
+    assert user.total_document_size == used_bytes + import_size
+
+    import io
+    # Simulate download completing with the exact actual size
+    file_data = {
+        'name': 'near_limit.pdf',
+        'content': io.BytesIO(b'dummy content'),
+        'size': import_size,
+        'etag_or_rev': 'rev_123',
+    }
+
+    with patch('requests.put') as mock_put, patch('documents.services.fileserver_client.generate_upload_url', return_value='http://test/upload'):
+        mock_put.return_value.raise_for_status = MagicMock()
+        # This should succeed without raising QuotaExceededError
+        process_imported_file(doc, file_data)
+
+    user.refresh_from_db()
+    assert user.total_document_size == used_bytes + import_size
+
+
+@pytest.mark.django_db
+def test_cloud_import_negative_file_size_rejected(api_client, user):
+    """
+    Test that negative file_size in cloud import is rejected with 400.
+    """
+    connection = CloudConnection.objects.create(
+        user=user,
+        provider='google_drive',
+        email='neg_user@gmail.com',
+        access_token='token_neg',
+    )
+    api_client.force_authenticate(user=user)
+    import_url = f'/api/v1/cloud/connections/{connection.id}/import/'
+
+    res = api_client.post(import_url, {
+        'file_id': 'cloud_file_neg',
+        'file_name': 'sample.pdf',
+        'file_size': -500
+    })
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+    assert 'file_size' in res.data
+
+
+@pytest.mark.django_db
+def test_cloud_import_version_negative_file_size_rejected(api_client, user):
+    """
+    Test that negative file_size in cloud import version is rejected with 400.
+    """
+    connection = CloudConnection.objects.create(
+        user=user,
+        provider='google_drive',
+        email='neg_ver_user@gmail.com',
+        access_token='token_neg_ver',
+    )
+    doc = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name='existing.pdf',
+        status='ready',
+        file_size=1000,
+    )
+    DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        file_size=1000,
+        is_primary=True,
+    )
+    api_client.force_authenticate(user=user)
+    import_version_url = f'/api/v1/cloud/documents/{doc.id}/import_version/'
+
+    res = api_client.post(import_version_url, {
+        'connection_id': str(connection.id),
+        'file_id': 'cloud_file_neg_ver',
+        'file_name': 'existing.pdf',
+        'file_size': -500
+    })
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+    assert 'file_size' in res.data
+
+
+@pytest.mark.django_db
+@patch('documents.services.fileserver_client.delete_file')
+@patch('cloudfiles.services.import_from_cloud_task.delay')
+def test_cloud_import_quota_exceeded_on_process_does_not_dangle_storage_key(mock_task, mock_fs_delete, api_client, user):
+    """
+    Test that when actual file size exceeds user quota during process_imported_file,
+    the version row does not retain a storage_key pointing to the deleted storage object.
+    """
+    import io
+    from documents.services import QuotaExceededError
+
+    user.custom_file_size_quota_mb = 10
+    user.total_document_size = 9 * 1024 * 1024
+    user.save()
+
+    connection = CloudConnection.objects.create(
+        user=user,
+        provider='google_drive',
+        email='quota_fail@gmail.com',
+        access_token='token_123',
+    )
+
+    doc = create_document_for_import(
+        requesting_user=user,
+        file_name='quota_fail.pdf',
+        file_size=500 * 1024,
+        connection=connection,
+        file_id_or_path='cloud_file_quota_fail',
+    )
+
+    # Actual download size is 2MB (9MB + 2MB = 11MB > 10MB limit)
+    actual_size = 2 * 1024 * 1024
+    file_data = {
+        'name': 'quota_fail.pdf',
+        'content': io.BytesIO(b'large content'),
+        'size': actual_size,
+        'etag_or_rev': 'rev_fail',
+    }
+
+    with patch('requests.put') as mock_put, patch('documents.services.fileserver_client.generate_upload_url', return_value='http://test/upload'):
+        mock_put.return_value.raise_for_status = MagicMock()
+        with pytest.raises(QuotaExceededError):
+            process_imported_file(doc, file_data)
+
+    mock_fs_delete.assert_called_once()
+
+    # The version should not have original_storage_key or storage_key persisted
+    v1 = doc.versions.get(version_number=1)
+    assert not v1.storage_key
+    assert not v1.original_storage_key
 
 
