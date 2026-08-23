@@ -725,7 +725,7 @@ def process_imported_file(document: Document, file_data: dict, version_id=None):
                 logger.error(f"Failed to clean up file {original_storage_key} after quota error: {delete_e}")
             raise
 
-    old_file_size = document.file_size or 0 if version.version_number > 1 else 0
+    old_file_size = document.file_size or 0
 
     with transaction.atomic():
         _route_document_for_processing(
@@ -734,7 +734,7 @@ def process_imported_file(document: Document, file_data: dict, version_id=None):
             file_size=file_size,
             content_type=content_type,
         )
-        if user:
+        if user and old_file_size != file_size:
             User.objects.filter(pk=user.pk).update(
                 total_document_size=F('total_document_size') - old_file_size + file_size
             )

@@ -296,4 +296,7 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** Custom item ordering in Dataroom was previously gated behind `show_file_index` and a strict `len(scope_rows) == total_items` check in `DataroomDetailSerializer.get_items` and `DataroomFolderViewSet.retrieve`. When index number badges were disabled (`show_file_index=False`) or when new items lacked order rows, the `position` field was omitted and custom ordering was discarded, reverting the list to `created_at`.
 - **Resolution/Action:** Apply `DataroomItemOrder` unconditionally across root and subfolder serializers regardless of `show_file_index`, attaching sequential fallback `position` values for newly added items so manual item ordering is always preserved.
 
-
+### 2026-08-22 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** `delete_folder_and_contents` subtracts the aggregate size of all documents inside a folder from `folder.created_by`. While regular user folders and datarooms are strictly single-user in the current architecture, folders with `created_by=None` (such as the organization `__root__` folder) will not deduct quota from document owners if deleted directly.
+- **Resolution/Action:** Be aware that multi-user shared folders or root-level folder deletions in future features will require grouping quota deductions by `created_by` across the deleted documents.

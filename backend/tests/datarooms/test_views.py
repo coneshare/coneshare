@@ -156,6 +156,39 @@ class TestDataroomViewSet:
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert not Dataroom.objects.filter(id=dataroom_id).exists()
 
+    @patch('documents.services.fileserver_client.delete_file')
+    def test_delete_dataroom_with_direct_upload_quota_balance(self, mock_fs_delete, api_client, dataroom, user):
+        """
+        Reproduction Test:
+        1. New user with 0 documents, total_document_size = 0.
+        2. Create dataroom and upload a file (~331KB).
+        3. Delete the dataroom.
+        4. User's total_document_size must be 0, not -331697.
+        """
+        user.total_document_size = 0
+        user.save()
+
+        file_size = 331697
+        url_finalize = f'/api/v1/datarooms/{dataroom.id}/uploads/finalize/'
+        data_finalize = {
+            'storage_key': 'org_1/uploads/test_file.pdf',
+            'unique_name': 'test_file.pdf',
+            'file_size': file_size,
+            'content_type': 'application/pdf',
+        }
+        res = api_client.post(url_finalize, data_finalize, format='json')
+        assert res.status_code == status.HTTP_202_ACCEPTED
+
+        user.refresh_from_db()
+        assert user.total_document_size == file_size
+
+        # Delete dataroom
+        res_delete = api_client.delete(f'/api/v1/datarooms/{dataroom.id}/')
+        assert res_delete.status_code == status.HTTP_204_NO_CONTENT
+
+        user.refresh_from_db()
+        assert user.total_document_size == 0, f"Expected total_document_size to be 0, got {user.total_document_size}"
+
     def test_add_content_to_dataroom(self, api_client, dataroom, document):
         """Test adding documents to a dataroom."""
         url = f'/api/v1/datarooms/{dataroom.id}/add-content/'

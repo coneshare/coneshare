@@ -634,6 +634,45 @@ def test_refresh_soft_deleted_document_returns_404(api_client, user):
     assert res.status_code == status.HTTP_404_NOT_FOUND
 
 
+@pytest.mark.django_db
+@patch('documents.services.fileserver_client.delete_file')
+@patch('cloudfiles.services.import_from_cloud_task.delay')
+def test_cloud_import_premature_deletion_quota_accounting(mock_task, mock_fs_delete, api_client, user):
+    """
+    RED Test: Initiating a cloud import and deleting the document before download
+    must not result in a negative total_document_size for the user.
+    """
+    from documents.services import delete_document_and_files
 
+    connection = CloudConnection.objects.create(
+        user=user,
+        provider='google_drive',
+        email='import_user@gmail.com',
+        access_token='token_123',
+    )
+    user.total_document_size = 0
+    user.save()
 
+    api_client.force_authenticate(user=user)
+    import_url = f'/api/v1/cloud/connections/{connection.id}/import/'
+    file_size = 102656
 
+    # 1. Initiate cloud import
+    res = api_client.post(import_url, {
+        'file_id': 'cloud_file_123',
+        'file_name': 'sample.pdf',
+        'file_size': file_size
+    })
+    assert res.status_code == status.HTTP_202_ACCEPTED
+    doc_id = res.data['id']
+
+    # User's quota must reflect the imported document
+    user.refresh_from_db()
+    assert user.total_document_size == file_size
+
+    # 2. Prematurely delete the document (before download finishes)
+    doc = Document.objects.get(id=doc_id)
+    delete_document_and_files(doc)
+
+    user.refresh_from_db()
+    assert user.total_document_size == 0
