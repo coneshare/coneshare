@@ -5,6 +5,7 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.exceptions import APIException
 
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
 from datarooms.utils import get_dataroom_storage_folder_name
@@ -155,6 +156,108 @@ class TestDataroomViewSet:
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert not Dataroom.objects.filter(id=dataroom_id).exists()
+
+    @patch('documents.services.fileserver_client.delete_file')
+    def test_delete_dataroom_with_direct_upload_quota_balance(self, mock_fs_delete, api_client, dataroom, user):
+        """
+        Reproduction Test:
+        1. New user with 0 documents, total_document_size = 0.
+        2. Create dataroom and upload a file (~331KB).
+        3. Delete the dataroom.
+        4. User's total_document_size must be 0, not -331697.
+        """
+        user.total_document_size = 0
+        user.save()
+
+        file_size = 331697
+        url_finalize = f'/api/v1/datarooms/{dataroom.id}/uploads/finalize/'
+        data_finalize = {
+            'storage_key': 'org_1/uploads/test_file.pdf',
+            'unique_name': 'test_file.pdf',
+            'file_size': file_size,
+            'content_type': 'application/pdf',
+        }
+        res = api_client.post(url_finalize, data_finalize, format='json')
+        assert res.status_code == status.HTTP_202_ACCEPTED
+
+        user.refresh_from_db()
+        assert user.total_document_size == file_size
+
+        # Delete dataroom
+        res_delete = api_client.delete(f'/api/v1/datarooms/{dataroom.id}/')
+        assert res_delete.status_code == status.HTTP_204_NO_CONTENT
+
+        user.refresh_from_db()
+        assert user.total_document_size == 0, f"Expected total_document_size to be 0, got {user.total_document_size}"
+
+    @patch('documents.services.fileserver_client.delete_file')
+    def test_delete_dataroom_with_shared_direct_upload_preserves_shared_document(self, mock_fs_delete, api_client, dataroom, user, organization):
+        """
+        Test that deleting a dataroom preserves backing documents that are also linked
+        in another dataroom.
+        """
+        second_dataroom = Dataroom.objects.create(
+            name="Second Dataroom",
+            organization=organization,
+            created_by=user
+        )
+
+        url_finalize = f'/api/v1/datarooms/{dataroom.id}/uploads/finalize/'
+        data_finalize = {
+            'storage_key': 'org_1/uploads/shared_file.pdf',
+            'unique_name': 'shared_file.pdf',
+            'file_size': 1024,
+            'content_type': 'application/pdf',
+        }
+        res = api_client.post(url_finalize, data_finalize, format='json')
+        assert res.status_code == status.HTTP_202_ACCEPTED
+
+        doc = Document.objects.get(name='shared_file.pdf')
+
+        # Link the document to the second dataroom as well
+        DataroomDocument.objects.create(
+            dataroom=second_dataroom,
+            document=doc,
+            name='shared_file.pdf'
+        )
+
+        # Delete the first dataroom
+        res_delete = api_client.delete(f'/api/v1/datarooms/{dataroom.id}/')
+        assert res_delete.status_code == status.HTTP_204_NO_CONTENT
+
+        # The document and storage files must be preserved for second_dataroom
+        assert Document.objects.filter(id=doc.id).exists()
+        assert DataroomDocument.objects.filter(dataroom=second_dataroom, document=doc).exists()
+        mock_fs_delete.assert_not_called()
+
+    @patch('documents.services.fileserver_client.delete_file')
+    def test_delete_dataroom_when_created_by_is_none(self, mock_fs_delete, api_client, dataroom, user):
+        """
+        Test that delete_dataroom cleans up storage and backing folders even if
+        dataroom.created_by is None (e.g. user was deleted).
+        """
+        from datarooms.services import delete_dataroom
+
+        url_finalize = f'/api/v1/datarooms/{dataroom.id}/uploads/finalize/'
+        data_finalize = {
+            'storage_key': 'org_1/uploads/orphan_file.pdf',
+            'unique_name': 'orphan_file.pdf',
+            'file_size': 2048,
+            'content_type': 'application/pdf',
+        }
+        res = api_client.post(url_finalize, data_finalize, format='json')
+        assert res.status_code == status.HTTP_202_ACCEPTED
+        doc = Document.objects.get(name='orphan_file.pdf')
+
+        # Simulate user deletion where created_by is SET_NULL
+        dataroom.created_by = None
+        dataroom.save()
+
+        delete_dataroom(dataroom)
+
+        assert not Document.objects.filter(id=doc.id).exists()
+        assert not Dataroom.objects.filter(id=dataroom.id).exists()
+        mock_fs_delete.assert_called_with('org_1/uploads/orphan_file.pdf')
 
     def test_add_content_to_dataroom(self, api_client, dataroom, document):
         """Test adding documents to a dataroom."""
@@ -990,6 +1093,35 @@ class TestDataroomViewSet:
         assert res_again.status_code == status.HTTP_202_ACCEPTED
         assert Document.objects.filter(name='test_file.pdf').exists()
 
+    @patch('documents.services.fileserver_client.delete_file', side_effect=APIException("Storage service unavailable"))
+    def test_remove_content_resilient_to_storage_delete_failure(self, mock_delete_file, api_client, dataroom):
+        """
+        Test that removing content from a dataroom succeeds with 204 even if the fileserver
+        storage deletion encounters an exception.
+        """
+        url_finalize = f'/api/v1/datarooms/{dataroom.id}/uploads/finalize/'
+        data_finalize = {
+            'storage_key': 'org_1/uploads/resilient_test.pdf',
+            'unique_name': 'resilient_test.pdf',
+            'file_size': 1024,
+            'content_type': 'application/pdf',
+        }
+        res = api_client.post(url_finalize, data_finalize, format='json')
+        assert res.status_code == status.HTTP_202_ACCEPTED
+
+        dataroom_doc = DataroomDocument.objects.get(name='resilient_test.pdf', dataroom=dataroom)
+
+        # Remove the document
+        url_remove = f'/api/v1/datarooms/{dataroom.id}/remove-content/'
+        data_remove = {
+            'dataroom_document_ids': [str(dataroom_doc.id)],
+            'dataroom_folder_ids': []
+        }
+        response_remove = api_client.post(url_remove, data_remove, format='json')
+        # Must return 204 without raising 500
+        assert response_remove.status_code == status.HTTP_204_NO_CONTENT
+        assert not DataroomDocument.objects.filter(id=dataroom_doc.id).exists()
+
     @patch('documents.services.fileserver_client.delete_file')
     def test_direct_upload_deletion_with_multiple_dataroom_uploads_folders(self, mock_delete_file, api_client, dataroom, user2):
         """
@@ -1320,4 +1452,43 @@ class TestDataroomDocumentViewSet:
         assert Folder.objects.filter(
             organization=org, parent=dataroom_uploads, name=get_dataroom_storage_folder_name(second_dataroom.name, second_dataroom)
         ).exists()
+
+    def test_delete_dataroom_without_created_by_cleans_up_backing_folder(self, api_client, organization, user):
+        """
+        Test that delete_dataroom cleans up the backing folder even if dataroom.created_by is None.
+        """
+        from documents.models import Folder
+        from datarooms.models import Dataroom
+        from datarooms.services import delete_dataroom
+        from datarooms.utils import get_dataroom_storage_folder_name
+
+        root_folder = Folder.objects.get_root_for_org(organization)
+        user_uploads = Folder.objects.create(
+            organization=organization,
+            parent=root_folder,
+            name="Dataroom Uploads",
+            created_by=user,
+        )
+
+        dr = Dataroom.objects.create(
+            organization=organization,
+            name="No Creator Dataroom",
+            created_by=None,
+        )
+
+        storage_folder_name = get_dataroom_storage_folder_name(dr.name, dr)
+        dr_folder = Folder.objects.create(
+            organization=organization,
+            parent=user_uploads,
+            name=storage_folder_name,
+            created_by=user,
+        )
+
+        assert Folder.objects.filter(id=dr_folder.id).exists()
+
+        delete_dataroom(dr)
+
+        assert not Dataroom.objects.filter(id=dr.id).exists()
+        assert not Folder.objects.filter(id=dr_folder.id).exists()
+
 

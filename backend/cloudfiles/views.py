@@ -383,7 +383,7 @@ class CloudImportVersionView(APIView):
         connection_id = serializers.CharField(max_length=255)
         file_id = serializers.CharField(max_length=1024)
         file_name = serializers.CharField(max_length=255)
-        file_size = serializers.IntegerField()
+        file_size = serializers.IntegerField(min_value=0)
 
     @extend_schema(
         request=ImportVersionSerializer,

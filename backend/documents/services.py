@@ -684,7 +684,28 @@ def process_imported_file(document: Document, file_data: dict, version_id=None):
         logger.error(f"Failed to upload imported file to file server for doc {document.id}: {e}")
         raise
 
-    # 2. Update document and version records
+    # 2. Re-check quota with actual size before persisting version storage metadata.
+    user = document.created_by
+    if user:
+        try:
+            check_user_quota_on_upload(
+                user=user,
+                new_file_size=file_size,
+                document_to_update=document if document.file_size else None
+            )
+        except QuotaExceededError as e:
+            logger.warning(
+                f"Cloud import for doc {document.id} failed: quota exceeded with actual file size. "
+                f"User: {user.id}, Size: {file_size}."
+            )
+            # Clean up the file that was just uploaded to our storage
+            try:
+                fileserver_client.delete_file(original_storage_key)
+            except APIException as delete_e:
+                logger.error(f"Failed to clean up file {original_storage_key} after quota error: {delete_e}")
+            raise
+
+    # 3. Update document and version records and route for processing
     if version_id:
         version = document.versions.get(id=version_id)
     else:
@@ -701,40 +722,18 @@ def process_imported_file(document: Document, file_data: dict, version_id=None):
         version.metadata = {}
     if 'cloud_import' in version.metadata:
         version.metadata['cloud_import']['etag_or_rev'] = etag_or_rev
-    
-    version.save()
 
-    # 3. Re-check quota with actual size and route for processing.
-    user = document.created_by
-    if user:
-        try:
-            check_user_quota_on_upload(
-                user=user,
-                new_file_size=file_size,
-                document_to_update=document if (version.version_number > 1) else None
-            )
-        except QuotaExceededError as e:
-            logger.warning(
-                f"Cloud import for doc {document.id} failed: quota exceeded with actual file size. "
-                f"User: {user.id}, Size: {file_size}."
-            )
-            # Clean up the file that was just uploaded to our storage
-            try:
-                fileserver_client.delete_file(original_storage_key)
-            except APIException as delete_e:
-                logger.error(f"Failed to clean up file {original_storage_key} after quota error: {delete_e}")
-            raise
-
-    old_file_size = document.file_size or 0 if version.version_number > 1 else 0
+    old_file_size = document.file_size or 0
 
     with transaction.atomic():
+        version.save()
         _route_document_for_processing(
             document=document,
             version=version,
             file_size=file_size,
             content_type=content_type,
         )
-        if user:
+        if user and old_file_size != file_size:
             User.objects.filter(pk=user.pk).update(
                 total_document_size=F('total_document_size') - old_file_size + file_size
             )
