@@ -671,6 +671,7 @@ export const getAdminUserDatarooms = (id, page = 1) => api.get(`/admin/users/${i
 export const createAdminUser = (data) => api.post('/admin/users/', data);
 export const updateAdminUser = (id, data) => api.patch(`/admin/users/${id}/`, data);
 export const deleteAdminUser = (id) => api.delete(`/admin/users/${id}/`);
+export const recalculateAdminUserQuota = (id) => api.post(`/admin/users/${id}/recalculate-quota/`);
 export const getAdminLoginActivities = (page = 1) => api.get(`/admin/login-activities/?page=${page}`);
 export const getAdminSecurityThreatEvents = ({ page = 1, status = '', severity = '', eventType = '' } = {}) => {
   const params = { page };

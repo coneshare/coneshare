@@ -236,6 +236,14 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         serializer = DataroomSerializer(queryset, many=True, context=self.get_serializer_context())
         return Response(serializer.data)
 
+    @action(detail=True, methods=['post'], url_path='recalculate-quota')
+    def recalculate_quota(self, request, pk=None):
+        from documents.services import recalculate_user_document_size
+        user = self.get_object()
+        recalculate_user_document_size(user)
+        serializer = AdminUserDetailSerializer(user, context=self.get_serializer_context())
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 class AdminLoginActivityViewSet(viewsets.ReadOnlyModelViewSet):
     """
