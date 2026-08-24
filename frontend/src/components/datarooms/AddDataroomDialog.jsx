@@ -1,3 +1,7 @@
+import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '../ui/Button';
 import {
   Dialog,
@@ -9,9 +13,6 @@ import {
 } from '../ui/Dialog';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
-import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
 import { createDataroom } from '../../services/api';
 
 export function AddDataroomDialog({ isOpen, onOpenChange, onSuccess }) {
@@ -19,18 +20,26 @@ export function AddDataroomDialog({ isOpen, onOpenChange, onSuccess }) {
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (!isOpen) {
+      setName('');
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim()) {
-      toast.error('Dataroom name cannot be empty.');
+    const trimmedName = name.trim();
+    if (!trimmedName || isSubmitting) {
       return;
     }
     setIsSubmitting(true);
     try {
-      await createDataroom({ name });
+      await createDataroom({ name: trimmedName });
       toast.success('Dataroom created successfully.');
-      onSuccess();
+      onSuccess?.();
       setName('');
+      onOpenChange(false);
     } catch (error) {
       // Toast is handled by api interceptor
     } finally {
@@ -39,7 +48,11 @@ export function AddDataroomDialog({ isOpen, onOpenChange, onSuccess }) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!isSubmitting) {
+        onOpenChange(open);
+      }
+    }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('datarooms.addTitle')}</DialogTitle>
@@ -69,8 +82,31 @@ export function AddDataroomDialog({ isOpen, onOpenChange, onSuccess }) {
           </div>
         </form>
         <DialogFooter>
-          <Button type="submit" form="add-dataroom-form" disabled={isSubmitting}>
-            {isSubmitting ? t('datarooms.creating') : t('datarooms.create')}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              if (!isSubmitting) {
+                onOpenChange(false);
+              }
+            }}
+            disabled={isSubmitting}
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button
+            type="submit"
+            form="add-dataroom-form"
+            disabled={isSubmitting || !name.trim()}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t('datarooms.creating')}
+              </>
+            ) : (
+              t('datarooms.create')
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

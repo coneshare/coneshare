@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Loader2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
@@ -31,12 +32,20 @@ export function DestinationForm({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (loading) return;
+
+    const trimmedName = name.trim();
+    const trimmedEndpointUrl = endpointUrl.trim();
+    const trimmedSecret = signingSecret.trim();
+
+    if (!trimmedName) return;
+
     onSubmit({
-      name,
+      name: trimmedName,
       destination_type: destinationType,
-      endpoint_url: endpointUrl,
+      endpoint_url: trimmedEndpointUrl,
       http_method: httpMethod,
-      signing_secret: signingSecret || undefined,
+      signing_secret: trimmedSecret || undefined,
       headers: initialValues?.headers || {},
       is_active: initialValues?.is_active ?? true,
     });
@@ -56,6 +65,7 @@ export function DestinationForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Sales Slack"
+          disabled={loading}
           required
         />
       </div>
@@ -65,9 +75,10 @@ export function DestinationForm({
           <Label htmlFor="destination-type">{t('fileRequests.fieldType')}</Label>
           <select
             id="destination-type"
-            className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm"
+            className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
             value={destinationType}
             onChange={(e) => setDestinationType(e.target.value)}
+            disabled={loading}
           >
             <option value="slack">Slack</option>
             <option value="discord">Discord</option>
@@ -81,9 +92,10 @@ export function DestinationForm({
           <Label htmlFor="http-method">{t('automations.httpMethod')}</Label>
           <select
             id="http-method"
-            className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm"
+            className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
             value={httpMethod}
             onChange={(e) => setHttpMethod(e.target.value)}
+            disabled={loading}
           >
             <option value="POST">POST</option>
             <option value="PUT">PUT</option>
@@ -99,6 +111,7 @@ export function DestinationForm({
           value={endpointUrl}
           onChange={(e) => setEndpointUrl(e.target.value)}
           placeholder="https://example.com/webhook"
+          disabled={loading}
           required
         />
       </div>
@@ -110,15 +123,29 @@ export function DestinationForm({
           value={signingSecret}
           onChange={(e) => setSigningSecret(e.target.value)}
           placeholder="Used for HMAC signature"
+          disabled={loading}
         />
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={loading} className="w-full sm:w-auto">
-          {loading ? t('common.saving') : submitLabel}
+        <Button type="submit" disabled={loading || !name.trim()} className="w-full sm:w-auto">
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {t('common.saving')}
+            </>
+          ) : (
+            submitLabel
+          )}
         </Button>
         {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel} className="w-full sm:w-auto">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={loading}
+            className="w-full sm:w-auto"
+          >
             {t('common.cancel')}
           </Button>
         )}

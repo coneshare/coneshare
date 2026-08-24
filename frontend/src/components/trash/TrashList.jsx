@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Trash2, RefreshCw } from 'lucide-react';
+import { Trash2, RefreshCw, Loader2 } from 'lucide-react';
 import { formatRelativeTime } from '../../utils/formatters';
 import { Link } from 'react-router-dom';
 import { Button } from '../ui/Button';
@@ -30,6 +30,7 @@ export function TrashList({
   onRestore,
   onPermanentDelete,
   onInspectItem,
+  restoringId = null,
 }) {
   const { t } = useTranslation();
 
@@ -122,15 +123,26 @@ export function TrashList({
                       variant="outline"
                       size="sm"
                       onClick={() => onRestore(item)}
+                      disabled={restoringId !== null}
                       className="gap-1.5"
                     >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                      {t('trash.restore')}
+                      {restoringId === item.id ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          {t('trash.restoring')}
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          {t('trash.restore')}
+                        </>
+                      )}
                     </Button>
                     <Button
                       variant="destructive"
                       size="sm"
                       onClick={() => onPermanentDelete(item)}
+                      disabled={restoringId !== null}
                     >
                       {t('common.delete')}
                     </Button>

@@ -9,7 +9,7 @@ import { Input } from '../components/ui/Input';
 import { PlusIcon } from '../components/icons/PlusIcon';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Select } from '../components/ui/Select';
-import { Pencil, Trash2, Check, X } from 'lucide-react';
+import { Pencil, Trash2, Check, X, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatBytes } from '../lib/formatters';
 import { Progress } from '../components/ui/Progress';
@@ -60,6 +60,7 @@ function AddUserForm({ onAddUser, onCancel }) {
               name="name"
               value={formData.name}
               onChange={handleChange}
+              disabled={isSaving}
               required
             />
           </div>
@@ -73,6 +74,7 @@ function AddUserForm({ onAddUser, onCancel }) {
               type="email"
               value={formData.email}
               onChange={handleChange}
+              disabled={isSaving}
               required
             />
           </div>
@@ -88,6 +90,7 @@ function AddUserForm({ onAddUser, onCancel }) {
               name="username"
               value={formData.username}
               onChange={handleChange}
+              disabled={isSaving}
               required
             />
           </div>
@@ -104,6 +107,7 @@ function AddUserForm({ onAddUser, onCancel }) {
               type="password"
               value={formData.password}
               onChange={handleChange}
+              disabled={isSaving}
               required
               minLength={3}
             />
@@ -117,6 +121,7 @@ function AddUserForm({ onAddUser, onCancel }) {
               name="role"
               value={formData.role}
               onChange={handleChange}
+              disabled={isSaving}
             >
               <option value="member">{t('admin.roleMember')}</option>
               <option value="admin">{t('admin.roleAdmin')}</option>
@@ -133,16 +138,24 @@ function AddUserForm({ onAddUser, onCancel }) {
               placeholder={t('common.default')}
               value={formData.custom_file_size_quota_mb}
               onChange={handleChange}
+              disabled={isSaving}
               min="0"
             />
           </div>
         </div>
         <div className="flex items-center justify-end gap-x-2">
-          <Button type="button" variant="ghost" onClick={onCancel}>
+          <Button type="button" variant="ghost" onClick={onCancel} disabled={isSaving}>
             {t('common.cancel')}
           </Button>
           <Button type="submit" disabled={isSaving}>
-            {isSaving ? t('admin.adding') : t('admin.addUser')}
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t('admin.adding')}
+              </>
+            ) : (
+              t('admin.addUser')
+            )}
           </Button>
         </div>
       </form>
@@ -216,6 +229,7 @@ export function AdminUsersPage() {
   const [userToDelete, setUserToDelete] = useState(null);
   const [editingUserId, setEditingUserId] = useState(null);
   const [editedUserData, setEditedUserData] = useState({});
+  const [savingUserId, setSavingUserId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const pageSize = 10; // Corresponds to backend's StandardResultsSetPagination
@@ -297,6 +311,7 @@ export function AdminUsersPage() {
   };
 
   const handleEdit = (user) => {
+    if (savingUserId !== null) return;
     setEditingUserId(user.id);
     setEditedUserData({
       name: user.name,
@@ -307,17 +322,22 @@ export function AdminUsersPage() {
   };
 
   const handleCancel = () => {
+    if (savingUserId !== null) return;
     setEditingUserId(null);
     setEditedUserData({});
   };
 
   const handleSave = async (userId) => {
+    if (savingUserId !== null) return;
+    setSavingUserId(userId);
     try {
       await handleUpdateUser(userId, editedUserData);
       setEditingUserId(null);
       setEditedUserData({});
     } catch {
       // Don't exit edit mode on failure
+    } finally {
+      setSavingUserId(null);
     }
   };
 
@@ -387,6 +407,7 @@ export function AdminUsersPage() {
                           name="name"
                           value={editedUserData.name}
                           onChange={handleEditDataChange}
+                          disabled={savingUserId === user.id}
                         />
                       </td>
                       <td className="p-4 text-muted-foreground">
@@ -397,6 +418,7 @@ export function AdminUsersPage() {
                           name="role"
                           value={editedUserData.role}
                           onChange={handleEditDataChange}
+                          disabled={savingUserId === user.id}
                         >
                           <option value="member">{t('admin.roleMember')}</option>
                           <option value="admin">{t('admin.roleAdmin')}</option>
@@ -407,6 +429,7 @@ export function AdminUsersPage() {
                           name="is_active"
                           value={editedUserData.is_active}
                           onChange={handleEditDataChange}
+                          disabled={savingUserId === user.id}
                         >
                           <option value={true}>{t('common.active')}</option>
                           <option value={false}>{t('common.inactive')}</option>
@@ -421,6 +444,7 @@ export function AdminUsersPage() {
                             value={editedUserData.custom_file_size_quota_mb ?? ''}
                             onChange={handleEditDataChange}
                             className="w-24 text-sm"
+                            disabled={savingUserId === user.id}
                             min="0"
                           />
                           <span className="text-xs text-muted-foreground">MB</span>
@@ -435,14 +459,20 @@ export function AdminUsersPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleSave(user.id)}
+                            disabled={savingUserId === user.id}
                             title={t('common.save')}
                           >
-                            <Check className="h-5 w-5" />
+                            {savingUserId === user.id ? (
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                            ) : (
+                              <Check className="h-5 w-5" />
+                            )}
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={handleCancel}
+                            disabled={savingUserId === user.id}
                             title={t('common.cancel')}
                           >
                             <X className="h-5 w-5" />
@@ -488,6 +518,7 @@ export function AdminUsersPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleEdit(user)}
+                            disabled={savingUserId !== null}
                             title={t('common.edit')}
                           >
                             <Pencil className="h-5 w-5" />
@@ -496,6 +527,7 @@ export function AdminUsersPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => setUserToDelete(user)}
+                            disabled={savingUserId !== null}
                             title={t('common.delete')}
                           >
                             <Trash2 className="h-5 w-5" />

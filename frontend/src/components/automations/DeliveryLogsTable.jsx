@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { Loader2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 function fmt(value) {
@@ -55,9 +56,16 @@ export function DeliveryLogsTable({ deliveries, onReplay, replayingId = null }) 
                   size="sm"
                   variant="outline"
                   onClick={() => onReplay(delivery.id)}
-                  disabled={replayingId === delivery.id}
+                  disabled={replayingId !== null}
                 >
-                  {replayingId === delivery.id ? t('automations.replaying') : t('automations.replay')}
+                  {replayingId === delivery.id ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      {t('automations.replaying')}
+                    </>
+                  ) : (
+                    t('automations.replay')
+                  )}
                 </Button>
               </td>
             </tr>

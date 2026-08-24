@@ -36,4 +36,48 @@ describe("DestinationForm", () => {
       is_active: true
     });
   });
+
+  it("disables inputs and buttons when loading", () => {
+    const handleCancel = vi.fn();
+    render(<DestinationForm onSubmit={() => {}} onCancel={handleCancel} loading={true} />);
+
+    expect(screen.getByLabelText(/Name/i)).toBeDisabled();
+    expect(screen.getByLabelText(/Type/i)).toBeDisabled();
+    expect(screen.getByLabelText(/Method/i)).toBeDisabled();
+    expect(screen.getByLabelText(/Endpoint URL/i)).toBeDisabled();
+    expect(screen.getByLabelText(/Signing Secret/i)).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Saving/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Cancel/i })).toBeDisabled();
+  });
+
+  it("trims whitespace from name, endpoint url, and signing secret on submit", () => {
+    const handleSubmit = vi.fn();
+    render(<DestinationForm onSubmit={handleSubmit} submitLabel="Save" />);
+
+    const submitBtn = screen.getByRole("button", { name: /Save/i });
+    expect(submitBtn).toBeDisabled();
+
+    // Type spaces only
+    fireEvent.change(screen.getByLabelText(/Name/i), { target: { value: "   " } });
+    expect(submitBtn).toBeDisabled();
+
+    // Type valid name with surrounding whitespace
+    fireEvent.change(screen.getByLabelText(/Name/i), { target: { value: "  Sales Webhook  " } });
+    expect(submitBtn).toBeEnabled();
+
+    fireEvent.change(screen.getByLabelText(/Endpoint URL/i), { target: { value: "  https://example.com/callback  " } });
+    fireEvent.change(screen.getByLabelText(/Signing Secret/i), { target: { value: "  secret-123  " } });
+
+    fireEvent.click(submitBtn);
+
+    expect(handleSubmit).toHaveBeenCalledWith({
+      name: "Sales Webhook",
+      destination_type: "slack",
+      endpoint_url: "https://example.com/callback",
+      http_method: "POST",
+      signing_secret: "secret-123",
+      headers: {},
+      is_active: true,
+    });
+  });
 });

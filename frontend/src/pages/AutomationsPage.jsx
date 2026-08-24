@@ -20,6 +20,7 @@ import { AutomationBuilder } from '../components/automations/AutomationBuilder';
 import { DestinationForm } from '../components/automations/DestinationForm';
 import { DeliveryLogsTable } from '../components/automations/DeliveryLogsTable';
 import { Pagination } from '../components/ui/Pagination';
+import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import {
   Dialog,
   DialogContent,
@@ -82,6 +83,8 @@ export function AutomationsPage() {
   const [isEditingDestinationOpen, setIsEditingDestinationOpen] = useState(false);
   const [editingDestination, setEditingDestination] = useState(null);
   const [selectedDestinationIdForLogs, setSelectedDestinationIdForLogs] = useState(null);
+  const [ruleToDelete, setRuleToDelete] = useState(null);
+  const [destinationToDelete, setDestinationToDelete] = useState(null);
   const [logsCurrentPage, setLogsCurrentPage] = useState(1);
   const logsPageSize = 10;
 
@@ -223,10 +226,12 @@ export function AutomationsPage() {
     }
   };
 
-  const handleDeleteAutomation = async (automationId) => {
+  const handleConfirmDeleteRule = async () => {
+    if (!ruleToDelete) return;
     try {
-      await deleteAutomation(automationId);
+      await deleteAutomation(ruleToDelete.id);
       toast.success('Automation deleted.');
+      setRuleToDelete(null);
       await Promise.all([fetchCoreData({ silent: true }), fetchDeliveries()]);
     } catch (error) {
       handleActionError('Failed to delete automation.', error);
@@ -255,10 +260,12 @@ export function AutomationsPage() {
     }
   };
 
-  const handleDeleteDestination = async (destinationId) => {
+  const handleConfirmDeleteDestination = async () => {
+    if (!destinationToDelete) return;
     try {
-      await deleteAutomationDestination(destinationId);
+      await deleteAutomationDestination(destinationToDelete.id);
       toast.success('Destination deleted.');
+      setDestinationToDelete(null);
       await Promise.all([fetchCoreData({ silent: true }), fetchDeliveries()]);
     } catch (error) {
       handleActionError('Failed to delete destination.', error);
@@ -313,7 +320,11 @@ export function AutomationsPage() {
         <div className="rounded-lg border p-4 text-sm text-gray-500">{t('automations.loading')}</div>
       ) : (
         <>
-          <Dialog open={isCreateRuleOpen} onOpenChange={setIsCreateRuleOpen}>
+          <Dialog open={isCreateRuleOpen} onOpenChange={(open) => {
+            if (!isSavingAutomation) {
+              setIsCreateRuleOpen(open);
+            }
+          }}>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
               <DialogHeader>
                 <DialogTitle>{t('automations.createRuleTitle')}</DialogTitle>
@@ -335,7 +346,11 @@ export function AutomationsPage() {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={isCreateDestinationOpen} onOpenChange={setIsCreateDestinationOpen}>
+          <Dialog open={isCreateDestinationOpen} onOpenChange={(open) => {
+            if (!isSavingDestination) {
+              setIsCreateDestinationOpen(open);
+            }
+          }}>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
               <DialogHeader>
                 <DialogTitle>{t('automations.createDestination')}</DialogTitle>
@@ -354,8 +369,10 @@ export function AutomationsPage() {
           </Dialog>
 
           <Dialog open={isEditingOpen} onOpenChange={(open) => {
-            setIsEditingOpen(open);
-            if (!open) setEditingAutomation(null);
+            if (!isSavingAutomation) {
+              setIsEditingOpen(open);
+              if (!open) setEditingAutomation(null);
+            }
           }}>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
               <DialogHeader>
@@ -383,8 +400,10 @@ export function AutomationsPage() {
           </Dialog>
 
           <Dialog open={isEditingDestinationOpen} onOpenChange={(open) => {
-            setIsEditingDestinationOpen(open);
-            if (!open) setEditingDestination(null);
+            if (!isSavingDestination) {
+              setIsEditingDestinationOpen(open);
+              if (!open) setEditingDestination(null);
+            }
           }}>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
               <DialogHeader>
@@ -406,6 +425,24 @@ export function AutomationsPage() {
               )}
             </DialogContent>
           </Dialog>
+
+          <ConfirmationDialog
+            isOpen={!!ruleToDelete}
+            onOpenChange={() => setRuleToDelete(null)}
+            title={t('common.delete')}
+            description={`Are you sure you want to delete "${ruleToDelete?.name}"?`}
+            onConfirm={handleConfirmDeleteRule}
+            confirmText={t('common.delete')}
+          />
+
+          <ConfirmationDialog
+            isOpen={!!destinationToDelete}
+            onOpenChange={() => setDestinationToDelete(null)}
+            title={t('common.delete')}
+            description={`Are you sure you want to delete destination "${destinationToDelete?.name}"?`}
+            onConfirm={handleConfirmDeleteDestination}
+            confirmText={t('common.delete')}
+          />
 
           <section className="space-y-3 rounded-lg border p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -467,7 +504,7 @@ export function AutomationsPage() {
                     <Button variant="outline" size="sm" onClick={() => handleToggleAutomation(automation)}>
                       {automation.is_active ? t('automations.disable') : t('automations.enable')}
                     </Button>
-                    <Button variant="destructive" size="sm" onClick={() => handleDeleteAutomation(automation.id)}>
+                    <Button variant="destructive" size="sm" onClick={() => setRuleToDelete(automation)}>
                       {t('common.delete')}
                     </Button>
                   </div>
@@ -507,7 +544,7 @@ export function AutomationsPage() {
                     >
                       {selectedDestinationIdForLogs === destination.id ? t('automations.showAllLogs') : t('automations.viewLogs')}
                     </Button>
-                    <Button variant="destructive" size="sm" onClick={() => handleDeleteDestination(destination.id)}>
+                    <Button variant="destructive" size="sm" onClick={() => setDestinationToDelete(destination)}>
                       {t('common.delete')}
                     </Button>
                   </div>

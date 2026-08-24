@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
 import { AdminNav } from '../components/admin/AdminNav';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -172,19 +173,25 @@ function SettingCard({ setting, onSave }) {
         {isBoolean ? (
           <div className="flex items-center justify-between rounded-md border px-3 py-2">
             <span className="text-sm text-muted-foreground">{value ? t('admin.enabled') : t('admin.disabled')}</span>
-            <Switch checked={Boolean(value)} onCheckedChange={(checked) => setValue(Boolean(checked))} />
+            <Switch
+              checked={Boolean(value)}
+              onCheckedChange={(checked) => setValue(Boolean(checked))}
+              disabled={isSaving}
+            />
           </div>
         ) : isJson ? (
           <Textarea
             value={jsonText}
             onChange={(e) => setJsonText(e.target.value)}
             rows={8}
+            disabled={isSaving}
             className="font-mono text-sm"
           />
         ) : (
           <Input
             type={isInteger ? 'number' : showSecret ? 'text' : isSecret ? 'password' : 'text'}
             value={value}
+            disabled={isSaving}
             onChange={(e) => {
               if (isInteger) {
                 setValue(e.target.value === '' ? '' : Number(e.target.value));
@@ -201,6 +208,7 @@ function SettingCard({ setting, onSave }) {
             type="button"
             className="mt-2 text-xs text-muted-foreground underline-offset-4 hover:underline"
             onClick={() => setShowSecret((prev) => !prev)}
+            disabled={isSaving}
           >
             {showSecret ? t('admin.hideValue') : t('admin.revealValue')}
           </button>
@@ -216,7 +224,14 @@ function SettingCard({ setting, onSave }) {
           {t('admin.reset')}
         </Button>
         <Button onClick={handleSave} disabled={!isDirty || isSaving}>
-          {isSaving ? t('common.saving') : t('common.save')}
+          {isSaving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {t('common.saving')}
+            </>
+          ) : (
+            t('common.save')
+          )}
         </Button>
       </div>
     </div>

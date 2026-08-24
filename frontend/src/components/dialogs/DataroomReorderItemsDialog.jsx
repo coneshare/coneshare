@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowDown, ArrowUp, FileIcon, FolderIcon, GripVertical } from 'lucide-react';
+import { ArrowDown, ArrowUp, FileIcon, FolderIcon, GripVertical, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -71,7 +71,11 @@ export function DataroomReorderItemsDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!isSaving) {
+        onOpenChange(open);
+      }
+    }}>
       <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{t('datarooms.reorderItemsTitle')}</DialogTitle>
@@ -88,13 +92,13 @@ export function DataroomReorderItemsDialog({
               {orderedItems.map((item, index) => (
                 <li
                   key={`${item.type}-${item.id}`}
-                  draggable
-                  onDragStart={() => setDragIndex(index)}
+                  draggable={!isSaving}
+                  onDragStart={() => !isSaving && setDragIndex(index)}
                   onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => handleDrop(index)}
+                  onDrop={() => !isSaving && handleDrop(index)}
                   className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-900/40"
                 >
-                  <GripVertical className="h-4 w-4 text-gray-400" />
+                  <GripVertical className={`h-4 w-4 ${isSaving ? 'text-gray-300 dark:text-gray-600' : 'text-gray-400'}`} />
                   <span className="w-6 text-xs text-gray-500">{index + 1}</span>
                   {item.type === 'folder' ? (
                     <FolderIcon className="h-4 w-4 text-gray-500" />
@@ -108,7 +112,7 @@ export function DataroomReorderItemsDialog({
                       size="icon"
                       variant="ghost"
                       className="h-7 w-7"
-                      disabled={index === 0}
+                      disabled={index === 0 || isSaving}
                       onClick={() => setOrderedItems((prev) => moveItem(prev, index, index - 1))}
                     >
                       <ArrowUp className="h-4 w-4" />
@@ -118,7 +122,7 @@ export function DataroomReorderItemsDialog({
                       size="icon"
                       variant="ghost"
                       className="h-7 w-7"
-                      disabled={index === orderedItems.length - 1}
+                      disabled={index === orderedItems.length - 1 || isSaving}
                       onClick={() => setOrderedItems((prev) => moveItem(prev, index, index + 1))}
                     >
                       <ArrowDown className="h-4 w-4" />
@@ -135,16 +139,36 @@ export function DataroomReorderItemsDialog({
             type="button"
             variant="ghost"
             className="mr-auto"
-            onClick={handleResetOrder}
+            onClick={() => {
+              if (!isSaving) {
+                handleResetOrder();
+              }
+            }}
             disabled={isSaving || items.length === 0}
           >
             {t('datarooms.resetOrder')}
           </Button>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              if (!isSaving) {
+                onOpenChange(false);
+              }
+            }}
+            disabled={isSaving}
+          >
             {t('common.cancel')}
           </Button>
           <Button type="button" onClick={handleSave} disabled={isSaving || orderedItems.length === 0}>
-            {isSaving ? t('common.saving') : t('datarooms.saveOrder')}
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t('common.saving')}
+              </>
+            ) : (
+              t('datarooms.saveOrder')
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

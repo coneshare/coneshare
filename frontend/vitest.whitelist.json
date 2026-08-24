@@ -27,6 +27,16 @@
     "src/tests/i18n.test.jsx",
     "src/tests/hooks/useSortedList.test.js",
     "src/tests/components/dialogs/DataroomMoveItemsDialog.test.jsx",
-    "src/tests/pages/AdminUserDetailPage.test.jsx"
+    "src/tests/pages/AdminUserDetailPage.test.jsx",
+    "src/tests/components/dialogs/AddFolderDialog.test.jsx",
+    "src/tests/components/dialogs/ConfirmationDialog.test.jsx",
+    "src/tests/components/dialogs/MoveItemsDialog.test.jsx",
+    "src/tests/components/dialogs/RenameItemDialog.test.jsx",
+    "src/tests/components/datarooms/AddDataroomDialog.test.jsx",
+    "src/tests/components/dialogs/DataroomReorderItemsDialog.test.jsx",
+    "src/tests/components/automations/DeliveryLogsTable.test.jsx",
+    "src/tests/components/automations/AutomationBuilder.test.jsx",
+    "src/tests/components/filerequests/FileRequestSheet.test.jsx",
+    "src/tests/pages/AdminSettingsPage.test.jsx"
   ]
 }

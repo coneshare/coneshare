@@ -83,14 +83,13 @@ export function DocumentVersionsPage() {
     try {
       await promoteDocumentVersion(documentId, versionToRestore.id);
       toast.success(`Successfully restored version v${versionToRestore.version_number} as active.`, { id: toastId });
+      setIsRestoreDialogOpen(false);
+      setVersionToRestore(null);
       refreshUser(); // Refresh user quota
       fetchDocument();
       fetchVersions();
     } catch (error) {
       toast.dismiss(toastId);
-    } finally {
-      setIsRestoreDialogOpen(false);
-      setVersionToRestore(null);
     }
   };
 

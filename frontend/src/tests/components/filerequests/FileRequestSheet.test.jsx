@@ -197,4 +197,40 @@ describe('FileRequestSheet', () => {
       );
     });
   });
+
+  it('disables submit button and prevents duplicate requests while submitting', async () => {
+    let resolvePromise;
+    createFileRequest.mockReturnValue(new Promise((resolve) => {
+      resolvePromise = resolve;
+    }));
+
+    render(
+      <FileRequestSheet
+        isOpen
+        onOpenChange={vi.fn()}
+        folder={null}
+        currentRequest={null}
+        onSuccess={vi.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('Name (Visible to public)'), {
+      target: { value: 'Request A' },
+    });
+
+    const submitBtn = screen.getByRole('button', { name: /Create Link/i });
+
+    // First click
+    fireEvent.click(submitBtn);
+
+    expect(createFileRequest).toHaveBeenCalledTimes(1);
+    expect(submitBtn).toBeDisabled();
+    expect(screen.getByLabelText('Name (Visible to public)')).toBeDisabled();
+
+    // Second click while in-flight
+    fireEvent.click(submitBtn);
+    expect(createFileRequest).toHaveBeenCalledTimes(1);
+
+    resolvePromise({ data: { id: 'fr-1' } });
+  });
 });
