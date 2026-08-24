@@ -300,3 +300,65 @@ class TestAdminOrganizationView:
         url = '/api/v1/admin/organization/'
         response = api_client.get(url)
         assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_recalculate_user_quota_success(self, admin_api_client, admin_user):
+        from documents.models import Document
+        # Create a member user with corrupted total_document_size
+        member = User.objects.create_user(
+            username='member_quota@example.com',
+            email='member_quota@example.com',
+            organization=admin_user.organization,
+            role='member',
+            total_document_size=9999999,  # Corrupted / drifted value
+        )
+
+        # Create two active documents and one deleted document for this member
+        Document.objects.create(
+            organization=admin_user.organization,
+            created_by=member,
+            name='doc1.pdf',
+            file_size=1024,
+            status='ready'
+        )
+        Document.objects.create(
+            organization=admin_user.organization,
+            created_by=member,
+            name='doc2.pdf',
+            file_size=2048,
+            status='ready'
+        )
+        from django.utils import timezone
+        Document.objects.create(
+            organization=admin_user.organization,
+            created_by=member,
+            name='doc_deleted.pdf',
+            file_size=5000,
+            status='ready',
+            deleted_at=timezone.now(),
+        )
+
+        url = f'/api/v1/admin/users/{member.id}/recalculate-quota/'
+        response = admin_api_client.post(url)
+        assert response.status_code == status.HTTP_200_OK
+
+        member.refresh_from_db()
+        assert member.total_document_size == 1024 + 2048
+        assert response.data['total_document_size'] == 3072
+
+    def test_recalculate_user_quota_non_admin_forbidden(self, api_client, user):
+        url = f'/api/v1/admin/users/{user.id}/recalculate-quota/'
+        response = api_client.post(url)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_recalculate_user_quota_other_org_not_found(self, admin_api_client, admin_user):
+        other_org = Organization.objects.create(name="Other Org")
+        other_user = User.objects.create_user(
+            username='other_org_user@example.com',
+            email='other_org_user@example.com',
+            organization=other_org,
+            role='member',
+        )
+        url = f'/api/v1/admin/users/{other_user.id}/recalculate-quota/'
+        response = admin_api_client.post(url)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+

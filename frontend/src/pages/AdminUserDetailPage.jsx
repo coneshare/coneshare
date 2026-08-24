@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ExternalLink, HardDrive, Link as LinkIcon, FolderOpen, Calendar, Mail, ShieldAlert } from 'lucide-react';
+import { ExternalLink, HardDrive, Link as LinkIcon, FolderOpen, Calendar, Mail, ShieldAlert, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 
 import * as api from '../services/api';
 import { AdminNav } from '../components/admin/AdminNav';
@@ -10,6 +11,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
 import { Progress } from '../components/ui/Progress';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/Table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/Tooltip';
 import { formatBytes } from '../lib/formatters';
 
 export function AdminUserDetailPage() {
@@ -19,6 +21,22 @@ export function AdminUserDetailPage() {
   const [links, setLinks] = useState([]);
   const [datarooms, setDatarooms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRecalculating, setIsRecalculating] = useState(false);
+
+  const handleRecalculateQuota = async () => {
+    setIsRecalculating(true);
+    try {
+      const res = await api.recalculateAdminUserQuota(userId);
+      if (res?.data?.id === userId) {
+        setUser(res.data);
+      }
+      toast.success(t('admin.recalculateQuotaSuccess', 'Storage quota recalculated successfully.'));
+    } catch (error) {
+      toast.error(t('admin.recalculateQuotaError', 'Failed to recalculate storage quota.'));
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -159,14 +177,35 @@ export function AdminUserDetailPage() {
       <div className="grid gap-6 md:grid-cols-3 mb-8">
         {/* Storage Quota Card */}
         <Card className="md:col-span-2">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <HardDrive className="h-5 w-5 text-muted-foreground" />
-              {t('admin.storageQuota')}
-            </CardTitle>
-            <CardDescription>
-              {t('admin.storageQuotaDesc')}
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between pb-3 space-y-0">
+            <div>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <HardDrive className="h-5 w-5 text-muted-foreground" />
+                {t('admin.storageQuota')}
+              </CardTitle>
+              <CardDescription>
+                {t('admin.storageQuotaDesc')}
+              </CardDescription>
+            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRecalculateQuota}
+                    disabled={isRecalculating}
+                    className="flex items-center gap-1.5"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${isRecalculating ? 'animate-spin' : ''}`} />
+                    {isRecalculating ? t('admin.recalculating', 'Recalculating...') : t('admin.recalculateQuota', 'Recalculate Usage')}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-center">
+                  <p>{t('admin.recalculateQuotaTip', 'Recalculate and synchronize the user\'s storage usage from all active documents in the database if the displayed quota is inaccurate.')}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -218,7 +257,7 @@ export function AdminUserDetailPage() {
               <div className="flex items-center justify-between border-b pb-2">
                 <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                   <FolderOpen className="h-4 w-4 text-muted-foreground" />
-                  Data Rooms
+                  {t('nav.datarooms')}
                 </span>
                 <span className="text-xl font-bold text-foreground">{user.total_datarooms || 0}</span>
               </div>
@@ -238,7 +277,7 @@ export function AdminUserDetailPage() {
       <Card className="mb-8">
         <CardHeader className="pb-3">
           <CardTitle className="text-xl font-bold">{t('admin.shareLinksCount', { count: user.total_links || 0 })}</CardTitle>
-          <CardDescription>Public sharing links created by this user.</CardDescription>
+          <CardDescription>{t('admin.shareLinksDesc', 'Public sharing links created by this user.')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -294,7 +333,7 @@ export function AdminUserDetailPage() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-xl font-bold">{t('admin.dataroomsCount', { count: user.total_datarooms || 0 })}</CardTitle>
-          <CardDescription>Secure workspaces created by this user.</CardDescription>
+          <CardDescription>{t('admin.dataroomsDesc', 'Secure workspaces created by this user.')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>

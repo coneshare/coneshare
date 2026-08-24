@@ -71,6 +71,24 @@ def check_user_quota_on_upload(user: User, new_file_size: int, document_to_updat
         )
 
 
+def recalculate_user_document_size(user: User) -> int:
+    """
+    Computes and updates the true total_document_size for a user from their active documents.
+    Returns the corrected size in bytes.
+    """
+    with transaction.atomic():
+        locked_user = User.objects.select_for_update().get(pk=user.pk)
+        actual_size = (
+            Document.objects.active()
+            .filter(created_by=locked_user)
+            .aggregate(total=Sum('file_size'))['total'] or 0
+        )
+        locked_user.total_document_size = max(0, actual_size)
+        locked_user.save(update_fields=['total_document_size'])
+        user.total_document_size = locked_user.total_document_size
+        return user.total_document_size
+
+
 def _normalize_content_type(content_type: str, filename: str) -> str:
     if not content_type or content_type == 'application/octet-stream':
         guessed_type, _ = mimetypes.guess_type(filename)

@@ -26,6 +26,7 @@
     "src/tests/pages/ApiKeysSettingsPage.test.jsx",
     "src/tests/i18n.test.jsx",
     "src/tests/hooks/useSortedList.test.js",
-    "src/tests/components/dialogs/DataroomMoveItemsDialog.test.jsx"
+    "src/tests/components/dialogs/DataroomMoveItemsDialog.test.jsx",
+    "src/tests/pages/AdminUserDetailPage.test.jsx"
   ]
 }
