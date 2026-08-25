@@ -89,7 +89,7 @@ BASE_LOCALE = os.path.join(os.path.dirname(__file__), 'locale')
 
 
 if __name__ == '__main__':
-    for lang in ['en', 'zh_Hans', 'ru']:
+    for lang in ['en', 'zh_Hans', 'ru', 'de']:
         po_path = os.path.join(BASE_LOCALE, lang, 'LC_MESSAGES', 'django.po')
         mo_path = os.path.join(BASE_LOCALE, lang, 'LC_MESSAGES', 'django.mo')
         if os.path.exists(po_path):

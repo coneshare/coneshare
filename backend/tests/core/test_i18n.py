@@ -62,6 +62,7 @@ class TestUserLanguagePreference:
             {'code': 'en', 'name': 'English'},
             {'code': 'zh-hans', 'name': '简体中文'},
             {'code': 'ru', 'name': 'Русский'},
+            {'code': 'de', 'name': 'Deutsch'},
         ]
 
     def test_api_error_respects_accept_language_header(self, api_client):
@@ -88,10 +89,23 @@ class TestUserLanguagePreference:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
         assert resp.data['old_password'] == ['Неверный пароль.']
 
+    def test_api_error_in_german(self, api_client):
+        """Verify API response error messages in German when Accept-Language: de."""
+        url = reverse('set_password')
+        payload = {
+            'old_password': 'wrong_password',
+            'new_password1': 'new_pass123',
+            'new_password2': 'new_pass123',
+        }
+        resp = api_client.post(url, payload, HTTP_ACCEPT_LANGUAGE='de')
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.data['old_password'] == ['Falsches Passwort.']
+
     @pytest.mark.parametrize("lang, expected_subject, expected_snippet", [
         ("en", "Verify your Coneshare account", "Welcome to Coneshare."),
         ("zh-hans", "验证您的 Coneshare 账号", "欢迎使用 Coneshare。"),
         ("ru", "Подтвердите ваш аккаунт Coneshare", "Добро пожаловать в Coneshare."),
+        ("de", "Bestätigen Sie Ihr Coneshare-Konto", "Willkommen bei Coneshare."),
     ])
     def test_signup_verification_email_task_language_override(self, mailoutbox, lang, expected_subject, expected_snippet):
         """Verify Celery signup verification email task respects language override for subject and body."""
@@ -139,6 +153,7 @@ class TestUserLanguagePreference:
         ("en", "Verify your email to view 'Test Document.pdf'", "Please click the link below to view 'Test Document.pdf'."),
         ("zh-hans", "请验证您的邮箱以查看“Test Document.pdf”", "请点击下方链接查看“Test Document.pdf”："),
         ("ru", "Подтвердите email для просмотра «Test Document.pdf»", "Пожалуйста, перейдите по ссылке ниже для просмотра «Test Document.pdf»."),
+        ("de", "Bestätigen Sie Ihre E-Mail-Adresse, um „Test Document.pdf“ anzuzeigen", "Bitte klicken Sie auf den unten stehenden Link, um „Test Document.pdf“ anzuzeigen."),
     ])
     def test_sharelink_email_verification_language(self, mailoutbox, share_link_requires_email_verification, lang, expected_subject, expected_snippet):
         """Verify sharelink magic link email verification respects Accept-Language header."""
@@ -157,6 +172,7 @@ class TestUserLanguagePreference:
         ("en", "Your shared item 'Test Document.pdf' was viewed", "Just letting you know that your shared item, 'Test Document.pdf', was viewed."),
         ("zh-hans", "您分享的“Test Document.pdf”已被查看", "特此通知：您分享的“Test Document.pdf”已被查看。"),
         ("ru", "Ваш общий объект «Test Document.pdf» был просмотрен", "Сообщаем, что ваш общий объект «Test Document.pdf» был просмотрен."),
+        ("de", "Ihr geteiltes Element „Test Document.pdf“ wurde aufgerufen", "Ihr geteiltes Element „Test Document.pdf“ wurde soeben aufgerufen."),
     ])
     def test_sharelink_view_notification_email_owner_language(self, mailoutbox, share_link, lang, expected_subject, expected_snippet):
         """Verify sharelink view notification email respects the link owner's preferred language."""
@@ -219,6 +235,7 @@ class TestUserLanguagePreference:
         ("en", "Unknown Location"),
         ("zh-hans", "未知位置"),
         ("ru", "Неизвестное местоположение"),
+        ("de", "Unbekannter Standort"),
     ])
     def test_sharelink_view_notification_email_fallbacks_translated(self, mailoutbox, share_link, lang, expected_loc):
         """Verify fallback values (Unknown Location) are translated to the owner's language."""
@@ -262,10 +279,12 @@ class TestUserLanguagePreference:
     @pytest.mark.parametrize("accept, user_lang, req_lang, expected", [
         ("zh-CN,zh;q=0.9", "ru", "en", "zh-hans"),
         ("ru-RU,ru;q=0.9", None, "en", "ru"),
+        ("de-DE,de;q=0.9", None, "en", "de"),
         ("fr-FR,fr;q=0.9", "zh-hans", "en", "zh-hans"),
         ("fr-FR,fr;q=0.9", None, "zh-hans", "zh-hans"),
         ("fr-FR,fr;q=0.9", None, None, "en"),
         ("", "ru", "en", "ru"),
+        ("", "de", "en", "de"),
         ("", None, "zh-hans", "zh-hans"),
         ("", None, None, "en"),
     ])

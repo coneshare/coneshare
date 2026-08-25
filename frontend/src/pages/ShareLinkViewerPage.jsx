@@ -33,6 +33,7 @@ import { useTranslation } from 'react-i18next';
 const PREVIEW_POLL_INTERVAL_MS = 3000;
 
 function PreviewBanner({ onClose }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -61,19 +62,19 @@ function PreviewBanner({ onClose }) {
       <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/95 p-3 shadow-lg backdrop-blur-sm dark:border-amber-900/50 dark:bg-amber-950/90">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
         <div className="flex-1 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
-          <span className="font-semibold">Owner Preview Mode:</span> Authorization steps (such as passwords or email checks) are bypassed. To test the full recipient experience,{' '}
+          <span className="font-semibold">{t('viewer.ownerPreviewMode')}</span> {t('viewer.ownerPreviewDesc')}{' '}
           <button
             onClick={handleCopy}
             className="font-semibold underline hover:text-amber-950 dark:hover:text-white"
           >
-            {copied ? 'Copied!' : 'copy the clean link'}
+            {copied ? t('viewer.copied') : t('viewer.copyCleanLink')}
           </button>{' '}
-          and open it in an incognito window.
+          {t('viewer.openIncognito')}
         </div>
         <button
           onClick={onClose}
           className="rounded-md p-0.5 text-amber-800/60 hover:bg-amber-100 hover:text-amber-800 dark:text-amber-300/60 dark:hover:bg-amber-900/50 dark:hover:text-amber-300"
-          title="Dismiss banner"
+          title={t('viewer.dismissBanner')}
         >
           <X className="h-4 w-4" />
         </button>

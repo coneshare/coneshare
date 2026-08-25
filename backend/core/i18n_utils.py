@@ -19,6 +19,8 @@ def normalize_language_code(code: Optional[str]) -> Optional[str]:
         return 'zh-hans'
     if code.startswith('ru'):
         return 'ru'
+    if code.startswith('de'):
+        return 'de'
     if code.startswith('en'):
         return 'en'
     prefix = code.split('-')[0]

@@ -6,6 +6,7 @@
     "loading": "Loading...",
     "saving": "Saving...",
     "error": "An error occurred",
+    "errorOccurred": "An unexpected error occurred.",
     "success": "Success",
     "change": "Change",
     "remove": "Remove",
@@ -386,6 +387,7 @@
     "create": "Create Dataroom",
     "addDataroom": "Add Dataroom",
     "dataroomRoot": "Dataroom Root",
+    "backToParent": "Back to parent",
     "moveItemsDescription": "Select a destination folder to move the selected items.",
     "noDatarooms": "No datarooms created yet",
     "noDataroomsFound": "No datarooms found",
@@ -581,6 +583,12 @@
     "httpMethod": "Method"
   },
   "viewer": {
+    "ownerPreviewMode": "Owner Preview Mode:",
+    "ownerPreviewDesc": "Authorization steps (such as passwords or email checks) are bypassed. To test the full recipient experience,",
+    "copyCleanLink": "copy the clean link",
+    "copied": "Copied!",
+    "openIncognito": "and open it in an incognito window.",
+    "dismissBanner": "Dismiss banner",
     "enterPassword": "Enter Password",
     "acceptNDA": "Accept NDA",
     "submit": "Submit",

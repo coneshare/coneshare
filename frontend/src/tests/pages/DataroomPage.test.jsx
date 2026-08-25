@@ -233,6 +233,27 @@ describe('DataroomPage', () => {
             });
         });
 
+        it('should navigate back to parent folder when Back to parent button is clicked', async () => {
+            const user = userEvent.setup();
+            renderComponent();
+
+            const folderItem = await screen.findByText('Sub Folder');
+            await user.click(folderItem);
+            await waitFor(() => {
+                expect(screen.getByText('Nested Document')).toBeInTheDocument();
+            });
+
+            // Click Back to parent button
+            const backButton = screen.getByRole('button', { name: /back to parent/i });
+            expect(backButton).toBeInTheDocument();
+            await user.click(backButton);
+
+            await waitFor(() => {
+                expect(screen.getByText('Root Document')).toBeInTheDocument();
+                expect(screen.queryByText('Nested Document')).not.toBeInTheDocument();
+            });
+        });
+
         it('should display empty state when navigating into an empty folder', async () => {
             api.getDataroomFolderContents.mockResolvedValue({ data: mockEmptySubFolderContent });
             const user = userEvent.setup();
