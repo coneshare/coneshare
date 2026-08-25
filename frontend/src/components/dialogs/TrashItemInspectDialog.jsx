@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { formatDate, formatRelativeTime } from '../../utils/formatters';
-import { AlertTriangle, RefreshCw, Trash2, Folder, HardDrive, Calendar, Eye } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Trash2, Folder, HardDrive, Calendar, Eye, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../ui/Button';
 import {
@@ -20,6 +20,8 @@ export function TrashItemInspectDialog({
   item,
   onRestore,
   onPermanentDelete,
+  isRestoring = false,
+  isCurrentItemRestoring = false,
 }) {
   const { t } = useTranslation();
 
@@ -31,7 +33,7 @@ export function TrashItemInspectDialog({
   const locationLink = isRoot ? '/documents' : `/documents/folders/${item.parent_id}`;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => !isRestoring && onOpenChange(open)}>
       <DialogContent className="sm:max-w-[460px] max-w-[calc(100vw-2rem)] p-6 overflow-hidden">
         <DialogHeader className="pb-2 overflow-hidden">
           <div className="flex items-start gap-3 min-w-0">
@@ -66,7 +68,13 @@ export function TrashItemInspectDialog({
             </div>
             <Link
               to={locationLink}
-              onClick={() => onOpenChange(false)}
+              onClick={(e) => {
+                if (isRestoring) {
+                  e.preventDefault();
+                  return;
+                }
+                onOpenChange(false);
+              }}
               className="font-medium hover:underline text-foreground truncate max-w-[220px]"
             >
               {locationLabel}
@@ -110,6 +118,7 @@ export function TrashItemInspectDialog({
           <Button
             type="button"
             variant="destructive"
+            disabled={isRestoring}
             onClick={() => {
               onOpenChange(false);
               onPermanentDelete(item);
@@ -121,14 +130,24 @@ export function TrashItemInspectDialog({
           </Button>
           <Button
             type="button"
+            disabled={isRestoring}
             onClick={() => {
               onOpenChange(false);
               onRestore(item);
             }}
             className="gap-1.5"
           >
-            <RefreshCw className="h-4 w-4" />
-            {t('trash.restoreItem', { type: isFolder ? t('trash.folderType') : t('trash.documentType') })}
+            {isCurrentItemRestoring ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t('trash.restoring')}
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4" />
+                {t('trash.restoreItem', { type: isFolder ? t('trash.folderType') : t('trash.documentType') })}
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -25,7 +25,8 @@
     "updated": "Updated",
     "name": "Name",
     "back": "Back",
-    "moving": "Moving..."
+    "moving": "Moving...",
+    "creating": "Creating..."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -671,6 +672,7 @@
     "deletedDate": "Deleted Date",
     "size": "Size",
     "restore": "Restore",
+    "restoring": "Restoring...",
     "restoreSelected": "Restore Selected",
     "restoreSelectedTitle": "Restore Selected Items?",
     "restoreSelectedDescription": "Restore {{count}} selected item(s) back to their original locations?",

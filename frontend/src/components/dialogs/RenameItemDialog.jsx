@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { renameDocument, renameFolder, updateDataroom, renameDataroomFolder, renameDataroomDocument } from "../../services/api";
 import { getLocalizedErrorMessage } from "../../utils/errorTranslator";
@@ -28,16 +29,26 @@ export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess, contex
     }
   }, [item]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      setIsSaving(false);
+      setError(null);
+    }
+  }, [isOpen]);
+
   if (!item) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const trimmedName = newName.trim();
+    if (!trimmedName || isSaving) return;
+
     setIsSaving(true);
     setError(null);
 
     try {
       if (item.type === 'Dataroom') {
-        await updateDataroom(item.id, { name: newName });
+        await updateDataroom(item.id, { name: trimmedName });
       } else {
         let renameFn;
         if (context === 'dataroom') {
@@ -45,9 +56,9 @@ export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess, contex
         } else { // documents context
           renameFn = item.type === "document" ? renameDocument : renameFolder;
         }
-        await renameFn(item.id, newName);
+        await renameFn(item.id, trimmedName);
       }
-      toast.success(`"${item.name}" was renamed to "${newName}".`);
+      toast.success(`"${item.name}" was renamed to "${trimmedName}".`);
       onSuccess(); // This will trigger a data refresh
       onOpenChange(false); // Close the dialog
     } catch (err) {
@@ -59,7 +70,11 @@ export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess, contex
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!isSaving) {
+        onOpenChange(open);
+      }
+    }}>
       <DialogContent className="sm:max-w-[425px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
@@ -78,6 +93,7 @@ export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess, contex
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 className="col-span-3"
+                disabled={isSaving}
                 required
               />
             </div>
@@ -87,12 +103,24 @@ export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess, contex
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => {
+                if (!isSaving) {
+                  onOpenChange(false);
+                }
+              }}
+              disabled={isSaving}
             >
               {t('common.cancel')}
             </Button>
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? t('common.saving') : t('documents.rename')}
+            <Button type="submit" disabled={isSaving || !newName.trim()}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t('common.saving')}
+                </>
+              ) : (
+                t('documents.rename')
+              )}
             </Button>
           </DialogFooter>
         </form>

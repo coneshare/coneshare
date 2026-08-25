@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FolderPlusIcon } from 'lucide-react';
+import { FolderPlusIcon, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -18,11 +18,24 @@ export function MoveItemsDialog({ isOpen, onOpenChange, onConfirm, selectedFolde
   const { t } = useTranslation();
   const [destinationFolder, setDestinationFolder] = useState(null);
   const [isAddFolderOpen, setIsAddFolderOpen] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
   // A key to force re-mounting of FolderBrowser when a new folder is created
   const [browserKey, setBrowserKey] = useState(Date.now());
 
-  const handleMoveHere = () => {
-    onConfirm(destinationFolder?.id || null);
+  useEffect(() => {
+    if (!isOpen) {
+      setIsMoving(false);
+    }
+  }, [isOpen]);
+
+  const handleMoveHere = async () => {
+    if (isMoving) return;
+    setIsMoving(true);
+    try {
+      await onConfirm(destinationFolder?.id || null);
+    } finally {
+      setIsMoving(false);
+    }
   };
 
   const handleCreateFolder = async (name) => {
@@ -38,7 +51,11 @@ export function MoveItemsDialog({ isOpen, onOpenChange, onConfirm, selectedFolde
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!isMoving) {
+        onOpenChange(open);
+      }
+    }}>
       <AddFolderDialog
         isOpen={isAddFolderOpen}
         onOpenChange={setIsAddFolderOpen}
@@ -61,16 +78,36 @@ export function MoveItemsDialog({ isOpen, onOpenChange, onConfirm, selectedFolde
         </div>
         
         <DialogFooter className="sm:justify-between">
-          <Button variant="outline" onClick={() => setIsAddFolderOpen(true)}>
+          <Button
+            variant="outline"
+            onClick={() => setIsAddFolderOpen(true)}
+            disabled={isMoving}
+          >
             <FolderPlusIcon className="mr-2 h-4 w-4" />
             {t('documents.createFolder')}
           </Button>
           <div className="flex gap-x-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (!isMoving) {
+                  onOpenChange(false);
+                }
+              }}
+              disabled={isMoving}
+            >
               {t('common.cancel')}
             </Button>
-            <Button onClick={handleMoveHere}>
-              {t('documents.move')}
+            <Button onClick={handleMoveHere} disabled={isMoving}>
+              {isMoving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t('common.moving')}
+                </>
+              ) : (
+                t('documents.move')
+              )}
             </Button>
           </div>
         </DialogFooter>

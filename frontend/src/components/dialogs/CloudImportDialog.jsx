@@ -95,7 +95,11 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
   const breadcrumbsPath = '/' + breadcrumbs.join('/');
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!importingFileId) {
+        onOpenChange(open);
+      }
+    }}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>{t('cloudImport.title', { provider: provider?.display_name || '' })}</DialogTitle>
@@ -164,7 +168,7 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
                       <Button
                         size="sm"
                         onClick={() => handleImportClick(item)}
-                        disabled={importingFileId === item.id}
+                        disabled={importingFileId !== null}
                       >
                         {importingFileId === item.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -181,7 +185,15 @@ export function CloudImportDialog({ isOpen, onOpenChange, provider, connection, 
         )}
       </div>
       <div className="mt-6 flex justify-end">
-        <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <Button
+          variant="outline"
+          onClick={() => {
+            if (importingFileId === null) {
+              onOpenChange(false);
+            }
+          }}
+          disabled={importingFileId !== null}
+        >
           {t('uploads.close')}
         </Button>
       </div>

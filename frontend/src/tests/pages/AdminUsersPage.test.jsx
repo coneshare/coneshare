@@ -218,4 +218,98 @@ describe('AdminUsersPage', () => {
       expect(api.getAdminUsers).toHaveBeenCalledWith(2);
     });
   });
+
+  it('disables Add User button and inputs while creating a user', async () => {
+    let resolveCreate;
+    api.createAdminUser.mockReturnValue(new Promise((resolve) => {
+      resolveCreate = resolve;
+    }));
+
+    render(
+      <MemoryRouter>
+        <AdminUsersPage />
+      </MemoryRouter>
+    );
+
+    const addUserButton = await screen.findByRole('button', { name: /add user/i });
+    fireEvent.click(addUserButton);
+
+    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: 'Charlie Brown' } });
+    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'charlie@example.com' } });
+    fireEvent.change(screen.getByLabelText(/username/i), { target: { value: 'charlie' } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'supersecret' } });
+
+    const submitButton = screen.getByRole('button', { name: 'Add User' });
+    const cancelButton = screen.getByRole('button', { name: 'Cancel' });
+
+    // First click
+    fireEvent.click(submitButton);
+
+    expect(api.createAdminUser).toHaveBeenCalledTimes(1);
+    expect(submitButton).toBeDisabled();
+    expect(cancelButton).toBeDisabled();
+    expect(screen.getByLabelText(/full name/i)).toBeDisabled();
+
+    // Second click during in-flight
+    fireEvent.click(submitButton);
+    expect(api.createAdminUser).toHaveBeenCalledTimes(1);
+
+    resolveCreate({
+      data: {
+        id: 'user-3',
+        name: 'Charlie Brown',
+        email: 'charlie@example.com',
+        role: 'member',
+        is_active: true,
+        file_size_quota_mb: 100,
+        custom_file_size_quota_mb: null,
+        total_document_size: 0,
+        date_joined: new Date().toISOString(),
+      },
+    });
+  });
+
+  it('disables inline save button and inputs while saving', async () => {
+    let resolveUpdate;
+    api.updateAdminUser.mockReturnValue(new Promise((resolve) => {
+      resolveUpdate = resolve;
+    }));
+
+    render(
+      <MemoryRouter>
+        <AdminUsersPage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Alice Smith');
+
+    const editButtons = screen.getAllByTitle(/edit/i);
+    fireEvent.click(editButtons[0]);
+
+    const saveButton = screen.getByTitle(/save/i);
+    const cancelButton = screen.getByTitle(/cancel/i);
+
+    // First click
+    fireEvent.click(saveButton);
+
+    expect(api.updateAdminUser).toHaveBeenCalledTimes(1);
+    expect(saveButton).toBeDisabled();
+    expect(cancelButton).toBeDisabled();
+
+    // Other rows' Edit buttons should also be disabled while saving
+    screen.getAllByTitle(/edit/i).forEach((btn) => {
+      expect(btn).toBeDisabled();
+    });
+
+    // Second click
+    fireEvent.click(saveButton);
+    expect(api.updateAdminUser).toHaveBeenCalledTimes(1);
+
+    resolveUpdate({
+      data: {
+        ...mockUsers[0],
+        name: 'Alice Smith Updated',
+      },
+    });
+  });
 });

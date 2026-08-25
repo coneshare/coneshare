@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -15,23 +16,35 @@ import { Label } from '../ui/Label';
 export function AddFolderDialog({ isOpen, onOpenChange, onConfirm }) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Reset name when dialog is closed
+  // Reset name and submitting state when dialog is closed
   useEffect(() => {
     if (!isOpen) {
       setName('');
+      setIsSubmitting(false);
     }
   }, [isOpen]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (name.trim()) {
-      onConfirm(name.trim());
+    const trimmedName = name.trim();
+    if (!trimmedName || isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      await onConfirm(trimmedName);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!isSubmitting) {
+        onOpenChange(open);
+      }
+    }}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{t('documents.newFolderTitle')}</DialogTitle>
@@ -48,17 +61,38 @@ export function AddFolderDialog({ isOpen, onOpenChange, onConfirm }) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t('documents.folderNamePlaceholder')}
+                disabled={isSubmitting}
                 autoFocus
               />
             </div>
           </div>
         </form>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              if (!isSubmitting) {
+                onOpenChange(false);
+              }
+            }}
+            disabled={isSubmitting}
+          >
             {t('common.cancel')}
           </Button>
-          <Button type="submit" form="add-folder-form" disabled={!name.trim()}>
-            {t('documents.createFolder')}
+          <Button
+            type="submit"
+            form="add-folder-form"
+            disabled={isSubmitting || !name.trim()}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t('common.creating')}
+              </>
+            ) : (
+              t('documents.createFolder')
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

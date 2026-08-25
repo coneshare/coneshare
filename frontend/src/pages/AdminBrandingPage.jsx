@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Upload, X, Globe, Type, Image as ImageIcon, FileText, Shield } from 'lucide-react';
+import { Upload, X, Globe, Type, Image as ImageIcon, FileText, Shield, Loader2 } from 'lucide-react';
 import { AdminNav } from '../components/admin/AdminNav';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -371,7 +371,14 @@ export function AdminBrandingPage() {
                 {t('admin.reset')}
               </Button>
               <Button type="submit" disabled={!isDirty || isSaving}>
-                {isSaving ? t('common.saving') : t('common.save')}
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {t('common.saving')}
+                  </>
+                ) : (
+                  t('common.save')
+                )}
               </Button>
             </div>
           </form>

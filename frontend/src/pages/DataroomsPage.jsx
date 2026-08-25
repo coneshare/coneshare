@@ -48,9 +48,10 @@ export function DataroomsPage() {
     try {
       await deleteDataroom(dataroomToDelete.id);
       toast.success(`Dataroom "${dataroomToDelete.name}" deleted successfully.`);
-      fetchDatarooms();
-    } finally {
       setDataroomToDelete(null);
+      fetchDatarooms();
+    } catch (error) {
+      // Error toast handled by interceptor
     }
   };
 

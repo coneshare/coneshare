@@ -97,6 +97,8 @@ export function FileRequestsPage() {
     try {
       await deleteFileRequest(selectedRequest.id);
       toast.success('File request deleted successfully.');
+      setIsDeleteConfirmOpen(false);
+      setSelectedRequest(null);
       // If the deleted item was the last one on a page > 1, go to previous page.
       if (fileRequests.length === 1 && currentPage > 1) {
         setCurrentPage(currentPage - 1);
@@ -105,9 +107,6 @@ export function FileRequestsPage() {
       }
     } catch (error) {
       console.error('Failed to delete file request:', error);
-    } finally {
-      setIsDeleteConfirmOpen(false);
-      setSelectedRequest(null);
     }
   };
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Loader2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
@@ -107,6 +108,7 @@ export function AutomationBuilder({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Investor Link Alerts"
+          disabled={loading}
           required
         />
       </div>
@@ -115,9 +117,10 @@ export function AutomationBuilder({
         <Label htmlFor="scope-type">{t('analytics.scope')}</Label>
         <select
           id="scope-type"
-          className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm"
+          className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
           value={scopeType}
           onChange={(e) => setScopeType(e.target.value)}
+          disabled={loading}
         >
           <option value="global">{t('automations.scopeGlobal')}</option>
           <option value="share_link">{t('automations.scopeLink')}</option>
@@ -130,9 +133,10 @@ export function AutomationBuilder({
           <Label htmlFor="share-link">{t('shareLinks.title')}</Label>
           <select
             id="share-link"
-            className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm"
+            className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
             value={shareLinkId}
             onChange={(e) => setShareLinkId(e.target.value)}
+            disabled={loading}
             required
           >
             <option value="">{t('common.none')}</option>
@@ -150,9 +154,10 @@ export function AutomationBuilder({
           <Label htmlFor="dataroom">{t('datarooms.title')}</Label>
           <select
             id="dataroom"
-            className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm"
+            className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
             value={dataroomId}
             onChange={(e) => setDataroomId(e.target.value)}
+            disabled={loading}
             required
           >
             <option value="">{t('common.none')}</option>
@@ -171,16 +176,12 @@ export function AutomationBuilder({
           {eventOptions.map((option) => (
             <label
               key={option.value}
-              className={`flex items-center gap-2 rounded border px-2 py-1 text-sm ${
-                option.value === 'file_request_uploaded' && scopeType !== 'global'
-                  ? 'cursor-not-allowed opacity-50'
-                  : ''
-              }`}
+              className="flex items-center gap-2 rounded border px-2 py-1 text-sm"
             >
               <input
                 type="checkbox"
                 checked={subscribedEvents.includes(option.value)}
-                disabled={option.value === 'file_request_uploaded' && scopeType !== 'global'}
+                disabled={loading || (option.value === 'file_request_uploaded' && scopeType !== 'global')}
                 onChange={() => toggleEvent(option.value)}
               />
               {option.label}
@@ -203,6 +204,7 @@ export function AutomationBuilder({
               <input
                 type="checkbox"
                 checked={selectedDestinationIds.includes(destination.id)}
+                disabled={loading}
                 onChange={() => toggleDestination(destination.id)}
               />
               {destination.name} ({destination.destination_type})
@@ -216,10 +218,23 @@ export function AutomationBuilder({
 
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={!canSubmit || loading} className="w-full sm:w-auto">
-          {loading ? t('common.saving') : submitLabel}
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {t('common.saving')}
+            </>
+          ) : (
+            submitLabel
+          )}
         </Button>
         {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel} className="w-full sm:w-auto">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={loading}
+            className="w-full sm:w-auto"
+          >
             {t('common.cancel')}
           </Button>
         )}

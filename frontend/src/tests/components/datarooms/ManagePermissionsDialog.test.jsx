@@ -302,4 +302,50 @@ describe('ManagePermissionsDialog', () => {
     expect(await screen.findByText('New Folder')).toBeInTheDocument();
     expect(screen.queryByText('Folder A')).not.toBeInTheDocument();
   });
+
+  it('disables buttons and prevents duplicate submissions while saving', async () => {
+    let resolvePromise;
+    api.updateDataroomLinkSettings.mockReturnValue(new Promise((resolve) => {
+      resolvePromise = resolve;
+    }));
+
+    renderComponent();
+
+    expect(await screen.findByText('Folder A')).toBeInTheDocument();
+
+    // Toggle a setting to create a change
+    const downloadCheckboxes = screen.getAllByRole('checkbox');
+    await userEvent.click(downloadCheckboxes[0]);
+
+    const saveBtn = screen.getByRole('button', { name: 'Save Changes' });
+    const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+
+    // First click
+    await userEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Saving...')).toBeInTheDocument();
+    });
+
+    const savingBtn = screen.getByRole('button', { name: /saving/i });
+    expect(savingBtn).toBeDisabled();
+    expect(cancelBtn).toBeDisabled();
+
+    // Checkboxes should be disabled while saving
+    screen.getAllByRole('checkbox').forEach((checkbox) => {
+      expect(checkbox).toBeDisabled();
+    });
+
+    // Second click should be ignored
+    await userEvent.click(savingBtn);
+    expect(api.updateDataroomLinkSettings).toHaveBeenCalledTimes(1);
+
+    // Complete saving
+    resolvePromise({});
+
+    await waitFor(() => {
+      expect(mockOnSuccess).toHaveBeenCalled();
+      expect(mockOnOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
 });

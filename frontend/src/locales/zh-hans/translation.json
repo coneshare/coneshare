@@ -25,7 +25,8 @@
     "updated": "更新时间",
     "name": "名称",
     "back": "返回",
-    "moving": "移动中..."
+    "moving": "移动中...",
+    "creating": "创建中..."
   },
   "dashboard": {
     "title": "仪表盘",
@@ -667,6 +668,7 @@
     "deletedDate": "删除日期",
     "size": "大小",
     "restore": "还原",
+    "restoring": "恢复中...",
     "restoreSelected": "还原选中项",
     "restoreSelectedTitle": "还原选中的项目？",
     "restoreSelectedDescription": "将 {{count}} 个选中的项目还原到其原始位置？",

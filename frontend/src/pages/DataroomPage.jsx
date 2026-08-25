@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
-import { ShareIcon, Star, ArrowLeft, ChevronDown, FolderUp, Plus } from 'lucide-react';
+import { ShareIcon, Star, ArrowLeft, ChevronDown, FolderUp, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, removeContentFromDataroom, updateDataroomFolder, updateDataroomDocument, updateDataroomBranding, reorderDataroomItems, deleteDataroom, ensureDataroomFolderPaths, uploadDataroomDocument } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
@@ -469,11 +469,12 @@ export function DataroomPage() {
     try {
       await deleteShareLink(linkToDelete.id);
       toast.success(`Link "${linkToDelete.name || 'Untitled Link'}" deleted successfully.`);
-      fetchLinks();
-      fetchViews();
-    } finally {
       setIsDeleteDialogOpen(false);
       setLinkToDelete(null);
+      fetchLinks();
+      fetchViews();
+    } catch (error) {
+      // Error toast handled by interceptor
     }
   };
     
@@ -517,12 +518,11 @@ export function DataroomPage() {
         dataroom_folder_ids: selection.folders,
       });
       toast.success(t('datarooms.removeItemsSuccess'));
+      setIsRemoveContentDialogOpen(false);
       fetchContent(); // Refresh
       handleClearSelection();
     } catch (error) {
       // Error toast handled by interceptor
-    } finally {
-      setIsRemoveContentDialogOpen(false);
     }
   };
 
@@ -543,11 +543,10 @@ export function DataroomPage() {
         dataroom_folder_ids: itemToRemove.type === 'folder' ? [itemToRemove.id] : [],
       });
       toast.success(t('datarooms.removeItemSuccess', { name: itemToRemove.name }));
+      setItemToRemove(null);
       fetchContent();
     } catch (error) {
       // Error toast handled by interceptor
-    } finally {
-      setItemToRemove(null);
     }
   };
 
@@ -1264,6 +1263,7 @@ export function DataroomPage() {
       <Dialog
         open={isDeleteDataroomDialogOpen}
         onOpenChange={(isOpen) => {
+          if (isDeletingDataroom) return;
           setIsDeleteDataroomDialogOpen(isOpen);
           if (!isOpen) {
             setDeleteConfirmationName('');
@@ -1284,6 +1284,7 @@ export function DataroomPage() {
               value={deleteConfirmationName}
               onChange={(e) => setDeleteConfirmationName(e.target.value)}
               placeholder={dataroom.name}
+              disabled={isDeletingDataroom}
               autoComplete="off"
             />
           </div>
@@ -1305,7 +1306,14 @@ export function DataroomPage() {
               onClick={handleDeleteDataroom}
               disabled={isDeletingDataroom || deleteConfirmationName !== dataroom.name}
             >
-              {isDeletingDataroom ? t('common.deleting') : t('datarooms.deleteDataroomTitle')}
+              {isDeletingDataroom ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t('common.deleting')}
+                </>
+              ) : (
+                t('datarooms.deleteDataroomTitle')
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

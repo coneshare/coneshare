@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Loader2 } from 'lucide-react';
 
 import {
   Sheet,
@@ -156,6 +156,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!name.trim()) {
       toast.error('Name is required.');
       return;
@@ -214,7 +215,11 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
   };
   
   return (
-    <Sheet open={isOpen} onOpenChange={onOpenChange}>
+    <Sheet open={isOpen} onOpenChange={(open) => {
+      if (!isSubmitting) {
+        onOpenChange(open);
+      }
+    }}>
       <SheetContent className="sm:max-w-3xl flex flex-col">
         <SheetHeader>
           <SheetTitle>{isEditing ? t('fileRequests.editFileRequest') : t('fileRequests.createFileRequestTitle')}</SheetTitle>
@@ -242,6 +247,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t('fileRequests.namePlaceholder')}
+              disabled={isSubmitting}
             />
           </div>
           <div>
@@ -251,6 +257,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder={t('fileRequests.messagePlaceholder')}
+              disabled={isSubmitting}
             />
           </div>
           <div>
@@ -260,6 +267,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
               type="datetime-local"
               value={expiresAt}
               onChange={(e) => setExpiresAt(e.target.value)}
+              disabled={isSubmitting}
             />
           </div>
           <div>
@@ -270,6 +278,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
               value={maxFileSize}
               onChange={(e) => setMaxFileSize(e.target.value)}
               placeholder={t('fileRequests.maxFileSizePlaceholder')}
+              disabled={isSubmitting}
             />
           </div>
           <div>
@@ -279,6 +288,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
               value={allowedFileTypes}
               onChange={(e) => setAllowedFileTypes(e.target.value)}
               placeholder={t('fileRequests.allowedFileTypesPlaceholder')}
+              disabled={isSubmitting}
             />
             <p className="mt-1 text-xs text-muted-foreground">
               {t('fileRequests.allowedFileTypesHelp')}
@@ -292,7 +302,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
                   {t('fileRequests.customIntakeFieldsHelp')}
                 </p>
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={addCustomField}>
+              <Button type="button" variant="outline" size="sm" onClick={addCustomField} disabled={isSubmitting}>
                 <Plus className="mr-2 h-4 w-4" />
                 {t('fileRequests.addField')}
               </Button>
@@ -304,7 +314,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
                   <div key={field.id} className="rounded-md border bg-muted/20 p-3">
                     <div className="mb-3 flex items-center justify-between gap-2">
                       <span className="text-sm font-medium">{t('fileRequests.fieldIndex', { index: index + 1 })}</span>
-                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeCustomField(field.id)}>
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeCustomField(field.id)} disabled={isSubmitting}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -316,6 +326,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
                           value={field.label}
                           onChange={(e) => updateCustomField(field.id, { label: e.target.value })}
                           placeholder="e.g., Case Number"
+                          disabled={isSubmitting}
                         />
                       </div>
                       <div>
@@ -324,7 +335,8 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
                           id={`${field.id}-type`}
                           value={field.type}
                           onChange={(e) => updateCustomField(field.id, { type: e.target.value })}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          disabled={isSubmitting}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {fieldTypes.map((type) => (
                             <option key={type.value} value={type.value}>{type.label}</option>
@@ -338,6 +350,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
                           value={field.placeholder}
                           onChange={(e) => updateCustomField(field.id, { placeholder: e.target.value })}
                           placeholder={t('common.none')}
+                          disabled={isSubmitting}
                         />
                       </div>
                       <label className="flex items-center gap-2 sm:pt-7 text-sm">
@@ -345,6 +358,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
                           type="checkbox"
                           checked={field.required}
                           onChange={(e) => updateCustomField(field.id, { required: e.target.checked })}
+                          disabled={isSubmitting}
                         />
                         {t('fileRequests.fieldRequired')}
                       </label>
@@ -358,6 +372,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
                           onChange={(e) => updateCustomField(field.id, { optionsText: e.target.value })}
                           rows={2}
                           placeholder={t('fileRequests.fieldOptionsPlaceholder')}
+                          disabled={isSubmitting}
                         />
                       </div>
                     )}
@@ -370,7 +385,16 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
         </form>
         <SheetFooter>
           <Button type="submit" form="file-request-form" disabled={isSubmitting || isFolderLoading}>
-            {isSubmitting ? t('common.saving') : isEditing ? t('common.save') : t('fileRequests.createLink')}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t('common.saving')}
+              </>
+            ) : isEditing ? (
+              t('common.save')
+            ) : (
+              t('fileRequests.createLink')
+            )}
           </Button>
         </SheetFooter>
       </SheetContent>

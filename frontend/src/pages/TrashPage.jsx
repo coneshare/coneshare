@@ -24,6 +24,7 @@ export default function TrashPage() {
   const [isBulkRestoreOpen, setIsBulkRestoreOpen] = useState(false);
   const [inspectingItem, setInspectingItem] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null);
+  const [restoringId, setRestoringId] = useState(null);
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -81,6 +82,8 @@ export default function TrashPage() {
 
   // Single Item Restore
   const handleRestore = async (item) => {
+    if (restoringId !== null) return;
+    setRestoringId(item.id);
     try {
       const res = await restoreTrashItem(item.id);
       const msg = res?.data?.detail || t('trash.restoreSuccess', { name: item.name });
@@ -89,32 +92,35 @@ export default function TrashPage() {
     } catch (error) {
       const errorMsg = error.response?.data?.detail || t('trash.restoreFailed', { name: item.name });
       toast.error(errorMsg);
+    } finally {
+      setRestoringId(null);
     }
   };
 
   // Single Item Delete
   const confirmPermanentDelete = (item) => {
+    if (restoringId !== null) return;
     setItemToDelete(item);
     setIsConfirmDeleteOpen(true);
   };
 
   const handlePermanentDelete = async () => {
-    if (!itemToDelete) return;
+    if (!itemToDelete || restoringId !== null) return;
     try {
       await permanentDeleteTrashItem(itemToDelete.id);
       toast.success(t('trash.deleteSingleSuccess', { name: itemToDelete.name }));
       if (refreshUser) refreshUser();
-      fetchTrash(page);
-    } catch (error) {
-      toast.error(t('trash.deleteSingleFailed', { name: itemToDelete.name }));
-    } finally {
       setIsConfirmDeleteOpen(false);
       setItemToDelete(null);
+      await fetchTrash(page);
+    } catch (error) {
+      toast.error(t('trash.deleteSingleFailed', { name: itemToDelete.name }));
     }
   };
 
   // Bulk Operations
   const handleBulkRestore = async () => {
+    if (restoringId !== null) return;
     const selectedItems = items.filter((item) => selectedKeys.has(`${item.item_type}-${item.id}`));
     let successCount = 0;
     let lastErrorMessage = null;
@@ -136,11 +142,12 @@ export default function TrashPage() {
     } else {
       toast.error(lastErrorMessage || t('trash.restoreBulkFailed'));
     }
+    await fetchTrash(page);
     setIsBulkRestoreOpen(false);
-    fetchTrash(page);
   };
 
   const handleBulkDelete = async () => {
+    if (restoringId !== null) return;
     const selectedItems = items.filter((item) => selectedKeys.has(`${item.item_type}-${item.id}`));
     let successCount = 0;
 
@@ -154,22 +161,23 @@ export default function TrashPage() {
     }
 
     toast.success(t('trash.deleteBulkSuccess', { successCount, totalCount: selectedItems.length }));
-    setIsBulkDeleteOpen(false);
     if (refreshUser) refreshUser();
-    fetchTrash();
+    await fetchTrash(page);
+    setIsBulkDeleteOpen(false);
   };
 
   // Empty Trash
   const handleEmptyTrash = async () => {
+    if (restoringId !== null) return;
     try {
       await emptyTrash();
       toast.success(t('trash.emptyTrashSuccess'));
       if (refreshUser) refreshUser();
-      fetchTrash();
+      setPage(1);
+      await fetchTrash(1);
+      setIsConfirmEmptyOpen(false);
     } catch (error) {
       toast.error(t('trash.emptyTrashFailed'));
-    } finally {
-      setIsConfirmEmptyOpen(false);
     }
   };
 
@@ -190,7 +198,7 @@ export default function TrashPage() {
           </div>
           <Button
             variant="destructive"
-            disabled={items.length === 0 || loading}
+            disabled={items.length === 0 || loading || restoringId !== null}
             onClick={() => setIsConfirmEmptyOpen(true)}
           >
             {t('trash.emptyTrash')}
@@ -210,6 +218,7 @@ export default function TrashPage() {
               onRestore={handleRestore}
               onPermanentDelete={confirmPermanentDelete}
               onInspectItem={(item) => setInspectingItem(item)}
+              restoringId={restoringId}
             />
             {totalPages > 1 && (
               <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
@@ -245,6 +254,7 @@ export default function TrashPage() {
             <Button
               variant="outline"
               size="sm"
+              disabled={restoringId !== null}
               onClick={() => setIsBulkRestoreOpen(true)}
               className="gap-1.5 bg-gray-800 text-white border-gray-700 hover:bg-gray-700 hover:text-white"
             >
@@ -254,6 +264,7 @@ export default function TrashPage() {
             <Button
               variant="destructive"
               size="sm"
+              disabled={restoringId !== null}
               onClick={() => setIsBulkDeleteOpen(true)}
               className="gap-1.5"
             >
@@ -262,7 +273,8 @@ export default function TrashPage() {
             </Button>
             <button
               onClick={() => setSelectedKeys(new Set())}
-              className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-800 transition-colors ml-1"
+              disabled={restoringId !== null}
+              className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-800 transition-colors ml-1 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <X className="h-4 w-4" />
             </button>
@@ -276,6 +288,8 @@ export default function TrashPage() {
           item={inspectingItem}
           onRestore={handleRestore}
           onPermanentDelete={confirmPermanentDelete}
+          isRestoring={restoringId !== null}
+          isCurrentItemRestoring={restoringId === inspectingItem?.id}
         />
 
         {/* Confirmation Dialogs */}

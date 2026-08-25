@@ -46,7 +46,7 @@ const buildTree = (items) => {
 };
 
 // --- Recursive Row Component ---
-function PermissionRow({ item, level, settings, onSettingChange, onBulkSettingChange, expandedFolders, toggleFolder }) {
+function PermissionRow({ item, level, settings, onSettingChange, onBulkSettingChange, expandedFolders, toggleFolder, isSaving = false }) {
   const { t } = useTranslation();
   const setting = settings[item.id];
   const isFolder = item.type === 'folder';
@@ -82,16 +82,16 @@ function PermissionRow({ item, level, settings, onSettingChange, onBulkSettingCh
         </div>
         <div className="flex justify-center">
           {isFolder ? (
-            <Checkbox checked={setting.is_visible} onCheckedChange={(checked) => handleBulkChange('is_visible', checked)} />
+            <Checkbox checked={setting.is_visible} onCheckedChange={(checked) => handleBulkChange('is_visible', checked)} disabled={isSaving} />
           ) : (
-            <Checkbox id={`visible-${item.id}`} checked={setting.is_visible} onCheckedChange={(c) => handleCheckboxChange('is_visible', c)} />
+            <Checkbox id={`visible-${item.id}`} checked={setting.is_visible} onCheckedChange={(c) => handleCheckboxChange('is_visible', c)} disabled={isSaving} />
           )}
         </div>
         <div className="flex justify-center">
           {isFolder ? (
-            <Checkbox checked={setting.allow_download} onCheckedChange={(checked) => handleBulkChange('allow_download', checked)} />
+            <Checkbox checked={setting.allow_download} onCheckedChange={(checked) => handleBulkChange('allow_download', checked)} disabled={isSaving} />
           ) : (
-            <Checkbox id={`download-${item.id}`} checked={setting.allow_download} onCheckedChange={(c) => handleCheckboxChange('allow_download', c)} />
+            <Checkbox id={`download-${item.id}`} checked={setting.allow_download} onCheckedChange={(c) => handleCheckboxChange('allow_download', c)} disabled={isSaving} />
           )}
         </div>
         <div className="flex justify-center">
@@ -108,7 +108,7 @@ function PermissionRow({ item, level, settings, onSettingChange, onBulkSettingCh
               </TooltipContent>
             </Tooltip>
           ) : (
-            <Checkbox id={`watermark-${item.id}`} checked={setting.enable_watermark} onCheckedChange={(c) => handleCheckboxChange('enable_watermark', c)} />
+            <Checkbox id={`watermark-${item.id}`} checked={setting.enable_watermark} onCheckedChange={(c) => handleCheckboxChange('enable_watermark', c)} disabled={isSaving} />
           )}
         </div>
       </div>
@@ -122,6 +122,7 @@ function PermissionRow({ item, level, settings, onSettingChange, onBulkSettingCh
           onBulkSettingChange={onBulkSettingChange}
           expandedFolders={expandedFolders}
           toggleFolder={toggleFolder}
+          isSaving={isSaving}
         />
       ))}
     </>
@@ -134,9 +135,16 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
   const { t } = useTranslation();
   const [dataroomTree, setDataroomTree] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [settings, setSettings] = useState({});
   const [originalSettings, setOriginalSettings] = useState({});
   const [expandedFolders, setExpandedFolders] = useState({});
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsSaving(false);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && link) {
@@ -224,17 +232,25 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
       return;
     }
 
+    setIsSaving(true);
     try {
       await updateDataroomLinkSettings(link.id, changes);
       toast.success('Permissions updated successfully.');
       onSuccess();
+      onOpenChange(false);
     } catch (error) {
       // Error toast handled by interceptor
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!isSaving) {
+        onOpenChange(open);
+      }
+    }}>
       <DialogContent className="sm:max-w-4xl">
         <TooltipProvider>
           <DialogHeader>
@@ -271,14 +287,34 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
                    onBulkSettingChange={handleBulkSettingChange}
                    expandedFolders={expandedFolders}
                    toggleFolder={toggleFolder}
+                   isSaving={isSaving}
                  />
               ))
             )}
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
-          <Button onClick={handleSave} disabled={isLoading}>{t('common.save')}</Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (!isSaving) {
+                onOpenChange(false);
+              }
+            }}
+            disabled={isSaving}
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button onClick={handleSave} disabled={isLoading || isSaving}>
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t('common.saving')}
+              </>
+            ) : (
+              t('common.save')
+            )}
+          </Button>
         </DialogFooter>
         </TooltipProvider>
       </DialogContent>

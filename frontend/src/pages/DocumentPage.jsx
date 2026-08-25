@@ -225,14 +225,13 @@ export function DocumentPage() {
     try {
       await deleteShareLink(linkToDelete.id);
       toast.success(`Link "${linkToDelete.name || 'Untitled Link'}" deleted successfully.`);
+      setIsDeleteDialogOpen(false);
+      setLinkToDelete(null);
       // Refresh data
       fetchDocumentAndStats({ showSkeleton: false });
       fetchViews();
     } catch (error) {
       // Error toast is handled by the API interceptor
-    } finally {
-      setIsDeleteDialogOpen(false);
-      setLinkToDelete(null);
     }
   };
 
@@ -273,12 +272,11 @@ export function DocumentPage() {
     try {
       await deleteDocument(documentId);
       toast.success(`Document "${document.name}" deleted.`);
+      setIsDeleteDocDialogOpen(false);
       refreshUser(); // Refresh user quota
       navigate('/documents');
     } catch (error) {
       // The API interceptor will show a more specific error message.
-    } finally {
-      setIsDeleteDocDialogOpen(false);
     }
   };
 

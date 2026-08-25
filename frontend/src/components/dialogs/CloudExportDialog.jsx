@@ -225,7 +225,15 @@ export function CloudExportDialog({ isOpen, onOpenChange, requestId, selectedFil
         )}
 
         <div className="mt-4 flex justify-end gap-x-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={exporting}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (!exporting) {
+                onOpenChange(false);
+              }
+            }}
+            disabled={exporting}
+          >
             {t('common.cancel')}
           </Button>
           <Button

@@ -11,7 +11,7 @@ import {
 } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { getFolderContents, getRootFolderContents } from '../../services/api';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Loader2 } from 'lucide-react';
 import { Checkbox } from '../ui/Checkbox';
 import { FileTypeIcon } from '../documents/FileTypeIcon';
 
@@ -109,18 +109,25 @@ export function AddContentDialog({ isOpen, onOpenChange, onConfirm }) {
       return;
     }
     setIsConfirming(true);
-    await onConfirm({
-      document_ids: selection.documents,
-      folder_ids: selection.folders,
-    });
-    setIsConfirming(false);
+    try {
+      await onConfirm({
+        document_ids: selection.documents,
+        folder_ids: selection.folders,
+      });
+    } finally {
+      setIsConfirming(false);
+    }
   };
 
   const breadcrumbPath = currentFolder ? [...currentFolder.ancestors, currentFolder] : [];
   const selectedCount = selection.documents.length + selection.folders.length;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!isConfirming) {
+        onOpenChange(open);
+      }
+    }}>
       <DialogContent className="sm:max-w-2xl h-[70vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{t('datarooms.addContentTitle')}</DialogTitle>
@@ -177,11 +184,26 @@ export function AddContentDialog({ isOpen, onOpenChange, onConfirm }) {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (!isConfirming) {
+                onOpenChange(false);
+              }
+            }}
+            disabled={isConfirming}
+          >
             {t('common.cancel')}
           </Button>
           <Button onClick={handleConfirm} disabled={isConfirming || selectedCount === 0}>
-            {isConfirming ? t('common.saving') : t('datarooms.addSelectedItems', { count: selectedCount })}
+            {isConfirming ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t('common.saving')}
+              </>
+            ) : (
+              t('datarooms.addSelectedItems', { count: selectedCount })
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
