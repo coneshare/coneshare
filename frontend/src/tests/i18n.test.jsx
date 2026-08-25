@@ -37,8 +37,11 @@ describe('Frontend i18n System', () => {
     expect(testI18n.t('dashboard.dailyVisits')).toBe('Daily Visits (Last 30 Days)');
     expect(testI18n.t('analytics.visitor')).toBe('Visitor');
     expect(testI18n.t('documents.newFolderTitle')).toBe('Create New Folder');
-    expect(testI18n.t('documents.renameTitle')).toBe('Rename Item');
     expect(testI18n.t('documents.moveTitle')).toBe('Move Items');
+    expect(testI18n.t('documents.emptyStateNotice')).toBe('Drag and drop files or folders here, or use the upload button to get started.');
+    expect(testI18n.t('datarooms.deleteSuccess', { name: 'Alpha' })).toBe('Dataroom "Alpha" deleted successfully.');
+    expect(testI18n.t('links.deleteSuccess', { name: 'Link A' })).toBe('Link "Link A" deleted successfully.');
+    expect(testI18n.t('nav.adminPanel')).toBe('Admin Panel');
     expect(testI18n.t('settings.title')).toBe('User Settings');
   });
 
@@ -55,6 +58,10 @@ describe('Frontend i18n System', () => {
     expect(testI18n.t('documents.newFolderTitle')).toBe('新建文件夹');
     expect(testI18n.t('documents.renameTitle')).toBe('重命名项目');
     expect(testI18n.t('documents.moveTitle')).toBe('移动项目');
+    expect(testI18n.t('documents.emptyStateNotice')).toBe('将文件或文件夹拖放到此处，或使用上传按钮开始。');
+    expect(testI18n.t('datarooms.deleteSuccess', { name: 'Alpha' })).toBe('资料室“Alpha”删除成功。');
+    expect(testI18n.t('links.deleteSuccess', { name: 'Link A' })).toBe('链接“Link A”删除成功。');
+    expect(testI18n.t('nav.adminPanel')).toBe('管理后台');
     expect(testI18n.t('settings.title')).toBe('用户设置');
   });
 

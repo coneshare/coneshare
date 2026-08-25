@@ -49,7 +49,7 @@ export function AddFolderDialog({ isOpen, onOpenChange, onConfirm }) {
         <DialogHeader>
           <DialogTitle>{t('documents.newFolderTitle')}</DialogTitle>
           <DialogDescription>
-            {t('documents.folderNamePlaceholder')}
+            {t('documents.newFolderDescription')}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} id="add-folder-form">

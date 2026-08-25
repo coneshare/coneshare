@@ -22,7 +22,8 @@ describe('AddFolderDialog', () => {
     );
 
     expect(screen.getByText('Create New Folder')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Enter folder name...')).toBeInTheDocument();
+    expect(screen.getByText('Create a new folder to organize your files.')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('e.g., Marketing')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'New Folder' })).toBeDisabled();
   });
 
@@ -36,7 +37,7 @@ describe('AddFolderDialog', () => {
       />
     );
 
-    const input = screen.getByPlaceholderText('Enter folder name...');
+    const input = screen.getByPlaceholderText('e.g., Marketing');
     const submitBtn = screen.getByRole('button', { name: 'New Folder' });
 
     expect(submitBtn).toBeDisabled();
@@ -63,7 +64,7 @@ describe('AddFolderDialog', () => {
       />
     );
 
-    const input = screen.getByPlaceholderText('Enter folder name...');
+    const input = screen.getByPlaceholderText('e.g., Marketing');
     await user.type(input, 'My New Folder');
 
     const submitBtn = screen.getByRole('button', { name: 'New Folder' });

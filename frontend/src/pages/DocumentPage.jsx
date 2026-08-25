@@ -224,7 +224,7 @@ export function DocumentPage() {
 
     try {
       await deleteShareLink(linkToDelete.id);
-      toast.success(`Link "${linkToDelete.name || 'Untitled Link'}" deleted successfully.`);
+      toast.success(t('links.deleteSuccess', { name: linkToDelete.name || t('links.untitledLink') }));
       setIsDeleteDialogOpen(false);
       setLinkToDelete(null);
       // Refresh data

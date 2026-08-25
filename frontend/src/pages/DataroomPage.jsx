@@ -468,7 +468,7 @@ export function DataroomPage() {
     if (!linkToDelete) return;
     try {
       await deleteShareLink(linkToDelete.id);
-      toast.success(`Link "${linkToDelete.name || 'Untitled Link'}" deleted successfully.`);
+      toast.success(t('links.deleteSuccess', { name: linkToDelete.name || t('links.untitledLink') }));
       setIsDeleteDialogOpen(false);
       setLinkToDelete(null);
       fetchLinks();
@@ -684,7 +684,7 @@ export function DataroomPage() {
     setIsDeletingDataroom(true);
     try {
       await deleteDataroom(dataroomId);
-      toast.success(`Dataroom "${dataroom.name}" deleted successfully.`);
+      toast.success(t('datarooms.deleteSuccess', { name: dataroom.name }));
       setIsDeleteDataroomDialogOpen(false);
       navigate('/datarooms');
     } catch (error) {

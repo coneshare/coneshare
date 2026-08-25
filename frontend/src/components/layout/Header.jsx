@@ -1,10 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Breadcrumbs } from "../documents/Breadcrumbs";
 import { useBreadcrumb } from "./BreadcrumbProvider";
 import { useNavItems } from "./SidebarContent";
 import { DataroomBreadcrumbs } from "../datarooms/DataroomBreadcrumbs";
 
 function Header() {
+  const { t } = useTranslation();
   const { breadcrumbData } = useBreadcrumb();
   const { pathname } = useLocation();
   const navItems = useNavItems();
@@ -15,8 +17,8 @@ function Header() {
     .find((item) => pathname.startsWith(item.href));
   let title = currentNavItem ? currentNavItem.label : "";
 
-  if (pathname.startsWith('/admin/')) {
-    title = 'Admin Panel';
+  if (pathname.startsWith('/admin')) {
+    title = t('nav.adminPanel', 'Admin Panel');
   }
 
   const renderBreadcrumbs = () => {
@@ -41,7 +43,7 @@ function Header() {
           <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-medium text-muted-foreground">
             <li>
               <Link to="/file-requests" className="hover:text-foreground">
-                File Requests
+                {t('nav.fileRequests', 'File Requests')}
               </Link>
             </li>
             <li className="flex items-center">
