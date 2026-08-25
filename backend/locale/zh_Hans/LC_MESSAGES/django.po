@@ -119,6 +119,9 @@ msgstr "IP 地址："
 msgid "Approximate Location:"
 msgstr "大致位置："
 
+msgid "Approximate location:"
+msgstr "大致位置："
+
 msgid "Location:"
 msgstr "地理位置："
 
@@ -157,3 +160,162 @@ msgstr "该位置已存在同名文档。"
 
 msgid "A folder with this name already exists in this location."
 msgstr "该位置已存在同名文件夹。"
+
+msgid "A visitor"
+msgstr "访客"
+
+msgid "Shared Item"
+msgstr "分享项目"
+
+msgid "Unknown OS"
+msgstr "未知操作系统"
+
+msgid "Unknown Browser"
+msgstr "未知浏览器"
+
+msgid "%(actor)s viewed and downloaded files in your dataroom \"%(target_name)s\""
+msgstr "%(actor)s 查看并下载了您资料室“%(target_name)s”中的文件"
+
+msgid "%(actor)s downloaded files in your dataroom \"%(target_name)s\""
+msgstr "%(actor)s 下载了您资料室“%(target_name)s”中的文件"
+
+msgid "%(actor)s visited your dataroom \"%(target_name)s\""
+msgstr "%(actor)s 访问了您的资料室“%(target_name)s”"
+
+msgid "%(actor)s viewed and downloaded the document \"%(target_name)s\""
+msgstr "%(actor)s 查看并下载了文档“%(target_name)s”"
+
+msgid "%(actor)s downloaded the document \"%(target_name)s\""
+msgstr "%(actor)s 下载了文档“%(target_name)s”"
+
+msgid "%(actor)s viewed the document \"%(target_name)s\""
+msgstr "%(actor)s 查看了文档“%(target_name)s”"
+
+msgid "%(duration_str)s, %(completion)s%% read"
+msgstr "%(duration_str)s，已阅读 %(completion)s%%"
+
+msgid "Activity alert: %(target)s"
+msgstr "活动提醒：%(target)s"
+
+msgid "%(uploader)s uploaded a file to your file request \"%(req_name)s\""
+msgstr "%(uploader)s 向您的文件收集“%(req_name)s”上传了文件"
+
+msgid "Malware detected in your file request"
+msgstr "您的文件收集中检测到恶意软件"
+
+msgid "Malware scanning failed"
+msgstr "恶意软件扫描失败"
+
+msgid "Someone"
+msgstr "有人"
+
+msgid "file request"
+msgstr "文件收集"
+
+msgid "document \"%(document_name)s\" in folder \"%(folder_name)s\" in dataroom \"%(dataroom_name)s\""
+msgstr "资料室“%(dataroom_name)s”中文件夹“%(folder_name)s”下的文档“%(document_name)s”"
+
+msgid "document \"%(document_name)s\" in dataroom \"%(dataroom_name)s\""
+msgstr "资料室“%(dataroom_name)s”中的文档“%(document_name)s”"
+
+msgid "document \"%(document_name)s\""
+msgstr "文档“%(document_name)s”"
+
+msgid "folder \"%(folder_name)s\" in dataroom \"%(dataroom_name)s\""
+msgstr "资料室“%(dataroom_name)s”中的文件夹“%(folder_name)s”"
+
+msgid "folder \"%(folder_name)s\""
+msgstr "文件夹“%(folder_name)s”"
+
+msgid "dataroom \"%(dataroom_name)s\""
+msgstr "资料室“%(dataroom_name)s”"
+
+msgid "item"
+msgstr "项目"
+
+msgid "Additional fields: %(count)s"
+msgstr "附加字段：%(count)s"
+
+msgid "Your shared %(target)s was viewed by %(viewer)s."
+msgstr "您分享的%(target)s已被%(viewer)s查看。"
+
+msgid "Your shared %(target)s was opened by %(viewer)s."
+msgstr "您分享的%(target)s已被%(viewer)s打开。"
+
+msgid "Your shared %(target)s was downloaded by %(viewer)s."
+msgstr "您分享的%(target)s已被%(viewer)s下载。"
+
+msgid "%(viewer)s identified their email address for your shared %(target)s."
+msgstr "%(viewer)s 为您分享的%(target)s验证了邮箱地址。"
+
+msgid "Q&A thread"
+msgstr "问答主题"
+
+msgid "A team member"
+msgstr "团队成员"
+
+msgid "%(actor)s opened Q&A thread \"%(thread_subject)s\" on your shared %(target)s."
+msgstr "%(actor)s 在您分享的%(target)s中开启了问答主题“%(thread_subject)s”。"
+
+msgid "%(actor)s replied to Q&A thread \"%(thread_subject)s\" on your shared %(target)s."
+msgstr "%(actor)s 在您分享的%(target)s中回复了问答主题“%(thread_subject)s”。"
+
+msgid "Q&A thread \"%(thread_subject)s\" was closed on your shared %(target)s."
+msgstr "您分享的%(target)s中的问答主题“%(thread_subject)s”已关闭。"
+
+msgid "Q&A thread \"%(thread_subject)s\" was reopened on your shared %(target)s."
+msgstr "您分享的%(target)s中的问答主题“%(thread_subject)s”已重新开启。"
+
+msgid "Unknown uploader"
+msgstr "未知上传者"
+
+msgid "%(uploader)s uploaded \"%(file_name)s\" to file request \"%(req_name)s\"."
+msgstr "%(uploader)s 向文件收集“%(req_name)s”上传了“%(file_name)s”。"
+
+msgid "%(uploader)s uploaded \"%(file_name)s\"."
+msgstr "%(uploader)s 上传了“%(file_name)s”。"
+
+msgid "%(uploader)s uploaded to file request \"%(req_name)s\"."
+msgstr "%(uploader)s 向文件收集“%(req_name)s”上传了文件。"
+
+msgid "%(uploader)s uploaded a file."
+msgstr "%(uploader)s 上传了一个文件。"
+
+msgid "Malware was detected in uploaded file \"%(file_name)s\" to file request \"%(req_name)s\" from %(uploader)s."
+msgstr "在 %(uploader)s 向文件收集“%(req_name)s”上传的文件“%(file_name)s”中检测到恶意软件。"
+
+msgid "Malware was detected in uploaded file \"%(file_name)s\" from %(uploader)s."
+msgstr "在 %(uploader)s 上传的文件“%(file_name)s”中检测到恶意软件。"
+
+msgid "Malware was detected in uploaded file to file request \"%(req_name)s\" from %(uploader)s."
+msgstr "在 %(uploader)s 向文件收集“%(req_name)s”上传的文件中检测到恶意软件。"
+
+msgid "Malware was detected in uploaded file from %(uploader)s."
+msgstr "在 %(uploader)s 上传的文件中检测到恶意软件。"
+
+msgid "Malware scanning failed for uploaded file \"%(file_name)s\" to file request \"%(req_name)s\" from %(uploader)s."
+msgstr "%(uploader)s 向文件收集“%(req_name)s”上传的文件“%(file_name)s”恶意软件扫描失败。"
+
+msgid "Malware scanning failed for uploaded file \"%(file_name)s\" from %(uploader)s."
+msgstr "%(uploader)s 上传的文件“%(file_name)s”恶意软件扫描失败。"
+
+msgid "Malware scanning failed for uploaded file to file request \"%(req_name)s\" from %(uploader)s."
+msgstr "%(uploader)s 向文件收集“%(req_name)s”上传的文件恶意软件扫描失败。"
+
+msgid "Malware scanning failed for uploaded file from %(uploader)s."
+msgstr "%(uploader)s 上传的文件恶意软件扫描失败。"
+
+msgid "Coneshare automation event \"%(event_type)s\" was triggered for %(target)s."
+msgstr "已针对%(target)s触发 Coneshare 自动化事件“%(event_type)s”。"
+
+msgid "%(minutes)dm %(seconds)ds"
+msgstr "%(minutes)d分%(seconds)d秒"
+
+msgid "%(minutes)dm"
+msgstr "%(minutes)d分"
+
+msgid "%(seconds)ds"
+msgstr "%(seconds)d秒"
+
+
+

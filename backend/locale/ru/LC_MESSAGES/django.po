@@ -119,6 +119,9 @@ msgstr "IP-адрес:"
 msgid "Approximate Location:"
 msgstr "Примерное местоположение:"
 
+msgid "Approximate location:"
+msgstr "Примерное местоположение:"
+
 msgid "Location:"
 msgstr "Местоположение:"
 
@@ -157,3 +160,162 @@ msgstr "Документ с таким именем уже существует 
 
 msgid "A folder with this name already exists in this location."
 msgstr "Папка с таким именем уже существует в этой папке."
+
+msgid "A visitor"
+msgstr "Посетитель"
+
+msgid "Shared Item"
+msgstr "Общий элемент"
+
+msgid "Unknown OS"
+msgstr "Неизвестная ОС"
+
+msgid "Unknown Browser"
+msgstr "Неизвестный браузер"
+
+msgid "%(actor)s viewed and downloaded files in your dataroom \"%(target_name)s\""
+msgstr "%(actor)s просмотрел(а) и скачал(а) файлы в вашем датаруме «%(target_name)s»"
+
+msgid "%(actor)s downloaded files in your dataroom \"%(target_name)s\""
+msgstr "%(actor)s скачал(а) файлы в вашем датаруме «%(target_name)s»"
+
+msgid "%(actor)s visited your dataroom \"%(target_name)s\""
+msgstr "%(actor)s посетил(а) ваш датарум «%(target_name)s»"
+
+msgid "%(actor)s viewed and downloaded the document \"%(target_name)s\""
+msgstr "%(actor)s просмотрел(а) и скачал(а) документ «%(target_name)s»"
+
+msgid "%(actor)s downloaded the document \"%(target_name)s\""
+msgstr "%(actor)s скачал(а) документ «%(target_name)s»"
+
+msgid "%(actor)s viewed the document \"%(target_name)s\""
+msgstr "%(actor)s просмотрел(а) документ «%(target_name)s»"
+
+msgid "%(duration_str)s, %(completion)s%% read"
+msgstr "%(duration_str)s, прочитано %(completion)s%%"
+
+msgid "Activity alert: %(target)s"
+msgstr "Оповещение об активности: %(target)s"
+
+msgid "%(uploader)s uploaded a file to your file request \"%(req_name)s\""
+msgstr "%(uploader)s загрузил(а) файл по вашему запросу «%(req_name)s»"
+
+msgid "Malware detected in your file request"
+msgstr "В вашем запросе файлов обнаружено вредоносное ПО"
+
+msgid "Malware scanning failed"
+msgstr "Сбой сканирования на вредоносное ПО"
+
+msgid "Someone"
+msgstr "Кто-то"
+
+msgid "file request"
+msgstr "запрос файлов"
+
+msgid "document \"%(document_name)s\" in folder \"%(folder_name)s\" in dataroom \"%(dataroom_name)s\""
+msgstr "документ «%(document_name)s» в папке «%(folder_name)s» в датаруме «%(dataroom_name)s»"
+
+msgid "document \"%(document_name)s\" in dataroom \"%(dataroom_name)s\""
+msgstr "документ «%(document_name)s» в датаруме «%(dataroom_name)s»"
+
+msgid "document \"%(document_name)s\""
+msgstr "документ «%(document_name)s»"
+
+msgid "folder \"%(folder_name)s\" in dataroom \"%(dataroom_name)s\""
+msgstr "папка «%(folder_name)s» в датаруме «%(dataroom_name)s»"
+
+msgid "folder \"%(folder_name)s\""
+msgstr "папка «%(folder_name)s»"
+
+msgid "dataroom \"%(dataroom_name)s\""
+msgstr "датарум «%(dataroom_name)s»"
+
+msgid "item"
+msgstr "элемент"
+
+msgid "Additional fields: %(count)s"
+msgstr "Дополнительные поля: %(count)s"
+
+msgid "Your shared %(target)s was viewed by %(viewer)s."
+msgstr "Ваш общий %(target)s был просмотрен пользователем %(viewer)s."
+
+msgid "Your shared %(target)s was opened by %(viewer)s."
+msgstr "Ваш общий %(target)s был открыт пользователем %(viewer)s."
+
+msgid "Your shared %(target)s was downloaded by %(viewer)s."
+msgstr "Ваш общий %(target)s был скачан пользователем %(viewer)s."
+
+msgid "%(viewer)s identified their email address for your shared %(target)s."
+msgstr "%(viewer)s указал(а) свой email для вашего общего %(target)s."
+
+msgid "Q&A thread"
+msgstr "обсуждение вопросов и ответов"
+
+msgid "A team member"
+msgstr "Участник команды"
+
+msgid "%(actor)s opened Q&A thread \"%(thread_subject)s\" on your shared %(target)s."
+msgstr "%(actor)s создал(а) обсуждение «%(thread_subject)s» в вашем общем %(target)s."
+
+msgid "%(actor)s replied to Q&A thread \"%(thread_subject)s\" on your shared %(target)s."
+msgstr "%(actor)s ответил(а) в обсуждении «%(thread_subject)s» в вашем общем %(target)s."
+
+msgid "Q&A thread \"%(thread_subject)s\" was closed on your shared %(target)s."
+msgstr "Обсуждение «%(thread_subject)s» в вашем общем %(target)s было закрыто."
+
+msgid "Q&A thread \"%(thread_subject)s\" was reopened on your shared %(target)s."
+msgstr "Обсуждение «%(thread_subject)s» в вашем общем %(target)s было открыто заново."
+
+msgid "Unknown uploader"
+msgstr "Неизвестный автор загрузки"
+
+msgid "%(uploader)s uploaded \"%(file_name)s\" to file request \"%(req_name)s\"."
+msgstr "%(uploader)s загрузил(а) «%(file_name)s» по запросу файлов «%(req_name)s»."
+
+msgid "%(uploader)s uploaded \"%(file_name)s\"."
+msgstr "%(uploader)s загрузил(а) «%(file_name)s»."
+
+msgid "%(uploader)s uploaded to file request \"%(req_name)s\"."
+msgstr "%(uploader)s выполнил(а) загрузку по запросу файлов «%(req_name)s»."
+
+msgid "%(uploader)s uploaded a file."
+msgstr "%(uploader)s загрузил(а) файл."
+
+msgid "Malware was detected in uploaded file \"%(file_name)s\" to file request \"%(req_name)s\" from %(uploader)s."
+msgstr "В файле «%(file_name)s», загруженном %(uploader)s по запросу «%(req_name)s», обнаружено вредоносное ПО."
+
+msgid "Malware was detected in uploaded file \"%(file_name)s\" from %(uploader)s."
+msgstr "В файле «%(file_name)s», загруженном %(uploader)s, обнаружено вредоносное ПО."
+
+msgid "Malware was detected in uploaded file to file request \"%(req_name)s\" from %(uploader)s."
+msgstr "В файле, загруженном %(uploader)s по запросу «%(req_name)s», обнаружено вредоносное ПО."
+
+msgid "Malware was detected in uploaded file from %(uploader)s."
+msgstr "В файле, загруженном %(uploader)s, обнаружено вредоносное ПО."
+
+msgid "Malware scanning failed for uploaded file \"%(file_name)s\" to file request \"%(req_name)s\" from %(uploader)s."
+msgstr "Сбой сканирования на вредоносное ПО для файла «%(file_name)s», загруженного %(uploader)s по запросу «%(req_name)s»."
+
+msgid "Malware scanning failed for uploaded file \"%(file_name)s\" from %(uploader)s."
+msgstr "Сбой сканирования на вредоносное ПО для файла «%(file_name)s», загруженного %(uploader)s."
+
+msgid "Malware scanning failed for uploaded file to file request \"%(req_name)s\" from %(uploader)s."
+msgstr "Сбой сканирования на вредоносное ПО для файла, загруженного %(uploader)s по запросу «%(req_name)s»."
+
+msgid "Malware scanning failed for uploaded file from %(uploader)s."
+msgstr "Сбой сканирования на вредоносное ПО для файла, загруженного %(uploader)s."
+
+msgid "Coneshare automation event \"%(event_type)s\" was triggered for %(target)s."
+msgstr "Для %(target)s сработало событие автоматизации Coneshare «%(event_type)s»."
+
+msgid "%(minutes)dm %(seconds)ds"
+msgstr "%(minutes)d мин %(seconds)d с"
+
+msgid "%(minutes)dm"
+msgstr "%(minutes)d мин"
+
+msgid "%(seconds)ds"
+msgstr "%(seconds)d с"
+
+
+
