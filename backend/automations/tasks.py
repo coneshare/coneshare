@@ -13,6 +13,7 @@ from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
+from django.utils.translation import gettext as _, override as translation_override
 
 from .models import AutomationDelivery
 from .services import dispatch_automation_event
@@ -47,7 +48,7 @@ def _build_headers(delivery: AutomationDelivery, request_payload: dict) -> dict:
     return headers
 
 
-def _display_actor(name: str | None, email: str | None, fallback: str = 'Anonymous') -> str:
+def _display_actor(name: str | None, email: str | None, fallback: str | None = None) -> str:
     name = (name or '').strip()
     email = (email or '').strip()
     if name and email:
@@ -56,7 +57,7 @@ def _display_actor(name: str | None, email: str | None, fallback: str = 'Anonymo
         return email
     if name:
         return name
-    return fallback
+    return fallback if fallback is not None else _('Anonymous')
 
 
 def _target_description(payload: dict) -> str:
@@ -66,17 +67,27 @@ def _target_description(payload: dict) -> str:
 
     if document_name:
         if dataroom_folder_name and dataroom_name:
-            return f'document "{document_name}" in folder "{dataroom_folder_name}" in dataroom "{dataroom_name}"'
+            return _('document "%(document_name)s" in folder "%(folder_name)s" in dataroom "%(dataroom_name)s"') % {
+                'document_name': document_name,
+                'folder_name': dataroom_folder_name,
+                'dataroom_name': dataroom_name,
+            }
         if dataroom_name:
-            return f'document "{document_name}" in dataroom "{dataroom_name}"'
-        return f'document "{document_name}"'
+            return _('document "%(document_name)s" in dataroom "%(dataroom_name)s"') % {
+                'document_name': document_name,
+                'dataroom_name': dataroom_name,
+            }
+        return _('document "%(document_name)s"') % {'document_name': document_name}
     if dataroom_folder_name and dataroom_name:
-        return f'folder "{dataroom_folder_name}" in dataroom "{dataroom_name}"'
+        return _('folder "%(folder_name)s" in dataroom "%(dataroom_name)s"') % {
+            'folder_name': dataroom_folder_name,
+            'dataroom_name': dataroom_name,
+        }
     if dataroom_folder_name:
-        return f'folder "{dataroom_folder_name}"'
+        return _('folder "%(folder_name)s"') % {'folder_name': dataroom_folder_name}
     if dataroom_name:
-        return f'dataroom "{dataroom_name}"'
-    return 'item'
+        return _('dataroom "%(dataroom_name)s"') % {'dataroom_name': dataroom_name}
+    return _('item')
 
 
 def _format_event_time(value: str | None) -> str | None:
@@ -116,9 +127,9 @@ def _append_event_details(message: str, payload: dict) -> str:
     location = _approximate_location(payload)
 
     if event_time:
-        details.append(f'Time: {event_time}')
+        details.append(f'{_("Time:")} {event_time}')
     if location:
-        details.append(f'Approximate location: {location}')
+        details.append(f'{_("Approximate location:")} {location}')
 
     if not details:
         return message
@@ -137,7 +148,7 @@ def _append_custom_field_summary(message: str, payload: dict) -> str:
 
     remaining_count = len(values) - len(lines)
     if remaining_count > 0:
-        lines.append(f'Additional fields: {remaining_count}')
+        lines.append(_('Additional fields: %(count)s') % {'count': remaining_count})
 
     return f'{message}\n' + '\n'.join(lines)
 
@@ -147,53 +158,130 @@ def _build_event_sentence(event_type: str, payload: dict) -> str:
     target = _target_description(payload)
 
     if event_type == 'document_viewed':
-        return f'Your shared {target} was viewed by {viewer}.'
+        return _('Your shared %(target)s was viewed by %(viewer)s.') % {
+            'target': target,
+            'viewer': viewer,
+        }
 
     if event_type == 'dataroom_opened':
-        return f'Your shared {target} was opened by {viewer}.'
+        return _('Your shared %(target)s was opened by %(viewer)s.') % {
+            'target': target,
+            'viewer': viewer,
+        }
 
     if event_type == 'document_downloaded':
-        return f'Your shared {target} was downloaded by {viewer}.'
+        return _('Your shared %(target)s was downloaded by %(viewer)s.') % {
+            'target': target,
+            'viewer': viewer,
+        }
 
     if event_type == 'email_identified':
-        return f'{viewer} identified their email address for your shared {target}.'
+        return _('%(viewer)s identified their email address for your shared %(target)s.') % {
+            'viewer': viewer,
+            'target': target,
+        }
 
-    thread_subject = payload.get('thread_subject') or 'Q&A thread'
+    thread_subject = payload.get('thread_subject') or _('Q&A thread')
     sender_type = payload.get('sender_type') or 'user'
+    actor = viewer if sender_type == "viewer" else _("A team member")
 
     if event_type == 'qna_thread_created':
-        return f'{viewer if sender_type == "viewer" else "A team member"} opened Q&A thread "{thread_subject}" on your shared {target}.'
+        return _('%(actor)s opened Q&A thread "%(thread_subject)s" on your shared %(target)s.') % {
+            'actor': actor,
+            'thread_subject': thread_subject,
+            'target': target,
+        }
 
     if event_type == 'qna_message_created':
-        return f'{viewer if sender_type == "viewer" else "A team member"} replied to Q&A thread "{thread_subject}" on your shared {target}.'
+        return _('%(actor)s replied to Q&A thread "%(thread_subject)s" on your shared %(target)s.') % {
+            'actor': actor,
+            'thread_subject': thread_subject,
+            'target': target,
+        }
 
     if event_type == 'qna_thread_closed':
-        return f'Q&A thread "{thread_subject}" was closed on your shared {target}.'
+        return _('Q&A thread "%(thread_subject)s" was closed on your shared %(target)s.') % {
+            'thread_subject': thread_subject,
+            'target': target,
+        }
 
     if event_type == 'qna_thread_reopened':
-        return f'Q&A thread "{thread_subject}" was reopened on your shared {target}.'
+        return _('Q&A thread "%(thread_subject)s" was reopened on your shared %(target)s.') % {
+            'thread_subject': thread_subject,
+            'target': target,
+        }
 
     uploader = _display_actor(
         payload.get('uploaded_by_name'),
         payload.get('uploaded_by_email'),
-        fallback='Unknown uploader',
+        fallback=_('Unknown uploader'),
     )
     uploaded_file_name = payload.get('uploaded_file_name')
     file_request_name = payload.get('file_request_name') or payload.get('file_request_slug')
-    file_request_text = f' to file request "{file_request_name}"' if file_request_name else ''
-    file_text = f' "{uploaded_file_name}"' if uploaded_file_name else ''
 
     if event_type == 'file_request_uploaded':
-        message = f'{uploader} uploaded{file_text}{file_request_text}.'
+        if uploaded_file_name and file_request_name:
+            message = _('%(uploader)s uploaded "%(file_name)s" to file request "%(req_name)s".') % {
+                'uploader': uploader,
+                'file_name': uploaded_file_name,
+                'req_name': file_request_name,
+            }
+        elif uploaded_file_name:
+            message = _('%(uploader)s uploaded "%(file_name)s".') % {
+                'uploader': uploader,
+                'file_name': uploaded_file_name,
+            }
+        elif file_request_name:
+            message = _('%(uploader)s uploaded to file request "%(req_name)s".') % {
+                'uploader': uploader,
+                'req_name': file_request_name,
+            }
+        else:
+            message = _('%(uploader)s uploaded a file.') % {'uploader': uploader}
         return _append_custom_field_summary(message, payload)
 
     if event_type == 'file_request_malware_detected':
-        return f'Malware was detected in uploaded file{file_text}{file_request_text} from {uploader}.'
+        if uploaded_file_name and file_request_name:
+            return _('Malware was detected in uploaded file "%(file_name)s" to file request "%(req_name)s" from %(uploader)s.') % {
+                'file_name': uploaded_file_name,
+                'req_name': file_request_name,
+                'uploader': uploader,
+            }
+        elif uploaded_file_name:
+            return _('Malware was detected in uploaded file "%(file_name)s" from %(uploader)s.') % {
+                'file_name': uploaded_file_name,
+                'uploader': uploader,
+            }
+        elif file_request_name:
+            return _('Malware was detected in uploaded file to file request "%(req_name)s" from %(uploader)s.') % {
+                'req_name': file_request_name,
+                'uploader': uploader,
+            }
+        return _('Malware was detected in uploaded file from %(uploader)s.') % {'uploader': uploader}
 
     if event_type == 'file_request_scan_failed':
-        return f'Malware scanning failed for uploaded file{file_text}{file_request_text} from {uploader}.'
+        if uploaded_file_name and file_request_name:
+            return _('Malware scanning failed for uploaded file "%(file_name)s" to file request "%(req_name)s" from %(uploader)s.') % {
+                'file_name': uploaded_file_name,
+                'req_name': file_request_name,
+                'uploader': uploader,
+            }
+        elif uploaded_file_name:
+            return _('Malware scanning failed for uploaded file "%(file_name)s" from %(uploader)s.') % {
+                'file_name': uploaded_file_name,
+                'uploader': uploader,
+            }
+        elif file_request_name:
+            return _('Malware scanning failed for uploaded file to file request "%(req_name)s" from %(uploader)s.') % {
+                'req_name': file_request_name,
+                'uploader': uploader,
+            }
+        return _('Malware scanning failed for uploaded file from %(uploader)s.') % {'uploader': uploader}
 
-    return f'Coneshare automation event "{event_type}" was triggered for {target}.'
+    return _('Coneshare automation event "%(event_type)s" was triggered for %(target)s.') % {
+        'event_type': event_type,
+        'target': target,
+    }
 
 
 def _build_event_text(delivery: AutomationDelivery) -> str:
@@ -331,7 +419,10 @@ def deliver_automation_delivery_task(delivery_id: str):
         handle_email_delivery(delivery)
         return
 
-    request_payload = _build_request_payload(delivery)
+    owner = delivery.rule.created_by
+    owner_lang = getattr(owner, 'language', 'en') or 'en'
+    with translation_override(owner_lang):
+        request_payload = _build_request_payload(delivery)
     logger.info(
         'Automation delivery prepared: delivery_id=%s destination_type=%s method=%s url=%s payload_keys=%s has_text=%s',
         delivery_id,

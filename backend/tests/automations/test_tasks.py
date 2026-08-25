@@ -663,3 +663,136 @@ def test_deliver_task_email_destination_debounced_reschedules_retry(mock_apply_a
     assert kwargs.get('countdown') >= 5
 
 
+@patch('automations.emails.send_mail')
+def test_deliver_task_email_coalesced_respects_user_language(mock_send_mail, user, share_link):
+    from sharelinks.models import ViewSession, PageView
+    from automations.models import AutomationDelivery
+    from documents.models import Document
+    from datetime import timedelta
+    from django.utils import timezone
+
+    user.language = 'zh-hans'
+    user.save(update_fields=['language'])
+
+    share_link.receive_email_notification = True
+    share_link.save()
+
+    doc = Document.objects.create(
+        organization=user.organization,
+        name="Financial_Statement.pdf",
+        num_pages=4,
+        created_by=user,
+    )
+    share_link.document = doc
+    share_link.save()
+
+    view_session = ViewSession.objects.create(
+        share_link=share_link,
+        viewer_email='viewer@example.com',
+    )
+    PageView.objects.create(
+        view_session=view_session,
+        page_number=1,
+        duration_seconds=30,
+        media_type='document',
+    )
+
+    delivery = _make_delivery(user, share_link)
+    delivery.destination.destination_type = 'email'
+    delivery.destination.save()
+    delivery.payload = {
+        'organization_id': str(user.organization.id),
+        'share_link_id': str(share_link.id),
+        'document_name': 'Financial_Statement.pdf',
+        'viewer_email': 'viewer@example.com',
+        'view_session_id': str(view_session.id),
+    }
+    delivery.save()
+    AutomationDelivery.objects.filter(id=delivery.id).update(created_at=timezone.now() - timedelta(seconds=70))
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    mock_send_mail.assert_called_once()
+    _, call_kwargs = mock_send_mail.call_args
+    # Subject should be translated into Chinese
+    assert "viewer@example.com 查看了文档“Financial_Statement.pdf”" in call_kwargs['subject']
+    # Message should be translated into Chinese
+    assert "访问详情" in call_kwargs['html_message']
+    assert "未知位置" in call_kwargs['message']
+    assert "30秒，已阅读 25%" in call_kwargs['message']
+
+
+def test_format_duration_localization():
+    from django.utils.translation import override as translation_override
+    from automations.emails import _format_duration
+
+    with translation_override('en'):
+        assert _format_duration(150) == "2m 30s"
+        assert _format_duration(120) == "2m"
+        assert _format_duration(45) == "45s"
+
+    with translation_override('zh-hans'):
+        assert _format_duration(150) == "2分30秒"
+        assert _format_duration(120) == "2分"
+        assert _format_duration(45) == "45秒"
+
+    with translation_override('ru'):
+        assert _format_duration(150) == "2 мин 30 с"
+        assert _format_duration(120) == "2 мин"
+        assert _format_duration(45) == "45 с"
+
+
+def test_event_sentence_and_target_description_localization():
+    from django.utils.translation import override as translation_override
+    from automations.tasks import _build_event_sentence, _target_description
+
+    payload = {
+        'document_name': 'Annual_Report.pdf',
+        'dataroom_name': 'Secret Room',
+        'dataroom_folder_name': 'Finance',
+        'viewer_email': 'buyer@example.com',
+    }
+
+    with translation_override('zh-hans'):
+        target = _target_description(payload)
+        assert target == '资料室“Secret Room”中文件夹“Finance”下的文档“Annual_Report.pdf”'
+        sentence = _build_event_sentence('document_viewed', payload)
+        assert sentence == '您分享的资料室“Secret Room”中文件夹“Finance”下的文档“Annual_Report.pdf”已被buyer@example.com查看。'
+
+    with translation_override('ru'):
+        target = _target_description(payload)
+        assert target == 'документ «Annual_Report.pdf» в папке «Finance» в датаруме «Secret Room»'
+        sentence = _build_event_sentence('document_viewed', payload)
+        assert sentence == 'Ваш общий документ «Annual_Report.pdf» в папке «Finance» в датаруме «Secret Room» был просмотрен пользователем buyer@example.com.'
+
+
+@patch('automations.emails.send_mail')
+def test_deliver_task_standard_fallback_email_respects_user_language(mock_send_mail, user, share_link):
+    from automations.models import AutomationDelivery
+
+    user.language = 'zh-hans'
+    user.save(update_fields=['language'])
+
+    delivery = _make_delivery(user, share_link)
+    delivery.destination.destination_type = 'email'
+    delivery.destination.save()
+    delivery.event_type = 'file_request_uploaded'
+    delivery.payload = {
+        'organization_id': str(user.organization.id),
+        'file_request_name': 'KYC Documents',
+        'uploaded_by_name': 'Alice',
+        'uploaded_by_email': 'alice@example.com',
+        'uploaded_file_name': 'passport.jpg',
+    }
+    delivery.save()
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    mock_send_mail.assert_called_once()
+    _, call_kwargs = mock_send_mail.call_args
+    assert 'Alice <alice@example.com> 向您的文件收集“KYC Documents”上传了文件' in call_kwargs['subject']
+    assert '访问详情' in call_kwargs['html_message']
+
+
+
+
