@@ -1,6 +1,23 @@
 # Changelog
 
 
+## [1.8.1](https://github.com/coneshare/coneshare/compare/v1.8.0...v1.8.1) (2026-08-26)
+
+
+### Improvements
+
+* **admin:** add user storage quota recalculation ([e0f7ae3](https://github.com/coneshare/coneshare/commit/e0f7ae36e607d6f76e376d3df19321da35220297))
+* **i18n:** add full German language support across frontend and backend ([a52e258](https://github.com/coneshare/coneshare/commit/a52e2581725032f76b5652efd711311e664dcb88))
+
+
+### Bug Fixes
+
+* **backend:** respect owner language in automation email notifications ([48e781a](https://github.com/coneshare/coneshare/commit/48e781aff23fd993f4314b91483303eb687c4623))
+* **backend:** return 404 for unmatched paths instead of 500 error ([#302](https://github.com/coneshare/coneshare/issues/302)) ([abf108e](https://github.com/coneshare/coneshare/commit/abf108e724fe214683f114c41b98c6fabb1dfb6f))
+* **frontend:** guard dialogs, forms and action buttons against concurrent async requests ([6c0a205](https://github.com/coneshare/coneshare/commit/6c0a205b31e05eaa3f4c9c836d62711be9156c84))
+* **frontend:** improve translations, header localization, and folder dialog UX ([e5d2b3b](https://github.com/coneshare/coneshare/commit/e5d2b3ba0134ad986ca83f4c21866ce926479bdc))
+* **quota:** resolve negative user total_document_size on cloud import and dataroom deletion ([0c2e4e5](https://github.com/coneshare/coneshare/commit/0c2e4e5fa83d38c3efff12610d7f1e3183f63a2f))
+
 ## [1.8.0](https://github.com/coneshare/coneshare/compare/v1.7.1...v1.8.0) (2026-08-18)
 
 
