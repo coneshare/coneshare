@@ -93,6 +93,7 @@ export function DataroomPage() {
   const [isSavingColors, setIsSavingColors] = useState(false);
   const [showFileIndex, setShowFileIndex] = useState(true);
   const [enableQna, setEnableQna] = useState(true);
+  const [isSavingEnableQna, setIsSavingEnableQna] = useState(false);
   const [isDeleteDataroomDialogOpen, setIsDeleteDataroomDialogOpen] = useState(false);
   const [deleteConfirmationName, setDeleteConfirmationName] = useState('');
   const [isDeletingDataroom, setIsDeletingDataroom] = useState(false);
@@ -649,7 +650,10 @@ export function DataroomPage() {
   };
 
   const handleToggleEnableQna = async (checked) => {
+    if (isSavingEnableQna) return;
+    const previousEnableQna = enableQna;
     setEnableQna(checked);
+    setIsSavingEnableQna(true);
     try {
       const response = await updateDataroomBranding(dataroomId, {
         enableQna: checked,
@@ -657,8 +661,10 @@ export function DataroomPage() {
       setDataroom(response.data);
       toast.success('Q&A settings updated.');
     } catch (error) {
-      setEnableQna((prev) => !prev);
+      setEnableQna(previousEnableQna);
       // Error toast handled by interceptor
+    } finally {
+      setIsSavingEnableQna(false);
     }
   };
 
@@ -1201,6 +1207,7 @@ export function DataroomPage() {
                 <Switch
                   checked={enableQna}
                   onCheckedChange={handleToggleEnableQna}
+                  disabled={isSavingEnableQna}
                   aria-label={t('datarooms.enableQna')}
                 />
               </div>

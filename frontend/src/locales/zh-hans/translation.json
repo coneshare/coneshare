@@ -118,7 +118,7 @@
     "expirationSubtitle": "设置此链接失效的日期和时间。",
     "enableQna": "启用问答",
     "qnaSubtitle": "允许访问者通过此链接提问。",
-    "qnaDisabledForDataroom": "此数据室已禁用问答。"
+    "qnaDisabledForDataroom": "此资料室已禁用问答。"
   },
   "qna": {
     "title": "问答",
@@ -464,8 +464,8 @@
     "displaySettings": "显示设置",
     "displayNotice": "配置资料室列表显示行为。",
     "enableQna": "启用问答",
-    "enableQnaHelp": "允许访问者在此数据室内提问。关闭后，指向此数据室的所有链接都将禁用问答。",
-    "qnaDisabledNotice": "此数据室已禁用问答。现有的讨论仍可在此查看，但访问者无法发起或回复。"
+    "enableQnaHelp": "允许访问者在此资料室内提问。关闭后，指向此资料室的所有链接都将禁用问答。",
+    "qnaDisabledNotice": "此资料室已禁用问答。现有的讨论仍可在此查看，但访问者无法发起或回复。"
   },
   "fileRequests": {
     "title": "文件收集",

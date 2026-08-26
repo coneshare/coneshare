@@ -55,7 +55,7 @@ export function LinkSheet({
         setRequiresEmail(currentLink.requires_email || false);
         setRequiresEmailVerification(currentLink.requires_email_verification || false);
         setAllowDownload(currentLink.allow_download);
-        setEnableQna(isQnaAvailable && currentLink.enable_qna !== false);
+        setEnableQna(currentLink.enable_qna !== false);
         setIsPasswordEnabled(currentLink.has_password || currentLink.is_password_protected || false);
         setPassword(currentLink.password || '');
         setPasswordTouched(false);
@@ -80,7 +80,7 @@ export function LinkSheet({
         setRequiresEmail(false);
         setRequiresEmailVerification(false);
         setAllowDownload(true);
-        setEnableQna(isQnaAvailable);
+        setEnableQna(true);
         setIsPasswordEnabled(false);
         setPassword('');
         setPasswordTouched(false);
@@ -96,7 +96,7 @@ export function LinkSheet({
     if (document?.download_only) {
       setAllowDownload(true);
     }
-  }, [currentLink, document, dataroom, isEditing, isOpen, isWatermarkable, isQnaAvailable]);
+  }, [currentLink, document, dataroom, isEditing, isOpen, isWatermarkable]);
     
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -108,13 +108,16 @@ export function LinkSheet({
       requires_email_verification: requiresEmail && requiresEmailVerification,
       receive_email_notification: receiveEmailNotification,
       allow_download: allowDownload,
-      enable_qna: isQnaAvailable && enableQna,
       enable_watermark: isWatermarkable && enableWatermark,
       watermark_text: isWatermarkable && enableWatermark ? watermarkText : '',
       expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
       require_nda: requireNda,
       nda_text: requireNda ? ndaText : '',
     };
+    
+    if (isQnaAvailable) {
+      linkData.enable_qna = enableQna;
+    }
     
     if (!isEditing) {
       if (dataroom) {

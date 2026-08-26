@@ -306,7 +306,12 @@ export function ShareLinkViewerPage() {
   useEffect(() => {
     let isCancelled = false;
     const fetchQnaThreadCount = async () => {
-      if (!viewId || !viewData || viewData.link_type === 'dataroom') {
+      if (
+        !viewId
+        || !viewData
+        || viewData.link_type === 'dataroom'
+        || viewData.link_settings?.enable_qna === false
+      ) {
         setQnaThreadCount(0);
         return;
       }

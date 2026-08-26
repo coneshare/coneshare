@@ -169,7 +169,7 @@ Q&A can be switched off at two levels:
 
 The effective value is exposed as `ShareLink.qna_enabled`:
 
-```
+```python
 qna_enabled = share_link.enable_qna and (dataroom.enable_qna if dataroom else True)
 ```
 

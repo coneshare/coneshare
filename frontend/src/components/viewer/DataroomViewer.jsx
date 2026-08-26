@@ -339,6 +339,11 @@ export function DataroomViewer({ data, slug, viewId }) {
     : (Array.isArray(scopeData.breadcrumbs) ? scopeData.breadcrumbs : []);
   const activePathFolderIds = useMemo(() => breadcrumbs.map((b) => String(b.id)), [breadcrumbs]);
   const currentFolderId = scopeData?.current_parent_id || null;
+  const isScopeQnaEnabled = (
+    scopeData?.link_settings?.enable_qna
+    ?? data?.link_settings?.enable_qna
+    ?? true
+  ) !== false;
 
   // Keep local scope state aligned with parent-provided data refreshes.
   useEffect(() => {
@@ -367,7 +372,7 @@ export function DataroomViewer({ data, slug, viewId }) {
   useEffect(() => {
     let isCancelled = false;
     const fetchCurrentScopeQnaThreadCount = async () => {
-      if (!viewId) {
+      if (!viewId || !isScopeQnaEnabled) {
         setCurrentScopeQnaThreadCount(0);
         return;
       }
@@ -392,7 +397,7 @@ export function DataroomViewer({ data, slug, viewId }) {
     return () => {
       isCancelled = true;
     };
-  }, [slug, viewId, currentFolderId]);
+  }, [slug, viewId, currentFolderId, isScopeQnaEnabled]);
 
   const fetchScopeData = useCallback(async (parentId, options = {}) => {
     const { append = false, offset = 0 } = options;

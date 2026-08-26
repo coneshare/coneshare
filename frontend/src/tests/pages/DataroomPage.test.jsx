@@ -681,6 +681,31 @@ describe('DataroomPage', () => {
             });
         });
 
+        it('should restore the previous dataroom Q&A value when saving fails', async () => {
+            const user = userEvent.setup();
+            api.getDataroom.mockResolvedValue({
+                data: { ...mockDataroomRoot, enable_qna: true },
+            });
+            api.updateDataroomBranding.mockRejectedValue(new Error('nope'));
+            renderComponent();
+            expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
+
+            const settingsTab = await screen.findByRole('tab', { name: /settings/i });
+            await user.click(settingsTab);
+
+            const qnaSwitch = await screen.findByRole('switch', { name: /enable q&a/i });
+            expect(qnaSwitch).toBeChecked();
+            await user.click(qnaSwitch);
+
+            await waitFor(() => {
+                expect(api.updateDataroomBranding).toHaveBeenCalledWith('dr123', { enableQna: false });
+            });
+            await waitFor(() => {
+                expect(qnaSwitch).toBeChecked();
+            });
+            expect(qnaSwitch).toBeEnabled();
+        });
+
         it('should disable the link-level Q&A switch when the dataroom has Q&A off', async () => {
             const user = userEvent.setup();
             api.getDataroom.mockResolvedValue({
