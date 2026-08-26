@@ -158,13 +158,14 @@ make migrate
 
 ## 架构
 
-![Coneshare architecture diagram](./docs/assets/readme/architecture-v1.2.png)
+![Coneshare architecture diagram](./docs/assets/readme/architecture-v1.3.png)
 
 Coneshare 是一个多服务架构的系统：
 
 * `backend/`: Django + DRF API, Celery, 基于 Redis 的异步任务
 * `core/`: 用于高性能文件分发与媒体流传输的 Go 服务
 * `frontend/`: React + Vite Web 应用
+* `mcp-server/`: 用于 AI Agent 及智能助手集成的 FastMCP 远程服务器
 
 技术参考：
 

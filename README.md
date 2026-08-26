@@ -158,13 +158,14 @@ After `make up` and `make migrate`, verify the basics before configuring storage
 
 ## Architecture
 
-![Coneshare architecture diagram](./docs/assets/readme/architecture-v1.2.png)
+![Coneshare architecture diagram](./docs/assets/readme/architecture-v1.3.png)
 
 Coneshare is a multi-service stack:
 
 * `backend/`: Django + DRF API, Celery, Redis-based async tasks
 * `core/`: Go service for high-performance file delivery and media streaming
 * `frontend/`: React + Vite web app
+* `mcp-server/`: FastMCP Remote Server for AI Agent & assistant integrations
 
 Technical reference:
 

@@ -11,7 +11,11 @@ config:
 flowchart LR
     U["Internal Teams<br>Founders / Sales / Admins"] --> FE["Coneshare Web App<br>React Frontend"]
     V["External Viewers<br>Investors / Buyers / Clients"] --> FE
+    AI["AI Agents & Assistants<br>Claude / Cursor / Codex / agy"] --> MCP["Remote MCP Server<br>FastMCP · Tools · SSE / HTTP"]
+
     FE --> API["Django + DRF API<br>Auth · Sharing Rules · Permissions"] & FS["Go File Service<br>Secure Upload/Download/Stream"]
+    MCP --> API
+
     API <--> DB[("PostgreSQL<br>Metadata · Permissions · Analytics")]
     FS <--> ST[("Object Storage<br>MinIO / S3 / Local FS")]
     API --> FS & Q["Redis + Celery<br>Async Processing Queue"] & EVT["Activity Events<br>View · Download · Dataroom Access"]
@@ -24,10 +28,12 @@ flowchart LR
 
     U@{ shape: terminal}
     V@{ shape: terminal}
+    AI@{ shape: terminal}
     n1@{ shape: procs}
     SYS@{ shape: terminal}
     style U fill:#BBDEFB
     style V fill:#BBDEFB
+    style AI fill:#BBDEFB
     style SYS fill:#C8E6C9
 ```
 
