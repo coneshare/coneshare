@@ -469,6 +469,12 @@ export function DataroomViewer({ data, slug, viewId }) {
   }, [scopeData?.pagination?.next_offset, parentIdFromUrl, fetchScopeData]);
 
   // Document inline viewing logic
+  // activeDocIdRef must always be cleared with documentViewData, or the guard below blocks refetches.
+  const clearDocumentView = useCallback(() => {
+    activeDocIdRef.current = null;
+    setDocumentViewData(null);
+  }, []);
+
   const fetchDocumentViewData = useCallback(async (docId, { force = false } = {}) => {
     if (activeDocIdRef.current === docId && !force) {
       return;
@@ -489,6 +495,9 @@ export function DataroomViewer({ data, slug, viewId }) {
     } catch (err) {
       if (requestId !== docRequestRef.current) return;
       console.error('Failed to load document view data:', err);
+      if (activeDocIdRef.current === docId) {
+        activeDocIdRef.current = null;
+      }
       toast.error('Could not load document. Please try again.');
     } finally {
       if (requestId === docRequestRef.current) {
@@ -503,7 +512,7 @@ export function DataroomViewer({ data, slug, viewId }) {
         fetchDocumentViewData(selectedDocumentId);
       }
     } else {
-      setDocumentViewData(null);
+      clearDocumentView();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDocumentId, documentViewData?.id, fetchDocumentViewData]);
@@ -609,7 +618,7 @@ export function DataroomViewer({ data, slug, viewId }) {
       }
       setSearchParams(nextParams);
 
-      setDocumentViewData(null);
+      clearDocumentView();
     } else {
       if (documentViewData && String(documentViewData.id) === String(item.id) && documentViewData.name !== item.name) {
         setDocumentViewData(prev => prev ? { ...prev, name: item.name } : null);
@@ -623,8 +632,21 @@ export function DataroomViewer({ data, slug, viewId }) {
         nextParams.set('view_session_id', viewId);
       }
       setSearchParams(nextParams);
+
+      if (String(selectedDocumentId) === String(item.id) && !documentViewData && !isDocumentLoading) {
+        fetchDocumentViewData(item.id, { force: true });
+      }
     }
-  }, [viewId, searchParams, setSearchParams, documentViewData]);
+  }, [
+    viewId,
+    searchParams,
+    setSearchParams,
+    documentViewData,
+    clearDocumentView,
+    selectedDocumentId,
+    isDocumentLoading,
+    fetchDocumentViewData,
+  ]);
 
   const showDocumentViewer = Boolean(selectedDocumentId);
 
@@ -856,7 +878,7 @@ export function DataroomViewer({ data, slug, viewId }) {
                   nextParams.set('view_session_id', viewId);
                 }
                 setSearchParams(nextParams);
-                setDocumentViewData(null);
+                clearDocumentView();
               }}
               className="flex items-center gap-2"
               style={{ color: 'var(--viewer-secondary)' }}
@@ -877,7 +899,7 @@ export function DataroomViewer({ data, slug, viewId }) {
                     nextParams.set('view_session_id', viewId);
                   }
                   setSearchParams(nextParams);
-                  setDocumentViewData(null);
+                  clearDocumentView();
                 }}
                 className="ml-2"
                 style={{ color: 'var(--viewer-secondary)' }}

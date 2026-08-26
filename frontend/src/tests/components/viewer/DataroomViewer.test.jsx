@@ -817,4 +817,161 @@ describe('DataroomViewer', () => {
       }));
     });
   });
+
+  const subFolderDoc = {
+    type: 'document',
+    id: 'doc2',
+    document_id: 'doc-file-2',
+    name: 'Sub Folder Document',
+    document_type: 'pdf',
+    updated_at: new Date().toISOString(),
+    file_size: 2048,
+    allow_download: true,
+  };
+
+  const mockSubFolderNavigation = () => {
+    api.getShareLinkViewData.mockImplementation((slug, query) => {
+      if (query?.parentId === 'folder1') {
+        return Promise.resolve({
+          data: {
+            ...mockDataroomData,
+            current_parent_id: 'folder1',
+            breadcrumbs: [{ id: 'folder1', name: 'Sub Folder A' }],
+            items: [subFolderDoc],
+          },
+        });
+      }
+      if (query?.dataroomDocumentId === 'doc2') {
+        return Promise.resolve({
+          data: {
+            id: 'doc2',
+            name: 'Sub Folder Document',
+            type: 'document',
+            preview_mode: 'client_pdf',
+            num_pages: 14,
+            link_settings: { allow_download: true },
+          },
+        });
+      }
+      return Promise.resolve({ data: mockDataroomData });
+    });
+  };
+
+  const docFetchCount = (docId) =>
+    api.getShareLinkViewData.mock.calls.filter(([, query]) => query?.dataroomDocumentId === docId).length;
+
+  it('opens a document clicked from a subfolder list view', async () => {
+    mockSubFolderNavigation();
+
+    render(
+      <MemoryRouter initialEntries={['/view/test-slug']}>
+        <DataroomViewer data={mockDataroomData} slug="test-slug" viewId="view-123" />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByTitle('Sub Folder A'));
+    await screen.findByTitle('Sub Folder Document');
+
+    fireEvent.click(screen.getByTitle('Sub Folder Document'));
+
+    await waitFor(() => {
+      expect(api.getShareLinkViewData).toHaveBeenCalledWith('test-slug', expect.objectContaining({
+        dataroomDocumentId: 'doc2',
+      }));
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('Loading document...')).not.toBeInTheDocument();
+    });
+    expect(screen.queryByText('No document view data available.')).not.toBeInTheDocument();
+  });
+
+  it('refetches a document re-opened after navigating back to the folder list', async () => {
+    mockSubFolderNavigation();
+
+    render(
+      <MemoryRouter initialEntries={['/view/test-slug']}>
+        <DataroomViewer data={mockDataroomData} slug="test-slug" viewId="view-123" />
+      </MemoryRouter>
+    );
+
+    // Enter the subfolder and open the document once.
+    fireEvent.click(screen.getByTitle('Sub Folder A'));
+    await screen.findByTitle('Sub Folder Document');
+    fireEvent.click(screen.getByTitle('Sub Folder Document'));
+    await waitFor(() => {
+      expect(docFetchCount('doc2')).toBe(1);
+    });
+
+    // Navigate back out to the root list, then into the subfolder again.
+    fireEvent.click(screen.getByRole('button', { name: /^root$/i }));
+    await screen.findByTitle('Sub Folder A');
+    fireEvent.click(screen.getByTitle('Sub Folder A'));
+    await screen.findByTitle('Sub Folder Document');
+
+    // Re-open the same document.
+    fireEvent.click(screen.getByTitle('Sub Folder Document'));
+
+    await waitFor(() => {
+      expect(docFetchCount('doc2')).toBe(2);
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('Loading document...')).not.toBeInTheDocument();
+    });
+    expect(screen.queryByText('No document view data available.')).not.toBeInTheDocument();
+  });
+
+  it('retries a document fetch when the same item is clicked after a failure', async () => {
+    let shouldFail = true;
+    api.getShareLinkViewData.mockImplementation((slug, query) => {
+      if (query?.parentId === 'folder1') {
+        return Promise.resolve({
+          data: {
+            ...mockDataroomData,
+            current_parent_id: 'folder1',
+            breadcrumbs: [{ id: 'folder1', name: 'Sub Folder A' }],
+            items: [subFolderDoc],
+          },
+        });
+      }
+      if (query?.dataroomDocumentId === 'doc2') {
+        if (shouldFail) {
+          shouldFail = false;
+          return Promise.reject(new Error('network down'));
+        }
+        return Promise.resolve({
+          data: {
+            id: 'doc2',
+            name: 'Sub Folder Document',
+            type: 'document',
+            preview_mode: 'client_pdf',
+            num_pages: 14,
+            link_settings: { allow_download: true },
+          },
+        });
+      }
+      return Promise.resolve({ data: mockDataroomData });
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/view/test-slug']}>
+        <DataroomViewer data={mockDataroomData} slug="test-slug" viewId="view-123" />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByTitle('Sub Folder A'));
+    await screen.findByTitle('Sub Folder Document');
+    fireEvent.click(screen.getByTitle('Sub Folder Document'));
+
+    await screen.findByText('No document view data available.');
+
+    // Click the same document again from the sidebar tree.
+    fireEvent.click(await screen.findByTitle('Sub Folder Document'));
+
+    await waitFor(() => {
+      expect(docFetchCount('doc2')).toBe(2);
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('No document view data available.')).not.toBeInTheDocument();
+    });
+  });
 });
