@@ -3,6 +3,7 @@ globalThis.DOMMatrix = class DOMMatrix {};
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import i18n from '../../i18n';
 import { ShareLinkViewerPage } from '../../pages/ShareLinkViewerPage';
 import * as api from '../../services/api';
 
@@ -68,8 +69,9 @@ describe('ShareLinkViewerPage', () => {
     api.getPublicQnaSummary.mockResolvedValue({ data: { thread_count: 0 } });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.useRealTimers();
+    await i18n.changeLanguage('en');
   });
 
   const mockDocumentData = {
@@ -369,6 +371,43 @@ describe('ShareLinkViewerPage', () => {
      fireEvent.click(dismissButton);
  
      expect(screen.queryByText(/Owner Preview Mode:/)).not.toBeInTheDocument();
+    });
+
+    it('renders localized preview banner in Chinese when language is switched', async () => {
+      const mockWriteText = vi.fn().mockResolvedValue(undefined);
+      Object.assign(navigator, {
+        clipboard: {
+          writeText: mockWriteText,
+        },
+      });
+
+      await i18n.changeLanguage('zh-hans');
+      api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
+      api.getShareLinkViewData.mockResolvedValue({ data: mockDocumentData });
+      api.createViewSession.mockResolvedValue({ data: mockViewData });
+
+      renderComponent('/view/test-slug?previewToken=test-preview-token');
+
+      await waitFor(() => {
+        expect(screen.getByText(/所有者预览模式：/)).toBeInTheDocument();
+      });
+
+      const copyButton = screen.getByRole('button', { name: /复制原始链接/i });
+      expect(copyButton).toBeInTheDocument();
+
+      fireEvent.click(copyButton);
+      expect(mockWriteText).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /已复制！/i })).toBeInTheDocument();
+      });
+
+      const dismissButton = screen.getByTitle('关闭横幅');
+      expect(dismissButton).toBeInTheDocument();
+
+      fireEvent.click(dismissButton);
+      expect(screen.queryByText(/所有者预览模式：/)).not.toBeInTheDocument();
+
+      await i18n.changeLanguage('en');
     });
 
     it('does not trigger duplicate view-data or record-visit calls when clicking a document in sidebar', async () => {

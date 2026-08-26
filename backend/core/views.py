@@ -333,6 +333,7 @@ NATIVE_LANGUAGE_NAMES = {
     'en': 'English',
     'zh-hans': '简体中文',
     'ru': 'Русский',
+    'de': 'Deutsch',
 }
 
 

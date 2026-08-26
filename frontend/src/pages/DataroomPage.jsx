@@ -852,7 +852,7 @@ export function DataroomPage() {
                     }}
                   >
                     <ArrowLeft className="mr-1 h-4 w-4" />
-                    Back to parent
+                    {t('datarooms.backToParent')}
                   </Button>
                 )}
               </div>

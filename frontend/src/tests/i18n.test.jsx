@@ -4,6 +4,7 @@ import { initReactI18next } from 'react-i18next';
 import en from '../locales/en/translation.json';
 import zhHans from '../locales/zh-hans/translation.json';
 import ru from '../locales/ru/translation.json';
+import de from '../locales/de/translation.json';
 import { formatDate, formatRelativeTime } from '../utils/formatters';
 import { getLocalizedErrorMessage } from '../utils/errorTranslator';
 import appI18n from '../i18n';
@@ -16,11 +17,12 @@ function createTestI18n() {
       'zh-hans': { translation: zhHans },
       zh: { translation: zhHans },
       ru: { translation: ru },
+      de: { translation: de },
     },
     fallbackLng: 'en',
     load: 'currentOnly',
     lowerCaseLng: true,
-    supportedLngs: ['en', 'zh-hans', 'zh', 'ru'],
+    supportedLngs: ['en', 'zh-hans', 'zh', 'ru', 'de'],
     interpolation: { escapeValue: false },
   });
   return instance;
@@ -81,6 +83,22 @@ describe('Frontend i18n System', () => {
     expect(testI18n.t('settings.title')).toBe('Настройки пользователя');
   });
 
+  it('switches language to German (de)', async () => {
+    const testI18n = createTestI18n();
+    await testI18n.changeLanguage('de');
+    expect(testI18n.t('common.save')).toBe('Änderungen speichern');
+    expect(testI18n.t('common.edit')).toBe('Bearbeiten');
+    expect(testI18n.t('viewer.preview')).toBe('Vorschau');
+    expect(testI18n.t('nav.dashboard')).toBe('Dashboard');
+    expect(testI18n.t('dashboard.title')).toBe('Dashboard');
+    expect(testI18n.t('dashboard.dailyVisits')).toBe('Tägliche Besuche (letzte 30 Tage)');
+    expect(testI18n.t('analytics.visitor')).toBe('Besucher');
+    expect(testI18n.t('documents.newFolderTitle')).toBe('Neuen Ordner erstellen');
+    expect(testI18n.t('documents.renameTitle')).toBe('Element umbenennen');
+    expect(testI18n.t('documents.moveTitle')).toBe('Elemente verschieben');
+    expect(testI18n.t('settings.title')).toBe('Benutzereinstellungen');
+  });
+
   it('falls back to English for missing keys in non-English locale', async () => {
     const testI18n = createTestI18n();
     await testI18n.changeLanguage('zh-hans');
@@ -100,6 +118,17 @@ describe('Frontend i18n System', () => {
     expect(testI18n.t('datarooms.addSelectedItems', { count: 4 })).toBe('Add 4 items');
     expect(testI18n.t('trash.itemsSelected', { count: 1 })).toBe('1 item selected');
     expect(testI18n.t('trash.itemsSelected', { count: 2 })).toBe('2 items selected');
+
+    // German plurals (_one / _other)
+    await testI18n.changeLanguage('de');
+    expect(testI18n.t('links.settingCount', { count: 1 })).toBe('1 Einstellung');
+    expect(testI18n.t('links.settingCount', { count: 5 })).toBe('5 Einstellungen');
+    expect(testI18n.t('documents.itemCount', { count: 1 })).toBe('1 Element');
+    expect(testI18n.t('documents.itemCount', { count: 3 })).toBe('3 Elemente');
+    expect(testI18n.t('datarooms.addSelectedItems', { count: 1 })).toBe('1 Element hinzufügen');
+    expect(testI18n.t('datarooms.addSelectedItems', { count: 4 })).toBe('4 Elemente hinzufügen');
+    expect(testI18n.t('trash.itemsSelected', { count: 1 })).toBe('1 Element ausgewählt');
+    expect(testI18n.t('trash.itemsSelected', { count: 2 })).toBe('2 Elemente ausgewählt');
 
     // Chinese plurals (_other)
     await testI18n.changeLanguage('zh-hans');
@@ -266,6 +295,22 @@ describe('Frontend i18n System', () => {
 
     await appI18n.changeLanguage('ru');
     expect(getLocalizedErrorMessage(rawError)).toBe('Не удалось получить доступ к Google Drive. Срок действия токена авторизации истёк или он был отозван. Пожалуйста, подключите аккаунт заново.');
+
+    await appI18n.changeLanguage('de');
+    expect(getLocalizedErrorMessage(rawError)).toBe('Fehler beim Zugriff auf Google Drive. Ihr Autorisierungs-Token ist möglicherweise abgelaufen oder wurde widerrufen. Bitte verbinden Sie Ihr Konto erneut.');
+
+    // Fallback when error has no detail and no fallbackKey
+    await appI18n.changeLanguage('en');
+    expect(getLocalizedErrorMessage({})).toBe('An unexpected error occurred.');
+
+    await appI18n.changeLanguage('zh-hans');
+    expect(getLocalizedErrorMessage({})).toBe('发生意外错误。');
+
+    await appI18n.changeLanguage('ru');
+    expect(getLocalizedErrorMessage({})).toBe('Произошла непредвиденная ошибка.');
+
+    await appI18n.changeLanguage('de');
+    expect(getLocalizedErrorMessage({})).toBe('Ein unerwarteter Fehler ist aufgetreten.');
   });
 
   it('formats dates localized according to current i18n language', async () => {
@@ -273,11 +318,16 @@ describe('Frontend i18n System', () => {
 
     await appI18n.changeLanguage('en');
     const formattedEn = formatDate(testDate);
-    expect(formattedEn).toContain('Aug');
+    expect(formattedEn).toBe('Aug 10, 2026');
 
     await appI18n.changeLanguage('zh-hans');
     const formattedZh = formatDate(testDate);
     expect(formattedZh).toContain('2026');
+
+    await appI18n.changeLanguage('de');
+    const formattedDe = formatDate(testDate);
+    expect(formattedDe).toBe('10. Aug. 2026');
+    expect(formattedDe).not.toBe(formattedEn);
 
     // Relative date test (e.g. 60 days ago)
     const pastDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
@@ -293,6 +343,10 @@ describe('Frontend i18n System', () => {
     await appI18n.changeLanguage('ru');
     const relativeRu = formatRelativeTime(pastDate);
     expect(relativeRu).toContain('назад');
+
+    await appI18n.changeLanguage('de');
+    const relativeDe = formatRelativeTime(pastDate);
+    expect(relativeDe).toContain('vor');
 
     // Options merging tests
     await appI18n.changeLanguage('en');

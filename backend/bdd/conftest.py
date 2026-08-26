@@ -14,11 +14,12 @@ DEFAULT_TEST_PASSWORD = "StrongPassword123!"
 @pytest.fixture(autouse=True, scope="session")
 def ensure_mo_catalogs_compiled():
     """Ensure binary .mo catalogs exist and are compiled before running BDD tests."""
-    for lang in ['en', 'zh_Hans', 'ru']:
-        po_path = os.path.join(BASE_LOCALE, lang, 'LC_MESSAGES', 'django.po')
-        mo_path = os.path.join(BASE_LOCALE, lang, 'LC_MESSAGES', 'django.mo')
-        if os.path.exists(po_path):
-            make_mo(po_path, mo_path)
+    if os.path.exists(BASE_LOCALE):
+        for entry in os.listdir(BASE_LOCALE):
+            po_path = os.path.join(BASE_LOCALE, entry, 'LC_MESSAGES', 'django.po')
+            mo_path = os.path.join(BASE_LOCALE, entry, 'LC_MESSAGES', 'django.mo')
+            if os.path.exists(po_path):
+                make_mo(po_path, mo_path)
 
 
 

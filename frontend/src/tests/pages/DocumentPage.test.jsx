@@ -155,7 +155,7 @@ describe('DocumentPage', () => {
 
     it('shows confirmation dialog for mismatched file type', async () => {
       const { container } = renderComponent();
-      await waitFor(() => expect(api.getDocumentDetails).toHaveBeenCalled());
+      await screen.findByText('Document Header');
 
       const fileInput = container.querySelector('input[type="file"]');
       const mockDocxFile = new File(['new content'], 'new-version.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
@@ -170,7 +170,7 @@ describe('DocumentPage', () => {
 
     it('proceeds with upload after confirming mismatched file type', async () => {
       const { container } = renderComponent();
-      await waitFor(() => expect(api.getDocumentDetails).toHaveBeenCalled());
+      await screen.findByText('Document Header');
 
       const fileInput = container.querySelector('input[type="file"]');
       const mockDocxFile = new File(['new content'], 'new-version.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
@@ -188,7 +188,7 @@ describe('DocumentPage', () => {
 
     it('cancels upload when dismissing mismatched file type dialog', async () => {
       const { container } = renderComponent();
-      await waitFor(() => expect(api.getDocumentDetails).toHaveBeenCalled());
+      await screen.findByText('Document Header');
 
       const fileInput = container.querySelector('input[type="file"]');
       const mockDocxFile = new File(['new content'], 'new-version.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
@@ -265,9 +265,7 @@ describe('DocumentPage', () => {
       const windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => {});
 
       renderComponent();
-      await waitFor(() => expect(api.getDocumentDetails).toHaveBeenCalled());
-
-      const downloadButton = screen.getByRole('button', { name: /download/i });
+      const downloadButton = await screen.findByRole('button', { name: /download/i });
       fireEvent.click(downloadButton);
 
       await waitFor(() => {
@@ -282,9 +280,7 @@ describe('DocumentPage', () => {
       api.deleteDocument.mockResolvedValue({});
 
       renderComponent();
-      await waitFor(() => expect(api.getDocumentDetails).toHaveBeenCalled());
-
-      const deleteButton = screen.getByRole('button', { name: /delete/i });
+      const deleteButton = await screen.findByRole('button', { name: /delete/i });
       fireEvent.click(deleteButton);
 
       // Check for confirmation dialog
@@ -306,9 +302,7 @@ describe('DocumentPage', () => {
       api.renameDocument.mockResolvedValue({ data: { id: 'doc123', name: 'New Document Name' } });
 
       renderComponent();
-      await waitFor(() => expect(api.getDocumentDetails).toHaveBeenCalled());
-
-      const renameButton = screen.getByRole('button', { name: /rename/i });
+      const renameButton = await screen.findByRole('button', { name: /rename/i });
       fireEvent.click(renameButton);
 
       await waitFor(() => {

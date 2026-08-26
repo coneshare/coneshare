@@ -1,5 +1,5 @@
 import { format, formatDistanceToNow } from 'date-fns';
-import { enUS, zhCN, ru } from 'date-fns/locale';
+import { enUS, zhCN, ru, de } from 'date-fns/locale';
 import i18n from '../i18n';
 
 const localeMap = {
@@ -7,6 +7,7 @@ const localeMap = {
   'zh-hans': zhCN,
   'zh': zhCN,
   'ru': ru,
+  'de': de,
 };
 
 /**

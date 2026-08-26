@@ -11,4 +11,5 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'en', name: 'English' },
   { code: 'zh-hans', name: '简体中文' },
   { code: 'ru', name: 'Русский' },
+  { code: 'de', name: 'Deutsch' },
 ];
