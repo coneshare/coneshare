@@ -119,7 +119,10 @@
     "watermarkNotAvailable": "Wasserzeichen sind für PDF-, Office- und Bilddokumente verfügbar.",
     "watermarkPlaceholder": "z. B. Vertraulich, {{ip-address}}",
     "expirationDate": "Ablaufdatum",
-    "expirationSubtitle": "Datum und Uhrzeit festlegen, nach denen der Link nicht mehr zugänglich ist."
+    "expirationSubtitle": "Datum und Uhrzeit festlegen, nach denen der Link nicht mehr zugänglich ist.",
+    "enableQna": "Fragen & Antworten aktivieren",
+    "qnaSubtitle": "Besuchern erlauben, über diesen Link Fragen zu stellen.",
+    "qnaDisabledForDataroom": "Fragen & Antworten sind für diesen Datenraum deaktiviert."
   },
   "qna": {
     "title": "Fragen & Antworten",
@@ -470,7 +473,10 @@
     "secondaryTextPreview": "Sekundärtext-Vorschau für Datenraumbeschreibungen.",
     "accentButton": "Akzent-Schaltfläche",
     "displaySettings": "Anzeige",
-    "displayNotice": "Anzeigeverhalten der Datenraumliste konfigurieren."
+    "displayNotice": "Anzeigeverhalten der Datenraumliste konfigurieren.",
+    "enableQna": "Fragen & Antworten aktivieren",
+    "enableQnaHelp": "Besuchern erlauben, in diesem Datenraum Fragen zu stellen. Wenn deaktiviert, sind Fragen & Antworten für alle Links zu diesem Raum ausgeschaltet.",
+    "qnaDisabledNotice": "Fragen & Antworten sind für diesen Datenraum deaktiviert. Bestehende Diskussionen bleiben hier sichtbar, aber Besucher können keine neuen Fragen stellen oder antworten."
   },
   "fileRequests": {
     "title": "Dateianforderungen",

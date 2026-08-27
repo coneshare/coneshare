@@ -37,6 +37,7 @@
     "src/tests/components/automations/DeliveryLogsTable.test.jsx",
     "src/tests/components/automations/AutomationBuilder.test.jsx",
     "src/tests/components/filerequests/FileRequestSheet.test.jsx",
-    "src/tests/pages/AdminSettingsPage.test.jsx"
+    "src/tests/pages/AdminSettingsPage.test.jsx",
+    "src/tests/components/links/LinkSheet.test.jsx"
   ]
 }
