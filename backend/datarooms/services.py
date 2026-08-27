@@ -1,6 +1,7 @@
 import logging
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 
 from documents.models import Folder, Document
 from documents.services import delete_document_and_files
@@ -8,6 +9,25 @@ from .models import Dataroom, DataroomDocument, DataroomFolder
 from .utils import get_dataroom_storage_folder_name
 
 logger = logging.getLogger(__name__)
+
+
+def touch_dataroom_folder_ancestors(folder: DataroomFolder | None):
+    """
+    Updates the modification timestamp (updated_at) for the given DataroomFolder
+    and all its ancestor folders up to the root in a single batch UPDATE query.
+    """
+    if not folder:
+        return
+    now = timezone.now()
+    ancestor_ids = []
+    visited = set()
+    current = folder
+    while current and current.id not in visited:
+        visited.add(current.id)
+        ancestor_ids.append(current.id)
+        current = current.parent
+    if ancestor_ids:
+        DataroomFolder.objects.filter(id__in=ancestor_ids).update(updated_at=now)
 
 
 def delete_dataroom(dataroom: Dataroom):
@@ -88,7 +108,7 @@ def remove_dataroom_content(dataroom: Dataroom, dataroom_doc_ids: list = None, d
         DataroomDocument.objects.filter(
             Q(id__in=dataroom_doc_ids) | Q(folder_id__in=all_folder_ids),
             dataroom=dataroom
-        ).select_related('document', 'document__folder')
+        ).select_related('document', 'document__folder', 'folder')
     )
     ddoc_ids_to_remove = {d.id for d in ddocs_to_remove}
 
@@ -138,11 +158,27 @@ def remove_dataroom_content(dataroom: Dataroom, dataroom_doc_ids: list = None, d
                 backing_docs_to_delete.append(doc)
 
     # 4. Perform deletion
+    parent_folders_to_touch = set()
+    for ddoc in ddocs_to_remove:
+        if ddoc.folder and ddoc.folder.id not in all_folder_ids:
+            parent_folders_to_touch.add(ddoc.folder)
+
+    if dataroom_folder_ids:
+        folders_being_deleted = DataroomFolder.objects.filter(
+            id__in=dataroom_folder_ids,
+            dataroom=dataroom
+        ).select_related('parent')
+        for folder in folders_being_deleted:
+            if folder.parent and folder.parent.id not in all_folder_ids:
+                parent_folders_to_touch.add(folder.parent)
+
     with transaction.atomic():
         if dataroom_doc_ids:
             DataroomDocument.objects.filter(id__in=dataroom_doc_ids, dataroom=dataroom).delete()
         if dataroom_folder_ids:
             DataroomFolder.objects.filter(id__in=dataroom_folder_ids, dataroom=dataroom).delete()
+        for parent_folder in parent_folders_to_touch:
+            touch_dataroom_folder_ancestors(parent_folder)
 
     # Delete backing documents and storage files for direct uploads with no other references (non-blocking)
     for doc in backing_docs_to_delete:

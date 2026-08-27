@@ -3,7 +3,10 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.test import override_settings
 
-from documents.models import Document, DocumentVersion, DocumentPage
+from datetime import timedelta
+from django.utils import timezone
+
+from documents.models import Document, DocumentVersion, DocumentPage, Folder
 from documents.services import (
     create_document_from_upload,
     delete_document_and_files,
@@ -15,6 +18,10 @@ from documents.services import (
     promote_document_version,
     check_user_quota_on_upload,
     get_effective_render_status,
+    touch_folder_ancestors,
+    soft_delete_document,
+    soft_delete_folder,
+    restore_item,
 )
 from core.services import get_dynamic_setting
 
@@ -617,5 +624,143 @@ class TestPromoteDocumentVersion:
         with patch('core.services.get_dynamic_setting', return_value=45):
             with pytest.raises(QuotaExceededError, match="Uploading this file would exceed your storage quota of 45 MB"):
                 check_user_quota_on_upload(user, 10)
+
+
+@pytest.mark.django_db
+class TestFolderMtimeUpdates:
+    def test_touch_folder_ancestors_updates_tree(self, user):
+        """Test that touch_folder_ancestors updates the timestamp of the folder and all its ancestors."""
+        past_time = timezone.now() - timedelta(days=2)
+        root = Folder.objects.create(name="Root", organization=user.organization, created_by=user)
+        sub1 = Folder.objects.create(name="Sub1", parent=root, organization=user.organization, created_by=user)
+        sub2 = Folder.objects.create(name="Sub2", parent=sub1, organization=user.organization, created_by=user)
+
+        Folder.objects.filter(id__in=[root.id, sub1.id, sub2.id]).update(updated_at=past_time)
+        root.refresh_from_db()
+        sub1.refresh_from_db()
+        sub2.refresh_from_db()
+        assert root.updated_at == past_time
+        assert sub1.updated_at == past_time
+        assert sub2.updated_at == past_time
+
+        touch_folder_ancestors(sub2)
+
+        root.refresh_from_db()
+        sub1.refresh_from_db()
+        sub2.refresh_from_db()
+        assert root.updated_at > past_time
+        assert sub1.updated_at > past_time
+        assert sub2.updated_at > past_time
+
+    def test_create_document_touches_parent_folder(self, user):
+        """Test that uploading/creating a document touches parent folder updated_at."""
+        past_time = timezone.now() - timedelta(days=1)
+        folder = Folder.objects.create(name="Folder", organization=user.organization, created_by=user)
+        Folder.objects.filter(id=folder.id).update(updated_at=past_time)
+        folder.refresh_from_db()
+        assert folder.updated_at == past_time
+
+        create_document_from_upload(
+            requesting_user=user,
+            folder=folder,
+            storage_key=f"{user.organization.id}/test.pdf",
+            unique_name="test.pdf",
+            file_size=100,
+            content_type="application/pdf"
+        )
+
+        folder.refresh_from_db()
+        assert folder.updated_at > past_time
+
+    def test_soft_delete_and_restore_document_touches_parent_folder(self, user):
+        """Test that soft deleting and restoring a document touches parent folder updated_at."""
+        past_time = timezone.now() - timedelta(days=1)
+        folder = Folder.objects.create(name="Folder", organization=user.organization, created_by=user)
+        doc = Document.objects.create(
+            name="file.pdf",
+            organization=user.organization,
+            folder=folder,
+            created_by=user,
+            type="pdf",
+            content_type="application/pdf"
+        )
+        Folder.objects.filter(id=folder.id).update(updated_at=past_time)
+        folder.refresh_from_db()
+        assert folder.updated_at == past_time
+
+        # 1. Soft delete touches parent folder
+        soft_delete_document(doc, user)
+        folder.refresh_from_db()
+        assert folder.updated_at > past_time
+
+        # 2. Reset and restore touches parent folder
+        Folder.objects.filter(id=folder.id).update(updated_at=past_time)
+        folder.refresh_from_db()
+        assert folder.updated_at == past_time
+
+        restore_item(doc, 'document', user)
+        folder.refresh_from_db()
+        assert folder.updated_at > past_time
+
+    def test_soft_delete_folder_touches_parent_folder(self, user):
+        """Test that soft deleting a subfolder touches its parent folder updated_at."""
+        past_time = timezone.now() - timedelta(days=1)
+        parent = Folder.objects.create(name="Parent", organization=user.organization, created_by=user)
+        child = Folder.objects.create(name="Child", parent=parent, organization=user.organization, created_by=user)
+        Folder.objects.filter(id=parent.id).update(updated_at=past_time)
+        parent.refresh_from_db()
+        assert parent.updated_at == past_time
+
+        soft_delete_folder(child, user)
+        parent.refresh_from_db()
+        assert parent.updated_at > past_time
+
+    def test_promote_document_version_touches_parent_folder(self, user):
+        """Test that promoting a document version touches parent folder updated_at."""
+        past_time = timezone.now() - timedelta(days=1)
+        folder = Folder.objects.create(name="Folder", organization=user.organization, created_by=user)
+        doc = Document.objects.create(
+            name="file.pdf",
+            organization=user.organization,
+            folder=folder,
+            created_by=user,
+            type="pdf",
+            content_type="application/pdf",
+            file_size=100
+        )
+        v1 = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            is_primary=True,
+            file_size=100,
+            content_type="application/pdf",
+            storage_key="v1.pdf",
+            type="pdf"
+        )
+        v2 = DocumentVersion.objects.create(
+            document=doc,
+            version_number=2,
+            is_primary=False,
+            file_size=200,
+            content_type="application/pdf",
+            storage_key="v2.pdf",
+            type="pdf"
+        )
+        Folder.objects.filter(id=folder.id).update(updated_at=past_time)
+        folder.refresh_from_db()
+        assert folder.updated_at == past_time
+
+        promote_document_version(doc, v2, user)
+        folder.refresh_from_db()
+        assert folder.updated_at > past_time
+
+    def test_touch_folder_ancestors_with_cycle_safely_terminates(self, user):
+        """Test that touch_folder_ancestors does not infinite-loop if there is a cycle."""
+        f1 = Folder.objects.create(name="F1", organization=user.organization, created_by=user)
+        f2 = Folder.objects.create(name="F2", parent=f1, organization=user.organization, created_by=user)
+        # Mock a cycle in memory
+        f1.parent = f2
+        touch_folder_ancestors(f2)  # Should terminate cleanly without hanging
+
 
 

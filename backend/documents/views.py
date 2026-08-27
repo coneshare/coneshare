@@ -43,6 +43,7 @@ from .services import (
     preview_mode_for_version,
     preview_status_for_render_status,
     promote_document_version,
+    touch_folder_ancestors,
 )
 
 
@@ -347,6 +348,7 @@ class EnsureFolderPathsView(APIView):
                 # Keep track of created/verified folders to avoid redundant lookups
                 path_to_folder_map = {'': root_folder}
 
+                any_created = False
                 for path_str in sorted_paths:
                     path = Path(path_str)
                     parent_path_str = str(path.parent) if path.parent != Path('.') else ''
@@ -367,14 +369,19 @@ class EnsureFolderPathsView(APIView):
                         )
 
                     folder_name = path.name
-                    folder, _ = Folder.objects.active().get_or_create(
+                    folder, created = Folder.objects.active().get_or_create(
                         organization=organization,
                         parent=parent_folder,
                         name=folder_name,
                         created_by=requesting_user
                     )
+                    if created:
+                        any_created = True
 
                     path_to_folder_map[path_str] = folder
+
+                if any_created and root_folder:
+                    touch_folder_ancestors(root_folder)
 
             return Response(
                 {
@@ -809,11 +816,12 @@ class FolderViewSet(viewsets.ModelViewSet):
 
         if not parent:
             parent = self._get_root_folder()
-        serializer.save(
+        folder = serializer.save(
             created_by=self.request.user,
             organization=self.request.user.organization,
             parent=parent
         )
+        touch_folder_ancestors(folder.parent)
 
     def perform_update(self, serializer):
         parent = serializer.validated_data.get('parent')
@@ -821,7 +829,11 @@ class FolderViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError(
                 {'parent': "You can only move folders to destinations you own."}
             )
-        serializer.save()
+        old_parent = serializer.instance.parent
+        folder = serializer.save()
+        touch_folder_ancestors(folder.parent)
+        if old_parent and old_parent != folder.parent:
+            touch_folder_ancestors(old_parent)
 
     def destroy(self, request, *args, **kwargs):
         folder = self.get_object()
@@ -859,6 +871,13 @@ class DocumentViewSet(viewsets.ModelViewSet):
         ).prefetch_related(
             'versions', 'share_links', 'share_links__view_sessions'
         )
+
+    def perform_update(self, serializer):
+        old_folder = serializer.instance.folder
+        document = serializer.save()
+        touch_folder_ancestors(document.folder)
+        if old_folder and old_folder != document.folder:
+            touch_folder_ancestors(old_folder)
 
     def list(self, request, *args, **kwargs):
         """
@@ -1166,6 +1185,14 @@ class MoveItemsView(APIView):
                 # as it results in N database queries for updates. To improve efficiency,
                 # you can collect the modified objects and use bulk_update to perform all updates
                 # in a single query for documents and another for folders.
+                source_folders = set()
+                for doc in documents_to_move:
+                    if doc.folder:
+                        source_folders.add(doc.folder)
+                for folder in folders_to_move:
+                    if folder.parent:
+                        source_folders.add(folder.parent)
+
                 for doc in documents_to_move:
                     doc.name = _get_unique_document_name(
                         requesting_user=user,
@@ -1184,6 +1211,10 @@ class MoveItemsView(APIView):
                     )
                     folder.parent = destination_folder
                     folder.save()
+
+                for src_folder in source_folders:
+                    touch_folder_ancestors(src_folder)
+                touch_folder_ancestors(destination_folder)
 
             return Response({"detail": "Items moved successfully."}, status=status.HTTP_200_OK)
 

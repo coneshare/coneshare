@@ -27,7 +27,11 @@ from documents.fileserver import fileserver_client
 from sharelinks.models import ViewSession
 from sharelinks.serializers import ViewSessionSerializer
 from .models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
-from .services import delete_dataroom, remove_dataroom_content
+from .services import (
+    delete_dataroom,
+    remove_dataroom_content,
+    touch_dataroom_folder_ancestors,
+)
 from .utils import get_dataroom_storage_folder_name, build_ordered_dataroom_items
 from .serializers import (
     AddContentSerializer, DataroomDetailSerializer,
@@ -212,6 +216,9 @@ class DataroomViewSet(viewsets.ModelViewSet):
                 for folder in folders_to_add:
                     self._replicate_folder_structure(dataroom, folder, destination_folder, request.user)
 
+                if destination_folder:
+                    touch_dataroom_folder_ancestors(destination_folder)
+
             return Response({"detail": "Content added successfully."}, status=status.HTTP_200_OK)
         except PermissionDenied as e:
             return Response({"detail": str(e)}, status=status.HTTP_403_FORBIDDEN)
@@ -334,8 +341,11 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
                 # TODO: This loop executes a save() for each document being moved, which can cause performance issues
                 # (N+1 queries) when moving many documents. This should be converted to use bulk_update.
+                source_folders = set()
                 docs_to_move = DataroomDocument.objects.filter(id__in=doc_ids, dataroom=dataroom)
                 for doc in docs_to_move:
+                    if doc.folder:
+                        source_folders.add(doc.folder)
                     doc.name = self._get_unique_dataroom_document_name(dataroom, destination_folder, doc.name)
                     doc.folder = destination_folder
                     doc.save()
@@ -344,9 +354,16 @@ class DataroomViewSet(viewsets.ModelViewSet):
                 for folder in folders_to_move:
                     if folder.id == dest_folder_id:
                         raise serializers.ValidationError("Cannot move a folder into itself.")
+                    if folder.parent:
+                        source_folders.add(folder.parent)
                     folder.name = self._get_unique_dataroom_folder_name(dataroom, destination_folder, folder.name)
                     folder.parent = destination_folder
                     folder.save()
+
+                for src_folder in source_folders:
+                    touch_dataroom_folder_ancestors(src_folder)
+                if destination_folder:
+                    touch_dataroom_folder_ancestors(destination_folder)
 
             return Response({"detail": "Content moved successfully."}, status=status.HTTP_200_OK)
         except serializers.ValidationError as e:
@@ -462,6 +479,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
                 sorted_paths = sorted(list(all_required_paths), key=lambda p: p.count(os.sep))
                 path_to_folder_map = {'': parent_folder}
 
+                any_created = False
                 for path_str in sorted_paths:
                     path = Path(path_str)
                     parent_path_str = str(path.parent) if path.parent != Path('.') else ''
@@ -480,6 +498,8 @@ class DataroomViewSet(viewsets.ModelViewSet):
                         name=folder_name,
                     )
                     path_to_folder_map[path_str] = folder
+                    if created:
+                        any_created = True
 
                     if created and dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, parent_dataroom_folder):
                         self._append_item_order(
@@ -488,6 +508,9 @@ class DataroomViewSet(viewsets.ModelViewSet):
                             item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
                             folder=folder,
                         )
+
+                if any_created and parent_folder:
+                    touch_dataroom_folder_ancestors(parent_folder)
 
             return Response(
                 {
@@ -643,6 +666,9 @@ class DataroomViewSet(viewsets.ModelViewSet):
                         item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
                         dataroom_document=dataroom_doc,
                     )
+
+                if destination_folder:
+                    touch_dataroom_folder_ancestors(destination_folder)
         except Exception as e:
             logger.error(f"Failed to finalize dataroom document upload: {e}")
             return Response(
@@ -674,6 +700,7 @@ class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
         instance = self.get_object()
         new_name = serializer.validated_data.get('name')
         old_name = instance.name
+        old_folder = instance.folder
 
         if new_name and new_name != old_name:
             if DataroomDocument.objects.filter(
@@ -683,7 +710,11 @@ class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
             ).exclude(pk=instance.pk).exists():
                 raise serializers.ValidationError({'name': _('A document with this name already exists in this location.')})
 
-        serializer.save()
+        saved_doc = serializer.save()
+        if saved_doc.folder:
+            touch_dataroom_folder_ancestors(saved_doc.folder)
+        if old_folder and old_folder != saved_doc.folder:
+            touch_dataroom_folder_ancestors(old_folder)
 
         # Rename backing Document under "Dataroom Uploads" if it exists and is a direct upload
         if new_name and new_name != old_name:
@@ -764,6 +795,8 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You do not have permission to add folders to this dataroom.")
 
         folder = serializer.save()
+        if folder.parent:
+            touch_dataroom_folder_ancestors(folder.parent)
         if dataroom.show_file_index and DataroomItemOrder.objects.filter(
             dataroom=dataroom, parent_folder=folder.parent
         ).exists():
@@ -785,6 +818,7 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         new_name = serializer.validated_data.get('name')
         old_name = instance.name
+        old_parent = instance.parent
 
         if new_name and new_name != old_name:
             if DataroomFolder.objects.filter(
@@ -794,7 +828,11 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
             ).exclude(pk=instance.pk).exists():
                 raise serializers.ValidationError({'name': _('A folder with this name already exists in this location.')})
 
-        serializer.save()
+        saved_folder = serializer.save()
+        if saved_folder.parent:
+            touch_dataroom_folder_ancestors(saved_folder.parent)
+        if old_parent and old_parent != saved_folder.parent:
+            touch_dataroom_folder_ancestors(old_parent)
 
         # Rename the backing Folder under "Dataroom Uploads" if it exists
         if new_name and new_name != old_name:
