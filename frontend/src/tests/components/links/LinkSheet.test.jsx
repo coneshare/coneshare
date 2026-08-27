@@ -199,5 +199,51 @@ describe('LinkSheet', () => {
       expect(payload).not.toHaveProperty('dataroom');
       expect(payload).not.toHaveProperty('document');
     });
+
+    it('should omit enable_qna when the dataroom has Q&A disabled', async () => {
+      const currentLink = {
+        id: 'link_qna',
+        name: 'Existing Dataroom Link',
+        allow_download: true,
+        has_password: false,
+        enable_qna: true,
+      };
+      api.updateShareLink.mockResolvedValue({});
+      renderComponent({
+        document: null,
+        dataroom: { ...dataroom, enable_qna: false },
+        currentLink,
+      });
+
+      await userEvent.clear(screen.getByLabelText(/Name/));
+      await userEvent.type(screen.getByLabelText(/Name/), 'Renamed Link');
+      await userEvent.click(screen.getByText('Save Changes'));
+
+      const payload = api.updateShareLink.mock.calls[0][1];
+      expect(payload).not.toHaveProperty('enable_qna');
+      expect(payload.name).toBe('Renamed Link');
+    });
+
+    it('should send enable_qna when the dataroom has Q&A enabled', async () => {
+      const currentLink = {
+        id: 'link_qna',
+        name: 'Existing Dataroom Link',
+        allow_download: true,
+        has_password: false,
+        enable_qna: false,
+      };
+      api.updateShareLink.mockResolvedValue({});
+      renderComponent({
+        document: null,
+        dataroom: { ...dataroom, enable_qna: true },
+        currentLink,
+      });
+
+      await userEvent.click(screen.getByText('Save Changes'));
+
+      expect(api.updateShareLink).toHaveBeenCalledWith('link_qna', expect.objectContaining({
+        enable_qna: false,
+      }));
+    });
   });
 });

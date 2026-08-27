@@ -418,6 +418,11 @@ def _resolve_qna_context_for_link(link: ShareLink, dataroom_document_id=None, da
 
 
 def _get_authorized_qna_view_session(request, link: ShareLink, view_session_id: str | None):
+    # Every public Q&A endpoint authorizes its view session here, so this is the
+    # single gate for the dataroom-level and link-level Q&A switches.
+    if not link.qna_enabled:
+        raise PermissionDenied("Q&A is disabled for this link.")
+
     if not view_session_id:
         raise serializers.ValidationError({"view_session_id": "This field is required."})
 
@@ -920,6 +925,7 @@ class ShareLinkViewDataView(APIView):
                 "link_settings": {
                     "id": link.id,
                     "allow_download": allow_download,
+                    "enable_qna": link.qna_enabled,
                     "enable_watermark": enable_watermark,
                     "watermark_text": link.watermark_text,
                     "resolved_watermark_text": resolved_watermark_text,
@@ -1126,6 +1132,7 @@ class ShareLinkViewDataView(APIView):
                 'link_settings': {
                     'id': link.id,
                     'allow_download': link.allow_download,
+                    'enable_qna': link.qna_enabled,
                     'enable_watermark': link.enable_watermark,
                     'watermark_text': link.watermark_text,
                 }
@@ -1484,6 +1491,10 @@ class QnAThreadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
 
         try:
             link = self._get_manageable_share_link(serializer.validated_data['share_link_id'])
+            if not link.qna_enabled:
+                raise serializers.ValidationError(
+                    {'message': 'Q&A is disabled for this link.'}
+                )
             # Owner-created threads are intentionally limited to the current
             # document or dataroom page. Item-level dataroom context remains a
             # viewer-only workflow until owner item-level Q&A is designed.

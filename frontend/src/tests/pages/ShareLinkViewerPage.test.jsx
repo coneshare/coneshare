@@ -305,6 +305,26 @@ describe('ShareLinkViewerPage', () => {
     expect(screen.getByTestId('qna-panel')).toHaveTextContent('Test Document');
   });
 
+  it('hides the Q&A button when Q&A is disabled for the link', async () => {
+    api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
+    api.getShareLinkViewData.mockResolvedValue({
+      data: {
+        ...mockDocumentData,
+        link_settings: { ...mockDocumentData.link_settings, enable_qna: false },
+      },
+    });
+    api.createViewSession.mockResolvedValue({ data: mockViewData });
+
+    renderComponent('/view/test-slug');
+
+    await waitFor(() => {
+      expect(screen.getByText('Test Document')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByLabelText(/open q&a/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId('qna-panel')).toHaveTextContent('Q&A Closed');
+  });
+
   it('displays document Q&A thread count on the Q&A button', async () => {
     api.getShareLinkPublicMeta.mockResolvedValue({ data: mockPublicMeta });
     api.getShareLinkViewData.mockResolvedValue({ data: mockDocumentData });

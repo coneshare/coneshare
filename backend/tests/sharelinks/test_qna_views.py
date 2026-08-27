@@ -528,3 +528,167 @@ def test_owner_can_filter_qna_threads_by_document(api_client, share_link, user, 
         str(dataroom_document_thread.id),
         str(matching_thread.id),
     }
+
+
+def test_dataroom_qna_switch_disables_qna_for_every_link_into_the_room(
+    public_client, dataroom, user
+):
+    dataroom.enable_qna = False
+    dataroom.save(update_fields=['enable_qna'])
+    link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+    view_session = ViewSession.objects.create(share_link=link)
+
+    assert link.enable_qna is True
+    assert link.qna_enabled is False
+
+    create_response = public_client.post(
+        f'/api/v1/links/{link.slug}/qna-threads/',
+        {
+            'view_session_id': str(view_session.id),
+            'subject': 'Room-level question',
+            'body': 'This should never be stored.',
+        },
+        format='json',
+    )
+
+    assert create_response.status_code == status.HTTP_403_FORBIDDEN
+    assert QnAThread.objects.count() == 0
+
+    list_response = public_client.get(
+        f'/api/v1/links/{link.slug}/qna-threads/?view_session_id={view_session.id}'
+    )
+    summary_response = public_client.get(
+        f'/api/v1/links/{link.slug}/qna-summary/?view_session_id={view_session.id}'
+    )
+
+    assert list_response.status_code == status.HTTP_403_FORBIDDEN
+    assert summary_response.status_code == status.HTTP_403_FORBIDDEN
+
+
+def test_link_level_qna_switch_disables_qna_for_that_link_only(
+    public_client, dataroom, user
+):
+    disabled_link = ShareLink.objects.create(
+        dataroom=dataroom, created_by=user, name='No Q&A group', enable_qna=False
+    )
+    enabled_link = ShareLink.objects.create(
+        dataroom=dataroom, created_by=user, name='Q&A group'
+    )
+    disabled_session = ViewSession.objects.create(share_link=disabled_link)
+    enabled_session = ViewSession.objects.create(share_link=enabled_link)
+
+    payload = {'subject': 'Question', 'body': 'Body.'}
+
+    disabled_response = public_client.post(
+        f'/api/v1/links/{disabled_link.slug}/qna-threads/',
+        {**payload, 'view_session_id': str(disabled_session.id)},
+        format='json',
+    )
+    enabled_response = public_client.post(
+        f'/api/v1/links/{enabled_link.slug}/qna-threads/',
+        {**payload, 'view_session_id': str(enabled_session.id)},
+        format='json',
+    )
+
+    assert disabled_response.status_code == status.HTTP_403_FORBIDDEN
+    assert enabled_response.status_code == status.HTTP_201_CREATED
+    assert QnAThread.objects.count() == 1
+    assert QnAThread.objects.get().share_link == enabled_link
+
+
+def test_link_cannot_re_enable_qna_that_the_dataroom_turned_off(dataroom, user):
+    dataroom.enable_qna = False
+    dataroom.save(update_fields=['enable_qna'])
+    link = ShareLink.objects.create(dataroom=dataroom, created_by=user, enable_qna=True)
+
+    assert link.qna_enabled is False
+
+
+def test_document_link_qna_switch_disables_public_qna(public_client, share_link):
+    share_link.enable_qna = False
+    share_link.save(update_fields=['enable_qna'])
+    view_session = ViewSession.objects.create(
+        share_link=share_link,
+        viewer_email='viewer@example.com',
+    )
+
+    response = public_client.post(
+        f'/api/v1/links/{share_link.slug}/qna-threads/',
+        {
+            'view_session_id': str(view_session.id),
+            'subject': 'Can you explain page 3?',
+            'body': 'The revenue line needs more context.',
+        },
+        format='json',
+    )
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert QnAThread.objects.count() == 0
+
+
+def test_viewer_cannot_reply_to_existing_thread_after_qna_is_disabled(
+    public_client, share_link
+):
+    view_session = ViewSession.objects.create(
+        share_link=share_link,
+        viewer_email='viewer@example.com',
+    )
+    thread = QnAThread.objects.create(
+        organization=share_link.created_by.organization,
+        share_link=share_link,
+        document=share_link.document,
+        subject='Existing question',
+        created_by_view_session=view_session,
+    )
+
+    share_link.enable_qna = False
+    share_link.save(update_fields=['enable_qna'])
+
+    response = public_client.post(
+        f'/api/v1/links/{share_link.slug}/qna-threads/{thread.id}/messages/',
+        {'view_session_id': str(view_session.id), 'body': 'Follow-up.'},
+        format='json',
+    )
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert QnAMessage.objects.count() == 0
+
+
+def test_owner_cannot_create_qna_thread_when_qna_is_disabled(api_client, share_link, user):
+    share_link.enable_qna = False
+    share_link.save(update_fields=['enable_qna'])
+    api_client.force_authenticate(user=user)
+
+    response = api_client.post(
+        '/api/v1/qna-threads/',
+        {'share_link_id': str(share_link.id), 'subject': 'Ping', 'body': 'Hello.'},
+        format='json',
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert QnAThread.objects.count() == 0
+
+
+def test_owner_can_still_moderate_existing_threads_after_qna_is_disabled(
+    api_client, share_link, user
+):
+    thread = QnAThread.objects.create(
+        organization=user.organization,
+        share_link=share_link,
+        document=share_link.document,
+        subject='Existing question',
+        created_by_user=user,
+    )
+    share_link.enable_qna = False
+    share_link.save(update_fields=['enable_qna'])
+    api_client.force_authenticate(user=user)
+
+    response = api_client.patch(
+        f'/api/v1/qna-threads/{thread.id}/',
+        {'status': QnAThread.STATUS_CLOSED},
+        format='json',
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    thread.refresh_from_db()
+    assert thread.status == QnAThread.STATUS_CLOSED

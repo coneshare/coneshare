@@ -273,6 +273,30 @@ describe('DataroomViewer', () => {
     expect(screen.getByTestId('qna-panel')).toHaveTextContent('Sub Folder A');
   });
 
+  it('hides all Q&A entry points when Q&A is disabled for the link', async () => {
+    renderComponent({
+      viewId: 'view-123',
+      data: { ...mockDataroomData, link_settings: { id: 'link1', enable_qna: false } },
+    });
+
+    expect(screen.queryByLabelText(/open q&a for current folder/i)).not.toBeInTheDocument();
+
+    fireEvent.keyDown(screen.getByLabelText(/actions for sub folder a/i), { key: 'Enter', code: 'Enter' });
+    await screen.findByRole('menuitem', { name: /view/i });
+
+    expect(screen.queryByRole('menuitem', { name: /q&a/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId('qna-panel')).toHaveTextContent('Q&A Closed');
+  });
+
+  it('keeps Q&A entry points when the link explicitly enables Q&A', () => {
+    renderComponent({
+      viewId: 'view-123',
+      data: { ...mockDataroomData, link_settings: { id: 'link1', enable_qna: true } },
+    });
+
+    expect(screen.getByLabelText(/open q&a for current folder/i)).toBeInTheDocument();
+  });
+
   it('opens Q&A panel for the current dataroom root from the header action', () => {
     renderComponent({ viewId: 'view-123' });
 
