@@ -34,6 +34,13 @@ class DataroomFolder(BaseModel):
     dataroom = models.ForeignKey(Dataroom, on_delete=models.CASCADE, related_name='folders')
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
     name = models.CharField(max_length=255)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='dataroom_folders_created'
+    )
     is_starred = models.BooleanField(default=False)
 
     def __str__(self):
@@ -110,3 +117,47 @@ class DataroomItemOrder(BaseModel):
         indexes = [
             models.Index(fields=["dataroom", "parent_folder", "position"]),
         ]
+
+
+class DataroomCollaborator(BaseModel):
+    ROLE_COLLABORATOR = 'collaborator'
+
+    ROLE_CHOICES = (
+        (ROLE_COLLABORATOR, 'Collaborator'),
+    )
+
+    dataroom = models.ForeignKey(
+        Dataroom,
+        on_delete=models.CASCADE,
+        related_name='collaborators'
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='dataroom_collaborations'
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default=ROLE_COLLABORATOR
+    )
+    invited_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='collaborators_invited'
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['dataroom', 'user'],
+                name='uq_dataroom_collaborator_dataroom_user'
+            )
+        ]
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.user.email} - {self.dataroom.name} ({self.role})"
+

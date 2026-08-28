@@ -1478,13 +1478,13 @@ class TestShareLinkViewSet:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_bulk_update_dataroom_settings_for_other_user_link_fails(self, api_client, user, user2, dataroom, document):
+    def test_bulk_update_dataroom_settings_for_other_user_link_fails(self, api_client, user, user2, organization, document):
         """
         Test that a user cannot update settings for a share link they do not own.
         """
-        # user2 creates a link
-        DataroomDocument.objects.create(dataroom=dataroom, document=document)
-        link_by_user2 = ShareLink.objects.create(dataroom=dataroom, created_by=user2)
+        other_dataroom = Dataroom.objects.create(name="Other Dataroom", organization=organization, created_by=user2)
+        DataroomDocument.objects.create(dataroom=other_dataroom, document=document)
+        link_by_user2 = ShareLink.objects.create(dataroom=other_dataroom, created_by=user2)
         setting = link_by_user2.dataroom_settings.first()
         assert setting is not None
 

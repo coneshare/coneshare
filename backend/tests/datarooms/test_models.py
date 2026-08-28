@@ -4,6 +4,7 @@ from datarooms.models import (
     DROOM_ITEM_TYPE_DOCUMENT,
     DROOM_ITEM_TYPE_FOLDER,
     Dataroom,
+    DataroomCollaborator,
     DataroomDocument,
     DataroomFolder,
     DataroomItemOrder,
@@ -80,3 +81,32 @@ def test_dataroom_item_order_creation(dataroom, document):
     assert order_row_2.position == 1
     assert order_row_1.item_type == DROOM_ITEM_TYPE_FOLDER
     assert order_row_2.item_type == DROOM_ITEM_TYPE_DOCUMENT
+
+
+def test_dataroom_collaborator_creation(dataroom, user):
+    """Test that a DataroomCollaborator instance can be created and uniqueness is enforced."""
+    from core.models import User
+    collab_user = User.objects.create_user(
+        email="collab@test.com", username="collab@test.com", password="password", organization=dataroom.organization
+    )
+    collab = DataroomCollaborator.objects.create(
+        dataroom=dataroom,
+        user=collab_user,
+        role=DataroomCollaborator.ROLE_COLLABORATOR,
+        invited_by=user,
+    )
+    assert isinstance(collab, DataroomCollaborator)
+    assert str(collab) == f"{collab_user.email} - {dataroom.name} (collaborator)"
+    assert collab.dataroom == dataroom
+    assert collab.user == collab_user
+    assert collab.invited_by == user
+    assert collab.role == "collaborator"
+
+    # Test uniqueness
+    with pytest.raises(Exception):
+        DataroomCollaborator.objects.create(
+            dataroom=dataroom,
+            user=collab_user,
+            role=DataroomCollaborator.ROLE_COLLABORATOR,
+        )
+

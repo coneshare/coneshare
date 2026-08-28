@@ -163,3 +163,16 @@ Frontend:
 - page renders loading/error/data states
 - create/edit link actions trigger correct API methods
 - tables render `share_links` and `view_sessions` correctly
+
+---
+
+## 7. Collaborator View-Only Mode
+
+When a teammate opens a document owned by another user via a shared Dataroom link or navigation:
+
+1. **Backend Scoping:** `DocumentViewSet` and document utility views (`download`, `preview-data`, `stats`, `view-sessions`) permit access if the user is a collaborator on an active Dataroom containing the document. Mutation endpoints (`perform_update`, `destroy`, `promote_version`, version upload) return `403 Forbidden` for non-owners.
+2. **Frontend UI State:** `DocumentPage` computes `canManage` (true for document owner or org admin, false for co-managing collaborators).
+   - In view-only mode (`canManage === false`), inline rename, "+ Share" link generation, "Upload new version", "Cloud sync", and "Delete" are disabled/omitted.
+   - Read actions (Preview, Download, Stats, Analytics) remain available.
+   - A contextual role badge (`Owner: <Name>`) is rendered in the header.
+

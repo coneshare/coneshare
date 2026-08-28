@@ -4,8 +4,7 @@ from pathlib import Path
 
 from django.utils.translation import gettext_lazy as _
 from django.db import transaction
-
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.decorators import action
@@ -14,6 +13,7 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 
 from backend.utils import get_unique_name
+from core.models import User
 from documents.models import Document, Folder
 from core.pagination import StandardResultsSetPagination
 from documents.services import (
@@ -26,7 +26,7 @@ from documents.services import (
 from documents.fileserver import fileserver_client
 from sharelinks.models import ViewSession
 from sharelinks.serializers import ViewSessionSerializer
-from .models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
+from .models import Dataroom, DataroomCollaborator, DataroomDocument, DataroomFolder, DataroomItemOrder
 from .services import (
     delete_dataroom,
     remove_dataroom_content,
@@ -37,12 +37,44 @@ from .serializers import (
     AddContentSerializer, DataroomDetailSerializer,
     DataroomDocumentSerializer, DataroomDocumentUpdateSerializer,
     DataroomFolderSerializer, DataroomSerializer,
+    DataroomCollaboratorSerializer, DataroomCollaboratorUserSerializer,
+    DataroomAddCollaboratorSerializer, DataroomTransferOwnershipSerializer,
     MoveDataroomContentSerializer, RemoveContentSerializer,
     ReorderDataroomItemsSerializer, EnsureDataroomFolderPathsSerializer,
     DataroomUploadRequestSerializer, DataroomUploadFinalizeSerializer)
 
 
 logger = logging.getLogger(__name__)
+
+
+def get_dataroom_queryset_for_user(user):
+    """
+    Returns the queryset of datarooms accessible to a given user:
+    - If user is an org admin: all datarooms in their organization.
+    - Otherwise: datarooms created by the user OR where the user is a collaborator.
+    """
+    if getattr(user, 'role', '') == 'admin':
+        return Dataroom.objects.filter(organization=user.organization)
+    return Dataroom.objects.filter(
+        Q(created_by=user) | Q(collaborators__user=user),
+        organization=user.organization
+    ).distinct()
+
+
+def is_dataroom_owner_or_admin(user, dataroom) -> bool:
+    if not user or not user.is_authenticated:
+        return False
+    if dataroom.created_by_id == user.id:
+        return True
+    if getattr(user, 'role', '') == 'admin' and dataroom.organization_id == user.organization_id:
+        return True
+    return False
+
+
+def is_dataroom_collaborator_or_above(user, dataroom) -> bool:
+    if is_dataroom_owner_or_admin(user, dataroom):
+        return True
+    return dataroom.collaborators.filter(user=user).exists()
 
 
 @extend_schema(tags=['datarooms'])
@@ -57,10 +89,18 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        This queryset ensures that users can only list, retrieve, update, or
-        delete datarooms they have created.
+        Returns datarooms accessible to the requesting user, with optional scope filtering.
         """
-        return self.queryset.filter(created_by=self.request.user)
+        user = self.request.user
+        qs = get_dataroom_queryset_for_user(user)
+        scope = self.request.query_params.get('scope')
+        if scope == 'created_by_me':
+            qs = qs.filter(created_by=user)
+        elif scope == 'shared_with_me':
+            qs = qs.filter(collaborators__user=user)
+        elif scope == 'org' and getattr(user, 'role', '') == 'admin':
+            qs = Dataroom.objects.filter(organization=user.organization)
+        return qs
 
     def perform_create(self, serializer):
         """
@@ -72,6 +112,8 @@ class DataroomViewSet(viewsets.ModelViewSet):
         )
 
     def perform_destroy(self, instance):
+        if not is_dataroom_owner_or_admin(self.request.user, instance):
+            raise PermissionDenied("Only the dataroom owner or an organization admin can delete this dataroom.")
         delete_dataroom(instance)
 
     def perform_update(self, serializer):
@@ -128,6 +170,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
             dataroom=dataroom,
             name=source_folder.name,
             parent=parent_dataroom_folder,
+            created_by=requesting_user or getattr(source_folder, 'created_by', None) or dataroom.created_by,
         )
         if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, parent_dataroom_folder):
             self._append_item_order(
@@ -496,6 +539,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
                         dataroom=dataroom,
                         parent=parent_dataroom_folder,
                         name=folder_name,
+                        defaults={'created_by': request.user},
                     )
                     path_to_folder_map[path_str] = folder
                     if created:
@@ -679,6 +723,194 @@ class DataroomViewSet(viewsets.ModelViewSet):
         doc_serializer = DataroomDocumentSerializer(dataroom_doc, context={'request': request})
         return Response(doc_serializer.data, status=status.HTTP_202_ACCEPTED)
 
+    @action(detail=True, methods=['get', 'post'], url_path='collaborators')
+    def collaborators(self, request, pk=None):
+        dataroom = self.get_object()
+
+        if request.method == 'GET':
+            collaborators_qs = dataroom.collaborators.select_related('user', 'invited_by').order_by('created_at')
+            serializer = DataroomCollaboratorSerializer(collaborators_qs, many=True, context=self.get_serializer_context())
+            owner_serializer = DataroomCollaboratorUserSerializer(dataroom.created_by, context=self.get_serializer_context()) if dataroom.created_by else None
+            return Response({
+                'owner': owner_serializer.data if owner_serializer else None,
+                'collaborators': serializer.data,
+                'total_count': collaborators_qs.count(),
+            }, status=status.HTTP_200_OK)
+
+        # POST: Add collaborator(s)
+        if not is_dataroom_owner_or_admin(request.user, dataroom):
+            raise PermissionDenied("Only the dataroom owner or an organization admin can add collaborators.")
+
+        serializer = DataroomAddCollaboratorSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user_ids = serializer.validated_data.get('user_ids', [])
+        email = serializer.validated_data.get('email', '').strip()
+
+        users_to_add = []
+        if email:
+            target_user = User.objects.filter(
+                organization=request.user.organization,
+                email__iexact=email,
+                is_active=True
+            ).first()
+            if not target_user:
+                return Response(
+                    {"detail": f"User with email '{email}' was not found in your organization."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            users_to_add.append(target_user)
+
+        if user_ids:
+            found_users = User.objects.filter(
+                organization=request.user.organization,
+                id__in=user_ids,
+                is_active=True
+            )
+            if found_users.count() != len(user_ids):
+                return Response(
+                    {"detail": "One or more selected users were not found in your organization."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            users_to_add.extend(list(found_users))
+
+        # Filter out duplicates while preserving order
+        seen_ids = set()
+        deduped_users = []
+        for u in users_to_add:
+            if u.id not in seen_ids:
+                seen_ids.add(u.id)
+                deduped_users.append(u)
+
+        created_collaborators = []
+        with transaction.atomic():
+            for target_user in deduped_users:
+                if target_user.id == dataroom.created_by_id:
+                    return Response(
+                        {"detail": f"User '{target_user.email}' is already the owner of this dataroom."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                collab, created = DataroomCollaborator.objects.get_or_create(
+                    dataroom=dataroom,
+                    user=target_user,
+                    defaults={'invited_by': request.user, 'role': DataroomCollaborator.ROLE_COLLABORATOR}
+                )
+                if created:
+                    created_collaborators.append(collab)
+
+        response_serializer = DataroomCollaboratorSerializer(
+            dataroom.collaborators.select_related('user', 'invited_by').order_by('created_at'),
+            many=True,
+            context=self.get_serializer_context()
+        )
+        return Response({
+            "detail": f"Successfully added {len(created_collaborators)} collaborator(s).",
+            "collaborators": response_serializer.data,
+        }, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['delete', 'post'], url_path=r'collaborators/(?P<user_id>[^/.]+)')
+    def remove_collaborator(self, request, pk=None, user_id=None):
+        dataroom = self.get_object()
+
+        # Permission check: Owner, Admin, or the user themselves leaving
+        is_self_removal = str(request.user.id) == str(user_id)
+        if not (is_self_removal or is_dataroom_owner_or_admin(request.user, dataroom)):
+            raise PermissionDenied("You do not have permission to remove this collaborator.")
+
+        collaborator = DataroomCollaborator.objects.filter(
+            dataroom=dataroom,
+            user_id=user_id
+        ).first()
+
+        if not collaborator:
+            return Response(
+                {"detail": "Collaborator not found in this dataroom."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        collaborator.delete()
+        return Response({"detail": "Collaborator removed successfully."}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='transfer-ownership')
+    def transfer_ownership(self, request, pk=None):
+        dataroom = self.get_object()
+
+        if not is_dataroom_owner_or_admin(request.user, dataroom):
+            raise PermissionDenied("Only the dataroom owner or an organization admin can transfer ownership.")
+
+        serializer = DataroomTransferOwnershipSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        new_owner_id = serializer.validated_data['new_owner_id']
+        new_owner = User.objects.filter(
+            id=new_owner_id,
+            organization=request.user.organization,
+            is_active=True
+        ).first()
+
+        if not new_owner:
+            return Response(
+                {"detail": "Target user was not found in your organization."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if new_owner.id == dataroom.created_by_id:
+            return Response(
+                {"detail": "User is already the owner of this dataroom."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        with transaction.atomic():
+            locked_dataroom = Dataroom.objects.select_for_update().get(id=dataroom.id)
+            prev_owner = locked_dataroom.created_by
+
+            # Remove new owner from collaborators list if they were a collaborator
+            DataroomCollaborator.objects.filter(dataroom=locked_dataroom, user=new_owner).delete()
+
+            # Make the previous owner a collaborator if they exist
+            if prev_owner and prev_owner != new_owner:
+                DataroomCollaborator.objects.get_or_create(
+                    dataroom=locked_dataroom,
+                    user=prev_owner,
+                    defaults={'invited_by': request.user, 'role': DataroomCollaborator.ROLE_COLLABORATOR}
+                )
+
+            locked_dataroom.created_by = new_owner
+            locked_dataroom.save()
+
+        detail_serializer = DataroomDetailSerializer(locked_dataroom, context=self.get_serializer_context())
+        return Response({
+            "detail": f"Ownership successfully transferred to {new_owner.email}.",
+            "dataroom": detail_serializer.data,
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'], url_path='eligible-collaborators')
+    def eligible_collaborators(self, request, pk=None):
+        dataroom = self.get_object()
+
+        if not is_dataroom_collaborator_or_above(request.user, dataroom):
+            raise PermissionDenied("You do not have permission to view eligible collaborators.")
+
+        existing_collaborator_user_ids = set(
+            dataroom.collaborators.values_list('user_id', flat=True)
+        )
+        if dataroom.created_by_id:
+            existing_collaborator_user_ids.add(dataroom.created_by_id)
+
+        query = request.query_params.get('q', '').strip()
+        users_qs = User.objects.filter(
+            organization=request.user.organization,
+            is_active=True
+        ).exclude(id__in=existing_collaborator_user_ids).order_by('name', 'email')
+
+        if query:
+            users_qs = users_qs.filter(
+                Q(name__icontains=query) | Q(email__icontains=query)
+            )
+
+        serializer = DataroomCollaboratorUserSerializer(users_qs[:50], many=True, context=self.get_serializer_context())
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
 
@@ -692,7 +924,8 @@ class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
         return DataroomDocumentSerializer
 
     def get_queryset(self):
-        return self.queryset.filter(dataroom__created_by=self.request.user).annotate(
+        accessible_datarooms = get_dataroom_queryset_for_user(self.request.user)
+        return self.queryset.filter(dataroom__in=accessible_datarooms).annotate(
             dataroom_view_count=Count('dataroomvisit', distinct=True)
         )
 
@@ -751,9 +984,10 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         This queryset ensures that users can only access dataroom folders
-        within datarooms they have created. It also allows filtering by a specific dataroom.
+        within datarooms they have access to. It also allows filtering by a specific dataroom.
         """
-        queryset = self.queryset.filter(dataroom__created_by=self.request.user)
+        accessible_datarooms = get_dataroom_queryset_for_user(self.request.user)
+        queryset = self.queryset.select_related('created_by', 'dataroom', 'dataroom__created_by').filter(dataroom__in=accessible_datarooms)
         dataroom_id = self.request.query_params.get('dataroom_id')
         if dataroom_id:
             queryset = queryset.filter(dataroom_id=dataroom_id)
@@ -762,7 +996,7 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         # Custom logic to include sub-folders and documents
-        sub_folders = instance.children.all().order_by('created_at', 'id')
+        sub_folders = instance.children.all().select_related('created_by', 'dataroom', 'dataroom__created_by').order_by('created_at', 'id')
         documents = DataroomDocument.objects.filter(
             folder=instance, document__deleted_at__isnull=True
         ).select_related('document', 'document__created_by').annotate(
@@ -791,10 +1025,10 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
         if not dataroom:
             raise serializers.ValidationError({'dataroom': 'This field is required.'})
 
-        if dataroom.organization != self.request.user.organization:
+        if not is_dataroom_collaborator_or_above(self.request.user, dataroom):
             raise PermissionDenied("You do not have permission to add folders to this dataroom.")
 
-        folder = serializer.save()
+        folder = serializer.save(created_by=self.request.user)
         if folder.parent:
             touch_dataroom_folder_ancestors(folder.parent)
         if dataroom.show_file_index and DataroomItemOrder.objects.filter(

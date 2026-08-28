@@ -1,19 +1,84 @@
-from rest_framework import serializers
-from drf_spectacular.utils import extend_schema_field
-import re
-import posixpath
 from urllib.parse import urljoin
+import posixpath
+import re
+
 from django.conf import settings
 from django.db.models import Count
+from drf_spectacular.utils import extend_schema_field
+from rest_framework import serializers
 
-from .models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
+from core.models import User
+from .models import (
+    Dataroom,
+    DataroomCollaborator,
+    DataroomDocument,
+    DataroomFolder,
+    DataroomItemOrder,
+)
 from .utils import build_ordered_dataroom_items
 
 HEX_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 
 
+class DataroomCollaboratorUserSerializer(serializers.ModelSerializer):
+    avatar_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'name', 'role', 'avatar_url']
+        read_only_fields = fields
+
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_avatar_url(self, obj) -> str:
+        if obj.avatar and hasattr(obj.avatar, 'url'):
+            return urljoin(settings.SITE_DOMAIN, obj.avatar.url)
+        return None
+
+
+class DataroomCollaboratorSerializer(serializers.ModelSerializer):
+    user = DataroomCollaboratorUserSerializer(read_only=True)
+    invited_by = DataroomCollaboratorUserSerializer(read_only=True)
+
+    class Meta:
+        model = DataroomCollaborator
+        fields = ['id', 'dataroom', 'user', 'role', 'invited_by', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'dataroom', 'user', 'role', 'invited_by', 'created_at', 'updated_at']
+
+
+class DataroomAddCollaboratorSerializer(serializers.Serializer):
+    user_ids = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list,
+        help_text="List of User ULID strings to add as collaborators."
+    )
+    email = serializers.EmailField(
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="Single user email to add as a collaborator."
+    )
+
+    def validate(self, data):
+        user_ids = data.get('user_ids', [])
+        email = (data.get('email') or '').strip()
+        if not user_ids and not email:
+            raise serializers.ValidationError("Either 'user_ids' or 'email' must be provided.")
+        return data
+
+
+class DataroomTransferOwnershipSerializer(serializers.Serializer):
+    new_owner_id = serializers.CharField(
+        required=True,
+        help_text="User ULID of the new owner in the organization."
+    )
+
+
 class DataroomSerializer(serializers.ModelSerializer):
     remove_branding_banner = serializers.BooleanField(write_only=True, required=False, default=False)
+    owner = serializers.SerializerMethodField()
+    current_user_role = serializers.SerializerMethodField()
+    collaborator_count = serializers.SerializerMethodField()
 
     def _get_branding_banner_url(self, obj):
         if not obj.branding_banner:
@@ -38,16 +103,41 @@ class DataroomSerializer(serializers.ModelSerializer):
     def validate_brand_accent_color(self, value):
         return self._validate_hex_color(value, "brand_accent_color")
 
+    @extend_schema_field(DataroomCollaboratorUserSerializer(allow_null=True))
+    def get_owner(self, obj):
+        if obj.created_by:
+            return DataroomCollaboratorUserSerializer(obj.created_by).data
+        return None
+
+    @extend_schema_field(serializers.CharField())
+    def get_current_user_role(self, obj) -> str:
+        request = self.context.get('request')
+        if not request or not hasattr(request, 'user') or not request.user or not request.user.is_authenticated:
+            return 'none'
+        user = request.user
+        if obj.created_by_id == user.id:
+            return 'owner'
+        if getattr(user, 'role', '') == 'admin' and obj.organization_id == user.organization_id:
+            return 'admin'
+        if obj.collaborators.filter(user=user).exists():
+            return 'collaborator'
+        return 'none'
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_collaborator_count(self, obj) -> int:
+        return obj.collaborators.count()
+
     class Meta:
         model = Dataroom
         fields = [
             'id', 'name', 'organization', 'created_at', 'updated_at', 'created_by',
+            'owner', 'current_user_role', 'collaborator_count',
             'show_file_index',
             'enable_qna',
             'branding_banner', 'brand_primary_color', 'brand_secondary_color', 'brand_accent_color',
             'remove_branding_banner',
         ]
-        read_only_fields = ['id', 'organization', 'created_at', 'updated_at', 'created_by']
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at', 'created_by', 'owner', 'current_user_role', 'collaborator_count']
 
     def create(self, validated_data):
         # API compatibility: this write-only control flag is only meaningful for updates.
@@ -69,11 +159,22 @@ class DataroomSerializer(serializers.ModelSerializer):
 
 class DataroomFolderSerializer(serializers.ModelSerializer):
     ancestors = serializers.SerializerMethodField()
+    created_by = serializers.SerializerMethodField()
 
     class Meta:
         model = DataroomFolder
-        fields = ['id', 'name', 'dataroom', 'parent', 'is_starred', 'created_at', 'updated_at', 'ancestors']
-        read_only_fields = ['id', 'created_at', 'updated_at', 'ancestors']
+        fields = [
+            'id', 'name', 'dataroom', 'parent', 'is_starred',
+            'created_at', 'updated_at', 'ancestors', 'created_by'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'ancestors', 'created_by']
+
+    @extend_schema_field(DataroomCollaboratorUserSerializer(allow_null=True))
+    def get_created_by(self, obj):
+        user = obj.created_by or getattr(obj.dataroom, 'created_by', None)
+        if user:
+            return DataroomCollaboratorUserSerializer(user).data
+        return None
 
     @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_ancestors(self, obj):
@@ -107,7 +208,7 @@ class DataroomDocumentSerializer(serializers.ModelSerializer):
     document_id = serializers.CharField(source='document.id', read_only=True)
     file_size = serializers.IntegerField(source='document.file_size', read_only=True)
     updated_at = serializers.DateTimeField(source='document.updated_at', read_only=True)
-    created_by = serializers.PrimaryKeyRelatedField(source='document.created_by', read_only=True)
+    created_by = DataroomCollaboratorUserSerializer(source='document.created_by', read_only=True)
     folder = serializers.PrimaryKeyRelatedField(read_only=True)
     name = serializers.SerializerMethodField()
     dataroom_view_count = serializers.SerializerMethodField()
@@ -132,17 +233,51 @@ class DataroomDocumentSerializer(serializers.ModelSerializer):
 class DataroomDetailSerializer(serializers.ModelSerializer):
     items = serializers.SerializerMethodField()
     branding_banner = serializers.SerializerMethodField()
+    owner = serializers.SerializerMethodField()
+    current_user_role = serializers.SerializerMethodField()
+    collaborator_count = serializers.SerializerMethodField()
+    collaborators = serializers.SerializerMethodField()
 
     class Meta:
         model = Dataroom
         fields = [
             'id', 'name', 'organization', 'created_at', 'updated_at', 'created_by',
+            'owner', 'current_user_role', 'collaborator_count', 'collaborators',
             'show_file_index',
             'enable_qna',
             'branding_banner', 'brand_primary_color', 'brand_secondary_color', 'brand_accent_color',
             'items'
         ]
         read_only_fields = fields
+
+    @extend_schema_field(DataroomCollaboratorUserSerializer(allow_null=True))
+    def get_owner(self, obj):
+        if obj.created_by:
+            return DataroomCollaboratorUserSerializer(obj.created_by).data
+        return None
+
+    @extend_schema_field(serializers.CharField())
+    def get_current_user_role(self, obj) -> str:
+        request = self.context.get('request')
+        if not request or not hasattr(request, 'user') or not request.user or not request.user.is_authenticated:
+            return 'none'
+        user = request.user
+        if obj.created_by_id == user.id:
+            return 'owner'
+        if getattr(user, 'role', '') == 'admin' and obj.organization_id == user.organization_id:
+            return 'admin'
+        if obj.collaborators.filter(user=user).exists():
+            return 'collaborator'
+        return 'none'
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_collaborator_count(self, obj) -> int:
+        return obj.collaborators.count()
+
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
+    def get_collaborators(self, obj):
+        collaborators = obj.collaborators.select_related('user', 'invited_by').order_by('created_at')
+        return DataroomCollaboratorSerializer(collaborators, many=True).data
 
     @extend_schema_field(serializers.URLField(allow_null=True))
     def get_branding_banner(self, obj) -> str:
@@ -169,12 +304,12 @@ class DataroomDetailSerializer(serializers.ModelSerializer):
             serializer_context['dataroom_folder_parent_map'] = folder_parent_map
 
         if request and request.query_params.get('content') == 'full':
-            folders = obj.folders.all().order_by('created_at', 'id')
+            folders = obj.folders.all().select_related('created_by', 'dataroom', 'dataroom__created_by').order_by('created_at', 'id')
             documents = obj.documents.filter(document__deleted_at__isnull=True).select_related('document', 'document__created_by').annotate(
                 dataroom_view_count=Count('dataroomvisit', distinct=True)
             ).order_by('created_at', 'id')
         else:
-            folders = obj.folders.filter(parent__isnull=True).order_by('created_at', 'id')
+            folders = obj.folders.filter(parent__isnull=True).select_related('created_by', 'dataroom', 'dataroom__created_by').order_by('created_at', 'id')
             documents = obj.documents.filter(folder__isnull=True, document__deleted_at__isnull=True).select_related('document', 'document__created_by').annotate(
                 dataroom_view_count=Count('dataroomvisit', distinct=True)
             ).order_by('created_at', 'id')

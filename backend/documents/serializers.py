@@ -21,11 +21,23 @@ class EnsureFolderPathsSerializer(serializers.Serializer):
 
 class FolderSerializer(serializers.ModelSerializer):
     ancestors = serializers.SerializerMethodField()
+    created_by = serializers.SerializerMethodField()
 
     class Meta:
         model = Folder
-        fields = ['id', 'name', 'parent', 'organization', 'created_at', 'updated_at', 'ancestors', 'is_starred']
-        read_only_fields = ['id', 'organization', 'created_at', 'updated_at', 'ancestors']
+        fields = ['id', 'name', 'parent', 'organization', 'created_at', 'updated_at', 'ancestors', 'is_starred', 'created_by']
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at', 'ancestors', 'created_by']
+
+    @extend_schema_field(serializers.DictField(allow_null=True))
+    def get_created_by(self, obj):
+        if obj.created_by:
+            return {
+                'id': obj.created_by.id,
+                'name': obj.created_by.name,
+                'email': obj.created_by.email,
+                'avatar_url': getattr(obj.created_by, 'avatar_url', None),
+            }
+        return None
 
     @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_ancestors(self, obj):
@@ -222,18 +234,32 @@ class DocumentSerializer(serializers.ModelSerializer):
         default=RootFolderDefault()
     )
 
+    created_by_user = serializers.SerializerMethodField()
+
     class Meta:
         model = Document
         fields = [
             'id', 'organization', 'folder', 'name', 'description', 'status',
             'status_message', 'storage_key', 'original_storage_key', 'type', 'content_type',
             'num_pages', 'file_size', 'download_only', 'assistant_enabled', 'is_starred', 'created_by',
+            'created_by_user',
             'created_at', 'updated_at', 'versions', 'share_links', 'uploader_info', 'share_link_view_count',
             'cloud_import'
         ]
         read_only_fields = [
-            'id', 'organization', 'created_by', 'created_at', 'updated_at'
+            'id', 'organization', 'created_by', 'created_by_user', 'created_at', 'updated_at'
         ]
+
+    @extend_schema_field(serializers.DictField(allow_null=True))
+    def get_created_by_user(self, instance):
+        if instance.created_by:
+            return {
+                'id': instance.created_by.id,
+                'name': instance.created_by.name,
+                'email': instance.created_by.email,
+                'avatar_url': getattr(instance.created_by, 'avatar_url', None),
+            }
+        return None
 
     @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_share_links(self, instance):

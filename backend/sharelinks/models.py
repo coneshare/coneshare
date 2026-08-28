@@ -64,6 +64,22 @@ class ShareLink(BaseModel):
         return f"{self.name}-{str(self.id)}"
 
     @property
+    def organization(self):
+        if self.dataroom_id:
+            return self.dataroom.organization
+        if self.document_id:
+            return self.document.organization
+        return None
+
+    @property
+    def organization_id(self):
+        if self.dataroom_id:
+            return self.dataroom.organization_id
+        if self.document_id:
+            return self.document.organization_id
+        return None
+
+    @property
     def qna_enabled(self) -> bool:
         """
         Effective Q&A availability for this link.
