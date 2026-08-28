@@ -1,4 +1,6 @@
 import pytest
+from datetime import timedelta
+from django.utils import timezone
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -2321,3 +2323,111 @@ def test_rename_document_with_duplicate_name_fails(api_client, user, organizatio
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'name' in response.json()
     assert 'already exists' in str(response.json()['name'])
+
+
+@pytest.mark.django_db
+def test_create_subfolder_touches_parent_folder_mtime(api_client, user, organization):
+    """Test creating a subfolder touches its parent folder updated_at."""
+    api_client.force_authenticate(user=user)
+    root_folder = Folder.objects.get_root_for_org(organization)
+    parent_folder = Folder.objects.create(name="Parent", organization=organization, created_by=user, parent=root_folder)
+    past_time = timezone.now() - timedelta(days=2)
+    Folder.objects.filter(id=parent_folder.id).update(updated_at=past_time)
+    parent_folder.refresh_from_db()
+    assert parent_folder.updated_at == past_time
+
+    res = api_client.post('/api/v1/folders/', {'name': 'New Child', 'parent': parent_folder.id}, format='json')
+    assert res.status_code == status.HTTP_201_CREATED
+
+    parent_folder.refresh_from_db()
+    assert parent_folder.updated_at > past_time
+
+
+@pytest.mark.django_db
+def test_rename_subfolder_touches_parent_folder_mtime(api_client, user, organization):
+    """Test renaming a subfolder touches its parent folder updated_at."""
+    api_client.force_authenticate(user=user)
+    root_folder = Folder.objects.get_root_for_org(organization)
+    parent_folder = Folder.objects.create(name="Parent", organization=organization, created_by=user, parent=root_folder)
+    child_folder = Folder.objects.create(name="Old Child", organization=organization, created_by=user, parent=parent_folder)
+    past_time = timezone.now() - timedelta(days=2)
+    Folder.objects.filter(id=parent_folder.id).update(updated_at=past_time)
+    parent_folder.refresh_from_db()
+    assert parent_folder.updated_at == past_time
+
+    res = api_client.patch(f'/api/v1/folders/{child_folder.id}/', {'name': 'Renamed Child'}, format='json')
+    assert res.status_code == status.HTTP_200_OK
+
+    parent_folder.refresh_from_db()
+    assert parent_folder.updated_at > past_time
+
+
+@pytest.mark.django_db
+def test_rename_document_touches_parent_folder_mtime(api_client, user, organization):
+    """Test renaming a document touches its parent folder updated_at."""
+    api_client.force_authenticate(user=user)
+    root_folder = Folder.objects.get_root_for_org(organization)
+    parent_folder = Folder.objects.create(name="Parent", organization=organization, created_by=user, parent=root_folder)
+    doc = Document.objects.create(name="doc.pdf", organization=organization, created_by=user, folder=parent_folder, status="ready")
+    past_time = timezone.now() - timedelta(days=2)
+    Folder.objects.filter(id=parent_folder.id).update(updated_at=past_time)
+    parent_folder.refresh_from_db()
+    assert parent_folder.updated_at == past_time
+
+    res = api_client.patch(f'/api/v1/documents/{doc.id}/', {'name': 'renamed_doc.pdf'}, format='json')
+    assert res.status_code == status.HTTP_200_OK
+
+    parent_folder.refresh_from_db()
+    assert parent_folder.updated_at > past_time
+
+
+@pytest.mark.django_db
+def test_bulk_move_items_touches_source_and_destination_folders(api_client, user, organization):
+    """Test moving documents/folders touches both source and destination parent folder updated_at."""
+    api_client.force_authenticate(user=user)
+    root_folder = Folder.objects.get_root_for_org(organization)
+    source_folder = Folder.objects.create(name="Source", organization=organization, created_by=user, parent=root_folder)
+    dest_folder = Folder.objects.create(name="Dest", organization=organization, created_by=user, parent=root_folder)
+    doc = Document.objects.create(name="move_me.pdf", organization=organization, created_by=user, folder=source_folder, status="ready")
+
+    past_time = timezone.now() - timedelta(days=2)
+    Folder.objects.filter(id__in=[source_folder.id, dest_folder.id]).update(updated_at=past_time)
+    source_folder.refresh_from_db()
+    dest_folder.refresh_from_db()
+    assert source_folder.updated_at == past_time
+    assert dest_folder.updated_at == past_time
+
+    res = api_client.post('/api/v1/actions/move/', {
+        'document_ids': [doc.id],
+        'folder_ids': [],
+        'destination_folder_id': dest_folder.id
+    }, format='json')
+    assert res.status_code == status.HTTP_200_OK
+
+    source_folder.refresh_from_db()
+    dest_folder.refresh_from_db()
+    assert source_folder.updated_at > past_time
+    assert dest_folder.updated_at > past_time
+
+
+@pytest.mark.django_db
+def test_ensure_folder_paths_touches_parent_folder_mtime(api_client, user, organization):
+    """Test that EnsureFolderPathsView touches parent folder updated_at when folders are created."""
+    api_client.force_authenticate(user=user)
+    root_folder = Folder.objects.get_root_for_org(organization)
+    parent_folder = Folder.objects.create(name="Doc Base", organization=organization, created_by=user, parent=root_folder)
+    past_time = timezone.now() - timedelta(days=2)
+    Folder.objects.filter(id=parent_folder.id).update(updated_at=past_time)
+    parent_folder.refresh_from_db()
+    assert parent_folder.updated_at == past_time
+
+    res = api_client.post('/api/v1/folders/ensure-paths/', {
+        'paths': ['SubFolder/DeepNested'],
+        'parent_path': parent_folder.name,
+    }, format='json')
+    assert res.status_code == status.HTTP_201_CREATED
+
+    parent_folder.refresh_from_db()
+    assert parent_folder.updated_at > past_time
+
+

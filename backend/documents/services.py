@@ -46,6 +46,25 @@ class QuotaExceededError(Exception):
     pass
 
 
+def touch_folder_ancestors(folder: Folder | None):
+    """
+    Updates the modification timestamp (updated_at) for the given folder
+    and all its ancestor folders up to the root in a single batch UPDATE query.
+    """
+    if not folder:
+        return
+    now = timezone.now()
+    ancestor_ids = []
+    visited = set()
+    current = folder
+    while current and current.id not in visited:
+        visited.add(current.id)
+        ancestor_ids.append(current.id)
+        current = current.parent
+    if ancestor_ids:
+        Folder.objects.filter(id__in=ancestor_ids).update(updated_at=now)
+
+
 def check_user_quota_on_upload(user: User, new_file_size: int, document_to_update: Document = None):
     """
     Checks if a new upload would exceed the user's file size quota.
@@ -426,6 +445,7 @@ def create_document_from_upload(
         file_size=file_size,
         content_type=content_type,
     )
+    touch_folder_ancestors(document.folder)
 
     return document
 
@@ -470,6 +490,7 @@ def delete_folder_and_contents(folder: Folder):
     if deletion_errors:
         raise Exception(f"Failed to delete one or more associated files: {', '.join(deletion_errors)}")
 
+    parent_folder = folder.parent
     with transaction.atomic():
         user = folder.created_by
         if user and total_size > 0:
@@ -477,6 +498,8 @@ def delete_folder_and_contents(folder: Folder):
         # Explicitly delete the documents. This will cascade to versions and pages.
         documents_to_delete.delete()
         folder.delete()
+        if parent_folder:
+            touch_folder_ancestors(parent_folder)
 
 
 def delete_document_and_files(document: Document):
@@ -509,6 +532,7 @@ def delete_document_and_files(document: Document):
         # Re-raise an exception to be handled by the calling view.
         raise Exception(f"Failed to delete one or more associated files: {', '.join(deletion_errors)}")
 
+    parent_folder = document.folder
     # Atomically update user's total size and delete the document record
     with transaction.atomic():
         user = document.created_by
@@ -516,6 +540,8 @@ def delete_document_and_files(document: Document):
             User.objects.filter(pk=user.pk).update(total_document_size=F('total_document_size') - document.file_size)
         # Delete the document record, which will cascade to versions, pages, share links etc.
         document.delete()
+        if parent_folder:
+            touch_folder_ancestors(parent_folder)
 
 
 def copy_document(original_doc: Document, user: User) -> Document:
@@ -612,6 +638,7 @@ def copy_document(original_doc: Document, user: User) -> Document:
             file_size=new_doc.file_size,
             content_type=new_doc.content_type
         )
+        touch_folder_ancestors(new_doc.folder)
 
         return new_doc
     except Exception as e:
@@ -755,6 +782,7 @@ def process_imported_file(document: Document, file_data: dict, version_id=None):
             User.objects.filter(pk=user.pk).update(
                 total_document_size=F('total_document_size') - old_file_size + file_size
             )
+        touch_folder_ancestors(document.folder)
 
 
 def promote_document_version(document: Document, version: DocumentVersion, requesting_user: User):
@@ -838,6 +866,7 @@ def promote_document_version(document: Document, version: DocumentVersion, reque
     # passed to this function. Refresh from DB to ensure the caller (e.g. view serializer)
     # receives up-to-date metadata in memory.
     document.refresh_from_db()
+    touch_folder_ancestors(document.folder)
 
 
 def soft_delete_document(document: Document, user: User):
@@ -845,6 +874,7 @@ def soft_delete_document(document: Document, user: User):
     document.deleted_at = timezone.now()
     document.deleted_by = user
     document.save(update_fields=['deleted_at', 'deleted_by', 'updated_at'])
+    touch_folder_ancestors(document.folder)
 
 
 def soft_delete_folder(folder: Folder, user: User):
@@ -865,6 +895,7 @@ def soft_delete_folder(folder: Folder, user: User):
             deleted_at=now,
             deleted_by=user
         )
+        touch_folder_ancestors(folder.parent)
 
 
 def restore_item(item, item_type: str, user: User):
@@ -964,6 +995,8 @@ def restore_item(item, item_type: str, user: User):
                 deleted_by=None
             )
             item.refresh_from_db()
+            touch_folder_ancestors(item.parent)
+            touch_folder_ancestors(item)
         else:
             if Document.objects.active().filter(folder=item.folder, name=item.name).exists():
                 item.name = _get_unique_document_name(item.created_by, item.folder, item.name)
@@ -972,6 +1005,7 @@ def restore_item(item, item_type: str, user: User):
             item.deleted_by = None
             item.save(update_fields=['name', 'deleted_at', 'deleted_by', 'updated_at'])
             item.refresh_from_db()
+            touch_folder_ancestors(item.folder)
 
         was_renamed = (item.name != original_name)
         return item, original_name, was_renamed
