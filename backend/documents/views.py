@@ -50,6 +50,24 @@ from .services import (
 logger = logging.getLogger(__name__)
 
 
+def get_document_queryset_for_user(user):
+    """
+    Returns a queryset of active documents accessible to the given user.
+    - An Org Admin has overarching supervisor access to all documents in their organization.
+    - A standard user has access to:
+      1) Documents they created within their organization.
+      2) Documents included in any active Dataroom where they are an Owner or Collaborator.
+    """
+    base_qs = Document.objects.active().filter(organization=user.organization)
+    if getattr(user, 'role', '') == 'admin':
+        return base_qs
+
+    return base_qs.filter(
+        Q(created_by=user) |
+        Q(dataroomdocument__dataroom__organization=user.organization, dataroomdocument__dataroom__collaborators__user=user) |
+        Q(dataroomdocument__dataroom__organization=user.organization, dataroomdocument__dataroom__created_by=user)
+    ).distinct()
+
 
 def _get_folder_from_path(requesting_user, folder_path: str) -> Folder | None:
     """
@@ -585,11 +603,7 @@ class DocumentDownloadView(APIView):
     )
     def get(self, request, document_id, *args, **kwargs):
         try:
-            document = Document.objects.active().get(
-                id=document_id,
-                organization=request.user.organization,
-                created_by=request.user
-            )
+            document = get_document_queryset_for_user(request.user).get(id=document_id)
         except Document.DoesNotExist:
             return Response(
                 {"detail": "Access denied or document not found."},
@@ -639,11 +653,7 @@ class DocumentPreviewDataView(APIView):
     def get(self, request, document_id, *args, **kwargs):
         # Authentication & Authorization is handled by DRF + this query
         try:
-            document = Document.objects.active().get(
-                id=document_id,
-                organization=request.user.organization,
-                created_by=request.user
-            )
+            document = get_document_queryset_for_user(request.user).get(id=document_id)
         except Document.DoesNotExist:
             return Response(
                 {"detail": "Access denied or document not found."},
@@ -859,20 +869,30 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        This queryset is used for all actions. It ensures that users can only
-        access documents they have created within their organization.
-        Filtering by folder is handled in the `list` action.
+        For 'list' action, only return documents created by the current user to keep
+        the personal document library strictly personal.
+        For detail actions ('retrieve', 'stats', 'view_sessions', 'versions'),
+        include co-managed documents accessible through shared Datarooms.
         """
-        return self.queryset.filter(
-            organization=self.request.user.organization,
-            created_by=self.request.user
-        ).select_related('folder').annotate(
+        if self.action == 'list':
+            return self.queryset.filter(
+                organization=self.request.user.organization,
+                created_by=self.request.user
+            ).select_related('folder').annotate(
+                share_link_view_count=Count('share_links__view_sessions', distinct=True)
+            ).prefetch_related(
+                'versions', 'share_links', 'share_links__view_sessions'
+            )
+
+        return get_document_queryset_for_user(self.request.user).select_related('folder').annotate(
             share_link_view_count=Count('share_links__view_sessions', distinct=True)
         ).prefetch_related(
             'versions', 'share_links', 'share_links__view_sessions'
         )
 
     def perform_update(self, serializer):
+        if serializer.instance.created_by != self.request.user and getattr(self.request.user, 'role', '') != 'admin':
+            raise PermissionDenied("You do not have permission to modify this document.")
         old_folder = serializer.instance.folder
         document = serializer.save()
         touch_folder_ancestors(document.folder)
@@ -907,6 +927,8 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         document = self.get_object()
+        if document.created_by != request.user and getattr(request.user, 'role', '') != 'admin':
+            raise PermissionDenied("You do not have permission to delete this document.")
         soft_delete_document(document, request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -916,10 +938,8 @@ class DocumentViewSet(viewsets.ModelViewSet):
         Returns a lightweight status object containing only status and status_message.
         """
         document = get_object_or_404(
-            Document.objects.active().only('status', 'status_message'),
-            id=pk,
-            organization=request.user.organization,
-            created_by=request.user
+            get_document_queryset_for_user(request.user).only('status', 'status_message'),
+            id=pk
         )
         return Response({
             'status': document.status,
@@ -1013,6 +1033,9 @@ class DocumentViewSet(viewsets.ModelViewSet):
         Promotes a specific DocumentVersion to be the active (primary) version of the Document.
         """
         document = self.get_object()
+        if document.created_by != request.user and getattr(request.user, 'role', '') != 'admin':
+            raise PermissionDenied("You do not have permission to modify versions of this document.")
+
         version_id = request.data.get('version_id')
         if not version_id:
             return Response({'detail': 'version_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1044,6 +1067,9 @@ class DocumentViewSet(viewsets.ModelViewSet):
         Forces a rebuild of the document preview by clearing existing pages and enqueuing render.
         """
         document = self.get_object()
+        if document.created_by != request.user and getattr(request.user, 'role', '') != 'admin':
+            raise PermissionDenied("You do not have permission to rebuild preview for this document.")
+
         version_id = request.data.get('version_id')
         if version_id:
             primary_version = get_object_or_404(document.versions, id=version_id)

@@ -300,3 +300,14 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Gotcha
 - **Context/Implication:** `delete_folder_and_contents` subtracts the aggregate size of all documents inside a folder from `folder.created_by`. While regular user folders and datarooms are strictly single-user in the current architecture, folders with `created_by=None` (such as the organization `__root__` folder) will not deduct quota from document owners if deleted directly.
 - **Resolution/Action:** Be aware that multi-user shared folders or root-level folder deletions in future features will require grouping quota deductions by `created_by` across the deleted documents.
+
+### 2026-08-28 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Dataroom collaborators opening a teammate's document previously encountered 404 "Document not found" due to strict personal queryset scoping on `DocumentViewSet`.
+- **Resolution/Action:** Expanded `DocumentViewSet` and helper read queries (`get_document_queryset_for_user`) to include documents in active Datarooms where the user is an owner/collaborator. Kept the `/documents/` personal library list strictly creator-scoped, enforced `403 Forbidden` on mutation endpoints for non-owners, and added a view-only mode (`canManage=false`) on `DocumentPage`/`DocumentHeader`.
+
+### 2026-08-29 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Dataroom direct file uploads are refactored from user-scoped 'Dataroom Uploads' folders to an organization-level system vault storage hierarchy under `__root__/__datarooms__/<dataroom_id>/` (storage_version=2). Legacy datarooms remain on storage_version=1 with collaboration and transfer gated behind a 1-click in-app upgrade endpoint `POST /api/v1/datarooms/{id}/upgrade-storage/`.
+- **Resolution/Action:** Direct uploads are resolved via `get_or_create_dataroom_storage_folder(dataroom, requesting_user)`. New datarooms default to `storage_version=2`, keeping backing storage completely decoupled from users' personal `/documents` view while preserving uploader attribution on `Document.created_by`.
+

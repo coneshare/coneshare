@@ -21,11 +21,23 @@ class EnsureFolderPathsSerializer(serializers.Serializer):
 
 class FolderSerializer(serializers.ModelSerializer):
     ancestors = serializers.SerializerMethodField()
+    created_by = serializers.SerializerMethodField()
 
     class Meta:
         model = Folder
-        fields = ['id', 'name', 'parent', 'organization', 'created_at', 'updated_at', 'ancestors', 'is_starred']
-        read_only_fields = ['id', 'organization', 'created_at', 'updated_at', 'ancestors']
+        fields = ['id', 'name', 'parent', 'organization', 'created_at', 'updated_at', 'ancestors', 'is_starred', 'created_by']
+        read_only_fields = ['id', 'organization', 'created_at', 'updated_at', 'ancestors', 'created_by']
+
+    @extend_schema_field(serializers.DictField(allow_null=True))
+    def get_created_by(self, obj):
+        if obj.created_by:
+            return {
+                'id': str(obj.created_by.id),
+                'name': obj.created_by.name,
+                'email': obj.created_by.email,
+                'avatar_url': getattr(obj.created_by, 'avatar_url', None),
+            }
+        return None
 
     @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_ancestors(self, obj):
@@ -43,7 +55,7 @@ class FolderSerializer(serializers.ModelSerializer):
         ancestors = []
         parent = obj.parent
         while parent and parent.name != '__root__':
-            ancestors.append({'id': parent.id, 'name': parent.name})
+            ancestors.append({'id': str(parent.id), 'name': parent.name})
             parent = parent.parent
         return list(reversed(ancestors))
 
@@ -58,6 +70,13 @@ class FolderSerializer(serializers.ModelSerializer):
 
         organization = request.user.organization
         name = data.get('name', self.instance.name if self.instance else None)
+
+        RESERVED_FOLDER_NAMES = {"__root__", "__datarooms__"}
+        if name and name.strip() in RESERVED_FOLDER_NAMES:
+            raise serializers.ValidationError({
+                'name': _("This folder name is reserved by the system.")
+            })
+
         # On update, parent might not be in payload. We get it from instance.
         parent = data.get('parent', self.instance.parent if self.instance else None)
 
@@ -222,21 +241,43 @@ class DocumentSerializer(serializers.ModelSerializer):
         default=RootFolderDefault()
     )
 
+    created_by_user = serializers.SerializerMethodField()
+
     class Meta:
         model = Document
         fields = [
             'id', 'organization', 'folder', 'name', 'description', 'status',
             'status_message', 'storage_key', 'original_storage_key', 'type', 'content_type',
             'num_pages', 'file_size', 'download_only', 'assistant_enabled', 'is_starred', 'created_by',
+            'created_by_user',
             'created_at', 'updated_at', 'versions', 'share_links', 'uploader_info', 'share_link_view_count',
             'cloud_import'
         ]
         read_only_fields = [
-            'id', 'organization', 'created_by', 'created_at', 'updated_at'
+            'id', 'organization', 'created_by', 'created_by_user', 'created_at', 'updated_at'
         ]
+
+    @extend_schema_field(serializers.DictField(allow_null=True))
+    def get_created_by_user(self, instance):
+        if instance.created_by:
+            return {
+                'id': str(instance.created_by.id),
+                'name': instance.created_by.name,
+                'email': instance.created_by.email,
+                'avatar_url': getattr(instance.created_by, 'avatar_url', None),
+            }
+        return None
 
     @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_share_links(self, instance):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user') and request.user and request.user.is_authenticated:
+            user = request.user
+            is_owner = instance.created_by_id == user.id
+            is_admin = getattr(user, 'role', '') == 'admin' and instance.organization_id == user.organization_id
+            if not (is_owner or is_admin):
+                return []
+
         from sharelinks.serializers import ShareLinkSerializer
         # The 'share_links' related manager is often prefetched in the viewset,
         # so this should be efficient.
@@ -249,6 +290,14 @@ class DocumentSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.IntegerField())
     def get_share_link_view_count(self, obj) -> int:
+        request = self.context.get('request')
+        if request and hasattr(request, 'user') and request.user and request.user.is_authenticated:
+            user = request.user
+            is_owner = obj.created_by_id == user.id
+            is_admin = getattr(user, 'role', '') == 'admin' and obj.organization_id == user.organization_id
+            if not (is_owner or is_admin):
+                return 0
+
         annotated_count = getattr(obj, 'share_link_view_count', None)
         if annotated_count is not None:
             return annotated_count

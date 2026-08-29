@@ -59,6 +59,33 @@ class TestDataroomSerializer:
         assert len(data["items"]) == 2
         assert {item["type"] for item in data["items"]} == {"folder", "document"}
 
+    def test_storage_used_bytes_does_not_double_count_multi_folder_linked_document(
+        self, dataroom, user, organization, serializer_context
+    ):
+        """
+        Test that a document linked into multiple visual folders within the same dataroom
+        is counted exactly once in storage_used_bytes, rather than being double-counted.
+        """
+        from documents.models import Document
+        doc = Document.objects.create(
+            name="shared_doc.pdf",
+            organization=organization,
+            created_by=user,
+            file_size=50 * 1024 * 1024
+        )
+
+        folder1 = DataroomFolder.objects.create(dataroom=dataroom, name="Folder 1")
+        folder2 = DataroomFolder.objects.create(dataroom=dataroom, name="Folder 2")
+
+        DataroomDocument.objects.create(dataroom=dataroom, folder=folder1, document=doc, name="shared_doc.pdf")
+        DataroomDocument.objects.create(dataroom=dataroom, folder=folder2, document=doc, name="shared_doc.pdf")
+
+        detail_data = DataroomDetailSerializer(instance=dataroom, context=serializer_context).data
+        summary_data = DataroomSerializer(instance=dataroom, context=serializer_context).data
+
+        assert detail_data["storage_used_bytes"] == 50 * 1024 * 1024
+        assert summary_data["storage_used_bytes"] == 50 * 1024 * 1024
+
     def test_dataroom_serializer_validates_hex_colors(self, dataroom, serializer_context):
         serializer = DataroomSerializer(
             instance=dataroom,
@@ -142,9 +169,9 @@ class TestDataroomSerializer:
 
 
 class TestDataroomFolderSerializer:
-    def test_dataroom_folder_serializer(self, dataroom, serializer_context):
+    def test_dataroom_folder_serializer(self, dataroom, serializer_context, user2):
         folder = DataroomFolder.objects.create(
-            dataroom=dataroom, name="My Folder", parent=None
+            dataroom=dataroom, name="My Folder", parent=None, created_by=user2
         )
         serializer = DataroomFolderSerializer(
             instance=folder, context=serializer_context
@@ -155,6 +182,20 @@ class TestDataroomFolderSerializer:
         assert data["name"] == "My Folder"
         assert data["dataroom"] == str(dataroom.id)
         assert data["parent"] is None
+        assert data["created_by"]["id"] == str(user2.id)
+        assert data["created_by"]["email"] == user2.email
+
+    def test_dataroom_folder_serializer_fallback_to_dataroom_creator(self, dataroom, serializer_context):
+        folder = DataroomFolder.objects.create(
+            dataroom=dataroom, name="Legacy Folder", parent=None, created_by=None
+        )
+        serializer = DataroomFolderSerializer(
+            instance=folder, context=serializer_context
+        )
+        data = serializer.data
+
+        assert data["created_by"]["id"] == str(dataroom.created_by.id)
+        assert data["created_by"]["email"] == dataroom.created_by.email
 
 
 class TestDataroomDocumentSerializer:

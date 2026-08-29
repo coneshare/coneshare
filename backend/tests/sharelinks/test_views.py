@@ -1404,6 +1404,33 @@ class TestShareLinkViewSet:
         assert len(response.data) == 1
         assert response.data[0]['name'] == "My Link"
 
+    def test_admin_can_patch_and_delete_teammate_document_share_link(self, api_client, user, user2, organization):
+        """
+        Test that an organization administrator can view, PATCH, and DELETE document share links
+        created by teammates within the same organization.
+        """
+        user.role = 'admin'
+        user.save(update_fields=['role'])
+
+        doc = Document.objects.create(organization=organization, created_by=user2, name="Teammate Doc.pdf")
+        link = ShareLink.objects.create(document=doc, created_by=user2, name="Teammate Link")
+
+        # 1. Admin should be able to retrieve the link
+        url = f'/api/v1/share-links/{link.id}/'
+        resp_get = api_client.get(url)
+        assert resp_get.status_code == status.HTTP_200_OK
+
+        # 2. Admin should be able to PATCH the link
+        resp_patch = api_client.patch(url, {'name': 'Admin Renamed Link'})
+        assert resp_patch.status_code == status.HTTP_200_OK
+        link.refresh_from_db()
+        assert link.name == 'Admin Renamed Link'
+
+        # 3. Admin should be able to DELETE the link
+        resp_delete = api_client.delete(url)
+        assert resp_delete.status_code == status.HTTP_204_NO_CONTENT
+        assert not ShareLink.objects.filter(id=link.id).exists()
+
     def test_list_share_links_can_be_filtered_by_dataroom(self, api_client, dataroom, document, user):
         """
         Test that the share link list endpoint can be filtered by a dataroom_id.
@@ -1478,13 +1505,13 @@ class TestShareLinkViewSet:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_bulk_update_dataroom_settings_for_other_user_link_fails(self, api_client, user, user2, dataroom, document):
+    def test_bulk_update_dataroom_settings_for_other_user_link_fails(self, api_client, user, user2, organization, document):
         """
         Test that a user cannot update settings for a share link they do not own.
         """
-        # user2 creates a link
-        DataroomDocument.objects.create(dataroom=dataroom, document=document)
-        link_by_user2 = ShareLink.objects.create(dataroom=dataroom, created_by=user2)
+        other_dataroom = Dataroom.objects.create(name="Other Dataroom", organization=organization, created_by=user2)
+        DataroomDocument.objects.create(dataroom=other_dataroom, document=document)
+        link_by_user2 = ShareLink.objects.create(dataroom=other_dataroom, created_by=user2)
         setting = link_by_user2.dataroom_settings.first()
         assert setting is not None
 
@@ -2994,3 +3021,81 @@ class TestDataroomFolderDownloadView:
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_non_admin_cannot_create_share_link_for_creatorless_document(self, api_client, user, organization):
+        """
+        Test that a non-admin user cannot create a share link for a document where created_by is None.
+        """
+        user.role = 'member'
+        user.save(update_fields=['role'])
+
+        doc = Document.objects.create(organization=organization, created_by=None, name="Orphan Doc.pdf")
+        url = '/api/v1/share-links/'
+        data = {
+            'document': str(doc.id),
+            'name': 'Hacker Link'
+        }
+        response = api_client.post(url, data, format='json')
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'document' in response.data
+
+    def test_admin_can_create_share_link_for_creatorless_document(self, api_client, user, organization):
+        """
+        Test that an organization administrator can create a share link for a document where created_by is None.
+        """
+        user.role = 'admin'
+        user.save(update_fields=['role'])
+
+        doc = Document.objects.create(organization=organization, created_by=None, name="System Doc.pdf")
+        url = '/api/v1/share-links/'
+        data = {
+            'document': str(doc.id),
+            'name': 'Admin System Link'
+        }
+        response = api_client.post(url, data, format='json')
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data['name'] == 'Admin System Link'
+
+    def test_removed_dataroom_collaborator_cannot_view_update_or_delete_dataroom_share_link(
+        self, api_client, user, user2, dataroom
+    ):
+        """
+        Test that when a collaborator who created a dataroom share link is removed from that dataroom,
+        they immediately lose all read/update/delete/settings access to that share link,
+        while the dataroom owner retains full control.
+        """
+        from datarooms.models import DataroomCollaborator
+        # Add user2 as collaborator
+        collab = DataroomCollaborator.objects.create(dataroom=dataroom, user=user2, invited_by=user)
+
+        # Collaborator creates a share link for this dataroom
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user2, name="Collab Dataroom Link")
+
+        # Now remove collaborator from dataroom
+        collab.delete()
+
+        # 1. Removed collaborator's list query should NOT contain this dataroom link
+        api_client.force_authenticate(user=user2)
+        resp_list = api_client.get('/api/v1/share-links/')
+        assert resp_list.status_code == status.HTTP_200_OK
+        results = resp_list.data.get('results', resp_list.data) if isinstance(resp_list.data, dict) else resp_list.data
+        returned_ids = [item['id'] for item in results]
+        assert str(link.id) not in returned_ids
+
+        # 2. Removed collaborator cannot GET details (404)
+        resp_get = api_client.get(f'/api/v1/share-links/{link.id}/')
+        assert resp_get.status_code == status.HTTP_404_NOT_FOUND
+
+        # 3. Removed collaborator cannot PATCH (404)
+        resp_patch = api_client.patch(f'/api/v1/share-links/{link.id}/', {'name': 'Hacked Name'})
+        assert resp_patch.status_code == status.HTTP_404_NOT_FOUND
+
+        # 4. Removed collaborator cannot DELETE (404)
+        resp_delete = api_client.delete(f'/api/v1/share-links/{link.id}/')
+        assert resp_delete.status_code == status.HTTP_404_NOT_FOUND
+
+        # 5. Dataroom owner retains full management control
+        api_client.force_authenticate(user=user)
+        owner_resp_get = api_client.get(f'/api/v1/share-links/{link.id}/')
+        assert owner_resp_get.status_code == status.HTTP_200_OK
+        assert owner_resp_get.data['name'] == "Collab Dataroom Link"
