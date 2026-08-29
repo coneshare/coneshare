@@ -142,9 +142,9 @@ class TestDataroomSerializer:
 
 
 class TestDataroomFolderSerializer:
-    def test_dataroom_folder_serializer(self, dataroom, serializer_context):
+    def test_dataroom_folder_serializer(self, dataroom, serializer_context, user2):
         folder = DataroomFolder.objects.create(
-            dataroom=dataroom, name="My Folder", parent=None
+            dataroom=dataroom, name="My Folder", parent=None, created_by=user2
         )
         serializer = DataroomFolderSerializer(
             instance=folder, context=serializer_context
@@ -155,6 +155,20 @@ class TestDataroomFolderSerializer:
         assert data["name"] == "My Folder"
         assert data["dataroom"] == str(dataroom.id)
         assert data["parent"] is None
+        assert data["created_by"]["id"] == str(user2.id)
+        assert data["created_by"]["email"] == user2.email
+
+    def test_dataroom_folder_serializer_fallback_to_dataroom_creator(self, dataroom, serializer_context):
+        folder = DataroomFolder.objects.create(
+            dataroom=dataroom, name="Legacy Folder", parent=None, created_by=None
+        )
+        serializer = DataroomFolderSerializer(
+            instance=folder, context=serializer_context
+        )
+        data = serializer.data
+
+        assert data["created_by"]["id"] == str(dataroom.created_by.id)
+        assert data["created_by"]["email"] == dataroom.created_by.email
 
 
 class TestDataroomDocumentSerializer:
