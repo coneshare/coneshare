@@ -129,9 +129,9 @@ class TestDataroomViewSet:
 
         # The number of queries should remain constant regardless of document count.
         # Current expected queries:
-        # 1 (get folder) + 1 (get children) + 1 (get documents) + 2 (for 2 ancestors)
-        # + 1 (load dataroom.show_file_index) + 1 (check item-order rows for this scope) = 7
-        with django_assert_num_queries(7):
+        # 1 (get folder + dataroom via select_related) + 1 (get children) + 1 (get documents)
+        # + 2 (for 2 ancestors) + 1 (check item-order rows for this scope) = 6
+        with django_assert_num_queries(6):
             url = f'/api/v1/dataroom-folders/{target_folder.id}/'
             response = api_client.get(url)
             print(response.json()['ancestors'])
@@ -233,6 +233,51 @@ class TestDataroomViewSet:
         mock_fs_delete.assert_not_called()
 
     @patch('documents.services.fileserver_client.delete_file')
+    def test_delete_dataroom_with_colliding_shared_documents_handles_name_collisions_gracefully(self, mock_fs_delete, api_client, dataroom, user, organization):
+        """
+        Test that delete_dataroom handles name collisions gracefully when relocating multiple
+        surviving documents (with the same name in different subfolders) to the system vault.
+        """
+        from documents.models import Folder
+        from datarooms.services import get_or_create_dataroom_storage_folder
+        second_dataroom = Dataroom.objects.create(
+            name="Second Dataroom",
+            organization=organization,
+            created_by=user
+        )
+
+        storage_folder = get_or_create_dataroom_storage_folder(dataroom)
+        system_vault = storage_folder.parent
+
+        # Create two physical subfolders in storage_folder
+        sub1 = Folder.objects.create(name="Sub1", parent=storage_folder, organization=organization, created_by=None)
+        sub2 = Folder.objects.create(name="Sub2", parent=storage_folder, organization=organization, created_by=None)
+
+        # Create two physical documents with the same name in different subfolders
+        doc1 = Document.objects.create(name="Contract.pdf", folder=sub1, created_by=user, organization=organization)
+        doc2 = Document.objects.create(name="Contract.pdf", folder=sub2, created_by=user, organization=organization)
+
+        # Link both to the dataroom being deleted as direct uploads
+        DataroomDocument.objects.create(dataroom=dataroom, document=doc1, name="Contract.pdf", is_direct_upload=True)
+        DataroomDocument.objects.create(dataroom=dataroom, document=doc2, name="Contract.pdf", is_direct_upload=True)
+
+        # Also link both to second_dataroom so they are preserved
+        DataroomDocument.objects.create(dataroom=second_dataroom, document=doc1, name="Contract.pdf")
+        DataroomDocument.objects.create(dataroom=second_dataroom, document=doc2, name="Contract.pdf")
+
+        # Delete the first dataroom - should succeed with 204 without IntegrityError 500
+        res_delete = api_client.delete(f'/api/v1/datarooms/{dataroom.id}/')
+        assert res_delete.status_code == status.HTTP_204_NO_CONTENT
+
+        # Both documents must still exist and be relocated under system_vault with distinct names
+        doc1.refresh_from_db()
+        doc2.refresh_from_db()
+        assert doc1.folder == system_vault
+        assert doc2.folder == system_vault
+        assert doc1.name != doc2.name
+        assert {doc1.name, doc2.name} == {"Contract.pdf", "Contract (2).pdf"}
+
+    @patch('documents.services.fileserver_client.delete_file')
     def test_delete_dataroom_when_created_by_is_none(self, mock_fs_delete, api_client, dataroom, user):
         """
         Test that delete_dataroom cleans up storage and backing folders even if
@@ -271,6 +316,99 @@ class TestDataroomViewSet:
         assert DataroomDocument.objects.filter(dataroom=dataroom, document=document).exists()
         ddoc = DataroomDocument.objects.get(dataroom=dataroom, document=document)
         assert ddoc.name == document.name
+
+    def test_add_content_exceeding_dataroom_storage_quota_is_rejected(self, api_client, dataroom, user, organization):
+        """Test adding workspace content that would exceed dataroom storage_quota_mb is rejected with 400."""
+        dataroom.storage_quota_mb = 10  # 10 MB cap
+        dataroom.save(update_fields=['storage_quota_mb'])
+
+        doc = Document.objects.create(
+            name="Large Contract.pdf",
+            organization=organization,
+            created_by=user,
+            file_size=15 * 1024 * 1024  # 15 MB
+        )
+
+        url = f'/api/v1/datarooms/{dataroom.id}/add-content/'
+        response = api_client.post(url, {'document_ids': [str(doc.id)]})
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "storage limit" in response.json()['detail'].lower()
+        assert not DataroomDocument.objects.filter(dataroom=dataroom, document=doc).exists()
+
+    def test_upload_finalize_exceeding_dataroom_storage_quota_is_rejected(self, api_client, dataroom, user, organization):
+        """Test that upload_finalize enforces dataroom storage_quota_mb under transaction lock."""
+        dataroom.storage_quota_mb = 10  # 10 MB cap
+        dataroom.save(update_fields=['storage_quota_mb'])
+
+        # Pre-fill 8 MB
+        existing_doc = Document.objects.create(
+            name="Existing.pdf",
+            organization=organization,
+            created_by=user,
+            file_size=8 * 1024 * 1024
+        )
+        DataroomDocument.objects.create(dataroom=dataroom, document=existing_doc, name="Existing.pdf")
+
+        # Try to finalize an upload of 5 MB (total 13 MB > 10 MB)
+        url = f'/api/v1/datarooms/{dataroom.id}/uploads/finalize/'
+        data = {
+            'storage_key': 'org_1/uploads/overflow.pdf',
+            'unique_name': 'overflow.pdf',
+            'file_size': 5 * 1024 * 1024,
+            'content_type': 'application/pdf',
+        }
+        response = api_client.post(url, data, format='json')
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "storage limit" in response.json()['detail'].lower()
+
+    def test_add_folder_content_exceeding_dataroom_storage_quota_is_rejected(self, api_client, dataroom, user, organization):
+        """Test adding workspace folder with documents that would exceed dataroom storage_quota_mb is rejected."""
+        from documents.models import Folder
+        dataroom.storage_quota_mb = 10  # 10 MB cap
+        dataroom.save(update_fields=['storage_quota_mb'])
+
+        root_folder = Folder.objects.get(name="__root__", organization=organization, parent=None)
+        folder = Folder.objects.create(name="Contracts", parent=root_folder, created_by=user, organization=organization)
+        subfolder = Folder.objects.create(name="2026", parent=folder, created_by=user, organization=organization)
+
+        Document.objects.create(
+            name="Contract A.pdf",
+            folder=subfolder,
+            organization=organization,
+            created_by=user,
+            file_size=12 * 1024 * 1024  # 12 MB > 10 MB
+        )
+
+        url = f'/api/v1/datarooms/{dataroom.id}/add-content/'
+        response = api_client.post(url, {'folder_ids': [str(folder.id)]})
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "storage limit" in response.json()['detail'].lower()
+        assert not DataroomFolder.objects.filter(dataroom=dataroom, name="Contracts").exists()
+
+    def test_add_existing_document_to_another_folder_does_not_double_count_quota(self, api_client, dataroom, user, organization):
+        """Test that linking an existing document into a second folder doesn't fail quota when space is available."""
+        dataroom.storage_quota_mb = 10  # 10 MB cap
+        dataroom.save(update_fields=['storage_quota_mb'])
+
+        doc = Document.objects.create(
+            name="Shared Doc.pdf",
+            organization=organization,
+            created_by=user,
+            file_size=8 * 1024 * 1024  # 8 MB <= 10 MB
+        )
+        DataroomDocument.objects.create(dataroom=dataroom, document=doc, name="Shared Doc.pdf")
+
+        # Create a second visual folder
+        folder2 = DataroomFolder.objects.create(dataroom=dataroom, name="Folder 2")
+
+        # Adding the same doc to Folder 2 adds 0 bytes of new physical storage
+        url = f'/api/v1/datarooms/{dataroom.id}/add-content/'
+        response = api_client.post(url, {'document_ids': [str(doc.id)], 'destination_folder_id': str(folder2.id)})
+
+        assert response.status_code == status.HTTP_200_OK
+        assert DataroomDocument.objects.filter(dataroom=dataroom, document=doc).count() == 2
 
     def test_add_content_permission_denied_for_other_user_content(self, api_client, user, user2, document):
         """
@@ -925,18 +1063,18 @@ class TestDataroomViewSet:
         
         response = api_client.post(url, data, format='json')
         assert response.status_code == status.HTTP_202_ACCEPTED, response.json()
-        
-        # Check standard document was created in 'Dataroom Uploads/<Dataroom-Name>' folder path
+
+        # Check standard document was created in '__datarooms__/<dataroom_id>' system vault
         from documents.models import Document, Folder
         doc = Document.objects.get(name='test_file.pdf')
-        assert doc.folder.name == get_dataroom_storage_folder_name(dataroom.name, dataroom)
-        assert doc.folder.parent.name == "Dataroom Uploads"
+        assert doc.folder.name == str(dataroom.id)
+        assert doc.folder.parent.name == "__datarooms__"
         assert doc.folder.parent.parent.name == "__root__"
-        
-        # Verify folders are owned by the user so they are visible in library
-        assert doc.folder.created_by == dataroom.created_by
-        assert doc.folder.parent.created_by == dataroom.created_by
-        
+
+        # Verify system vault folder is system-owned (created_by=None) while document has creator attribution
+        assert doc.folder.created_by is None
+        assert doc.created_by == dataroom.created_by
+
         # Check DataroomDocument reference was created
         assert DataroomDocument.objects.filter(
             dataroom=dataroom,
@@ -950,7 +1088,7 @@ class TestDataroomViewSet:
         ensure_url = f'/api/v1/datarooms/{dataroom.id}/ensure-paths/'
         ensure_response = api_client.post(ensure_url, {'paths': ['Folder A/Folder B']}, format='json')
         assert ensure_response.status_code == status.HTTP_201_CREATED
-        
+
         folder_a_name = ensure_response.json()['path_mappings']['Folder A']
         folder_a = DataroomFolder.objects.get(dataroom=dataroom, name=folder_a_name, parent=None)
         folder_b = DataroomFolder.objects.get(dataroom=dataroom, name='Folder B', parent=folder_a)
@@ -964,18 +1102,13 @@ class TestDataroomViewSet:
         }
         response_nested = api_client.post(url, data_nested, format='json')
         assert response_nested.status_code == status.HTTP_202_ACCEPTED
-        
+
         # Check standard document was created in the nested library folder
         doc_nested = Document.objects.get(name='test_nested.pdf')
         assert doc_nested.folder.name == "Folder B"
         assert doc_nested.folder.parent.name == folder_a_name
-        assert doc_nested.folder.parent.parent.name == get_dataroom_storage_folder_name(dataroom.name, dataroom)
+        assert doc_nested.folder.parent.parent.name == str(dataroom.id)
 
-        # Verify the entire path of nested library folders is owned by the user
-        assert doc_nested.folder.created_by == dataroom.created_by
-        assert doc_nested.folder.parent.created_by == dataroom.created_by
-        assert doc_nested.folder.parent.parent.created_by == dataroom.created_by
-        
         # Check DataroomDocument reference was created under visual folder_b
         assert DataroomDocument.objects.filter(
             dataroom=dataroom,
@@ -986,9 +1119,13 @@ class TestDataroomViewSet:
 
     def test_dataroom_rename_updates_library_folder(self, api_client, dataroom):
         """
-        Test that renaming a dataroom also renames the library folder under Dataroom Uploads.
+        Test that renaming a legacy (v1) dataroom renames the library folder under Dataroom Uploads,
+        while a modern (v2) dataroom keeps the immutable system vault folder intact.
         """
-        # 1. Let's first ensure the folder exists by triggering a finalize (which creates the folder structure lazily)
+        # Test legacy v1 rename
+        dataroom.storage_version = 1
+        dataroom.save(update_fields=['storage_version'])
+
         url_finalize = f'/api/v1/datarooms/{dataroom.id}/uploads/finalize/'
         data_finalize = {
             'storage_key': 'org_1/uploads/temp.txt',
@@ -999,21 +1136,19 @@ class TestDataroomViewSet:
         res = api_client.post(url_finalize, data_finalize, format='json')
         assert res.status_code == status.HTTP_202_ACCEPTED
 
-        # Verify initial library folder exists with current dataroom name
         from documents.models import Folder
         org = dataroom.created_by.organization
         root_folder = Folder.objects.get_root_for_org(org)
         dataroom_uploads = Folder.objects.get(organization=org, parent=root_folder, name="Dataroom Uploads")
         assert Folder.objects.filter(organization=org, parent=dataroom_uploads, name=get_dataroom_storage_folder_name(dataroom.name, dataroom)).exists()
 
-        # 2. Update the dataroom name via PATCH
+        # Update the dataroom name via PATCH
         url_patch = f'/api/v1/datarooms/{dataroom.id}/'
         old_name = dataroom.name
         new_name = "Brand New Dataroom Name"
         res_patch = api_client.patch(url_patch, {'name': new_name}, format='json')
         assert res_patch.status_code == status.HTTP_200_OK
 
-        # 3. Verify library folder is renamed to new name and old name folder does not exist
         assert Folder.objects.filter(organization=org, parent=dataroom_uploads, name=get_dataroom_storage_folder_name(new_name, dataroom)).exists()
         assert not Folder.objects.filter(organization=org, parent=dataroom_uploads, name=get_dataroom_storage_folder_name(old_name, dataroom)).exists()
 
@@ -1050,8 +1185,9 @@ class TestDataroomViewSet:
             assert not Document.objects.filter(name='temp.txt').exists()
             org = dataroom.created_by.organization
             root_folder = Folder.objects.get_root_for_org(org)
-            dataroom_uploads = Folder.objects.get(organization=org, parent=root_folder, name="Dataroom Uploads")
-            assert not Folder.objects.filter(organization=org, parent=dataroom_uploads, name=get_dataroom_storage_folder_name(dataroom.name, dataroom)).exists()
+            system_vault = Folder.objects.filter(organization=org, parent=root_folder, name="__datarooms__").first()
+            if system_vault:
+                assert not Folder.objects.filter(organization=org, parent=system_vault, name=str(dataroom.id)).exists()
 
     @patch('documents.services.fileserver_client.delete_file')
     def test_direct_upload_deletion_removes_library_document(self, mock_delete_file, api_client, dataroom):
@@ -1190,6 +1326,29 @@ class TestDataroomFolderViewSet:
         assert response.status_code == status.HTTP_201_CREATED
         assert DataroomFolder.objects.filter(dataroom=dataroom, name='New Dataroom Folder').exists()
 
+    def test_create_folder_with_show_file_index_and_existing_orders(self, api_client, dataroom):
+        """
+        Test creating a folder in a dataroom that has show_file_index=True and existing order rows.
+        Guards against FieldError: Cannot resolve keyword 'order' in DataroomFolderViewSet._append_item_order.
+        """
+        dataroom.show_file_index = True
+        dataroom.save(update_fields=['show_file_index'])
+
+        existing_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Existing Folder")
+        DataroomItemOrder.objects.create(
+            dataroom=dataroom,
+            parent_folder=None,
+            item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
+            folder=existing_folder,
+            position=0
+        )
+
+        url = '/api/v1/dataroom-folders/'
+        data = {'name': 'New Subfolder', 'dataroom': str(dataroom.id)}
+        response = api_client.post(url, data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert DataroomItemOrder.objects.filter(dataroom=dataroom, position=1).exists()
+
     def test_list_dataroom_folders_scoped_to_dataroom(self, api_client, dataroom, user2, organization):
         """Test listing folders is correctly filtered by dataroom ID."""
         DataroomFolder.objects.create(name="Folder 1", dataroom=dataroom)
@@ -1299,8 +1458,8 @@ class TestDataroomFolderViewSet:
         dfolder = DataroomFolder.objects.get(dataroom=dataroom, name='subfolder')
         org = dataroom.created_by.organization
         root_folder = Folder.objects.get_root_for_org(org)
-        dataroom_uploads = Folder.objects.get(organization=org, parent=root_folder, name="Dataroom Uploads")
-        backing_dataroom_root = Folder.objects.get(organization=org, parent=dataroom_uploads, name=get_dataroom_storage_folder_name(dataroom.name, dataroom))
+        system_vault = Folder.objects.get(organization=org, parent=root_folder, name="__datarooms__")
+        backing_dataroom_root = Folder.objects.get(organization=org, parent=system_vault, name=str(dataroom.id))
         backing_folder = Folder.objects.get(organization=org, parent=backing_dataroom_root, name='subfolder')
 
         # 2. Rename DataroomFolder via PATCH
@@ -1321,31 +1480,60 @@ class TestDataroomDocumentViewSet:
         """Test successfully renaming a dataroom document."""
         ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name)
         url = f'/api/v1/dataroom-documents/{ddoc.id}/'
-        data = {'name': 'Renamed Document.pdf'}
+        data = {'name': 'New Document Name.pdf'}
+
         response = api_client.patch(url, data)
-
         assert response.status_code == status.HTTP_200_OK
+        assert response.json()['name'] == 'New Document Name.pdf'
+
         ddoc.refresh_from_db()
-        assert ddoc.name == 'Renamed Document.pdf'
+        assert ddoc.name == 'New Document Name.pdf'
 
-    def test_rename_document_with_conflict_fails(self, api_client, dataroom, document):
-        """Test renaming a document to a name that already exists fails."""
-        # A document that already exists with the target name
-        DataroomDocument.objects.create(dataroom=dataroom, document=document, name='existing-name.pdf')
-        # The document we are going to try to rename
-        doc2 = Document.objects.create(name="another.pdf", organization=dataroom.organization)
-        ddoc_to_rename = DataroomDocument.objects.create(dataroom=dataroom, document=doc2, name='original-name.pdf')
+    def test_rename_document_duplicate_name_in_same_folder_fails(self, api_client, dataroom, document):
+        """Test renaming a document to a name that already exists in the same folder returns 400."""
+        doc2 = Document.objects.create(name='Doc B.pdf', organization=dataroom.organization, created_by=dataroom.created_by)
+        ddoc1 = DataroomDocument.objects.create(dataroom=dataroom, document=document, name='Doc A.pdf')
+        ddoc2 = DataroomDocument.objects.create(dataroom=dataroom, document=doc2, name='Doc B.pdf')
 
-        url = f'/api/v1/dataroom-documents/{ddoc_to_rename.id}/'
-        data = {'name': 'existing-name.pdf'}
+        url = f'/api/v1/dataroom-documents/{ddoc2.id}/'
+        data = {'name': 'Doc A.pdf'}
+
         response = api_client.patch(url, data)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert 'already exists' in str(response.json())
+        assert 'name' in response.json()
 
-    def test_user_cannot_rename_document_in_others_dataroom(self, api_client, dataroom, document, user2):
-        """A user cannot rename a document in a dataroom they do not own."""
-        other_dataroom = Dataroom.objects.create(created_by=user2, name="Other DR", organization=dataroom.organization)
-        ddoc = DataroomDocument.objects.create(dataroom=other_dataroom, document=document, name=document.name)
+    def test_rename_direct_upload_document_physical_name_collision_handled_gracefully(self, api_client, dataroom, user, organization):
+        """
+        Test that renaming a direct upload document in visual folder 2 to the same name
+        as a direct upload in visual folder 1 (both sharing the physical system vault folder)
+        does not crash with IntegrityError (500) and updates the visual name smoothly.
+        """
+        from datarooms.services import get_or_create_dataroom_storage_folder
+        storage_folder = get_or_create_dataroom_storage_folder(dataroom, requesting_user=user)
+
+        # 2 direct upload documents in the same physical vault folder by the same user
+        doc1 = Document.objects.create(name='contract.pdf', organization=organization, created_by=user, folder=storage_folder)
+        doc2 = Document.objects.create(name='other.pdf', organization=organization, created_by=user, folder=storage_folder)
+
+        # 2 different visual folders in the dataroom
+        vfolder1 = DataroomFolder.objects.create(dataroom=dataroom, name="Folder 1")
+        vfolder2 = DataroomFolder.objects.create(dataroom=dataroom, name="Folder 2")
+
+        ddoc1 = DataroomDocument.objects.create(dataroom=dataroom, folder=vfolder1, document=doc1, name='contract.pdf', is_direct_upload=True)
+        ddoc2 = DataroomDocument.objects.create(dataroom=dataroom, folder=vfolder2, document=doc2, name='other.pdf', is_direct_upload=True)
+
+        url = f'/api/v1/dataroom-documents/{ddoc2.id}/'
+        data = {'name': 'contract.pdf'}
+
+        response = api_client.patch(url, data)
+        assert response.status_code == status.HTTP_200_OK
+        ddoc2.refresh_from_db()
+        assert ddoc2.name == 'contract.pdf'
+
+    def test_rename_document_other_user_dataroom_returns_404(self, api_client, user2, organization, document):
+        """Test user cannot rename document in another user's dataroom."""
+        other_room = Dataroom.objects.create(name="Other Room", organization=organization, created_by=user2)
+        ddoc = DataroomDocument.objects.create(dataroom=other_room, document=document, name='Doc.pdf')
 
         url = f'/api/v1/dataroom-documents/{ddoc.id}/'
         data = {'name': 'New Name'}
@@ -1432,13 +1620,13 @@ class TestDataroomDocumentViewSet:
         }, format='json')
         assert res_2.status_code == status.HTTP_202_ACCEPTED
 
-        # 4. Verify two distinct library folders exist under Dataroom Uploads
-        dataroom_uploads = Folder.objects.get(organization=org, parent=root_folder, name="Dataroom Uploads")
+        # 4. Verify two distinct library folders exist under system vault __datarooms__
+        system_vault = Folder.objects.get(organization=org, parent=root_folder, name="__datarooms__")
         assert Folder.objects.filter(
-            organization=org, parent=dataroom_uploads, name=get_dataroom_storage_folder_name(dataroom.name, dataroom)
+            organization=org, parent=system_vault, name=str(dataroom.id)
         ).exists()
         assert Folder.objects.filter(
-            organization=org, parent=dataroom_uploads, name=get_dataroom_storage_folder_name(second_dataroom.name, second_dataroom)
+            organization=org, parent=system_vault, name=str(second_dataroom.id)
         ).exists()
 
         # 5. Delete the first dataroom
@@ -1449,10 +1637,10 @@ class TestDataroomDocumentViewSet:
 
         # 6. Verify first library folder is deleted but the second library folder still exists!
         assert not Folder.objects.filter(
-            organization=org, parent=dataroom_uploads, name=get_dataroom_storage_folder_name(dataroom.name, dataroom)
+            organization=org, parent=system_vault, name=str(dataroom.id)
         ).exists()
         assert Folder.objects.filter(
-            organization=org, parent=dataroom_uploads, name=get_dataroom_storage_folder_name(second_dataroom.name, second_dataroom)
+            organization=org, parent=system_vault, name=str(second_dataroom.id)
         ).exists()
 
     def test_delete_dataroom_without_created_by_cleans_up_backing_folder(self, api_client, organization, user):
@@ -1647,6 +1835,155 @@ class TestDataroomFolderMtimeUpdates:
 
         dest_folder.refresh_from_db()
         assert dest_folder.updated_at > past_time
+
+    def test_dataroom_storage_quota_settings_and_enforcement(self, api_client, dataroom, user, user2):
+        """Test setting storage quota and enforcing it on uploads."""
+        api_client.force_authenticate(user=user)
+
+        # 1. Update storage quota as owner
+        res = api_client.patch(f'/api/v1/datarooms/{dataroom.id}/', {'storage_quota_mb': 100})
+        assert res.status_code == status.HTTP_200_OK
+        assert res.data['storage_quota_mb'] == 100
+
+        # 2. Update storage quota as collaborator is rejected (403 Forbidden)
+        from datarooms.models import DataroomCollaborator
+        DataroomCollaborator.objects.create(dataroom=dataroom, user=user2)
+        api_client.force_authenticate(user=user2)
+        res = api_client.patch(f'/api/v1/datarooms/{dataroom.id}/', {'storage_quota_mb': 200})
+        assert res.status_code == status.HTTP_403_FORBIDDEN
+
+        # 3. Negative quota rejected
+        api_client.force_authenticate(user=user)
+        res = api_client.patch(f'/api/v1/datarooms/{dataroom.id}/', {'storage_quota_mb': -5})
+        assert res.status_code == status.HTTP_400_BAD_REQUEST
+
+        # 4. Upload exceeding dataroom quota is rejected
+        dataroom.storage_quota_mb = 10  # 10 MB limit
+        dataroom.save()
+
+        with patch('datarooms.views.fileserver_client.generate_upload_url', return_value='http://mocked/upload'):
+            # 12 MB upload exceeds 10 MB limit
+            res = api_client.post(f'/api/v1/datarooms/{dataroom.id}/uploads/request/', {
+                'file_name': 'large_video.mp4',
+                'file_size': 12 * 1024 * 1024,
+                'content_type': 'video/mp4'
+            })
+            assert res.status_code == status.HTTP_400_BAD_REQUEST
+            assert 'exceed the Dataroom storage limit of 10 MB' in res.data['detail']
+
+            # 5 MB upload within 10 MB limit succeeds
+            res = api_client.post(f'/api/v1/datarooms/{dataroom.id}/uploads/request/', {
+                'file_name': 'small_file.pdf',
+                'file_size': 5 * 1024 * 1024,
+                'content_type': 'application/pdf'
+            })
+            assert res.status_code == status.HTTP_200_OK
+
+    def test_dataroom_storage_version_defaults_and_vault_hierarchy(self, api_client, user, organization):
+        """Test newly created dataroom defaults to storage_version=2 and uses __datarooms__ vault."""
+        api_client.force_authenticate(user=user)
+        res = api_client.post('/api/v1/datarooms/', {'name': 'Modern Vault Dataroom'})
+        assert res.status_code == status.HTTP_201_CREATED
+        assert res.data['storage_version'] == 2
+
+        dataroom = Dataroom.objects.get(id=res.data['id'])
+        assert dataroom.storage_version == 2
+
+        # Finalize direct upload into v2 dataroom
+        from datarooms.views import DataroomViewSet
+        view = DataroomViewSet()
+        vault_folder = view._ensure_library_folder_path(user, dataroom, relative_path="Subfolder/file.pdf")
+        assert vault_folder.parent.name == str(dataroom.id)
+        assert vault_folder.parent.parent.name == "__datarooms__"
+        assert vault_folder.parent.created_by is None
+
+    def test_v1_dataroom_feature_gating_and_upgrade(self, api_client, user, user2, organization):
+        """Test that v1 dataroom gates collaboration/transfer and can be upgraded to v2."""
+        api_client.force_authenticate(user=user)
+        dataroom = Dataroom.objects.create(name="Legacy Dataroom", organization=organization, created_by=user, storage_version=1)
+
+        # 1. Attempt adding collaborator on v1 dataroom -> rejected
+        res = api_client.post(f'/api/v1/datarooms/{dataroom.id}/collaborators/', {'user_ids': [str(user2.id)]})
+        assert res.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'legacy storage (v1)' in res.data['detail']
+
+        # 2. Attempt transfer ownership on v1 dataroom -> rejected
+        res = api_client.post(f'/api/v1/datarooms/{dataroom.id}/transfer-ownership/', {'new_owner_id': str(user2.id)})
+        assert res.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'legacy storage (v1)' in res.data['detail']
+
+        # 3. Upgrade dataroom to v2
+        res = api_client.post(f'/api/v1/datarooms/{dataroom.id}/upgrade-storage/')
+        assert res.status_code == status.HTTP_200_OK
+        assert res.data['storage_version'] == 2
+
+        dataroom.refresh_from_db()
+        assert dataroom.storage_version == 2
+
+        # 4. Now adding collaborator on upgraded room succeeds
+        res = api_client.post(f'/api/v1/datarooms/{dataroom.id}/collaborators/', {'user_ids': [str(user2.id)]})
+        assert res.status_code == status.HTTP_201_CREATED
+
+    def test_v1_dataroom_upgrade_with_duplicate_document_names_in_legacy_folders(self, api_client, user, organization):
+        """Test that upgrading a v1 dataroom handles duplicate document and folder names across legacy backing roots without IntegrityError."""
+        api_client.force_authenticate(user=user)
+        dataroom = Dataroom.objects.create(name="Project Omega", organization=organization, created_by=user, storage_version=1)
+
+        root_folder = Folder.objects.get_root_for_org(organization)
+        # Create two legacy "Dataroom Uploads" roots (e.g. from user-scoped legacy paths)
+        legacy_uploads_1 = Folder.objects.create(organization=organization, parent=root_folder, name="Dataroom Uploads", created_by=user)
+        legacy_uploads_2 = Folder.objects.create(organization=organization, parent=root_folder, name="Dataroom Uploads", created_by=None)
+
+        legacy_name = get_dataroom_storage_folder_name(dataroom.name, dataroom)
+        old_folder_1 = Folder.objects.create(organization=organization, parent=legacy_uploads_1, name=legacy_name, created_by=user)
+        old_folder_2 = Folder.objects.create(organization=organization, parent=legacy_uploads_2, name=legacy_name, created_by=None)
+
+        # Create two documents with the exact same name created by the same user in different legacy folders
+        doc1 = Document.objects.create(
+            organization=organization,
+            folder=old_folder_1,
+            name="Confidential_Report.pdf",
+            type="document",
+            content_type="application/pdf",
+            status="ready",
+            created_by=user
+        )
+        doc2 = Document.objects.create(
+            organization=organization,
+            folder=old_folder_2,
+            name="Confidential_Report.pdf",
+            type="document",
+            content_type="application/pdf",
+            status="ready",
+            created_by=user
+        )
+
+        # Create two subfolders with the same name created by the same user in different legacy folders
+        subf1 = Folder.objects.create(organization=organization, parent=old_folder_1, name="Financials", created_by=user)
+        subf2 = Folder.objects.create(organization=organization, parent=old_folder_2, name="Financials", created_by=user)
+
+        # Perform upgrade
+        res = api_client.post(f'/api/v1/datarooms/{dataroom.id}/upgrade-storage/')
+        assert res.status_code == status.HTTP_200_OK
+
+        dataroom.refresh_from_db()
+        assert dataroom.storage_version == 2
+
+        doc1.refresh_from_db()
+        doc2.refresh_from_db()
+        subf1.refresh_from_db()
+        subf2.refresh_from_db()
+
+        # Both documents should now be in the new vault folder with distinct names
+        assert doc1.folder_id == doc2.folder_id
+        assert doc1.name != doc2.name
+
+        # Both subfolders should now be in the new vault folder with distinct names
+        assert subf1.parent_id == subf2.parent_id
+        assert subf1.name != subf2.name
+
+
+
 
 
 

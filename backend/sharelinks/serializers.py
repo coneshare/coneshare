@@ -1,8 +1,10 @@
 import re
 from datetime import datetime
+from urllib.parse import urljoin
 
 from django.conf import settings
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from core.models import Organization
@@ -313,10 +315,21 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and hasattr(request, 'user') and request.user and request.user.is_authenticated:
             user = request.user
-            if document and document.created_by_id and document.created_by_id != user.id:
-                raise serializers.ValidationError({'document': 'You do not have permission to share this document.'})
-            if dataroom and dataroom.created_by_id and dataroom.created_by_id != user.id:
-                raise serializers.ValidationError({'dataroom': 'You do not have permission to share this dataroom.'})
+            is_admin = getattr(user, 'role', '') == 'admin' and (
+                (document and document.organization_id == user.organization_id) or
+                (dataroom and dataroom.organization_id == user.organization_id) or
+                (self.instance and self.instance.organization_id == user.organization_id)
+            )
+            if not self.instance:
+                if document:
+                    is_owner = document.created_by_id is not None and document.created_by_id == user.id
+                    if not (is_owner or is_admin):
+                        raise serializers.ValidationError({'document': 'You do not have permission to share this document.'})
+                if dataroom:
+                    is_owner = dataroom.created_by_id is not None and dataroom.created_by_id == user.id
+                    is_collaborator = dataroom.collaborators.filter(user=user).exists()
+                    if not (is_owner or is_admin or is_collaborator):
+                        raise serializers.ValidationError({'dataroom': 'You do not have permission to share this dataroom.'})
 
         enable_watermark = data.get('enable_watermark', self.instance.enable_watermark if self.instance else False)
         if document:
@@ -351,16 +364,32 @@ class ShareLinkSerializer(serializers.ModelSerializer):
 
         return data
 
+    created_by_user = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.DictField(allow_null=True))
+    def get_created_by_user(self, obj):
+        if obj.created_by:
+            avatar_url = None
+            if obj.created_by.avatar and hasattr(obj.created_by.avatar, 'url'):
+                avatar_url = urljoin(settings.SITE_DOMAIN, obj.created_by.avatar.url)
+            return {
+                'id': str(obj.created_by.id),
+                'email': obj.created_by.email,
+                'name': obj.created_by.name,
+                'avatar_url': avatar_url,
+            }
+        return None
+
     class Meta:
         model = ShareLink
         fields = [
-            'id', 'document', 'dataroom', 'document_name', 'document_type', 'dataroom_name', 'dataroom_settings', 'created_by', 'name', 'slug', 'url', 'expires_at',
+            'id', 'document', 'dataroom', 'document_name', 'document_type', 'dataroom_name', 'dataroom_settings', 'created_by', 'created_by_user', 'name', 'slug', 'url', 'expires_at',
             'has_password', 'password', 'requires_email', 'requires_email_verification', 'allow_download', 'enable_qna',
             'enable_watermark', 'watermark_text', 'receive_email_notification', 'is_active', 'created_at', 'updated_at',
             'view_count', 'recent_view_sessions', 'last_viewed_at', 'require_nda', 'nda_text', 'nda_version', 'has_accepted_current_nda'
         ]
         read_only_fields = [
-            'id', 'created_by', 'slug', 'url', 'created_at', 'updated_at', 'document_name', 'document_type', 'nda_version', 'has_accepted_current_nda'
+            'id', 'created_by', 'created_by_user', 'slug', 'url', 'created_at', 'updated_at', 'document_name', 'document_type', 'nda_version', 'has_accepted_current_nda'
         ]
         extra_kwargs = {
             'name': {'required': True, 'allow_blank': True},

@@ -4,8 +4,7 @@ from pathlib import Path
 
 from django.utils.translation import gettext_lazy as _
 from django.db import transaction
-
-from django.db.models import Count
+from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.decorators import action
@@ -14,6 +13,7 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 
 from backend.utils import get_unique_name
+from core.models import User
 from documents.models import Document, Folder
 from core.pagination import StandardResultsSetPagination
 from documents.services import (
@@ -26,23 +26,61 @@ from documents.services import (
 from documents.fileserver import fileserver_client
 from sharelinks.models import ViewSession
 from sharelinks.serializers import ViewSessionSerializer
-from .models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
+from .models import Dataroom, DataroomCollaborator, DataroomDocument, DataroomFolder, DataroomItemOrder
 from .services import (
     delete_dataroom,
     remove_dataroom_content,
     touch_dataroom_folder_ancestors,
+    get_or_create_dataroom_storage_folder,
+    upgrade_dataroom_to_v2,
+    sync_dataroom_rename,
+    sync_dataroom_folder_rename,
+    sync_dataroom_document_rename,
+    get_dataroom_storage_used_bytes,
 )
 from .utils import get_dataroom_storage_folder_name, build_ordered_dataroom_items
 from .serializers import (
     AddContentSerializer, DataroomDetailSerializer,
     DataroomDocumentSerializer, DataroomDocumentUpdateSerializer,
     DataroomFolderSerializer, DataroomSerializer,
+    DataroomCollaboratorSerializer, DataroomCollaboratorUserSerializer,
+    DataroomAddCollaboratorSerializer, DataroomTransferOwnershipSerializer,
     MoveDataroomContentSerializer, RemoveContentSerializer,
     ReorderDataroomItemsSerializer, EnsureDataroomFolderPathsSerializer,
     DataroomUploadRequestSerializer, DataroomUploadFinalizeSerializer)
 
 
 logger = logging.getLogger(__name__)
+
+
+def get_dataroom_queryset_for_user(user):
+    """
+    Returns the queryset of datarooms accessible to a given user:
+    - If user is an org admin: all datarooms in their organization.
+    - Otherwise: datarooms created by the user OR where the user is a collaborator.
+    """
+    if getattr(user, 'role', '') == 'admin':
+        return Dataroom.objects.filter(organization=user.organization)
+    return Dataroom.objects.filter(
+        Q(created_by=user) | Q(collaborators__user=user),
+        organization=user.organization
+    ).distinct()
+
+
+def is_dataroom_owner_or_admin(user, dataroom) -> bool:
+    if not user or not user.is_authenticated:
+        return False
+    if dataroom.created_by_id == user.id:
+        return True
+    if getattr(user, 'role', '') == 'admin' and dataroom.organization_id == user.organization_id:
+        return True
+    return False
+
+
+def is_dataroom_collaborator_or_above(user, dataroom) -> bool:
+    if is_dataroom_owner_or_admin(user, dataroom):
+        return True
+    return dataroom.collaborators.filter(user=user).exists()
 
 
 @extend_schema(tags=['datarooms'])
@@ -57,10 +95,18 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        This queryset ensures that users can only list, retrieve, update, or
-        delete datarooms they have created.
+        Returns datarooms accessible to the requesting user, with optional scope filtering.
         """
-        return self.queryset.filter(created_by=self.request.user)
+        user = self.request.user
+        qs = get_dataroom_queryset_for_user(user)
+        scope = self.request.query_params.get('scope')
+        if scope == 'created_by_me':
+            qs = qs.filter(created_by=user)
+        elif scope == 'shared_with_me':
+            qs = qs.filter(collaborators__user=user)
+        elif scope == 'org' and getattr(user, 'role', '') == 'admin':
+            qs = Dataroom.objects.filter(organization=user.organization)
+        return qs.select_related('created_by').prefetch_related('collaborators', 'collaborators__user')
 
     def perform_create(self, serializer):
         """
@@ -72,31 +118,14 @@ class DataroomViewSet(viewsets.ModelViewSet):
         )
 
     def perform_destroy(self, instance):
+        if not is_dataroom_owner_or_admin(self.request.user, instance):
+            raise PermissionDenied("Only the dataroom owner or an organization admin can delete this dataroom.")
         delete_dataroom(instance)
 
     def perform_update(self, serializer):
         old_name = self.get_object().name
         instance = serializer.save()
-        if old_name != instance.name:
-            # Rename the library folder if it exists
-            root_folder = Folder.objects.get_root_for_org(instance.organization)
-            if root_folder:
-                dataroom_uploads_folder = Folder.objects.filter(
-                    organization=instance.organization,
-                    parent=root_folder,
-                    name="Dataroom Uploads",
-                    created_by=instance.created_by
-                ).first()
-                if dataroom_uploads_folder:
-                    dataroom_folder = Folder.objects.filter(
-                        organization=instance.organization,
-                        parent=dataroom_uploads_folder,
-                        name=get_dataroom_storage_folder_name(old_name, instance),
-                        created_by=instance.created_by
-                    ).first()
-                    if dataroom_folder:
-                        dataroom_folder.name = get_dataroom_storage_folder_name(instance.name, instance)
-                        dataroom_folder.save()
+        sync_dataroom_rename(instance, old_name)
 
     def _scope_has_item_order_rows(self, dataroom, parent_folder):
         return DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=parent_folder).exists()
@@ -118,6 +147,17 @@ class DataroomViewSet(viewsets.ModelViewSet):
             position=next_position,
         )
 
+    def _collect_all_folder_document_ids(self, folders, user):
+        collected_doc_ids = set()
+        stack = list(folders)
+        while stack:
+            current = stack.pop()
+            collected_doc_ids.update(
+                current.documents.active().filter(created_by=user).values_list('id', flat=True)
+            )
+            stack.extend(list(current.children.active().filter(created_by=user)))
+        return collected_doc_ids
+
     def _replicate_folder_structure(self, dataroom, source_folder, parent_dataroom_folder, requesting_user):
         """
         Recursively replicates a source folder structure and its documents
@@ -128,6 +168,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
             dataroom=dataroom,
             name=source_folder.name,
             parent=parent_dataroom_folder,
+            created_by=requesting_user or getattr(source_folder, 'created_by', None) or dataroom.created_by,
         )
         if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, parent_dataroom_folder):
             self._append_item_order(
@@ -137,14 +178,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
                 folder=new_dataroom_folder,
             )
 
-        # TODO: For folders with many documents, this will result in many individual
-        # database queries, causing a performance bottleneck. Consider refactoring
-        # this to use bulk_create and bulk_update for better performance.
-        # We could gather all documents to be created or updated into lists and
-        # perform the database operations in batches outside the loop.
-
         # Add documents from the source folder to the new dataroom folder.
-        # If a document is already in the dataroom, its folder will be updated.
         for doc in source_folder.documents.filter(created_by=requesting_user):
             unique_name = self._get_unique_dataroom_document_name(
                 dataroom, new_dataroom_folder, doc.name
@@ -154,6 +188,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
                 document=doc,
                 folder=new_dataroom_folder,
                 name=unique_name,
+                is_direct_upload=False,
             )
             if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, new_dataroom_folder):
                 self._append_item_order(
@@ -185,10 +220,39 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
         try:
             with transaction.atomic():
+                locked_dataroom = Dataroom.objects.select_for_update().get(id=dataroom.id)
+
                 # Add individual documents.
                 docs_to_add = Document.objects.active().filter(id__in=doc_ids, created_by=request.user)
                 if docs_to_add.count() != len(doc_ids):
                     raise PermissionDenied("You do not have permission to add one or more of the selected documents.")
+
+                # Add folders and their contents recursively.
+                folders_to_add = list(Folder.objects.active().filter(id__in=folder_ids, created_by=request.user))
+                if len(folders_to_add) != len(folder_ids):
+                    raise PermissionDenied("You do not have permission to add one or more of the selected folders.")
+
+                # Check Dataroom storage quota cap under row lock
+                if locked_dataroom.storage_quota_mb and locked_dataroom.storage_quota_mb > 0:
+                    all_new_doc_ids = set(docs_to_add.values_list('id', flat=True)) | self._collect_all_folder_document_ids(folders_to_add, request.user)
+                    existing_doc_ids = set(
+                        DataroomDocument.objects.filter(dataroom=locked_dataroom).values_list('document_id', flat=True)
+                    )
+                    unique_added_ids = all_new_doc_ids - existing_doc_ids
+                    additional_bytes = Document.objects.filter(
+                        id__in=unique_added_ids,
+                        deleted_at__isnull=True
+                    ).aggregate(total=Sum('file_size'))['total'] or 0
+
+                    current_usage = get_dataroom_storage_used_bytes(locked_dataroom)
+                    room_quota_bytes = locked_dataroom.storage_quota_mb * 1024 * 1024
+                    if current_usage + additional_bytes > room_quota_bytes:
+                        return Response(
+                            {
+                                'detail': f"Adding these items would exceed the Dataroom storage limit of {locked_dataroom.storage_quota_mb} MB."
+                            },
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
 
                 for doc in docs_to_add:
                     unique_name = self._get_unique_dataroom_document_name(
@@ -199,6 +263,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
                         document=doc,
                         folder=destination_folder,
                         name=unique_name,
+                        is_direct_upload=False,
                     )
                     if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, destination_folder):
                         self._append_item_order(
@@ -207,11 +272,6 @@ class DataroomViewSet(viewsets.ModelViewSet):
                             item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
                             dataroom_document=created_doc,
                         )
-
-                # Add folders and their contents recursively.
-                folders_to_add = Folder.objects.active().filter(id__in=folder_ids, created_by=request.user)
-                if folders_to_add.count() != len(folder_ids):
-                    raise PermissionDenied("You do not have permission to add one or more of the selected folders.")
 
                 for folder in folders_to_add:
                     self._replicate_folder_structure(dataroom, folder, destination_folder, request.user)
@@ -393,43 +453,13 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
     def _ensure_library_folder_path(self, requesting_user, dataroom, relative_path=None):
         """
-        Ensures Dataroom Uploads/<Dataroom-Name>/<relative_path> exists as a standard Folder structure.
+        Ensures backing Folder structure exists via get_or_create_dataroom_storage_folder.
         """
-        organization = requesting_user.organization
-        root_folder = Folder.objects.get_root_for_org(organization)
-
-        # 1. Ensure "Dataroom Uploads" folder at root
-        dataroom_uploads_folder, _ = Folder.objects.get_or_create(
-            organization=organization,
-            parent=root_folder,
-            name="Dataroom Uploads",
-            created_by=requesting_user
+        return get_or_create_dataroom_storage_folder(
+            dataroom=dataroom,
+            requesting_user=requesting_user,
+            relative_path=relative_path
         )
-
-        # 2. Ensure "<Dataroom-Name> (<Dataroom-ID>)" folder inside "Dataroom Uploads"
-        dataroom_folder, _ = Folder.objects.get_or_create(
-            organization=organization,
-            parent=dataroom_uploads_folder,
-            name=get_dataroom_storage_folder_name(dataroom.name, dataroom),
-            created_by=requesting_user
-        )
-
-        current_folder = dataroom_folder
-
-        # 3. Ensure any relative folder paths inside the Dataroom-Name folder
-        if relative_path:
-            folder_path, _ = os.path.split(relative_path)
-            if folder_path:
-                path_parts = Path(folder_path).parts
-                for part in path_parts:
-                    current_folder, _ = Folder.objects.get_or_create(
-                        organization=organization,
-                        parent=current_folder,
-                        name=part,
-                        defaults={'created_by': requesting_user}
-                    )
-
-        return current_folder
 
     @action(detail=True, methods=['post'], url_path='ensure-paths')
     def ensure_paths(self, request, pk=None):
@@ -496,6 +526,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
                         dataroom=dataroom,
                         parent=parent_dataroom_folder,
                         name=folder_name,
+                        defaults={'created_by': request.user},
                     )
                     path_to_folder_map[path_str] = folder
                     if created:
@@ -542,6 +573,16 @@ class DataroomViewSet(viewsets.ModelViewSet):
             )
         except QuotaExceededError as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check Dataroom storage quota cap (0 means unlimited)
+        if dataroom.storage_quota_mb and dataroom.storage_quota_mb > 0:
+            current_room_usage = get_dataroom_storage_used_bytes(dataroom)
+            room_quota_bytes = dataroom.storage_quota_mb * 1024 * 1024
+            if current_room_usage + validated_data['file_size'] > room_quota_bytes:
+                return Response(
+                    {'detail': f"Uploading this file would exceed the Dataroom storage limit of {dataroom.storage_quota_mb} MB."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         file_name = validated_data['file_name']
         relative_path = validated_data.get('path')
@@ -638,6 +679,18 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
         try:
             with transaction.atomic():
+                locked_dataroom = Dataroom.objects.select_for_update().get(id=dataroom.id)
+                if locked_dataroom.storage_quota_mb and locked_dataroom.storage_quota_mb > 0:
+                    current_room_usage = get_dataroom_storage_used_bytes(locked_dataroom)
+                    room_quota_bytes = locked_dataroom.storage_quota_mb * 1024 * 1024
+                    if current_room_usage + validated_data['file_size'] > room_quota_bytes:
+                        return Response(
+                            {
+                                'detail': f"Uploading this file would exceed the Dataroom storage limit of {locked_dataroom.storage_quota_mb} MB."
+                            },
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
                 document = create_document_from_upload(
                     requesting_user=request.user,
                     folder=library_folder,
@@ -657,6 +710,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
                     document=document,
                     folder=destination_folder,
                     name=unique_name,
+                    is_direct_upload=True,
                 )
 
                 if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, destination_folder):
@@ -679,6 +733,235 @@ class DataroomViewSet(viewsets.ModelViewSet):
         doc_serializer = DataroomDocumentSerializer(dataroom_doc, context={'request': request})
         return Response(doc_serializer.data, status=status.HTTP_202_ACCEPTED)
 
+    @action(detail=True, methods=['get', 'post'], url_path='collaborators')
+    def collaborators(self, request, pk=None):
+        dataroom = self.get_object()
+
+        # Design decision: GET is intentionally accessible to all room members (owner,
+        # admin, and invited collaborators scoped via get_queryset) to display collaboration
+        # presence (e.g., CollaboratorsAvatarGroup in header) and support self-leave workflows.
+        # Mutating actions (POST, DELETE of others) are strictly guarded for owners and admins.
+        if request.method == 'GET':
+            collaborators_qs = dataroom.collaborators.select_related('user', 'invited_by').order_by('created_at')
+            serializer = DataroomCollaboratorSerializer(collaborators_qs, many=True, context=self.get_serializer_context())
+            owner_serializer = DataroomCollaboratorUserSerializer(dataroom.created_by, context=self.get_serializer_context()) if dataroom.created_by else None
+            return Response({
+                'owner': owner_serializer.data if owner_serializer else None,
+                'collaborators': serializer.data,
+                'total_count': len(serializer.data),
+            }, status=status.HTTP_200_OK)
+
+        # POST: Add collaborator(s)
+        if not is_dataroom_owner_or_admin(request.user, dataroom):
+            raise PermissionDenied("Only the dataroom owner or an organization admin can add collaborators.")
+
+        if dataroom.storage_version < 2:
+            return Response(
+                {"detail": "This dataroom uses legacy storage (v1). Please upgrade to modern storage to invite collaborators."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = DataroomAddCollaboratorSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user_ids = serializer.validated_data.get('user_ids', [])
+        email = serializer.validated_data.get('email', '').strip()
+
+        users_to_add = []
+        if email:
+            target_user = User.objects.filter(
+                organization=request.user.organization,
+                email__iexact=email,
+                is_active=True
+            ).first()
+            if not target_user:
+                return Response(
+                    {"detail": f"User with email '{email}' was not found in your organization."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            users_to_add.append(target_user)
+
+        if user_ids:
+            found_users = User.objects.filter(
+                organization=request.user.organization,
+                id__in=user_ids,
+                is_active=True
+            )
+            if found_users.count() != len(user_ids):
+                return Response(
+                    {"detail": "One or more selected users were not found in your organization."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            users_to_add.extend(list(found_users))
+
+        # Filter out duplicates while preserving order
+        seen_ids = set()
+        deduped_users = []
+        for u in users_to_add:
+            if u.id not in seen_ids:
+                seen_ids.add(u.id)
+                deduped_users.append(u)
+
+        owner_conflicts = [u for u in deduped_users if u.id == dataroom.created_by_id]
+        if owner_conflicts:
+            return Response(
+                {"detail": f"User '{owner_conflicts[0].email}' is already the owner of this dataroom."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        created_collaborators = []
+        with transaction.atomic():
+            for target_user in deduped_users:
+                collab, created = DataroomCollaborator.objects.get_or_create(
+                    dataroom=dataroom,
+                    user=target_user,
+                    defaults={'invited_by': request.user, 'role': DataroomCollaborator.ROLE_COLLABORATOR}
+                )
+                if created:
+                    created_collaborators.append(collab)
+
+        response_serializer = DataroomCollaboratorSerializer(
+            dataroom.collaborators.select_related('user', 'invited_by').order_by('created_at'),
+            many=True,
+            context=self.get_serializer_context()
+        )
+        return Response({
+            "detail": f"Successfully added {len(created_collaborators)} collaborator(s).",
+            "collaborators": response_serializer.data,
+        }, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['delete', 'post'], url_path=r'collaborators/(?P<user_id>[^/.]+)')
+    def remove_collaborator(self, request, pk=None, user_id=None):
+        dataroom = self.get_object()
+
+        # Permission check: Owner, Admin, or the user themselves leaving
+        is_self_removal = str(request.user.id) == str(user_id)
+        if not (is_self_removal or is_dataroom_owner_or_admin(request.user, dataroom)):
+            raise PermissionDenied("You do not have permission to remove this collaborator.")
+
+        collaborator = DataroomCollaborator.objects.filter(
+            dataroom=dataroom,
+            user_id=user_id
+        ).first()
+
+        if not collaborator:
+            return Response(
+                {"detail": "Collaborator not found in this dataroom."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        collaborator.delete()
+        return Response({"detail": "Collaborator removed successfully."}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='transfer-ownership')
+    def transfer_ownership(self, request, pk=None):
+        dataroom = self.get_object()
+
+        if not is_dataroom_owner_or_admin(request.user, dataroom):
+            raise PermissionDenied("Only the dataroom owner or an organization admin can transfer ownership.")
+
+        if dataroom.storage_version < 2:
+            return Response(
+                {"detail": "This dataroom uses legacy storage (v1). Please upgrade to modern storage before transferring ownership."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = DataroomTransferOwnershipSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        new_owner_id = serializer.validated_data['new_owner_id']
+        new_owner = User.objects.filter(
+            id=new_owner_id,
+            organization=request.user.organization,
+            is_active=True
+        ).first()
+
+        if not new_owner:
+            return Response(
+                {"detail": "Target user was not found in your organization."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if new_owner.id == dataroom.created_by_id:
+            return Response(
+                {"detail": "User is already the owner of this dataroom."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        with transaction.atomic():
+            locked_dataroom = Dataroom.objects.select_for_update().get(id=dataroom.id)
+            prev_owner = locked_dataroom.created_by
+
+            # Remove new owner from collaborators list if they were a collaborator
+            DataroomCollaborator.objects.filter(dataroom=locked_dataroom, user=new_owner).delete()
+
+            # Make the previous owner a collaborator if they exist
+            if prev_owner and prev_owner != new_owner:
+                DataroomCollaborator.objects.get_or_create(
+                    dataroom=locked_dataroom,
+                    user=prev_owner,
+                    defaults={'invited_by': request.user, 'role': DataroomCollaborator.ROLE_COLLABORATOR}
+                )
+
+            locked_dataroom.created_by = new_owner
+            locked_dataroom.save()
+
+        detail_serializer = DataroomDetailSerializer(locked_dataroom, context=self.get_serializer_context())
+        return Response({
+            "detail": f"Ownership successfully transferred to {new_owner.email}.",
+            "dataroom": detail_serializer.data
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='upgrade-storage')
+    def upgrade_storage(self, request, pk=None):
+        dataroom = self.get_object()
+        if not is_dataroom_owner_or_admin(request.user, dataroom):
+            raise PermissionDenied("Only the dataroom owner or an organization admin can upgrade this dataroom.")
+
+        if dataroom.storage_version >= 2:
+            return Response(
+                {"detail": "Dataroom is already using modern storage architecture."},
+                status=status.HTTP_200_OK
+            )
+
+        success = upgrade_dataroom_to_v2(dataroom)
+        if not success:
+            return Response(
+                {"detail": "Failed to upgrade dataroom storage architecture."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        dataroom.refresh_from_db()
+        detail_serializer = DataroomDetailSerializer(dataroom, context=self.get_serializer_context())
+        return Response(detail_serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'], url_path='eligible-collaborators')
+    def eligible_collaborators(self, request, pk=None):
+        dataroom = self.get_object()
+
+        if not is_dataroom_collaborator_or_above(request.user, dataroom):
+            raise PermissionDenied("You do not have permission to view eligible collaborators.")
+
+        existing_collaborator_user_ids = set(
+            dataroom.collaborators.values_list('user_id', flat=True)
+        )
+        if dataroom.created_by_id:
+            existing_collaborator_user_ids.add(dataroom.created_by_id)
+
+        query = request.query_params.get('q', '').strip()
+        users_qs = User.objects.filter(
+            organization=request.user.organization,
+            is_active=True
+        ).exclude(id__in=existing_collaborator_user_ids).order_by('name', 'email')
+
+        if query:
+            users_qs = users_qs.filter(
+                Q(name__icontains=query) | Q(email__icontains=query)
+            )
+
+        serializer = DataroomCollaboratorUserSerializer(users_qs[:50], many=True, context=self.get_serializer_context())
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
 
@@ -692,7 +975,8 @@ class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
         return DataroomDocumentSerializer
 
     def get_queryset(self):
-        return self.queryset.filter(dataroom__created_by=self.request.user).annotate(
+        accessible_datarooms = get_dataroom_queryset_for_user(self.request.user)
+        return self.queryset.filter(dataroom__in=accessible_datarooms).annotate(
             dataroom_view_count=Count('dataroomvisit', distinct=True)
         )
 
@@ -716,31 +1000,8 @@ class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
         if old_folder and old_folder != saved_doc.folder:
             touch_dataroom_folder_ancestors(old_folder)
 
-        # Rename backing Document under "Dataroom Uploads" if it exists and is a direct upload
         if new_name and new_name != old_name:
-            doc = instance.document
-            if doc:
-                root_folder = Folder.objects.get_root_for_org(doc.organization)
-                if root_folder:
-                    dataroom_uploads = Folder.objects.filter(
-                        organization=doc.organization,
-                        parent=root_folder,
-                        name="Dataroom Uploads",
-                        created_by=instance.dataroom.created_by
-                    ).first()
-                    if dataroom_uploads:
-                        # Check if doc's folder is a descendant of 'Dataroom Uploads'
-                        folder = doc.folder
-                        is_direct_upload = False
-                        while folder:
-                            if folder == dataroom_uploads:
-                                is_direct_upload = True
-                                break
-                            folder = folder.parent
-
-                        if is_direct_upload:
-                            doc.name = new_name
-                            doc.save()
+            sync_dataroom_document_rename(instance, new_name)
 
 
 @extend_schema(tags=['datarooms'])
@@ -750,10 +1011,11 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        This queryset ensures that users can only access dataroom folders
-        within datarooms they have created. It also allows filtering by a specific dataroom.
+        Retrieves folders that belong to a specific dataroom.
+        The dataroom must belong to the user's organization.
         """
-        queryset = self.queryset.filter(dataroom__created_by=self.request.user)
+        accessible_datarooms = get_dataroom_queryset_for_user(self.request.user)
+        queryset = self.queryset.filter(dataroom__in=accessible_datarooms).select_related('created_by', 'dataroom', 'dataroom__created_by')
         dataroom_id = self.request.query_params.get('dataroom_id')
         if dataroom_id:
             queryset = queryset.filter(dataroom_id=dataroom_id)
@@ -762,7 +1024,7 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         # Custom logic to include sub-folders and documents
-        sub_folders = instance.children.all().order_by('created_at', 'id')
+        sub_folders = instance.children.all().select_related('created_by', 'dataroom', 'dataroom__created_by').order_by('created_at', 'id')
         documents = DataroomDocument.objects.filter(
             folder=instance, document__deleted_at__isnull=True
         ).select_related('document', 'document__created_by').annotate(
@@ -783,36 +1045,46 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
         return Response(data)
 
     def perform_create(self, serializer):
-        """
-        Automatically assign the dataroom from the request data, after
-        verifying the user has permission to access it.
-        """
-        dataroom = serializer.validated_data.get('dataroom')
-        if not dataroom:
-            raise serializers.ValidationError({'dataroom': 'This field is required.'})
-
-        if dataroom.organization != self.request.user.organization:
+        dataroom = serializer.validated_data['dataroom']
+        if not is_dataroom_collaborator_or_above(self.request.user, dataroom):
             raise PermissionDenied("You do not have permission to add folders to this dataroom.")
 
-        folder = serializer.save()
-        if folder.parent:
-            touch_dataroom_folder_ancestors(folder.parent)
-        if dataroom.show_file_index and DataroomItemOrder.objects.filter(
-            dataroom=dataroom, parent_folder=folder.parent
-        ).exists():
-            current_max = (
-                DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=folder.parent)
-                .order_by("-position")
-                .values_list("position", flat=True)
-                .first()
-            )
-            DataroomItemOrder.objects.create(
+        name = serializer.validated_data['name']
+        parent = serializer.validated_data.get('parent')
+
+        if DataroomFolder.objects.filter(dataroom=dataroom, parent=parent, name=name).exists():
+            raise serializers.ValidationError({'name': _('A folder with this name already exists in this location.')})
+
+        saved_folder = serializer.save(created_by=self.request.user)
+        if saved_folder.parent:
+            touch_dataroom_folder_ancestors(saved_folder.parent)
+        if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, parent):
+            self._append_item_order(
                 dataroom=dataroom,
-                parent_folder=folder.parent,
+                parent_folder=parent,
                 item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
-                folder=folder,
-                position=(current_max + 1) if current_max is not None else 0,
+                folder=saved_folder,
             )
+
+    def _scope_has_item_order_rows(self, dataroom, parent_folder):
+        return DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=parent_folder).exists()
+
+    def _append_item_order(self, dataroom, parent_folder, item_type, folder=None, dataroom_document=None):
+        current_max = (
+            DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=parent_folder)
+            .order_by('-position')
+            .values_list('position', flat=True)
+            .first()
+        )
+        next_position = 0 if current_max is None else current_max + 1
+        DataroomItemOrder.objects.create(
+            dataroom=dataroom,
+            parent_folder=parent_folder,
+            item_type=item_type,
+            folder=folder,
+            dataroom_document=dataroom_document,
+            position=next_position,
+        )
 
     def perform_update(self, serializer):
         instance = self.get_object()
@@ -834,35 +1106,8 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
         if old_parent and old_parent != saved_folder.parent:
             touch_dataroom_folder_ancestors(old_parent)
 
-        # Rename the backing Folder under "Dataroom Uploads" if it exists
         if new_name and new_name != old_name:
-            organization = instance.dataroom.organization
-            root_folder = Folder.objects.get_root_for_org(organization)
-            if root_folder:
-                # Traverse up the visual folders to get the path names relative to dataroom
-                names = []
-                curr = instance.parent
-                while curr:
-                    names.insert(0, curr.name)
-                    curr = curr.parent
-
-                path_names = ["Dataroom Uploads", instance.dataroom.name] + names + [old_name]
-
-                curr_folder = root_folder
-                for i, name in enumerate(path_names):
-                    target_name = get_dataroom_storage_folder_name(name, instance.dataroom) if i == 1 else name
-                    curr_folder = Folder.objects.filter(
-                        organization=organization,
-                        parent=curr_folder,
-                        name=target_name,
-                        created_by=instance.dataroom.created_by
-                    ).first()
-                    if not curr_folder:
-                        break
-
-                if curr_folder:
-                    curr_folder.name = new_name
-                    curr_folder.save()
+            sync_dataroom_folder_rename(instance, old_name, new_name)
 
     def perform_destroy(self, instance):
         remove_dataroom_content(instance.dataroom, dataroom_doc_ids=[], dataroom_folder_ids=[instance.id])

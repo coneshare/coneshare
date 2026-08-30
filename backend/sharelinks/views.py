@@ -14,6 +14,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext as _, override as translation_override
@@ -35,6 +36,7 @@ from core.services import get_dynamic_setting
 from datarooms.models import (DataroomDocument, DataroomFolder, DataroomItemOrder)
 from datarooms.serializers import (PublicDataroomDocumentSerializer,
                                    PublicDataroomFolderSerializer)
+from datarooms.views import get_dataroom_queryset_for_user
 from documents.fileserver import fileserver_client
 from documents.models import DocumentPage
 from documents.services import (
@@ -506,11 +508,54 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
     serializer_class = ShareLinkSerializer
 
     def get_queryset(self):
-        queryset = ShareLink.objects.filter(created_by=self.request.user).prefetch_related('dataroom_settings')
+        user = self.request.user
         dataroom_id = self.request.query_params.get('dataroom_id')
+        accessible_datarooms = get_dataroom_queryset_for_user(user)
         if dataroom_id:
-            queryset = queryset.filter(dataroom_id=dataroom_id)
-        return queryset
+            dataroom = get_object_or_404(accessible_datarooms, id=dataroom_id)
+            return ShareLink.objects.filter(dataroom=dataroom).prefetch_related('dataroom_settings')
+
+        # Access Control Policy:
+        # 1. Direct document links (document__isnull=False): Scoped to the user who created them (or org admins).
+        # 2. Dataroom links (dataroom__in=accessible_datarooms): Dataroom links belong to the dataroom container.
+        #    Visibility is strictly tied to active membership (owner, active collaborator, or admin).
+        #    If a collaborator is removed or leaves a dataroom, their former dataroom links immediately become
+        #    invisible and inaccessible to them (while remaining active and managed by the dataroom owner).
+        # 3. Org Admins: Can oversee all document links across their organization.
+        base_filter = Q(document__isnull=False, created_by=user) | Q(dataroom__in=accessible_datarooms)
+        if getattr(user, 'role', '') == 'admin' and getattr(user, 'organization_id', None):
+            base_filter |= Q(document__organization_id=user.organization_id)
+
+        return ShareLink.objects.filter(base_filter).distinct().prefetch_related('dataroom_settings')
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        user = self.request.user
+        is_admin = getattr(user, 'role', '') == 'admin' and instance.organization_id == user.organization_id
+        if instance.dataroom_id:
+            is_owner = instance.dataroom.created_by_id == user.id
+            is_collaborator = instance.dataroom.collaborators.filter(user=user).exists()
+            is_creator = instance.created_by_id == user.id and is_collaborator
+            if not (is_creator or is_owner or is_admin):
+                raise PermissionDenied("You do not have permission to update this share link.")
+        else:
+            if instance.created_by_id != user.id and not is_admin:
+                raise PermissionDenied("You do not have permission to update this share link.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        is_admin = getattr(user, 'role', '') == 'admin' and instance.organization_id == user.organization_id
+        if instance.dataroom_id:
+            is_owner = instance.dataroom.created_by_id == user.id
+            is_collaborator = instance.dataroom.collaborators.filter(user=user).exists()
+            is_creator = instance.created_by_id == user.id and is_collaborator
+            if not (is_creator or is_owner or is_admin):
+                raise PermissionDenied("You do not have permission to delete this share link.")
+        else:
+            if instance.created_by_id != user.id and not is_admin:
+                raise PermissionDenied("You do not have permission to delete this share link.")
+        instance.delete()
 
     @action(detail=True, methods=['get'], url_path='view-sessions')
     def view_sessions(self, request, pk=None):
@@ -560,6 +605,14 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
                 {"detail": "This share link is not for a dataroom."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Permission check: Active Link creator, Dataroom Owner, or Org Admin
+        is_owner = bool(share_link.dataroom and share_link.dataroom.created_by_id == request.user.id)
+        is_collaborator = bool(share_link.dataroom and share_link.dataroom.collaborators.filter(user=request.user).exists())
+        is_creator = share_link.created_by_id == request.user.id and is_collaborator
+        is_admin = getattr(request.user, 'role', '') == 'admin' and share_link.organization_id == request.user.organization_id
+        if not (is_creator or is_owner or is_admin):
+            raise PermissionDenied("You do not have permission to update settings for this share link.")
 
         serializer = ShareLinkDataroomSettingUpdateSerializer(data=request.data, many=True)
         if not serializer.is_valid():

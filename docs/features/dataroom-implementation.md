@@ -339,3 +339,59 @@ Design note:
   - Expanding folders fetches children dynamically via collapsible tree nodes.
   - When deep-linking directly to a document, the component automatically expands parent folder paths by comparing node IDs against the active document's `breadcrumbs` hierarchy (`activePathFolderIds`), resulting in an automatic domino-style expansion to reveal and highlight the active document.
 - **Stable Navigation Base:** The URL parameter `parent_id` serves as the stable navigation base for the main listing pane, while the sidebar file tree remains anchored at the Dataroom Root level.
+
+---
+
+## Part 9: Dataroom Multi-User Collaboration & Document Access Control
+
+### 1. Multi-User Collaboration Architecture
+- **`DataroomCollaborator` Model:** Supports adding internal organization members as co-managers to a Dataroom with a unique `(dataroom, user)` constraint.
+- **Collaborator Management Endpoints:**
+  - `GET /api/v1/datarooms/{id}/collaborators/`: List active room collaborators.
+  - `POST /api/v1/datarooms/{id}/collaborators/`: Add one or more eligible org members as collaborators.
+  - `DELETE /api/v1/datarooms/{id}/collaborators/{user_id}/`: Remove a collaborator or allow a collaborator to self-leave.
+  - `POST /api/v1/datarooms/{id}/transfer-ownership/`: Transfer primary room ownership to another teammate.
+  - `GET /api/v1/datarooms/{id}/eligible-collaborators/`: Query available organization users not yet in the room.
+
+### 2. Document Access Scoping & Permissions
+- **Cross-User Scoped Queryset (`get_document_queryset_for_user`):**
+  - Standard users can access files they created **or** files inside any active Dataroom where they are an Owner or Collaborator (`dataroomdocument__dataroom__collaborators__user=user` or `dataroomdocument__dataroom__created_by=user`).
+  - Org Admins maintain supervisor access across the entire organization.
+- **Endpoint Separation:**
+  - `GET /api/v1/documents/` (Personal Document Library): Returns only documents created by `request.user` to keep personal libraries strictly private.
+  - Detail Read Endpoints (`retrieve`, `status`, `stats`, `view-sessions`, `download`, `preview-data`): Accessible to Dataroom collaborators to inspect preview, download files, and track visitor analytics.
+  - Write / Mutation Endpoints (`update`, `destroy`, `promote_version`, `upload_version`): Restricted to the original Document Owner or Org Admin; non-owner collaborators receive `403 Forbidden`.
+
+### 3. Frontend UX & View-Only Controls
+- **Document Page View-Only Mode:**
+  - Calculates `canManage = isOwner || isAdmin`.
+  - Non-owner collaborators viewing another user's document see an `Owner: <Name>` badge.
+  - Mutation controls (inline rename, "+ Share" link creation, upload new version, cloud sync, delete) are disabled/omitted.
+  - Read actions (Preview, Download, Stats, Analytics) remain fully functional.
+  - Breadcrumb trails preserve context back to the originating Dataroom: `Datarooms > [Dataroom Name] > [Folder Name] > [Document Name]`.
+
+---
+
+## Part 10: Dataroom Storage Architecture Evolution (System Storage Vault & Versioning)
+
+### 1. Storage Architecture Evolution (v1 vs. v2)
+To decouple Dataroom physical storage from individual personal document libraries and support clean multi-user collaboration, Dataroom storage is evolved via `Dataroom.storage_version`:
+
+- **Legacy v1 (User-Scoped Storage):**
+  - Storage path: `Root -> Dataroom Uploads -> <Name> (<Timestamp_Suffix>)`.
+  - Stored inside the individual uploader's document library.
+  - Retained for backward compatibility with existing Datarooms.
+
+- **Modern v2 (Organization System Storage Vault):**
+  - Storage path: `Root -> __datarooms__ -> <dataroom_id>`.
+  - Stored inside an organization-wide system vault (`created_by=None`), keeping all users' personal `/documents` libraries 100% clean.
+  - Keyed to the immutable `dataroom.id`, eliminating the need to rename physical folders when the Dataroom title changes.
+  - Enables instant `O(1)` ownership transfers and single-step room deletion (`__datarooms__/<id>`).
+
+### 2. Compatibility & Strangler Fig Transition Strategy
+1. **Zero-Migration Risk:** Existing production Datarooms default to `storage_version=1`. Newly created Datarooms automatically use `storage_version=2`.
+2. **Feature Gating:** Multi-user collaboration and ownership transfers operate natively on `v2` Datarooms.
+3. **Unified Storage Resolver (`services.get_or_create_dataroom_storage_folder`):** Dynamically resolves either the `v2` System Vault or `v1` legacy path based on `dataroom.storage_version`.
+4. **Sunset Plan:** Legacy `v1` branches will be deprecated and safely pruned in future releases as legacy rooms are naturally archived or migrated.
+
+

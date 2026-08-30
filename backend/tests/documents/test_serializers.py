@@ -77,6 +77,17 @@ class TestFolderSerializer:
         assert not serializer.is_valid()
         assert 'name' in serializer.errors
 
+    @pytest.mark.parametrize("reserved_name", ["__root__", "__datarooms__"])
+    def test_cannot_create_or_rename_to_reserved_names(self, user, organization, serializer_context, reserved_name):
+        """Test that attempting to create or rename a folder to reserved system names is blocked."""
+        serializer = FolderSerializer(
+            data={"name": reserved_name},
+            context=serializer_context,
+        )
+        assert not serializer.is_valid()
+        assert 'name' in serializer.errors
+        assert "reserved" in str(serializer.errors['name'][0])
+
     def test_get_ancestors(self, user, organization):
         root = Folder.objects.get(organization=organization, name="__root__")
         folder1 = Folder.objects.create(
