@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { vi } from "vitest";
 import { DraggableItem } from "../../../components/documents/DraggableItem";
+import { TooltipProvider } from "../../../components/ui/Tooltip";
 
 const mockedNavigate = vi.fn();
 vi.mock("react-router-dom", async () => {
@@ -17,7 +18,7 @@ vi.mock("react-router-dom", async () => {
 const mockDocument = {
   id: "doc_123",
   name: "Test Document.pdf",
-  created_by: { name: "Test User" },
+  created_by: { name: "Test User", email: "test@example.com" },
   updated_at: new Date().toISOString(),
   file_size: 12345,
   view_count: 7,
@@ -40,9 +41,11 @@ const renderDraggableItem = (props = {}) => {
 
   return render(
     <MemoryRouter>
-      <DndContext>
-        <DraggableItem {...defaultProps} />
-      </DndContext>
+      <TooltipProvider>
+        <DndContext>
+          <DraggableItem {...defaultProps} />
+        </DndContext>
+      </TooltipProvider>
     </MemoryRouter>
   );
 };
@@ -130,5 +133,40 @@ describe("DraggableItem", () => {
     expect(onDelete).toHaveBeenCalledWith(mockDocument);
     expect(mockedNavigate).not.toHaveBeenCalled();
     expect(screen.queryByRole("menuitem", { name: /delete/i })).not.toBeInTheDocument();
+  });
+
+  it("should render owner avatar and name", () => {
+    renderDraggableItem();
+    expect(screen.getByText("Test User")).toBeInTheDocument();
+    expect(screen.getByText("TU")).toBeInTheDocument(); // Avatar fallback initials
+  });
+
+  it("should render folder owner avatar and name", () => {
+    renderDraggableItem({
+      id: "folder_123",
+      type: "folder",
+      item: {
+        id: "folder_123",
+        name: "Financials Folder",
+        created_by: { name: "Carol Danvers", email: "carol@example.com" },
+        updated_at: new Date().toISOString(),
+      },
+    });
+    expect(screen.getByText("Carol Danvers")).toBeInTheDocument();
+    expect(screen.getByText("CD")).toBeInTheDocument();
+  });
+
+  it("should render non-current owner string correctly without displaying me", () => {
+    renderDraggableItem({
+      id: "doc_999",
+      item: {
+        id: "doc_999",
+        name: "Collaborator Shared Doc.pdf",
+        created_by: "user_other_123",
+        created_by_name: "Bob Smith",
+        updated_at: new Date().toISOString(),
+      },
+    });
+    expect(screen.getByText("Bob Smith")).toBeInTheDocument();
   });
 });

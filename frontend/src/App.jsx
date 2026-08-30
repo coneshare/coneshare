@@ -33,6 +33,7 @@ import { AdminLoginActivityPage } from './pages/AdminLoginActivityPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { AdminUserDetailPage } from './pages/AdminUserDetailPage';
 import { AdminSecurityAlertsPage } from './pages/AdminSecurityAlertsPage';
+import { TooltipProvider } from './components/ui/Tooltip';
 import { ErrorPage } from './pages/ErrorPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -40,9 +41,10 @@ function App() {
   return (
     <>
       <Toaster richColors />
-      <BrandingProvider>
-        <UploadProvider>
-          <Routes>
+      <TooltipProvider>
+        <BrandingProvider>
+          <UploadProvider>
+            <Routes>
             <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/signup/verify" element={<SignupVerifyPage />} />
@@ -80,6 +82,7 @@ function App() {
         </Routes>
       </UploadProvider>
       </BrandingProvider>
+      </TooltipProvider>
     </>
   );
 }

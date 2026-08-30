@@ -3,9 +3,11 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
-import { ShareIcon, Star, ArrowLeft, ChevronDown, FolderUp, Plus, Loader2 } from 'lucide-react';
+import { ShareIcon, Star, ArrowLeft, ChevronDown, FolderUp, Plus, Loader2, AlertTriangle, Crown, Users, HardDrive } from 'lucide-react';
 import { toast } from 'sonner';
-import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, removeContentFromDataroom, updateDataroomFolder, updateDataroomDocument, updateDataroomBranding, reorderDataroomItems, deleteDataroom, ensureDataroomFolderPaths, uploadDataroomDocument } from '../services/api';
+import { formatBytes } from '../lib/formatters';
+import { isDataroomOwner, isDataroomCollaborator } from '../utils/formatters';
+import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, removeContentFromDataroom, updateDataroomFolder, updateDataroomDocument, updateDataroomBranding, reorderDataroomItems, deleteDataroom, ensureDataroomFolderPaths, uploadDataroomDocument, upgradeDataroomStorage } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { useUpload } from '../contexts/UploadProvider';
 import { useUser } from '../contexts/UserProvider';
@@ -25,11 +27,14 @@ import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { LinksTable } from '../components/documents/LinksTable';
 import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
 import { ManagePermissionsDialog } from '../components/datarooms/ManagePermissionsDialog';
+import { CollaboratorsAvatarGroup } from '../components/datarooms/CollaboratorsAvatarGroup';
+import { TransferOwnershipDialog } from '../components/datarooms/TransferOwnershipDialog';
 import { RenameItemDialog } from '../components/dialogs/RenameItemDialog';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
 import { Switch } from '../components/ui/Switch';
+import { Badge } from '../components/ui/Badge';
 import { OwnerQnAManager } from '../components/qna/OwnerQnAManager';
 import {
   Dialog,
@@ -48,6 +53,8 @@ const BRAND_PRESETS = [
   { name: 'Rose', primary: '#9f1239', secondary: '#be185d', accent: '#881337' },
   { name: 'Indigo', primary: '#3730a3', secondary: '#4f46e5', accent: '#312e81' },
 ];
+
+const MAX_STORAGE_QUOTA_MB = 1048576; // 1 TB (1,048,576 MB)
 
 export function DataroomPage() {
   const { t } = useTranslation();
@@ -79,6 +86,7 @@ export function DataroomPage() {
   const [isRemoveContentDialogOpen, setIsRemoveContentDialogOpen] = useState(false);
   const [itemToRename, setItemToRename] = useState(null);
   const [itemToRemove, setItemToRemove] = useState(null);
+  const [isTransferOwnershipOpen, setIsTransferOwnershipOpen] = useState(false);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
   const [brandingForm, setBrandingForm] = useState({
     brandPrimaryColor: '',
@@ -94,6 +102,10 @@ export function DataroomPage() {
   const [showFileIndex, setShowFileIndex] = useState(true);
   const [enableQna, setEnableQna] = useState(true);
   const [isSavingEnableQna, setIsSavingEnableQna] = useState(false);
+  const [storageQuotaMb, setStorageQuotaMb] = useState(0);
+  const [isSavingStorageQuota, setIsSavingStorageQuota] = useState(false);
+  const [isUpgradingStorage, setIsUpgradingStorage] = useState(false);
+  const [isUpgradeStorageDialogOpen, setIsUpgradeStorageDialogOpen] = useState(false);
   const [isDeleteDataroomDialogOpen, setIsDeleteDataroomDialogOpen] = useState(false);
   const [deleteConfirmationName, setDeleteConfirmationName] = useState('');
   const [isDeletingDataroom, setIsDeletingDataroom] = useState(false);
@@ -389,6 +401,7 @@ export function DataroomPage() {
     setBrandingPreviewUrl(null);
     setShowFileIndex(Boolean(dataroom.show_file_index));
     setEnableQna(dataroom.enable_qna !== false);
+    setStorageQuotaMb(dataroom.storage_quota_mb ?? 0);
   }, [dataroom]);
 
   useEffect(() => {
@@ -667,6 +680,37 @@ export function DataroomPage() {
     }
   };
 
+  const handleSaveStorageQuota = async () => {
+    setIsSavingStorageQuota(true);
+    try {
+      const parsed = parseInt(storageQuotaMb, 10);
+      const safeQuota = isNaN(parsed) ? 0 : Math.max(0, Math.min(parsed, MAX_STORAGE_QUOTA_MB));
+      setStorageQuotaMb(safeQuota);
+      const response = await updateDataroomBranding(dataroomId, {
+        storageQuotaMb: safeQuota,
+      });
+      setDataroom(response.data);
+      toast.success(t('datarooms.storageQuotaUpdated', 'Storage quota updated.'));
+    } catch (error) {
+      // Error toast handled by interceptor
+    } finally {
+      setIsSavingStorageQuota(false);
+    }
+  };
+
+  const handleUpgradeStorage = async () => {
+    setIsUpgradingStorage(true);
+    try {
+      const response = await upgradeDataroomStorage(dataroomId);
+      setDataroom(response.data);
+      toast.success(t('datarooms.upgradeStorageSuccess', 'Dataroom successfully upgraded to Modern Storage Architecture (v2).'));
+    } catch (error) {
+      // Error toast handled by interceptor
+    } finally {
+      setIsUpgradingStorage(false);
+    }
+  };
+
   const handleConfirmReorderItems = async (orderedItems) => {
     try {
       await reorderDataroomItems(dataroomId, {
@@ -761,6 +805,21 @@ export function DataroomPage() {
   }
 
   const hasContent = documents.length > 0 || folders.length > 0;
+  const isOwner = isDataroomOwner(dataroom, user);
+  const isCollaborator = isDataroomCollaborator(dataroom, user);
+  const isOrgAdmin = user?.role === 'admin';
+  const canManage = isOwner || isOrgAdmin;
+
+  // Derived storage quota calculations
+  const currentQuotaMb = dataroom?.storage_quota_mb || 0;
+  const currentQuotaBytes = currentQuotaMb * 1024 * 1024;
+  const currentUsedBytes = dataroom?.storage_used_bytes || 0;
+  const currentUsageRatio = currentQuotaBytes > 0 ? currentUsedBytes / currentQuotaBytes : 0;
+  const currentUsagePercent = Math.min(100, Math.round(currentUsageRatio * 100));
+  const currentAvailableMb = currentQuotaBytes > 0
+    ? Math.max(0, Math.round((currentQuotaBytes - currentUsedBytes) / (1024 * 1024)))
+    : 0;
+
   const dataroomThemeStyle = {
     '--dataroom-primary': dataroom.brand_primary_color || '#111827',
     '--dataroom-secondary': dataroom.brand_secondary_color || '#4b5563',
@@ -769,11 +828,39 @@ export function DataroomPage() {
 
   return (
     <div className="container mx-auto p-4 md:p-6" style={dataroomThemeStyle}>
-      <header className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold" style={{ color: 'var(--dataroom-primary)' }}>{dataroom.name}</h1>
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-semibold" style={{ color: 'var(--dataroom-primary)' }}>{dataroom.name}</h1>
+            {(isOwner || isCollaborator) && (
+              <Badge
+                variant="outline"
+                className={`text-xs ${
+                  isOwner
+                    ? 'border-amber-500/40 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                    : 'border-indigo-500/40 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300'
+                }`}
+              >
+                {isOwner ? (
+                  <>
+                    <Crown className="h-3 w-3 mr-1 text-amber-600 dark:text-amber-400" />
+                    {t('datarooms.ownerRole', { defaultValue: 'Owner' })}
+                  </>
+                ) : (
+                  <>
+                    <Users className="h-3 w-3 mr-1 text-indigo-600 dark:text-indigo-400" />
+                    {t('datarooms.collaboratorRole', { defaultValue: 'Collaborator' })}
+                  </>
+                )}
+              </Badge>
+            )}
+          </div>
+          <CollaboratorsAvatarGroup
+            dataroom={dataroom}
+            onCollaboratorsUpdated={fetchContent}
+          />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {activeTab === 'documents' && (
             <>
               <input
@@ -1184,6 +1271,155 @@ export function DataroomPage() {
               </div>
             </div>
 
+            {dataroom?.storage_version === 1 && (
+              <div className="pb-6 border-b border-amber-200 dark:border-amber-900/50">
+                <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900/50 dark:bg-amber-950/20">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                        {t('datarooms.legacyStorageTitle')}
+                      </h3>
+                      <p className="mt-1 text-xs sm:text-sm text-amber-800 dark:text-amber-300">
+                        {t('datarooms.legacyStorageNotice')}
+                      </p>
+                    </div>
+                    {canManage && (
+                      <Button
+                        size="sm"
+                        onClick={() => setIsUpgradeStorageDialogOpen(true)}
+                        disabled={isUpgradingStorage}
+                        className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white"
+                      >
+                        {isUpgradingStorage ? t('datarooms.upgradingStorage') : t('datarooms.upgradeToModernStorage')}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="pb-6 border-b border-gray-200 dark:border-gray-800 space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <HardDrive className="h-4 w-4 text-muted-foreground" />
+                  {t('datarooms.storageQuotaTitle')}
+                </h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t('datarooms.storageQuotaNotice')}
+                </p>
+              </div>
+
+              {/* Storage Usage Dashboard Card */}
+              <div className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
+                  <div className="space-y-1">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-base font-semibold tracking-tight text-foreground">
+                        {formatBytes(currentUsedBytes)} {currentQuotaMb > 0 ? `/ ${currentQuotaMb} MB` : `/ ${t('common.unlimited')}`}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {currentQuotaMb > 0
+                        ? `${currentAvailableMb} MB ${t('common.available', { defaultValue: 'available' })}`
+                        : t('datarooms.unlimitedStorageActive', { defaultValue: 'No storage limit applied to this dataroom.' })}
+                    </p>
+                  </div>
+                  <div className="self-start sm:self-center">
+                    {currentQuotaMb > 0 ? (
+                      <Badge
+                        variant="outline"
+                        className={`font-semibold text-xs ${
+                          currentUsageRatio > 0.9
+                            ? 'border-red-500/30 bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+                            : currentUsageRatio > 0.75
+                            ? 'border-amber-500/30 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                            : 'border-primary/20 bg-primary/5 text-primary'
+                        }`}
+                      >
+                        {currentUsagePercent}% {t('admin.used', { defaultValue: 'used' })}
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="secondary"
+                        className="font-medium text-xs bg-muted/70 text-muted-foreground border-transparent"
+                      >
+                        {t('common.unlimited')}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {/* Visual Progress Bar */}
+                <div className="w-full bg-muted/60 dark:bg-muted/40 h-2.5 rounded-full overflow-hidden p-0.5 border border-border/50">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      currentQuotaMb > 0
+                        ? currentUsageRatio > 0.9
+                          ? 'bg-red-500'
+                          : currentUsageRatio > 0.75
+                          ? 'bg-amber-500'
+                          : 'bg-primary'
+                        : 'bg-primary/40 w-full'
+                    }`}
+                    style={{
+                      width: currentQuotaMb > 0 ? `${currentUsagePercent}%` : '100%',
+                    }}
+                  />
+                </div>
+
+                {/* Quota Management Control (Owner & Admin only) */}
+                {canManage && (
+                  <div className="pt-4 border-t border-border/60 space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                      <div className="flex-1 max-w-xs space-y-1.5">
+                        <Label htmlFor="dataroom-quota" className="text-xs font-medium text-muted-foreground">
+                          {t('datarooms.storageQuotaMb')}
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="dataroom-quota"
+                            type="number"
+                            min="0"
+                            max={MAX_STORAGE_QUOTA_MB}
+                            value={storageQuotaMb}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === '') {
+                                setStorageQuotaMb('');
+                                return;
+                              }
+                              const parsed = parseInt(val, 10);
+                              if (!isNaN(parsed)) {
+                                setStorageQuotaMb(Math.max(0, Math.min(parsed, MAX_STORAGE_QUOTA_MB)));
+                              }
+                            }}
+                            placeholder="0"
+                            className="pr-12 font-medium bg-background"
+                          />
+                          <span className="absolute right-3 top-2.5 text-xs font-semibold text-muted-foreground pointer-events-none">
+                            MB
+                          </span>
+                        </div>
+                      </div>
+                      <Button
+                        size="default"
+                        onClick={handleSaveStorageQuota}
+                        disabled={isSavingStorageQuota}
+                        className="shrink-0 gap-1.5"
+                      >
+                        {isSavingStorageQuota && <Loader2 className="h-4 w-4 animate-spin" />}
+                        {isSavingStorageQuota ? t('common.saving') : t('common.save')}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t('datarooms.storageQuotaHelp')}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div>
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-sm font-semibold">{t('datarooms.displaySettings')}</h3>
@@ -1212,17 +1448,49 @@ export function DataroomPage() {
               </div>
             </div>
 
-            <div className="rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-900/60 dark:bg-red-950/20">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-red-700 dark:text-red-300">{t('datarooms.dangerZone')}</h3>
-                <Button variant="destructive" size="sm" onClick={handleOpenDeleteDataroomDialog}>
-                  {t('datarooms.deleteDataroomTitle')}
-                </Button>
+            {canManage && (
+              <div className="rounded-lg border border-red-200 bg-red-50/60 p-5 dark:border-red-900/60 dark:bg-red-950/20 space-y-4">
+                <h3 className="text-sm font-semibold text-red-800 dark:text-red-300">{t('datarooms.dangerZone')}</h3>
+
+                {/* Transfer Ownership Row */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-red-200/80 dark:border-red-900/40">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium text-red-900 dark:text-red-200">{t('datarooms.transferOwnership')}</p>
+                    <p className="text-xs text-red-700/80 dark:text-red-300/80">
+                      {t('datarooms.transferOwnershipDangerNotice')}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => setIsTransferOwnershipOpen(true)}
+                  >
+                    {t('datarooms.transferOwnership')}
+                  </Button>
+                </div>
+
+                {/* Delete Dataroom Row */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-red-200/80 dark:border-red-900/40">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium text-red-900 dark:text-red-200">{t('datarooms.deleteDataroomTitle')}</p>
+                    <p className="text-xs text-red-700/80 dark:text-red-300/80">
+                      {t('datarooms.deleteDataroomNotice')}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={handleOpenDeleteDataroomDialog}
+                  >
+                    {t('datarooms.deleteDataroomTitle')}
+                  </Button>
+                </div>
               </div>
-              <p className="text-sm text-red-700/90 dark:text-red-200/90">
-                {t('datarooms.deleteDataroomNotice')}
-              </p>
-            </div>
+            )}
           </section>
         </TabsContent>
       </Tabs>
@@ -1249,6 +1517,14 @@ export function DataroomPage() {
           setIsManagePermissionsOpen(false);
         }}
         link={selectedLinkForPermissions}
+      />
+      <TransferOwnershipDialog
+        isOpen={isTransferOwnershipOpen}
+        onOpenChange={setIsTransferOwnershipOpen}
+        dataroom={dataroom}
+        onSuccess={() => {
+          fetchContent();
+        }}
       />
       <AddContentDialog
         isOpen={isAddContentOpen}
@@ -1298,6 +1574,22 @@ export function DataroomPage() {
         title={t('datarooms.removeItemTitle', { name: itemToRemove?.name })}
         description={t('datarooms.removeItemDescription')}
         confirmText={t('datarooms.remove')}
+      />
+      <ConfirmationDialog
+        isOpen={isUpgradeStorageDialogOpen}
+        onOpenChange={setIsUpgradeStorageDialogOpen}
+        onConfirm={async () => {
+          setIsUpgradeStorageDialogOpen(false);
+          await handleUpgradeStorage();
+        }}
+        title={t('datarooms.upgradeStorageConfirmTitle', { defaultValue: 'Upgrade Storage Architecture?' })}
+        description={t('datarooms.upgradeStorageConfirmMessage', {
+          defaultValue:
+            'This will migrate all files and folders in this dataroom into the Modern System Storage Vault (v2). This enables team collaboration, instant ownership transfer, and decoupled organization storage. This action cannot be undone.',
+        })}
+        confirmText={t('datarooms.upgradeToModernStorage', { defaultValue: 'Upgrade to Modern Storage' })}
+        variant="default"
+        isLoading={isUpgradingStorage}
       />
       <Dialog
         open={isDeleteDataroomDialogOpen}

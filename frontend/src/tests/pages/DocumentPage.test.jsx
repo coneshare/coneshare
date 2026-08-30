@@ -35,8 +35,11 @@ vi.mock('../../components/qna/OwnerQnAManager', () => ({
   OwnerQnAManager: () => <div>Owner Q&A Manager</div>,
 }));
 
+let mockCurrentUser = { id: 'u1', role: 'user' };
+
 vi.mock('../../contexts/UserProvider', () => ({
   useUser: () => ({
+    user: mockCurrentUser,
     refreshUser: vi.fn(),
   }),
 }));
@@ -44,11 +47,12 @@ vi.mock('../../contexts/UserProvider', () => ({
 describe('DocumentPage', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockCurrentUser = { id: 'u1', role: 'user' };
     api.getCloudProviders.mockResolvedValue({ data: [] });
     api.getCloudConnections.mockResolvedValue({ data: [] });
   });
 
-  const mockDocument = { id: 'doc123', name: 'Test Doc', share_links: [] };
+  const mockDocument = { id: 'doc123', name: 'Test Doc', created_by: 'u1', share_links: [] };
   const mockStats = { total_views: 15 };
   const mockViewsPage1 = {
     count: 15,
@@ -215,6 +219,7 @@ describe('DocumentPage', () => {
       const mockDocumentWithLinks = {
         id: 'doc123',
         name: 'Test Doc with Links',
+        created_by: 'u1',
         share_links: [
           {
             id: 'link1',
@@ -308,6 +313,29 @@ describe('DocumentPage', () => {
       await waitFor(() => {
         expect(api.renameDocument).toHaveBeenCalledWith('doc123', 'New Document Name');
       });
+    });
+
+    it('renders collaborator access notice banner when user is not the document owner or admin', async () => {
+      mockCurrentUser = { id: 'collab_user', role: 'user' };
+      const otherDoc = {
+        id: 'doc123',
+        name: 'Shared Dataroom Doc.pdf',
+        created_by: 'owner_999',
+        created_by_user: { id: 'owner_999', name: 'Alice Owner' },
+        share_links: [],
+      };
+      api.getDocumentDetails.mockResolvedValue({ data: otherDoc });
+      api.getDocumentStats.mockResolvedValue({ data: { total_views: 0 } });
+      api.getDocumentViews.mockResolvedValue({ data: { results: [], count: 0 } });
+
+      renderComponent();
+
+      expect(await screen.findByText('Dataroom Shared Document')).toBeInTheDocument();
+      expect(screen.getByText(/You have view-only collaborator access to this document via a shared Dataroom/i)).toBeInTheDocument();
+      // Should not render Owner Q&A Manager
+      expect(screen.queryByText('Owner Q&A Manager')).not.toBeInTheDocument();
+      // Should not fetch view sessions for unauthorized collaborator
+      expect(api.getDocumentViews).not.toHaveBeenCalled();
     });
   });
 });

@@ -14,6 +14,7 @@ import {
 import { useSidebar } from "./SidebarProvider";
 import { cn } from "../../lib/utils";
 import { useUser } from "../../contexts/UserProvider";
+import { getAvatarInitial } from "../../utils/formatters";
 
 function NavUser() {
   const { t } = useTranslation();
@@ -37,7 +38,7 @@ function NavUser() {
         >
           <Avatar className="h-8 w-8">
             <AvatarImage src={user.avatar_url || ""} alt={user.name || ""} />
-            <AvatarFallback>{user.name?.charAt(0) || "?"}</AvatarFallback>
+            <AvatarFallback>{getAvatarInitial(user.name, user.email)}</AvatarFallback>
           </Avatar>
           <div
             className={cn("grid flex-1 text-left", isCollapsed && "hidden")}

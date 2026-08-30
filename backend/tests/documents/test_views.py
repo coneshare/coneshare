@@ -1357,6 +1357,38 @@ class TestDocumentViewSet:
         assert data_page_2['next'] is None
         assert data_page_2['previous'] is not None
 
+    def test_document_views_forbidden_for_non_owner_dataroom_collaborator(
+        self, api_client, document, dataroom, user, user2, admin_user
+    ):
+        """
+        Test that a dataroom collaborator cannot access view_sessions of a document
+        owned by another user, while owners and org admins can.
+        """
+        from datarooms.models import DataroomCollaborator, DataroomDocument
+
+        # Add user2 as collaborator to dataroom containing user's document
+        DataroomCollaborator.objects.create(dataroom=dataroom, user=user2)
+        DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name)
+
+        # 1. As collaborator (user2): document details are accessible (200 OK)
+        api_client.force_authenticate(user=user2)
+        doc_resp = api_client.get(f'/api/v1/documents/{document.id}/')
+        assert doc_resp.status_code == status.HTTP_200_OK
+
+        # But view-sessions access is forbidden (403 Forbidden)
+        views_resp = api_client.get(f'/api/v1/documents/{document.id}/view-sessions/')
+        assert views_resp.status_code == status.HTTP_403_FORBIDDEN
+
+        # 2. As document owner (user): view-sessions access is permitted (200 OK)
+        api_client.force_authenticate(user=user)
+        owner_views_resp = api_client.get(f'/api/v1/documents/{document.id}/view-sessions/')
+        assert owner_views_resp.status_code == status.HTTP_200_OK
+
+        # 3. As org admin (admin_user): view-sessions access is permitted (200 OK)
+        api_client.force_authenticate(user=admin_user)
+        admin_views_resp = api_client.get(f'/api/v1/documents/{document.id}/view-sessions/')
+        assert admin_views_resp.status_code == status.HTTP_200_OK
+
     def test_update_document_star_status(self, api_client, document):
         """Test starring and unstarring a document."""
         assert document.is_starred is False

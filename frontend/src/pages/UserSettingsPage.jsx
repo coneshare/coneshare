@@ -10,6 +10,7 @@ import { Label } from "../components/ui/Label";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/Avatar";
 import { SettingsTabs } from "../components/settings/SettingsTabs";
 import { SUPPORTED_LANGUAGES } from "../lib/constants";
+import { getAvatarInitial } from "../utils/formatters";
 
 function UserSettingsPage() {
   const { t, i18n } = useTranslation();
@@ -170,7 +171,7 @@ function UserSettingsPage() {
             <div className="flex items-center gap-4">
               <Avatar className="h-20 w-20">
                 <AvatarImage src={avatarPreview} />
-                <AvatarFallback>{name?.charAt(0) || "?"}</AvatarFallback>
+                <AvatarFallback>{getAvatarInitial(name, user?.email)}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col gap-2">
                 <Button

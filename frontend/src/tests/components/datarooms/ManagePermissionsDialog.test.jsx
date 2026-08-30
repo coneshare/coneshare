@@ -223,7 +223,7 @@ describe('ManagePermissionsDialog', () => {
     expect(screen.queryByText('Root Doc 3')).not.toBeInTheDocument();
 
     // Assert that the empty state notice is displayed
-    expect(screen.getByText('This dataroom is empty')).toBeInTheDocument();
+    expect(await screen.findByText('This dataroom is empty')).toBeInTheDocument();
   });
 
   it('should handle bulk changes with individual overrides', async () => {

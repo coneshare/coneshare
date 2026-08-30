@@ -1,4 +1,4 @@
-import { formatRelativeTime } from "../../utils/formatters";
+import { formatRelativeTime, getAvatarInitial } from "../../utils/formatters";
 import { Star } from "lucide-react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -8,6 +8,8 @@ import { formatBytes } from "../../lib/formatters";
 import { ActionsDropdown } from "./ActionsDropdown";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { Badge } from "../ui/Badge";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar";
+import { useUser } from "../../contexts/UserProvider";
 import {
   Tooltip,
   TooltipContent,
@@ -67,6 +69,41 @@ export function DraggableItem({
   };
   const viewCount = item.view_count ?? item.share_link_view_count ?? item.dataroom_view_count ?? 0;
 
+  const userContext = useUser();
+  const currentUser = userContext?.user;
+
+  const getOwnerDetails = () => {
+    const resolvedOwner = (typeof item.created_by === 'object' && item.created_by) || item.created_by_user || item.owner;
+    if (resolvedOwner) {
+      const isMe = Boolean(currentUser?.id && resolvedOwner.id === currentUser.id);
+      const fallbackName = resolvedOwner.name || resolvedOwner.email?.split('@')[0] || (isMe ? t('documents.me') : 'Member');
+      return {
+        displayName: isMe ? t('documents.me') : fallbackName,
+        fullName: resolvedOwner.name || (isMe ? currentUser?.name : resolvedOwner.email) || fallbackName,
+        email: resolvedOwner.email || (isMe ? currentUser?.email : null),
+        avatarUrl: resolvedOwner.avatar_url || (isMe ? currentUser?.avatar_url : null),
+        isMe,
+      };
+    }
+    if (typeof item.created_by === 'string') {
+      const isMe = Boolean(currentUser?.id && item.created_by === currentUser.id);
+      return {
+        displayName: isMe ? t('documents.me') : (item.created_by_name || 'Member'),
+        fullName: isMe ? (currentUser?.name || t('documents.me')) : (item.created_by_name || 'Member'),
+        email: isMe ? currentUser?.email : null,
+        avatarUrl: isMe ? currentUser?.avatar_url : null,
+        isMe,
+      };
+    }
+    return {
+      displayName: t('documents.me'),
+      fullName: currentUser?.name || t('documents.me'),
+      email: currentUser?.email || null,
+      avatarUrl: currentUser?.avatar_url || null,
+      isMe: true,
+    };
+  };
+
   return (
     <div
       onClick={handleRowClick}
@@ -125,12 +162,36 @@ export function DraggableItem({
           </button>
         )}
       </div>
-      <div className="w-[18%] truncate" style={themed ? { color: "var(--dataroom-secondary)" } : undefined}>
-        {item.created_by?.name || t('documents.me')}
+      <div className="w-[18%] flex items-center gap-1.5 min-w-0" style={themed ? { color: "var(--dataroom-secondary)" } : undefined}>
+        {(() => {
+          const owner = getOwnerDetails();
+          const initial = getAvatarInitial(owner.fullName !== t('documents.me') ? owner.fullName : '', owner.email);
+          return (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1.5 min-w-0 max-w-full cursor-default truncate">
+                  <Avatar className="h-5 w-5 shrink-0 rounded-full border border-border/50">
+                    {owner.avatarUrl && <AvatarImage src={owner.avatarUrl} alt={owner.displayName} />}
+                    <AvatarFallback className="text-[9px] font-medium bg-muted text-muted-foreground">
+                      {initial}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="truncate">{owner.displayName}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="text-xs space-y-0.5">
+                  <p className="font-semibold">{owner.fullName}</p>
+                  {owner.email && <p className="text-muted-foreground">{owner.email}</p>}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          );
+        })()}
         {item.uploader_info && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Badge variant="secondary" className="cursor-default ml-2">
+              <Badge variant="secondary" className="cursor-default ml-1 shrink-0">
                 {item.uploader_info.name}
               </Badge>
             </TooltipTrigger>
