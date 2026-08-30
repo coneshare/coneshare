@@ -107,6 +107,36 @@ class TestDataroomSerializer:
             f"http://test.coneshare.com/media/dataroom-branding/{dataroom.organization_id}/{dataroom.id}/banner.jpeg"
         )
 
+    def test_dataroom_serializer_validates_storage_quota_bounds(self, dataroom, serializer_context):
+        # Negative quota
+        serializer_neg = DataroomSerializer(
+            instance=dataroom,
+            data={"storage_quota_mb": -10},
+            partial=True,
+            context=serializer_context,
+        )
+        assert not serializer_neg.is_valid()
+        assert "storage_quota_mb" in serializer_neg.errors
+
+        # Exceeds max 1 TB (1048576 MB)
+        serializer_overflow = DataroomSerializer(
+            instance=dataroom,
+            data={"storage_quota_mb": 2000000},
+            partial=True,
+            context=serializer_context,
+        )
+        assert not serializer_overflow.is_valid()
+        assert "storage_quota_mb" in serializer_overflow.errors
+
+        # Valid quota
+        serializer_valid = DataroomSerializer(
+            instance=dataroom,
+            data={"storage_quota_mb": 5000},
+            partial=True,
+            context=serializer_context,
+        )
+        assert serializer_valid.is_valid()
+
     def test_dataroom_detail_items_use_item_order_when_enabled(self, dataroom, document, serializer_context):
         folder = DataroomFolder.objects.create(dataroom=dataroom, name="Root Folder", parent=None)
         ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document, name=document.name)

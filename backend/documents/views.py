@@ -973,6 +973,8 @@ class DocumentViewSet(viewsets.ModelViewSet):
         from sharelinks.serializers import ViewSessionSerializer
 
         document = self.get_object()
+        if document.created_by != request.user and getattr(request.user, 'role', '') != 'admin':
+            raise PermissionDenied("Only the document owner or an organization admin can view access sessions.")
 
         view_queryset = ViewSession.objects.filter(
             share_link__document=document

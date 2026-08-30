@@ -546,7 +546,7 @@ export const importCloudVersion = (documentId, { connectionId, fileId, fileName,
   });
 
 // Datarooms
-export const getDatarooms = () => api.get('/datarooms/');
+export const getDatarooms = (params) => api.get('/datarooms/', { params });
 export const getDataroom = (id, params) => api.get(`/datarooms/${id}/`, { params });
 export const createDataroom = (data) => api.post('/datarooms/', data);
 export const createDataroomFolder = (data) => api.post('/dataroom-folders/', data);
@@ -555,7 +555,12 @@ export const renameDataroomDocument = (id, name) => api.patch(`/dataroom-documen
 export const updateDataroomFolder = (id, data) => api.patch(`/dataroom-folders/${id}/`, data);
 export const updateDataroomDocument = (id, data) => api.patch(`/dataroom-documents/${id}/`, data);
 export const updateDataroom = (id, data) => api.patch(`/datarooms/${id}/`, data);
-export const updateDataroomBranding = (id, { name, bannerFile, removeBanner = false, brandPrimaryColor, brandSecondaryColor, brandAccentColor, showFileIndex, enableQna }) => {
+export const getDataroomCollaborators = (dataroomId) => api.get(`/datarooms/${dataroomId}/collaborators/`);
+export const addDataroomCollaborators = (dataroomId, data) => api.post(`/datarooms/${dataroomId}/collaborators/`, data);
+export const removeDataroomCollaborator = (dataroomId, userId) => api.delete(`/datarooms/${dataroomId}/collaborators/${userId}/`);
+export const transferDataroomOwnership = (dataroomId, newOwnerId) => api.post(`/datarooms/${dataroomId}/transfer-ownership/`, { new_owner_id: newOwnerId });
+export const getEligibleCollaborators = (dataroomId, query = '') => api.get(`/datarooms/${dataroomId}/eligible-collaborators/`, { params: query ? { q: query } : {} });
+export const updateDataroomBranding = (id, { name, bannerFile, removeBanner = false, brandPrimaryColor, brandSecondaryColor, brandAccentColor, showFileIndex, enableQna, storageQuotaMb }) => {
   const formData = new FormData();
   if (name !== undefined) {
     formData.append('name', name);
@@ -579,11 +584,15 @@ export const updateDataroomBranding = (id, { name, bannerFile, removeBanner = fa
   if (enableQna !== undefined) {
     formData.append('enable_qna', enableQna ? 'true' : 'false');
   }
+  if (storageQuotaMb !== undefined) {
+    formData.append('storage_quota_mb', storageQuotaMb);
+  }
   return api.patch(`/datarooms/${id}/`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 };
 export const deleteDataroom = (id) => api.delete(`/datarooms/${id}/`);
+export const upgradeDataroomStorage = (id) => api.post(`/datarooms/${id}/upgrade-storage/`);
 export const addContentToDataroom = (id, data) => api.post(`/datarooms/${id}/add-content/`, data);
 export const removeContentFromDataroom = (id, data) => api.post(`/datarooms/${id}/remove-content/`, data);
 export const moveDataroomContent = (id, data) => api.post(`/datarooms/${id}/move-content/`, data);

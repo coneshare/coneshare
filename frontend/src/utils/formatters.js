@@ -45,3 +45,69 @@ export function formatRelativeTime(date, options = {}) {
     return String(date);
   }
 }
+
+/**
+ * Extract two-letter initials for user avatar fallback.
+ * - Multi-word names: First + Last initial (e.g. "Alice Chen" -> "AC")
+ * - Single-word names: First two letters (e.g. "Admin" -> "AD")
+ * - Email fallback: First two letters of local-part (e.g. "alice@example.com" -> "AL")
+ * @param {string} [name] - User full name
+ * @param {string} [email] - User email address
+ * @returns {string} Two-character uppercase initials or '?'
+ */
+export function getAvatarInitial(name, email) {
+  if (name && typeof name === 'string') {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+    }
+    if (parts.length === 1 && parts[0].length > 0) {
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+  }
+  if (email && typeof email === 'string') {
+    const userPart = email.split('@')[0].trim();
+    if (userPart.length > 0) {
+      return userPart.slice(0, 2).toUpperCase();
+    }
+  }
+  return '?';
+}
+
+/**
+ * Authoritatively determines if the current user is the owner of a dataroom.
+ * Prioritizes server-computed `current_user_role` followed by created_by and owner ID comparisons.
+ * @param {Object} dataroom - Dataroom object
+ * @param {Object} user - Current authenticated user
+ * @returns {boolean}
+ */
+export function isDataroomOwner(dataroom, user) {
+  if (!dataroom || !user) return false;
+  if (dataroom.current_user_role === 'owner') return true;
+  const userId = user.id;
+  return (
+    dataroom.created_by === userId ||
+    dataroom.created_by?.id === userId ||
+    dataroom.owner?.id === userId
+  );
+}
+
+/**
+ * Determines if the current user is an active collaborator of a dataroom (and not the owner).
+ * @param {Object} dataroom - Dataroom object
+ * @param {Object} user - Current authenticated user
+ * @returns {boolean}
+ */
+export function isDataroomCollaborator(dataroom, user) {
+  if (!dataroom || !user) return false;
+  if (isDataroomOwner(dataroom, user)) return false;
+  if (dataroom.current_user_role === 'collaborator') return true;
+  const userId = user.id;
+  return (
+    dataroom.collaborators?.some(
+      (c) => (c.user_id || c.user?.id) === userId
+    ) ?? false
+  );
+}
+
+

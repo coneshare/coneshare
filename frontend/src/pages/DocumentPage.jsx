@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useUser } from '../contexts/UserProvider';
 import { toast } from 'sonner';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, Shield } from 'lucide-react';
 import { renameDocument, getDocumentDetails, getDocumentStatus, getDocumentViews, getDocumentStats, deleteShareLink, uploadNewVersion, getDocumentDownloadUrl, deleteDocument, getDataroom, getDataroomFolderContents, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl, refreshCloudDocument, importCloudVersion } from '../services/api';
 import { getLocalizedErrorMessage } from '../utils/errorTranslator';
 import { DocumentHeader } from '../components/documents/DocumentHeader';
@@ -18,10 +19,13 @@ import { OwnerQnAManager } from '../components/qna/OwnerQnAManager';
 import { CloudImportDialog } from '../components/dialogs/CloudImportDialog';
 
 export function DocumentPage() {
+  const { t } = useTranslation();
   const { documentId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { setBreadcrumbData } = useBreadcrumb();
-  const { refreshUser } = useUser();
+  const userContext = useUser();
+  const user = userContext?.user;
+  const refreshUser = userContext?.refreshUser;
   const navigate = useNavigate();
   const [document, setDocument] = useState(null);
   const [stats, setStats] = useState(null);
@@ -118,7 +122,12 @@ export function DocumentPage() {
     }
   }, [documentId, searchParams, setBreadcrumbData]);
 
+  const isOwner = document?.created_by === user?.id || document?.created_by_user?.id === user?.id;
+  const isOrgAdmin = user?.role === 'admin';
+  const canManage = Boolean(document && (isOwner || isOrgAdmin));
+
   const fetchViews = useCallback(async () => {
+    if (!canManage) return;
     try {
       setViewsLoading(true);
       const response = await getDocumentViews(documentId, currentPage);
@@ -128,7 +137,7 @@ export function DocumentPage() {
     } finally {
       setViewsLoading(false);
     }
-  }, [documentId, currentPage]);
+  }, [documentId, currentPage, canManage]);
 
   useEffect(() => {
     fetchDocumentAndStats();
@@ -138,8 +147,10 @@ export function DocumentPage() {
   }, [fetchDocumentAndStats, setBreadcrumbData]);
 
   useEffect(() => {
-    fetchViews();
-  }, [fetchViews]);
+    if (canManage) {
+      fetchViews();
+    }
+  }, [canManage, fetchViews]);
 
   useEffect(() => {
     if (!document) return;
@@ -475,25 +486,48 @@ export function DocumentPage() {
         onRenameDocument={handleRenameDocument}
         isProcessing={isProcessing}
         cloudProviders={cloudProviders}
+        canManage={canManage}
       />
       <div className="mt-8 space-y-8">
         <Stats stats={stats} />
-        <LinksTable
-          links={document.share_links}
-          onEditLink={handleEditLink}
-          onDeleteLink={handleDeleteLink}
-          onLinkUpdate={handleLinkUpdate}
-          contextType="document"
-        />
-        <ViewSessionsTable
-          views={viewsData?.results || []}
-          totalCount={viewsData?.count || 0}
-          loading={viewsLoading}
-          currentPage={currentPage}
-          onPageChange={setCurrentPage}
-          pageSize={10}
-        />
-        <OwnerQnAManager documentId={documentId} shareLinks={document.share_links || []} />
+        {canManage ? (
+          <>
+            <LinksTable
+              links={document.share_links}
+              onEditLink={handleEditLink}
+              onDeleteLink={handleDeleteLink}
+              onLinkUpdate={handleLinkUpdate}
+              contextType="document"
+            />
+            <ViewSessionsTable
+              views={viewsData?.results || []}
+              totalCount={viewsData?.count || 0}
+              loading={viewsLoading}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+              pageSize={10}
+            />
+            <OwnerQnAManager documentId={documentId} shareLinks={document.share_links || []} />
+          </>
+        ) : (
+          <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-6 dark:border-blue-900/50 dark:bg-blue-950/20">
+            <div className="flex items-start gap-4">
+              <div className="rounded-full bg-blue-100 p-2.5 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400">
+                <Shield className="h-5 w-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-200">
+                  {t('documents.collaboratorAccessNoticeTitle', { defaultValue: 'Dataroom Shared Document' })}
+                </h3>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  {t('documents.collaboratorAccessNoticeDesc', {
+                    defaultValue: 'You have view-only collaborator access to this document via a shared Dataroom. Direct share links, visitor tracking logs, and link security settings are managed exclusively by the document owner or organization administrators.',
+                  })}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       <LinkSheet
         isOpen={isLinkSheetOpen}

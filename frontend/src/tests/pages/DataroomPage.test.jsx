@@ -962,5 +962,97 @@ describe('DataroomPage', () => {
                 expect.any(Function)
             );
         });
+
+        it('renders and saves storage quota settings', async () => {
+            const user = userEvent.setup();
+            api.getDataroom.mockResolvedValue({
+                data: {
+                    ...mockDataroomRoot,
+                    created_by: 'u1',
+                    storage_quota_mb: 500,
+                    storage_used_bytes: 104857600, // 100 MB
+                }
+            });
+            api.updateDataroomBranding.mockResolvedValue({
+                data: {
+                    ...mockDataroomRoot,
+                    created_by: 'u1',
+                    storage_quota_mb: 1000,
+                    storage_used_bytes: 104857600,
+                }
+            });
+
+            renderComponent();
+            expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
+
+            // Switch to Settings tab
+            const settingsTab = screen.getByRole('tab', { name: 'Settings' });
+            await user.click(settingsTab);
+
+            // Check Storage & Quota section
+            expect(await screen.findByText('Storage & Quota')).toBeInTheDocument();
+            expect(screen.getByText(/100 MB \/ 500 MB/)).toBeInTheDocument();
+
+            // Update storage quota input
+            const quotaInput = screen.getByLabelText('Storage Quota (MB)');
+            expect(quotaInput).toHaveValue(500);
+
+            await user.clear(quotaInput);
+            await user.type(quotaInput, '1000');
+
+            const storageHeading = screen.getByText('Storage & Quota');
+            const storageSection = storageHeading.closest('div.pb-6');
+            const saveButton = within(storageSection).getByRole('button', { name: 'Save Changes' });
+            await user.click(saveButton);
+
+            await waitFor(() => {
+                expect(api.updateDataroomBranding).toHaveBeenCalledWith(
+                    'dr123',
+                    expect.objectContaining({ storageQuotaMb: 1000 })
+                );
+            });
+        });
+
+        it('shows legacy storage upgrade banner for v1 dataroom and handles upgrade', async () => {
+            const user = userEvent.setup();
+            api.getDataroom.mockResolvedValue({
+                data: {
+                    ...mockDataroomRoot,
+                    created_by: 'u1',
+                    storage_version: 1,
+                }
+            });
+            api.upgradeDataroomStorage.mockResolvedValue({
+                data: {
+                    ...mockDataroomRoot,
+                    created_by: 'u1',
+                    storage_version: 2,
+                }
+            });
+
+            renderComponent();
+            expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
+
+            // Switch to Settings tab
+            const settingsTab = screen.getByRole('tab', { name: 'Settings' });
+            await user.click(settingsTab);
+
+            // Check legacy storage upgrade banner is displayed
+            expect(await screen.findByText('Legacy Storage Architecture (v1)')).toBeInTheDocument();
+            const upgradeButton = screen.getByRole('button', { name: 'Upgrade to Modern Storage' });
+            expect(upgradeButton).toBeInTheDocument();
+
+            await user.click(upgradeButton);
+
+            // Confirm in dialog
+            expect(await screen.findByText('Upgrade Storage Architecture?')).toBeInTheDocument();
+            const dialog = screen.getByRole('dialog');
+            const confirmBtn = within(dialog).getByRole('button', { name: 'Upgrade to Modern Storage' });
+            await user.click(confirmBtn);
+
+            await waitFor(() => {
+                expect(api.upgradeDataroomStorage).toHaveBeenCalledWith('dr123');
+            });
+        });
     });
 });

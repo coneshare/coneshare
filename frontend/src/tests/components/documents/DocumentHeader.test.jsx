@@ -151,4 +151,26 @@ describe('DocumentHeader', () => {
     input = screen.getByRole('textbox');
     expect(input.value).toBe('Sample Document.pdf');
   });
+
+  it('renders in view-only mode when canManage is false', () => {
+    const docWithOwner = {
+      ...mockDoc,
+      created_by_user: { id: 'u1', name: 'Bob Owner', email: 'bob@example.com' },
+    };
+    renderComponent({ document: docWithOwner, canManage: false });
+
+    // Should display owner badge
+    expect(screen.getByText('Owner: Bob Owner')).toBeInTheDocument();
+
+    // Should not render pencil or rename trigger
+    expect(screen.queryByRole('button', { name: 'Rename Document' })).not.toBeInTheDocument();
+
+    // Heading click should not open input
+    const heading = screen.getByRole('heading', { name: 'Sample Document.pdf' });
+    fireEvent.click(heading);
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+
+    // Should not render Get Link / Share button
+    expect(screen.queryByRole('button', { name: /getLink|Share/i })).not.toBeInTheDocument();
+  });
 });

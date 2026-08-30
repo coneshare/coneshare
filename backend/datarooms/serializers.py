@@ -20,6 +20,7 @@ from .utils import build_ordered_dataroom_items
 from .services import get_dataroom_storage_used_bytes
 
 HEX_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
+MAX_STORAGE_QUOTA_MB = 1048576  # 1 TB (1,048,576 MB)
 
 
 class DataroomCollaboratorUserSerializer(serializers.ModelSerializer):
@@ -136,8 +137,11 @@ class DataroomSerializer(serializers.ModelSerializer):
         return get_dataroom_storage_used_bytes(obj)
 
     def validate_storage_quota_mb(self, value):
-        if value is not None and value < 0:
-            raise serializers.ValidationError("Storage quota cannot be negative.")
+        if value is not None:
+            if value < 0:
+                raise serializers.ValidationError("Storage quota cannot be negative.")
+            if value > MAX_STORAGE_QUOTA_MB:
+                raise serializers.ValidationError(f"Storage quota cannot exceed {MAX_STORAGE_QUOTA_MB} MB (1 TB).")
         request = self.context.get('request')
         if self.instance and request and hasattr(request, 'user') and request.user and request.user.is_authenticated:
             is_owner = self.instance.created_by_id == request.user.id
