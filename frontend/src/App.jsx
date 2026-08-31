@@ -32,6 +32,7 @@ import { AdminBrandingPage } from './pages/AdminBrandingPage';
 import { AdminLoginActivityPage } from './pages/AdminLoginActivityPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { AdminUserDetailPage } from './pages/AdminUserDetailPage';
+import { AdminDataroomsPage } from './pages/AdminDataroomsPage';
 import { AdminSecurityAlertsPage } from './pages/AdminSecurityAlertsPage';
 import { TooltipProvider } from './components/ui/Tooltip';
 import { ErrorPage } from './pages/ErrorPage';
@@ -75,6 +76,7 @@ function App() {
             <Route path="/admin/branding" element={<AdminBrandingPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/admin/users/:userId" element={<AdminUserDetailPage />} />
+            <Route path="/admin/datarooms" element={<AdminDataroomsPage />} />
             <Route path="/admin/login-activity" element={<AdminLoginActivityPage />} />
             <Route path="/admin/security-alerts" element={<AdminSecurityAlertsPage />} />
             <Route path="*" element={<NotFoundPage />} />

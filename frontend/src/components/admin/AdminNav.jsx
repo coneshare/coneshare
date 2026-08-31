@@ -9,6 +9,7 @@ export function AdminNav() {
     { to: '/admin/settings', label: t('admin.settingsNav') },
     { to: '/admin/branding', label: t('admin.branding') },
     { to: '/admin/users', label: t('admin.users') },
+    { to: '/admin/datarooms', label: t('admin.datarooms') },
     { to: '/admin/login-activity', label: t('admin.loginActivity') },
     { to: '/admin/security-alerts', label: t('admin.securityAlerts') },
   ];

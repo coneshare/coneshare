@@ -692,6 +692,22 @@ export const getAdminSecurityThreatEvents = ({ page = 1, status = '', severity =
   if (eventType) params.event_type = eventType;
   return api.get('/admin/security-threat-events/', { params });
 };
+export const getAdminDatarooms = (params = {}) => api.get('/admin/datarooms/', { params });
+export const getAdminDataroom = (id) => api.get(`/admin/datarooms/${id}/`);
+export const updateAdminDataroom = (id, data) => api.patch(`/admin/datarooms/${id}/`, data);
+export const deleteAdminDataroom = (id) => api.delete(`/admin/datarooms/${id}/`);
+export const transferAdminDataroomOwnership = (id, newOwnerId) =>
+  api.post(`/admin/datarooms/${id}/transfer-ownership/`, { new_owner_id: newOwnerId });
+export const upgradeAdminDataroomStorage = (id) =>
+  api.post(`/admin/datarooms/${id}/upgrade-storage/`);
+export const getAdminDataroomCollaborators = (id) =>
+  api.get(`/admin/datarooms/${id}/collaborators/`);
+export const addAdminDataroomCollaborators = (id, data) =>
+  api.post(`/admin/datarooms/${id}/collaborators/`, data);
+export const removeAdminDataroomCollaborator = (id, userId) =>
+  api.delete(`/admin/datarooms/${id}/collaborators/${userId}/`);
+export const getAdminEligibleCollaborators = (id, query = '') =>
+  api.get(`/admin/datarooms/${id}/eligible-collaborators/`, { params: query ? { q: query } : {} });
     
 // Trash
 export const getTrashItems = (page = 1) => api.get(`/trash/?page=${page}`);

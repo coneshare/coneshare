@@ -3,7 +3,8 @@ import posixpath
 import re
 
 from django.conf import settings
-from django.db.models import Count, Sum
+from django.db.models import Count, Q, Sum
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
@@ -128,12 +129,16 @@ class DataroomSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.IntegerField())
     def get_collaborator_count(self, obj) -> int:
+        if hasattr(obj, 'annotated_collaborators_count'):
+            return obj.annotated_collaborators_count
         return len(obj.collaborators.all())
 
     storage_used_bytes = serializers.SerializerMethodField()
 
     @extend_schema_field(serializers.IntegerField())
     def get_storage_used_bytes(self, obj) -> int:
+        if hasattr(obj, 'annotated_storage_used_bytes'):
+            return obj.annotated_storage_used_bytes
         return get_dataroom_storage_used_bytes(obj)
 
     def validate_storage_quota_mb(self, value):
@@ -161,7 +166,11 @@ class DataroomSerializer(serializers.ModelSerializer):
             'branding_banner', 'brand_primary_color', 'brand_secondary_color', 'brand_accent_color',
             'remove_branding_banner',
         ]
-        read_only_fields = ['id', 'organization', 'created_at', 'updated_at', 'created_by', 'owner', 'current_user_role', 'collaborator_count', 'storage_used_bytes', 'storage_version']
+        read_only_fields = [
+            'id', 'organization', 'created_at', 'updated_at', 'created_by',
+            'owner', 'current_user_role', 'collaborator_count',
+            'storage_used_bytes', 'storage_version'
+        ]
 
     def create(self, validated_data):
         # API compatibility: this write-only control flag is only meaningful for updates.
@@ -364,6 +373,34 @@ class DataroomDetailSerializer(serializers.ModelSerializer):
             )
 
         return build_ordered_dataroom_items(scope_rows, folders_data, documents_data)
+
+
+class AdminDataroomSerializer(DataroomSerializer):
+    active_links_count = serializers.SerializerMethodField()
+    last_viewed_at = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_active_links_count(self, obj) -> int:
+        if hasattr(obj, 'annotated_active_links_count'):
+            return obj.annotated_active_links_count
+        now = timezone.now()
+        return obj.share_links.filter(
+            is_active=True
+        ).filter(
+            Q(expires_at__isnull=True) | Q(expires_at__gt=now)
+        ).count()
+
+    @extend_schema_field(serializers.DateTimeField(allow_null=True))
+    def get_last_viewed_at(self, obj):
+        if hasattr(obj, 'annotated_last_viewed_at'):
+            return obj.annotated_last_viewed_at
+        from sharelinks.models import ViewSession
+        latest = ViewSession.objects.filter(share_link__dataroom=obj).order_by('-viewed_at').first()
+        return latest.viewed_at if latest else None
+
+    class Meta(DataroomSerializer.Meta):
+        fields = DataroomSerializer.Meta.fields + ['active_links_count', 'last_viewed_at']
+        read_only_fields = DataroomSerializer.Meta.read_only_fields + ['active_links_count', 'last_viewed_at']
 
 
 class AddContentSerializer(serializers.Serializer):
