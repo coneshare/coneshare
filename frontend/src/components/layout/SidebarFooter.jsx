@@ -2,6 +2,7 @@ import { cn } from "../../lib/utils";
 import { BookOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Progress } from "../ui/Progress";
+import { Skeleton } from "../ui/Skeleton";
 import NavUser from "./NavUser";
 import { useSidebar } from "./SidebarProvider";
 import { formatBytes } from "../../lib/formatters";
@@ -32,7 +33,7 @@ function SidebarFooter() {
         <BookOpen className="h-5 w-5" />
         <span className={cn(isCollapsed && "hidden")}>{t('nav.apiDocs')}</span>
       </a>
-      {user && (
+      {user ? (
         <div className={cn("px-2 text-xs", isCollapsed && "hidden")}>
           <div className="mb-2 flex justify-between font-medium text-muted-foreground">
             <span>{t('nav.usedQuota', { size: formatBytes(usageBytes) })}</span>
@@ -43,6 +44,14 @@ function SidebarFooter() {
             )}
           </div>
           <Progress value={usagePercentage} className="h-2" />
+        </div>
+      ) : (
+        <div className={cn("px-2 text-xs space-y-2", isCollapsed && "hidden")}>
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-3.5 w-24" />
+            <Skeleton className="h-3.5 w-12" />
+          </div>
+          <Skeleton className="h-2 w-full rounded-full" />
         </div>
       )}
       {APP_DISPLAY_VERSION && (

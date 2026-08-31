@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar";
 import { Button } from "../ui/Button";
+import { Skeleton } from "../ui/Skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +24,20 @@ function NavUser() {
   const { user, handleLogout } = useUser();
 
   if (!user) {
-    return null; // Or a skeleton loader
+    return (
+      <div
+        className={cn(
+          "flex items-center gap-2 rounded-lg",
+          isCollapsed ? "h-10 w-10 justify-center p-0" : "px-3 py-2"
+        )}
+      >
+        <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+        <div className={cn("grid flex-1 gap-1.5", isCollapsed && "hidden")}>
+          <Skeleton className="h-3.5 w-24" />
+          <Skeleton className="h-2.5 w-32" />
+        </div>
+      </div>
+    );
   }
 
   return (
