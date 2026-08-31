@@ -1013,6 +1013,40 @@ describe('DataroomPage', () => {
             });
         });
 
+        it('disables Save button and prevents submit when storage quota input is cleared', async () => {
+            const user = userEvent.setup();
+            api.getDataroom.mockResolvedValue({
+                data: {
+                    ...mockDataroomRoot,
+                    created_by: 'u1',
+                    storage_version: 2,
+                    storage_quota_mb: 500,
+                    storage_used_bytes: 104857600,
+                }
+            });
+
+            renderComponent();
+            expect(await screen.findByRole('heading', { name: 'Test Dataroom' })).toBeInTheDocument();
+
+            // Switch to Settings tab
+            const settingsTab = screen.getByRole('tab', { name: 'Settings' });
+            await user.click(settingsTab);
+
+            // Update storage quota input to empty string
+            const quotaInput = screen.getByLabelText('Storage Quota (MB)');
+            expect(quotaInput).toHaveValue(500);
+
+            await user.clear(quotaInput);
+            expect(quotaInput).toHaveValue(null);
+
+            const storageHeading = screen.getByText('Storage & Quota');
+            const storageSection = storageHeading.closest('div.pb-6');
+            const saveButton = within(storageSection).getByRole('button', { name: 'Save Changes' });
+
+            // Save button MUST be disabled when empty
+            expect(saveButton).toBeDisabled();
+        });
+
         it('shows legacy storage upgrade banner for v1 dataroom and handles upgrade', async () => {
             const user = userEvent.setup();
             api.getDataroom.mockResolvedValue({
@@ -1038,8 +1072,8 @@ describe('DataroomPage', () => {
             await user.click(settingsTab);
 
             // Check legacy storage upgrade banner is displayed
-            expect(await screen.findByText('Legacy Storage Architecture (v1)')).toBeInTheDocument();
-            const upgradeButton = screen.getByRole('button', { name: 'Upgrade to Modern Storage' });
+            expect(await screen.findByText('Legacy User-Scoped Storage (v1)')).toBeInTheDocument();
+            const upgradeButton = screen.getByRole('button', { name: 'Upgrade to Org-Scoped Storage' });
             expect(upgradeButton).toBeInTheDocument();
 
             await user.click(upgradeButton);
@@ -1047,7 +1081,7 @@ describe('DataroomPage', () => {
             // Confirm in dialog
             expect(await screen.findByText('Upgrade Storage Architecture?')).toBeInTheDocument();
             const dialog = screen.getByRole('dialog');
-            const confirmBtn = within(dialog).getByRole('button', { name: 'Upgrade to Modern Storage' });
+            const confirmBtn = within(dialog).getByRole('button', { name: 'Upgrade to Org-Scoped Storage' });
             await user.click(confirmBtn);
 
             await waitFor(() => {

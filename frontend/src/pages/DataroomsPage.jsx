@@ -300,12 +300,12 @@ export function DataroomsPage() {
                       {isOwner ? (
                         <>
                           <Crown className="h-3 w-3 mr-1 text-amber-600 dark:text-amber-400" />
-                          {t('datarooms.ownerRole', { defaultValue: 'Owner' })}
+                          {t('datarooms.ownerRole')}
                         </>
                       ) : (
                         <>
                           <Users className="h-3 w-3 mr-1 text-indigo-600 dark:text-indigo-400" />
-                          {t('datarooms.collaboratorRole', { defaultValue: 'Collaborator' })}
+                          {t('datarooms.collaboratorRole')}
                         </>
                       )}
                     </Badge>

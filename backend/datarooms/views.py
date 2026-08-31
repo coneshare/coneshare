@@ -96,16 +96,24 @@ class DataroomViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Returns datarooms accessible to the requesting user, with optional scope filtering.
+        In the standard user workspace list, both admins and members see only rooms they
+        participate in (created_by or collaborator). Enterprise governance is handled via
+        /api/v1/admin/datarooms/.
         """
         user = self.request.user
-        qs = get_dataroom_queryset_for_user(user)
+        if self.action != 'list' and getattr(user, 'role', '') == 'admin':
+            qs = Dataroom.objects.filter(organization=user.organization)
+        else:
+            qs = Dataroom.objects.filter(
+                Q(created_by=user) | Q(collaborators__user=user),
+                organization=user.organization
+            ).distinct()
+
         scope = self.request.query_params.get('scope')
         if scope == 'created_by_me':
             qs = qs.filter(created_by=user)
         elif scope == 'shared_with_me':
             qs = qs.filter(collaborators__user=user)
-        elif scope == 'org' and getattr(user, 'role', '') == 'admin':
-            qs = Dataroom.objects.filter(organization=user.organization)
         return qs.select_related('created_by').prefetch_related('collaborators', 'collaborators__user')
 
     def perform_create(self, serializer):

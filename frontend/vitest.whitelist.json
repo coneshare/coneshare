@@ -46,6 +46,7 @@
     "src/tests/components/datarooms/ManagePermissionsDialog.test.jsx",
     "src/tests/utils/formatters.test.js",
     "src/tests/hooks/useDebounce.test.js",
-    "src/tests/pages/DocumentPage.test.jsx"
+    "src/tests/pages/DocumentPage.test.jsx",
+    "src/tests/pages/AdminDataroomsPage.test.jsx"
   ]
 }

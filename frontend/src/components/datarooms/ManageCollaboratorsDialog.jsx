@@ -31,6 +31,10 @@ import {
   addDataroomCollaborators,
   removeDataroomCollaborator,
   getEligibleCollaborators,
+  getAdminDataroomCollaborators,
+  addAdminDataroomCollaborators,
+  removeAdminDataroomCollaborator,
+  getAdminEligibleCollaborators,
 } from '../../services/api';
 import { getAvatarInitial, isDataroomOwner } from '../../utils/formatters';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -40,6 +44,7 @@ export function ManageCollaboratorsDialog({
   onOpenChange,
   dataroom,
   onCollaboratorsUpdated,
+  isAdmin = false,
 }) {
   const { t } = useTranslation();
   const { user: currentUser } = useUser();
@@ -61,33 +66,35 @@ export function ManageCollaboratorsDialog({
 
   const isOwner = isDataroomOwner(dataroom, currentUser);
   const isOrgAdmin = currentUser?.role === 'admin';
-  const canManage = isOwner || isOrgAdmin;
+  const canManage = isOwner || isOrgAdmin || isAdmin;
 
   const fetchCollaborators = useCallback(async () => {
     if (!dataroom?.id) return;
     setIsLoading(true);
     try {
-      const res = await getDataroomCollaborators(dataroom.id);
+      const fetchFn = isAdmin ? getAdminDataroomCollaborators : getDataroomCollaborators;
+      const res = await fetchFn(dataroom.id);
       setCollaboratorsData(res.data);
     } catch (err) {
       // Handled by api interceptor
     } finally {
       setIsLoading(false);
     }
-  }, [dataroom?.id]);
+  }, [dataroom?.id, isAdmin]);
 
   const fetchEligibleUsers = useCallback(async (q = '') => {
     if (!dataroom?.id || !canManage) return;
     setIsSearching(true);
     try {
-      const res = await getEligibleCollaborators(dataroom.id, q);
+      const fetchFn = isAdmin ? getAdminEligibleCollaborators : getEligibleCollaborators;
+      const res = await fetchFn(dataroom.id, q);
       setEligibleUsers(res.data || []);
     } catch (err) {
       // Handled by api interceptor
     } finally {
       setIsSearching(false);
     }
-  }, [dataroom?.id, canManage]);
+  }, [dataroom?.id, canManage, isAdmin]);
 
   useEffect(() => {
     if (isOpen && dataroom?.id) {
@@ -120,7 +127,11 @@ export function ManageCollaboratorsDialog({
     if (selectedUserIds.length === 0) return;
     setIsAdding(true);
     try {
-      await addDataroomCollaborators(dataroom.id, { user_ids: selectedUserIds });
+      if (isAdmin) {
+        await addAdminDataroomCollaborators(dataroom.id, selectedUserIds);
+      } else {
+        await addDataroomCollaborators(dataroom.id, { user_ids: selectedUserIds });
+      }
       toast.success(t('datarooms.addedCollaboratorsSuccess'));
       setSelectedUserIds([]);
       setSearchQuery('');
@@ -138,7 +149,8 @@ export function ManageCollaboratorsDialog({
     if (!collabToRemove) return;
     setIsRemoving(true);
     try {
-      await removeDataroomCollaborator(dataroom.id, collabToRemove.user.id);
+      const removeFn = isAdmin ? removeAdminDataroomCollaborator : removeDataroomCollaborator;
+      await removeFn(dataroom.id, collabToRemove.user.id);
       toast.success(t('datarooms.removeCollaboratorSuccess'));
       setCollabToRemove(null);
       await fetchCollaborators();

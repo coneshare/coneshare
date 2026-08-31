@@ -333,7 +333,7 @@ export function AdminUserDetailPage() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-xl font-bold">{t('admin.dataroomsCount', { count: user.total_datarooms || 0 })}</CardTitle>
-          <CardDescription>{t('admin.dataroomsDesc', 'Secure workspaces created by this user.')}</CardDescription>
+          <CardDescription>{t('admin.userDataroomsDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>

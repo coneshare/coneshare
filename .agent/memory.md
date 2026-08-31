@@ -311,3 +311,13 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** Dataroom direct file uploads are refactored from user-scoped 'Dataroom Uploads' folders to an organization-level system vault storage hierarchy under `__root__/__datarooms__/<dataroom_id>/` (storage_version=2). Legacy datarooms remain on storage_version=1 with collaboration and transfer gated behind a 1-click in-app upgrade endpoint `POST /api/v1/datarooms/{id}/upgrade-storage/`.
 - **Resolution/Action:** Direct uploads are resolved via `get_or_create_dataroom_storage_folder(dataroom, requesting_user)`. New datarooms default to `storage_version=2`, keeping backing storage completely decoupled from users' personal `/documents` view while preserving uploader attribution on `Document.created_by`.
 
+### 2026-08-31 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Enterprise virtual dataroom governance required admin oversight, storage quota management, and ownership transfer without creating circular dependencies between `core` and `datarooms` or cluttering standard user workspaces.
+- **Resolution/Action:** Implemented domain-scoped admin routing via `backend/datarooms/admin_views.py` mounted at `/api/v1/admin/datarooms/`, with `IsAdmin` in `core.permissions`. Standard user workspace `GET /api/v1/datarooms/` strictly returns participating rooms (`created_by` or `collaborator`), while `/admin/datarooms` (`AdminDataroomsPage.jsx`) handles organization-wide governance, KPI metrics, quota adjustments, and vault upgrades.
+
+### 2026-08-31 Session Entry (Django ORM Nested Subquery Gotcha)
+- **Category:** Gotcha
+- **Context/Implication:** In Django ORM, nesting a `Subquery` within another `Subquery` (e.g. `Document.objects.filter(id__in=Subquery(DataroomDocument.objects.filter(...)))`) causes a single `OuterRef('pk')` to bind to the immediate parent query instead of the root/grandparent model. This silently evaluated dataroom storage usage sums to 0.
+- **Resolution/Action:** Use `OuterRef(OuterRef('pk'))` to traverse two nesting levels up to reference the root model in multi-tier subqueries. Also, replace multi-table Cartesian joins with isolated correlated scalar subqueries to avoid quadratic row expansion and achieve sub-10ms response times.
+

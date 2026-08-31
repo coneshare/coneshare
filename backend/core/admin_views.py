@@ -11,7 +11,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from drf_spectacular.utils import extend_schema, extend_schema_field
 
 from core.pagination import StandardResultsSetPagination
-from core.permissions import APIKeyTierPermission
+from core.permissions import APIKeyTierPermission, IsAdmin
 from filerequests.models import SecurityThreatEvent
 from .models import AppConfiguration, LoginActivity, Organization
 from .settings_registry import (DEFAULT_SETTINGS, coerce_to_typed_value,
@@ -20,14 +20,6 @@ from .serializers import (AppConfigurationSerializer, LoginActivitySerializer,
                           UserSerializer, OrganizationSerializer)
 
 User = get_user_model()
-
-
-class IsAdmin(permissions.BasePermission):
-    """
-    Allows access only to admin users.
-    """
-    def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role == 'admin'
 
 
 class AdminSettingUpdateSerializer(serializers.Serializer):

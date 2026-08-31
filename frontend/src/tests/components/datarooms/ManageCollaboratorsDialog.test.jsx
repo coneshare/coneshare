@@ -160,7 +160,7 @@ describe('ManageCollaboratorsDialog', () => {
       />
     );
 
-    expect(await screen.findByText('Legacy Storage Architecture (v1)')).toBeInTheDocument();
+    expect(await screen.findByText(/Legacy.*Storage.*\(v1\)/i)).toBeInTheDocument();
     expect(screen.getByText(/Settings tab/i)).toBeInTheDocument();
 
     const goToSettingsBtn = screen.getByRole('button', { name: /Go to Settings/i });

@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
-import { ShareIcon, Star, ArrowLeft, ChevronDown, FolderUp, Plus, Loader2, AlertTriangle, Crown, Users, HardDrive } from 'lucide-react';
+import { ShareIcon, Star, ArrowLeft, ChevronDown, FolderUp, Plus, Loader2, AlertTriangle, Crown, Users, HardDrive, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatBytes } from '../lib/formatters';
 import { isDataroomOwner, isDataroomCollaborator } from '../utils/formatters';
@@ -46,7 +46,7 @@ import {
 } from '../components/ui/Dialog';
 
 const BRAND_PRESETS = [
-  { name: 'Slate', primary: '#1f2937', secondary: '#4b5563', accent: '#111827' },
+  { name: 'Default', primary: '#111827', secondary: '#4b5563', accent: '#1f2937' },
   { name: 'Ocean', primary: '#0f4c81', secondary: '#2a6f9e', accent: '#0b3559' },
   { name: 'Forest', primary: '#1f6f5f', secondary: '#3d8d7a', accent: '#174f44' },
   { name: 'Sunset', primary: '#b45309', secondary: '#d97706', accent: '#7c2d12' },
@@ -55,6 +55,14 @@ const BRAND_PRESETS = [
 ];
 
 const MAX_STORAGE_QUOTA_MB = 1048576; // 1 TB (1,048,576 MB)
+
+const QUOTA_PRESETS = [
+  { label: 'Unlimited', value: 0 },
+  { label: '500 MB', value: 500 },
+  { label: '1 GB', value: 1024 },
+  { label: '5 GB', value: 5120 },
+  { label: '10 GB', value: 10240 },
+];
 
 export function DataroomPage() {
   const { t } = useTranslation();
@@ -681,16 +689,18 @@ export function DataroomPage() {
   };
 
   const handleSaveStorageQuota = async () => {
+    if (storageQuotaMb === '' || storageQuotaMb === null) return;
+    const parsed = Number(storageQuotaMb);
+    if (!Number.isInteger(parsed) || parsed < 0) return;
     setIsSavingStorageQuota(true);
     try {
-      const parsed = parseInt(storageQuotaMb, 10);
-      const safeQuota = isNaN(parsed) ? 0 : Math.max(0, Math.min(parsed, MAX_STORAGE_QUOTA_MB));
+      const safeQuota = Math.max(0, Math.min(parsed, MAX_STORAGE_QUOTA_MB));
       setStorageQuotaMb(safeQuota);
       const response = await updateDataroomBranding(dataroomId, {
         storageQuotaMb: safeQuota,
       });
       setDataroom(response.data);
-      toast.success(t('datarooms.storageQuotaUpdated', 'Storage quota updated.'));
+      toast.success(t('datarooms.storageQuotaUpdated'));
     } catch (error) {
       // Error toast handled by interceptor
     } finally {
@@ -703,7 +713,7 @@ export function DataroomPage() {
     try {
       const response = await upgradeDataroomStorage(dataroomId);
       setDataroom(response.data);
-      toast.success(t('datarooms.upgradeStorageSuccess', 'Dataroom successfully upgraded to Modern Storage Architecture (v2).'));
+      toast.success(t('datarooms.upgradeStorageSuccess'));
     } catch (error) {
       // Error toast handled by interceptor
     } finally {
@@ -810,15 +820,22 @@ export function DataroomPage() {
   const isOrgAdmin = user?.role === 'admin';
   const canManage = isOwner || isOrgAdmin;
 
-  // Derived storage quota calculations
+  // Derived storage quota calculations with live preview support
   const currentQuotaMb = dataroom?.storage_quota_mb || 0;
-  const currentQuotaBytes = currentQuotaMb * 1024 * 1024;
   const currentUsedBytes = dataroom?.storage_used_bytes || 0;
-  const currentUsageRatio = currentQuotaBytes > 0 ? currentUsedBytes / currentQuotaBytes : 0;
-  const currentUsagePercent = Math.min(100, Math.round(currentUsageRatio * 100));
-  const currentAvailableMb = currentQuotaBytes > 0
-    ? Math.max(0, Math.round((currentQuotaBytes - currentUsedBytes) / (1024 * 1024)))
+
+  // Live preview values based on user input
+  const isQuotaEmpty = storageQuotaMb === '' || storageQuotaMb === null;
+  const parsedActiveQuota = Number(storageQuotaMb);
+  const isValidIntegerQuota = !isQuotaEmpty && Number.isInteger(parsedActiveQuota) && parsedActiveQuota >= 0;
+  const activeQuotaMb = isValidIntegerQuota ? parsedActiveQuota : currentQuotaMb;
+  const activeQuotaBytes = activeQuotaMb * 1024 * 1024;
+  const activeUsageRatio = activeQuotaBytes > 0 ? currentUsedBytes / activeQuotaBytes : 0;
+  const activeUsagePercent = Math.min(100, Math.round(activeUsageRatio * 100));
+  const activeAvailableMb = activeQuotaBytes > 0
+    ? Math.max(0, Math.round((activeQuotaBytes - currentUsedBytes) / (1024 * 1024)))
     : 0;
+  const isQuotaDirty = isValidIntegerQuota && activeQuotaMb !== currentQuotaMb;
 
   const dataroomThemeStyle = {
     '--dataroom-primary': dataroom.brand_primary_color || '#111827',
@@ -844,12 +861,12 @@ export function DataroomPage() {
                 {isOwner ? (
                   <>
                     <Crown className="h-3 w-3 mr-1 text-amber-600 dark:text-amber-400" />
-                    {t('datarooms.ownerRole', { defaultValue: 'Owner' })}
+                    {t('datarooms.ownerRole')}
                   </>
                 ) : (
                   <>
                     <Users className="h-3 w-3 mr-1 text-indigo-600 dark:text-indigo-400" />
-                    {t('datarooms.collaboratorRole', { defaultValue: 'Collaborator' })}
+                    {t('datarooms.collaboratorRole')}
                   </>
                 )}
               </Badge>
@@ -1314,30 +1331,36 @@ export function DataroomPage() {
               <div className="rounded-xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
                   <div className="space-y-1">
-                    <div className="flex items-baseline gap-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-base font-semibold tracking-tight text-foreground">
-                        {formatBytes(currentUsedBytes)} {currentQuotaMb > 0 ? `/ ${currentQuotaMb} MB` : `/ ${t('common.unlimited')}`}
+                        {formatBytes(currentUsedBytes)} {activeQuotaMb > 0 ? `/ ${activeQuotaMb} MB` : `/ ${t('common.unlimited')}`}
                       </span>
+                      {isQuotaDirty && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/30 bg-primary/10 text-primary flex items-center gap-1">
+                          <Sparkles className="h-2.5 w-2.5" />
+                          {t('admin.preview')}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {currentQuotaMb > 0
-                        ? `${currentAvailableMb} MB ${t('common.available', { defaultValue: 'available' })}`
-                        : t('datarooms.unlimitedStorageActive', { defaultValue: 'No storage limit applied to this dataroom.' })}
+                      {activeQuotaMb > 0
+                        ? `${activeAvailableMb} MB ${t('common.available')}`
+                        : t('datarooms.unlimitedStorageActive')}
                     </p>
                   </div>
                   <div className="self-start sm:self-center">
-                    {currentQuotaMb > 0 ? (
+                    {activeQuotaMb > 0 ? (
                       <Badge
                         variant="outline"
                         className={`font-semibold text-xs ${
-                          currentUsageRatio > 0.9
+                          activeUsageRatio > 0.9
                             ? 'border-red-500/30 bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
-                            : currentUsageRatio > 0.75
+                            : activeUsageRatio > 0.75
                             ? 'border-amber-500/30 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
-                            : 'border-primary/20 bg-primary/5 text-primary'
+                            : 'border-emerald-500/30 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
                         }`}
                       >
-                        {currentUsagePercent}% {t('admin.used', { defaultValue: 'used' })}
+                        {activeUsagePercent}% {t('admin.used')}
                       </Badge>
                     ) : (
                       <Badge
@@ -1353,68 +1376,97 @@ export function DataroomPage() {
                 {/* Visual Progress Bar */}
                 <div className="w-full bg-muted/60 dark:bg-muted/40 h-2.5 rounded-full overflow-hidden p-0.5 border border-border/50">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      currentQuotaMb > 0
-                        ? currentUsageRatio > 0.9
-                          ? 'bg-red-500'
-                          : currentUsageRatio > 0.75
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      activeQuotaMb > 0
+                        ? activeUsageRatio > 0.9
+                          ? 'bg-rose-500'
+                          : activeUsageRatio > 0.75
                           ? 'bg-amber-500'
-                          : 'bg-primary'
-                        : 'bg-primary/40 w-full'
+                          : 'bg-emerald-500'
+                        : 'bg-emerald-500/40 w-full'
                     }`}
                     style={{
-                      width: currentQuotaMb > 0 ? `${currentUsagePercent}%` : '100%',
+                      width: activeQuotaMb > 0 ? `${activeUsagePercent}%` : '100%',
                     }}
                   />
                 </div>
 
-                {/* Quota Management Control (Owner & Admin only) */}
+                {/* Quota Management Control & Quick Presets (Owner & Admin only) */}
                 {canManage && (
-                  <div className="pt-4 border-t border-border/60 space-y-2">
-                    <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-                      <div className="flex-1 max-w-xs space-y-1.5">
-                        <Label htmlFor="dataroom-quota" className="text-xs font-medium text-muted-foreground">
-                          {t('datarooms.storageQuotaMb')}
-                        </Label>
-                        <div className="relative">
-                          <Input
-                            id="dataroom-quota"
-                            type="number"
-                            min="0"
-                            max={MAX_STORAGE_QUOTA_MB}
-                            value={storageQuotaMb}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (val === '') {
-                                setStorageQuotaMb('');
-                                return;
-                              }
-                              const parsed = parseInt(val, 10);
-                              if (!isNaN(parsed)) {
-                                setStorageQuotaMb(Math.max(0, Math.min(parsed, MAX_STORAGE_QUOTA_MB)));
-                              }
-                            }}
-                            placeholder="0"
-                            className="pr-12 font-medium bg-background"
-                          />
-                          <span className="absolute right-3 top-2.5 text-xs font-semibold text-muted-foreground pointer-events-none">
-                            MB
-                          </span>
-                        </div>
+                  <div className="pt-4 border-t border-border/60 space-y-4">
+                    {/* Quick Presets */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-primary" />
+                        {t('admin.quickPresets')}
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {QUOTA_PRESETS.map((preset) => {
+                          const isSelected = activeQuotaMb === preset.value;
+                          return (
+                            <button
+                              key={preset.value}
+                              type="button"
+                              onClick={() => setStorageQuotaMb(preset.value)}
+                              className={`px-3 py-1 text-xs font-medium rounded-md border transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                                  : 'bg-background hover:bg-muted text-foreground border-border'
+                              }`}
+                            >
+                              {preset.value === 0 ? t('common.unlimited') : preset.label}
+                            </button>
+                          );
+                        })}
                       </div>
-                      <Button
-                        size="default"
-                        onClick={handleSaveStorageQuota}
-                        disabled={isSavingStorageQuota}
-                        className="shrink-0 gap-1.5"
-                      >
-                        {isSavingStorageQuota && <Loader2 className="h-4 w-4 animate-spin" />}
-                        {isSavingStorageQuota ? t('common.saving') : t('common.save')}
-                      </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {t('datarooms.storageQuotaHelp')}
-                    </p>
+
+                    <div className="space-y-1.5">
+                      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                        <div className="flex-1 max-w-xs space-y-1.5">
+                          <Label htmlFor="dataroom-quota" className="text-xs font-medium text-muted-foreground">
+                            {t('datarooms.storageQuotaMb')}
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              id="dataroom-quota"
+                              type="number"
+                              min="0"
+                              max={MAX_STORAGE_QUOTA_MB}
+                              value={storageQuotaMb}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === '') {
+                                  setStorageQuotaMb('');
+                                  return;
+                                }
+                                const parsed = parseInt(val, 10);
+                                if (!isNaN(parsed)) {
+                                  setStorageQuotaMb(Math.max(0, Math.min(parsed, MAX_STORAGE_QUOTA_MB)));
+                                }
+                              }}
+                              placeholder="0"
+                              className="pr-12 font-medium bg-background"
+                            />
+                            <span className="absolute right-3 top-2.5 text-xs font-semibold text-muted-foreground pointer-events-none">
+                              MB
+                            </span>
+                          </div>
+                        </div>
+                        <Button
+                          size="default"
+                          onClick={handleSaveStorageQuota}
+                          disabled={isSavingStorageQuota || isQuotaEmpty || !isQuotaDirty}
+                          className="shrink-0 gap-1.5"
+                        >
+                          {isSavingStorageQuota && <Loader2 className="h-4 w-4 animate-spin" />}
+                          {isSavingStorageQuota ? t('common.saving') : t('common.save')}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {t('datarooms.storageQuotaHelp')}
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1582,12 +1634,9 @@ export function DataroomPage() {
           setIsUpgradeStorageDialogOpen(false);
           await handleUpgradeStorage();
         }}
-        title={t('datarooms.upgradeStorageConfirmTitle', { defaultValue: 'Upgrade Storage Architecture?' })}
-        description={t('datarooms.upgradeStorageConfirmMessage', {
-          defaultValue:
-            'This will migrate all files and folders in this dataroom into the Modern System Storage Vault (v2). This enables team collaboration, instant ownership transfer, and decoupled organization storage. This action cannot be undone.',
-        })}
-        confirmText={t('datarooms.upgradeToModernStorage', { defaultValue: 'Upgrade to Modern Storage' })}
+        title={t('datarooms.upgradeStorageConfirmTitle')}
+        description={t('datarooms.upgradeStorageConfirmMessage')}
+        confirmText={t('datarooms.upgradeToModernStorage')}
         variant="default"
         isLoading={isUpgradingStorage}
       />

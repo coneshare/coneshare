@@ -13,7 +13,12 @@ import {
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/Avatar';
-import { getEligibleCollaborators, transferDataroomOwnership } from '../../services/api';
+import {
+  getEligibleCollaborators,
+  transferDataroomOwnership,
+  getAdminEligibleCollaborators,
+  transferAdminDataroomOwnership,
+} from '../../services/api';
 import { getAvatarInitial } from '../../utils/formatters';
 import { useDebounce } from '../../hooks/useDebounce';
 
@@ -22,6 +27,7 @@ export function TransferOwnershipDialog({
   onOpenChange,
   dataroom,
   onSuccess,
+  isAdmin = false,
 }) {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,14 +41,15 @@ export function TransferOwnershipDialog({
     if (!dataroom?.id) return;
     setIsLoading(true);
     try {
-      const res = await getEligibleCollaborators(dataroom.id, query);
+      const fetchFn = isAdmin ? getAdminEligibleCollaborators : getEligibleCollaborators;
+      const res = await fetchFn(dataroom.id, query);
       setEligibleUsers(res.data || []);
     } catch (err) {
       // Handled by api interceptor
     } finally {
       setIsLoading(false);
     }
-  }, [dataroom?.id]);
+  }, [dataroom?.id, isAdmin]);
 
   useEffect(() => {
     if (isOpen && dataroom?.id) {
@@ -66,7 +73,8 @@ export function TransferOwnershipDialog({
     if (!selectedUser || !dataroom?.id) return;
     setIsTransferring(true);
     try {
-      await transferDataroomOwnership(dataroom.id, selectedUser.id);
+      const transferFn = isAdmin ? transferAdminDataroomOwnership : transferDataroomOwnership;
+      await transferFn(dataroom.id, selectedUser.id);
       toast.success(t('datarooms.transferOwnershipSuccess'));
       onOpenChange(false);
       if (onSuccess) onSuccess();
