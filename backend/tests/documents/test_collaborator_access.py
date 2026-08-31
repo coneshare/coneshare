@@ -82,15 +82,23 @@ class TestCollaboratorDocumentAccess:
         assert response.data["created_by_user"]["email"] == "test@example.com"
 
     def test_collaborator_can_view_document_stats_and_sessions(
-        self, api_client, other_user, owner_document, co_managed_dataroom
+        self, api_client, user, other_user, owner_document, co_managed_dataroom
     ):
+        # Collaborator can access aggregate stats
         api_client.force_authenticate(user=other_user)
         stats_resp = api_client.get(f"/api/v1/documents/{owner_document.id}/stats/")
         assert stats_resp.status_code == status.HTTP_200_OK
         assert "total_views" in stats_resp.data
 
+        # But collaborator cannot access detailed visitor view-sessions
         sessions_resp = api_client.get(f"/api/v1/documents/{owner_document.id}/view-sessions/")
-        assert sessions_resp.status_code == status.HTTP_200_OK
+        assert sessions_resp.status_code == status.HTTP_403_FORBIDDEN
+
+        # Document owner can access detailed view-sessions
+        api_client.force_authenticate(user=user)
+        owner_sessions_resp = api_client.get(f"/api/v1/documents/{owner_document.id}/view-sessions/")
+        assert owner_sessions_resp.status_code == status.HTTP_200_OK
+
 
     @patch("documents.views.fileserver_client.generate_download_url")
     def test_collaborator_can_download_document(
