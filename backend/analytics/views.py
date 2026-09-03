@@ -1,7 +1,7 @@
 import logging
 from datetime import timedelta
 
-from django.db.models import Count, OuterRef, Subquery
+from django.db.models import Count, OuterRef, Prefetch, Subquery
 from django.utils import timezone
 from rest_framework import generics, permissions, serializers
 from rest_framework.response import Response
@@ -11,6 +11,8 @@ from drf_spectacular.utils import extend_schema
 from core.pagination import StandardResultsSetPagination
 from sharelinks.models import ShareLink, ViewSession
 from sharelinks.serializers import ShareLinkSerializer, ViewSessionSerializer
+from .serializers import (DashboardRecentLinkSerializer,
+                          DashboardRecentViewSessionSerializer)
 
 
 logger = logging.getLogger(__name__)
@@ -23,16 +25,20 @@ class DashboardSummaryView(APIView):
     """
 
     class DashboardSummaryResponseSerializer(serializers.Serializer):
-        recent_views = ViewSessionSerializer(many=True)
-        recent_links = ShareLinkSerializer(many=True)
+        recent_views = DashboardRecentViewSessionSerializer(many=True)
+        recent_links = DashboardRecentLinkSerializer(many=True)
 
     @extend_schema(responses={200: DashboardSummaryResponseSerializer})
     def get(self, request, *args, **kwargs):
         # 1. Get the 10 most recent view sessions
         recent_views = ViewSession.objects.filter(
             share_link__created_by=request.user
-        ).select_related('share_link', 'share_link__document').order_by('-viewed_at')[:10]
-        recent_views_serializer = ViewSessionSerializer(recent_views, many=True, context={'request': request})
+        ).select_related(
+            'share_link', 'share_link__document', 'share_link__dataroom'
+        ).order_by('-viewed_at')[:10]
+        recent_views_serializer = DashboardRecentViewSessionSerializer(
+            recent_views, many=True, context={'request': request}
+        )
 
         # 2. Get the 10 most recently active share links
         # A link is active if it has been viewed. We find the last view time for each link.
@@ -40,14 +46,27 @@ class DashboardSummaryView(APIView):
             share_link=OuterRef('pk')
         ).order_by('-viewed_at').values('viewed_at')[:1]
 
+        compact_view_qs = ViewSession.objects.only(
+            'id', 'share_link_id', 'viewer_email', 'user_agent', 'country', 'city',
+            'duration_seconds', 'completion_rate', 'viewed_at', 'downloaded_at'
+        ).order_by('-viewed_at')
+
         recent_links = ShareLink.objects.filter(
             created_by=request.user
-        ).select_related('document').annotate(
-            last_viewed_at=Subquery(latest_view_subquery)
+        ).select_related(
+            'document', 'dataroom', 'created_by'
+        ).annotate(
+            last_viewed_at=Subquery(latest_view_subquery),
+            annotated_view_count=Count('view_sessions')
         ).filter(
             last_viewed_at__isnull=False
+        ).prefetch_related(
+            'dataroom_settings',
+            Prefetch('view_sessions', queryset=compact_view_qs)
         ).order_by('-last_viewed_at')[:10]
-        recent_links_serializer = ShareLinkSerializer(recent_links, many=True, context={'request': request})
+        recent_links_serializer = DashboardRecentLinkSerializer(
+            recent_links, many=True, context={'request': request}
+        )
 
         return Response({
             'recent_views': recent_views_serializer.data,
