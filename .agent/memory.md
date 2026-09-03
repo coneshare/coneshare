@@ -321,3 +321,9 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** In Django ORM, nesting a `Subquery` within another `Subquery` (e.g. `Document.objects.filter(id__in=Subquery(DataroomDocument.objects.filter(...)))`) causes a single `OuterRef('pk')` to bind to the immediate parent query instead of the root/grandparent model. This silently evaluated dataroom storage usage sums to 0.
 - **Resolution/Action:** Use `OuterRef(OuterRef('pk'))` to traverse two nesting levels up to reference the root model in multi-tier subqueries. Also, replace multi-table Cartesian joins with isolated correlated scalar subqueries to avoid quadratic row expansion and achieve sub-10ms response times.
 
+### 2026-09-03 Session Entry
+- **Category:** Architecture Choice / Debugging Break
+- **Context/Implication:** `GET /api/v1/analytics/dashboard/` incurred ~1s response times and 550+ SQL queries due to recursive serializer over-fetching (`ShareLinkSerializer` invoking full `ViewSessionSerializer` with nested pageviews and dataroom visits) and unindexed correlated subqueries.
+- **Resolution/Action:** Created dedicated lightweight serializers in `backend/analytics/serializers.py` (`DashboardRecentViewSessionSerializer` and `DashboardRecentLinkSerializer`), added batch prefetching and annotations in `DashboardSummaryView`, and added composite index `models.Index(fields=['share_link', '-viewed_at'])` to `ViewSession.Meta`.
+
+

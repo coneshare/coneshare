@@ -231,6 +231,9 @@ class ViewSession(models.Model):
 
     class Meta:
         ordering = ['-viewed_at']
+        indexes = [
+            models.Index(fields=['share_link', '-viewed_at'], name='viewsession_link_viewed_idx'),
+        ]
 
 
 class QnAThread(BaseModel):

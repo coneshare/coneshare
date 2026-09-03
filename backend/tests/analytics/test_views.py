@@ -66,6 +66,66 @@ class TestDashboardAnalyticsViews:
         assert data['recent_links'][0]['name'] == "Link 1"  # most recent view
         assert data['recent_links'][1]['name'] == "Link 2"
 
+    def test_dashboard_summary_does_not_expose_link_password(self, api_client, user, document):
+        """
+        Test that recent_links in dashboard summary does NOT expose raw/decrypted password,
+        while maintaining has_password=True.
+        """
+        link = ShareLink.objects.create(
+            document=document,
+            created_by=user,
+            name="Protected Link",
+            password="mysecretpassword123"
+        )
+        ViewSession.objects.create(share_link=link, viewed_at=timezone.now())
+
+        response = api_client.get('/api/v1/analytics/dashboard/')
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data['recent_links']) >= 1
+        link_data = data['recent_links'][0]
+        assert link_data['name'] == "Protected Link"
+        assert link_data['has_password'] is True
+        assert 'password' not in link_data
+
+    def test_dashboard_summary_no_n_plus_one_queries(self, api_client, user, document, django_assert_num_queries):
+        """
+        Test that dashboard summary executes a bounded number of queries and does not
+        trigger deferred attribute loads (N+1) when sessions have viewers, ip_address,
+        and geo coordinates.
+        """
+        from sharelinks.models import Viewer
+        viewer1 = Viewer.objects.create(organization=user.organization, email="v1@example.com")
+        viewer2 = Viewer.objects.create(organization=user.organization, email="v2@example.com")
+
+        link = ShareLink.objects.create(document=document, created_by=user, name="Query Link")
+        for i in range(5):
+            ViewSession.objects.create(
+                share_link=link,
+                viewer=viewer1 if i % 2 == 0 else viewer2,
+                viewer_email=f"v{i}@example.com",
+                ip_address="192.168.1.1",
+                latitude=37.7749,
+                longitude=-122.4194,
+                duration_seconds=10 * i,
+                completion_rate=0.5,
+                viewed_at=timezone.now() - timedelta(minutes=i)
+            )
+
+        # With proper eager-loading, query count is constant:
+        # 1. recent_views query
+        # 2. recent_links query
+        # 3. dataroom_settings prefetch
+        # 4. view_sessions prefetch
+        with django_assert_num_queries(4):
+            response = api_client.get('/api/v1/analytics/dashboard/')
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert len(data['recent_views']) == 5
+            assert len(data['recent_links']) == 1
+            assert len(data['recent_links'][0]['recent_view_sessions']) == 5
+
+
     def test_daily_visits_view(self, api_client, share_link, user2):
         """
         Test that daily visits are aggregated correctly for the user's links only.
