@@ -3,7 +3,15 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddDataroomDialog } from '../../../components/datarooms/AddDataroomDialog';
 import * as api from '../../../services/api';
-import '../../../i18n';
+import i18n from '../../../i18n';
+import { toast } from 'sonner';
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
 
 vi.mock('../../../services/api', () => ({
   createDataroom: vi.fn(),
@@ -13,8 +21,9 @@ describe('AddDataroomDialog', () => {
   const mockOnSuccess = vi.fn();
   const mockOnOpenChange = vi.fn();
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    await i18n.changeLanguage('en');
   });
 
   it('renders correctly and disables submit button when name is empty', async () => {
@@ -94,6 +103,33 @@ describe('AddDataroomDialog', () => {
     resolvePromise({ data: { id: 'dr_123' } });
 
     await waitFor(() => {
+      expect(mockOnSuccess).toHaveBeenCalled();
+      expect(mockOnOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
+
+  it('displays localized success toast in Simplified Chinese when creating dataroom', async () => {
+    await i18n.changeLanguage('zh-hans');
+    api.createDataroom.mockResolvedValue({ data: { id: 'dr_123' } });
+
+    const user = userEvent.setup();
+    render(
+      <AddDataroomDialog
+        isOpen={true}
+        onOpenChange={mockOnOpenChange}
+        onSuccess={mockOnSuccess}
+      />
+    );
+
+    const input = screen.getByPlaceholderText(/Project Alpha|例如/i);
+    await user.type(input, '新项目');
+
+    const submitBtn = screen.getByRole('button', { name: /创建资料室/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(api.createDataroom).toHaveBeenCalledWith({ name: '新项目' });
+      expect(toast.success).toHaveBeenCalledWith('资料室创建成功。');
       expect(mockOnSuccess).toHaveBeenCalled();
       expect(mockOnOpenChange).toHaveBeenCalledWith(false);
     });

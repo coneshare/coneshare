@@ -30,6 +30,23 @@ class TestDataroomViewSet:
         assert len(response.data) == 1
         assert response.data[0]['name'] == "My Dataroom"
 
+    def test_list_datarooms_ordered_by_created_at_desc(self, api_client, user, organization):
+        """
+        Test that datarooms are returned in descending order of creation time (newest first).
+        """
+        dr1 = Dataroom.objects.create(name="First Room", organization=organization, created_by=user)
+        dr2 = Dataroom.objects.create(name="Second Room", organization=organization, created_by=user)
+        dr3 = Dataroom.objects.create(name="Third Room", organization=organization, created_by=user)
+
+        Dataroom.objects.filter(id=dr1.id).update(created_at=timezone.now() - timedelta(days=2))
+        Dataroom.objects.filter(id=dr2.id).update(created_at=timezone.now() - timedelta(days=1))
+        Dataroom.objects.filter(id=dr3.id).update(created_at=timezone.now())
+
+        response = api_client.get('/api/v1/datarooms/')
+        assert response.status_code == status.HTTP_200_OK
+        names = [item['name'] for item in response.data]
+        assert names == ["Third Room", "Second Room", "First Room"]
+
     def test_create_dataroom(self, api_client, user, organization):
         """Test creating a new dataroom."""
         assert Dataroom.objects.count() == 0

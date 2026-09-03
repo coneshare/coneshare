@@ -58,7 +58,7 @@ export function RenameItemDialog({ isOpen, onOpenChange, item, onSuccess, contex
         }
         await renameFn(item.id, trimmedName);
       }
-      toast.success(`"${item.name}" was renamed to "${trimmedName}".`);
+      toast.success(t('documents.renameSuccess', { oldName: item.name, newName: trimmedName }));
       onSuccess(); // This will trigger a data refresh
       onOpenChange(false); // Close the dialog
     } catch (err) {

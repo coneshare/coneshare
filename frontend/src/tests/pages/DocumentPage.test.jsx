@@ -3,11 +3,20 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import * as api from '../../services/api';
+import i18n from '../../i18n';
+import { toast } from 'sonner';
 
 vi.mock('../../services/api');
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+  },
+}));
 import { BreadcrumbProvider } from '../../components/layout/BreadcrumbProvider';
 import { DocumentPage } from '../../pages/DocumentPage';
-import '../../i18n';
 
 // Mock child components to isolate the page
 vi.mock('../../components/documents/DocumentHeader', () => ({
@@ -45,8 +54,9 @@ vi.mock('../../contexts/UserProvider', () => ({
 }));
 
 describe('DocumentPage', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetAllMocks();
+    await i18n.changeLanguage('en');
     mockCurrentUser = { id: 'u1', role: 'user' };
     api.getCloudProviders.mockResolvedValue({ data: [] });
     api.getCloudConnections.mockResolvedValue({ data: [] });
@@ -303,7 +313,8 @@ describe('DocumentPage', () => {
       expect(await screen.findByText('Documents Page')).toBeInTheDocument();
     });
 
-    it('handles document renaming', async () => {
+    it('handles document renaming with localized toast', async () => {
+      await i18n.changeLanguage('zh-hans');
       api.renameDocument.mockResolvedValue({ data: { id: 'doc123', name: 'New Document Name' } });
 
       renderComponent();
@@ -312,6 +323,7 @@ describe('DocumentPage', () => {
 
       await waitFor(() => {
         expect(api.renameDocument).toHaveBeenCalledWith('doc123', 'New Document Name');
+        expect(toast.success).toHaveBeenCalledWith('文档重命名成功。');
       });
     });
 

@@ -267,7 +267,7 @@ export function DocumentPage() {
       await renameDocument(documentId, newName);
       setDocument(prev => ({ ...prev, name: newName }));
       setBreadcrumbData(prev => prev ? { ...prev, documentName: newName } : null);
-      toast.success("Document renamed successfully.");
+      toast.success(t('documents.documentRenamedSuccess'));
     } catch (error) {
       console.error("Failed to rename document:", error);
       toast.error(getLocalizedErrorMessage(error, "Failed to rename document."));

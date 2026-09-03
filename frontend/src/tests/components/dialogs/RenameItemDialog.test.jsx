@@ -3,7 +3,15 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RenameItemDialog } from '../../../components/dialogs/RenameItemDialog';
 import * as api from '../../../services/api';
-import '../../../i18n';
+import i18n from '../../../i18n';
+import { toast } from 'sonner';
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
 
 vi.mock('../../../services/api', () => ({
   renameDocument: vi.fn(),
@@ -18,8 +26,9 @@ describe('RenameItemDialog', () => {
   const mockOnOpenChange = vi.fn();
   const mockItem = { id: 'doc-1', name: 'Original.pdf', type: 'document' };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    await i18n.changeLanguage('en');
   });
 
   it('renders rename dialog with current item name', () => {
@@ -83,6 +92,36 @@ describe('RenameItemDialog', () => {
     resolvePromise({ data: {} });
 
     await waitFor(() => {
+      expect(mockOnSuccess).toHaveBeenCalled();
+      expect(mockOnOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
+
+  it('displays localized success toast in Simplified Chinese when renaming dataroom', async () => {
+    await i18n.changeLanguage('zh-hans');
+    api.updateDataroom.mockResolvedValue({ data: {} });
+
+    const user = userEvent.setup();
+    render(
+      <RenameItemDialog
+        isOpen={true}
+        onOpenChange={mockOnOpenChange}
+        item={{ id: 'dr-1', name: 'alpha 项目', type: 'Dataroom' }}
+        onSuccess={mockOnSuccess}
+        context="dataroom"
+      />
+    );
+
+    const input = screen.getByDisplayValue('alpha 项目');
+    await user.clear(input);
+    await user.type(input, 'alpha 项目 x');
+
+    const renameBtn = screen.getByRole('button', { name: /重命名/i });
+    fireEvent.click(renameBtn);
+
+    await waitFor(() => {
+      expect(api.updateDataroom).toHaveBeenCalledWith('dr-1', { name: 'alpha 项目 x' });
+      expect(toast.success).toHaveBeenCalledWith('“alpha 项目”已重命名为“alpha 项目 x”。');
       expect(mockOnSuccess).toHaveBeenCalled();
       expect(mockOnOpenChange).toHaveBeenCalledWith(false);
     });

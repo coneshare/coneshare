@@ -36,7 +36,7 @@ export function AddDataroomDialog({ isOpen, onOpenChange, onSuccess }) {
     setIsSubmitting(true);
     try {
       await createDataroom({ name: trimmedName });
-      toast.success('Dataroom created successfully.');
+      toast.success(t('datarooms.createSuccess'));
       onSuccess?.();
       setName('');
       onOpenChange(false);

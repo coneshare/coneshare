@@ -114,7 +114,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
             qs = qs.filter(created_by=user)
         elif scope == 'shared_with_me':
             qs = qs.filter(collaborators__user=user)
-        return qs.select_related('created_by').prefetch_related('collaborators', 'collaborators__user')
+        return qs.select_related('created_by').prefetch_related('collaborators', 'collaborators__user').order_by('-created_at', '-id')
 
     def perform_create(self, serializer):
         """

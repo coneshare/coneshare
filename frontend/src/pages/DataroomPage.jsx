@@ -727,7 +727,7 @@ export function DataroomPage() {
         parent_id: currentFolderId || null,
         ordered_items: orderedItems.map((item) => ({ type: item.type, id: item.id })),
       });
-      toast.success('Display order updated.');
+      toast.success(t('datarooms.displayOrderUpdated'));
       setIsReorderDialogOpen(false);
       fetchContent();
     } catch (error) {

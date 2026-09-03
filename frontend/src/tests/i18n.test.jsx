@@ -65,6 +65,8 @@ describe('Frontend i18n System', () => {
     expect(testI18n.t('links.deleteSuccess', { name: 'Link A' })).toBe('链接“Link A”删除成功。');
     expect(testI18n.t('nav.adminPanel')).toBe('管理后台');
     expect(testI18n.t('settings.title')).toBe('用户设置');
+    expect(testI18n.t('datarooms.enableQnaHelp')).toBe('允许访问者在此资料室内提问。关闭此项将禁用该资料室所有链接中的问答功能。');
+    expect(testI18n.t('datarooms.displayOrderUpdated')).toBe('显示顺序已更新。');
   });
 
   it('switches language to Russian (ru)', async () => {
