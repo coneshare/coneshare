@@ -34,7 +34,7 @@ class DashboardSummaryView(APIView):
         recent_views = ViewSession.objects.filter(
             share_link__created_by=request.user
         ).select_related(
-            'share_link', 'share_link__document', 'share_link__dataroom'
+            'share_link', 'share_link__document', 'share_link__dataroom', 'viewer'
         ).order_by('-viewed_at')[:10]
         recent_views_serializer = DashboardRecentViewSessionSerializer(
             recent_views, many=True, context={'request': request}
@@ -46,11 +46,15 @@ class DashboardSummaryView(APIView):
             share_link=OuterRef('pk')
         ).order_by('-viewed_at').values('viewed_at')[:1]
 
-        compact_view_qs = ViewSession.objects.only(
-            'id', 'share_link_id', 'viewer_email', 'user_agent', 'country', 'city',
-            'duration_seconds', 'completion_rate', 'viewed_at', 'downloaded_at'
+        compact_view_qs = ViewSession.objects.select_related(
+            'viewer', 'share_link', 'share_link__document', 'share_link__dataroom'
         ).order_by('-viewed_at')
 
+        # TODO: Refactor unbounded prefetching for view_sessions if link history grows large.
+        # Currently, Prefetch loads all historical sessions per link into memory where
+        # DashboardRecentLinkSerializer slices [:10]. Consider either:
+        # 1) Deferring session loading to frontend on-demand (via /api/v1/analytics/view-sessions/?share_link_id=...), or
+        # 2) Bounded lateral join / windowed subquery to enforce top-10 per link at the database level.
         recent_links = ShareLink.objects.filter(
             created_by=request.user
         ).select_related(
