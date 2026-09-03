@@ -9,115 +9,105 @@ English | [中文](./README_zh.md)
 
 # Coneshare
 
-**Add virtual datarooms, secure sharing, document tracking, and workflow automation on top of your storage (Nextcloud, Google Drive, Dropbox). Self-hosted DocSend and VDR alternative.**
+Add virtual datarooms, secure sharing, document tracking, and workflow automation on top of your existing storage (Nextcloud, Google Drive, Dropbox). Self-hosted alternative to DocSend and traditional virtual datarooms.
 
-Coneshare is an open-source, self-hosted platform that adds a secure distribution layer to your existing files. Share documents and videos, track engagement in real time, and trigger workflows—while keeping your data in your own infrastructure.
+Coneshare is an open-source, self-hosted platform that adds a distribution and security layer to your files. Share documents and videos, track viewer engagement in real time, and run automations while keeping files on your own infrastructure.
 
-[Quick Start](https://github.com/coneshare/coneshare-compose) · [Docs](https://docs.coneshare.com/en/) · [Live Demo](https://www.coneshare.com/demo) · [Roadmap](https://github.com/orgs/coneshare/projects/2/) · [Forum](https://github.com/orgs/coneshare/discussions)
+[Quick start](https://github.com/coneshare/coneshare-compose) · [Docs](https://docs.coneshare.com/en/) · [Live demo](https://www.coneshare.com/demo) · [Roadmap](https://github.com/orgs/coneshare/projects/2/) · [Forum](https://github.com/orgs/coneshare/discussions)
 
-⭐ If this project is useful, please star the repo.
+If you find this project useful, please consider starring the repository.
 
 ![Coneshare 30s product walkthrough](https://github.com/coneshare/coneshare/releases/download/v1.2.0/overview-30s.gif)
 
 ---
 
-## How It Works
+## How it works
 
-Coneshare acts as a **layer on top of your storage**:
+Coneshare runs directly on top of your storage:
 
-- Files stay in your storage (Nextcloud, Google Drive, Dropbox)
+- Files remain in your storage provider (Nextcloud, Google Drive, or Dropbox).
 - Coneshare adds:
-  - Virtual datarooms and rich media previewing
-  - Secure sharing controls
+  - Virtual datarooms and media previews
+  - Access controls and link permissions
   - Document engagement tracking
-  - Workflow automation
+  - Webhooks and workflow automation
 
-Keep your storage workflow. Add secure links, data rooms, tracking, and automation.
-
-> Instead of asking “Did they read it?”, you’ll know exactly how your documents are used.
+Keep your existing storage workflows while gaining access controls, datarooms, and engagement analytics.
 
 ---
 
-## Why Coneshare
+## Features
 
-### 🗄️ Virtual Datarooms & Rich Previewing
-Transform your storage into a professional, interactive dataroom:
-- Seamlessly organize and present documents and rich media.
-- Fast rendering for PDFs and secure video streaming.
-- Inline viewers for effortless navigation between adjacent items.
+### Virtual datarooms and media previews
+- Organize documents and rich media into structured rooms.
+- PDF rendering and secure video streaming.
+- Inline viewers to navigate between related items.
 
-### 🔐 Control Layer
-Add secure sharing on top of your storage:
-- Password protection, expiration, and email verification.
-- Download restrictions and dynamic watermarking.
+### Access control
+- Password protection, link expiration dates, and email verification.
+- Download restrictions and dynamic watermarks.
 
-### 👁️ Intelligence Layer
-Understand how your content is consumed:
+### Analytics and engagement tracking
 - Track views, revisits, and downloads in real time.
-- Gain precise page-level engagement insights and media play metrics.
+- View page-by-page reading duration and video playback metrics.
 
-### ⚡ Action Layer
-Turn activity into workflows:
-- Slack and webhook integrations.
-- Real-time notifications and automation.
+### Automation and webhooks
+- Slack and webhook notifications for link events.
+- Trigger actions based on viewer activity.
 
-### 🧱 Built for your infrastructure
-- Self-hosted by design.
-- Works with your existing storage.
+### Infrastructure and privacy
+- Self-hosted on your own servers or private cloud.
+- Connects directly to existing storage without copying or duplicating files.
 
 ---
 
 ## Integrations
 
-Coneshare works with your existing storage:
+Coneshare connects with:
 
 - Nextcloud (self-hosted)
 - Google Drive
 - Dropbox
 
-More integrations coming soon.
+More storage connectors are in development.
 
 ---
 
-## Common Use Cases
+## Common use cases
 
-### 💼 Sales & Deal Workflows
-Understand how buyers explore your deal across datarooms and separate real prospects from the noise.
+### Sales and fundraising
+Share pitch decks and deal rooms with prospects, tracking which pages receive the most attention.
 
-### 🤝 Secure External Sharing
-Share sensitive documents externally with stronger access control, clearer visibility, and safer workflow governance.
+### Secure external sharing
+Send sensitive documents outside your company with access expiration, download controls, and viewer watermarking.
 
-### 🏛️ Compliance & Regulated Environments
-Adopt modern document workflows and dataroom capabilities without losing data sovereignty.
-
----
-
-## Who Is Coneshare For?
-
-Coneshare is built for teams who:
-
-- Use cloud or self-hosted storage (Nextcloud, Google Drive, Dropbox)
-- Share sensitive documents externally
-- Need visibility into document engagement
-- Prefer self-hosted or private infrastructure
+### Regulated environments
+Deploy dataroom workflows and external sharing while maintaining full control over file storage and compliance boundaries.
 
 ---
 
-## Deployment (Self-Hosted)
+## Who is Coneshare for?
 
-For production deployment and daily use, we recommend using our official Docker Compose setup. It includes automated Let's Encrypt SSL, production-ready reverse proxies, and optimized containers.
+Coneshare is designed for teams that:
 
-👉 **[Go to coneshare-compose for deployment instructions](https://github.com/coneshare/coneshare-compose)**
+- Store files in cloud or self-hosted storage (Nextcloud, Google Drive, Dropbox)
+- Share sensitive files with external parties
+- Need detailed document analytics and read receipts
+- Require self-hosted or private infrastructure
 
 ---
 
-## Local Development (Contributors)
+## Deployment (self-hosted)
 
-If you want to contribute to the Coneshare source code, you can run the development stack locally.
+For production deployments, use the [coneshare-compose repository](https://github.com/coneshare/coneshare-compose). It provides Docker Compose configurations with automated Let's Encrypt SSL, reverse proxy setups, and preconfigured containers.
 
-### Source Build
+---
 
-Run Coneshare locally for development and contribution:
+## Local development
+
+To run the codebase locally for development and contributions:
+
+### Source build
 
 ```bash
 git clone git@github.com:coneshare/coneshare.git
@@ -128,31 +118,31 @@ make up
 make migrate
 ```
 
-### First-Run Verification Checklist
+### First-run verification checklist
 
-After `make up` and `make migrate`, verify the basics before configuring storage integrations:
+After `make up` and `make migrate`, verify the local services before configuring storage integrations:
 
 - Frontend is reachable at [http://localhost:5173](http://localhost:5173)
 - API responds at [http://localhost:8000/api/v1/](http://localhost:8000/api/v1/)
 - Core services are up (`backend`, `frontend`, `core`, `redis`, `celery`)
-- Local files are persisted under the project data/storage volumes configured by `docker-compose.yml`
+- Local files persist under the project data and storage volumes defined in `docker-compose.yml`
 - Smoke test:
   - Upload one document
   - Create a share link
-  - Open that link in a private/incognito window and confirm view access works
+  - Open the link in a private browser window to confirm view access works
 
-### Troubleshooting First Install
+### Troubleshooting first install
 
 - `.env` and `SITE_DOMAIN` mismatch:
   - Confirm `.env` exists (copied from `.env.template`) and `SITE_DOMAIN` matches how you access the app locally.
 - Backend cannot reach `core` service:
-  - Check service names/ports in `docker-compose.yml` and inspect backend/core logs for connection errors.
-- Redis/Celery issues (background jobs not running):
-  - Confirm both `redis` and `celery` containers are running; then check Celery worker logs.
-- Local storage path/permission issues:
-  - Verify mounted storage paths exist and are writable by container processes.
+  - Check service names and ports in `docker-compose.yml`, then inspect backend and core logs for connection errors.
+- Redis or Celery issues (background jobs not running):
+  - Confirm both `redis` and `celery` containers are running, then check Celery worker logs.
+- Storage permissions:
+  - Verify mounted storage directories exist and are writable by container processes.
 - Where to look first:
-  - Run `make logs` from repo root, then focus on `backend`, `core`, and `celery` error lines first.
+  - Run `make logs` from the repository root, checking `backend`, `core`, and `celery` error output.
 
 ---
 
@@ -160,12 +150,12 @@ After `make up` and `make migrate`, verify the basics before configuring storage
 
 ![Coneshare architecture diagram](./docs/assets/readme/architecture-v1.3.png)
 
-Coneshare is a multi-service stack:
+Coneshare consists of four primary services:
 
-* `backend/`: Django + DRF API, Celery, Redis-based async tasks
-* `core/`: Go service for high-performance file delivery and media streaming
-* `frontend/`: React + Vite web app
-* `mcp-server/`: FastMCP Remote Server for AI Agent & assistant integrations
+* `backend/`: Django and DRF API, Celery, and Redis for background tasks
+* `core/`: Go service for file delivery and media streaming
+* `frontend/`: React and Vite web application
+* `mcp-server/`: FastMCP remote server for AI agent and assistant integrations
 
 Technical reference:
 
@@ -176,7 +166,7 @@ Technical reference:
 
 ## Contributing
 
-Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for our code of conduct and pull request process.
 
 ## Contributors
 

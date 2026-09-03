@@ -9,13 +9,13 @@
 
 # Coneshare
 
-**在您现有的存储（Nextcloud、Google Drive、Dropbox）之上添加虚拟资料室、安全分享、文档追踪和工作流自动化。自托管的 DocSend 与 VDR 替代方案。**
+在您现有的存储（Nextcloud、Google Drive、Dropbox）之上添加虚拟资料室、安全分享、文档追踪和工作流自动化。自托管的 DocSend 与传统虚拟资料室替代方案。
 
-Coneshare 是一个开源的自托管平台，为您现有的文件添加安全的共享与分发层。安全地分享文档和视频，实时追踪参与度并触发工作流——同时将数据保留在您自己的基础设施中。
+Coneshare 是一个开源的自托管平台，为您现有的文件添加安全分发层。分享文档和视频，实时追踪受众参与度，并触发自动化工作流，同时将文件完整保留在您自己的基础设施中。
 
 [快速开始](https://github.com/coneshare/coneshare-compose) · [文档](https://docs.coneshare.com/zh/) · [在线演示](https://www.coneshare.com/demo) · [路线图](https://github.com/orgs/coneshare/projects/2/) · [论坛](https://github.com/orgs/coneshare/discussions)
 
-⭐ 如果这个项目对您有帮助，请给个 Star。
+如果这个项目对您有帮助，欢迎给仓库点个 Star。
 
 ![Coneshare 30s product walkthrough](https://github.com/coneshare/coneshare/releases/download/v1.2.0/overview-30s.gif)
 
@@ -23,101 +23,91 @@ Coneshare 是一个开源的自托管平台，为您现有的文件添加安全�
 
 ## 工作原理
 
-Coneshare 充当您存储之上的**控制层**：
+Coneshare 直接运行在您的现有存储之上：
 
-- 文件保留在您的存储中 (Nextcloud、Google Drive、Dropbox)
+- 文件保留在您的存储提供商中（Nextcloud、Google Drive 或 Dropbox）。
 - Coneshare 提供：
-  - 虚拟资料室和富媒体预览
-  - 安全分享控制
+  - 虚拟资料室与多媒体预览
+  - 访问控制与链接权限
   - 文档参与度追踪
-  - 工作流自动化
+  - Webhook 与工作流自动化
 
-保留您的存储工作流。只需添加安全链接、资料室、追踪和自动化功能。
-
-> 与其问“他们读了吗？”，不如确切了解您的文档是如何被使用的。
+在保持现有存储工作流的同时，获得访问控制、虚拟资料室与参与度分析能力。
 
 ---
 
-## 为什么选择 Coneshare
+## 功能特性
 
-### 🗄️ 虚拟资料室与富媒体预览
-将您的存储转变为专业、互动的资料室：
-- 无缝组织和展示文档及富媒体。
-- 快速的 PDF 渲染和安全的视频流媒体。
-- 提供内联查看器，轻松在相邻文件间导航。
+### 虚拟资料室与媒体预览
+- 将文档和多媒体整理在结构化的资料室中。
+- PDF 渲染与安全视频流式传输。
+- 内联查看器，方便在相关项目之间切换浏览。
 
-### 🔐 控制层
-在您的存储之上添加安全分享功能：
-- 密码保护、访问过期以及电子邮件验证。
-- 下载限制和动态水印。
+### 访问控制
+- 密码保护、链接到期时间与邮箱验证。
+- 下载限制与动态水印。
 
-### 👁️ 智能层
-了解您的内容是如何被消费的：
-- 实时追踪浏览、重访和下载。
-- 获取精确的页面级参与度洞察和媒体播放指标。
+### 分析与参与度追踪
+- 实时追踪浏览、回访与下载。
+- 查看逐页阅读时长与视频播放指标。
 
-### ⚡ 动作层
-将活动转化为工作流：
-- Slack 和 Webhook 集成。
-- 实时通知和自动化。
+### 自动化与 Webhook
+- 链接事件的 Slack 与 Webhook 通知。
+- 根据访客行为触发自动化操作。
 
-### 🧱 专为您的基础设施打造
-- 原生支持自托管。
-- 与您现有的存储协同工作。
+### 基础设施与隐私
+- 完全自托管于您自己的服务器或私有云中。
+- 直接连接现有存储，不复制或冗余存储文件。
 
 ---
 
 ## 支持的集成
 
-Coneshare 可与您现有的存储完美协作：
+Coneshare 可连接：
 
-- Nextcloud (自托管)
+- Nextcloud（自托管）
 - Google Drive
 - Dropbox
 
-更多集成即将推出。
+更多存储连接器正在开发中。
 
 ---
 
 ## 常见用例
 
-### 💼 销售与交易工作流
-了解买家如何在资料室中探索您的交易，并从噪音中筛选出真正的潜在客户。
+### 销售与融资
+向潜在客户展示融资商业计划书与交易资料室，清晰掌握哪些页面最受关注。
 
-### 🤝 安全的外部共享
-通过更强大的访问控制、更清晰的可见性和更安全的工作流治理，在外部共享敏感文档。
+### 安全的外部共享
+向组织外部发送敏感文档，支持到期自动失效、下载限制和查看者水印。
 
-### 🏛️ 合规与受监管环境
-在不丧失数据主权的前提下，采用现代化的文档工作流和资料室功能。
+### 受监管环境
+在保持文件存储合规边界与数据自主可控的前提下，部署资料室与外部分享工作流。
 
 ---
 
 ## Coneshare 适合谁？
 
-Coneshare 专为以下团队打造：
+Coneshare 专为满足以下需求的团队打造：
 
-- 使用云存储或自托管存储 (Nextcloud, Google Drive, Dropbox)
-- 需要向外部共享敏感文档
-- 需要文档参与度的数据可见性
-- 倾向于自托管或私有基础设施
-
----
-
-## 部署 (自托管)
-
-对于生产部署和日常使用，我们建议使用官方的 Docker Compose 方案。它包含了自动化的 Let's Encrypt SSL、生产就绪的反向代理和经过优化的容器。
-
-👉 **[前往 coneshare-compose 获取部署说明](https://github.com/coneshare/coneshare-compose)**
+- 将文件存放在云存储或自托管存储中（Nextcloud、Google Drive、Dropbox）
+- 需要向外部合作伙伴分享敏感文件
+- 需要详细的文档数据洞察与阅读凭证
+- 要求自托管或私有基础设施
 
 ---
 
-## 本地开发 (面向贡献者)
+## 部署（自托管）
 
-如果您希望为 Coneshare 源代码做出贡献，可以在本地运行开发环境栈。
+生产环境部署请使用 [coneshare-compose 仓库](https://github.com/coneshare/coneshare-compose)。该仓库提供了包含自动化 Let's Encrypt SSL、反向代理以及预置容器配置的 Docker Compose 方案。
+
+---
+
+## 本地开发
+
+如需在本地运行代码库以进行开发或参与贡献：
 
 ### 从源码构建
-
-在本地运行 Coneshare 以进行开发和贡献：
 
 ```bash
 git clone git@github.com:coneshare/coneshare.git
@@ -130,29 +120,29 @@ make migrate
 
 ### 首次运行验证清单
 
-在执行 `make up` 和 `make migrate` 之后，在配置存储集成之前验证基础功能：
+执行 `make up` 和 `make migrate` 后，在配置存储集成之前验证本地服务：
 
 - 前端可通过 [http://localhost:5173](http://localhost:5173) 访问
 - API 可通过 [http://localhost:8000/api/v1/](http://localhost:8000/api/v1/) 访问
-- 核心服务已启动 (`backend`, `frontend`, `core`, `redis`, `celery`)
-- 本地文件已持久化在 `docker-compose.yml` 配置的 project data/storage 数据卷下
+- 核心服务已启动（`backend`、`frontend`、`core`、`redis`、`celery`）
+- 本地文件持久化在 `docker-compose.yml` 中定义的数据卷下
 - 冒烟测试：
   - 上传一个文档
   - 创建一个分享链接
-  - 在无痕/隐私窗口中打开该链接，并确认查看权限正常工作
+  - 在隐私/无痕浏览器窗口中打开链接，确认查看权限正常
 
 ### 首次安装故障排除
 
-- `.env` 和 `SITE_DOMAIN` 不匹配：
-  - 确认 `.env` 文件已存在（从 `.env.template` 复制），并且 `SITE_DOMAIN` 与您在本地访问应用的方式相匹配。
-- Backend 无法连接到 `core` 服务：
-  - 检查 `docker-compose.yml` 中的服务名称/端口，并查看 backend/core 的日志以寻找连接错误。
-- Redis/Celery 问题（后台任务未运行）：
-  - 确认 `redis` 和 `celery` 容器都在运行；然后检查 Celery worker 日志。
-- 本地存储路径/权限问题：
-  - 验证挂载的存储路径存在且可被容器进程写入。
-- 应该首先看哪里：
-  - 在仓库根目录运行 `make logs`，然后首先关注 `backend`, `core` 和 `celery` 的报错信息。
+- `.env` 与 `SITE_DOMAIN` 不匹配：
+  - 确认已从 `.env.template` 复制创建 `.env`，且 `SITE_DOMAIN` 与本地访问地址一致。
+- Backend 无法连接 `core` 服务：
+  - 检查 `docker-compose.yml` 中的服务名与端口，并查看 backend 和 core 日志中的连接错误。
+- Redis 或 Celery 异常（后台任务未执行）：
+  - 确认 `redis` 和 `celery` 容器均已运行，并检查 Celery worker 日志。
+- 存储权限问题：
+  - 确认挂载的存储目录存在且容器进程具有写入权限。
+- 排查优先关注：
+  - 在仓库根目录运行 `make logs`，优先检查 `backend`、`core` 和 `celery` 的报错信息。
 
 ---
 
@@ -160,12 +150,12 @@ make migrate
 
 ![Coneshare architecture diagram](./docs/assets/readme/architecture-v1.3.png)
 
-Coneshare 是一个多服务架构的系统：
+Coneshare 由四个主要服务组成：
 
-* `backend/`: Django + DRF API, Celery, 基于 Redis 的异步任务
-* `core/`: 用于高性能文件分发与媒体流传输的 Go 服务
-* `frontend/`: React + Vite Web 应用
-* `mcp-server/`: 用于 AI Agent 及智能助手集成的 FastMCP 远程服务器
+* `backend/`: Django 与 DRF API、Celery 以及用于后台任务的 Redis
+* `core/`: 用于文件分发与媒体流式传输的 Go 服务
+* `frontend/`: React 与 Vite Web 应用
+* `mcp-server/`: 用于 AI Agent 与智能助手集成的 FastMCP 远程服务器
 
 技术参考：
 
@@ -176,7 +166,7 @@ Coneshare 是一个多服务架构的系统：
 
 ## 参与贡献
 
-欢迎大家参与贡献。详情请参阅 [CONTRIBUTING.md](CONTRIBUTING.md)。
+欢迎参与贡献。详情请参阅 [CONTRIBUTING.md](CONTRIBUTING.md) 了解行为准则和 PR 提交流程。
 
 ## 贡献者
 
@@ -186,7 +176,7 @@ Coneshare 是一个多服务架构的系统：
 <table>
   <tbody>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/xiez"><img src="https://avatars.githubusercontent.com/u/1459699?v=4?s=100" width="100px;" alt="Zheng Xie"/><br /><sub><b>Zheng Xie</b></sub></a><br /><a href="https://github.com/coneshare/coneshare/commits?author=xiez" title="Code">💻</a> <a href="https://github.com/coneshare/coneshare/commits?author=xiez" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="https://github.com/coneshare/coneshare/commits?author=xiez" title="Documentation">📖</a> <a href="https://github.com/coneshare/coneshare/commits?author=xiez" title="Design">🎨</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/xiez"><img src="https://avatars.githubusercontent.com/u/1459699?v=4?s=100" width="100px;" alt="Justin Zheng"/><br /><sub><b>Justin Zheng</b></sub></a><br /><a href="https://github.com/coneshare/coneshare/commits?author=xiez" title="Code">💻</a> <a href="https://github.com/coneshare/coneshare/commits?author=xiez" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="https://github.com/coneshare/coneshare/commits?author=xiez" title="Documentation">📖</a> <a href="https://github.com/coneshare/coneshare/commits?author=xiez" title="Design">🎨</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/jamesramsay"><img src="https://avatars.githubusercontent.com/u/1191554?v=4?s=100" width="100px;" alt="James Ramsay"/><br /><sub><b>James Ramsay</b></sub></a><br /><a href="https://github.com/coneshare/coneshare/commits?author=jamesramsay" title="Code">💻</a> <a href="https://github.com/coneshare/coneshare/commits?author=jamesramsay" title="Tests">⚠️</a> <a href="https://github.com/coneshare/coneshare/issues?q=author%3Ajamesramsay" title="Bug reports">🐛</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/mfriedewald"><img src="https://avatars.githubusercontent.com/u/12811724?v=4?s=100" width="100px;" alt="Matthias Friedewald"/><br /><sub><b>Matthias Friedewald</b></sub></a><br /><a href="https://github.com/coneshare/coneshare/commits?author=mfriedewald" title="Code">💻</a> <a href="https://github.com/coneshare/coneshare/commits?author=mfriedewald" title="Tests">⚠️</a> <a href="https://github.com/coneshare/coneshare/issues?q=author%3Amfriedewald" title="Bug reports">🐛</a></td>
     </tr>
@@ -210,7 +200,7 @@ Coneshare 是一个多服务架构的系统：
 
 ## 许可证
 
-MIT License. 详情请参阅 [LICENSE](LICENSE).
+MIT License. 详情请参阅 [LICENSE](LICENSE)。
 
 ---
 
