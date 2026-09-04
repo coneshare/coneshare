@@ -5,8 +5,13 @@ from django.db import transaction
 from django.db.models import Q, Sum
 from django.utils import timezone
 
+from core.models import User
 from documents.models import Folder, Document
-from documents.services import delete_document_and_files, _get_unique_document_name, _get_unique_folder_name
+from documents.services import (
+    delete_document_and_files, _get_unique_document_name, _get_unique_folder_name,
+    recalculate_user_document_size
+)
+
 from .models import Dataroom, DataroomDocument, DataroomFolder
 from .utils import get_dataroom_storage_folder_name
 
@@ -243,7 +248,15 @@ def upgrade_dataroom_to_v2(dataroom: Dataroom) -> bool:
         ))
 
         # 3. Move direct contents into the system vault
+        affected_users = set()
+        if locked_dataroom.created_by:
+            affected_users.add(locked_dataroom.created_by)
+
         for old_folder in legacy_folders:
+            all_folder_ids = [old_folder.id] + [f.id for f in old_folder.get_descendants()]
+            for creator in User.objects.filter(documents_created__folder_id__in=all_folder_ids).distinct():
+                affected_users.add(creator)
+
             # Move child documents individually, ensuring unique names in vault_room_folder
             child_docs = list(Document.objects.filter(folder=old_folder).select_related('created_by'))
             for doc in child_docs:
@@ -267,6 +280,10 @@ def upgrade_dataroom_to_v2(dataroom: Dataroom) -> bool:
         locked_dataroom.storage_version = 2
         locked_dataroom.save(update_fields=['storage_version', 'updated_at'])
         dataroom.storage_version = 2
+
+        # 5. Automatically free personal quota for uploaders whose legacy documents moved to the vault
+        for u in affected_users:
+            recalculate_user_document_size(u)
 
     return True
 
@@ -346,9 +363,10 @@ def remove_dataroom_content(dataroom: Dataroom, dataroom_doc_ids: list = None, d
             touch_dataroom_folder_ancestors(parent_folder)
 
     # Delete backing documents and storage files for direct uploads with no other references (non-blocking)
+    is_vault = (dataroom.storage_version >= 2)
     for doc in backing_docs_to_delete:
         try:
-            delete_document_and_files(doc)
+            delete_document_and_files(doc, is_vault=is_vault)
         except Exception as e:
             logger.exception("Failed to clean up backing document %s: %s", doc.id, e)
 

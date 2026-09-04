@@ -325,5 +325,7 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Architecture Choice / Debugging Break
 - **Context/Implication:** `GET /api/v1/analytics/dashboard/` incurred ~1s response times and 550+ SQL queries due to recursive serializer over-fetching (`ShareLinkSerializer` invoking full `ViewSessionSerializer` with nested pageviews and dataroom visits) and unindexed correlated subqueries.
 - **Resolution/Action:** Created dedicated lightweight serializers in `backend/analytics/serializers.py` (`DashboardRecentViewSessionSerializer` and `DashboardRecentLinkSerializer`), added batch prefetching and annotations in `DashboardSummaryView`, and added composite index `models.Index(fields=['share_link', '-viewed_at'])` to `ViewSession.Meta`.
-
-
+### 2026-09-04 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Direct uploads into a Dataroom (`__datarooms__/<id>` vault storage) previously incremented the uploader's `user.total_document_size`, causing personal quota lockouts when uploading large files to high-capacity datarooms.
+- **Resolution/Action:** Decoupled direct Dataroom uploads from personal quota. Direct Dataroom uploads are governed solely by `dataroom.storage_quota_mb`. `create_document_from_upload(..., track_user_quota=False)` bypasses personal quota tracking, and `delete_document_and_files()` as well as `recalculate_user_document_size()` exclude vault-stored files via `is_dataroom_vault_document()`.

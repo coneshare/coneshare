@@ -345,6 +345,56 @@ class TestAdminOrganizationView:
         assert member.total_document_size == 1024 + 2048
         assert response.data['total_document_size'] == 3072
 
+    def test_recalculate_user_quota_excludes_dataroom_vault_documents(self, admin_api_client, admin_user):
+        from documents.models import Document, Folder
+        from datarooms.models import Dataroom
+        from datarooms.services import get_or_create_dataroom_storage_folder
+
+        member = User.objects.create_user(
+            username='member_vault_quota@example.com',
+            email='member_vault_quota@example.com',
+            organization=admin_user.organization,
+            role='member',
+            total_document_size=50 * 1024 * 1024 + 1024,  # Bloated with historical vault upload
+        )
+
+        # 1. Personal document (1024 bytes)
+        Document.objects.create(
+            organization=admin_user.organization,
+            created_by=member,
+            name='personal_notes.pdf',
+            file_size=1024,
+            status='ready'
+        )
+
+        # 2. Modern Dataroom vault document (50 MB)
+        dataroom = Dataroom.objects.create(
+            name="Confidential Deal",
+            organization=admin_user.organization,
+            created_by=member,
+            storage_quota_mb=500,
+            storage_version=2
+        )
+        vault_folder = get_or_create_dataroom_storage_folder(dataroom, member)
+        Document.objects.create(
+            organization=admin_user.organization,
+            folder=vault_folder,
+            created_by=member,
+            name='deal_deck.pdf',
+            file_size=50 * 1024 * 1024,
+            status='ready'
+        )
+
+        # Admin triggers quota recalculation from user panel
+        url = f'/api/v1/admin/users/{member.id}/recalculate-quota/'
+        response = admin_api_client.post(url)
+        assert response.status_code == status.HTTP_200_OK
+
+        member.refresh_from_db()
+        # Only personal document (1024 bytes) must be counted
+        assert member.total_document_size == 1024
+        assert response.data['total_document_size'] == 1024
+
     def test_recalculate_user_quota_non_admin_forbidden(self, api_client, user):
         url = f'/api/v1/admin/users/{user.id}/recalculate-quota/'
         response = api_client.post(url)

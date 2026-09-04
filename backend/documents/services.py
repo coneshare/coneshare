@@ -3,6 +3,7 @@ import mimetypes
 import logging
 import requests
 import uuid
+from typing import Optional
 from django.utils import timezone
 
 from django.conf import settings
@@ -90,18 +91,45 @@ def check_user_quota_on_upload(user: User, new_file_size: int, document_to_updat
         )
 
 
+def is_dataroom_vault_document(document: Document) -> bool:
+    """
+    Returns True if the document belongs to the organization Dataroom storage vault.
+
+    Folder Invariant:
+    1. Personal folders: Created by end users, strictly having `created_by = <User>`.
+    2. Org root folder: `__root__` has `created_by = None`, but `parent_id = None`.
+    3. System vault folders: `__datarooms__` and all descendant folders are created with
+       `created_by = None` and `parent_id IS NOT NULL`.
+
+    Therefore, `folder.created_by_id is None and folder.parent_id is not None` guarantees
+    the document resides inside the organization system vault in O(1) without requiring
+    recursive CTEs or parent hierarchy tree traversal.
+    """
+    if not document or not document.folder_id:
+        return False
+
+    folder = document.folder
+    return bool(folder and folder.created_by_id is None and folder.parent_id is not None)
+
+
 def recalculate_user_document_size(user: User) -> int:
     """
     Computes and updates the true total_document_size for a user from their active documents.
+    Excludes documents residing in the organization Dataroom storage vault.
     Returns the corrected size in bytes.
+
+    Uses the folder invariant (`folder__created_by__isnull=True, folder__parent__isnull=False`)
+    to exclude all system vault documents in a single atomic SQL query without needing to
+    traverse the folder tree.
     """
     with transaction.atomic():
         locked_user = User.objects.select_for_update().get(pk=user.pk)
-        actual_size = (
-            Document.objects.active()
-            .filter(created_by=locked_user)
-            .aggregate(total=Sum('file_size'))['total'] or 0
+        qs = Document.objects.active().filter(created_by=locked_user).exclude(
+            folder__created_by__isnull=True,
+            folder__parent__isnull=False
         )
+
+        actual_size = qs.aggregate(total=Sum('file_size'))['total'] or 0
         locked_user.total_document_size = max(0, actual_size)
         locked_user.save(update_fields=['total_document_size'])
         user.total_document_size = locked_user.total_document_size
@@ -383,6 +411,7 @@ def create_document_from_upload(
     unique_name: str,
     file_size: int,
     content_type: str,
+    track_user_quota: bool = True,
 ) -> Document:
     """
     Creates document records from data about a file already uploaded to the
@@ -421,7 +450,8 @@ def create_document_from_upload(
                     content_type=content_type,
                     original_storage_key=storage_key,
                 )
-                User.objects.filter(pk=requesting_user.pk).update(total_document_size=F('total_document_size') + file_size)
+                if track_user_quota:
+                    User.objects.filter(pk=requesting_user.pk).update(total_document_size=F('total_document_size') + file_size)
             break
         except IntegrityError:
             if attempt == max_retries - 1:
@@ -502,9 +532,11 @@ def delete_folder_and_contents(folder: Folder):
             touch_folder_ancestors(parent_folder)
 
 
-def delete_document_and_files(document: Document):
+def delete_document_and_files(document: Document, is_vault: Optional[bool] = None):
     """
     Deletes a document, its versions, pages, and all associated files from storage.
+    If is_vault is provided, uses it directly to determine whether to skip decrementing
+    personal storage quota, avoiding hierarchy traversal queries on bulk deletions.
     """
     storage_keys_to_delete = set()
 
@@ -536,7 +568,8 @@ def delete_document_and_files(document: Document):
     # Atomically update user's total size and delete the document record
     with transaction.atomic():
         user = document.created_by
-        if user and document.file_size:
+        is_vault_doc = is_vault if is_vault is not None else is_dataroom_vault_document(document)
+        if user and document.file_size and not is_vault_doc:
             User.objects.filter(pk=user.pk).update(total_document_size=F('total_document_size') - document.file_size)
         # Delete the document record, which will cascade to versions, pages, share links etc.
         document.delete()
