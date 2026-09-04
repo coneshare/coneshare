@@ -1037,6 +1037,7 @@ def test_get_document_preview_data_too_many_pages(api_client, user):
 
 
 @pytest.mark.django_db
+@override_settings(PDF_PREVIEW_ENGINE='server_pages')
 @patch('documents.views.fileserver_client.delete_file')
 @patch('documents.services.generate_pdf_pages_task.delay')
 def test_post_rebuild_preview(mock_task_delay, mock_delete_file, api_client, user):
@@ -1128,6 +1129,7 @@ def test_rebuild_preview_concurrency_conflict(mock_task_delay, mock_delete_file,
 
 
 @pytest.mark.django_db
+@override_settings(PDF_PREVIEW_ENGINE='server_pages')
 @patch('documents.views.fileserver_client.delete_file')
 @patch('documents.services.generate_pdf_pages_task.delay')
 def test_rebuild_preview_no_existing_pages(mock_task_delay, mock_delete_file, api_client, user):

@@ -9,9 +9,10 @@ from rest_framework import status
 from rest_framework.exceptions import APIException
 
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
-from datarooms.services import touch_dataroom_folder_ancestors
+from datarooms.services import touch_dataroom_folder_ancestors, get_dataroom_storage_used_bytes
 from datarooms.utils import get_dataroom_storage_folder_name
 from documents.models import Document, Folder
+from documents.services import recalculate_user_document_size
 from sharelinks.models import DataroomVisit, ShareLink, ViewSession
 
 pytestmark = pytest.mark.django_db
@@ -200,7 +201,7 @@ class TestDataroomViewSet:
         assert res.status_code == status.HTTP_202_ACCEPTED
 
         user.refresh_from_db()
-        assert user.total_document_size == file_size
+        assert user.total_document_size == 0
 
         # Delete dataroom
         res_delete = api_client.delete(f'/api/v1/datarooms/{dataroom.id}/')
@@ -209,8 +210,142 @@ class TestDataroomViewSet:
         user.refresh_from_db()
         assert user.total_document_size == 0, f"Expected total_document_size to be 0, got {user.total_document_size}"
 
+    @patch('documents.services.fileserver_client.generate_upload_url', return_value='http://fileserver/upload')
+    @patch('documents.services.fileserver_client.delete_file')
+    def test_direct_upload_does_not_consume_user_personal_quota(self, mock_fs_delete, mock_fs_upload, api_client, user, organization):
+        """
+        Option A verification:
+        A user has a 10 MB personal quota.
+        The dataroom has a 500 MB capacity.
+        Uploading a 50 MB file directly to the dataroom must NOT be blocked by the user's personal quota,
+        must NOT increment the user's personal total_document_size, and must NOT block subsequent uploads
+        to the user's personal workspace.
+        """
+        user.custom_file_size_quota_mb = 10
+        user.total_document_size = 0
+        user.save()
+
+        dataroom = Dataroom.objects.create(
+            name="Deal Dataroom",
+            organization=organization,
+            created_by=user,
+            storage_quota_mb=500,
+            storage_version=2
+        )
+
+        file_size = 50 * 1024 * 1024  # 50 MB (exceeds user's 10 MB personal quota)
+        url_request = f'/api/v1/datarooms/{dataroom.id}/uploads/request/'
+        data_request = {
+            'file_name': 'big_deal_deck.pdf',
+            'file_size': file_size,
+        }
+        res_req = api_client.post(url_request, data_request, format='json')
+        assert res_req.status_code == status.HTTP_200_OK, f"Expected 200, got {res_req.status_code}: {res_req.data}"
+
+        url_finalize = f'/api/v1/datarooms/{dataroom.id}/uploads/finalize/'
+        data_finalize = {
+            'storage_key': 'org_1/uploads/big_deal_deck.pdf',
+            'unique_name': res_req.data.get('unique_name', 'big_deal_deck.pdf'),
+            'file_size': file_size,
+            'content_type': 'application/pdf',
+        }
+        res_fin = api_client.post(url_finalize, data_finalize, format='json')
+        assert res_fin.status_code == status.HTTP_202_ACCEPTED
+
+        # 1. User's personal total_document_size must remain 0
+        user.refresh_from_db()
+        assert user.total_document_size == 0, f"Expected user personal quota usage to be 0, got {user.total_document_size}"
+
+        # 2. Recalculating user quota must also yield 0
+        assert recalculate_user_document_size(user) == 0
+
+        # 3. Dataroom's storage usage must record the 50 MB
+        assert get_dataroom_storage_used_bytes(dataroom) == file_size
+
+        # 4. User should still be able to upload to their personal workspace (5 MB <= 10 MB)
+        res_personal = api_client.post('/api/v1/uploads/document/request/', {
+            'file_name': 'personal_notes.pdf',
+            'file_size': 5 * 1024 * 1024,
+        }, format='json')
+        assert res_personal.status_code == status.HTTP_200_OK
+
+    @patch('documents.services.fileserver_client.generate_upload_url', return_value='http://fileserver/upload')
+    @patch('documents.services.fileserver_client.delete_file')
+    def test_legacy_v1_direct_upload_consumes_user_personal_quota(self, mock_fs_delete, mock_fs_upload, api_client, user, organization):
+        """
+        Legacy v1 verification:
+        Legacy v1 datarooms store direct uploads under personal storage ('Dataroom Uploads').
+        1. Direct upload request checks personal quota and blocks if exceeded.
+        2. Successful v1 upload increments user.total_document_size.
+        3. Recalculate includes legacy personal files.
+        4. Upgrading the dataroom to v2 moves files to '__datarooms__' vault and frees personal quota upon recalculation.
+        """
+        user.custom_file_size_quota_mb = 10
+        user.total_document_size = 0
+        user.save()
+
+        dataroom = Dataroom.objects.create(
+            name="Legacy Room",
+            organization=organization,
+            created_by=user,
+            storage_quota_mb=500,
+            storage_version=1
+        )
+
+        # 1. Attempt upload that exceeds personal quota (15 MB > 10 MB) -> must fail with 400
+        url_request = f'/api/v1/datarooms/{dataroom.id}/uploads/request/'
+        res_fail = api_client.post(url_request, {'file_name': 'too_big.pdf', 'file_size': 15 * 1024 * 1024}, format='json')
+        assert res_fail.status_code == status.HTTP_400_BAD_REQUEST
+        assert "exceed your storage quota" in res_fail.data['detail']
+
+        # 2. Upload a file at root and a file in a subfolder within personal quota
+        file_size = 2 * 1024 * 1024
+        res_ok = api_client.post(url_request, {'file_name': 'doc.pdf', 'file_size': file_size}, format='json')
+        assert res_ok.status_code == status.HTTP_200_OK
+
+        url_finalize = f'/api/v1/datarooms/{dataroom.id}/uploads/finalize/'
+        res_fin = api_client.post(url_finalize, {
+            'storage_key': 'org_1/uploads/doc.pdf',
+            'unique_name': res_ok.data.get('unique_name', 'doc.pdf'),
+            'file_size': file_size,
+            'content_type': 'application/pdf',
+        }, format='json')
+        assert res_fin.status_code == status.HTTP_202_ACCEPTED
+
+        # Upload a second file inside a subfolder
+        finance_folder = DataroomFolder.objects.create(dataroom=dataroom, name='Finance', created_by=user)
+        subfolder_file_size = 1 * 1024 * 1024
+        res_sub_req = api_client.post(url_request, {'file_name': 'sub_doc.pdf', 'file_size': subfolder_file_size, 'destination_folder_id': finance_folder.id}, format='json')
+        assert res_sub_req.status_code == status.HTTP_200_OK
+
+        res_sub_fin = api_client.post(url_finalize, {
+            'storage_key': 'org_1/uploads/sub_doc.pdf',
+            'unique_name': res_sub_req.data.get('unique_name', 'sub_doc.pdf'),
+            'file_size': subfolder_file_size,
+            'content_type': 'application/pdf',
+            'destination_folder_id': finance_folder.id
+        }, format='json')
+        assert res_sub_fin.status_code == status.HTTP_202_ACCEPTED
+
+        total_uploaded = file_size + subfolder_file_size
+        user.refresh_from_db()
+        assert user.total_document_size == total_uploaded
+        assert recalculate_user_document_size(user) == total_uploaded
+
+        # 3. Upgrade dataroom to v2 (moves backing documents including subfolders to __datarooms__ vault)
+        res_upgrade = api_client.post(f'/api/v1/datarooms/{dataroom.id}/upgrade-storage/')
+        assert res_upgrade.status_code == status.HTTP_200_OK
+        dataroom.refresh_from_db()
+        assert dataroom.storage_version == 2
+
+        # 4. Upgrading automatically recalculated and freed the uploader's personal quota
+        user.refresh_from_db()
+        assert user.total_document_size == 0
+        assert recalculate_user_document_size(user) == 0
+
     @patch('documents.services.fileserver_client.delete_file')
     def test_delete_dataroom_with_shared_direct_upload_preserves_shared_document(self, mock_fs_delete, api_client, dataroom, user, organization):
+
         """
         Test that deleting a dataroom preserves backing documents that are also linked
         in another dataroom.
@@ -1032,13 +1167,16 @@ class TestDataroomViewSet:
             assert response_non_existent.status_code == status.HTTP_400_BAD_REQUEST
             assert "Folder path 'NonExistent' does not exist in this dataroom." in response_non_existent.json()['detail']
 
-            # 4. Test quota exceeded
-            with patch('datarooms.views.check_user_quota_on_upload') as mock_check_quota:
-                from documents.services import QuotaExceededError
-                mock_check_quota.side_effect = QuotaExceededError("Quota exceeded.")
-                response_quota = api_client.post(url, data, format='json')
-                assert response_quota.status_code == status.HTTP_400_BAD_REQUEST
-                assert "Quota exceeded." in response_quota.json()['detail']
+            # 4. Test dataroom storage quota exceeded
+            dataroom.storage_quota_mb = 1
+            dataroom.save()
+            data_oversized = {
+                'file_name': 'oversized.pdf',
+                'file_size': 2 * 1024 * 1024,
+            }
+            response_quota = api_client.post(url, data_oversized, format='json')
+            assert response_quota.status_code == status.HTTP_400_BAD_REQUEST
+            assert "exceed the Dataroom storage limit" in response_quota.json()['detail']
 
     @patch('documents.fileserver.fileserver_client.generate_upload_url')
     def test_upload_request_inside_folder_with_path(self, mock_generate_url, api_client, dataroom):

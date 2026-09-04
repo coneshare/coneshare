@@ -574,14 +574,6 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
         validated_data = serializer.validated_data
 
-        try:
-            check_user_quota_on_upload(
-                user=request.user,
-                new_file_size=validated_data['file_size']
-            )
-        except QuotaExceededError as e:
-            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
         # Check Dataroom storage quota cap (0 means unlimited)
         if dataroom.storage_quota_mb and dataroom.storage_quota_mb > 0:
             current_room_usage = get_dataroom_storage_used_bytes(dataroom)
@@ -591,6 +583,14 @@ class DataroomViewSet(viewsets.ModelViewSet):
                     {'detail': f"Uploading this file would exceed the Dataroom storage limit of {dataroom.storage_quota_mb} MB."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+
+        # For legacy v1 datarooms whose backing storage resides in personal storage ('Dataroom Uploads'),
+        # enforce user personal storage quota. Modern v2 system vaults bypass user quota.
+        if dataroom.storage_version < 2:
+            try:
+                check_user_quota_on_upload(request.user, validated_data['file_size'])
+            except QuotaExceededError as e:
+                return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         file_name = validated_data['file_name']
         relative_path = validated_data.get('path')
@@ -699,6 +699,9 @@ class DataroomViewSet(viewsets.ModelViewSet):
                             status=status.HTTP_400_BAD_REQUEST
                         )
 
+                # Modern v2 system vaults (__datarooms__) do not track user personal quota.
+                # Legacy v1 uploads reside in personal storage ('Dataroom Uploads') and track user quota.
+                track_user_quota = (locked_dataroom.storage_version < 2)
                 document = create_document_from_upload(
                     requesting_user=request.user,
                     folder=library_folder,
@@ -706,6 +709,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
                     unique_name=validated_data['unique_name'],
                     file_size=validated_data['file_size'],
                     content_type=validated_data['content_type'],
+                    track_user_quota=track_user_quota,
                 )
 
                 unique_name = self._get_unique_dataroom_document_name(
