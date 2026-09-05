@@ -253,7 +253,8 @@ def upgrade_dataroom_to_v2(dataroom: Dataroom) -> bool:
             affected_users.add(locked_dataroom.created_by)
 
         for old_folder in legacy_folders:
-            all_folder_ids = [old_folder.id] + [f.id for f in old_folder.get_descendants()]
+            all_descendants = old_folder.get_descendants()
+            all_folder_ids = [old_folder.id] + [f.id for f in all_descendants]
             for creator in User.objects.filter(documents_created__folder_id__in=all_folder_ids).distinct():
                 affected_users.add(creator)
 
@@ -268,10 +269,17 @@ def upgrade_dataroom_to_v2(dataroom: Dataroom) -> bool:
             # Move child subfolders individually, ensuring unique names in vault_room_folder
             child_folders = list(Folder.objects.filter(parent=old_folder).select_related('created_by'))
             for subf in child_folders:
-                unique_folder_name = _get_unique_folder_name(subf.created_by, vault_room_folder, subf.name)
+                unique_folder_name = _get_unique_folder_name(None, vault_room_folder, subf.name)
                 subf.name = unique_folder_name
                 subf.parent = vault_room_folder
-                subf.save(update_fields=['name', 'parent'])
+                subf.created_by = None
+                subf.save(update_fields=['name', 'parent', 'created_by'])
+
+            # Ensure all deeper descendant folders also adhere to vault invariant (created_by=None)
+            # Reuses all_descendants collected above to eliminate redundant N+1 tree traversals
+            deeper_descendant_ids = [f.id for f in all_descendants if f.parent_id != old_folder.id]
+            if deeper_descendant_ids:
+                Folder.objects.filter(id__in=deeper_descendant_ids).update(created_by=None)
 
             # Delete the empty legacy folder shell
             old_folder.delete()

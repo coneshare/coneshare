@@ -335,4 +335,10 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** Removing or renaming documents and folders in a Dataroom broke the View Sessions activity log (rendering empty "Viewed document: " strings or retroactively mutating historical names).
 - **Resolution/Action:** Added point-in-time snapshot fields (`item_type`, `item_name`, `item_path`, `document_type`) to `DataroomVisit` populated at access/download time, with `get_full_path()` hierarchy tracking on `DataroomFolder`. `DataroomVisitSerializer` falls back to snapshots when foreign keys are null and outputs `item_status` (`active`, `deleted`, `renamed`). The frontend renders subtle `[Deleted]` and `[Renamed]` status badges and path tooltips. Data backfill migration `0010` backfills existing live rows and omits `elidable=True` so squashed migrations preserve the backfill for unmigrated environments.
 
+### 2026-09-05 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** In `upgrade_dataroom_to_v2()`, reparenting legacy backing subfolders into the system vault (`__datarooms__/<id>/`) did not clear `created_by` on the subfolders or their descendants. Because the vault invariant relies on `folder.created_by_id is None and folder.parent_id is not None` to identify vault documents in $O(1)$, documents inside subfolders were not excluded by `recalculate_user_document_size()`, leaving the uploader's personal quota inflated.
+- **Resolution/Action:** In `upgrade_dataroom_to_v2()`, pass `created_by=None` to `_get_unique_folder_name()`, set `subf.created_by = None`, and batch-update all descendant folders with `Folder.objects.filter(id__in=descendant_ids).update(created_by=None)`.
+
+
 
