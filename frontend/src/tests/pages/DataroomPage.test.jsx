@@ -125,6 +125,7 @@ describe('DataroomPage', () => {
         api.updateDataroomFolder.mockResolvedValue({ data: {} });
         api.getShareLinksForDataroom.mockResolvedValue({ data: [] });
         api.getDataroomViewSessions.mockResolvedValue({ data: { results: [], count: 0 } });
+        api.getDataroomStats.mockResolvedValue({ data: { total_views: 0, unique_viewers: 0, total_downloads: 0, avg_duration_seconds: 0 } });
     });
 
     const renderComponent = () => {
@@ -678,6 +679,9 @@ describe('DataroomPage', () => {
 
             expect(api.getShareLinksForDataroom).toHaveBeenCalledWith('dr123');
             expect(api.getDataroomViewSessions).toHaveBeenCalledWith('dr123', 1);
+            expect(api.getDataroomStats).toHaveBeenCalledWith('dr123');
+            expect(await screen.findByText('Number of visits')).toBeInTheDocument();
+            expect(await screen.findByText('Unique visitors')).toBeInTheDocument();
         });
 
         it('should toggle dataroom Q&A and persist it', async () => {

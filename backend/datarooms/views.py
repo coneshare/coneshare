@@ -24,7 +24,7 @@ from documents.services import (
     create_document_from_upload
 )
 from documents.fileserver import fileserver_client
-from sharelinks.models import ViewSession
+from sharelinks.models import DataroomVisit, ViewSession
 from sharelinks.serializers import ViewSessionSerializer
 from .models import Dataroom, DataroomCollaborator, DataroomDocument, DataroomFolder, DataroomItemOrder
 from .services import (
@@ -458,6 +458,43 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
         serializer = ViewSessionSerializer(view_queryset, many=True, context=self.get_serializer_context())
         return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def stats(self, request, pk=None):
+        dataroom = self.get_object()
+        sessions = ViewSession.objects.filter(share_link__dataroom=dataroom)
+
+        # Calculate high-level engagement metrics for the dataroom.
+        # Note: total_views includes ALL sessions (including 0-second bounces) so owners know
+        # every visit attempt/open. However, avg_duration_seconds filters out 0-second bounces to prevent
+        # quick bounces from artificially deflating the actual reading duration of engaged viewers.
+        aggregates = sessions.aggregate(
+            total_views=Count('id'),
+            total_duration_seconds=Sum('duration_seconds'),
+            unique_viewers=Count('viewer_email', filter=~Q(viewer_email=''), distinct=True),
+            engaged_views=Count('id', filter=Q(duration_seconds__gt=0)),
+            session_downloads=Count('id', filter=Q(downloaded_at__isnull=False)),
+        )
+
+        total_views = aggregates['total_views']
+        total_duration = aggregates['total_duration_seconds'] or 0
+        engaged_views = aggregates['engaged_views'] or 0
+        avg_duration = total_duration / engaged_views if engaged_views > 0 else 0
+
+        # Combine direct session downloads with downloads of specific documents/folders within dataroom visits
+        visit_downloads = DataroomVisit.objects.filter(
+            view_session__share_link__dataroom=dataroom,
+            downloaded_at__isnull=False
+        ).count()
+        total_downloads = (aggregates['session_downloads'] or 0) + visit_downloads
+
+        return Response({
+            'total_views': total_views,
+            'unique_viewers': aggregates['unique_viewers'],
+            'total_duration_seconds': total_duration,
+            'avg_duration_seconds': avg_duration,
+            'total_downloads': total_downloads,
+        })
 
     def _ensure_library_folder_path(self, requesting_user, dataroom, relative_path=None):
         """
