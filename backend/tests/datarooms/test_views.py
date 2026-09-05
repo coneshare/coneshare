@@ -2200,6 +2200,39 @@ class TestDataroomFolderMtimeUpdates:
             'total_downloads': 0,
         }
 
+    def test_dataroom_stats_with_anonymous_viewers(self, api_client, user, organization):
+        """
+        Test that unique_viewers correctly counts anonymous viewers by IP address,
+        deduplicates multiple sessions from the same IP, and omits records where both
+        email and IP are missing.
+        """
+        dataroom = Dataroom.objects.create(name="Anonymous Stats Room", organization=organization, created_by=user)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        # 1. Identified viewer (Alice) from IP 1.1.1.1
+        ViewSession.objects.create(share_link=link, viewer_email="alice@example.com", ip_address="1.1.1.1", duration_seconds=60)
+        # 2. Identified viewer (Alice) again from another IP 2.2.2.2 (should deduplicate to 1 Alice)
+        ViewSession.objects.create(share_link=link, viewer_email="alice@example.com", ip_address="2.2.2.2", duration_seconds=45)
+        # 3. Anonymous viewer from IP 1.1.1.1 (should be distinct from email:alice@example.com)
+        ViewSession.objects.create(share_link=link, viewer_email="", ip_address="1.1.1.1", duration_seconds=30)
+        # 4. Same anonymous viewer from IP 1.1.1.1 (should deduplicate with #3)
+        ViewSession.objects.create(share_link=link, viewer_email="", ip_address="1.1.1.1", duration_seconds=20)
+        # 5. Different anonymous viewer from IP 3.3.3.3
+        ViewSession.objects.create(share_link=link, viewer_email="", ip_address="3.3.3.3", duration_seconds=15)
+        # 6. Anonymous session with no IP (None) -> omitted from unique_viewers
+        ViewSession.objects.create(share_link=link, viewer_email="", ip_address=None, duration_seconds=10)
+        # 7. Anonymous session with empty string IP ("") -> omitted from unique_viewers
+        ViewSession.objects.create(share_link=link, viewer_email="", ip_address="", duration_seconds=5)
+
+        response = api_client.get(f'/api/v1/datarooms/{dataroom.id}/stats/')
+        assert response.status_code == status.HTTP_200_OK
+        data = response.data
+
+        # Total views counts all 7 sessions
+        assert data['total_views'] == 7
+        # Unique viewers: 1 (alice) + 1 (anon 1.1.1.1) + 1 (anon 3.3.3.3) = 3 (unidentified IPs omitted)
+        assert data['unique_viewers'] == 3
+
 
 
 

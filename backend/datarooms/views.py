@@ -464,14 +464,9 @@ class DataroomViewSet(viewsets.ModelViewSet):
         dataroom = self.get_object()
         sessions = ViewSession.objects.filter(share_link__dataroom=dataroom)
 
-        # Calculate high-level engagement metrics for the dataroom.
-        # Note: total_views includes ALL sessions (including 0-second bounces) so owners know
-        # every visit attempt/open. However, avg_duration_seconds filters out 0-second bounces to prevent
-        # quick bounces from artificially deflating the actual reading duration of engaged viewers.
         aggregates = sessions.aggregate(
             total_views=Count('id'),
             total_duration_seconds=Sum('duration_seconds'),
-            unique_viewers=Count('viewer_email', filter=~Q(viewer_email=''), distinct=True),
             engaged_views=Count('id', filter=Q(duration_seconds__gt=0)),
             session_downloads=Count('id', filter=Q(downloaded_at__isnull=False)),
         )
@@ -480,6 +475,14 @@ class DataroomViewSet(viewsets.ModelViewSet):
         total_duration = aggregates['total_duration_seconds'] or 0
         engaged_views = aggregates['engaged_views'] or 0
         avg_duration = total_duration / engaged_views if engaged_views > 0 else 0
+
+        # Unique viewers: count distinct identified emails + distinct anonymous IPs.
+        # Records missing both email and IP are omitted.
+        unique_emails = sessions.filter(~Q(viewer_email='')).values('viewer_email').distinct().count()
+        unique_anon_ips = sessions.filter(
+            Q(viewer_email='') & Q(ip_address__isnull=False)
+        ).values('ip_address').distinct().count()
+        unique_viewers = unique_emails + unique_anon_ips
 
         # Combine direct session downloads with downloads of specific documents/folders within dataroom visits
         visit_downloads = DataroomVisit.objects.filter(
@@ -490,7 +493,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
         return Response({
             'total_views': total_views,
-            'unique_viewers': aggregates['unique_viewers'],
+            'unique_viewers': unique_viewers,
             'total_duration_seconds': total_duration,
             'avg_duration_seconds': avg_duration,
             'total_downloads': total_downloads,
