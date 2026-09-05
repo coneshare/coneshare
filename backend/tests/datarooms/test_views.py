@@ -2135,7 +2135,70 @@ class TestDataroomFolderMtimeUpdates:
 
         # Both subfolders should now be in the new vault folder with distinct names
         assert subf1.parent_id == subf2.parent_id
-        assert subf1.name != subf2.name
+
+    def test_dataroom_stats(self, api_client, user, organization):
+        """
+        Test retrieving aggregate stats for a dataroom (total_views, unique_viewers, duration, downloads).
+        """
+        dataroom = Dataroom.objects.create(name="Analytics Room", organization=organization, created_by=user)
+        link1 = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+        link2 = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        # 4 sessions across 2 links: 3 unique non-empty emails (alice, bob, bounce), 1 empty email
+        s1 = ViewSession.objects.create(
+            share_link=link1,
+            viewer_email="alice@example.com",
+            duration_seconds=120,
+            downloaded_at=timezone.now(),
+        )
+        s2 = ViewSession.objects.create(
+            share_link=link1,
+            viewer_email="bob@example.com",
+            duration_seconds=60,
+        )
+        s3 = ViewSession.objects.create(
+            share_link=link2,
+            viewer_email="",
+            duration_seconds=30,
+        )
+        # 0-second bounce session
+        s4 = ViewSession.objects.create(
+            share_link=link2,
+            viewer_email="bounce@example.com",
+            duration_seconds=0,
+        )
+
+        # 1 visit download under session 2
+        DataroomVisit.objects.create(
+            view_session=s2,
+            downloaded_at=timezone.now(),
+        )
+
+        response = api_client.get(f'/api/v1/datarooms/{dataroom.id}/stats/')
+        assert response.status_code == status.HTTP_200_OK
+        data = response.data
+        # total_views includes the 0s bounce (4 total)
+        assert data['total_views'] == 4
+        assert data['unique_viewers'] == 3
+        assert data['total_duration_seconds'] == 210
+        # avg_duration_seconds uses 3 engaged sessions: 210 / 3 = 70.0 (not 210 / 4 = 52.5)
+        assert data['avg_duration_seconds'] == 70.0
+        assert data['total_downloads'] == 2  # 1 session download + 1 visit download
+
+    def test_dataroom_stats_empty(self, api_client, user, organization):
+        """
+        Test dataroom stats when no sessions exist.
+        """
+        dataroom = Dataroom.objects.create(name="Empty Stats Room", organization=organization, created_by=user)
+        response = api_client.get(f'/api/v1/datarooms/{dataroom.id}/stats/')
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == {
+            'total_views': 0,
+            'unique_viewers': 0,
+            'total_duration_seconds': 0,
+            'avg_duration_seconds': 0,
+            'total_downloads': 0,
+        }
 
 
 

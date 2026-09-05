@@ -67,6 +67,7 @@
     "allActiveLinksSubtitle": "显示所有 {{count}} 条活跃链接，按最近浏览时间排序。",
     "title": "统计分析",
     "numberOfVisits": "访问次数",
+    "uniqueVisitors": "独立访客",
     "numberOfDownloads": "下载次数",
     "avgViewDuration": "平均浏览时长",
     "location": "位置",

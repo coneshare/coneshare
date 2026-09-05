@@ -7,7 +7,7 @@ import { ShareIcon, Star, ArrowLeft, ChevronDown, FolderUp, Plus, Loader2, Alert
 import { toast } from 'sonner';
 import { formatBytes } from '../lib/formatters';
 import { isDataroomOwner, isDataroomCollaborator } from '../utils/formatters';
-import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, removeContentFromDataroom, updateDataroomFolder, updateDataroomDocument, updateDataroomBranding, reorderDataroomItems, deleteDataroom, ensureDataroomFolderPaths, uploadDataroomDocument, upgradeDataroomStorage } from '../services/api';
+import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, getDataroomStats, removeContentFromDataroom, updateDataroomFolder, updateDataroomDocument, updateDataroomBranding, reorderDataroomItems, deleteDataroom, ensureDataroomFolderPaths, uploadDataroomDocument, upgradeDataroomStorage } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { useUpload } from '../contexts/UploadProvider';
 import { useUser } from '../contexts/UserProvider';
@@ -24,6 +24,7 @@ import { SelectionActionBar } from '../components/documents/SelectionActionBar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
 import { LinkSheet } from '../components/links/LinkSheet';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
+import { Stats } from '../components/documents/Stats';
 import { LinksTable } from '../components/documents/LinksTable';
 import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
 import { ManagePermissionsDialog } from '../components/datarooms/ManagePermissionsDialog';
@@ -89,6 +90,8 @@ export function DataroomPage() {
   const [isManagePermissionsOpen, setIsManagePermissionsOpen] = useState(false);
   const [selectedLinkForPermissions, setSelectedLinkForPermissions] = useState(null);
   const [viewsData, setViewsData] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [viewsLoading, setViewsLoading] = useState(true);
   const [viewsCurrentPage, setViewsCurrentPage] = useState(1);
   const [isRemoveContentDialogOpen, setIsRemoveContentDialogOpen] = useState(false);
@@ -271,6 +274,18 @@ export function DataroomPage() {
     }
   }, [dataroomId]);
     
+  const fetchStats = useCallback(async () => {
+    try {
+      setStatsLoading(true);
+      const response = await getDataroomStats(dataroomId);
+      setStats(response.data);
+    } catch (err) {
+      console.error('Failed to fetch dataroom stats', err);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [dataroomId]);
+
   const fetchViews = useCallback(async () => {
     try {
       setViewsLoading(true);
@@ -328,8 +343,9 @@ export function DataroomPage() {
   useEffect(() => {
     if (activeTab === 'links') {
       fetchViews();
+      fetchStats();
     }
-  }, [activeTab, fetchViews]);  
+  }, [activeTab, fetchViews, fetchStats]);  
 
   useEffect(() => {
     const shouldOpenCreateLink = searchParams.get('openCreateLink') === 'true';
@@ -497,6 +513,7 @@ export function DataroomPage() {
       setLinkToDelete(null);
       fetchLinks();
       fetchViews();
+      fetchStats();
     } catch (error) {
       // Error toast handled by interceptor
     }
@@ -512,8 +529,9 @@ export function DataroomPage() {
       // Full refresh for create/edit from LinkSheet
       fetchLinks();
       fetchViews();
+      fetchStats();
     }
-  }, [fetchLinks, fetchViews]);
+  }, [fetchLinks, fetchViews, fetchStats]);
     
     
   const handleMoveItems = async (destinationFolderId) => {
@@ -1049,7 +1067,8 @@ export function DataroomPage() {
               }
             />
         </TabsContent>
-        <TabsContent value="links" className="mt-6">
+        <TabsContent value="links" className="mt-6 space-y-8">
+          <Stats stats={stats} loading={statsLoading} expectedColumns={4} />
           <LinksTable
             links={links}
             onEditLink={handleEditLink}

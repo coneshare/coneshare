@@ -635,6 +635,7 @@ export const getDataroomFolderContents = (folderId) => api.get(`/dataroom-folder
 export const getShareLinksForDataroom = (dataroomId) => api.get(`/share-links/?dataroom_id=${dataroomId}`);
 export const updateDataroomLinkSettings = (linkId, settings) => api.patch(`/share-links/${linkId}/dataroom-settings/`, settings);
 export const getDataroomViewSessions = (dataroomId, page = 1) => api.get(`/datarooms/${dataroomId}/view-sessions/?page=${page}`);
+export const getDataroomStats = (dataroomId) => api.get(`/datarooms/${dataroomId}/stats/`);
 
 export const downloadDataroomFolder = (slug, folderId, viewSessionId = null) => {
   const params = {};

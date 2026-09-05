@@ -1009,17 +1009,23 @@ class DocumentViewSet(viewsets.ModelViewSet):
         from sharelinks.models import ViewSession
 
         document = self.get_object()
+        # Calculate high-level engagement metrics for the document.
+        # Note: total_views includes ALL sessions (including 0-second bounces) so owners know
+        # the link was clicked. However, avg_duration_seconds filters out 0-second bounces to prevent
+        # brief bounces from artificially deflating the actual reading duration of engaged viewers.
         aggregates = ViewSession.objects.filter(
             share_link__document=document
         ).aggregate(
             total_views=Count('id'),
             total_duration_seconds=Sum('duration_seconds'),
             total_downloads=Count('downloaded_at'),
+            engaged_views=Count('id', filter=Q(duration_seconds__gt=0)),
         )
 
         total_views = aggregates['total_views']
         total_duration = aggregates['total_duration_seconds'] or 0
-        avg_duration = total_duration / total_views if total_views > 0 else 0
+        engaged_views = aggregates['engaged_views'] or 0
+        avg_duration = total_duration / engaged_views if engaged_views > 0 else 0
         total_downloads = aggregates['total_downloads']
 
         return Response({

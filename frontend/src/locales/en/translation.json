@@ -67,6 +67,7 @@
     "allActiveLinksSubtitle": "Showing all {{count}} active links, sorted by the most recently viewed.",
     "title": "Analytics",
     "numberOfVisits": "Number of visits",
+    "uniqueVisitors": "Unique visitors",
     "numberOfDownloads": "Number of downloads",
     "avgViewDuration": "Avg. view duration",
     "location": "Location",
