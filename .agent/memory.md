@@ -329,3 +329,10 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Architecture Choice
 - **Context/Implication:** Direct uploads into a Dataroom (`__datarooms__/<id>` vault storage) previously incremented the uploader's `user.total_document_size`, causing personal quota lockouts when uploading large files to high-capacity datarooms.
 - **Resolution/Action:** Decoupled direct Dataroom uploads from personal quota. Direct Dataroom uploads are governed solely by `dataroom.storage_quota_mb`. `create_document_from_upload(..., track_user_quota=False)` bypasses personal quota tracking, and `delete_document_and_files()` as well as `recalculate_user_document_size()` exclude vault-stored files via `is_dataroom_vault_document()`.
+
+### 2026-09-05 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Removing or renaming documents and folders in a Dataroom broke the View Sessions activity log (rendering empty "Viewed document: " strings or retroactively mutating historical names).
+- **Resolution/Action:** Added point-in-time snapshot fields (`item_type`, `item_name`, `item_path`, `document_type`) to `DataroomVisit` populated at access/download time, with `get_full_path()` hierarchy tracking on `DataroomFolder`. `DataroomVisitSerializer` falls back to snapshots when foreign keys are null and outputs `item_status` (`active`, `deleted`, `renamed`). The frontend renders subtle `[Deleted]` and `[Renamed]` status badges and path tooltips. Data backfill migration `0010` backfills existing live rows and omits `elidable=True` so squashed migrations preserve the backfill for unmigrated environments.
+
+

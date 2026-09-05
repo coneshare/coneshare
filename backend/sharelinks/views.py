@@ -75,7 +75,12 @@ def _resolve_dataroom_document_setting(link: ShareLink, requested_dataroom_docum
 
     `requested_dataroom_document_id` must be a DataroomDocument.id (not Document.id).
     """
-    base_qs = link.dataroom_settings.select_related('dataroom_document__document')
+    # Prefetch document and up to 4 ancestor folder levels so get_full_path()
+    # resolves in a single DB round-trip during visit/download snapshot generation.
+    base_qs = link.dataroom_settings.select_related(
+        'dataroom_document__document',
+        'dataroom_document__folder__parent__parent__parent__parent',
+    )
     if visible_only:
         # Public document/page/download endpoints should only operate on visible items.
         base_qs = base_qs.filter(is_visible=True)
@@ -2561,9 +2566,27 @@ class ShareLinkFileDownloadView(APIView):
                     ).order_by('-visited_at').first()
 
                     if not visit:
+                        dataroom_doc = DataroomDocument.objects.filter(
+                            id=dataroom_document_id, dataroom=link.dataroom
+                        ).select_related('document', 'folder__parent__parent__parent__parent').first()
+                        item_name = ''
+                        item_path = '/'
+                        doc_type = ''
+                        if dataroom_doc:
+                            item_name = dataroom_doc.name or (dataroom_doc.document.name if dataroom_doc.document else '')
+                            item_path = dataroom_doc.folder.get_full_path() if dataroom_doc.folder else '/'
+                            doc_type = dataroom_doc.document.type if dataroom_doc.document else ''
+                        elif document:
+                            item_name = document.name
+                            doc_type = document.type
+
                         visit = DataroomVisit.objects.create(
                             view_session=view_session,
                             dataroom_document_id=dataroom_document_id,
+                            item_type='document',
+                            item_name=item_name,
+                            item_path=item_path,
+                            document_type=doc_type,
                             visited_at=now,
                             downloaded_at=now,
                         )
@@ -2756,7 +2779,8 @@ class DataroomFolderDownloadView(APIView):
             return Response({"message": "This link is not for a dataroom."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            root_folder = DataroomFolder.objects.get(id=folder_id, dataroom=link.dataroom)
+            # Prefetch ancestor folder chain up to 4 levels to avoid N+1 DB queries in get_full_path()
+            root_folder = DataroomFolder.objects.select_related('parent__parent__parent__parent').get(id=folder_id, dataroom=link.dataroom)
         except DataroomFolder.DoesNotExist:
             return Response({"message": "Folder not found in this dataroom."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -2785,6 +2809,9 @@ class DataroomFolderDownloadView(APIView):
                     visit = DataroomVisit.objects.create(
                         view_session=view_session,
                         dataroom_folder_id=root_folder.id,
+                        item_type='folder',
+                        item_name=root_folder.name,
+                        item_path=root_folder.get_full_path(),
                         visited_at=now,
                         downloaded_at=now,
                     )
@@ -2884,9 +2911,28 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
                     ).order_by('-visited_at').first()
 
                     if not visit:
+                        dataroom_doc = None
+                        if setting and setting.dataroom_document:
+                            dataroom_doc = setting.dataroom_document
+                        else:
+                            dataroom_doc = DataroomDocument.objects.filter(
+                                id=dataroom_document_id, dataroom=share_link.dataroom
+                            ).select_related('document', 'folder__parent__parent__parent__parent').first()
+                        item_name = ''
+                        item_path = '/'
+                        doc_type = ''
+                        if dataroom_doc:
+                            item_name = dataroom_doc.name or (dataroom_doc.document.name if dataroom_doc.document else '')
+                            item_path = dataroom_doc.folder.get_full_path() if dataroom_doc.folder else '/'
+                            doc_type = dataroom_doc.document.type if dataroom_doc.document else ''
+
                         visit = DataroomVisit.objects.create(
                             view_session=view_session,
                             dataroom_document_id=dataroom_document_id,
+                            item_type='document',
+                            item_name=item_name,
+                            item_path=item_path,
+                            document_type=doc_type,
                             visited_at=now,
                             downloaded_at=now,
                         )
@@ -2895,7 +2941,7 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
                         visit.save(update_fields=['downloaded_at'])
                 elif dataroom_folder_id:
                     from datarooms.models import DataroomFolder
-                    folder = DataroomFolder.objects.filter(id=dataroom_folder_id, dataroom=share_link.dataroom).first()
+                    folder = DataroomFolder.objects.filter(id=dataroom_folder_id, dataroom=share_link.dataroom).select_related('parent__parent__parent__parent').first()
                     if folder:
                         extra_payload['folder_id'] = str(folder.id)
                         extra_payload['folder_name'] = folder.name
@@ -2909,6 +2955,9 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
                         visit = DataroomVisit.objects.create(
                             view_session=view_session,
                             dataroom_folder_id=dataroom_folder_id,
+                            item_type='folder',
+                            item_name=folder.name if folder else '',
+                            item_path=folder.get_full_path() if folder else '/',
                             visited_at=now,
                             downloaded_at=now,
                         )
@@ -2956,16 +3005,38 @@ class ViewSessionViewSet(viewsets.ModelViewSet):
 
         if doc_id:
             try:
-                # Security check: ensure the document is part of this dataroom.
-                dataroom_doc = DataroomDocument.objects.get(id=doc_id, dataroom=dataroom)
+                # Security check: ensure the document is part of this dataroom AND visible on this link.
+                # Prefetch document and up to 4 ancestor folder levels to avoid N+1 queries in get_full_path().
+                dataroom_doc = DataroomDocument.objects.select_related(
+                    'document', 'folder__parent__parent__parent__parent'
+                ).get(id=doc_id, dataroom=dataroom)
+                try:
+                    _resolve_dataroom_document_setting(view_session.share_link, str(dataroom_doc.id), visible_only=True)
+                except (ShareLinkDataroomSetting.DoesNotExist, serializers.ValidationError):
+                    return Response({"detail": "Document not found in this dataroom."}, status=status.HTTP_404_NOT_FOUND)
+
+                if dataroom_doc.folder and not _is_dataroom_folder_path_visible(view_session.share_link, dataroom_doc.folder):
+                    return Response({"detail": "Document not found in this dataroom."}, status=status.HTTP_404_NOT_FOUND)
+
                 visit_data['dataroom_document'] = dataroom_doc
+                visit_data['item_type'] = 'document'
+                visit_data['item_name'] = dataroom_doc.name or (dataroom_doc.document.name if dataroom_doc.document else '')
+                visit_data['item_path'] = dataroom_doc.folder.get_full_path() if dataroom_doc.folder else '/'
+                visit_data['document_type'] = dataroom_doc.document.type if dataroom_doc.document else ''
             except DataroomDocument.DoesNotExist:
                 return Response({"detail": "Document not found in this dataroom."}, status=status.HTTP_404_NOT_FOUND)
         elif folder_id:
             try:
-                # Security check: ensure the folder is part of this dataroom.
-                dataroom_folder = DataroomFolder.objects.get(id=folder_id, dataroom=dataroom)
+                # Security check: ensure the folder is part of this dataroom AND visible on this link.
+                # Prefetch up to 4 ancestor folder levels to avoid N+1 queries in get_full_path().
+                dataroom_folder = DataroomFolder.objects.select_related('parent__parent__parent__parent').get(id=folder_id, dataroom=dataroom)
+                if not _is_dataroom_folder_path_visible(view_session.share_link, dataroom_folder):
+                    return Response({"detail": "Folder not found in this dataroom."}, status=status.HTTP_404_NOT_FOUND)
+
                 visit_data['dataroom_folder'] = dataroom_folder
+                visit_data['item_type'] = 'folder'
+                visit_data['item_name'] = dataroom_folder.name
+                visit_data['item_path'] = dataroom_folder.get_full_path()
             except DataroomFolder.DoesNotExist:
                 return Response({"detail": "Folder not found in this dataroom."}, status=status.HTTP_404_NOT_FOUND)
 

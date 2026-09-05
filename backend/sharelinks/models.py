@@ -1,3 +1,4 @@
+import logging
 import secrets
 from datetime import timedelta
 
@@ -10,6 +11,8 @@ from core.fields import ULIDField
 from core.models import BaseModel, Organization, User
 from django_cryptography.fields import encrypt
 from automations.services import ensure_default_email_automation
+
+logger = logging.getLogger(__name__)
 
 
 class ShareLinkTemplate(BaseModel):
@@ -181,6 +184,23 @@ class DataroomVisit(models.Model):
     view_session = models.ForeignKey('ViewSession', on_delete=models.CASCADE, related_name='dataroom_visits')
     dataroom_document = models.ForeignKey('datarooms.DataroomDocument', on_delete=models.SET_NULL, null=True, blank=True)
     dataroom_folder = models.ForeignKey('datarooms.DataroomFolder', on_delete=models.SET_NULL, null=True, blank=True)
+
+    # Point-in-time snapshot fields for audit trail preservation
+    item_type = models.CharField(
+        max_length=20,
+        choices=[('document', 'Document'), ('folder', 'Folder')],
+        default='document',
+        blank=True
+    )
+    item_name = models.CharField(max_length=255, blank=True, default='')
+    item_path = models.CharField(
+        max_length=1024,
+        blank=True,
+        default='',
+        help_text="Virtual folder path at time of visit, e.g. /Financials/2026"
+    )
+    document_type = models.CharField(max_length=50, blank=True, default='')
+
     visited_at = models.DateTimeField(default=timezone.now)
     downloaded_at = models.DateTimeField(null=True, blank=True)
 
@@ -195,6 +215,38 @@ class DataroomVisit(models.Model):
                 name='dataroomvisit_not_both_targets'
             )
         ]
+
+    def save(self, *args, **kwargs):
+        if not self.item_name:
+            if self.dataroom_document_id:
+                try:
+                    ddoc = self.dataroom_document
+                    if ddoc:
+                        self.item_type = 'document'
+                        self.item_name = ddoc.name or (ddoc.document.name if ddoc.document else '')
+                        if not self.item_path:
+                            self.item_path = ddoc.folder.get_full_path() if ddoc.folder else '/'
+                        if not self.document_type and ddoc.document:
+                            self.document_type = ddoc.document.type
+                except Exception as e:
+                    logger.warning(
+                        "DataroomVisit.save: failed to populate snapshot for document_id=%s: %s",
+                        self.dataroom_document_id, e
+                    )
+            elif self.dataroom_folder_id:
+                try:
+                    folder = self.dataroom_folder
+                    if folder:
+                        self.item_type = 'folder'
+                        self.item_name = folder.name
+                        if not self.item_path:
+                            self.item_path = folder.get_full_path()
+                except Exception as e:
+                    logger.warning(
+                        "DataroomVisit.save: failed to populate snapshot for folder_id=%s: %s",
+                        self.dataroom_folder_id, e
+                    )
+        super().save(*args, **kwargs)
 
 
 class Viewer(models.Model):

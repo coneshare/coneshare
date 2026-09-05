@@ -28,8 +28,21 @@ function DataroomVisitRow({ visit }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const hasPageViews = visit.page_views && visit.page_views.length > 0;
   const hasLinkClicks = visit.link_clicks && visit.link_clicks.length > 0;
-  const isDocumentVisit = !!visit.dataroom_document_id;
+  const isFolder = visit.item_type === 'folder' || Boolean(visit.dataroom_folder_id);
+  const isDocumentVisit = !isFolder;
   const isExpandable = isDocumentVisit && (hasPageViews || hasLinkClicks);
+
+  const itemName = isFolder
+    ? (visit.dataroom_folder_name || visit.item_name || t('viewSessions.deletedFolder'))
+    : (visit.dataroom_document_name || visit.item_name || t('viewSessions.deletedDocument'));
+
+  const viewText = isFolder
+    ? t('viewSessions.viewedFolder', { name: itemName })
+    : t('viewSessions.viewedDocument', { name: itemName });
+
+  const isDeleted = visit.item_status === 'deleted';
+  const isRenamed = visit.item_status === 'renamed';
+  const hasPath = Boolean(visit.item_path);
 
   return (
     <li key={visit.id}>
@@ -38,7 +51,7 @@ function DataroomVisitRow({ visit }) {
           {isExpandable && (
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="rounded p-1 hover:bg-gray-200"
+              className="rounded p-1 hover:bg-gray-200 dark:hover:bg-gray-700"
               aria-expanded={isExpanded}
               aria-label={isExpanded ? 'Collapse row' : 'Expand row'}
             >
@@ -51,18 +64,52 @@ function DataroomVisitRow({ visit }) {
           )}
         </div>
 
-        {visit.dataroom_folder_id ? (
+        {isFolder ? (
           <FileTypeIcon type="folder" className="h-4 w-4 flex-shrink-0" />
         ) : (
-          <FileTypeIcon type={visit.dataroom_document_type} className="h-4 w-4 flex-shrink-0" />
+          <FileTypeIcon type={visit.dataroom_document_type || 'document'} className="h-4 w-4 flex-shrink-0" />
         )}
-        <span className="truncate">
-          {visit.dataroom_folder_name
-            ? t('viewSessions.viewedFolder', { name: visit.dataroom_folder_name })
-            : t('viewSessions.viewedDocument', { name: visit.dataroom_document_name })}
-        </span>
+
+        {hasPath ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="truncate cursor-default">
+                {viewText}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{t('viewSessions.historicalPath', { path: visit.item_path })}</p>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <span className="truncate">
+            {viewText}
+          </span>
+        )}
+
+        {isDeleted && (
+          <span className="rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:text-gray-300 flex-shrink-0">
+            {t('viewSessions.statusDeleted')}
+          </span>
+        )}
+
+        {isRenamed && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="rounded bg-amber-100 dark:bg-amber-950/60 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:text-amber-300 cursor-help flex-shrink-0">
+                {t('viewSessions.statusRenamed')}
+              </span>
+            </TooltipTrigger>
+            {visit.item_name && (
+              <TooltipContent>
+                <p>{t('viewSessions.originallyViewedAs', { name: visit.item_name })}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        )}
+
         {visit.downloaded_at && (
-          <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-800">
+          <span className="rounded bg-green-100 dark:bg-green-950/60 px-1.5 py-0.5 text-[10px] font-medium text-green-800 dark:text-green-300 flex-shrink-0">
             {t('viewSessions.downloaded')}
           </span>
         )}
