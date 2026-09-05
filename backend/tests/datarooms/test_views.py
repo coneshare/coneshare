@@ -12,7 +12,7 @@ from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, Dataroo
 from datarooms.services import touch_dataroom_folder_ancestors, get_dataroom_storage_used_bytes
 from datarooms.utils import get_dataroom_storage_folder_name
 from documents.models import Document, Folder
-from documents.services import recalculate_user_document_size
+from documents.services import recalculate_user_document_size, is_dataroom_vault_document
 from sharelinks.models import DataroomVisit, ShareLink, ViewSession
 
 pytestmark = pytest.mark.django_db
@@ -2135,6 +2135,71 @@ class TestDataroomFolderMtimeUpdates:
 
         # Both subfolders should now be in the new vault folder with distinct names
         assert subf1.parent_id == subf2.parent_id
+
+    def test_v1_dataroom_upgrade_clears_created_by_on_subfolders_and_deducts_user_quota(self, api_client, user, organization):
+        """Test that upgrading a v1 dataroom clears created_by on subfolders and descendants to obey the vault invariant and deducts user quota."""
+        api_client.force_authenticate(user=user)
+        dataroom = Dataroom.objects.create(name="Project Beta", organization=organization, created_by=user, storage_version=1)
+
+        root_folder = Folder.objects.get_root_for_org(organization)
+        legacy_uploads = Folder.objects.create(organization=organization, parent=root_folder, name="Dataroom Uploads", created_by=user)
+        legacy_name = get_dataroom_storage_folder_name(dataroom.name, dataroom)
+        old_folder = Folder.objects.create(organization=organization, parent=legacy_uploads, name=legacy_name, created_by=user)
+
+        # Create child subfolder and nested subfolder in the legacy backing directory
+        subf = Folder.objects.create(organization=organization, parent=old_folder, name="Reports", created_by=user)
+        nested_subf = Folder.objects.create(organization=organization, parent=subf, name="2026", created_by=user)
+
+        # Direct doc under dataroom root
+        doc_root = Document.objects.create(
+            organization=organization, folder=old_folder, name="Root.pdf",
+            type="document", content_type="application/pdf", file_size=1000,
+            status="ready", created_by=user
+        )
+        # Doc in subfolder
+        doc_sub = Document.objects.create(
+            organization=organization, folder=subf, name="Sub.pdf",
+            type="document", content_type="application/pdf", file_size=2000,
+            status="ready", created_by=user
+        )
+        # Doc in nested subfolder
+        doc_nested = Document.objects.create(
+            organization=organization, folder=nested_subf, name="Nested.pdf",
+            type="document", content_type="application/pdf", file_size=2000,
+            status="ready", created_by=user
+        )
+        # Personal document outside dataroom
+        personal_folder = Folder.objects.create(organization=organization, parent=root_folder, name="My Private Docs", created_by=user)
+        personal_doc = Document.objects.create(
+            organization=organization, folder=personal_folder, name="Personal.pdf",
+            type="document", content_type="application/pdf", file_size=500,
+            status="ready", created_by=user
+        )
+
+        user.total_document_size = 5500
+        user.save(update_fields=['total_document_size'])
+
+        # Perform upgrade
+        res = api_client.post(f'/api/v1/datarooms/{dataroom.id}/upgrade-storage/')
+        assert res.status_code == status.HTTP_200_OK
+
+        dataroom.refresh_from_db()
+        assert dataroom.storage_version == 2
+
+        subf.refresh_from_db()
+        nested_subf.refresh_from_db()
+        assert subf.created_by is None
+        assert nested_subf.created_by is None
+
+        doc_root.refresh_from_db()
+        doc_sub.refresh_from_db()
+        doc_nested.refresh_from_db()
+        assert is_dataroom_vault_document(doc_root) is True
+        assert is_dataroom_vault_document(doc_sub) is True
+        assert is_dataroom_vault_document(doc_nested) is True
+
+        user.refresh_from_db()
+        assert user.total_document_size == 500
 
     def test_dataroom_stats(self, api_client, user, organization):
         """
