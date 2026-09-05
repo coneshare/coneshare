@@ -235,7 +235,7 @@ export function ManagePermissionsDialog({ isOpen, onOpenChange, link, onSuccess 
     setIsSaving(true);
     try {
       await updateDataroomLinkSettings(link.id, changes);
-      toast.success('Permissions updated successfully.');
+      toast.success(t('datarooms.permissionsUpdated'));
       onSuccess();
       onOpenChange(false);
     } catch (error) {

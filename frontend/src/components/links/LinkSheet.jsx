@@ -138,10 +138,10 @@ export function LinkSheet({
     try {
       if (isEditing) {
         await updateShareLink(currentLink.id, linkData);
-        toast.success('Link updated successfully.');
+        toast.success(t('linkSheet.linkUpdated'));
       } else {
         await createShareLink(linkData);
-        toast.success('Link created successfully.');
+        toast.success(t('linkSheet.linkCreated'));
       }
 
       onSuccess(); // Trigger data refresh

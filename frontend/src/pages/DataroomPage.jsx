@@ -630,7 +630,7 @@ export function DataroomPage() {
         name: dataroomName,
       });
       setDataroom(response.data);
-      toast.success('Dataroom name updated.');
+      toast.success(t('datarooms.nameUpdated'));
     } catch (error) {
       // Error toast handled by interceptor
     } finally {
@@ -648,7 +648,7 @@ export function DataroomPage() {
       setDataroom(response.data);
       setBrandingBannerFile(null);
       setRemoveBrandingBanner(false);
-      toast.success('Banner updated.');
+      toast.success(t('datarooms.bannerUpdated'));
     } catch (error) {
       // Error toast handled by interceptor
     } finally {
@@ -665,7 +665,7 @@ export function DataroomPage() {
         brandAccentColor: brandingForm.brandAccentColor,
       });
       setDataroom(response.data);
-      toast.success('Theme colors updated.');
+      toast.success(t('datarooms.themeColorsUpdated'));
     } catch (error) {
       // Error toast handled by interceptor
     } finally {
@@ -680,7 +680,7 @@ export function DataroomPage() {
         showFileIndex: checked,
       });
       setDataroom(response.data);
-      toast.success('Display settings updated.');
+      toast.success(t('datarooms.displaySettingsUpdated'));
     } catch (error) {
       setShowFileIndex((prev) => !prev);
       // Error toast handled by interceptor
@@ -697,7 +697,7 @@ export function DataroomPage() {
         enableQna: checked,
       });
       setDataroom(response.data);
-      toast.success('Q&A settings updated.');
+      toast.success(t('datarooms.qnaSettingsUpdated'));
     } catch (error) {
       setEnableQna(previousEnableQna);
       // Error toast handled by interceptor

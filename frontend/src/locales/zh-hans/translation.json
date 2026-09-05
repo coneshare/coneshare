@@ -124,7 +124,9 @@
     "expirationSubtitle": "设置此链接失效的日期和时间。",
     "enableQna": "启用问答",
     "qnaSubtitle": "允许访问者通过此链接提问。",
-    "qnaDisabledForDataroom": "此资料室已禁用问答。"
+    "qnaDisabledForDataroom": "此资料室已禁用问答。",
+    "linkCreated": "链接创建成功。",
+    "linkUpdated": "链接更新成功。"
   },
   "qna": {
     "title": "问答",
@@ -479,6 +481,7 @@
     "managePermissionsTitle": "管理 \"{{name}}\" 的权限",
     "managePermissionsDescription": "为每个项目设置可见性、下载和水印权限。更改仅适用于此链接。",
     "managePermissionsHelp": "文件夹权限更改将递归应用于所有嵌套文件夹和文档。",
+    "permissionsUpdated": "权限更新成功。",
     "contentColumn": "内容",
     "visibleColumn": "可见",
     "downloadColumn": "下载",
@@ -501,6 +504,11 @@
     "enableQna": "启用问答",
     "enableQnaHelp": "允许访问者在此资料室内提问。关闭此项将禁用该资料室所有链接中的问答功能。",
     "qnaDisabledNotice": "此资料室已禁用问答。现有的讨论仍可在此查看，但访问者无法发起或回复。",
+    "nameUpdated": "资料室名称已更新。",
+    "bannerUpdated": "横幅已更新。",
+    "themeColorsUpdated": "主题颜色已更新。",
+    "displaySettingsUpdated": "显示设置已更新。",
+    "qnaSettingsUpdated": "问答设置已更新。",
     "collaboratorRole": "协作者",
     "sharedRole": "已共享",
     "ownerRole": "所有者",
@@ -1041,6 +1049,8 @@
     "previewGenerationFailed": "生成预览时发生错误。",
     "previewCouldNotBeGenerated": "无法生成预览。",
     "documentNameExists": "该位置已存在同名文档。",
-    "folderNameExists": "该位置已存在同名文件夹。"
+    "folderNameExists": "该位置已存在同名文件夹。",
+    "storageQuotaExceeded": "上传此文件将超过您的存储配额 ({{quota}} MB)。",
+    "dataroomStorageLimitExceeded": "上传此文件将超过该资料室的存储容量上限 ({{limit}} MB)。"
   }
 }

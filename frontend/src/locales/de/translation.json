@@ -125,7 +125,9 @@
     "expirationSubtitle": "Datum und Uhrzeit festlegen, nach denen der Link nicht mehr zugänglich ist.",
     "enableQna": "Fragen & Antworten aktivieren",
     "qnaSubtitle": "Besuchern erlauben, über diesen Link Fragen zu stellen.",
-    "qnaDisabledForDataroom": "Fragen & Antworten sind für diesen Datenraum deaktiviert."
+    "qnaDisabledForDataroom": "Fragen & Antworten sind für diesen Datenraum deaktiviert.",
+    "linkCreated": "Link erfolgreich erstellt.",
+    "linkUpdated": "Link erfolgreich aktualisiert."
   },
   "qna": {
     "title": "Fragen & Antworten",
@@ -522,6 +524,7 @@
     "managePermissionsTitle": "Berechtigungen für „{{name}}“ verwalten",
     "managePermissionsDescription": "Sichtbarkeit, Download und Wasserzeichen für jedes Element festlegen. Änderungen gelten nur für diesen Link.",
     "managePermissionsHelp": "Änderungen an Ordnerberechtigungen werden rekursiv auf alle Unterordner und Dokumente angewendet.",
+    "permissionsUpdated": "Berechtigungen erfolgreich aktualisiert.",
     "contentColumn": "Inhalt",
     "visibleColumn": "Sichtbar",
     "downloadColumn": "Download",
@@ -543,7 +546,12 @@
     "displayNotice": "Anzeigeverhalten der Datenraumliste konfigurieren.",
     "enableQna": "Fragen & Antworten aktivieren",
     "enableQnaHelp": "Besuchern erlauben, in diesem Datenraum Fragen zu stellen. Wenn deaktiviert, sind Fragen & Antworten für alle Links zu diesem Raum ausgeschaltet.",
-    "qnaDisabledNotice": "Fragen & Antworten sind für diesen Datenraum deaktiviert. Bestehende Diskussionen bleiben hier sichtbar, aber Besucher können keine neuen Fragen stellen oder antworten."
+    "qnaDisabledNotice": "Fragen & Antworten sind für diesen Datenraum deaktiviert. Bestehende Diskussionen bleiben hier sichtbar, aber Besucher können keine neuen Fragen stellen oder antworten.",
+    "nameUpdated": "Name des Datenraums aktualisiert.",
+    "bannerUpdated": "Banner aktualisiert.",
+    "themeColorsUpdated": "Designfarben aktualisiert.",
+    "displaySettingsUpdated": "Anzeigeeinstellungen aktualisiert.",
+    "qnaSettingsUpdated": "Fragen & Antworten-Einstellungen aktualisiert."
   },
   "fileRequests": {
     "title": "Dateianforderungen",
@@ -1072,6 +1080,8 @@
     "previewGenerationFailed": "Bei der Vorschaugenerierung ist ein Fehler aufgetreten.",
     "previewCouldNotBeGenerated": "Die Vorschau konnte nicht generiert werden.",
     "documentNameExists": "Ein Dokument mit diesem Namen existiert bereits an diesem Speicherort.",
-    "folderNameExists": "Ein Ordner mit diesem Namen existiert bereits an diesem Speicherort."
+    "folderNameExists": "Ein Ordner mit diesem Namen existiert bereits an diesem Speicherort.",
+    "storageQuotaExceeded": "Das Hochladen dieser Datei würde Ihr Speicherkontingent von {{quota}} MB überschreiten.",
+    "dataroomStorageLimitExceeded": "Das Hochladen dieser Datei würde das Dataroom-Speicherlimit von {{limit}} MB überschreiten."
   }
 }

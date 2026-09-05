@@ -63,6 +63,17 @@ const ERROR_STRING_MAPPINGS = {
     "errors.folderNameExists",
 };
 
+const DYNAMIC_ERROR_PATTERNS = [
+  {
+    pattern: /^Uploading this file would exceed your storage quota of (\d+(?:\.\d+)?) MB\.$/,
+    handler: (match) => i18n.t('errors.storageQuotaExceeded', { quota: match[1] }),
+  },
+  {
+    pattern: /^Uploading this file would exceed the Dataroom storage limit of (\d+(?:\.\d+)?) MB\.$/,
+    handler: (match) => i18n.t('errors.dataroomStorageLimitExceeded', { limit: match[1] }),
+  },
+];
+
 /**
  * Translates backend error messages or objects to current i18n language string.
  * @param {Error|string|Array} errorOrDetail - Axios error object or raw message string.
@@ -86,11 +97,18 @@ export function getLocalizedErrorMessage(errorOrDetail, fallbackKey) {
     rawDetail = errorOrDetail.message;
   }
 
-  if (rawDetail && ERROR_STRING_MAPPINGS[rawDetail]) {
-    return i18n.t(ERROR_STRING_MAPPINGS[rawDetail]);
-  }
-
   if (rawDetail) {
+    if (ERROR_STRING_MAPPINGS[rawDetail]) {
+      return i18n.t(ERROR_STRING_MAPPINGS[rawDetail]);
+    }
+
+    for (const { pattern, handler } of DYNAMIC_ERROR_PATTERNS) {
+      const match = rawDetail.match(pattern);
+      if (match) {
+        return handler(match);
+      }
+    }
+
     return rawDetail;
   }
 

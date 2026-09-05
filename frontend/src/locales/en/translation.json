@@ -125,7 +125,9 @@
     "expirationSubtitle": "Set a date and time after which the link will no longer be accessible.",
     "enableQna": "Enable Q&A",
     "qnaSubtitle": "Let viewers ask questions through this link.",
-    "qnaDisabledForDataroom": "Q&A is disabled for this dataroom."
+    "qnaDisabledForDataroom": "Q&A is disabled for this dataroom.",
+    "linkCreated": "Link created successfully.",
+    "linkUpdated": "Link updated successfully."
   },
   "qna": {
     "title": "Q&A",
@@ -525,6 +527,7 @@
     "managePermissionsTitle": "Manage Permissions for \"{{name}}\"",
     "managePermissionsDescription": "Set visibility, download, and watermark permissions for each item. Changes apply only to this link.",
     "managePermissionsHelp": "Folder permission changes apply recursively to all nested folders and documents.",
+    "permissionsUpdated": "Permissions updated successfully.",
     "contentColumn": "Content",
     "visibleColumn": "Visible",
     "downloadColumn": "Download",
@@ -546,7 +549,12 @@
     "displayNotice": "Configure dataroom list display behavior.",
     "enableQna": "Enable Q&A",
     "enableQnaHelp": "Let viewers ask questions inside this dataroom. Turning this off disables Q&A on every link into this room.",
-    "qnaDisabledNotice": "Q&A is disabled for this dataroom. Existing threads stay visible here, but viewers cannot start or reply to them."
+    "qnaDisabledNotice": "Q&A is disabled for this dataroom. Existing threads stay visible here, but viewers cannot start or reply to them.",
+    "nameUpdated": "Dataroom name updated.",
+    "bannerUpdated": "Banner updated.",
+    "themeColorsUpdated": "Theme colors updated.",
+    "displaySettingsUpdated": "Display settings updated.",
+    "qnaSettingsUpdated": "Q&A settings updated."
   },
   "fileRequests": {
     "title": "File Requests",
@@ -1049,6 +1057,8 @@
     "previewGenerationFailed": "An error occurred during preview generation.",
     "previewCouldNotBeGenerated": "The preview could not be generated.",
     "documentNameExists": "A document with this name already exists in this location.",
-    "folderNameExists": "A folder with this name already exists in this location."
+    "folderNameExists": "A folder with this name already exists in this location.",
+    "storageQuotaExceeded": "Uploading this file would exceed your storage quota of {{quota}} MB.",
+    "dataroomStorageLimitExceeded": "Uploading this file would exceed the Dataroom storage limit of {{limit}} MB."
   }
 }

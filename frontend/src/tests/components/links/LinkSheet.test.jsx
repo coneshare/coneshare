@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LinkSheet } from '../../../components/links/LinkSheet';
 import * as api from '../../../services/api';
+import { toast } from 'sonner';
 import '../../../i18n';
 
 // Mock ResizeObserver for Radix UI components in JSDOM
@@ -67,6 +68,7 @@ describe('LinkSheet', () => {
       }));
       expect(mockOnSuccess).toHaveBeenCalled();
       expect(mockOnOpenChange).toHaveBeenCalledWith(false);
+      expect(toast.success).toHaveBeenCalledWith('Link created successfully.');
     });
 
     it('should call createShareLink with password when enabled', async () => {
@@ -117,6 +119,7 @@ describe('LinkSheet', () => {
       expect(payload).not.toHaveProperty('password');
       expect(payload).not.toHaveProperty('document');
       expect(mockOnSuccess).toHaveBeenCalled();
+      expect(toast.success).toHaveBeenCalledWith('Link updated successfully.');
     });
 
     it('should call updateShareLink with new password if changed', async () => {

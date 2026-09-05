@@ -301,6 +301,70 @@ describe('Frontend i18n System', () => {
     await appI18n.changeLanguage('de');
     expect(getLocalizedErrorMessage(rawError)).toBe('Fehler beim Zugriff auf Google Drive. Ihr Autorisierungs-Token ist möglicherweise abgelaufen oder wurde widerrufen. Bitte verbinden Sie Ihr Konto erneut.');
 
+    // Dynamic storage quota errors
+    const quotaError = {
+      response: { data: { detail: 'Uploading this file would exceed your storage quota of 10 MB.' } },
+    };
+    await appI18n.changeLanguage('en');
+    expect(getLocalizedErrorMessage(quotaError)).toBe('Uploading this file would exceed your storage quota of 10 MB.');
+    await appI18n.changeLanguage('zh-hans');
+    expect(getLocalizedErrorMessage(quotaError)).toBe('上传此文件将超过您的存储配额 (10 MB)。');
+    await appI18n.changeLanguage('de');
+    expect(getLocalizedErrorMessage(quotaError)).toBe('Das Hochladen dieser Datei würde Ihr Speicherkontingent von 10 MB überschreiten.');
+    await appI18n.changeLanguage('ru');
+    expect(getLocalizedErrorMessage(quotaError)).toBe('Загрузка этого файла превысит вашу квоту хранилища в 10 МБ.');
+
+    // Dynamic dataroom storage limit errors
+    const dataroomQuotaError = {
+      response: { data: { detail: 'Uploading this file would exceed the Dataroom storage limit of 50 MB.' } },
+    };
+    await appI18n.changeLanguage('en');
+    expect(getLocalizedErrorMessage(dataroomQuotaError)).toBe('Uploading this file would exceed the Dataroom storage limit of 50 MB.');
+    await appI18n.changeLanguage('zh-hans');
+    expect(getLocalizedErrorMessage(dataroomQuotaError)).toBe('上传此文件将超过该资料室的存储容量上限 (50 MB)。');
+    await appI18n.changeLanguage('de');
+    expect(getLocalizedErrorMessage(dataroomQuotaError)).toBe('Das Hochladen dieser Datei würde das Dataroom-Speicherlimit von 50 MB überschreiten.');
+    await appI18n.changeLanguage('ru');
+    expect(getLocalizedErrorMessage(dataroomQuotaError)).toBe('Загрузка этого файла превысит лимит хранилища датарума в 50 МБ.');
+
+    // LinkSheet & Dataroom toast translations
+    await appI18n.changeLanguage('en');
+    expect(appI18n.t('linkSheet.linkCreated')).toBe('Link created successfully.');
+    expect(appI18n.t('linkSheet.linkUpdated')).toBe('Link updated successfully.');
+    expect(appI18n.t('datarooms.permissionsUpdated')).toBe('Permissions updated successfully.');
+    expect(appI18n.t('datarooms.nameUpdated')).toBe('Dataroom name updated.');
+    expect(appI18n.t('datarooms.bannerUpdated')).toBe('Banner updated.');
+    expect(appI18n.t('datarooms.themeColorsUpdated')).toBe('Theme colors updated.');
+    expect(appI18n.t('datarooms.displaySettingsUpdated')).toBe('Display settings updated.');
+    expect(appI18n.t('datarooms.qnaSettingsUpdated')).toBe('Q&A settings updated.');
+    await appI18n.changeLanguage('zh-hans');
+    expect(appI18n.t('linkSheet.linkCreated')).toBe('链接创建成功。');
+    expect(appI18n.t('linkSheet.linkUpdated')).toBe('链接更新成功。');
+    expect(appI18n.t('datarooms.permissionsUpdated')).toBe('权限更新成功。');
+    expect(appI18n.t('datarooms.nameUpdated')).toBe('资料室名称已更新。');
+    expect(appI18n.t('datarooms.bannerUpdated')).toBe('横幅已更新。');
+    expect(appI18n.t('datarooms.themeColorsUpdated')).toBe('主题颜色已更新。');
+    expect(appI18n.t('datarooms.displaySettingsUpdated')).toBe('显示设置已更新。');
+    expect(appI18n.t('datarooms.qnaSettingsUpdated')).toBe('问答设置已更新。');
+    await appI18n.changeLanguage('de');
+    expect(appI18n.t('linkSheet.linkCreated')).toBe('Link erfolgreich erstellt.');
+    expect(appI18n.t('linkSheet.linkUpdated')).toBe('Link erfolgreich aktualisiert.');
+    expect(appI18n.t('datarooms.permissionsUpdated')).toBe('Berechtigungen erfolgreich aktualisiert.');
+    expect(appI18n.t('datarooms.nameUpdated')).toBe('Name des Datenraums aktualisiert.');
+    expect(appI18n.t('datarooms.bannerUpdated')).toBe('Banner aktualisiert.');
+    expect(appI18n.t('datarooms.themeColorsUpdated')).toBe('Designfarben aktualisiert.');
+    expect(appI18n.t('datarooms.displaySettingsUpdated')).toBe('Anzeigeeinstellungen aktualisiert.');
+    expect(appI18n.t('datarooms.qnaSettingsUpdated')).toBe('Fragen & Antworten-Einstellungen aktualisiert.');
+    await appI18n.changeLanguage('ru');
+    expect(appI18n.t('linkSheet.linkCreated')).toBe('Ссылка успешно создана.');
+    expect(appI18n.t('linkSheet.linkUpdated')).toBe('Ссылка успешно обновлена.');
+    expect(appI18n.t('datarooms.permissionsUpdated')).toBe('Разрешения успешно обновлены.');
+    expect(appI18n.t('datarooms.nameUpdated')).toBe('Название датарума обновлено.');
+    expect(appI18n.t('datarooms.bannerUpdated')).toBe('Баннер обновлен.');
+    expect(appI18n.t('datarooms.themeColorsUpdated')).toBe('Цвета темы обновлены.');
+    expect(appI18n.t('datarooms.displaySettingsUpdated')).toBe('Настройки отображения обновлены.');
+    expect(appI18n.t('datarooms.qnaSettingsUpdated')).toBe('Настройки вопросов и ответов обновлены.');
+
     // Fallback when error has no detail and no fallbackKey
     await appI18n.changeLanguage('en');
     expect(getLocalizedErrorMessage({})).toBe('An unexpected error occurred.');

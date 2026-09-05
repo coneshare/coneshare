@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ManagePermissionsDialog } from '../../../components/datarooms/ManagePermissionsDialog';
 import * as api from '../../../services/api';
+import { toast } from 'sonner';
 import '../../../i18n';
 
 // Mocks
@@ -121,6 +122,7 @@ describe('ManagePermissionsDialog', () => {
       ]);
     });
     expect(mockOnSuccess).toHaveBeenCalled();
+    expect(toast.success).toHaveBeenCalledWith('Permissions updated successfully.');
   });
 
   it('applies bulk settings to a folder and all its descendants', async () => {
