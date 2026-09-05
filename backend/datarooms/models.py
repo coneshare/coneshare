@@ -49,6 +49,22 @@ class DataroomFolder(BaseModel):
     )
     is_starred = models.BooleanField(default=False)
 
+    def get_full_path(self):
+        """
+        Returns the '/' delimited path of this folder hierarchy (e.g. '/Financials/2026/Q1').
+        Traverses ancestors via self.parent. Call sites creating audit snapshots should
+        prefetch ancestor relations (e.g. select_related('parent__parent...')) to resolve
+        all levels in a single query and prevent N+1 DB round-trips.
+        """
+        parts = [self.name]
+        curr = self.parent
+        visited = {self.id}
+        while curr and curr.id not in visited:
+            parts.append(curr.name)
+            visited.add(curr.id)
+            curr = curr.parent
+        return "/" + "/".join(reversed(parts))
+
     def __str__(self):
         return self.name
 

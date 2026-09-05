@@ -707,6 +707,10 @@ class TestDataroomVisitTracking:
         response_data = response.json()
         assert response_data['id'] == str(visit.id)
         assert response_data['dataroom_document_id'] == str(ddoc.id)
+        assert response_data['item_type'] == 'document'
+        assert response_data['item_name'] == ddoc.document.name
+        assert response_data['item_path'] == '/Test Folder'
+        assert response_data['item_status'] == 'active'
 
     def test_record_dataroom_folder_visit(self, public_client, dataroom_link_with_content):
         """Test that a visit to a dataroom folder is recorded."""
@@ -725,6 +729,274 @@ class TestDataroomVisitTracking:
         assert visit.view_session == session
         assert visit.dataroom_folder == folder
         assert visit.dataroom_document is None
+        assert visit.item_type == 'folder'
+        assert visit.item_name == folder.name
+        assert visit.item_path == '/Test Folder'
+
+        response_data = response.json()
+        assert response_data['item_type'] == 'folder'
+        assert response_data['item_name'] == folder.name
+        assert response_data['item_path'] == '/Test Folder'
+        assert response_data['item_status'] == 'active'
+
+    def test_folder_get_full_path_hierarchy(self, dataroom):
+        """Test hierarchical path calculation on DataroomFolder."""
+        root = DataroomFolder.objects.create(dataroom=dataroom, name="Financials")
+        sub1 = DataroomFolder.objects.create(dataroom=dataroom, parent=root, name="2026")
+        sub2 = DataroomFolder.objects.create(dataroom=dataroom, parent=sub1, name="Q1")
+
+        assert root.get_full_path() == "/Financials"
+        assert sub1.get_full_path() == "/Financials/2026"
+        assert sub2.get_full_path() == "/Financials/2026/Q1"
+
+    def test_audit_trail_preserved_when_dataroom_document_deleted(self, api_client, dataroom_link_with_content):
+        """
+        Test that deleting a DataroomDocument preserves the historical document name,
+        type, and path in the activity log, with item_status='deleted'.
+        """
+        session = dataroom_link_with_content['session']
+        ddoc = dataroom_link_with_content['ddoc']
+        link = session.share_link
+        doc_name = ddoc.document.name
+
+        visit = DataroomVisit.objects.create(view_session=session, dataroom_document=ddoc)
+        assert visit.item_name == doc_name
+        assert visit.item_path == "/Test Folder"
+        assert visit.document_type == ddoc.document.type
+
+        # Now delete the dataroom document (simulates removal from room)
+        ddoc.delete()
+
+        # Fetch the session via API as the owner
+        url = f'/api/v1/share-links/{link.id}/view-sessions/'
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        visit_data = data['results'][0]['dataroom_visits'][0]
+
+        # Audit trail must preserve original metadata even though FK was set to NULL
+        assert visit_data['dataroom_document_id'] is None
+        assert visit_data['dataroom_document_name'] == doc_name
+        assert visit_data['item_name'] == doc_name
+        assert visit_data['item_path'] == "/Test Folder"
+        assert visit_data['item_status'] == 'deleted'
+
+    def test_audit_trail_when_dataroom_document_renamed(self, api_client, dataroom_link_with_content):
+        """
+        Test that renaming a DataroomDocument preserves the original historical name,
+        reports the current live name, and sets item_status='renamed'.
+        """
+        session = dataroom_link_with_content['session']
+        ddoc = dataroom_link_with_content['ddoc']
+        link = session.share_link
+        original_name = ddoc.document.name
+
+        visit = DataroomVisit.objects.create(view_session=session, dataroom_document=ddoc)
+        assert visit.item_name == original_name
+
+        # Rename the dataroom document alias
+        ddoc.name = "Renamed Contract.pdf"
+        ddoc.save()
+
+        # Fetch the session via API as the owner
+        url = f'/api/v1/share-links/{link.id}/view-sessions/'
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        visit_data = data['results'][0]['dataroom_visits'][0]
+
+        assert visit_data['dataroom_document_name'] == "Renamed Contract.pdf"
+        assert visit_data['item_name'] == original_name
+        assert visit_data['item_status'] == 'renamed'
+
+    def test_audit_trail_preserved_when_dataroom_folder_deleted(self, api_client, dataroom_link_with_content):
+        """
+        Test that deleting a DataroomFolder preserves the historical folder name,
+        type, and path in the activity log, with item_status='deleted'.
+        """
+        session = dataroom_link_with_content['session']
+        folder = dataroom_link_with_content['folder']
+        link = session.share_link
+        folder_name = folder.name
+
+        visit = DataroomVisit.objects.create(view_session=session, dataroom_folder=folder)
+        assert visit.item_name == folder_name
+        assert visit.item_type == 'folder'
+
+        # Delete the folder
+        folder.delete()
+
+        # Fetch the session via API
+        url = f'/api/v1/share-links/{link.id}/view-sessions/'
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        visit_data = data['results'][0]['dataroom_visits'][0]
+
+        assert visit_data['dataroom_folder_id'] is None
+        assert visit_data['dataroom_folder_name'] == folder_name
+        assert visit_data['item_name'] == folder_name
+        assert visit_data['item_status'] == 'deleted'
+
+    def test_audit_trail_when_dataroom_folder_renamed(self, api_client, dataroom_link_with_content):
+        """
+        Test that renaming a DataroomFolder reports the live folder name,
+        preserves the original snapshot name, and sets item_status='renamed'.
+        """
+        session = dataroom_link_with_content['session']
+        folder = dataroom_link_with_content['folder']
+        link = session.share_link
+        original_name = folder.name
+
+        visit = DataroomVisit.objects.create(view_session=session, dataroom_folder=folder)
+        assert visit.item_name == original_name
+
+        # Rename the folder
+        folder.name = "2026 Archived Financials"
+        folder.save()
+
+        # Fetch the session via API
+        url = f'/api/v1/share-links/{link.id}/view-sessions/'
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        visit_data = data['results'][0]['dataroom_visits'][0]
+
+        assert visit_data['dataroom_folder_name'] == "2026 Archived Financials"
+        assert visit_data['item_name'] == original_name
+        assert visit_data['item_status'] == 'renamed'
+
+    def test_audit_trail_preserved_when_dataroom_document_moved(self, api_client, dataroom_link_with_content, dataroom):
+        """
+        Test that moving a document to a different folder preserves the historical item_path
+        in the activity log.
+        """
+        session = dataroom_link_with_content['session']
+        ddoc = dataroom_link_with_content['ddoc']
+        link = session.share_link
+
+        visit = DataroomVisit.objects.create(view_session=session, dataroom_document=ddoc)
+        assert visit.item_path == "/Test Folder"
+
+        # Move document to a new folder
+        new_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Archive")
+        ddoc.folder = new_folder
+        ddoc.save()
+
+        # Fetch session via API
+        url = f'/api/v1/share-links/{link.id}/view-sessions/'
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        visit_data = data['results'][0]['dataroom_visits'][0]
+
+        # Audit trail must preserve the path at time of access
+        assert visit_data['item_path'] == "/Test Folder"
+
+    def test_audit_trail_preserved_when_dataroom_folder_moved(self, api_client, dataroom_link_with_content, dataroom):
+        """
+        Test that moving a folder to a different parent preserves the historical item_path
+        in the activity log.
+        """
+        session = dataroom_link_with_content['session']
+        link = session.share_link
+
+        parent_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Parent")
+        child_folder = DataroomFolder.objects.create(dataroom=dataroom, parent=parent_folder, name="Child")
+
+        visit = DataroomVisit.objects.create(view_session=session, dataroom_folder=child_folder)
+        assert visit.item_path == "/Parent/Child"
+
+        # Move child_folder to a different parent folder
+        new_parent = DataroomFolder.objects.create(dataroom=dataroom, name="Archive")
+        child_folder.parent = new_parent
+        child_folder.save()
+
+        # Fetch session via API
+        url = f'/api/v1/share-links/{link.id}/view-sessions/'
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        visit_data = [v for v in data['results'][0]['dataroom_visits'] if v['id'] == str(visit.id)][0]
+
+        # Audit trail must preserve the original historical path
+        assert visit_data['item_path'] == "/Parent/Child"
+
+    def test_record_visit_for_hidden_document_fails_with_404(self, public_client, dataroom_link_with_content):
+        """Test that recording a visit for a document with is_visible=False fails with 404."""
+        session = dataroom_link_with_content['session']
+        ddoc = dataroom_link_with_content['ddoc']
+        link = session.share_link
+
+        # Hide the document on this share link
+        setting = link.dataroom_settings.get(dataroom_document=ddoc)
+        setting.is_visible = False
+        setting.save()
+
+        url = f'/api/v1/view-sessions/{session.id}/record-visit/'
+        data = {'dataroom_document_id': str(ddoc.id)}
+        response = public_client.post(url, data)
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert DataroomVisit.objects.filter(view_session=session).count() == 0
+
+    def test_record_visit_for_document_in_hidden_folder_fails_with_404(self, public_client, dataroom_link_with_content):
+        """Test that recording a visit for a document inside a hidden folder fails with 404."""
+        session = dataroom_link_with_content['session']
+        ddoc = dataroom_link_with_content['ddoc']
+        folder = dataroom_link_with_content['folder']
+        link = session.share_link
+
+        # Hide the parent folder on this share link
+        folder_setting = link.dataroom_settings.get(dataroom_folder=folder)
+        folder_setting.is_visible = False
+        folder_setting.save()
+
+        url = f'/api/v1/view-sessions/{session.id}/record-visit/'
+        data = {'dataroom_document_id': str(ddoc.id)}
+        response = public_client.post(url, data)
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert DataroomVisit.objects.filter(view_session=session).count() == 0
+
+    def test_record_visit_for_hidden_folder_fails_with_404(self, public_client, dataroom_link_with_content):
+        """Test that recording a visit for a hidden folder fails with 404."""
+        session = dataroom_link_with_content['session']
+        folder = dataroom_link_with_content['folder']
+        link = session.share_link
+
+        # Hide the folder on this share link
+        folder_setting = link.dataroom_settings.get(dataroom_folder=folder)
+        folder_setting.is_visible = False
+        folder_setting.save()
+
+        url = f'/api/v1/view-sessions/{session.id}/record-visit/'
+        data = {'dataroom_folder_id': str(folder.id)}
+        response = public_client.post(url, data)
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert DataroomVisit.objects.filter(view_session=session).count() == 0
+
+    def test_record_visit_deeply_nested_document_path(self, public_client, dataroom_link_with_content, dataroom, document):
+        """Test that recording a visit for a deeply nested document correctly resolves full path without error."""
+        session = dataroom_link_with_content['session']
+        link = session.share_link
+
+        l1 = DataroomFolder.objects.create(dataroom=dataroom, name="Level1")
+        l2 = DataroomFolder.objects.create(dataroom=dataroom, parent=l1, name="Level2")
+        l3 = DataroomFolder.objects.create(dataroom=dataroom, parent=l2, name="Level3")
+        l4 = DataroomFolder.objects.create(dataroom=dataroom, parent=l3, name="Level4")
+        deep_doc = DataroomDocument.objects.create(dataroom=dataroom, document=document, folder=l4, name="Nested Doc")
+        # Note: signals already created ShareLinkDataroomSetting with is_visible=True for link
+
+        url = f'/api/v1/view-sessions/{session.id}/record-visit/'
+        data = {'dataroom_document_id': str(deep_doc.id)}
+        response = public_client.post(url, data)
+
+        assert response.status_code == status.HTTP_201_CREATED
+        res_data = response.json()
+        assert res_data['item_name'] == "Nested Doc"
+        assert res_data['item_path'] == "/Level1/Level2/Level3/Level4"
 
     def test_record_visit_for_non_dataroom_link_fails(self, public_client, share_link):
         """Test that recording a visit fails for a regular document share link."""
@@ -2722,6 +2994,10 @@ class TestWatermarkingViews:
         visit = DataroomVisit.objects.filter(view_session=view_session, dataroom_document=ddoc).first()
         assert visit is not None
         assert visit.downloaded_at is not None
+        assert visit.item_type == 'document'
+        assert visit.item_name == document.name
+        assert visit.item_path == '/'
+        assert visit.document_type == document.type
 
     def test_download_file_password_protected_fails_without_auth(self, public_client, watermarked_link):
         """Test that downloading from a password-protected link without an authorized session fails."""

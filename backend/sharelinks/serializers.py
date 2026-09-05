@@ -55,9 +55,13 @@ class LinkClickSerializer(serializers.ModelSerializer):
 
 
 class DataroomVisitSerializer(serializers.ModelSerializer):
-    dataroom_document_name = serializers.CharField(source='dataroom_document.document.name', read_only=True, default=None)
-    dataroom_document_type = serializers.CharField(source='dataroom_document.document.type', read_only=True, default=None)
-    dataroom_folder_name = serializers.CharField(source='dataroom_folder.name', read_only=True, default=None)
+    dataroom_document_name = serializers.SerializerMethodField()
+    dataroom_document_type = serializers.SerializerMethodField()
+    dataroom_folder_name = serializers.SerializerMethodField()
+    item_type = serializers.CharField(read_only=True)
+    item_name = serializers.CharField(read_only=True)
+    item_path = serializers.CharField(read_only=True)
+    item_status = serializers.SerializerMethodField()
     page_views = PageViewSerializer(many=True, read_only=True)
     link_clicks = LinkClickSerializer(many=True, read_only=True)
 
@@ -65,9 +69,57 @@ class DataroomVisitSerializer(serializers.ModelSerializer):
         model = DataroomVisit
         fields = [
             'id', 'visited_at', 'downloaded_at', 'dataroom_document_id', 'dataroom_folder_id',
-            'dataroom_document_name', 'dataroom_document_type', 'dataroom_folder_name', 'page_views', 'link_clicks'
+            'dataroom_document_name', 'dataroom_document_type', 'dataroom_folder_name',
+            'item_type', 'item_name', 'item_path', 'item_status',
+            'page_views', 'link_clicks'
         ]
-        read_only_fields = ['id', 'visited_at', 'downloaded_at']
+        read_only_fields = [
+            'id', 'visited_at', 'downloaded_at', 'item_type', 'item_name', 'item_path', 'item_status'
+        ]
+
+    def get_dataroom_document_name(self, obj):
+        # Prefer live item name if exists, fallback to snapshot name
+        if obj.dataroom_document:
+            if obj.dataroom_document.name:
+                return obj.dataroom_document.name
+            if obj.dataroom_document.document:
+                return obj.dataroom_document.document.name
+        if obj.item_type == 'document' or not obj.item_type:
+            return obj.item_name or None
+        return None
+
+    def get_dataroom_document_type(self, obj):
+        if obj.dataroom_document and obj.dataroom_document.document:
+            return obj.dataroom_document.document.type
+        if obj.item_type == 'document' or not obj.item_type:
+            return obj.document_type or None
+        return None
+
+    def get_dataroom_folder_name(self, obj):
+        if obj.dataroom_folder:
+            return obj.dataroom_folder.name
+        if obj.item_type == 'folder':
+            return obj.item_name or None
+        return None
+
+    def get_item_status(self, obj):
+        """Returns 'active', 'deleted', or 'renamed'."""
+        if obj.item_type == 'folder' or (not obj.item_type and obj.dataroom_folder_id):
+            if not obj.dataroom_folder:
+                return 'deleted'
+            if obj.item_name and obj.dataroom_folder.name != obj.item_name:
+                return 'renamed'
+            return 'active'
+
+        # Document
+        if not obj.dataroom_document:
+            return 'deleted'
+        current_name = obj.dataroom_document.name or (
+            obj.dataroom_document.document.name if obj.dataroom_document.document else ''
+        )
+        if obj.item_name and current_name and current_name != obj.item_name:
+            return 'renamed'
+        return 'active'
 
 
 class ShareLinkDataroomSettingSerializer(serializers.ModelSerializer):

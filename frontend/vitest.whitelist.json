@@ -48,6 +48,7 @@
     "src/tests/hooks/useDebounce.test.js",
     "src/tests/pages/DocumentPage.test.jsx",
     "src/tests/pages/AdminDataroomsPage.test.jsx",
-    "src/tests/components/layout/SidebarFooter.test.jsx"
+    "src/tests/components/layout/SidebarFooter.test.jsx",
+    "src/tests/components/documents/ViewSessionsTable.test.jsx"
   ]
 }
