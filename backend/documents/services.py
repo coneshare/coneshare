@@ -838,12 +838,41 @@ def promote_document_version(document: Document, version: DocumentVersion, reque
         locked_doc = Document.objects.select_for_update().get(pk=document.pk)
         old_file_size = locked_doc.file_size or 0
 
-        if requesting_user and new_file_size > old_file_size:
+        is_vault_doc = is_dataroom_vault_document(locked_doc)
+
+        if not is_vault_doc and requesting_user and new_file_size > old_file_size:
             check_user_quota_on_upload(
                 user=requesting_user,
                 new_file_size=new_file_size,
                 document_to_update=locked_doc
             )
+        elif is_vault_doc and new_file_size > old_file_size:
+            from datarooms.models import Dataroom, DataroomDocument
+            from datarooms.services import get_dataroom_storage_used_bytes
+
+            delta = new_file_size - old_file_size
+            dataroom_ids = list(
+                DataroomDocument.objects.filter(document=locked_doc)
+                .values_list('dataroom_id', flat=True)
+                .distinct()
+            )
+            if dataroom_ids:
+                # Lock affected datarooms in stable ID order to serialize quota checks and prevent deadlocks
+                locked_datarooms = list(
+                    Dataroom.objects.select_for_update()
+                    .filter(id__in=dataroom_ids)
+                    .order_by('id')
+                )
+                for droom in locked_datarooms:
+                    if droom.storage_quota_mb and droom.storage_quota_mb > 0:
+                        room_quota_bytes = droom.storage_quota_mb * 1024 * 1024
+                        current_usage = get_dataroom_storage_used_bytes(droom)
+                        if current_usage + delta > room_quota_bytes:
+                            raise QuotaExceededError(
+                                f"Promoting this version would exceed the Dataroom storage limit of {droom.storage_quota_mb} MB."
+                            )
+
+
 
         # Deactivate all current primary versions
         document.versions.filter(is_primary=True).update(is_primary=False)
@@ -888,8 +917,8 @@ def promote_document_version(document: Document, version: DocumentVersion, reque
 
         locked_doc.save()
 
-        # Update user's total document size
-        if requesting_user and old_file_size != new_file_size:
+        # Update user's total document size for personal documents (vault documents are tracked under datarooms)
+        if not is_vault_doc and requesting_user and old_file_size != new_file_size:
             User.objects.filter(pk=requesting_user.pk).update(
                 total_document_size=F('total_document_size') - old_file_size + new_file_size
             )

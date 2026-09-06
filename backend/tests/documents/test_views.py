@@ -2001,6 +2001,81 @@ def test_promote_version_endpoint_respects_quota(mock_get_setting, api_client, u
     assert "exceed your storage quota" in response.json()['detail']
 
 
+@pytest.mark.django_db
+@patch('core.services.get_dynamic_setting')
+def test_promote_version_endpoint_vault_document_bypasses_user_quota(mock_get_setting, api_client, user, organization):
+    """Test that promoting a version on a vault document succeeds even when user personal quota is full."""
+    def get_setting_mock(key):
+        if key == 'FILE_SIZE_QUOTA_MB':
+            return 1  # 1 MB quota limit
+        elif key == 'MAX_PREVIEW_FILE_SIZE_MB':
+            return 100
+        elif key == 'MAX_VIDEO_PREVIEW_SIZE_MB':
+            return 100
+        return 0
+    mock_get_setting.side_effect = get_setting_mock
+
+    root_folder = Folder.objects.create(
+        name="__root__",
+        organization=organization,
+        created_by=None,
+        parent=None,
+    )
+    vault_folder = Folder.objects.create(
+        name="__datarooms__",
+        organization=organization,
+        created_by=None,
+        parent=root_folder,
+    )
+    room_folder = Folder.objects.create(
+        name="Room_1",
+        organization=organization,
+        created_by=None,
+        parent=vault_folder,
+    )
+
+    doc = Document.objects.create(
+        name="VaultDoc.pdf",
+        organization=organization,
+        created_by=user,
+        folder=room_folder,
+        status="ready",
+        file_size=500 * 1024,
+    )
+    v1 = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        is_primary=True,
+        file_size=500 * 1024,
+        content_type="application/pdf",
+        original_storage_key="v1.pdf",
+        storage_key="v1.pdf",
+        type="pdf",
+    )
+    v2 = DocumentVersion.objects.create(
+        document=doc,
+        version_number=2,
+        is_primary=False,
+        file_size=2 * 1024 * 1024,  # 2 MB (> 1 MB user personal quota)
+        content_type="application/pdf",
+        original_storage_key="v2.pdf",
+        storage_key="v2.pdf",
+        type="pdf",
+    )
+    user.total_document_size = 1024 * 1024
+    user.save()
+
+    response = api_client.post(
+        f'/api/v1/documents/{doc.id}/promote_version/',
+        {'version_id': str(v2.id)}
+    )
+    assert response.status_code == status.HTTP_200_OK
+    doc.refresh_from_db()
+    assert doc.file_size == 2 * 1024 * 1024
+    user.refresh_from_db()
+    assert user.total_document_size == 1024 * 1024
+
+
 def test_preview_data_endpoint_document_uploading_state(api_client, user, organization):
     """Test retrieving preview data when document is in uploading state."""
     doc = Document.objects.create(

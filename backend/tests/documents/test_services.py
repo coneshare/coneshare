@@ -22,6 +22,7 @@ from documents.services import (
     soft_delete_document,
     soft_delete_folder,
     restore_item,
+    is_dataroom_vault_document,
 )
 from core.services import get_dynamic_setting
 
@@ -595,6 +596,334 @@ class TestPromoteDocumentVersion:
 
         with pytest.raises(ValidationError, match="already the active version"):
             promote_document_version(doc, v1, user)
+
+    def test_promote_version_in_vault_does_not_consume_user_quota(self, user):
+        """Promoting a version of a vault document should not increase user's total_document_size."""
+        root_folder = Folder.objects.create(
+            name="__root__",
+            organization=user.organization,
+            created_by=None,
+            parent=None,
+        )
+        vault_folder = Folder.objects.create(
+            name="__datarooms__",
+            organization=user.organization,
+            created_by=None,
+            parent=root_folder,
+        )
+        room_folder = Folder.objects.create(
+            name="Room_1",
+            organization=user.organization,
+            created_by=None,
+            parent=vault_folder,
+        )
+
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            folder=room_folder,
+            name="vault_doc.pdf",
+            type="pdf",
+            content_type="application/pdf",
+            file_size=100,
+            status="ready",
+        )
+        assert is_dataroom_vault_document(doc) is True
+
+        v1 = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            is_primary=True,
+            file_size=100,
+            content_type="application/pdf",
+            original_storage_key="vault_v1.pdf",
+            storage_key="vault_v1.pdf",
+            type="pdf",
+            render_status=DocumentVersion.RENDER_READY,
+        )
+        v2 = DocumentVersion.objects.create(
+            document=doc,
+            version_number=2,
+            is_primary=False,
+            file_size=500,
+            content_type="application/pdf",
+            original_storage_key="vault_v2.pdf",
+            storage_key="vault_v2.pdf",
+            type="pdf",
+            render_status=DocumentVersion.RENDER_READY,
+        )
+
+        user.total_document_size = 0
+        user.save()
+
+        # Act
+        promote_document_version(doc, v2, user)
+
+        # Assert document updated
+        doc.refresh_from_db()
+        assert doc.file_size == 500
+        v2.refresh_from_db()
+        assert v2.is_primary is True
+
+        # Assert user's personal quota was NOT affected
+        user.refresh_from_db()
+        assert user.total_document_size == 0
+
+    @patch('core.services.get_dynamic_setting')
+    def test_promote_version_in_vault_succeeds_when_user_quota_exhausted(self, mock_get_setting, user):
+        """Promoting a version of a vault document should not be blocked if the user's personal quota is full."""
+        def get_setting_mock(key):
+            if key == 'FILE_SIZE_QUOTA_MB':
+                return 1  # 1 MB quota
+            elif key == 'MAX_PREVIEW_FILE_SIZE_MB':
+                return 100
+            elif key == 'MAX_VIDEO_PREVIEW_SIZE_MB':
+                return 100
+            return 0
+        mock_get_setting.side_effect = get_setting_mock
+
+        root_folder = Folder.objects.create(
+            name="__root__",
+            organization=user.organization,
+            created_by=None,
+            parent=None,
+        )
+        vault_folder = Folder.objects.create(
+            name="__datarooms__",
+            organization=user.organization,
+            created_by=None,
+            parent=root_folder,
+        )
+        room_folder = Folder.objects.create(
+            name="Room_1",
+            organization=user.organization,
+            created_by=None,
+            parent=vault_folder,
+        )
+
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            folder=room_folder,
+            name="vault_doc.pdf",
+            type="pdf",
+            content_type="application/pdf",
+            file_size=500 * 1024,
+            status="ready",
+        )
+        v1 = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            is_primary=True,
+            file_size=500 * 1024,
+            content_type="application/pdf",
+            original_storage_key="vault_v1.pdf",
+            storage_key="vault_v1.pdf",
+            type="pdf",
+            render_status=DocumentVersion.RENDER_READY,
+        )
+        v2 = DocumentVersion.objects.create(
+            document=doc,
+            version_number=2,
+            is_primary=False,
+            file_size=2 * 1024 * 1024,  # 2 MB (> 1 MB user quota limit)
+            content_type="application/pdf",
+            original_storage_key="vault_v2.pdf",
+            storage_key="vault_v2.pdf",
+            type="pdf",
+            render_status=DocumentVersion.RENDER_READY,
+        )
+
+        # User's personal storage quota is completely exhausted
+        user.total_document_size = 1024 * 1024
+        user.save()
+
+        # Act: promoting the version on a vault document should succeed
+        promote_document_version(doc, v2, user)
+
+        doc.refresh_from_db()
+        assert doc.file_size == 2 * 1024 * 1024
+        user.refresh_from_db()
+        assert user.total_document_size == 1024 * 1024
+
+    def test_promote_version_in_vault_respects_dataroom_quota(self, user):
+        """Promoting a version of a vault document should enforce dataroom storage quota."""
+        from datarooms.models import Dataroom, DataroomDocument
+
+        dataroom = Dataroom.objects.create(
+            name="Confidential Project",
+            organization=user.organization,
+            created_by=user,
+            storage_quota_mb=1,  # 1 MB quota limit
+            storage_version=2,
+        )
+
+        root_folder = Folder.objects.create(
+            name="__root__",
+            organization=user.organization,
+            created_by=None,
+            parent=None,
+        )
+        vault_folder = Folder.objects.create(
+            name="__datarooms__",
+            organization=user.organization,
+            created_by=None,
+            parent=root_folder,
+        )
+        room_folder = Folder.objects.create(
+            name="Room_1",
+            organization=user.organization,
+            created_by=None,
+            parent=vault_folder,
+        )
+
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            folder=room_folder,
+            name="vault_doc.pdf",
+            type="pdf",
+            content_type="application/pdf",
+            file_size=500 * 1024,
+            status="ready",
+        )
+        DataroomDocument.objects.create(
+            dataroom=dataroom,
+            document=doc,
+            name="vault_doc.pdf",
+            is_direct_upload=True,
+        )
+
+        v1 = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            is_primary=True,
+            file_size=500 * 1024,
+            content_type="application/pdf",
+            original_storage_key="vault_v1.pdf",
+            storage_key="vault_v1.pdf",
+            type="pdf",
+            render_status=DocumentVersion.RENDER_READY,
+        )
+        v2 = DocumentVersion.objects.create(
+            document=doc,
+            version_number=2,
+            is_primary=False,
+            file_size=2 * 1024 * 1024,  # 2 MB (> 1 MB dataroom limit)
+            content_type="application/pdf",
+            original_storage_key="vault_v2.pdf",
+            storage_key="vault_v2.pdf",
+            type="pdf",
+            render_status=DocumentVersion.RENDER_READY,
+        )
+
+        with pytest.raises(QuotaExceededError, match="Promoting this version would exceed the Dataroom storage limit"):
+            promote_document_version(doc, v2, user)
+
+    def test_promote_version_in_vault_locks_datarooms_in_stable_order(self, user):
+        """Promoting a version of a vault document must lock affected Datarooms with select_for_update in stable ID order."""
+        from datarooms.models import Dataroom, DataroomDocument
+
+        room1 = Dataroom.objects.create(
+            name="Room 1",
+            organization=user.organization,
+            created_by=user,
+            storage_quota_mb=10,
+            storage_version=2,
+        )
+        room2 = Dataroom.objects.create(
+            name="Room 2",
+            organization=user.organization,
+            created_by=user,
+            storage_quota_mb=10,
+            storage_version=2,
+        )
+
+        root_folder = Folder.objects.create(
+            name="__root__",
+            organization=user.organization,
+            created_by=None,
+            parent=None,
+        )
+        vault_folder = Folder.objects.create(
+            name="__datarooms__",
+            organization=user.organization,
+            created_by=None,
+            parent=root_folder,
+        )
+        room_folder = Folder.objects.create(
+            name="Room_1",
+            organization=user.organization,
+            created_by=None,
+            parent=vault_folder,
+        )
+
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            folder=room_folder,
+            name="vault_doc.pdf",
+            type="pdf",
+            content_type="application/pdf",
+            file_size=100,
+            status="ready",
+        )
+        DataroomDocument.objects.create(dataroom=room1, document=doc, name="vault_doc.pdf")
+        DataroomDocument.objects.create(dataroom=room2, document=doc, name="vault_doc.pdf")
+
+        v1 = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            is_primary=True,
+            file_size=100,
+            content_type="application/pdf",
+            original_storage_key="vault_v1.pdf",
+            storage_key="vault_v1.pdf",
+            type="pdf",
+            render_status=DocumentVersion.RENDER_READY,
+        )
+        v2 = DocumentVersion.objects.create(
+            document=doc,
+            version_number=2,
+            is_primary=False,
+            file_size=200,
+            content_type="application/pdf",
+            original_storage_key="vault_v2.pdf",
+            storage_key="vault_v2.pdf",
+            type="pdf",
+            render_status=DocumentVersion.RENDER_READY,
+        )
+
+        original_select_for_update = Dataroom.objects.select_for_update
+        locked_datarooms_fetched = []
+
+        def spy_select_for_update(*args, **kwargs):
+            qs = original_select_for_update(*args, **kwargs)
+            # Wrap the queryset evaluation or save the query
+            original_filter = qs.filter
+            def spy_filter(*f_args, **f_kwargs):
+                sub_qs = original_filter(*f_args, **f_kwargs)
+                original_order_by = sub_qs.order_by
+                def spy_order_by(*o_args, **o_kwargs):
+                    ordered_qs = original_order_by(*o_args, **o_kwargs)
+                    locked_datarooms_fetched.append((list(o_args), list(ordered_qs)))
+                    return ordered_qs
+                sub_qs.order_by = spy_order_by
+                return sub_qs
+            qs.filter = spy_filter
+            return qs
+
+        with patch.object(Dataroom.objects, 'select_for_update', side_effect=spy_select_for_update) as mock_sfu:
+            promote_document_version(doc, v2, user)
+            assert mock_sfu.called, "Dataroom.objects.select_for_update must be called to serialize quota checks"
+            assert len(locked_datarooms_fetched) == 1
+            order_by_args, locked_rooms = locked_datarooms_fetched[0]
+            assert order_by_args == ['id'], "Datarooms must be ordered by 'id' to prevent deadlocks"
+            expected_ids = sorted([room1.id, room2.id])
+            assert [r.id for r in locked_rooms] == expected_ids
+
+
+
 
     def test_check_user_quota_on_upload_respects_custom_quota(self, user):
         """Test that check_user_quota_on_upload respects custom user quota if set, else falls back to global."""
