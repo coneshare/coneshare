@@ -29,14 +29,14 @@ class DocumentManager(models.Manager.from_queryset(SoftDeleteQuerySet)):
 
 
 class Folder(BaseModel):
-    FOLDER_TYPE_ROOT     = 'root'
+    FOLDER_TYPE_ROOT = 'root'
     FOLDER_TYPE_PERSONAL = 'personal'
-    FOLDER_TYPE_VAULT    = 'vault'
+    FOLDER_TYPE_VAULT = 'vault'
 
     FOLDER_TYPE_CHOICES = [
-        (FOLDER_TYPE_ROOT,     'Org Root'),
+        (FOLDER_TYPE_ROOT, 'Org Root'),
         (FOLDER_TYPE_PERSONAL, 'Personal'),
-        (FOLDER_TYPE_VAULT,    'System Vault'),
+        (FOLDER_TYPE_VAULT, 'System Vault'),
     ]
 
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='folders')
@@ -68,6 +68,11 @@ class Folder(BaseModel):
                 fields=['created_by', 'parent', 'name'],
                 condition=Q(deleted_at__isnull=True),
                 name='unique_active_folder_name'
+            ),
+            models.UniqueConstraint(
+                fields=['organization', 'parent', 'name'],
+                condition=Q(folder_type='vault', deleted_at__isnull=True),
+                name='unique_active_vault_folder_name'
             ),
             models.CheckConstraint(
                 condition=(
@@ -102,15 +107,15 @@ class Folder(BaseModel):
         assert parent.folder_type == cls.FOLDER_TYPE_VAULT, (
             f"Parent folder {parent.id!r} is not a vault folder (got {parent.folder_type!r})."
         )
+        if {'folder_type', 'created_by'} & kwargs.keys():
+            raise ValueError("Vault folder type and creator are fixed.")
         return cls.objects.get_or_create(
             organization=organization,
             parent=parent,
             name=name,
-            defaults={
-                'folder_type': cls.FOLDER_TYPE_VAULT,
-                'created_by': None,
-                **kwargs
-            }
+            folder_type=cls.FOLDER_TYPE_VAULT,
+            created_by=None,
+            defaults=kwargs,
         )
 
     def get_descendants(self):

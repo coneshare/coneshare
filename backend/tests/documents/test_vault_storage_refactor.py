@@ -119,6 +119,61 @@ class TestVaultStorageRefactor:
                 name="sub",
             )
 
+    def test_get_or_create_vault_subfolder_rejects_invariant_kwargs(self, user):
+        org = user.organization
+        root = Folder.objects.get_root_for_org(org)
+        vault_root, _ = Folder.objects.get_or_create(
+            name="__datarooms__",
+            organization=org,
+            parent=root,
+            folder_type=Folder.FOLDER_TYPE_VAULT,
+            created_by=None,
+        )
+        with pytest.raises(ValueError, match="Vault folder type and creator are fixed"):
+            Folder.get_or_create_vault_subfolder(
+                organization=org,
+                parent=vault_root,
+                name="test_bad_type",
+                folder_type=Folder.FOLDER_TYPE_PERSONAL,
+            )
+
+        with pytest.raises(ValueError, match="Vault folder type and creator are fixed"):
+            Folder.get_or_create_vault_subfolder(
+                organization=org,
+                parent=vault_root,
+                name="test_bad_user",
+                created_by=user,
+            )
+
+    def test_unique_active_vault_folder_name_constraint(self, user):
+        org = user.organization
+        root = Folder.objects.get_root_for_org(org)
+        vault_root, _ = Folder.objects.get_or_create(
+            name="__datarooms__",
+            organization=org,
+            parent=root,
+            folder_type=Folder.FOLDER_TYPE_VAULT,
+            created_by=None,
+        )
+        # Create first vault subfolder
+        Folder.objects.create(
+            name="duplicate_vault",
+            parent=vault_root,
+            organization=org,
+            folder_type=Folder.FOLDER_TYPE_VAULT,
+            created_by=None,
+        )
+        # Creating a second active vault subfolder with same (org, parent, name) must raise IntegrityError
+        with transaction.atomic():
+            with pytest.raises(IntegrityError):
+                Folder.objects.create(
+                    name="duplicate_vault",
+                    parent=vault_root,
+                    organization=org,
+                    folder_type=Folder.FOLDER_TYPE_VAULT,
+                    created_by=None,
+                )
+
     def test_dataroom_storage_folder_lifecycle_and_link(self, user):
         org = user.organization
         root = Folder.objects.get_root_for_org(org)
