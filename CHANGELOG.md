@@ -1,6 +1,37 @@
 # Changelog
 
 
+## [1.9.0](https://github.com/coneshare/coneshare/compare/v1.8.1...v1.9.0) (2026-09-06)
+
+
+### Features
+
+* **admin:** organization-wide dataroom governance, server-side sorting, and quota management ([7cafa48](https://github.com/coneshare/coneshare/commit/7cafa4827f465df0e5bd4eb845ac1254c8da98ed))
+* **backend:** implement dataroom collaboration, v2 system vault storage, quotas, and permissions ([c8b198a](https://github.com/coneshare/coneshare/commit/c8b198af60487fdd641750f7bde024d2fb8c09e3))
+* **datarooms:** add aggregate stats to dataroom links view and exclude bounces from avg duration ([6ed0460](https://github.com/coneshare/coneshare/commit/6ed046052223ad9e1f58152ff47131b0d261f987))
+* **datarooms:** preserve activity audit trail across item lifecycle mutations ([f5bc95c](https://github.com/coneshare/coneshare/commit/f5bc95cb6d80c0758d42640f93c21bb4ff5136a7))
+* **frontend:** implement dataroom collaboration, v2 system vault storage, quotas, and permissions ([7ccfdbc](https://github.com/coneshare/coneshare/commit/7ccfdbcf918df70bcc733c39bba3885285f76f27))
+
+
+### Bug Fixes
+
+* **backend:** touch parent folder mtime when contents change (close [#315](https://github.com/coneshare/coneshare/issues/315)) ([4dca46a](https://github.com/coneshare/coneshare/commit/4dca46a4269e7a56c85e7b1c42c1e7997dc7edff))
+* **datarooms:** add partial unique constraint on vault folders and harden subfolder creation ([7250a72](https://github.com/coneshare/coneshare/commit/7250a7236834713cc21064eed406f44585d55411))
+* **datarooms:** clear created_by on subfolders during v2 upgrade to restore vault invariant and deduct quota ([fc38468](https://github.com/coneshare/coneshare/commit/fc384688ae260dfd653b6f6eb3306da205592a91))
+* **datarooms:** decouple direct uploads from user personal storage quota ([372ba76](https://github.com/coneshare/coneshare/commit/372ba76514982c5a182c45034bf716b8113d0b8c))
+* **datarooms:** fix unique visitors of stats ([a848e1b](https://github.com/coneshare/coneshare/commit/a848e1ba99c3912d668960e2ea17b21e7c29084a))
+* **documents:** bypass user personal quota and enforce dataroom quota on vault document version promotion ([3835428](https://github.com/coneshare/coneshare/commit/38354283eb21fa18cb716a1775b0685c689f8209))
+* **frontend:** add skeleton loading placeholders for sidebar quota and nav user ([4e22aa3](https://github.com/coneshare/coneshare/commit/4e22aa369b030d726e0e6fa8e3421adde6b95b27))
+* order datarooms by creation time and localize toast messages ([21a2cf5](https://github.com/coneshare/coneshare/commit/21a2cf55f5795d3551e595237927bd573cf7fa58))
+* **qna:** address review feedback on Q&A toggles ([d3e51d3](https://github.com/coneshare/coneshare/commit/d3e51d35a765969826d34483e78949f3384c738b))
+* **tests:** update test case ([6a383b9](https://github.com/coneshare/coneshare/commit/6a383b902278e05941f673fae674dd97e7fb8c5a))
+* **viewer:** reload dataroom documents reopened after navigating away ([1a6eacf](https://github.com/coneshare/coneshare/commit/1a6eacf0a1b191dc8df06240b02dab6232114af3))
+
+
+### Performance Improvements
+
+* **analytics:** optimize dashboard summary view and eliminate N+1 qu… ([#323](https://github.com/coneshare/coneshare/issues/323)) ([83c2dd9](https://github.com/coneshare/coneshare/commit/83c2dd9bf527905d97e1bf7da00733b1e095bf7d))
+
 ## [1.8.1](https://github.com/coneshare/coneshare/compare/v1.8.0...v1.8.1) (2026-08-26)
 
 
