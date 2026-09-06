@@ -94,22 +94,13 @@ def check_user_quota_on_upload(user: User, new_file_size: int, document_to_updat
 def is_dataroom_vault_document(document: Document) -> bool:
     """
     Returns True if the document belongs to the organization Dataroom storage vault.
-
-    Folder Invariant:
-    1. Personal folders: Created by end users, strictly having `created_by = <User>`.
-    2. Org root folder: `__root__` has `created_by = None`, but `parent_id = None`.
-    3. System vault folders: `__datarooms__` and all descendant folders are created with
-       `created_by = None` and `parent_id IS NOT NULL`.
-
-    Therefore, `folder.created_by_id is None and folder.parent_id is not None` guarantees
-    the document resides inside the organization system vault in O(1) without requiring
-    recursive CTEs or parent hierarchy tree traversal.
+    Directly checks the folder's explicit folder_type classification in O(1) without joins or tree traversal.
     """
     if not document or not document.folder_id:
         return False
 
     folder = document.folder
-    return bool(folder and folder.created_by_id is None and folder.parent_id is not None)
+    return bool(folder and folder.folder_type == Folder.FOLDER_TYPE_VAULT)
 
 
 def recalculate_user_document_size(user: User) -> int:
@@ -118,15 +109,13 @@ def recalculate_user_document_size(user: User) -> int:
     Excludes documents residing in the organization Dataroom storage vault.
     Returns the corrected size in bytes.
 
-    Uses the folder invariant (`folder__created_by__isnull=True, folder__parent__isnull=False`)
-    to exclude all system vault documents in a single atomic SQL query without needing to
-    traverse the folder tree.
+    Uses `folder__folder_type='vault'` to exclude all system vault documents in a single
+    atomic SQL query without needing to traverse the folder tree.
     """
     with transaction.atomic():
         locked_user = User.objects.select_for_update().get(pk=user.pk)
         qs = Document.objects.active().filter(created_by=locked_user).exclude(
-            folder__created_by__isnull=True,
-            folder__parent__isnull=False
+            folder__folder_type=Folder.FOLDER_TYPE_VAULT
         )
 
         actual_size = qs.aggregate(total=Sum('file_size'))['total'] or 0

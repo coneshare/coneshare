@@ -48,18 +48,26 @@ def get_or_create_dataroom_storage_folder(dataroom: Dataroom, requesting_user=No
 
     if dataroom.storage_version >= 2:
         # V2: System Storage Vault
-        system_vault, _ = Folder.objects.get_or_create(
-            organization=organization,
-            parent=root_folder,
-            name="__datarooms__",
-            created_by=None
-        )
-        dataroom_folder, _ = Folder.objects.get_or_create(
-            organization=organization,
-            parent=system_vault,
-            name=str(dataroom.id),
-            created_by=None
-        )
+        if dataroom.vault_folder:
+            dataroom_folder = dataroom.vault_folder
+        else:
+            system_vault, _ = Folder.objects.get_or_create(
+                organization=organization,
+                parent=root_folder,
+                name="__datarooms__",
+                created_by=None,
+                folder_type=Folder.FOLDER_TYPE_VAULT,
+            )
+            dataroom_folder, _ = Folder.objects.get_or_create(
+                organization=organization,
+                parent=system_vault,
+                name=str(dataroom.id),
+                created_by=None,
+                folder_type=Folder.FOLDER_TYPE_VAULT,
+            )
+            dataroom.vault_folder = dataroom_folder
+            dataroom.save(update_fields=['vault_folder'])
+
         current_folder = dataroom_folder
 
         if relative_path:
@@ -67,11 +75,10 @@ def get_or_create_dataroom_storage_folder(dataroom: Dataroom, requesting_user=No
             if folder_path:
                 path_parts = Path(folder_path).parts
                 for part in path_parts:
-                    current_folder, _ = Folder.objects.get_or_create(
+                    current_folder, _ = Folder.get_or_create_vault_subfolder(
                         organization=organization,
                         parent=current_folder,
                         name=part,
-                        created_by=None
                     )
         return current_folder
     else:
@@ -125,42 +132,50 @@ def delete_dataroom(dataroom: Dataroom):
     # 2. Clean up backing storage folder (both modern system vault and legacy uploads)
     if root_folder:
         # Modern v2 system vault cleanup
-        system_vault = Folder.objects.filter(
-            organization=organization,
-            parent=root_folder,
-            name="__datarooms__"
-        ).first()
-        if system_vault:
-            storage_folder = Folder.objects.filter(
+        storage_folder = dataroom.vault_folder
+        system_vault = None
+        if not storage_folder:
+            system_vault = Folder.objects.filter(
                 organization=organization,
-                parent=system_vault,
-                name=str(dataroom.id)
+                parent=root_folder,
+                name="__datarooms__",
+                folder_type=Folder.FOLDER_TYPE_VAULT,
             ).first()
-            if storage_folder:
-                descendants = storage_folder.get_descendants()
-                folders_to_delete = [storage_folder] + descendants
+            if system_vault:
+                storage_folder = Folder.objects.filter(
+                    organization=organization,
+                    parent=system_vault,
+                    name=str(dataroom.id),
+                    folder_type=Folder.FOLDER_TYPE_VAULT,
+                ).first()
+        else:
+            system_vault = storage_folder.parent
 
-                # When remove_dataroom_content() ran above, it preserved backing documents that
-                # are still referenced by other datarooms. Because Document.folder cascades on
-                # delete, deleting storage_folder or its subfolders would destroy those surviving
-                # shared documents. We must relocate them up to the parent system_vault first.
-                #
-                # Note: Documents from different subfolders may share the same name (or collide
-                # with existing vault docs). Relocate them individually with _get_unique_document_name
-                # to satisfy the unique_active_document_name (created_by, folder, name) constraint
-                # and avoid IntegrityError 500 crashes.
-                remaining_docs = list(
-                    Document.objects.filter(folder__in=folders_to_delete).select_related('created_by')
-                )
-                for doc in remaining_docs:
-                    unique_name = _get_unique_document_name(doc.created_by, system_vault, doc.name)
-                    doc.name = unique_name
-                    doc.folder = system_vault
-                    doc.save(update_fields=['name', 'folder'])
-                try:
-                    Folder.objects.filter(id__in=[f.id for f in folders_to_delete]).delete()
-                except Exception as e:
-                    logger.exception("Failed to clean up v2 system vault folder for dataroom %s: %s", dataroom.id, e)
+        if storage_folder:
+            descendants = storage_folder.get_descendants()
+            folders_to_delete = [storage_folder] + descendants
+
+            # When remove_dataroom_content() ran above, it preserved backing documents that
+            # are still referenced by other datarooms. Because Document.folder cascades on
+            # delete, deleting storage_folder or its subfolders would destroy those surviving
+            # shared documents. We must relocate them up to the parent system_vault first.
+            #
+            # Note: Documents from different subfolders may share the same name (or collide
+            # with existing vault docs). Relocate them individually with _get_unique_document_name
+            # to satisfy the unique_active_document_name (created_by, folder, name) constraint
+            # and avoid IntegrityError 500 crashes.
+            remaining_docs = list(
+                Document.objects.filter(folder__in=folders_to_delete).select_related('created_by')
+            )
+            for doc in remaining_docs:
+                unique_name = _get_unique_document_name(doc.created_by, system_vault, doc.name)
+                doc.name = unique_name
+                doc.folder = system_vault
+                doc.save(update_fields=['name', 'folder'])
+            try:
+                Folder.objects.filter(id__in=[f.id for f in folders_to_delete]).delete()
+            except Exception as e:
+                logger.exception("Failed to clean up v2 system vault folder for dataroom %s: %s", dataroom.id, e)
 
         # Legacy v1 uploads cleanup
         dataroom_uploads_query = Folder.objects.filter(
@@ -225,13 +240,15 @@ def upgrade_dataroom_to_v2(dataroom: Dataroom) -> bool:
             organization=organization,
             parent=root_folder,
             name="__datarooms__",
-            created_by=None
+            created_by=None,
+            folder_type=Folder.FOLDER_TYPE_VAULT,
         )
         vault_room_folder, _ = Folder.objects.get_or_create(
             organization=organization,
             parent=system_vault,
             name=str(dataroom.id),
-            created_by=None
+            created_by=None,
+            folder_type=Folder.FOLDER_TYPE_VAULT,
         )
 
         # 2. Locate legacy backing folders
@@ -272,22 +289,27 @@ def upgrade_dataroom_to_v2(dataroom: Dataroom) -> bool:
                 unique_folder_name = _get_unique_folder_name(None, vault_room_folder, subf.name)
                 subf.name = unique_folder_name
                 subf.parent = vault_room_folder
+                subf.folder_type = Folder.FOLDER_TYPE_VAULT
                 subf.created_by = None
-                subf.save(update_fields=['name', 'parent', 'created_by'])
+                subf.save(update_fields=['name', 'parent', 'created_by', 'folder_type'])
 
-            # Ensure all deeper descendant folders also adhere to vault invariant (created_by=None)
-            # Reuses all_descendants collected above to eliminate redundant N+1 tree traversals
+            # Ensure all deeper descendant folders also adhere to vault invariant
             deeper_descendant_ids = [f.id for f in all_descendants if f.parent_id != old_folder.id]
             if deeper_descendant_ids:
-                Folder.objects.filter(id__in=deeper_descendant_ids).update(created_by=None)
+                Folder.objects.filter(id__in=deeper_descendant_ids).update(
+                    folder_type=Folder.FOLDER_TYPE_VAULT,
+                    created_by=None,
+                )
 
             # Delete the empty legacy folder shell
             old_folder.delete()
 
-        # 4. Mark storage_version as 2
+        # 4. Mark storage_version as 2 and link vault_folder
         locked_dataroom.storage_version = 2
-        locked_dataroom.save(update_fields=['storage_version', 'updated_at'])
+        locked_dataroom.vault_folder = vault_room_folder
+        locked_dataroom.save(update_fields=['storage_version', 'vault_folder', 'updated_at'])
         dataroom.storage_version = 2
+        dataroom.vault_folder = vault_room_folder
 
         # 5. Automatically free personal quota for uploaders whose legacy documents moved to the vault
         for u in affected_users:
@@ -393,23 +415,26 @@ def is_direct_upload_dataroom_document(ddoc: DataroomDocument) -> bool:
     if not doc or not doc.folder_id:
         return False
 
-    root_folder = Folder.objects.get_root_for_org(doc.organization)
-    if not root_folder:
-        return False
+    if doc.folder and doc.folder.folder_type == Folder.FOLDER_TYPE_VAULT:
+        is_direct = True
+    else:
+        root_folder = Folder.objects.get_root_for_org(doc.organization)
+        if not root_folder:
+            return False
 
-    storage_root_ids = set(Folder.objects.filter(
-        organization=doc.organization,
-        parent=root_folder,
-        name__in=["__datarooms__", "Dataroom Uploads"]
-    ).values_list('id', flat=True))
+        storage_root_ids = set(Folder.objects.filter(
+            organization=doc.organization,
+            parent=root_folder,
+            name__in=["__datarooms__", "Dataroom Uploads"]
+        ).values_list('id', flat=True))
 
-    curr = doc.folder
-    is_direct = False
-    while curr:
-        if curr.id in storage_root_ids:
-            is_direct = True
-            break
-        curr = curr.parent
+        curr = doc.folder
+        is_direct = False
+        while curr:
+            if curr.id in storage_root_ids:
+                is_direct = True
+                break
+            curr = curr.parent
 
     try:
         DataroomDocument.objects.filter(id=ddoc.id).update(is_direct_upload=is_direct)
@@ -473,11 +498,16 @@ def sync_dataroom_folder_rename(dfolder: DataroomFolder, old_name: str, new_name
         curr = curr.parent
 
     if dataroom.storage_version >= 2:
-        path_names = ["__datarooms__", str(dataroom.id)] + names + [old_name]
+        if dataroom.vault_folder:
+            curr_folder = dataroom.vault_folder
+            path_names = names + [old_name]
+        else:
+            path_names = ["__datarooms__", str(dataroom.id)] + names + [old_name]
+            curr_folder = root_folder
     else:
         path_names = ["Dataroom Uploads", get_dataroom_storage_folder_name(dataroom.name, dataroom)] + names + [old_name]
+        curr_folder = root_folder
 
-    curr_folder = root_folder
     for name in path_names:
         curr_folder = Folder.objects.filter(
             organization=organization,

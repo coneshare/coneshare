@@ -345,6 +345,7 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** Document version promotion (`promote_document_version`) was unconditionally checking the requesting user's personal quota and updating `user.total_document_size`, causing version promotions on org vault / v2 Dataroom files to fail or pollute personal quota counters.
 - **Resolution/Action:** Guarded `promote_document_version` with `is_dataroom_vault_document(locked_doc)`. When true, bypass personal quota checks and `user.total_document_size` updates, and instead enforce `droom.storage_quota_mb` checks against the associated Dataroom(s).
 
-
-
-
+### 2026-09-06 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Implemented explicit folder classification (`root`, `personal`, `vault`) and `Dataroom.vault_folder` OneToOne link, replacing implicit column nullability heuristics.
+- **Resolution/Action:** Folders require explicit `folder_type=Folder.FOLDER_TYPE_VAULT` on vault creation (`Folder.get_or_create_vault_subfolder`). Personal folders require `created_by IS NOT NULL`. Migrations are consolidated per app (`documents.0008` and `datarooms.0006`) with strict DAG dependency.

@@ -5,12 +5,14 @@ from documents.models import Document, Folder, validate_document_version_metadat
 
 
 @pytest.mark.django_db
-def test_folder_creation(organization):
+def test_folder_creation(organization, user):
     """Test that a Folder instance can be created."""
-    folder = Folder.objects.create(name="Test Folder", organization=organization)
+    folder = Folder.objects.create(name="Test Folder", organization=organization, created_by=user)
     assert isinstance(folder, Folder)
     assert str(folder) == "Test Folder"
     assert folder.organization == organization
+    assert folder.created_by == user
+    assert folder.folder_type == Folder.FOLDER_TYPE_PERSONAL
 
 
 @pytest.mark.django_db

@@ -604,18 +604,21 @@ class TestPromoteDocumentVersion:
             organization=user.organization,
             created_by=None,
             parent=None,
+            folder_type=Folder.FOLDER_TYPE_ROOT,
         )
         vault_folder = Folder.objects.create(
             name="__datarooms__",
             organization=user.organization,
             created_by=None,
             parent=root_folder,
+            folder_type=Folder.FOLDER_TYPE_VAULT,
         )
         room_folder = Folder.objects.create(
             name="Room_1",
             organization=user.organization,
             created_by=None,
             parent=vault_folder,
+            folder_type=Folder.FOLDER_TYPE_VAULT,
         )
 
         doc = Document.objects.create(
@@ -687,18 +690,21 @@ class TestPromoteDocumentVersion:
             organization=user.organization,
             created_by=None,
             parent=None,
+            folder_type=Folder.FOLDER_TYPE_ROOT,
         )
         vault_folder = Folder.objects.create(
             name="__datarooms__",
             organization=user.organization,
             created_by=None,
             parent=root_folder,
+            folder_type=Folder.FOLDER_TYPE_VAULT,
         )
         room_folder = Folder.objects.create(
             name="Room_1",
             organization=user.organization,
             created_by=None,
             parent=vault_folder,
+            folder_type=Folder.FOLDER_TYPE_VAULT,
         )
 
         doc = Document.objects.create(
@@ -763,18 +769,21 @@ class TestPromoteDocumentVersion:
             organization=user.organization,
             created_by=None,
             parent=None,
+            folder_type=Folder.FOLDER_TYPE_ROOT,
         )
         vault_folder = Folder.objects.create(
             name="__datarooms__",
             organization=user.organization,
             created_by=None,
             parent=root_folder,
+            folder_type=Folder.FOLDER_TYPE_VAULT,
         )
         room_folder = Folder.objects.create(
             name="Room_1",
             organization=user.organization,
             created_by=None,
             parent=vault_folder,
+            folder_type=Folder.FOLDER_TYPE_VAULT,
         )
 
         doc = Document.objects.create(
@@ -844,18 +853,21 @@ class TestPromoteDocumentVersion:
             organization=user.organization,
             created_by=None,
             parent=None,
+            folder_type=Folder.FOLDER_TYPE_ROOT,
         )
         vault_folder = Folder.objects.create(
             name="__datarooms__",
             organization=user.organization,
             created_by=None,
             parent=root_folder,
+            folder_type=Folder.FOLDER_TYPE_VAULT,
         )
         room_folder = Folder.objects.create(
             name="Room_1",
             organization=user.organization,
             created_by=None,
             parent=vault_folder,
+            folder_type=Folder.FOLDER_TYPE_VAULT,
         )
 
         doc = Document.objects.create(

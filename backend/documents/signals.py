@@ -13,7 +13,10 @@ def create_root_folder_for_new_organization(sender, instance, created, **kwargs)
             organization=instance,
             parent=None,
             name='__root__',
-            defaults={'created_by': None}
+            defaults={
+                'created_by': None,
+                'folder_type': Folder.FOLDER_TYPE_ROOT,
+            }
         )
 
 
@@ -40,6 +43,9 @@ def setup_initial_data(sender, **kwargs):
                 organization=org,
                 parent=None,
                 name='__root__',
-                defaults={'created_by': None}
+                defaults={
+                    'created_by': None,
+                    'folder_type': Folder.FOLDER_TYPE_ROOT,
+                }
             )
             print(f"Default root folder is set, id: {folder.id}")

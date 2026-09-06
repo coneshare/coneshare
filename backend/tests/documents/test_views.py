@@ -2020,18 +2020,21 @@ def test_promote_version_endpoint_vault_document_bypasses_user_quota(mock_get_se
         organization=organization,
         created_by=None,
         parent=None,
+        folder_type=Folder.FOLDER_TYPE_ROOT,
     )
     vault_folder = Folder.objects.create(
         name="__datarooms__",
         organization=organization,
         created_by=None,
         parent=root_folder,
+        folder_type=Folder.FOLDER_TYPE_VAULT,
     )
     room_folder = Folder.objects.create(
         name="Room_1",
         organization=organization,
         created_by=None,
         parent=vault_folder,
+        folder_type=Folder.FOLDER_TYPE_VAULT,
     )
 
     doc = Document.objects.create(

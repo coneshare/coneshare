@@ -43,25 +43,43 @@ The `ShareLink` model will be modified to support a polymorphic relationship, al
 -   `document`: Foreign Key to `Document` (now **nullable**)
 -   `dataroom`: **New** Foreign Key to `Dataroom` (**nullable**)
 
+#### `Folder` (`documents.Folder`)
+The core document storage folder model is extended with explicit classification and structural validation:
+-   `folder_type`: CharField with choices `'root'`, `'personal'`, `'vault'`. Defaults to `'personal'`.
+-   `folder_type_structural_invariant`: Database-level `CheckConstraint` enforcing:
+    - `root`: `created_by IS NULL` and `parent IS NULL`
+    - `personal`: `created_by IS NOT NULL`
+    - `vault`: `created_by IS NULL` and `parent IS NOT NULL`
+-   `get_or_create_vault_subfolder`: Helper classmethod to safely create or retrieve vault subfolders with strict typing and invariant adherence.
+
 ### 2. New Dataroom Models
 
 #### `Dataroom`
 The primary container for a collection of shared content.
 -   `organization`: Foreign Key to `Organization`
 -   `name`: String
--   `created_by`: Foreign Key to `User`
+-   `created_by`: Foreign Key to `User` (**nullable**, `on_delete=SET_NULL` — preserved if the owner's account is deleted)
+-   `storage_version`: PositiveSmallIntegerField — `1` (legacy user-scoped) or `2` (system vault). Default: `2` for all new datarooms.
+-   `storage_quota_mb`: IntegerField — max capacity in MB; `0` means unlimited.
+-   `vault_folder`: OneToOneField to `documents.Folder` (**nullable**, `on_delete=models.SET_NULL`, `related_name='owned_dataroom'`) — Direct link to the backing storage vault folder `__root__/__datarooms__/<id>` for v2 datarooms.
+-   Branding fields: `branding_banner`, `brand_primary_color`, `brand_secondary_color`, `brand_accent_color`.
 
 #### `DataroomFolder`
 Represents a folder within a Dataroom's custom hierarchy. This is distinct from the main `Folder` model.
 -   `dataroom`: Foreign Key to `Dataroom`
 -   `parent`: Self-referencing Foreign Key to `DataroomFolder` (nullable)
 -   `name`: String
+-   `created_by`: Foreign Key to `User` (**nullable**, `on_delete=SET_NULL`)
+-   `is_starred`: Boolean
 
 #### `DataroomDocument`
 A linking table that places a `Document` from the main library into a `Dataroom`.
 -   `dataroom`: Foreign Key to `Dataroom`
 -   `document`: Foreign Key to `Document`
 -   `folder`: Foreign Key to `DataroomFolder` (nullable)
+-   `name`: String (**blank allowed** — used as a per-room alias; falls back to `document.name` when empty)
+-   `is_starred`: Boolean
+-   `is_direct_upload`: Boolean (nullable) — `True` if uploaded directly into the Dataroom; `False` if linked from the user's personal library; `None` for legacy records.
 
 #### `ShareLinkDataroomSetting`
 Stores the per-item, per-link settings. This is the core of the granular permissions feature.
@@ -378,20 +396,114 @@ Design note:
 To decouple Dataroom physical storage from individual personal document libraries and support clean multi-user collaboration, Dataroom storage is evolved via `Dataroom.storage_version`:
 
 - **Legacy v1 (User-Scoped Storage):**
-  - Storage path: `Root -> Dataroom Uploads -> <Name> (<Timestamp_Suffix>)`.
-  - Stored inside the individual uploader's document library.
+  - Storage path: `Root -> Dataroom Uploads -> <Name> (YYMMDD_HHMMSS_<6-char ULID suffix>)`.
+  - Example: `Root -> Dataroom Uploads -> Project Alpha (260901_142233_X7K9PQ)`
+  - The backing folder name is produced by `get_dataroom_storage_folder_name(dataroom.name, dataroom)` in `backend/datarooms/utils.py`. The suffix format is `YYMMDD_HHMMSS` (creation timestamp) + `_` + last 6 chars of the ULID `dataroom.id`.
+  - Stored inside the individual uploader's document library (`created_by=<User>`).
   - Retained for backward compatibility with existing Datarooms.
 
 - **Modern v2 (Organization System Storage Vault):**
   - Storage path: `Root -> __datarooms__ -> <dataroom_id>`.
-  - Stored inside an organization-wide system vault (`created_by=None`), keeping all users' personal `/documents` libraries 100% clean.
-  - Keyed to the immutable `dataroom.id`, eliminating the need to rename physical folders when the Dataroom title changes.
+  - Stored inside an organization-wide system vault with `created_by=None` and `folder_type='vault'`, keeping all users' personal `/documents` libraries 100% clean.
+  - Linked directly via `Dataroom.vault_folder` (`OneToOneField` to `documents.Folder`), eliminating string matching and path heuristics.
+  - Keyed to the immutable `dataroom.id` (a ULID), eliminating the need to rename physical folders when the Dataroom title changes.
   - Enables instant `O(1)` ownership transfers and single-step room deletion (`__datarooms__/<id>`).
+  - **Default for all newly created Datarooms** (`storage_version` field defaults to `2` in the model).
 
-### 2. Compatibility & Strangler Fig Transition Strategy
+### 2. Explicit Folder Classification & Structural Invariant (`Folder.folder_type`)
+
+Rather than relying on implicit column nullability heuristics (`created_by IS NULL AND parent IS NOT NULL`), the backing `Folder` model (`documents.Folder`) establishes an explicit classification column with a database-level `CheckConstraint`.
+
+#### The Three Folder Classes
+
+| Folder Type (`folder_type`) | `created_by` | `parent_id` | Description |
+|---|---|---|---|
+| **`'root'`** (`FOLDER_TYPE_ROOT`) | `None` | `None` | Organization root anchor (`__root__`) |
+| **`'personal'`** (`FOLDER_TYPE_PERSONAL`) | `<User>` (non-null) | Any | Standard user personal library folder |
+| **`'vault'`** (`FOLDER_TYPE_VAULT`) | `None` | non-null | Organization vault (`__datarooms__` and all dataroom vault contents) |
+
+#### Database Structural Invariant
+
+Enforced at the schema layer via `CheckConstraint(name="folder_type_structural_invariant")`:
+
+```sql
+CONSTRAINT "folder_type_structural_invariant" CHECK (
+    ("created_by_id" IS NULL AND "folder_type" = 'root' AND "parent_id" IS NULL) OR
+    ("created_by_id" IS NOT NULL AND "folder_type" = 'personal') OR
+    ("created_by_id" IS NULL AND "folder_type" = 'vault' AND "parent_id" IS NOT NULL)
+)
+```
+
+And mirrored in Python via `Folder.clean()`:
+```python
+def clean(self):
+    super().clean()
+    if self.folder_type == self.FOLDER_TYPE_ROOT:
+        if self.parent_id is not None or self.created_by_id is not None:
+            raise ValidationError("Root folders must have parent=None and created_by=None.")
+    elif self.folder_type == self.FOLDER_TYPE_VAULT:
+        if self.parent_id is None or self.created_by_id is not None:
+            raise ValidationError("Vault folders must have parent!=None and created_by=None.")
+    elif self.folder_type == self.FOLDER_TYPE_PERSONAL:
+        if self.created_by_id is None:
+            raise ValidationError("Personal folders must have a non-null created_by.")
+```
+
+#### O(1) Vault Document Detection & Quota Exclusion
+
+Document vault classification evaluates directly against the immediate parent's `folder_type` in $O(1)$:
+
+```python
+# backend/documents/services.py
+def is_dataroom_vault_document(document: Document) -> bool:
+    folder = document.folder
+    return bool(folder and folder.folder_type == Folder.FOLDER_TYPE_VAULT)
+```
+
+Quota recalculation excludes vault documents with a single indexed SQL clause:
+```python
+# backend/documents/services.py
+qs = Document.objects.active().filter(created_by=locked_user).exclude(
+    folder__folder_type=Folder.FOLDER_TYPE_VAULT
+)
+```
+
+#### Safe Vault Subfolder Creation
+
+To prevent accidental default coercion to `'personal'`, all vault subfolders are created using the dedicated class method:
+```python
+Folder.get_or_create_vault_subfolder(parent=vault_parent, name=sub_name, organization=org)
+```
+
+### 3. Direct Relationship: `Dataroom.vault_folder`
+
+The `Dataroom` model holds a direct `OneToOneField` link to the backing storage folder:
+```python
+# backend/datarooms/models.py
+vault_folder = models.OneToOneField(
+    'documents.Folder',
+    null=True,
+    blank=True,
+    on_delete=models.SET_NULL,
+    related_name='owned_dataroom',
+    help_text="Direct link to backing storage vault folder under __root__/__datarooms__/<id> for v2 datarooms",
+)
+```
+
+- **O(1) Resolution:** Resolves storage folder without string matching on `Folder.name == str(dataroom.id)`.
+- **Lazy Allocation:** Backing folders are created on-demand when the first file/folder is uploaded or when an upgrade occurs via `get_or_create_dataroom_storage_folder()`.
+- **Deletion Safety:** Uses `on_delete=models.SET_NULL`. Room deletion in `delete_dataroom()` explicitly deletes `dataroom.vault_folder` and its contents using `delete_folder_and_contents(vault_folder)`, safely pruning backing storage without impacting user files.
+
+### 4. Compatibility, Migration & Integrity Auditing
+
 1. **Zero-Migration Risk:** Existing production Datarooms default to `storage_version=1`. Newly created Datarooms automatically use `storage_version=2`.
-2. **Feature Gating:** Multi-user collaboration and ownership transfers operate natively on `v2` Datarooms.
+2. **Consolidated Plan B Migrations:**
+   - `documents.0008_folder_folder_type_and_invariant`: Adds `folder_type`, backfills existing rows (`__root__` -> `root`, system folders -> `vault`, remainder -> `personal`), and attaches the check constraint.
+   - `datarooms.0006_dataroom_vault_folder`: Adds `vault_folder` OneToOneField and links existing v2 datarooms to their backing folders.
 3. **Unified Storage Resolver (`services.get_or_create_dataroom_storage_folder`):** Dynamically resolves either the `v2` System Vault or `v1` legacy path based on `dataroom.storage_version`.
-4. **Sunset Plan:** Legacy `v1` branches will be deprecated and safely pruned in future releases as legacy rooms are naturally archived or migrated.
+4. **Upgrade Path:** `upgrade_dataroom_to_v2()` migrates a v1 Dataroom's backing storage into the system vault, links `vault_folder`, clears `created_by=None` across all descendant subfolders, and runs `recalculate_user_document_size()` to restore uploaders' quotas.
+5. **Production Integrity Script:** Verifies database health and invariant compliance via `./scripts/check-vault-integrity.sh` (or `python scripts/check-vault-integrity.py`).
+
+
 
 

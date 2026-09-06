@@ -402,8 +402,16 @@ class TestDataroomViewSet:
         system_vault = storage_folder.parent
 
         # Create two physical subfolders in storage_folder
-        sub1 = Folder.objects.create(name="Sub1", parent=storage_folder, organization=organization, created_by=None)
-        sub2 = Folder.objects.create(name="Sub2", parent=storage_folder, organization=organization, created_by=None)
+        sub1, _ = Folder.get_or_create_vault_subfolder(
+            organization=organization,
+            parent=storage_folder,
+            name="Sub1",
+        )
+        sub2, _ = Folder.get_or_create_vault_subfolder(
+            organization=organization,
+            parent=storage_folder,
+            name="Sub2",
+        )
 
         # Create two physical documents with the same name in different subfolders
         doc1 = Document.objects.create(name="Contract.pdf", folder=sub1, created_by=user, organization=organization)
@@ -2085,13 +2093,44 @@ class TestDataroomFolderMtimeUpdates:
         dataroom = Dataroom.objects.create(name="Project Omega", organization=organization, created_by=user, storage_version=1)
 
         root_folder = Folder.objects.get_root_for_org(organization)
-        # Create two legacy "Dataroom Uploads" roots (e.g. from user-scoped legacy paths)
-        legacy_uploads_1 = Folder.objects.create(organization=organization, parent=root_folder, name="Dataroom Uploads", created_by=user)
-        legacy_uploads_2 = Folder.objects.create(organization=organization, parent=root_folder, name="Dataroom Uploads", created_by=None)
+        from core.models import User
+        user2 = User.objects.create_user(
+            username="collab_legacy",
+            email="collab_legacy@example.com",
+            password="password123",
+            organization=organization,
+        )
+        # Create two legacy "Dataroom Uploads" roots (from different users' legacy paths)
+        legacy_uploads_1 = Folder.objects.create(
+            organization=organization,
+            parent=root_folder,
+            name="Dataroom Uploads",
+            created_by=user,
+            folder_type=Folder.FOLDER_TYPE_PERSONAL,
+        )
+        legacy_uploads_2 = Folder.objects.create(
+            organization=organization,
+            parent=root_folder,
+            name="Dataroom Uploads",
+            created_by=user2,
+            folder_type=Folder.FOLDER_TYPE_PERSONAL,
+        )
 
         legacy_name = get_dataroom_storage_folder_name(dataroom.name, dataroom)
-        old_folder_1 = Folder.objects.create(organization=organization, parent=legacy_uploads_1, name=legacy_name, created_by=user)
-        old_folder_2 = Folder.objects.create(organization=organization, parent=legacy_uploads_2, name=legacy_name, created_by=None)
+        old_folder_1 = Folder.objects.create(
+            organization=organization,
+            parent=legacy_uploads_1,
+            name=legacy_name,
+            created_by=user,
+            folder_type=Folder.FOLDER_TYPE_PERSONAL,
+        )
+        old_folder_2 = Folder.objects.create(
+            organization=organization,
+            parent=legacy_uploads_2,
+            name=legacy_name,
+            created_by=user2,
+            folder_type=Folder.FOLDER_TYPE_PERSONAL,
+        )
 
         # Create two documents with the exact same name created by the same user in different legacy folders
         doc1 = Document.objects.create(
@@ -2114,8 +2153,20 @@ class TestDataroomFolderMtimeUpdates:
         )
 
         # Create two subfolders with the same name created by the same user in different legacy folders
-        subf1 = Folder.objects.create(organization=organization, parent=old_folder_1, name="Financials", created_by=user)
-        subf2 = Folder.objects.create(organization=organization, parent=old_folder_2, name="Financials", created_by=user)
+        subf1 = Folder.objects.create(
+            organization=organization,
+            parent=old_folder_1,
+            name="Financials",
+            created_by=user,
+            folder_type=Folder.FOLDER_TYPE_PERSONAL,
+        )
+        subf2 = Folder.objects.create(
+            organization=organization,
+            parent=old_folder_2,
+            name="Financials",
+            created_by=user2,
+            folder_type=Folder.FOLDER_TYPE_PERSONAL,
+        )
 
         # Perform upgrade
         res = api_client.post(f'/api/v1/datarooms/{dataroom.id}/upgrade-storage/')
