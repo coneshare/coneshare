@@ -340,5 +340,11 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** In `upgrade_dataroom_to_v2()`, reparenting legacy backing subfolders into the system vault (`__datarooms__/<id>/`) did not clear `created_by` on the subfolders or their descendants. Because the vault invariant relies on `folder.created_by_id is None and folder.parent_id is not None` to identify vault documents in $O(1)$, documents inside subfolders were not excluded by `recalculate_user_document_size()`, leaving the uploader's personal quota inflated.
 - **Resolution/Action:** In `upgrade_dataroom_to_v2()`, pass `created_by=None` to `_get_unique_folder_name()`, set `subf.created_by = None`, and batch-update all descendant folders with `Folder.objects.filter(id__in=descendant_ids).update(created_by=None)`.
 
+### 2026-09-06 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Document version promotion (`promote_document_version`) was unconditionally checking the requesting user's personal quota and updating `user.total_document_size`, causing version promotions on org vault / v2 Dataroom files to fail or pollute personal quota counters.
+- **Resolution/Action:** Guarded `promote_document_version` with `is_dataroom_vault_document(locked_doc)`. When true, bypass personal quota checks and `user.total_document_size` updates, and instead enforce `droom.storage_quota_mb` checks against the associated Dataroom(s).
+
+
 
 
