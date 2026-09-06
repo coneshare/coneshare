@@ -117,9 +117,9 @@ def test_dataroom_document_is_direct_upload_explicit_and_fallback(dataroom, user
     from datarooms.services import is_direct_upload_dataroom_document
 
     root_folder = Folder.objects.get_root_for_org(organization)
-    system_vault = Folder.objects.create(name="__datarooms__", parent=root_folder, organization=organization, created_by=None)
-    room_vault = Folder.objects.create(name=str(dataroom.id), parent=system_vault, organization=organization, created_by=None)
-    user_folder = Folder.objects.create(name="My Docs", parent=root_folder, organization=organization, created_by=user)
+    system_vault = Folder.objects.create(name="__datarooms__", parent=root_folder, organization=organization, created_by=None, folder_type=Folder.FOLDER_TYPE_VAULT)
+    room_vault = Folder.objects.create(name=str(dataroom.id), parent=system_vault, organization=organization, created_by=None, folder_type=Folder.FOLDER_TYPE_VAULT)
+    user_folder = Folder.objects.create(name="My Docs", parent=root_folder, organization=organization, created_by=user, folder_type=Folder.FOLDER_TYPE_PERSONAL)
 
     # 1. Explicit direct upload (True)
     doc_direct = Document.objects.create(name="Direct.pdf", organization=organization, created_by=user, folder=room_vault)
@@ -167,4 +167,5 @@ def test_system_vault_lookup_scopes_created_by_none(dataroom, user, organization
     assert storage_folder.parent.created_by is None
     assert storage_folder.parent.id != rogue_folder.id
     assert storage_folder.created_by is None
+    assert storage_folder.folder_type == Folder.FOLDER_TYPE_VAULT
 

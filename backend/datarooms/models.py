@@ -31,6 +31,13 @@ class Dataroom(BaseModel):
         db_index=True,
         help_text="Storage architecture version: 1 (legacy user-scoped), 2 (system vault)"
     )
+    vault_folder = models.OneToOneField(
+        'documents.Folder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='owned_dataroom',
+    )
 
     def __str__(self):
         return self.name

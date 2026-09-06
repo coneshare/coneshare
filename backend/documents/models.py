@@ -29,10 +29,26 @@ class DocumentManager(models.Manager.from_queryset(SoftDeleteQuerySet)):
 
 
 class Folder(BaseModel):
+    FOLDER_TYPE_ROOT     = 'root'
+    FOLDER_TYPE_PERSONAL = 'personal'
+    FOLDER_TYPE_VAULT    = 'vault'
+
+    FOLDER_TYPE_CHOICES = [
+        (FOLDER_TYPE_ROOT,     'Org Root'),
+        (FOLDER_TYPE_PERSONAL, 'Personal'),
+        (FOLDER_TYPE_VAULT,    'System Vault'),
+    ]
+
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='folders')
     name = models.CharField(max_length=255, db_index=True)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='folders_created')
+    folder_type = models.CharField(
+        max_length=20,
+        choices=FOLDER_TYPE_CHOICES,
+        default=FOLDER_TYPE_PERSONAL,
+        db_index=True,
+    )
     is_starred = models.BooleanField(default=False)
     
     deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
@@ -52,11 +68,50 @@ class Folder(BaseModel):
                 fields=['created_by', 'parent', 'name'],
                 condition=Q(deleted_at__isnull=True),
                 name='unique_active_folder_name'
-            )
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(folder_type='root', parent__isnull=True, created_by__isnull=True) |
+                    Q(folder_type='personal', created_by__isnull=False) |
+                    Q(folder_type='vault', parent__isnull=False, created_by__isnull=True)
+                ),
+                name='folder_type_structural_invariant',
+            ),
         ]
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        super().clean()
+        if self.folder_type == self.FOLDER_TYPE_ROOT:
+            if self.parent_id is not None or self.created_by_id is not None:
+                raise ValidationError("Root folder must have parent=None and created_by=None.")
+        elif self.folder_type == self.FOLDER_TYPE_PERSONAL:
+            if self.created_by_id is None:
+                raise ValidationError("Personal folder must have created_by set.")
+        elif self.folder_type == self.FOLDER_TYPE_VAULT:
+            if self.parent_id is None:
+                raise ValidationError("Vault folder must have a parent folder.")
+            if self.created_by_id is not None:
+                raise ValidationError("Vault folder must have created_by=None.")
+
+    @classmethod
+    def get_or_create_vault_subfolder(cls, *, organization, parent, name, **kwargs):
+        """Sanctioned vault subfolder creation. Enforces folder_type and created_by invariant."""
+        assert parent.folder_type == cls.FOLDER_TYPE_VAULT, (
+            f"Parent folder {parent.id!r} is not a vault folder (got {parent.folder_type!r})."
+        )
+        return cls.objects.get_or_create(
+            organization=organization,
+            parent=parent,
+            name=name,
+            defaults={
+                'folder_type': cls.FOLDER_TYPE_VAULT,
+                'created_by': None,
+                **kwargs
+            }
+        )
 
     def get_descendants(self):
         """
