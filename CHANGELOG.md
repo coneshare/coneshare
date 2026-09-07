@@ -1,6 +1,31 @@
 # Changelog
 
 
+## [1.9.0](https://github.com/coneshare/coneshare/compare/v1.8.1...v1.9.0) (2026-09-07)
+
+
+### Features
+
+* **admin:** organization-wide dataroom governance, server-side sorting, and quota management ([7cafa48](https://github.com/coneshare/coneshare/commit/7cafa4827f465df0e5bd4eb845ac1254c8da98ed))
+* **datarooms:** implement dataroom collaboration, v2 system vault storage, quotas, and permissions ([c8b198a](https://github.com/coneshare/coneshare/commit/c8b198af60487fdd641750f7bde024d2fb8c09e3))
+* **datarooms:** add aggregate stats to dataroom links view and exclude bounces from avg duration ([6ed0460](https://github.com/coneshare/coneshare/commit/6ed046052223ad9e1f58152ff47131b0d261f987))
+* **qna:** add dataroom and share link Q&A toggles ([PR 306](https://github.com/coneshare/coneshare/pull/306)) - thanks [mfriedewald](https://github.com/mfriedewald)!
+
+
+### Bug Fixes
+
+* **backend:** touch parent folder mtime when contents change (close [#315](https://github.com/coneshare/coneshare/issues/315)) ([4dca46a](https://github.com/coneshare/coneshare/commit/4dca46a4269e7a56c85e7b1c42c1e7997dc7edff))
+* **datarooms:** fix unique visitors of stats ([a848e1b](https://github.com/coneshare/coneshare/commit/a848e1ba99c3912d668960e2ea17b21e7c29084a))
+* **documents:** bypass user personal quota and enforce dataroom quota on vault document version promotion ([3835428](https://github.com/coneshare/coneshare/commit/38354283eb21fa18cb716a1775b0685c689f8209))
+* **frontend:** add skeleton loading placeholders for sidebar quota and nav user ([4e22aa3](https://github.com/coneshare/coneshare/commit/4e22aa369b030d726e0e6fa8e3421adde6b95b27))
+* order datarooms by creation time and localize toast messages ([21a2cf5](https://github.com/coneshare/coneshare/commit/21a2cf55f5795d3551e595237927bd573cf7fa58))
+* **viewer:** reload dataroom documents reopened after navigating away ([1a6eacf](https://github.com/coneshare/coneshare/commit/1a6eacf0a1b191dc8df06240b02dab6232114af3)) - thanks [@jamesramsay](https://github.com/jamesramsay)!
+
+
+### Performance Improvements
+
+* **analytics:** optimize dashboard summary view and eliminate N+1 qu… ([#323](https://github.com/coneshare/coneshare/issues/323)) ([83c2dd9](https://github.com/coneshare/coneshare/commit/83c2dd9bf527905d97e1bf7da00733b1e095bf7d))
+
 ## [1.8.1](https://github.com/coneshare/coneshare/compare/v1.8.0...v1.8.1) (2026-08-26)
 
 
