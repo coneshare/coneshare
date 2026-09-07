@@ -17,15 +17,15 @@ def test_check_vault_integrity_success():
 
 
 @pytest.mark.django_db
-def test_check_vault_integrity_catches_folder_invariant_violation():
+def test_check_vault_integrity_catches_system_root_folder_type_violation():
     org = Organization.objects.create(name="Test Org")
-    # Violate folder invariant: vault folder with no parent
+    user = User.objects.create(username="testuser", email="test@example.com", organization=org)
+    # Valid DB row (personal folder has created_by), but violates system naming convention
     Folder.objects.create(
-        name="illegal_vault",
+        name="__root__",
         organization=org,
-        folder_type="vault",
-        parent=None,
-        created_by=None,
+        folder_type="personal",
+        created_by=user,
     )
 
     out = io.StringIO()
@@ -34,4 +34,35 @@ def test_check_vault_integrity_catches_folder_invariant_violation():
         call_command("check_vault_integrity", stdout=out, stderr=err)
 
     err_output = err.getvalue()
-    assert "Vault folder invariant violated" in err_output
+    assert "__root__ folders with non-root type" in err_output
+
+
+@pytest.mark.django_db
+def test_check_vault_integrity_catches_v1_dataroom_with_vault_folder():
+    org = Organization.objects.create(name="Test Org 2")
+    user = User.objects.create(username="testuser2", email="test2@example.com", organization=org)
+    root = Folder.objects.create(name="__root__", organization=org, folder_type="root")
+    vault_root = Folder.objects.create(
+        name="__datarooms__", organization=org, folder_type="vault", parent=root
+    )
+    vault_sub = Folder.objects.create(
+        name="room-folder", organization=org, folder_type="vault", parent=vault_root
+    )
+
+    from datarooms.models import Dataroom
+
+    Dataroom.objects.create(
+        organization=org,
+        created_by=user,
+        name="Legacy Dataroom",
+        storage_version=1,
+        vault_folder=vault_sub,
+    )
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with pytest.raises(CommandError, match="Data integrity audit failed"):
+        call_command("check_vault_integrity", stdout=out, stderr=err)
+
+    err_output = err.getvalue()
+    assert "v1 datarooms have vault_folder set" in err_output
