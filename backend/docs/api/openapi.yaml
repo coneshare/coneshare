@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: ConeShare API
-  version: 1.8.0
+  version: 1.9.0
   description: OpenAPI schema for the ConeShare backend API.
 paths:
   /api/schema/:
@@ -25,6 +25,7 @@ paths:
         schema:
           type: string
           enum:
+          - de
           - en
           - ru
           - zh-hans
@@ -134,6 +135,370 @@ paths:
               schema:
                 type: object
                 additionalProperties: {}
+          description: ''
+  /api/v1/admin/datarooms/:
+    get:
+      operationId: v1_admin_datarooms_list
+      description: |-
+        API endpoint for organization administrators to audit, govern,
+        and manage all virtual datarooms within the organization.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - admin-datarooms
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAdminDataroomList'
+          description: ''
+    post:
+      operationId: v1_admin_datarooms_create
+      description: |-
+        API endpoint for organization administrators to audit, govern,
+        and manage all virtual datarooms within the organization.
+      tags:
+      - admin-datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminDataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminDataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminDataroom'
+        required: true
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDataroom'
+          description: ''
+  /api/v1/admin/datarooms/{id}/:
+    get:
+      operationId: v1_admin_datarooms_retrieve
+      description: |-
+        API endpoint for organization administrators to audit, govern,
+        and manage all virtual datarooms within the organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - admin-datarooms
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataroomDetail'
+          description: ''
+    put:
+      operationId: v1_admin_datarooms_update
+      description: |-
+        API endpoint for organization administrators to audit, govern,
+        and manage all virtual datarooms within the organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - admin-datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminDataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminDataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminDataroom'
+        required: true
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDataroom'
+          description: ''
+    patch:
+      operationId: v1_admin_datarooms_partial_update
+      description: |-
+        API endpoint for organization administrators to audit, govern,
+        and manage all virtual datarooms within the organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - admin-datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminDataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminDataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminDataroom'
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDataroom'
+          description: ''
+    delete:
+      operationId: v1_admin_datarooms_destroy
+      description: |-
+        API endpoint for organization administrators to audit, govern,
+        and manage all virtual datarooms within the organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - admin-datarooms
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/admin/datarooms/{id}/collaborators/:
+    get:
+      operationId: v1_admin_datarooms_collaborators_retrieve
+      description: |-
+        API endpoint for organization administrators to audit, govern,
+        and manage all virtual datarooms within the organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - admin-datarooms
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDataroom'
+          description: ''
+    post:
+      operationId: v1_admin_datarooms_collaborators_create
+      description: |-
+        API endpoint for organization administrators to audit, govern,
+        and manage all virtual datarooms within the organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - admin-datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminDataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminDataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminDataroom'
+        required: true
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDataroom'
+          description: ''
+  /api/v1/admin/datarooms/{id}/collaborators/{user_id}/:
+    delete:
+      operationId: v1_admin_datarooms_collaborators_remove
+      description: |-
+        API endpoint for organization administrators to audit, govern,
+        and manage all virtual datarooms within the organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        description: UUID of the collaborator user to remove.
+        required: true
+      tags:
+      - admin-datarooms
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/admin/datarooms/{id}/eligible-collaborators/:
+    get:
+      operationId: v1_admin_datarooms_eligible_collaborators_retrieve
+      description: |-
+        API endpoint for organization administrators to audit, govern,
+        and manage all virtual datarooms within the organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - admin-datarooms
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDataroom'
+          description: ''
+  /api/v1/admin/datarooms/{id}/transfer-ownership/:
+    post:
+      operationId: v1_admin_datarooms_transfer_ownership_create
+      description: |-
+        API endpoint for organization administrators to audit, govern,
+        and manage all virtual datarooms within the organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - admin-datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminDataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminDataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminDataroom'
+        required: true
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDataroom'
+          description: ''
+  /api/v1/admin/datarooms/{id}/upgrade-storage/:
+    post:
+      operationId: v1_admin_datarooms_upgrade_storage_create
+      description: |-
+        API endpoint for organization administrators to audit, govern,
+        and manage all virtual datarooms within the organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - admin-datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminDataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminDataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminDataroom'
+        required: true
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDataroom'
           description: ''
   /api/v1/admin/login-activities/:
     get:
@@ -623,6 +988,41 @@ paths:
         required: true
       tags:
       - v1
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/admin/users/{id}/recalculate-quota/:
+    post:
+      operationId: v1_admin_users_recalculate_quota_create
+      description: API endpoint for admins to manage users in their organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this user.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
       security:
       - apiKeyAuth: []
       - jwtAuth: []
@@ -2037,6 +2437,148 @@ paths:
               schema:
                 $ref: '#/components/schemas/Dataroom'
           description: ''
+  /api/v1/datarooms/{id}/collaborators/:
+    get:
+      operationId: v1_datarooms_collaborators_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
+    post:
+      operationId: v1_datarooms_collaborators_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+        required: true
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
+  /api/v1/datarooms/{id}/collaborators/{user_id}/:
+    post:
+      operationId: v1_datarooms_collaborators_leave
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        description: UUID of the collaborator user leaving the dataroom.
+        required: true
+      tags:
+      - datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+        required: true
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
+    delete:
+      operationId: v1_datarooms_collaborators_remove
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        description: UUID of the collaborator user to remove.
+        required: true
+      tags:
+      - datarooms
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/datarooms/{id}/eligible-collaborators/:
+    get:
+      operationId: v1_datarooms_eligible_collaborators_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
   /api/v1/datarooms/{id}/ensure-paths/:
     post:
       operationId: v1_datarooms_ensure_paths_create
@@ -2142,6 +2684,96 @@ paths:
   /api/v1/datarooms/{id}/reorder-items/:
     post:
       operationId: v1_datarooms_reorder_items_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+        required: true
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
+  /api/v1/datarooms/{id}/stats/:
+    get:
+      operationId: v1_datarooms_stats_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
+  /api/v1/datarooms/{id}/transfer-ownership/:
+    post:
+      operationId: v1_datarooms_transfer_ownership_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this dataroom.
+        required: true
+      tags:
+      - datarooms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Dataroom'
+        required: true
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataroom'
+          description: ''
+  /api/v1/datarooms/{id}/upgrade-storage/:
+    post:
+      operationId: v1_datarooms_upgrade_storage_create
       parameters:
       - in: path
         name: id
@@ -5808,6 +6440,101 @@ components:
       - last_used_at
       - name
       - prefix
+    AdminDataroom:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        organization:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+          nullable: true
+        owner:
+          allOf:
+          - $ref: '#/components/schemas/DataroomCollaboratorUser'
+          nullable: true
+          readOnly: true
+        current_user_role:
+          type: string
+          readOnly: true
+        collaborator_count:
+          type: integer
+          readOnly: true
+        storage_quota_mb:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          description: Max storage capacity for this dataroom in MB. 0 means unlimited.
+        storage_used_bytes:
+          type: integer
+          readOnly: true
+        storage_version:
+          type: integer
+          readOnly: true
+          description: 'Storage architecture version: 1 (legacy user-scoped), 2 (system
+            vault)'
+        show_file_index:
+          type: boolean
+        enable_qna:
+          type: boolean
+        branding_banner:
+          type: string
+          format: uri
+          nullable: true
+        brand_primary_color:
+          type: string
+          nullable: true
+          maxLength: 9
+        brand_secondary_color:
+          type: string
+          nullable: true
+          maxLength: 9
+        brand_accent_color:
+          type: string
+          nullable: true
+          maxLength: 9
+        remove_branding_banner:
+          type: boolean
+          writeOnly: true
+          default: false
+        active_links_count:
+          type: integer
+          readOnly: true
+        last_viewed_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+      required:
+      - active_links_count
+      - collaborator_count
+      - created_at
+      - created_by
+      - current_user_role
+      - id
+      - last_viewed_at
+      - name
+      - organization
+      - owner
+      - storage_used_bytes
+      - storage_version
+      - updated_at
     AdminUserDetail:
       type: object
       description: Serializer for the User model.
@@ -5852,6 +6579,7 @@ components:
             * `en` - English
             * `zh-hans` - Simplified Chinese
             * `ru` - Russian
+            * `de` - German
         date_joined:
           type: string
           format: date-time
@@ -6209,6 +6937,7 @@ components:
           maxLength: 255
         file_size:
           type: integer
+          minimum: 0
       required:
       - file_id
       - file_name
@@ -6236,17 +6965,259 @@ components:
       required:
       - date
       - visits
+    DashboardRecentLink:
+      type: object
+      description: Optimized serializer for recent active share links on the dashboard.
+      properties:
+        id:
+          type: string
+          readOnly: true
+        document:
+          type: string
+          readOnly: true
+          nullable: true
+        dataroom:
+          type: string
+          readOnly: true
+          nullable: true
+        document_name:
+          type: string
+          readOnly: true
+          nullable: true
+        document_type:
+          type: string
+          readOnly: true
+          nullable: true
+        dataroom_name:
+          type: string
+          readOnly: true
+          nullable: true
+        dataroom_settings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShareLinkDataroomSetting'
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_by_user:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+        url:
+          type: string
+          readOnly: true
+        expires_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        has_password:
+          type: boolean
+          readOnly: true
+        requires_email:
+          type: boolean
+          readOnly: true
+        requires_email_verification:
+          type: boolean
+          readOnly: true
+        allow_download:
+          type: boolean
+          readOnly: true
+        enable_qna:
+          type: boolean
+          readOnly: true
+        enable_watermark:
+          type: boolean
+          readOnly: true
+        watermark_text:
+          type: string
+          readOnly: true
+        receive_email_notification:
+          type: boolean
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        view_count:
+          type: integer
+          readOnly: true
+        recent_view_sessions:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+        last_viewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+        require_nda:
+          type: boolean
+          readOnly: true
+        nda_text:
+          type: string
+          readOnly: true
+        nda_version:
+          type: integer
+          readOnly: true
+      required:
+      - allow_download
+      - created_at
+      - created_by
+      - created_by_user
+      - dataroom
+      - dataroom_name
+      - dataroom_settings
+      - document
+      - document_name
+      - document_type
+      - enable_qna
+      - enable_watermark
+      - expires_at
+      - has_password
+      - id
+      - is_active
+      - last_viewed_at
+      - name
+      - nda_text
+      - nda_version
+      - receive_email_notification
+      - recent_view_sessions
+      - require_nda
+      - requires_email
+      - requires_email_verification
+      - slug
+      - updated_at
+      - url
+      - view_count
+      - watermark_text
+    DashboardRecentViewSession:
+      type: object
+      description: |-
+        Optimized serializer for recent view sessions on the dashboard and nested
+        inside recent active link previews. Avoids heavy recursive relation queries.
+      properties:
+        id:
+          type: string
+          readOnly: true
+        share_link:
+          type: string
+          readOnly: true
+        viewer:
+          type: string
+          readOnly: true
+          nullable: true
+        viewer_email:
+          type: string
+          format: email
+          readOnly: true
+        share_link_name:
+          type: string
+          readOnly: true
+        document_id:
+          type: string
+          readOnly: true
+        document_name:
+          type: string
+          readOnly: true
+        document_type:
+          type: string
+          readOnly: true
+        dataroom_id:
+          type: string
+          readOnly: true
+        dataroom_name:
+          type: string
+          readOnly: true
+        ip_address:
+          type: string
+          readOnly: true
+          nullable: true
+        user_agent:
+          type: string
+          readOnly: true
+        country:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        latitude:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        duration_seconds:
+          type: integer
+          readOnly: true
+        completion_rate:
+          type: number
+          format: double
+          readOnly: true
+        viewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+        downloaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        is_owner_view:
+          type: boolean
+          readOnly: true
+      required:
+      - city
+      - completion_rate
+      - country
+      - dataroom_id
+      - dataroom_name
+      - document_id
+      - document_name
+      - document_type
+      - downloaded_at
+      - duration_seconds
+      - id
+      - ip_address
+      - is_owner_view
+      - latitude
+      - longitude
+      - share_link
+      - share_link_name
+      - user_agent
+      - viewed_at
+      - viewer
+      - viewer_email
     DashboardSummaryResponse:
       type: object
       properties:
         recent_views:
           type: array
           items:
-            $ref: '#/components/schemas/ViewSession'
+            $ref: '#/components/schemas/DashboardRecentViewSession'
         recent_links:
           type: array
           items:
-            $ref: '#/components/schemas/ShareLink'
+            $ref: '#/components/schemas/DashboardRecentLink'
       required:
       - recent_links
       - recent_views
@@ -6274,7 +7245,34 @@ components:
           type: string
           readOnly: true
           nullable: true
+        owner:
+          allOf:
+          - $ref: '#/components/schemas/DataroomCollaboratorUser'
+          nullable: true
+          readOnly: true
+        current_user_role:
+          type: string
+          readOnly: true
+        collaborator_count:
+          type: integer
+          readOnly: true
+        storage_quota_mb:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          description: Max storage capacity for this dataroom in MB. 0 means unlimited.
+        storage_used_bytes:
+          type: integer
+          readOnly: true
+        storage_version:
+          type: integer
+          readOnly: true
+          description: 'Storage architecture version: 1 (legacy user-scoped), 2 (system
+            vault)'
         show_file_index:
+          type: boolean
+        enable_qna:
           type: boolean
         branding_banner:
           type: string
@@ -6297,12 +7295,45 @@ components:
           writeOnly: true
           default: false
       required:
+      - collaborator_count
       - created_at
       - created_by
+      - current_user_role
       - id
       - name
       - organization
+      - owner
+      - storage_used_bytes
+      - storage_version
       - updated_at
+    DataroomCollaboratorUser:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+          title: Email address
+        name:
+          type: string
+          readOnly: true
+        role:
+          type: string
+          readOnly: true
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+          readOnly: true
+      required:
+      - avatar_url
+      - email
+      - id
+      - name
+      - role
     DataroomDetail:
       type: object
       properties:
@@ -6327,7 +7358,39 @@ components:
           type: string
           readOnly: true
           nullable: true
+        owner:
+          allOf:
+          - $ref: '#/components/schemas/DataroomCollaboratorUser'
+          nullable: true
+          readOnly: true
+        current_user_role:
+          type: string
+          readOnly: true
+        collaborator_count:
+          type: integer
+          readOnly: true
+        collaborators:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+        storage_quota_mb:
+          type: integer
+          readOnly: true
+          description: Max storage capacity for this dataroom in MB. 0 means unlimited.
+        storage_used_bytes:
+          type: integer
+          readOnly: true
+        storage_version:
+          type: integer
+          readOnly: true
+          description: 'Storage architecture version: 1 (legacy user-scoped), 2 (system
+            vault)'
         show_file_index:
+          type: boolean
+          readOnly: true
+        enable_qna:
           type: boolean
           readOnly: true
         branding_banner:
@@ -6358,13 +7421,21 @@ components:
       - brand_primary_color
       - brand_secondary_color
       - branding_banner
+      - collaborator_count
+      - collaborators
       - created_at
       - created_by
+      - current_user_role
+      - enable_qna
       - id
       - items
       - name
       - organization
+      - owner
       - show_file_index
+      - storage_quota_mb
+      - storage_used_bytes
+      - storage_version
       - updated_at
     DataroomDocument:
       type: object
@@ -6393,7 +7464,8 @@ components:
           format: date-time
           readOnly: true
         created_by:
-          type: string
+          allOf:
+          - $ref: '#/components/schemas/DataroomCollaboratorUser'
           readOnly: true
         folder:
           type: string
@@ -6402,6 +7474,9 @@ components:
           type: boolean
         dataroom_view_count:
           type: integer
+          readOnly: true
+        is_direct_upload:
+          type: boolean
           readOnly: true
       required:
       - created_at
@@ -6412,6 +7487,7 @@ components:
       - file_size
       - folder
       - id
+      - is_direct_upload
       - name
       - updated_at
     DataroomDocumentUpdate:
@@ -6452,9 +7528,15 @@ components:
             type: object
             additionalProperties: {}
           readOnly: true
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/DataroomCollaboratorUser'
+          nullable: true
+          readOnly: true
       required:
       - ancestors
       - created_at
+      - created_by
       - dataroom
       - id
       - name
@@ -6491,6 +7573,18 @@ components:
         dataroom_folder_name:
           type: string
           readOnly: true
+        item_type:
+          type: string
+          readOnly: true
+        item_name:
+          type: string
+          readOnly: true
+        item_path:
+          type: string
+          readOnly: true
+        item_status:
+          type: string
+          readOnly: true
         page_views:
           type: array
           items:
@@ -6509,6 +7603,10 @@ components:
       - dataroom_folder_name
       - downloaded_at
       - id
+      - item_name
+      - item_path
+      - item_status
+      - item_type
       - link_clicks
       - page_views
       - visited_at
@@ -6588,6 +7686,11 @@ components:
           type: string
           readOnly: true
           nullable: true
+        created_by_user:
+          type: object
+          additionalProperties: {}
+          nullable: true
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -6625,6 +7728,7 @@ components:
       - content_type
       - created_at
       - created_by
+      - created_by_user
       - download_only
       - id
       - name
@@ -7109,9 +8213,15 @@ components:
           readOnly: true
         is_starred:
           type: boolean
+        created_by:
+          type: object
+          additionalProperties: {}
+          nullable: true
+          readOnly: true
       required:
       - ancestors
       - created_at
+      - created_by
       - id
       - name
       - organization
@@ -7148,6 +8258,7 @@ components:
           maxLength: 255
         file_size:
           type: integer
+          minimum: 0
       required:
       - connection_id
       - file_id
@@ -7168,11 +8279,13 @@ components:
       - en
       - zh-hans
       - ru
+      - de
       type: string
       description: |-
         * `en` - English
         * `zh-hans` - Simplified Chinese
         * `ru` - Russian
+        * `de` - German
     LinkClick:
       type: object
       properties:
@@ -7460,6 +8573,29 @@ components:
       - duration_seconds
       - page_number
       - view_session
+    PaginatedAdminDataroomList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminDataroom'
     PaginatedAutomationDeliveryList:
       type: object
       required:
@@ -7644,6 +8780,87 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ViewSession'
+    PatchedAdminDataroom:
+      type: object
+      properties:
+        id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        organization:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+          nullable: true
+        owner:
+          allOf:
+          - $ref: '#/components/schemas/DataroomCollaboratorUser'
+          nullable: true
+          readOnly: true
+        current_user_role:
+          type: string
+          readOnly: true
+        collaborator_count:
+          type: integer
+          readOnly: true
+        storage_quota_mb:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          description: Max storage capacity for this dataroom in MB. 0 means unlimited.
+        storage_used_bytes:
+          type: integer
+          readOnly: true
+        storage_version:
+          type: integer
+          readOnly: true
+          description: 'Storage architecture version: 1 (legacy user-scoped), 2 (system
+            vault)'
+        show_file_index:
+          type: boolean
+        enable_qna:
+          type: boolean
+        branding_banner:
+          type: string
+          format: uri
+          nullable: true
+        brand_primary_color:
+          type: string
+          nullable: true
+          maxLength: 9
+        brand_secondary_color:
+          type: string
+          nullable: true
+          maxLength: 9
+        brand_accent_color:
+          type: string
+          nullable: true
+          maxLength: 9
+        remove_branding_banner:
+          type: boolean
+          writeOnly: true
+          default: false
+        active_links_count:
+          type: integer
+          readOnly: true
+        last_viewed_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
     PatchedAppConfiguration:
       type: object
       description: Serializer for the AppConfiguration model for admin use.
@@ -7760,7 +8977,34 @@ components:
           type: string
           readOnly: true
           nullable: true
+        owner:
+          allOf:
+          - $ref: '#/components/schemas/DataroomCollaboratorUser'
+          nullable: true
+          readOnly: true
+        current_user_role:
+          type: string
+          readOnly: true
+        collaborator_count:
+          type: integer
+          readOnly: true
+        storage_quota_mb:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          description: Max storage capacity for this dataroom in MB. 0 means unlimited.
+        storage_used_bytes:
+          type: integer
+          readOnly: true
+        storage_version:
+          type: integer
+          readOnly: true
+          description: 'Storage architecture version: 1 (legacy user-scoped), 2 (system
+            vault)'
         show_file_index:
+          type: boolean
+        enable_qna:
           type: boolean
         branding_banner:
           type: string
@@ -7819,6 +9063,11 @@ components:
           items:
             type: object
             additionalProperties: {}
+          readOnly: true
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/DataroomCollaboratorUser'
+          nullable: true
           readOnly: true
     PatchedDocument:
       type: object
@@ -7880,6 +9129,11 @@ components:
           type: string
           readOnly: true
           nullable: true
+        created_by_user:
+          type: object
+          additionalProperties: {}
+          nullable: true
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -7991,6 +9245,11 @@ components:
           readOnly: true
         is_starred:
           type: boolean
+        created_by:
+          type: object
+          additionalProperties: {}
+          nullable: true
+          readOnly: true
     PatchedOrganization:
       type: object
       description: Serializer for the Organization model.
@@ -8138,6 +9397,11 @@ components:
         created_by:
           type: string
           readOnly: true
+        created_by_user:
+          type: object
+          additionalProperties: {}
+          nullable: true
+          readOnly: true
         name:
           type: string
           maxLength: 255
@@ -8164,6 +9428,8 @@ components:
         requires_email_verification:
           type: boolean
         allow_download:
+          type: boolean
+        enable_qna:
           type: boolean
         enable_watermark:
           type: boolean
@@ -8296,6 +9562,7 @@ components:
             * `en` - English
             * `zh-hans` - Simplified Chinese
             * `ru` - Russian
+            * `de` - German
         date_joined:
           type: string
           format: date-time
@@ -8850,6 +10117,11 @@ components:
         created_by:
           type: string
           readOnly: true
+        created_by_user:
+          type: object
+          additionalProperties: {}
+          nullable: true
+          readOnly: true
         name:
           type: string
           maxLength: 255
@@ -8876,6 +10148,8 @@ components:
         requires_email_verification:
           type: boolean
         allow_download:
+          type: boolean
+        enable_qna:
           type: boolean
         enable_watermark:
           type: boolean
@@ -8924,6 +10198,7 @@ components:
       required:
       - created_at
       - created_by
+      - created_by_user
       - dataroom_name
       - dataroom_settings
       - document_name
@@ -9356,6 +10631,7 @@ components:
             * `en` - English
             * `zh-hans` - Simplified Chinese
             * `ru` - Russian
+            * `de` - German
         date_joined:
           type: string
           format: date-time

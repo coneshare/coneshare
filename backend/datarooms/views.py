@@ -10,7 +10,8 @@ from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, APIException
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 
 from backend.utils import get_unique_name
 from core.models import User
@@ -882,6 +883,22 @@ class DataroomViewSet(viewsets.ModelViewSet):
             "collaborators": response_serializer.data,
         }, status=status.HTTP_201_CREATED)
 
+    @extend_schema(
+        methods=['delete'],
+        operation_id='v1_datarooms_collaborators_remove',
+        parameters=[
+            OpenApiParameter('user_id', type=OpenApiTypes.UUID, location=OpenApiParameter.PATH,
+                             description='UUID of the collaborator user to remove.'),
+        ],
+    )
+    @extend_schema(
+        methods=['post'],
+        operation_id='v1_datarooms_collaborators_leave',
+        parameters=[
+            OpenApiParameter('user_id', type=OpenApiTypes.UUID, location=OpenApiParameter.PATH,
+                             description='UUID of the collaborator user leaving the dataroom.'),
+        ],
+    )
     @action(detail=True, methods=['delete', 'post'], url_path=r'collaborators/(?P<user_id>[^/.]+)')
     def remove_collaborator(self, request, pk=None, user_id=None):
         dataroom = self.get_object()

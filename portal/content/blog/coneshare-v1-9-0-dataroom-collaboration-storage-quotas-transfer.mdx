@@ -37,9 +37,9 @@ Files uploaded directly into a dataroom now count only against that room's stora
 Room owners and organization admins can now reassign dataroom ownership to another team member directly from Dataroom Settings. When project leads change or deals close, the new owner takes over all room documents, active share links, and viewer analytics without having to re-upload files or recreate links.
 
 ### 4) V2 System Vault Storage
-To support team collaboration and separate room quotas, V1.9 introduces v2 vault storage:
-* **Isolated vault structure:** Dataroom files live under an organization-level vault path (`__root__/__datarooms__/<dataroom_id>/`), separating shared diligence files from personal user folders.
-* **Upgrading existing datarooms:** Existing rooms stay on v1 storage and continue working normally. To turn on collaboration or ownership transfer for an existing room, room owners can click **Upgrade Storage** in Dataroom Settings to migrate to v2 in one click.
+Earlier versions stored dataroom files inside the creator's personal folders. That setup made collaboration awkward and error-prone when tracking room quotas, managing permissions, or transferring room ownership across teammates.
+
+V1.9 moves dataroom files into organization-level vaults, separating shared room documents from personal user libraries. This makes storage behavior predictable and provides a much cleaner foundation for future feature expansion. Existing rooms remain on v1 storage and work normally; room owners can click **Upgrade Storage** in Dataroom Settings whenever they are ready to turn on collaboration or ownership transfer.
 
 ![Dataroom upgrade storage](/screenshots/blog/v1-9-0-dataroom-upgrade-storage.png)
 
