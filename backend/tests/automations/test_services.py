@@ -4,6 +4,7 @@ from unittest.mock import patch
 from automations.models import AutomationDelivery, AutomationDestination, AutomationRule
 from automations.services import dispatch_automation_event, ensure_default_email_automation
 from core.models import Organization, User
+from sharelinks.models import ShareLink
 
 
 pytestmark = pytest.mark.django_db
@@ -357,3 +358,112 @@ def test_ensure_default_email_automation_provisioning(user):
     
     destination.refresh_from_db()
     assert destination.name == f"Default Email (new_owner@example.com)"
+
+
+def test_dispatch_matches_dataroom_owner_room_scoped_rule(user, user2, dataroom):
+    """
+    When collaborator user2 triggers an event on a dataroom link,
+    room owner user's DATAROOM-scoped rule is also matched and dispatched.
+    """
+    link = ShareLink.objects.create(
+        dataroom=dataroom,
+        created_by=user2,
+        slug="collab-share-link",
+        receive_email_notification=False,
+    )
+
+    # 1. Collaborator user2 has a global rule
+    collab_dest = AutomationDestination.objects.create(
+        organization=user2.organization,
+        created_by=user2,
+        name="Collab Destination",
+        destination_type=AutomationDestination.DestinationType.EMAIL,
+    )
+    collab_rule = AutomationRule.objects.create(
+        organization=user2.organization,
+        created_by=user2,
+        name="Collab Global Rule",
+        scope_type=AutomationRule.ScopeType.GLOBAL,
+        subscribed_events=['dataroom_opened'],
+        is_active=True,
+    )
+    collab_rule.destinations.add(collab_dest)
+
+    # 2. Room owner user has a DATAROOM-scoped rule for this specific dataroom
+    owner_dest = AutomationDestination.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="Owner Destination",
+        destination_type=AutomationDestination.DestinationType.EMAIL,
+    )
+    owner_rule = AutomationRule.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="Owner Room Rule",
+        scope_type=AutomationRule.ScopeType.DATAROOM,
+        dataroom=dataroom,
+        subscribed_events=['dataroom_opened'],
+        is_active=True,
+    )
+    owner_rule.destinations.add(owner_dest)
+
+    # 3. Dispatch event for collaborator user2's link
+    payload = {
+        'organization_id': str(user.organization.id),
+        'owner_user_id': str(user2.id),
+        'dataroom_owner_user_id': str(user.id),
+        'dataroom_id': str(dataroom.id),
+        'share_link_id': str(link.id),
+    }
+    created_count = dispatch_automation_event('dataroom_opened', payload)
+
+    assert created_count == 2
+    matched_rules = set(AutomationDelivery.objects.values_list('rule_id', flat=True))
+    assert matched_rules == {collab_rule.id, owner_rule.id}
+
+
+def test_dispatch_ignores_inactive_dataroom_owner_room_scoped_rule(user, user2, dataroom):
+    """
+    When the dataroom owner user is deactivated (is_active=False), their DATAROOM-scoped
+    rule is NOT matched or dispatched when activity occurs on collaborator user2's link.
+    """
+    user.is_active = False
+    user.save()
+
+    link = ShareLink.objects.create(
+        dataroom=dataroom,
+        created_by=user2,
+        slug="collab-share-link-inactive-owner",
+        receive_email_notification=False,
+    )
+
+    # Room owner user (inactive) has a DATAROOM-scoped rule
+    owner_dest = AutomationDestination.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="Owner Destination",
+        destination_type=AutomationDestination.DestinationType.EMAIL,
+    )
+    owner_rule = AutomationRule.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="Owner Room Rule",
+        scope_type=AutomationRule.ScopeType.DATAROOM,
+        dataroom=dataroom,
+        subscribed_events=['dataroom_opened'],
+        is_active=True,
+    )
+    owner_rule.destinations.add(owner_dest)
+
+    payload = {
+        'organization_id': str(user2.organization.id),
+        'owner_user_id': str(user2.id),
+        'dataroom_owner_user_id': str(user.id),
+        'dataroom_id': str(dataroom.id),
+        'share_link_id': str(link.id),
+    }
+    created_count = dispatch_automation_event('dataroom_opened', payload)
+
+    assert created_count == 0
+    assert AutomationDelivery.objects.filter(rule=owner_rule).count() == 0
+

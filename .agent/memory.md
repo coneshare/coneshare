@@ -349,3 +349,9 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Architecture Choice
 - **Context/Implication:** Implemented explicit folder classification (`root`, `personal`, `vault`) and `Dataroom.vault_folder` OneToOne link, replacing implicit column nullability heuristics.
 - **Resolution/Action:** Folders require explicit `folder_type=Folder.FOLDER_TYPE_VAULT` on vault creation (`Folder.get_or_create_vault_subfolder`). Personal folders require `created_by IS NOT NULL`. Migrations are consolidated per app (`documents.0008` and `datarooms.0006`) with strict DAG dependency.
+
+### 2026-09-08 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** After introducing Dataroom collaboration, outbound link notifications could cause missed alerts or duplicate noise between link creators and room owners.
+- **Resolution/Action:** Implemented Phase 1 notification resolution: link creators receive link alerts by default; room owners can subscribe to all room activity via DATAROOM-scoped AutomationRules; if a collaborator leaves or is deactivated, notifications automatically fall back to the Dataroom owner.
+
