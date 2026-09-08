@@ -12,7 +12,8 @@ from django.db import transaction
 from django.template.loader import render_to_string
 
 from sharelinks.models import ShareLink, PageView, ViewSession
-from automations.models import AutomationDelivery
+from sharelinks.services import resolve_notification_recipient
+from automations.models import AutomationDelivery, AutomationRule
 from backend.utils import parse_user_agent
 from .constants import EMAIL_COALESCE_DEBOUNCE_SECONDS
 # Import module reference directly to prevent circular import errors with tasks.py
@@ -343,24 +344,49 @@ def handle_email_delivery(delivery: AutomationDelivery):
         logger.info('Automation delivery already processed: delivery_id=%s status=%s', delivery.id, delivery.status)
         return
 
-    # Defensive check for missing rule owner or email
+    # Defensive check for missing rule owner, email, or inactive account
     owner = delivery.rule.created_by
-    if not owner or not owner.email:
-        logger.warning('Automation delivery skipped: owner has no email address: delivery_id=%s', delivery.id)
-        tasks._mark_non_retryable_failure(delivery, 'Owner has no email address.')
+    if not owner or not owner.email or not getattr(owner, 'is_active', True):
+        logger.warning('Automation delivery skipped: owner has no email address or is inactive: delivery_id=%s', delivery.id)
+        tasks._mark_non_retryable_failure(delivery, 'Owner has no email address or is inactive.')
         return
     recipient_email = owner.email
 
     # Prior to SMTP dispatch, check if the toggle is checked on the referenced ShareLink
     payload = delivery.payload or {}
     share_link_id = payload.get('share_link_id')
+    event_type = delivery.event_type
     if share_link_id:
         try:
-            share_link = ShareLink.objects.filter(id=share_link_id).first()
-            if share_link and not share_link.receive_email_notification:
-                logger.info('Skipping email alert: notifications disabled for link %s', share_link_id)
-                tasks._mark_success_direct(delivery, 'Skipped: receive_email_notification is False on ShareLink.')
-                return
+            share_link = ShareLink.objects.select_related(
+                'created_by', 'dataroom__created_by'
+            ).prefetch_related(
+                'dataroom__collaborators'
+            ).filter(id=share_link_id).first()
+
+            if share_link:
+                # Only re-resolve recipient when the link creator owns this rule.
+                # If the link creator is no longer an active participant in the dataroom,
+                # fall back to the effective recipient (dataroom owner).
+                # DATAROOM-scoped rules belonging directly to the room owner deliver to the
+                # rule creator directly and do not need recipient re-resolution.
+                if share_link.dataroom_id and delivery.rule.created_by_id == share_link.created_by_id:
+                    effective_recipient = resolve_notification_recipient(share_link)
+                    if effective_recipient:
+                        owner = effective_recipient
+                        recipient_email = effective_recipient.email
+                    else:
+                        logger.info('Skipping email alert: no valid recipient for dataroom link %s', share_link_id)
+                        tasks._mark_success_direct(delivery, 'Skipped: no valid active recipient in dataroom.')
+                        return
+
+                if not share_link.receive_email_notification:
+                    is_room_rule = delivery.rule.scope_type == AutomationRule.ScopeType.DATAROOM
+                    is_qna = event_type in ('qna_thread_created', 'qna_message_created')
+                    if not is_room_rule and not is_qna:
+                        logger.info('Skipping email alert: notifications disabled for link %s', share_link_id)
+                        tasks._mark_success_direct(delivery, 'Skipped: receive_email_notification is False on ShareLink.')
+                        return
         except Exception as e:
             logger.warning('Failed to query ShareLink for notification check: %s', e)
 

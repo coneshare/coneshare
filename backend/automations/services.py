@@ -1,6 +1,8 @@
 import logging
 import uuid
 
+from django.db.models import Q
+
 from core.models import Organization, User
 
 from .models import AutomationDelivery, AutomationRule, AutomationDestination
@@ -89,15 +91,31 @@ def dispatch_automation_event(event_type: str, payload: dict) -> int:
         return 0
 
     owner_user_id = payload.get('owner_user_id')
+    dataroom_owner_user_id = payload.get('dataroom_owner_user_id')
+    dataroom_id = payload.get('dataroom_id')
+
     if not owner_user_id:
         logger.warning('Automation event dropped: missing owner_user_id for event=%s organization_id=%s', event_type, organization_id)
         return 0
 
+    # Match rules created by the primary link owner (global, link, or dataroom scope)
+    rule_q = Q(created_by_id=owner_user_id)
+
+    # If the event happened in a dataroom and the dataroom owner is distinct, also match the
+    # dataroom owner's DATAROOM-scoped rules for this specific dataroom.
+    if dataroom_id and dataroom_owner_user_id and str(dataroom_owner_user_id) != str(owner_user_id):
+        rule_q |= Q(
+            created_by_id=dataroom_owner_user_id,
+            created_by__is_active=True,
+            scope_type=AutomationRule.ScopeType.DATAROOM,
+            dataroom_id=dataroom_id,
+        )
+
     rules = AutomationRule.objects.filter(
         organization=organization,
         is_active=True,
-        created_by_id=owner_user_id,
-    )
+        created_by__is_active=True,
+    ).filter(rule_q)
     rules = rules.prefetch_related('destinations')
 
     created = 0

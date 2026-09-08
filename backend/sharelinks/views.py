@@ -127,15 +127,19 @@ def _dispatch_automation_event(share_link, event_type: str, extra_payload=None, 
 
     document_name = None
     dataroom_name = None
+    dataroom_owner_user_id = None
 
     if share_link.document_id:
         document_name = share_link.document.name
     if share_link.dataroom_id:
         dataroom_name = share_link.dataroom.name
+        if share_link.dataroom and share_link.dataroom.created_by_id:
+            dataroom_owner_user_id = str(share_link.dataroom.created_by_id)
 
     payload = {
         'organization_id': str(share_link.created_by.organization_id),
         'owner_user_id': str(share_link.created_by_id),
+        'dataroom_owner_user_id': dataroom_owner_user_id,
         'share_link_id': str(share_link.id),
         'dataroom_id': str(share_link.dataroom_id) if share_link.dataroom_id else None,
         'dataroom_name': dataroom_name,

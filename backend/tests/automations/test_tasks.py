@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from automations.models import AutomationDelivery, AutomationDestination, AutomationRule
 from automations.tasks import deliver_automation_delivery_task
+from sharelinks.models import ShareLink
 
 
 pytestmark = pytest.mark.django_db
@@ -803,6 +804,118 @@ def test_deliver_task_standard_fallback_email_respects_user_language(mock_send_m
     _, call_kwargs = mock_send_mail.call_args
     assert 'Alice <alice@example.com> 向您的文件收集“KYC Documents”上传了文件' in call_kwargs['subject']
     assert '访问详情' in call_kwargs['html_message']
+
+
+@patch('automations.emails.send_mail')
+def test_deliver_task_owner_room_rule_delivered_even_if_link_notifications_disabled(
+    mock_send_mail, user, user2, dataroom
+):
+    """
+    If a link created by collaborator user2 has receive_email_notification=False,
+    room owner user's explicit DATAROOM-scoped automation rule is still delivered.
+    """
+    link = ShareLink.objects.create(
+        dataroom=dataroom,
+        created_by=user2,
+        slug="quiet-room-link",
+        receive_email_notification=False,
+    )
+
+    owner_dest = AutomationDestination.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="Owner Email",
+        destination_type=AutomationDestination.DestinationType.EMAIL,
+    )
+    owner_rule = AutomationRule.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="Owner Room Watcher",
+        scope_type=AutomationRule.ScopeType.DATAROOM,
+        dataroom=dataroom,
+        subscribed_events=['dataroom_opened'],
+        is_active=True,
+    )
+    owner_rule.destinations.add(owner_dest)
+
+    delivery = AutomationDelivery.objects.create(
+        organization=user.organization,
+        rule=owner_rule,
+        destination=owner_dest,
+        event_type='dataroom_opened',
+        payload={
+            'organization_id': str(user.organization.id),
+            'share_link_id': str(link.id),
+            'dataroom_id': str(dataroom.id),
+            'dataroom_name': dataroom.name,
+            'viewer_email': 'buyer@fund.com',
+        },
+        status=AutomationDelivery.Status.PENDING,
+    )
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    delivery.refresh_from_db()
+    assert delivery.status == AutomationDelivery.Status.SUCCESS
+    mock_send_mail.assert_called_once()
+    _, kwargs = mock_send_mail.call_args
+    assert kwargs['recipient_list'] == [user.email]
+
+
+@patch('automations.emails.send_mail')
+def test_deliver_task_collaborator_removed_delivery_falls_back_to_room_owner(
+    mock_send_mail, user, user2, dataroom
+):
+    """
+    If collaborator user2 was removed from the dataroom, delivery for user2's sharelink
+    falls back to room owner user instead of emailing the ex-collaborator.
+    """
+    link = ShareLink.objects.create(
+        dataroom=dataroom,
+        created_by=user2,
+        slug="ex-collab-link",
+        receive_email_notification=True,
+    )
+
+    collab_dest = AutomationDestination.objects.create(
+        organization=user2.organization,
+        created_by=user2,
+        name="Collab Email",
+        destination_type=AutomationDestination.DestinationType.EMAIL,
+    )
+    collab_rule = AutomationRule.objects.create(
+        organization=user2.organization,
+        created_by=user2,
+        name="Collab Rule",
+        scope_type=AutomationRule.ScopeType.GLOBAL,
+        subscribed_events=['dataroom_opened'],
+        is_active=True,
+    )
+    collab_rule.destinations.add(collab_dest)
+
+    delivery = AutomationDelivery.objects.create(
+        organization=user2.organization,
+        rule=collab_rule,
+        destination=collab_dest,
+        event_type='dataroom_opened',
+        payload={
+            'organization_id': str(user2.organization.id),
+            'share_link_id': str(link.id),
+            'dataroom_id': str(dataroom.id),
+            'dataroom_name': dataroom.name,
+            'viewer_email': 'buyer@fund.com',
+        },
+        status=AutomationDelivery.Status.PENDING,
+    )
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    delivery.refresh_from_db()
+    assert delivery.status == AutomationDelivery.Status.SUCCESS
+    mock_send_mail.assert_called_once()
+    _, kwargs = mock_send_mail.call_args
+    assert kwargs['recipient_list'] == [user.email]
+
 
 
 
