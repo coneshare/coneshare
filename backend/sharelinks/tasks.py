@@ -7,6 +7,7 @@ from django.utils.translation import gettext as _, override as translation_overr
 from celery import shared_task
 
 from .models import ViewSession
+from .services import resolve_notification_recipient
 
 logger = logging.getLogger('tasks')
 
@@ -14,13 +15,14 @@ logger = logging.getLogger('tasks')
 @shared_task
 def send_view_notification_email_task(view_session_id: str):
     """
-    Sends an email notification to the share link owner about a new view session.
+    Sends an email notification to the share link owner (or fallback dataroom owner)
+    about a new view session.
     """
     try:
         view_session = ViewSession.objects.select_related(
             'share_link__created_by',
             'share_link__document',
-            'share_link__dataroom'
+            'share_link__dataroom__created_by',
         ).get(id=view_session_id)
     except ViewSession.DoesNotExist:
         logger.warning(f"ViewSession with id {view_session_id} not found for email notification.")
@@ -33,10 +35,10 @@ def send_view_notification_email_task(view_session_id: str):
         logger.info(f"Email notification for ShareLink {share_link.id} is disabled. Aborting send.")
         return
 
-    owner = share_link.created_by
+    owner = resolve_notification_recipient(share_link)
     
     if not owner or not owner.email:
-        logger.info(f"Share link {share_link.id} owner has no email for notification.")
+        logger.info(f"Share link {share_link.id} has no valid active recipient email for notification.")
         return
 
     if share_link.document:
