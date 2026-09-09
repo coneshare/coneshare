@@ -412,3 +412,86 @@ class TestAdminOrganizationView:
         response = admin_api_client.post(url)
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+
+@pytest.mark.django_db
+class TestAdminUserResetPassword:
+    def test_admin_can_reset_user_password_and_invalidates_tokens(self, admin_api_client, admin_user, user):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+
+        # Generate a refresh token for user
+        token = RefreshToken.for_user(user)
+        refresh_str = str(token)
+
+        url = f'/api/v1/admin/users/{user.id}/reset-password/'
+        payload = {'password': 'BrandNewPassword2026!'}
+        response = admin_api_client.post(url, payload, format='json')
+
+        assert response.status_code == status.HTTP_200_OK
+        assert 'message' in response.data
+
+        # Verify password changed
+        user.refresh_from_db()
+        assert user.check_password('BrandNewPassword2026!')
+        assert not user.check_password('testpass')
+
+        # Verify outstanding tokens are blacklisted
+        outstanding = OutstandingToken.objects.filter(user=user)
+        assert outstanding.exists()
+        for ot in outstanding:
+            assert BlacklistedToken.objects.filter(token=ot).exists()
+
+    def test_reset_user_password_weak_password_fails(self, admin_api_client, user):
+        url = f'/api/v1/admin/users/{user.id}/reset-password/'
+        payload = {'password': '12'}  # Below minimum length
+        response = admin_api_client.post(url, payload, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'password' in response.data
+
+    def test_reset_user_password_missing_password_fails(self, admin_api_client, user):
+        url = f'/api/v1/admin/users/{user.id}/reset-password/'
+        response = admin_api_client.post(url, {}, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'password' in response.data
+
+    def test_reset_user_password_non_admin_forbidden(self, api_client, user):
+        url = f'/api/v1/admin/users/{user.id}/reset-password/'
+        response = api_client.post(url, {'password': 'ValidPassword2026!'}, format='json')
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_reset_user_password_other_org_not_found(self, admin_api_client, admin_user):
+        other_org = Organization.objects.create(name="Other Org 2")
+        other_user = User.objects.create_user(
+            username='other_org_user2@example.com',
+            email='other_org_user2@example.com',
+            organization=other_org,
+            role='member',
+        )
+        url = f'/api/v1/admin/users/{other_user.id}/reset-password/'
+        response = admin_api_client.post(url, {'password': 'ValidPassword2026!'}, format='json')
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_reset_user_password_revocation_failure_rolls_back(self, admin_api_client, user, monkeypatch):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
+
+        RefreshToken.for_user(user)
+
+        def mock_get_or_create(*args, **kwargs):
+            raise RuntimeError("Database error during token blacklisting")
+
+        monkeypatch.setattr(BlacklistedToken.objects, 'get_or_create', mock_get_or_create)
+
+        url = f'/api/v1/admin/users/{user.id}/reset-password/'
+        payload = {'password': 'BrandNewPassword2026!'}
+        with pytest.raises(RuntimeError, match="Database error during token blacklisting"):
+            admin_api_client.post(url, payload, format='json')
+
+        # Password must not be changed due to atomic rollback
+        user.refresh_from_db()
+        assert not user.check_password('BrandNewPassword2026!')
+        assert user.check_password('password')
+
+

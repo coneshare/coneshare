@@ -1,15 +1,19 @@
+import logging
 from urllib.parse import urljoin
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, password_validation
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from geoip2.errors import AddressNotFoundError
 from rest_framework import serializers
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from drf_spectacular.utils import extend_schema_field
 
 from core.models import APIKey, AppConfiguration, LoginActivity, Organization, UserGroup
 from core.services import get_dynamic_setting
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
@@ -116,6 +120,17 @@ class UserSerializer(serializers.ModelSerializer):
             self._max_files_per_upload = get_dynamic_setting('MAX_FILES_PER_UPLOAD')
         return self._max_files_per_upload
 
+    def to_internal_value(self, data):
+        if hasattr(data, 'copy'):
+            data = data.copy()
+        elif isinstance(data, dict):
+            data = dict(data)
+        if isinstance(data, dict) and 'custom_file_size_quota_mb' in data:
+            val = data.get('custom_file_size_quota_mb')
+            if val == '' or val is None or (isinstance(val, str) and not val.strip()):
+                data['custom_file_size_quota_mb'] = None
+        return super().to_internal_value(data)
+
     def validate_custom_file_size_quota_mb(self, value):
         if value is not None and value < 0:
             raise serializers.ValidationError("Custom file size quota cannot be negative.")
@@ -172,6 +187,33 @@ class ChangePasswordSerializer(serializers.Serializer):
         except ValidationError as e:
             raise serializers.ValidationError(list(e.messages))
         return value
+
+
+class AdminResetPasswordSerializer(serializers.Serializer):
+    """Serializer for admin resetting a user's password."""
+    password = serializers.CharField(write_only=True, required=True)
+
+    def validate_password(self, value):
+        user = self.context.get('user')
+        try:
+            password_validation.validate_password(value, user)
+        except ValidationError as e:
+            raise serializers.ValidationError(list(e.messages))
+        return value
+
+    def save(self):
+        user = self.context['user']
+        password = self.validated_data['password']
+        with transaction.atomic():
+            user.set_password(password)
+            user.save(update_fields=['password', 'updated_at'])
+
+            # Invalidate active refresh tokens for the user
+            tokens = OutstandingToken.objects.filter(user=user)
+            for token in tokens:
+                BlacklistedToken.objects.get_or_create(token=token)
+
+        return user
 
 
 class SignupRequestSerializer(serializers.Serializer):

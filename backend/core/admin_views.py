@@ -2,13 +2,14 @@ import json
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.utils.translation import gettext as _
 from rest_framework import permissions, status, viewsets, serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from drf_spectacular.utils import extend_schema, extend_schema_field
+from drf_spectacular.utils import extend_schema, extend_schema_field, inline_serializer
 
 from core.pagination import StandardResultsSetPagination
 from core.permissions import APIKeyTierPermission, IsAdmin
@@ -16,7 +17,7 @@ from filerequests.models import SecurityThreatEvent
 from .models import AppConfiguration, LoginActivity, Organization
 from .settings_registry import (DEFAULT_SETTINGS, coerce_to_typed_value,
                                 deserialize_db_value, serialize_typed_to_db_value)
-from .serializers import (AppConfigurationSerializer, LoginActivitySerializer,
+from .serializers import (AdminResetPasswordSerializer, AppConfigurationSerializer, LoginActivitySerializer,
                           UserSerializer, OrganizationSerializer)
 
 User = get_user_model()
@@ -132,6 +133,8 @@ class AdminUserViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return AdminUserDetailSerializer
+        if self.action == 'reset_password':
+            return AdminResetPasswordSerializer
         return UserSerializer
 
     def get_queryset(self):
@@ -235,6 +238,27 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         recalculate_user_document_size(user)
         serializer = AdminUserDetailSerializer(user, context=self.get_serializer_context())
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        request=AdminResetPasswordSerializer,
+        responses={
+            status.HTTP_200_OK: inline_serializer(
+                name='AdminUserResetPasswordResponse',
+                fields={'message': serializers.CharField()},
+            )
+        },
+        description="Resets a user's password and blacklists all active JWT refresh tokens."
+    )
+    @action(detail=True, methods=['post'], url_path='reset-password')
+    def reset_password(self, request, pk=None):
+        """
+        Resets a user's password and blacklists all active JWT refresh tokens.
+        """
+        user = self.get_object()
+        serializer = AdminResetPasswordSerializer(data=request.data, context={'user': user})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'message': _('Password reset successfully.')}, status=status.HTTP_200_OK)
 
 
 class AdminLoginActivityViewSet(viewsets.ReadOnlyModelViewSet):

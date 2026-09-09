@@ -317,5 +317,5 @@ msgstr "%(minutes)d мин"
 msgid "%(seconds)ds"
 msgstr "%(seconds)d с"
 
-
-
+msgid "Password reset successfully."
+msgstr "Пароль успешно сброшен."

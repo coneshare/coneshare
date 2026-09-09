@@ -45,6 +45,8 @@ describe('Frontend i18n System', () => {
     expect(testI18n.t('links.deleteSuccess', { name: 'Link A' })).toBe('Link "Link A" deleted successfully.');
     expect(testI18n.t('nav.adminPanel')).toBe('Admin Panel');
     expect(testI18n.t('settings.title')).toBe('User Settings');
+    expect(testI18n.t('admin.resetPassword')).toBe('Reset Password');
+    expect(testI18n.t('admin.resetUserPasswordDesc')).toBe('All existing active sessions for this user will be revoked immediately.');
   });
 
   it('switches language to Simplified Chinese (zh-hans)', async () => {
@@ -65,6 +67,8 @@ describe('Frontend i18n System', () => {
     expect(testI18n.t('links.deleteSuccess', { name: 'Link A' })).toBe('链接“Link A”删除成功。');
     expect(testI18n.t('nav.adminPanel')).toBe('管理后台');
     expect(testI18n.t('settings.title')).toBe('用户设置');
+    expect(testI18n.t('admin.resetPassword')).toBe('重置密码');
+    expect(testI18n.t('admin.resetUserPasswordDesc')).toBe('该用户的所有当前活跃会话将立即撤销。');
     expect(testI18n.t('datarooms.enableQnaHelp')).toBe('允许访问者在此资料室内提问。关闭此项将禁用该资料室所有链接中的问答功能。');
     expect(testI18n.t('datarooms.displayOrderUpdated')).toBe('显示顺序已更新。');
   });
@@ -83,6 +87,8 @@ describe('Frontend i18n System', () => {
     expect(testI18n.t('documents.renameTitle')).toBe('Переименовать объект');
     expect(testI18n.t('documents.moveTitle')).toBe('Переместить элементы');
     expect(testI18n.t('settings.title')).toBe('Настройки пользователя');
+    expect(testI18n.t('admin.resetPassword')).toBe('Сбросить пароль');
+    expect(testI18n.t('admin.resetUserPasswordDesc')).toBe('Все активные сессии этого пользователя будут немедленно аннулированы.');
   });
 
   it('switches language to German (de)', async () => {
@@ -99,6 +105,8 @@ describe('Frontend i18n System', () => {
     expect(testI18n.t('documents.renameTitle')).toBe('Element umbenennen');
     expect(testI18n.t('documents.moveTitle')).toBe('Elemente verschieben');
     expect(testI18n.t('settings.title')).toBe('Benutzereinstellungen');
+    expect(testI18n.t('admin.resetPassword')).toBe('Passwort zurücksetzen');
+    expect(testI18n.t('admin.resetUserPasswordDesc')).toBe('Alle bestehenden aktiven Sitzungen für diesen Benutzer werden sofort widerrufen.');
   });
 
   it('falls back to English for missing keys in non-English locale', async () => {
@@ -368,6 +376,25 @@ describe('Frontend i18n System', () => {
     // Fallback when error has no detail and no fallbackKey
     await appI18n.changeLanguage('en');
     expect(getLocalizedErrorMessage({})).toBe('An unexpected error occurred.');
+
+    // DRF field-level validation errors
+    const fieldError = {
+      response: {
+        data: {
+          custom_file_size_quota_mb: ['A valid integer is required.'],
+        },
+      },
+    };
+    expect(getLocalizedErrorMessage(fieldError)).toBe('custom file size quota mb: A valid integer is required.');
+
+    const nonFieldError = {
+      response: {
+        data: {
+          non_field_errors: ['Invalid credentials.'],
+        },
+      },
+    };
+    expect(getLocalizedErrorMessage(nonFieldError)).toBe('Invalid credentials.');
 
     await appI18n.changeLanguage('zh-hans');
     expect(getLocalizedErrorMessage({})).toBe('发生意外错误。');

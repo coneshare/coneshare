@@ -319,3 +319,6 @@ msgstr "%(minutes)dm"
 
 msgid "%(seconds)ds"
 msgstr "%(seconds)ds"
+
+msgid "Password reset successfully."
+msgstr "Passwort erfolgreich zurückgesetzt."
