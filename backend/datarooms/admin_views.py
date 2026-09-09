@@ -16,14 +16,13 @@ from django.db.models.functions import Coalesce, Lower
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
-from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 
 from core.models import User
+from core.pagination import AdminPagination
 from core.permissions import APIKeyTierPermission, IsAdmin
 from documents.models import Document
 from sharelinks.models import ShareLink, ViewSession
@@ -46,23 +45,7 @@ from .services import (
 logger = logging.getLogger(__name__)
 
 
-class AdminDataroomPagination(PageNumberPagination):
-    page_size = 10
-    page_size_query_param = 'page_size'
-    max_page_size = 100
-
-    def get_paginated_response(self, data):
-        metrics = getattr(self, 'metrics', {})
-        return Response({
-            'count': self.page.paginator.count,
-            'total_pages': self.page.paginator.num_pages,
-            'current_page': self.page.number,
-            'page_size': self.get_page_size(self.request),
-            'next': self.get_next_link(),
-            'previous': self.get_previous_link(),
-            'metrics': metrics,
-            'results': data,
-        })
+AdminDataroomPagination = AdminPagination
 
 
 @extend_schema(tags=['admin-datarooms'])
@@ -74,7 +57,7 @@ class AdminDataroomViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission]
     queryset = Dataroom.objects.all()
     serializer_class = AdminDataroomSerializer
-    pagination_class = AdminDataroomPagination
+    pagination_class = AdminPagination
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
