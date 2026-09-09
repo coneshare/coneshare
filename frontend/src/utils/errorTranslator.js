@@ -82,17 +82,41 @@ const DYNAMIC_ERROR_PATTERNS = [
  */
 export function getLocalizedErrorMessage(errorOrDetail, fallbackKey) {
   let rawDetail = '';
+  const resData = errorOrDetail?.response?.data;
 
   if (typeof errorOrDetail === 'string') {
     rawDetail = errorOrDetail;
   } else if (Array.isArray(errorOrDetail)) {
     rawDetail = errorOrDetail.flat().join(' ');
-  } else if (errorOrDetail?.response?.data?.name) {
-    rawDetail = [errorOrDetail.response.data.name].flat().join(' ');
-  } else if (errorOrDetail?.response?.data?.detail) {
-    rawDetail = errorOrDetail.response.data.detail;
-  } else if (errorOrDetail?.response?.data?.message) {
-    rawDetail = errorOrDetail.response.data.message;
+  } else if (typeof resData === 'string') {
+    rawDetail = resData;
+  } else if (Array.isArray(resData)) {
+    rawDetail = resData.flat().join(' ');
+  } else if (resData && typeof resData === 'object') {
+    if (resData.detail && typeof resData.detail === 'string') {
+      rawDetail = resData.detail;
+    } else if (resData.message && typeof resData.message === 'string') {
+      rawDetail = resData.message;
+    } else if (resData.name && Object.keys(resData).length === 1) {
+      rawDetail = [resData.name].flat().join(' ');
+    } else {
+      const fieldErrors = [];
+      for (const [key, val] of Object.entries(resData)) {
+        const messages = Array.isArray(val) ? val.flat() : [val];
+        const text = messages
+          .map((m) => (typeof m === 'object' && m !== null ? JSON.stringify(m) : String(m)))
+          .join(', ');
+        if (key === 'non_field_errors' || key === 'error') {
+          fieldErrors.push(text);
+        } else {
+          const formattedKey = key.replace(/_/g, ' ');
+          fieldErrors.push(`${formattedKey}: ${text}`);
+        }
+      }
+      if (fieldErrors.length > 0) {
+        rawDetail = fieldErrors.join(' | ');
+      }
+    }
   } else if (errorOrDetail?.message) {
     rawDetail = errorOrDetail.message;
   }

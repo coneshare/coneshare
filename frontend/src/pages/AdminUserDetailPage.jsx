@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ExternalLink, HardDrive, Link as LinkIcon, FolderOpen, Calendar, Mail, ShieldAlert, RefreshCw } from 'lucide-react';
+import { ExternalLink, HardDrive, Link as LinkIcon, FolderOpen, Calendar, Mail, ShieldAlert, RefreshCw, Key } from 'lucide-react';
 import { toast } from 'sonner';
 
 import * as api from '../services/api';
 import { AdminNav } from '../components/admin/AdminNav';
+import { ResetPasswordDialog } from '../components/admin/ResetPasswordDialog';
 import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
@@ -22,6 +23,7 @@ export function AdminUserDetailPage() {
   const [datarooms, setDatarooms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
 
   const handleRecalculateQuota = async () => {
     setIsRecalculating(true);
@@ -159,17 +161,29 @@ export function AdminUserDetailPage() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-            user.is_active 
-              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' 
-              : 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400'
-          }`}>
-            {user.is_active ? t('common.active') : t('common.inactive')}
-          </span>
-          <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 capitalize">
-            {user.role === 'admin' ? t('admin.roleAdmin') : user.role === 'member' ? t('admin.roleMember') : user.role}
-          </span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+              user.is_active 
+                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                : 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400'
+            }`}>
+              {user.is_active ? t('common.active') : t('common.inactive')}
+            </span>
+            <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 capitalize">
+              {user.role === 'admin' ? t('admin.roleAdmin') : user.role === 'member' ? t('admin.roleMember') : user.role}
+            </span>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsResetPasswordOpen(true)}
+            className="flex items-center gap-1.5"
+          >
+            <Key className="h-4 w-4 text-muted-foreground" />
+            {t('admin.resetPassword', 'Reset Password')}
+          </Button>
         </div>
       </div>
 
@@ -368,6 +382,12 @@ export function AdminUserDetailPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <ResetPasswordDialog
+        isOpen={isResetPasswordOpen}
+        onOpenChange={setIsResetPasswordOpen}
+        user={user}
+      />
     </div>
   );
 }

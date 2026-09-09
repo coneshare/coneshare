@@ -11,6 +11,7 @@ vi.mock('../../services/api', () => ({
   getAdminUserShareLinks: vi.fn(),
   getAdminUserDatarooms: vi.fn(),
   recalculateAdminUserQuota: vi.fn(),
+  resetAdminUserPassword: vi.fn(),
 }));
 
 vi.mock('sonner', () => ({
@@ -103,6 +104,81 @@ describe('AdminUserDetailPage', () => {
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Failed to recalculate storage quota.');
+    });
+  });
+
+  it('renders Reset Password button and successfully resets user password', async () => {
+    api.resetAdminUserPassword.mockResolvedValueOnce({ data: { message: 'Password reset successfully.' } });
+
+    render(
+      <MemoryRouter initialEntries={['/admin/users/user-123']}>
+        <Routes>
+          <Route path="/admin/users/:userId" element={<AdminUserDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Jane Doe');
+
+    // Click Reset Password in header
+    const resetBtn = screen.getByRole('button', { name: /reset password/i });
+    expect(resetBtn).toBeInTheDocument();
+    fireEvent.click(resetBtn);
+
+    // Modal should be open
+    expect(screen.getByRole('heading', { name: /reset user password/i })).toBeInTheDocument();
+
+    // Type a new valid password
+    const passwordInput = screen.getByPlaceholderText(/enter at least 8 characters/i);
+    fireEvent.change(passwordInput, { target: { value: 'SuperSecret123!' } });
+
+    // Submit dialog
+    const submitBtn = screen.getByRole('button', { name: /^reset password$/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(api.resetAdminUserPassword).toHaveBeenCalledWith('user-123', {
+        password: 'SuperSecret123!',
+      });
+      expect(toast.success).toHaveBeenCalledWith('Password reset successfully.');
+    });
+  });
+
+  it('allows generating a random password and copying it', async () => {
+    const writeTextMock = vi.fn().mockResolvedValue();
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: writeTextMock,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/admin/users/user-123']}>
+        <Routes>
+          <Route path="/admin/users/:userId" element={<AdminUserDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Jane Doe');
+
+    // Click Reset Password
+    fireEvent.click(screen.getByRole('button', { name: /reset password/i }));
+
+    // Click Generate
+    const generateBtn = screen.getByRole('button', { name: /generate/i });
+    fireEvent.click(generateBtn);
+
+    const passwordInput = screen.getByPlaceholderText(/enter at least 8 characters/i);
+    expect(passwordInput.value.length).toBe(16);
+
+    // Click Copy
+    const copyBtn = screen.getByTitle(/copy/i);
+    fireEvent.click(copyBtn);
+
+    await waitFor(() => {
+      expect(writeTextMock).toHaveBeenCalledWith(passwordInput.value);
+      expect(toast.success).toHaveBeenCalledWith('Password copied to clipboard');
     });
   });
 });

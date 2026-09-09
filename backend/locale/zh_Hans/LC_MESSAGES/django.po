@@ -317,5 +317,5 @@ msgstr "%(minutes)d分"
 msgid "%(seconds)ds"
 msgstr "%(seconds)d秒"
 
-
-
+msgid "Password reset successfully."
+msgstr "密码重置成功。"

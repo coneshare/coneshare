@@ -331,7 +331,18 @@ export function AdminUsersPage() {
     if (savingUserId !== null) return;
     setSavingUserId(userId);
     try {
-      await handleUpdateUser(userId, editedUserData);
+      const rawQuota = editedUserData.custom_file_size_quota_mb;
+      const normalizedQuota =
+        rawQuota === '' || rawQuota === null || rawQuota === undefined
+          ? null
+          : typeof rawQuota === 'string'
+          ? (isNaN(parseInt(rawQuota, 10)) ? null : parseInt(rawQuota, 10))
+          : rawQuota;
+      const payload = {
+        ...editedUserData,
+        custom_file_size_quota_mb: normalizedQuota,
+      };
+      await handleUpdateUser(userId, payload);
       setEditingUserId(null);
       setEditedUserData({});
     } catch {

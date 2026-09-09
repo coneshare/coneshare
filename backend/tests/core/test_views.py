@@ -189,7 +189,17 @@ class TestUserViewSetPermissions:
         user.refresh_from_db()
         assert user.custom_file_size_quota_mb is None
 
-        # 3. Try to set a negative quota (fails)
+        # 3. Setting custom quota to empty string resets to null (default quota)
+        user.custom_file_size_quota_mb = 123
+        user.save()
+        data = {'custom_file_size_quota_mb': ''}
+        response = api_client.patch(f'/api/v1/admin/users/{user.id}/', data, format='json')
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['custom_file_size_quota_mb'] is None
+        user.refresh_from_db()
+        assert user.custom_file_size_quota_mb is None
+
+        # 4. Try to set a negative quota (fails)
         data = {'custom_file_size_quota_mb': -5}
         response = api_client.patch(f'/api/v1/admin/users/{user.id}/', data, format='json')
         assert response.status_code == status.HTTP_400_BAD_REQUEST

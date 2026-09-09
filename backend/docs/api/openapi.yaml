@@ -1033,6 +1033,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
           description: ''
+  /api/v1/admin/users/{id}/reset-password/:
+    post:
+      operationId: v1_admin_users_reset_password_create
+      description: Resets a user's password and blacklists all active JWT refresh
+        tokens.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        description: A unique value identifying this user.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminResetPassword'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminResetPassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminResetPassword'
+        required: true
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserResetPasswordResponse'
+          description: ''
   /api/v1/admin/users/{id}/share-links/:
     get:
       operationId: v1_admin_users_share_links_retrieve
@@ -6535,6 +6571,15 @@ components:
       - storage_used_bytes
       - storage_version
       - updated_at
+    AdminResetPassword:
+      type: object
+      description: Serializer for admin resetting a user's password.
+      properties:
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - password
     AdminUserDetail:
       type: object
       description: Serializer for the User model.
@@ -6640,6 +6685,13 @@ components:
       - total_links
       - total_views
       - updated_at
+    AdminUserResetPasswordResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+      - message
     AppConfiguration:
       type: object
       description: Serializer for the AppConfiguration model for admin use.

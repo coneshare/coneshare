@@ -138,6 +138,44 @@ describe('AdminUsersPage', () => {
     });
   });
 
+  it('allows updating a user name without entering quota, sending null to use default quota', async () => {
+    api.updateAdminUser.mockResolvedValue({
+      data: {
+        ...mockUsers[0],
+        name: 'Alice Smith Renamed',
+        custom_file_size_quota_mb: null,
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <AdminUsersPage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Alice Smith');
+
+    const editButtons = screen.getAllByTitle(/edit/i);
+    fireEvent.click(editButtons[0]);
+
+    const nameInput = screen.getByDisplayValue('Alice Smith');
+    fireEvent.change(nameInput, { target: { value: 'Alice Smith Renamed' } });
+
+    // Click Save without touching quota
+    const saveButton = screen.getByTitle(/save/i);
+    fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(api.updateAdminUser).toHaveBeenCalledWith('user-1', {
+        name: 'Alice Smith Renamed',
+        role: 'member',
+        is_active: true,
+        custom_file_size_quota_mb: null,
+      });
+      expect(toast.success).toHaveBeenCalledWith('User updated successfully.');
+    });
+  });
+
   it('allows adding a new user with a custom storage quota', async () => {
     api.createAdminUser.mockResolvedValue({
       data: {
