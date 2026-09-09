@@ -1,6 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
+import {
+  Users,
+  HardDrive,
+  Folder,
+  Search,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+  Loader2,
+} from 'lucide-react';
+
 import * as api from '../services/api';
 import { AdminNav } from '../components/admin/AdminNav';
 import { Button } from '../components/ui/Button';
@@ -9,11 +25,9 @@ import { Input } from '../components/ui/Input';
 import { PlusIcon } from '../components/icons/PlusIcon';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Select } from '../components/ui/Select';
-import { Pencil, Trash2, Check, X, Loader2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { formatBytes } from '../lib/formatters';
 import { Progress } from '../components/ui/Progress';
 import { Pagination } from '../components/ui/Pagination';
+import { formatBytes } from '../lib/formatters';
 
 function AddUserForm({ onAddUser, onCancel }) {
   const { t } = useTranslation();
@@ -184,8 +198,8 @@ function SkeletonRow() {
       <td className="p-4">
         <Skeleton className="h-4 w-24" />
       </td>
-      <td className="p-4">
-        <Skeleton className="h-10 w-20" />
+      <td className="p-4 text-right">
+        <Skeleton className="h-8 w-16 ml-auto rounded-md" />
       </td>
     </tr>
   );
@@ -230,42 +244,114 @@ export function AdminUsersPage() {
   const [editingUserId, setEditingUserId] = useState(null);
   const [editedUserData, setEditedUserData] = useState({});
   const [savingUserId, setSavingUserId] = useState(null);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortField, setSortField] = useState('created');
+  const [sortDirection, setSortDirection] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const pageSize = 10; // Corresponds to backend's StandardResultsSetPagination
+  const [totalPages, setTotalPages] = useState(1);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const pageSize = 10;
 
+  const [kpiMetrics, setKpiMetrics] = useState({
+    totalUsers: 0,
+    totalStorageBytes: 0,
+    dataroomUsers: 0,
+  });
+
+  // Debounce search input
   useEffect(() => {
-    let ignore = false;
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-    const fetchUsers = async (page) => {
-      setIsLoading(true);
-      try {
-        const response = await api.getAdminUsers(page);
-        if (!ignore) {
-          setUsers(response.data.results);
-          setTotalCount(response.data.count);
-        }
-      } finally {
-        if (!ignore) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    fetchUsers(currentPage);
-
-    return () => {
-      ignore = true;
-    };
-  }, [currentPage]);
-
-  const totalPages = Math.ceil(totalCount / pageSize);
-
+  // Reset to page 1 on filter or search changes
   useEffect(() => {
-    if (totalPages > 0 && currentPage > totalPages) {
-      setCurrentPage(totalPages);
+    setCurrentPage(1);
+  }, [debouncedSearch, statusFilter]);
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      const isTextColumn = field === 'name' || field === 'role';
+      setSortDirection(isTextColumn ? 'asc' : 'desc');
     }
-  }, [totalPages, currentPage]);
+    setCurrentPage(1);
+  };
+
+  const fetchUsers = useCallback(async (isCancelled = () => false) => {
+    setIsLoading(true);
+    try {
+      const orderingParam = sortDirection === 'desc' ? `-${sortField}` : sortField;
+      const params = {
+        page: currentPage,
+        page_size: pageSize,
+        ordering: orderingParam,
+      };
+      if (debouncedSearch.trim()) {
+        params.search = debouncedSearch.trim();
+      }
+      if (statusFilter !== 'all') {
+        params.status = statusFilter;
+      }
+
+      const response = await api.getAdminUsers(params);
+      if (isCancelled()) return;
+      const data = response.data;
+
+      if (data && data.results) {
+        setUsers(data.results);
+        setTotalCount(data.count ?? 0);
+        setTotalPages(data.total_pages ?? (Math.ceil((data.count ?? 0) / pageSize) || 1));
+        if (data.metrics) {
+          setKpiMetrics({
+            totalUsers: data.metrics.total_users ?? 0,
+            totalStorageBytes: data.metrics.total_storage_bytes ?? 0,
+            dataroomUsers: data.metrics.dataroom_users ?? 0,
+          });
+        } else {
+          setKpiMetrics({
+            totalUsers: data.count ?? data.results.length,
+            totalStorageBytes: data.results.reduce((acc, u) => acc + (u.total_document_size || 0), 0),
+            dataroomUsers: 0,
+          });
+        }
+      } else if (Array.isArray(data)) {
+        setUsers(data);
+        setTotalCount(data.length);
+        setTotalPages(Math.ceil(data.length / pageSize) || 1);
+        setKpiMetrics({
+          totalUsers: data.length,
+          totalStorageBytes: data.reduce((acc, u) => acc + (u.total_document_size || 0), 0),
+          dataroomUsers: 0,
+        });
+      }
+    } catch (error) {
+      if (isCancelled()) return;
+      setUsers([]);
+      setTotalCount(0);
+      setTotalPages(1);
+    } finally {
+      if (!isCancelled()) {
+        setIsLoading(false);
+      }
+    }
+  }, [currentPage, pageSize, sortField, sortDirection, debouncedSearch, statusFilter]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchUsers(() => cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchUsers, refreshKey]);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -290,9 +376,9 @@ export function AdminUsersPage() {
   const handleAddUser = async (userData) => {
     try {
       const response = await api.createAdminUser(userData);
-      setUsers((prev) => [response.data, ...prev]);
       toast.success(t('admin.userCreatedSuccess', { name: response.data.name }));
       setIsAddingUser(false);
+      setRefreshKey((k) => k + 1);
     } catch (error) {
       // Error toast is handled by the global interceptor
     }
@@ -302,9 +388,17 @@ export function AdminUsersPage() {
     if (!userToDelete) return;
     try {
       await api.deleteAdminUser(userToDelete.id);
-      setUsers((prev) => prev.filter((user) => user.id !== userToDelete.id));
       toast.success(t('admin.userDeletedSuccess', { name: userToDelete.name }));
       setUserToDelete(null);
+
+      // Clamp: if we deleted the last item on a page, navigate back to previous page
+      const expectedNewTotal = totalCount - 1;
+      const maxValidPage = Math.max(1, Math.ceil(expectedNewTotal / pageSize));
+      if (currentPage > maxValidPage) {
+        setCurrentPage(maxValidPage);
+      } else {
+        setRefreshKey((k) => k + 1);
+      }
     } catch (error) {
       // Error toast is handled by the global interceptor
     }
@@ -366,8 +460,34 @@ export function AdminUsersPage() {
     }
   };
 
+  const renderSortableHeader = (field, label) => {
+    const isActive = sortField === field;
+    return (
+      <th className="p-4">
+        <button
+          type="button"
+          onClick={() => handleSort(field)}
+          className="inline-flex items-center gap-1.5 font-semibold text-muted-foreground uppercase text-xs hover:text-foreground transition-colors group focus:outline-none"
+        >
+          <span>{label}</span>
+          <span className="flex items-center">
+            {isActive ? (
+              sortDirection === 'asc' ? (
+                <ArrowUp className="h-3.5 w-3.5 text-primary" />
+              ) : (
+                <ArrowDown className="h-3.5 w-3.5 text-primary" />
+              )
+            ) : (
+              <ArrowUpDown className="h-3.5 w-3.5 opacity-0 group-hover:opacity-60 transition-opacity text-muted-foreground" />
+            )}
+          </span>
+        </button>
+      </th>
+    );
+  };
+
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto p-4 md:p-6 space-y-6">
       <ConfirmationDialog
         isOpen={!!userToDelete}
         onOpenChange={() => setUserToDelete(null)}
@@ -378,13 +498,102 @@ export function AdminUsersPage() {
       />
       <AdminNav />
 
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-2xl font-bold">{t('admin.userManagement')}</h2>
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">{t('admin.userManagement')}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {t('admin.usersDesc')}
+          </p>
+        </div>
         {!isAddingUser && (
           <Button onClick={() => setIsAddingUser(true)}>
             <PlusIcon className="mr-2 h-4 w-4" /> {t('admin.addUser')}
           </Button>
         )}
+      </div>
+
+      {/* Overview KPI Cards */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        {/* Total Users */}
+        <div className="rounded-xl border bg-card p-5 shadow-xs flex items-start justify-between">
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              {t('admin.kpiTotalUsers')}
+            </span>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <p className="text-2xl font-bold text-foreground">{kpiMetrics.totalUsers}</p>
+            )}
+          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Users className="h-5 w-5" />
+          </div>
+        </div>
+
+        {/* Total Storage Used */}
+        <div className="rounded-xl border bg-card p-5 shadow-xs flex items-start justify-between">
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              {t('admin.kpiTotalUserStorage')}
+            </span>
+            {isLoading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <p className="text-2xl font-bold text-foreground">{formatBytes(kpiMetrics.totalStorageBytes)}</p>
+            )}
+          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <HardDrive className="h-5 w-5" />
+          </div>
+        </div>
+
+        {/* Dataroom Users */}
+        <div className="rounded-xl border bg-card p-5 shadow-xs flex items-start justify-between">
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              {t('admin.kpiDataroomUsers')}
+            </span>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <p className="text-2xl font-bold text-foreground">{kpiMetrics.dataroomUsers}</p>
+            )}
+          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+            <Folder className="h-5 w-5" />
+          </div>
+        </div>
+      </div>
+
+      {/* Filter & Search Controls */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={t('admin.searchUsersPlaceholder')}
+            aria-label={t('admin.searchUsersPlaceholder')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Select
+            aria-label={t('common.status')}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full sm:w-64 text-sm"
+          >
+            <option value="all">{t('admin.filterAllUsers')}</option>
+            <option value="admin">{t('admin.filterAdmins')}</option>
+            <option value="member">{t('admin.filterMembers')}</option>
+            <option value="inactive">{t('admin.filterInactive')}</option>
+            <option value="dataroom_participant">{t('admin.filterDataroomUsers')}</option>
+          </Select>
+        </div>
       </div>
 
       {isAddingUser && (
@@ -394,23 +603,51 @@ export function AdminUsersPage() {
         />
       )}
 
-      <div className="overflow-hidden rounded-lg border">
-        <table className="min-w-full">
-          <thead className="bg-muted/50">
-            <tr className="border-b">
-              <th className="p-4 text-left font-semibold">{t('analytics.name')}</th>
-              <th className="p-4 text-left font-semibold">{t('settings.email')}</th>
-              <th className="p-4 text-left font-semibold">{t('admin.role')}</th>
-              <th className="p-4 text-left font-semibold">{t('analytics.status')}</th>
-              <th className="p-4 text-left font-semibold">{t('admin.groupQuota')}</th>
-              <th className="p-4 text-left font-semibold">{t('analytics.created')}</th>
-              <th className="p-4 text-left font-semibold">{t('common.actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading
-              ? [...Array(5)].map((_, i) => <SkeletonRow key={i} />)
-              : users.map((user) =>
+      {/* Users Table */}
+      <div className="rounded-xl border bg-card overflow-hidden shadow-xs">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b bg-muted/40 text-xs font-semibold text-muted-foreground uppercase">
+              <tr>
+                {renderSortableHeader('name', t('analytics.name'))}
+                <th className="p-4 font-semibold text-muted-foreground uppercase text-xs">{t('settings.email')}</th>
+                {renderSortableHeader('role', t('admin.role'))}
+                {renderSortableHeader('status', t('common.status'))}
+                {renderSortableHeader('storage', t('admin.storageQuota'))}
+                {renderSortableHeader('created', t('admin.joinedDateColumn'))}
+                <th className="p-4 text-right font-semibold text-muted-foreground uppercase text-xs">{t('common.actions')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
+              ) : users.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-12 text-center text-muted-foreground">
+                    <Users className="h-10 w-10 mx-auto mb-2 text-muted-foreground/50" />
+                    <p className="text-base font-medium text-foreground">{t('admin.noUsersFound')}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {t('admin.tryAdjustingFilters')}
+                    </p>
+                    {(searchQuery || statusFilter !== 'all') && (
+                      <div className="mt-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSearchQuery('');
+                            setStatusFilter('all');
+                            setCurrentPage(1);
+                          }}
+                        >
+                          {t('admin.clearFilters')}
+                        </Button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ) : (
+                users.map((user) =>
                   editingUserId === user.id ? (
                     <tr key={user.id} className="border-b bg-muted/50">
                       <td className="p-4 font-medium">
@@ -464,8 +701,8 @@ export function AdminUsersPage() {
                       <td className="p-4 text-muted-foreground">
                         {new Date(user.date_joined).toLocaleDateString()}
                       </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-x-2">
+                      <td className="p-4 text-right">
+                        <div className="flex items-center justify-end gap-x-2">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -523,8 +760,8 @@ export function AdminUsersPage() {
                       <td className="p-4 text-muted-foreground">
                         {new Date(user.date_joined).toLocaleDateString()}
                       </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-x-2">
+                      <td className="p-4 text-right">
+                        <div className="flex items-center justify-end gap-x-2">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -547,15 +784,30 @@ export function AdminUsersPage() {
                       </td>
                     </tr>
                   )
-                )}
-          </tbody>
-        </table>
+                )
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Table Pagination */}
+        {!isLoading && totalPages > 1 && (
+          <div className="p-4 border-t bg-muted/10 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <span className="text-xs text-muted-foreground">
+              {t('admin.paginationShowing', {
+                start: (currentPage - 1) * pageSize + 1,
+                end: Math.min(currentPage * pageSize, totalCount),
+                total: totalCount,
+              })}
+            </span>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </div>
+        )}
       </div>
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-      />
     </div>
   );
 }

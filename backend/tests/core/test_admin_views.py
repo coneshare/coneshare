@@ -495,3 +495,109 @@ class TestAdminUserResetPassword:
         assert user.check_password('password')
 
 
+@pytest.mark.django_db
+class TestAdminUserListSearchFilterMetrics:
+    def test_list_returns_kpi_metrics(self, admin_api_client, admin_user, user):
+        from datarooms.models import Dataroom
+        # Create a dataroom by user
+        Dataroom.objects.create(
+            name="Alpha Dataroom",
+            organization=admin_user.organization,
+            created_by=user,
+        )
+
+        response = admin_api_client.get('/api/v1/admin/users/')
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert 'metrics' in data
+        metrics = data['metrics']
+        assert metrics['total_users'] >= 2
+        assert 'total_storage_bytes' in metrics
+        assert metrics['dataroom_users'] >= 1
+
+    def test_list_subpage_omits_kpi_metrics(self, admin_api_client, admin_user):
+        # Create enough users so page 2 has content (page_size=10)
+        org = admin_user.organization
+        for i in range(11):
+            User.objects.create(
+                email=f"subpage_user_{i}@example.com",
+                username=f"subpage_user_{i}",
+                name=f"Sub User {i}",
+                organization=org,
+            )
+
+        # Page 1 includes metrics
+        res1 = admin_api_client.get('/api/v1/admin/users/?page=1')
+        assert res1.status_code == status.HTTP_200_OK
+        assert 'metrics' in res1.json()
+
+        # Page 2 omits metrics to save query overhead
+        res2 = admin_api_client.get('/api/v1/admin/users/?page=2')
+        assert res2.status_code == status.HTTP_200_OK
+        assert 'metrics' not in res2.json()
+
+    def test_list_search_by_name_and_email(self, admin_api_client, admin_user, user):
+        user.name = "Unique Alice"
+        user.save()
+
+        # Search by name
+        res = admin_api_client.get('/api/v1/admin/users/?search=Unique+Alice')
+        assert res.status_code == status.HTTP_200_OK
+        names = [u['name'] for u in res.json()['results']]
+        assert "Unique Alice" in names
+        assert admin_user.name not in names
+
+        # Search by email
+        res = admin_api_client.get(f'/api/v1/admin/users/?search={user.email}')
+        assert res.status_code == status.HTTP_200_OK
+        emails = [u['email'] for u in res.json()['results']]
+        assert user.email in emails
+
+    def test_list_filter_status_and_role(self, admin_api_client, admin_user, user):
+        user.is_active = False
+        user.save()
+
+        # Filter admins
+        res_admin = admin_api_client.get('/api/v1/admin/users/?status=admin')
+        assert res_admin.status_code == status.HTTP_200_OK
+        for u in res_admin.json()['results']:
+            assert u['role'] == 'admin'
+
+        # Filter members
+        res_member = admin_api_client.get('/api/v1/admin/users/?status=member')
+        assert res_member.status_code == status.HTTP_200_OK
+        for u in res_member.json()['results']:
+            assert u['role'] == 'member'
+
+        # Filter inactive
+        res_inactive = admin_api_client.get('/api/v1/admin/users/?status=inactive')
+        assert res_inactive.status_code == status.HTTP_200_OK
+        for u in res_inactive.json()['results']:
+            assert u['is_active'] is False
+
+    def test_list_filter_dataroom_participant(self, admin_api_client, admin_user, user):
+        from datarooms.models import Dataroom
+        Dataroom.objects.create(
+            name="Audit Room",
+            organization=admin_user.organization,
+            created_by=user,
+        )
+
+        res = admin_api_client.get('/api/v1/admin/users/?status=dataroom_participant')
+        assert res.status_code == status.HTTP_200_OK
+        ids = [u['id'] for u in res.json()['results']]
+        assert str(user.id) in ids
+
+    def test_list_ordering(self, admin_api_client, admin_user, user):
+        user.name = "Zoe User"
+        user.save()
+        admin_user.name = "Adam Admin"
+        admin_user.save()
+
+        res_asc = admin_api_client.get('/api/v1/admin/users/?ordering=name')
+        assert res_asc.status_code == status.HTTP_200_OK
+        names = [u['name'] for u in res_asc.json()['results'] if u['name']]
+        assert names == sorted(names, key=str.lower)
+
+
+

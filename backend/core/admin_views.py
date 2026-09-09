@@ -2,6 +2,8 @@ import json
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db.models import BigIntegerField, Q, Sum, Value
+from django.db.models.functions import Coalesce, Lower
 from django.utils.translation import gettext as _
 from rest_framework import permissions, status, viewsets, serializers
 from rest_framework.permissions import IsAuthenticated
@@ -11,9 +13,15 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from drf_spectacular.utils import extend_schema, extend_schema_field, inline_serializer
 
-from core.pagination import StandardResultsSetPagination
+from core.pagination import AdminPagination, StandardResultsSetPagination
 from core.permissions import APIKeyTierPermission, IsAdmin
+from datarooms.models import Dataroom, DataroomCollaborator
+from datarooms.serializers import DataroomSerializer
+from documents.models import Document
+from documents.services import recalculate_user_document_size
 from filerequests.models import SecurityThreatEvent
+from sharelinks.models import ShareLink, ViewSession
+from sharelinks.serializers import ShareLinkSerializer
 from .models import AppConfiguration, LoginActivity, Organization
 from .settings_registry import (DEFAULT_SETTINGS, coerce_to_typed_value,
                                 deserialize_db_value, serialize_typed_to_db_value)
@@ -107,18 +115,18 @@ class AdminUserDetailSerializer(UserSerializer):
 
     @extend_schema_field(serializers.IntegerField())
     def get_total_links(self, obj) -> int:
-        from sharelinks.models import ShareLink
         return ShareLink.objects.filter(created_by=obj).count()
 
     @extend_schema_field(serializers.IntegerField())
     def get_total_datarooms(self, obj) -> int:
-        from datarooms.models import Dataroom
         return Dataroom.objects.filter(created_by=obj).count()
 
     @extend_schema_field(serializers.IntegerField())
     def get_total_views(self, obj) -> int:
-        from sharelinks.models import ViewSession
         return ViewSession.objects.filter(share_link__created_by=obj).count()
+
+
+AdminUserPagination = AdminPagination
 
 
 class AdminUserViewSet(viewsets.ModelViewSet):
@@ -128,7 +136,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission]
-    pagination_class = StandardResultsSetPagination
+    pagination_class = AdminPagination
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -137,12 +145,95 @@ class AdminUserViewSet(viewsets.ModelViewSet):
             return AdminResetPasswordSerializer
         return UserSerializer
 
+    def list(self, request, *args, **kwargs):
+        page_param = request.query_params.get('page', '1')
+        is_first_page = str(page_param).strip() in ('1', '')
+
+        # Metrics for KPI cards (only calculated on first/initial page)
+        if is_first_page and self.paginator:
+            user = request.user
+            org = user.organization
+
+            total_users = User.objects.filter(organization=org).count()
+            total_storage_bytes = Document.objects.filter(
+                organization=org,
+                deleted_at__isnull=True
+            ).aggregate(
+                total=Coalesce(Sum('file_size'), Value(0, output_field=BigIntegerField()))
+            )['total']
+
+            creator_ids = Dataroom.objects.filter(organization=org).values_list('created_by_id', flat=True)
+            collab_ids = DataroomCollaborator.objects.filter(dataroom__organization=org).values_list('user_id', flat=True)
+            dataroom_user_ids = set(creator_ids).union(set(collab_ids))
+            dataroom_user_ids.discard(None)
+            dataroom_users = len(dataroom_user_ids)
+
+            self.paginator.metrics = {
+                'total_users': total_users,
+                'total_storage_bytes': total_storage_bytes,
+                'dataroom_users': dataroom_users,
+            }
+
+        return super().list(request, *args, **kwargs)
+
     def get_queryset(self):
         """
-        Admins can see all users in their organization.
+        Admins can see, search, and filter all users in their organization.
         """
         user = self.request.user
-        return User.objects.filter(organization=user.organization).order_by('-date_joined')
+        queryset = User.objects.filter(organization=user.organization)
+
+        # Search parameter across name, email, and username
+        search = self.request.query_params.get('search', '').strip()
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(email__icontains=search) |
+                Q(username__icontains=search)
+            )
+
+        # Status / Role / Dataroom filter
+        status_filter = self.request.query_params.get('status', 'all').strip().lower()
+        if status_filter == 'admin':
+            queryset = queryset.filter(role='admin')
+        elif status_filter == 'member':
+            queryset = queryset.filter(role='member')
+        elif status_filter == 'inactive':
+            queryset = queryset.filter(is_active=False)
+        elif status_filter == 'dataroom_participant':
+            creator_ids = Dataroom.objects.filter(organization=user.organization).values_list('created_by_id', flat=True)
+            collab_ids = DataroomCollaborator.objects.filter(dataroom__organization=user.organization).values_list('user_id', flat=True)
+            participant_ids = set(creator_ids).union(set(collab_ids))
+            participant_ids.discard(None)
+            queryset = queryset.filter(id__in=participant_ids)
+
+        # Ordering parameter
+        ordering = self.request.query_params.get('ordering', '').strip()
+        allowed_ordering = {
+            'name': 'name',
+            '-name': '-name',
+            'role': 'role',
+            '-role': '-role',
+            'status': 'is_active',
+            '-status': '-is_active',
+            'storage': 'total_document_size',
+            '-storage': '-total_document_size',
+            'created': 'date_joined',
+            '-created': '-date_joined',
+            'date_joined': 'date_joined',
+            '-date_joined': '-date_joined',
+        }
+        if ordering in allowed_ordering:
+            db_order = allowed_ordering[ordering]
+            if db_order in ('name', '-name'):
+                order_field = Lower('name').asc() if db_order == 'name' else Lower('name').desc()
+                queryset = queryset.order_by(order_field, '-date_joined')
+            else:
+                queryset = queryset.order_by(db_order, '-date_joined')
+        else:
+            queryset = queryset.order_by('-date_joined')
+
+        return queryset
 
     def perform_create(self, serializer):
         """
@@ -203,8 +294,6 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='share-links')
     def share_links(self, request, pk=None):
-        from sharelinks.models import ShareLink
-        from sharelinks.serializers import ShareLinkSerializer
         user = self.get_object()
         queryset = ShareLink.objects.filter(created_by=user).order_by('-created_at')
         
@@ -218,8 +307,6 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='datarooms')
     def datarooms(self, request, pk=None):
-        from datarooms.models import Dataroom
-        from datarooms.serializers import DataroomSerializer
         user = self.get_object()
         queryset = Dataroom.objects.filter(created_by=user).order_by('-created_at')
         
@@ -233,7 +320,6 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='recalculate-quota')
     def recalculate_quota(self, request, pk=None):
-        from documents.services import recalculate_user_document_size
         user = self.get_object()
         recalculate_user_document_size(user)
         serializer = AdminUserDetailSerializer(user, context=self.get_serializer_context())
@@ -268,7 +354,7 @@ class AdminLoginActivityViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = LoginActivity.objects.all()
     serializer_class = LoginActivitySerializer
     permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission]
-    pagination_class = StandardResultsSetPagination
+    pagination_class = AdminPagination
 
     def get_queryset(self):
         """
@@ -324,7 +410,7 @@ class AdminSecurityThreatEventViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = SecurityThreatEvent.objects.none()
     serializer_class = SecurityThreatEventSerializer
     permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission]
-    pagination_class = StandardResultsSetPagination
+    pagination_class = AdminPagination
 
     def get_queryset(self):
         user = self.request.user

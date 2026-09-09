@@ -55,14 +55,24 @@ const mockUsers = [
   },
 ];
 
+const mockPaginatedResponse = {
+  count: mockUsers.length,
+  total_pages: 1,
+  current_page: 1,
+  page_size: 10,
+  metrics: {
+    total_users: mockUsers.length,
+    total_storage_bytes: 50 * 1024 * 1024,
+    dataroom_users: 1,
+  },
+  results: mockUsers,
+};
+
 describe('AdminUsersPage', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     api.getAdminUsers.mockResolvedValue({
-      data: {
-        count: 2,
-        results: mockUsers,
-      },
+      data: mockPaginatedResponse,
     });
   });
 
@@ -88,7 +98,128 @@ describe('AdminUsersPage', () => {
 
     // Bob has custom quota of 50MB
     expect(screen.getByText('40 MB')).toBeInTheDocument();
-    expect(screen.getByText('50 MB')).toBeInTheDocument();
+    expect(screen.getAllByText('50 MB').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders overview KPI metric cards', async () => {
+    render(
+      <MemoryRouter>
+        <AdminUsersPage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Alice Smith');
+
+    expect(screen.getByText('Total Users')).toBeInTheDocument();
+    expect(screen.getByText('Total Storage Used')).toBeInTheDocument();
+    expect(screen.getByText('Dataroom Users')).toBeInTheDocument();
+
+    expect(screen.getByText('2')).toBeInTheDocument(); // total_users
+    expect(screen.getByText('1')).toBeInTheDocument(); // dataroom_users
+  });
+
+  it('debounces search input and queries the backend', async () => {
+    render(
+      <MemoryRouter>
+        <AdminUsersPage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Alice Smith');
+
+    const searchInput = screen.getByPlaceholderText(/search name, email, or username/i);
+    fireEvent.change(searchInput, { target: { value: 'Alice' } });
+
+    await waitFor(
+      () => {
+        expect(api.getAdminUsers).toHaveBeenCalledWith(
+          expect.objectContaining({ search: 'Alice' })
+        );
+      },
+      { timeout: 1000 }
+    );
+  });
+
+  it('filters users using status dropdown', async () => {
+    render(
+      <MemoryRouter>
+        <AdminUsersPage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Alice Smith');
+
+    const select = screen.getByDisplayValue(/all users/i);
+    fireEvent.change(select, { target: { value: 'admin' } });
+
+    await waitFor(() => {
+      expect(api.getAdminUsers).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'admin' })
+      );
+    });
+
+    fireEvent.change(select, { target: { value: 'dataroom_participant' } });
+
+    await waitFor(() => {
+      expect(api.getAdminUsers).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'dataroom_participant' })
+      );
+    });
+  });
+
+  it('toggles column sorting and passes ordering to backend', async () => {
+    render(
+      <MemoryRouter>
+        <AdminUsersPage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Alice Smith');
+
+    const nameSortBtn = screen.getByRole('button', { name: /name/i });
+    fireEvent.click(nameSortBtn);
+
+    await waitFor(() => {
+      expect(api.getAdminUsers).toHaveBeenCalledWith(
+        expect.objectContaining({ ordering: 'name' })
+      );
+    });
+
+    fireEvent.click(nameSortBtn);
+
+    await waitFor(() => {
+      expect(api.getAdminUsers).toHaveBeenCalledWith(
+        expect.objectContaining({ ordering: '-name' })
+      );
+    });
+  });
+
+  it('renders empty state when no users are found and allows clearing filters', async () => {
+    api.getAdminUsers.mockResolvedValue({
+      data: {
+        count: 0,
+        results: [],
+        metrics: { total_users: 0, total_storage_bytes: 0, dataroom_users: 0 },
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <AdminUsersPage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText(/no users found/i);
+    expect(screen.getByText(/try adjusting your search or filter settings/i)).toBeInTheDocument();
+
+    // Type into search to show the Clear Filters button
+    const searchInput = screen.getByPlaceholderText(/search name, email, or username/i);
+    fireEvent.change(searchInput, { target: { value: 'nonexistent' } });
+
+    const clearFiltersBtn = await screen.findByRole('button', { name: /clear filters/i });
+    fireEvent.click(clearFiltersBtn);
+
+    expect(searchInput.value).toBe('');
   });
 
   it('allows inline editing and updating of custom storage quota', async () => {
@@ -204,7 +335,7 @@ describe('AdminUsersPage', () => {
     // Fill in Add User form fields
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: 'Charlie Brown' } });
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'charlie@example.com' } });
-    fireEvent.change(screen.getByLabelText(/username/i), { target: { value: 'charlie' } });
+    fireEvent.change(screen.getByLabelText(/^username/i), { target: { value: 'charlie' } });
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'supersecret' } });
     
     // Select custom storage quota
@@ -233,6 +364,7 @@ describe('AdminUsersPage', () => {
     api.getAdminUsers.mockResolvedValue({
       data: {
         count: 25,
+        total_pages: 3,
         results: mockUsers,
       },
     });
@@ -253,7 +385,9 @@ describe('AdminUsersPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
     await waitFor(() => {
-      expect(api.getAdminUsers).toHaveBeenCalledWith(2);
+      expect(api.getAdminUsers).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 2 })
+      );
     });
   });
 
@@ -274,7 +408,7 @@ describe('AdminUsersPage', () => {
 
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: 'Charlie Brown' } });
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'charlie@example.com' } });
-    fireEvent.change(screen.getByLabelText(/username/i), { target: { value: 'charlie' } });
+    fireEvent.change(screen.getByLabelText(/^username/i), { target: { value: 'charlie' } });
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'supersecret' } });
 
     const submitButton = screen.getByRole('button', { name: 'Add User' });
@@ -348,6 +482,86 @@ describe('AdminUsersPage', () => {
         ...mockUsers[0],
         name: 'Alice Smith Updated',
       },
+    });
+  });
+
+  it('provides accessible labels for search input and status filter dropdown', async () => {
+    render(
+      <MemoryRouter>
+        <AdminUsersPage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Alice Smith');
+
+    expect(screen.getByRole('textbox', { name: /search name, email, or username/i })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /status/i })).toBeInTheDocument();
+  });
+
+  it('resets table state when fetchUsers fails', async () => {
+    render(
+      <MemoryRouter>
+        <AdminUsersPage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Alice Smith');
+
+    // Make next fetch fail
+    api.getAdminUsers.mockRejectedValueOnce(new Error('Network error'));
+
+    // Trigger filter change to cause a re-fetch
+    const select = screen.getByRole('combobox', { name: /status/i });
+    fireEvent.change(select, { target: { value: 'admin' } });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Alice Smith')).not.toBeInTheDocument();
+    });
+  });
+
+  it('clamps currentPage to previous page when deleting the sole user on the last page', async () => {
+    // Start on page 2 where count is 11, total_pages is 2
+    api.getAdminUsers.mockResolvedValue({
+      data: {
+        count: 11,
+        total_pages: 2,
+        results: [mockUsers[0]],
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <AdminUsersPage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Alice Smith');
+
+    // Navigate to page 2
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    await waitFor(() => {
+      expect(api.getAdminUsers).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 2 })
+      );
+    });
+
+    // Delete the user on page 2
+    api.deleteAdminUser.mockResolvedValue({});
+    const deleteButtons = screen.getAllByTitle(/delete/i);
+    fireEvent.click(deleteButtons[0]);
+
+    // Confirm dialog
+    const confirmDeleteBtn = await screen.findByRole('button', { name: 'Delete' });
+    fireEvent.click(confirmDeleteBtn);
+
+    // After deleting from 11 items, expected new total is 10, so maxValidPage is 1.
+    // currentPage was 2, so it should clamp to page 1 and fetch page 1.
+    await waitFor(() => {
+      expect(api.deleteAdminUser).toHaveBeenCalledWith('user-1');
+      expect(api.getAdminUsers).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 1 })
+      );
     });
   });
 });
