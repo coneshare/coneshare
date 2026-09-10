@@ -1,6 +1,17 @@
 # Changelog
 
 
+## [1.9.1](https://github.com/coneshare/coneshare/compare/v1.9.0...v1.9.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **admin:** add overview stats cards, search, filtering, and unified admin pagination ([54cf89c](https://github.com/coneshare/coneshare/commit/54cf89c503e63b294becbada89d7f2b64842339b))
+* **admin:** support user password reset and fallback to default storage quota ([39fe14d](https://github.com/coneshare/coneshare/commit/39fe14dc6b13c9a357cc3a22dabab327a9dceee7))
+* **dataroom:** route dataroom collaboration alerts and support owner fallback ([dd87b1b](https://github.com/coneshare/coneshare/commit/dd87b1b037b91b82ca69a47a792812d060f00abd))
+* **frontend:** prevent table header text wrapping and stabilize column widths ([adfc845](https://github.com/coneshare/coneshare/commit/adfc845bf1224cd2f372ab3d107bfe09b1b78ba7))
+* **frontend:** translate delete share link dialog and remove inconsistent storage quota icon ([93d6ed4](https://github.com/coneshare/coneshare/commit/93d6ed4c64106f52804a4bcf2c6c5f89c1a533f8))
+
 ## [1.9.0](https://github.com/coneshare/coneshare/compare/v1.8.1...v1.9.0) (2026-09-07)
 
 
