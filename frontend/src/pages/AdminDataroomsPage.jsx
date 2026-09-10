@@ -37,6 +37,7 @@ import { Progress } from '../components/ui/Progress';
 import { Pagination } from '../components/ui/Pagination';
 import { formatBytes } from '../lib/formatters';
 import { formatDate, formatRelativeTime, getAvatarInitial } from '../utils/formatters';
+import { cn } from '../lib/utils';
 import {
   getAdminDatarooms,
   deleteAdminDataroom,
@@ -184,17 +185,17 @@ export function AdminDataroomsPage() {
     }
   };
 
-  const renderSortableHeader = (field, label) => {
+  const renderSortableHeader = (field, label, className = '') => {
     const isActive = sortField === field;
     return (
-      <th className="p-4">
+      <th className={cn('p-4 whitespace-nowrap', className)}>
         <button
           type="button"
           onClick={() => handleSort(field)}
-          className="inline-flex items-center gap-1.5 font-semibold text-muted-foreground uppercase text-xs hover:text-foreground transition-colors group focus:outline-none"
+          className="inline-flex items-center gap-1.5 font-semibold text-muted-foreground uppercase text-xs hover:text-foreground transition-colors group focus:outline-none whitespace-nowrap"
         >
-          <span>{label}</span>
-          <span className="flex items-center">
+          <span className="whitespace-nowrap">{label}</span>
+          <span className="flex items-center shrink-0">
             {isActive ? (
               sortDirection === 'asc' ? (
                 <ArrowUp className="h-3.5 w-3.5 text-primary" />
@@ -314,41 +315,41 @@ export function AdminDataroomsPage() {
         {/* Governance Table */}
         <div className="rounded-xl border bg-card overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full min-w-[1000px] text-left text-sm">
               <thead className="border-b bg-muted/40 text-xs font-semibold text-muted-foreground uppercase">
                 <tr>
-                  {renderSortableHeader('name', t('admin.columnDataroomName'))}
-                  {renderSortableHeader('owner', t('admin.columnOwner'))}
-                  {renderSortableHeader('collaborators', t('admin.columnCollaborators'))}
-                  {renderSortableHeader('active_links', t('admin.columnActiveLinks'))}
-                  {renderSortableHeader('last_viewed', t('admin.columnLastViewed'))}
-                  {renderSortableHeader('storage', t('admin.columnStorageQuota'))}
-                  {renderSortableHeader('created', t('admin.columnCreated'))}
-                  <th className="p-4 text-right">{t('common.actions')}</th>
+                  {renderSortableHeader('name', t('admin.columnDataroomName'), 'min-w-[220px]')}
+                  {renderSortableHeader('owner', t('admin.columnOwner'), 'w-48')}
+                  {renderSortableHeader('collaborators', t('admin.columnCollaborators'), 'w-36')}
+                  {renderSortableHeader('active_links', t('admin.columnActiveLinks'), 'w-32')}
+                  {renderSortableHeader('last_viewed', t('admin.columnLastViewed'), 'w-32')}
+                  {renderSortableHeader('storage', t('admin.columnStorageQuota'), 'w-40')}
+                  {renderSortableHeader('created', t('admin.columnCreated'), 'w-32')}
+                  <th className="p-4 text-right whitespace-nowrap w-20">{t('common.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      <td className="p-4">
+                      <td className="p-4 min-w-[220px]">
                         <div className="space-y-2">
                           <Skeleton className="h-4 w-40" />
                           <Skeleton className="h-3 w-16" />
                         </div>
                       </td>
-                      <td className="p-4">
+                      <td className="p-4 w-48">
                         <div className="flex items-center gap-2">
                           <Skeleton className="h-7 w-7 rounded-full" />
                           <Skeleton className="h-4 w-28" />
                         </div>
                       </td>
-                      <td className="p-4"><Skeleton className="h-4 w-12" /></td>
-                      <td className="p-4"><Skeleton className="h-4 w-10" /></td>
-                      <td className="p-4"><Skeleton className="h-4 w-20" /></td>
-                      <td className="p-4"><Skeleton className="h-4 w-32" /></td>
-                      <td className="p-4"><Skeleton className="h-4 w-20" /></td>
-                      <td className="p-4 text-right"><Skeleton className="h-8 w-8 ml-auto rounded-md" /></td>
+                      <td className="p-4 w-36"><Skeleton className="h-4 w-12" /></td>
+                      <td className="p-4 w-32"><Skeleton className="h-4 w-10" /></td>
+                      <td className="p-4 w-32"><Skeleton className="h-4 w-20" /></td>
+                      <td className="p-4 w-40"><Skeleton className="h-4 w-32" /></td>
+                      <td className="p-4 w-32"><Skeleton className="h-4 w-20" /></td>
+                      <td className="p-4 text-right w-20"><Skeleton className="h-8 w-8 ml-auto rounded-md" /></td>
                     </tr>
                   ))
                 ) : datarooms.length === 0 ? (
@@ -379,21 +380,21 @@ export function AdminDataroomsPage() {
                     }
 
                     return (
-                      <tr key={dataroom.id} className="hover:bg-muted/30 transition-colors">
+                      <tr key={dataroom.id} className="hover:bg-muted/30 transition-colors border-b">
                         {/* Name + Storage Version Badge */}
-                        <td className="p-4">
+                        <td className="p-4 min-w-[220px] max-w-[280px]">
                           <div className="flex items-start gap-3">
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary mt-0.5">
                               <Folder className="h-4 w-4" />
                             </div>
-                            <div className="space-y-1 min-w-0">
+                            <div className="space-y-1 min-w-0 flex-1">
                               <Link
                                 to={`/datarooms/${dataroom.id}`}
-                                className="font-semibold text-foreground hover:text-primary transition-colors flex items-center gap-1.5 truncate group"
+                                className="font-semibold text-foreground hover:text-primary transition-colors flex items-center gap-1.5 group"
                                 title={dataroom.name}
                               >
-                                <span>{dataroom.name}</span>
-                                <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
+                                <span className="truncate">{dataroom.name}</span>
+                                <ExternalLink className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
                               </Link>
                               {isLegacyV1 && (
                                 <div className="flex items-center gap-1.5">
@@ -408,21 +409,21 @@ export function AdminDataroomsPage() {
                         </td>
 
                         {/* Owner */}
-                        <td className="p-4">
+                        <td className="p-4 w-48">
                           {dataroom.owner ? (
                             <div className="flex items-center gap-2.5">
-                              <Avatar className="h-7 w-7 rounded-full border">
+                              <Avatar className="h-7 w-7 rounded-full border shrink-0">
                                 {dataroom.owner.avatar_url && <AvatarImage src={dataroom.owner.avatar_url} />}
                                 <AvatarFallback className="text-[10px]">
                                   {getAvatarInitial(dataroom.owner.name, dataroom.owner.email)}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="min-w-0 text-xs">
-                                <p className="font-medium text-foreground truncate max-w-[140px]">
+                                <p className="font-medium text-foreground truncate max-w-[130px]" title={dataroom.owner.name || dataroom.owner.email}>
                                   {dataroom.owner.name || dataroom.owner.email}
                                 </p>
                                 {dataroom.owner.name && (
-                                  <p className="text-muted-foreground truncate max-w-[140px]">{dataroom.owner.email}</p>
+                                  <p className="text-muted-foreground truncate max-w-[130px]" title={dataroom.owner.email}>{dataroom.owner.email}</p>
                                 )}
                               </div>
                             </div>
@@ -432,13 +433,13 @@ export function AdminDataroomsPage() {
                         </td>
 
                         {/* Collaborators */}
-                        <td className="p-4">
+                        <td className="p-4 w-36 whitespace-nowrap">
                           <button
                             type="button"
                             onClick={() => setDataroomForCollaborators(dataroom)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-muted/60 hover:bg-muted text-foreground transition-colors cursor-pointer border"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-muted/60 hover:bg-muted text-foreground transition-colors cursor-pointer border whitespace-nowrap"
                           >
-                            <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                            <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                             <span>{dataroom.collaborator_count || 0}</span>
                             <span className="text-muted-foreground text-[11px] ml-0.5">
                               {t('admin.manage')}
@@ -447,15 +448,15 @@ export function AdminDataroomsPage() {
                         </td>
 
                         {/* Active Links */}
-                        <td className="p-4">
-                          <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-                            <Link2 className="h-3.5 w-3.5 text-blue-500" />
+                        <td className="p-4 w-32 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-foreground whitespace-nowrap">
+                            <Link2 className="h-3.5 w-3.5 text-blue-500 shrink-0" />
                             <span>{dataroom.active_links_count || 0}</span>
                           </div>
                         </td>
 
                         {/* Last Viewed */}
-                        <td className="p-4 text-xs text-muted-foreground whitespace-nowrap">
+                        <td className="p-4 text-xs text-muted-foreground whitespace-nowrap w-32">
                           {dataroom.last_viewed_at ? (
                             <span title={formatDate(dataroom.last_viewed_at, 'PPpp')}>
                               {formatRelativeTime(dataroom.last_viewed_at)}
@@ -466,7 +467,7 @@ export function AdminDataroomsPage() {
                         </td>
 
                         {/* Storage / Quota Progress */}
-                        <td className="p-4">
+                        <td className="p-4 w-40">
                           <div className="flex flex-col gap-1 w-36">
                             <div className="flex justify-between text-xs font-medium">
                               <span className="text-foreground">{formatBytes(usedBytes)}</span>
@@ -480,7 +481,7 @@ export function AdminDataroomsPage() {
                               indicatorClassName={indicatorColor}
                             />
                             {quotaMb > 0 && (
-                              <span className="text-[10px] text-muted-foreground">
+                              <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                                 {usagePercentage.toFixed(0)}% {t('admin.used')}
                               </span>
                             )}
@@ -488,12 +489,12 @@ export function AdminDataroomsPage() {
                         </td>
 
                         {/* Created Date */}
-                        <td className="p-4 text-xs text-muted-foreground">
+                        <td className="p-4 text-xs text-muted-foreground whitespace-nowrap w-32">
                           {formatDate(dataroom.created_at, 'PP')}
                         </td>
 
                         {/* Actions Menu */}
-                        <td className="p-4 text-right">
+                        <td className="p-4 text-right w-20">
                           <DropdownMenu.Root>
                             <DropdownMenu.Trigger asChild>
                               <Button
