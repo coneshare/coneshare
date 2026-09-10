@@ -53,7 +53,7 @@ function CopyableLink({ slug, isExpired, expires_at }) {
       <Tooltip>
         <TooltipTrigger asChild>
           <div
-            className="relative w-full cursor-not-allowed rounded px-1 py-0.5 text-left text-sm text-gray-400"
+            className="relative w-full max-w-[220px] cursor-not-allowed rounded px-1 py-0.5 text-left text-sm text-gray-400"
             title={url}
           >
             <span className="block truncate">{displayUrl}</span>
@@ -74,7 +74,7 @@ function CopyableLink({ slug, isExpired, expires_at }) {
       <TooltipTrigger asChild>
         <div
           onClick={handleCopy}
-          className="w-full cursor-pointer rounded px-1 py-0.5 text-left text-sm text-gray-600 transition-colors hover:bg-gray-100"
+          className="w-full max-w-[220px] cursor-pointer rounded px-1 py-0.5 text-left text-sm text-gray-600 transition-colors hover:bg-gray-100"
           title={url}
           data-testid={`copyable-link-div-${slug}`}
         >
@@ -141,20 +141,20 @@ export function LinksTable({
       <div>
         {!isDashboardWidget && <h2 className="text-xl font-semibold">{t('analytics.shareLinks')}</h2>}
       <div className="mt-4 overflow-hidden rounded-lg border">
-        <Table>
+        <Table className={isDashboardWidget ? 'min-w-[900px]' : 'min-w-[750px]'}>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-8" />
-              <TableHead>{t('analytics.name')}</TableHead>
-              <TableHead>{t('analytics.link')}</TableHead>
-              {isDashboardWidget && <TableHead>{t('analytics.document')}</TableHead>}
-              <TableHead>{t('analytics.visits')}</TableHead>
-              <TableHead>{t('analytics.created')}</TableHead>
-              <TableHead>{t('analytics.viewedAt')}</TableHead>
-              <TableHead>{t('analytics.settings')}</TableHead>
-              {!isDashboardWidget && <TableHead>{t('analytics.status')}</TableHead>}
+              <TableHead className="w-8 px-2" />
+              <TableHead className="min-w-[140px] max-w-[200px] whitespace-nowrap">{t('analytics.name')}</TableHead>
+              <TableHead className="min-w-[160px] max-w-[220px] whitespace-nowrap">{t('analytics.link')}</TableHead>
+              {isDashboardWidget && <TableHead className="min-w-[160px] max-w-[240px] whitespace-nowrap">{t('analytics.document')}</TableHead>}
+              <TableHead className="w-20 whitespace-nowrap">{t('analytics.visits')}</TableHead>
+              <TableHead className="w-28 whitespace-nowrap">{t('analytics.created')}</TableHead>
+              <TableHead className="w-28 whitespace-nowrap">{t('analytics.viewedAt')}</TableHead>
+              <TableHead className="w-28 whitespace-nowrap">{t('analytics.settings')}</TableHead>
+              {!isDashboardWidget && <TableHead className="w-24 whitespace-nowrap">{t('analytics.status')}</TableHead>}
               {!isDashboardWidget && (
-                <TableHead>
+                <TableHead className="w-20 text-right whitespace-nowrap">
                   <span className="sr-only">{t('common.actions')}</span>
                 </TableHead>
               )}
@@ -168,7 +168,7 @@ export function LinksTable({
               return (
                 <Fragment key={link.id}>
                   <TableRow>
-                    <TableCell>
+                    <TableCell className="w-8 px-2">
                       {hasViews && (
                         <button
                           onClick={() => setExpandedRowId(isExpanded ? null : link.id)}
@@ -184,17 +184,19 @@ export function LinksTable({
                         </button>
                       )}
                     </TableCell>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <span>{link.name || t('links.untitledLink')}</span>
+                    <TableCell className="font-medium min-w-[140px] max-w-[200px]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="truncate" title={link.name || t('links.untitledLink')}>
+                          {link.name || t('links.untitledLink')}
+                        </span>
                         {isExpired && (
-                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                          <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
                             {t('analytics.expired')}
                           </span>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="min-w-[160px] max-w-[220px]">
                       <CopyableLink
                         slug={link.slug}
                         isExpired={isExpired}
@@ -202,43 +204,43 @@ export function LinksTable({
                       />
                     </TableCell>
                     {isDashboardWidget && (
-                      <TableCell>
+                      <TableCell className="min-w-[160px] max-w-[240px]">
                         {link.document ? (
                           <Link
                             to={`/documents/${link.document}`}
-                            className="inline-flex items-center gap-1.5 truncate hover:underline"
+                            className="inline-flex items-center gap-1.5 max-w-full hover:underline"
                             title={link.document_name}
                           >
-                            <FileTypeIcon type={link.document_type} className="h-4 w-4" />
-                            <span>{link.document_name}</span>
+                            <FileTypeIcon type={link.document_type} className="h-4 w-4 shrink-0" />
+                            <span className="truncate">{link.document_name}</span>
                           </Link>
                         ) : link.dataroom ? (
                           <Link
                             to={`/datarooms/${link.dataroom}`}
-                            className="inline-flex items-center gap-1.5 truncate hover:underline"
+                            className="inline-flex items-center gap-1.5 max-w-full hover:underline"
                             title={link.dataroom_name}
                           >
-                            <FolderIcon className="h-4 w-4 text-blue-500" />
-                            <span>{link.dataroom_name}</span>
+                            <FolderIcon className="h-4 w-4 text-blue-500 shrink-0" />
+                            <span className="truncate">{link.dataroom_name}</span>
                           </Link>
                         ) : (
                           <span className="text-gray-400">—</span>
                         )}
                       </TableCell>
                     )}
-                    <TableCell>{link.view_count}</TableCell>
-                    <TableCell>{formatDate(link.created_at, 'PP')}</TableCell>
-                    <TableCell>
+                    <TableCell className="w-20 whitespace-nowrap">{link.view_count}</TableCell>
+                    <TableCell className="w-28 whitespace-nowrap text-muted-foreground">{formatDate(link.created_at, 'PP')}</TableCell>
+                    <TableCell className="w-28 whitespace-nowrap text-muted-foreground">
                       {link.last_viewed_at
                         ? formatDate(link.last_viewed_at, 'PP')
                         : '—'}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-28 whitespace-nowrap">
                       <LinkSettingsSummary link={link} onClick={() => onEditLink(link)} />
                     </TableCell>
                     {!isDashboardWidget && (
                       <>
-                        <TableCell>
+                        <TableCell className="w-24 whitespace-nowrap">
                           <Tooltip>
                             <TooltipTrigger asChild>
                               {/* Wrap Switch in a span to resolve event conflicts with TooltipTrigger */}
@@ -255,7 +257,7 @@ export function LinksTable({
                             </TooltipContent>
                           </Tooltip>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="w-20 text-right whitespace-nowrap">
                           <LinkActionsDropdown
                             link={link}
                             onPreview={handlePreview}

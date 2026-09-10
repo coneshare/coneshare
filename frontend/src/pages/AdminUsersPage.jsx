@@ -28,6 +28,7 @@ import { Select } from '../components/ui/Select';
 import { Progress } from '../components/ui/Progress';
 import { Pagination } from '../components/ui/Pagination';
 import { formatBytes } from '../lib/formatters';
+import { cn } from '../lib/utils';
 
 function AddUserForm({ onAddUser, onCancel }) {
   const { t } = useTranslation();
@@ -180,25 +181,25 @@ function AddUserForm({ onAddUser, onCancel }) {
 function SkeletonRow() {
   return (
     <tr className="border-b">
-      <td className="p-4">
-        <Skeleton className="h-4 w-32" />
+      <td className="p-4 min-w-[160px]">
+        <Skeleton className="h-4 w-28" />
       </td>
-      <td className="p-4">
-        <Skeleton className="h-4 w-48" />
+      <td className="p-4 min-w-[200px]">
+        <Skeleton className="h-4 w-40" />
       </td>
-      <td className="p-4">
-        <Skeleton className="h-4 w-20" />
+      <td className="p-4 w-28">
+        <Skeleton className="h-4 w-16" />
       </td>
-      <td className="p-4">
-        <Skeleton className="h-4 w-20" />
+      <td className="p-4 w-24">
+        <Skeleton className="h-4 w-16" />
       </td>
-      <td className="p-4">
+      <td className="p-4 w-36">
         <Skeleton className="h-4 w-24" />
       </td>
-      <td className="p-4">
-        <Skeleton className="h-4 w-24" />
+      <td className="p-4 w-32">
+        <Skeleton className="h-4 w-20" />
       </td>
-      <td className="p-4 text-right">
+      <td className="p-4 text-right w-24">
         <Skeleton className="h-8 w-16 ml-auto rounded-md" />
       </td>
     </tr>
@@ -460,17 +461,17 @@ export function AdminUsersPage() {
     }
   };
 
-  const renderSortableHeader = (field, label) => {
+  const renderSortableHeader = (field, label, className = '') => {
     const isActive = sortField === field;
     return (
-      <th className="p-4">
+      <th className={cn('p-4 whitespace-nowrap', className)}>
         <button
           type="button"
           onClick={() => handleSort(field)}
-          className="inline-flex items-center gap-1.5 font-semibold text-muted-foreground uppercase text-xs hover:text-foreground transition-colors group focus:outline-none"
+          className="inline-flex items-center gap-1.5 font-semibold text-muted-foreground uppercase text-xs hover:text-foreground transition-colors group focus:outline-none whitespace-nowrap"
         >
-          <span>{label}</span>
-          <span className="flex items-center">
+          <span className="whitespace-nowrap">{label}</span>
+          <span className="flex items-center shrink-0">
             {isActive ? (
               sortDirection === 'asc' ? (
                 <ArrowUp className="h-3.5 w-3.5 text-primary" />
@@ -606,16 +607,16 @@ export function AdminUsersPage() {
       {/* Users Table */}
       <div className="rounded-xl border bg-card overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[850px] text-left text-sm">
             <thead className="border-b bg-muted/40 text-xs font-semibold text-muted-foreground uppercase">
               <tr>
-                {renderSortableHeader('name', t('analytics.name'))}
-                <th className="p-4 font-semibold text-muted-foreground uppercase text-xs">{t('settings.email')}</th>
-                {renderSortableHeader('role', t('admin.role'))}
-                {renderSortableHeader('status', t('common.status'))}
-                {renderSortableHeader('storage', t('admin.storageQuota'))}
-                {renderSortableHeader('created', t('admin.joinedDateColumn'))}
-                <th className="p-4 text-right font-semibold text-muted-foreground uppercase text-xs">{t('common.actions')}</th>
+                {renderSortableHeader('name', t('analytics.name'), 'min-w-[160px]')}
+                <th className="p-4 font-semibold text-muted-foreground uppercase text-xs whitespace-nowrap min-w-[200px]">{t('settings.email')}</th>
+                {renderSortableHeader('role', t('admin.role'), 'w-28')}
+                {renderSortableHeader('status', t('common.status'), 'w-24')}
+                {renderSortableHeader('storage', t('admin.storageQuota'), 'w-36')}
+                {renderSortableHeader('created', t('admin.joinedDateColumn'), 'w-32')}
+                <th className="p-4 text-right font-semibold text-muted-foreground uppercase text-xs whitespace-nowrap w-24">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -650,40 +651,43 @@ export function AdminUsersPage() {
                 users.map((user) =>
                   editingUserId === user.id ? (
                     <tr key={user.id} className="border-b bg-muted/50">
-                      <td className="p-4 font-medium">
+                      <td className="p-4 font-medium min-w-[160px]">
                         <Input
                           name="name"
                           value={editedUserData.name}
                           onChange={handleEditDataChange}
                           disabled={savingUserId === user.id}
+                          className="w-full max-w-[180px]"
                         />
                       </td>
-                      <td className="p-4 text-muted-foreground">
+                      <td className="p-4 text-muted-foreground min-w-[200px] max-w-[260px] truncate" title={user.email}>
                         {user.email}
                       </td>
-                      <td className="p-4 text-muted-foreground">
+                      <td className="p-4 text-muted-foreground w-28">
                         <Select
                           name="role"
                           value={editedUserData.role}
                           onChange={handleEditDataChange}
                           disabled={savingUserId === user.id}
+                          className="w-full"
                         >
                           <option value="member">{t('admin.roleMember')}</option>
                           <option value="admin">{t('admin.roleAdmin')}</option>
                         </Select>
                       </td>
-                      <td className="p-4 text-muted-foreground">
+                      <td className="p-4 text-muted-foreground w-24">
                         <Select
                           name="is_active"
                           value={editedUserData.is_active}
                           onChange={handleEditDataChange}
                           disabled={savingUserId === user.id}
+                          className="w-full"
                         >
                           <option value={true}>{t('common.active')}</option>
                           <option value={false}>{t('common.inactive')}</option>
                         </Select>
                       </td>
-                      <td className="p-4">
+                      <td className="p-4 w-36">
                         <div className="flex items-center gap-1.5">
                           <Input
                             name="custom_file_size_quota_mb"
@@ -691,17 +695,17 @@ export function AdminUsersPage() {
                             placeholder={t('common.default')}
                             value={editedUserData.custom_file_size_quota_mb ?? ''}
                             onChange={handleEditDataChange}
-                            className="w-24 text-sm"
+                            className="w-20 text-sm"
                             disabled={savingUserId === user.id}
                             min="0"
                           />
                           <span className="text-xs text-muted-foreground">MB</span>
                         </div>
                       </td>
-                      <td className="p-4 text-muted-foreground">
+                      <td className="p-4 text-muted-foreground whitespace-nowrap w-32">
                         {new Date(user.date_joined).toLocaleDateString()}
                       </td>
-                      <td className="p-4 text-right">
+                      <td className="p-4 text-right w-24">
                         <div className="flex items-center justify-end gap-x-2">
                           <Button
                             variant="ghost"
@@ -730,20 +734,20 @@ export function AdminUsersPage() {
                     </tr>
                   ) : (
                     <tr key={user.id} className="border-b">
-                      <td className="p-4 font-medium">
-                        <Link to={`/admin/users/${user.id}`} className="hover:underline">
+                      <td className="p-4 font-medium min-w-[160px] max-w-[200px]">
+                        <Link to={`/admin/users/${user.id}`} className="hover:underline block truncate" title={user.name || t('common.unnamed')}>
                           {user.name || t('common.unnamed')}
                         </Link>
                       </td>
-                      <td className="p-4 text-muted-foreground">
-                        <Link to={`/admin/users/${user.id}`} className="hover:underline text-muted-foreground">
+                      <td className="p-4 text-muted-foreground min-w-[200px] max-w-[260px]">
+                        <Link to={`/admin/users/${user.id}`} className="hover:underline text-muted-foreground block truncate" title={user.email}>
                           {user.email}
                         </Link>
                       </td>
-                      <td className="p-4 text-muted-foreground capitalize">
+                      <td className="p-4 text-muted-foreground capitalize w-28 whitespace-nowrap">
                         {user.role === 'admin' ? t('admin.roleAdmin') : user.role === 'member' ? t('admin.roleMember') : user.role}
                       </td>
-                      <td className="p-4">
+                      <td className="p-4 w-24 whitespace-nowrap">
                         <span
                           className={`rounded-full px-2 py-1 text-xs font-medium ${
                             user.is_active
@@ -754,13 +758,13 @@ export function AdminUsersPage() {
                           {user.is_active ? t('common.active') : t('common.inactive')}
                         </span>
                       </td>
-                      <td className="p-4">
+                      <td className="p-4 w-36">
                         <UserStorageUsage user={user} />
                       </td>
-                      <td className="p-4 text-muted-foreground">
+                      <td className="p-4 text-muted-foreground whitespace-nowrap w-32">
                         {new Date(user.date_joined).toLocaleDateString()}
                       </td>
-                      <td className="p-4 text-right">
+                      <td className="p-4 text-right w-24">
                         <div className="flex items-center justify-end gap-x-2">
                           <Button
                             variant="ghost"

@@ -206,17 +206,17 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
       <div>
         {!isDashboardWidget && <h2 className="text-xl font-semibold">{t('analytics.viewSessions')}</h2>}
         <div className="mt-4 overflow-hidden rounded-lg border">
-          <Table>
+          <Table className={isDashboardWidget ? 'min-w-[950px]' : 'min-w-[750px]'}>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-8" />
-                <TableHead>{t('analytics.visitor')}</TableHead>
-                <TableHead>{t('analytics.link')}</TableHead>
-                {isDashboardWidget && <TableHead>{t('analytics.document')}</TableHead>}
-                <TableHead>{t('analytics.viewedAt')}</TableHead>
-                <TableHead>{t('analytics.downloadedAt')}</TableHead>
-                <TableHead className="text-right">{t('analytics.duration')}</TableHead>
-                <TableHead className="text-right">{t('analytics.completion')}</TableHead>
+                <TableHead className="w-8 px-2" />
+                <TableHead className="min-w-[160px] max-w-[220px] whitespace-nowrap">{t('analytics.visitor')}</TableHead>
+                <TableHead className="min-w-[130px] max-w-[180px] whitespace-nowrap">{t('analytics.link')}</TableHead>
+                {isDashboardWidget && <TableHead className="min-w-[150px] max-w-[220px] whitespace-nowrap">{t('analytics.document')}</TableHead>}
+                <TableHead className="w-36 whitespace-nowrap">{t('analytics.viewedAt')}</TableHead>
+                <TableHead className="w-36 whitespace-nowrap">{t('analytics.downloadedAt')}</TableHead>
+                <TableHead className="w-24 text-right whitespace-nowrap">{t('analytics.duration')}</TableHead>
+                <TableHead className="w-24 text-right whitespace-nowrap">{t('analytics.completion')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -234,7 +234,7 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                 return (
                   <Fragment key={view.id}>
                     <TableRow>
-                      <TableCell>
+                      <TableCell className="w-8 px-2">
                         {isExpandable && (
                           <button
                             onClick={() => setExpandedRowId(isExpanded ? null : view.id)}
@@ -250,16 +250,21 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                           </button>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2 font-medium">
-                          <span>{view.viewer_email || t('viewSessions.anonymous')}</span>
+                      <TableCell className="min-w-[160px] max-w-[220px]">
+                        <div className="flex items-center gap-2 font-medium min-w-0">
+                          <span className="truncate" title={view.viewer_email || t('viewSessions.anonymous')}>
+                            {view.viewer_email || t('viewSessions.anonymous')}
+                          </span>
                           {view.is_owner_view && (
-                            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">
+                            <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">
                               {t('viewSessions.you')}
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div
+                          className="text-xs text-muted-foreground truncate"
+                          title={`${deviceInfo}${hasLocation ? ` - ${locationParts.join(', ')}` : ''}`}
+                        >
                           {deviceInfo}
                           {hasLocation ? (
                             ` - ${locationParts.join(', ')}`
@@ -277,44 +282,48 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{view.share_link_name || t('links.untitledLink')}</TableCell>
+                      <TableCell className="min-w-[130px] max-w-[180px]">
+                        <div className="truncate" title={view.share_link_name || t('links.untitledLink')}>
+                          {view.share_link_name || t('links.untitledLink')}
+                        </div>
+                      </TableCell>
                       {isDashboardWidget && (
-                        <TableCell>
+                        <TableCell className="min-w-[150px] max-w-[220px]">
                           {view.document_id ? (
                             <Link
                               to={`/documents/${view.document_id}`}
-                              className="inline-flex items-center gap-1.5 truncate hover:underline"
+                              className="inline-flex items-center gap-1.5 max-w-full hover:underline"
                               title={view.document_name}
                             >
-                              <FileTypeIcon type={view.document_type} className="h-4 w-4" />
-                              <span>{view.document_name}</span>
+                              <FileTypeIcon type={view.document_type} className="h-4 w-4 shrink-0" />
+                              <span className="truncate">{view.document_name}</span>
                             </Link>
                           ) : view.dataroom_id ? (
                             <Link
                               to={`/datarooms/${view.dataroom_id}`}
-                              className="inline-flex items-center gap-1.5 truncate hover:underline"
+                              className="inline-flex items-center gap-1.5 max-w-full hover:underline"
                               title={view.dataroom_name}
                             >
-                              <FolderIcon className="h-4 w-4 text-blue-500" />
-                              <span>{view.dataroom_name}</span>
+                              <FolderIcon className="h-4 w-4 text-blue-500 shrink-0" />
+                              <span className="truncate">{view.dataroom_name}</span>
                             </Link>
                           ) : (
                             <span className="text-gray-400">—</span>
                           )}
                         </TableCell>
                       )}
-                      <TableCell>
+                      <TableCell className="w-36 whitespace-nowrap text-muted-foreground">
                         {formatDate(view.viewed_at, 'PP p')}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="w-36 whitespace-nowrap text-muted-foreground">
                         {view.downloaded_at
                           ? formatDate(view.downloaded_at, 'PP p')
                           : '—'}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="w-24 text-right whitespace-nowrap">
                         {formatDuration(view.duration_seconds)}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="w-24 text-right whitespace-nowrap">
                         {hasDataroomVisits ? '—' : `${(view.completion_rate * 100).toFixed(0)}%`}
                       </TableCell>
                     </TableRow>
