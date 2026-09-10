@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
-import { ShareIcon, Star, ArrowLeft, ChevronDown, FolderUp, Plus, Loader2, AlertTriangle, Crown, Users, HardDrive, Sparkles } from 'lucide-react';
+import { ShareIcon, Star, ArrowLeft, ChevronDown, FolderUp, Plus, Loader2, AlertTriangle, Crown, Users, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatBytes } from '../lib/formatters';
 import { isDataroomOwner, isDataroomCollaborator } from '../utils/formatters';
@@ -1337,8 +1337,7 @@ export function DataroomPage() {
 
             <div className="pb-6 border-b border-gray-200 dark:border-gray-800 space-y-4">
               <div>
-                <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <HardDrive className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold">
                   {t('datarooms.storageQuotaTitle')}
                 </h3>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -1576,9 +1575,11 @@ export function DataroomPage() {
         isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         onConfirm={handleConfirmDelete}
-        title="Delete Share Link"
-        description={`Are you sure you want to permanently delete the link "${linkToDelete?.name || 'Untitled Link'}"? This action cannot be undone.`}
-        confirmText="Delete"
+        title={t('links.deleteLinkTitle')}
+        description={t('links.deleteLinkConfirm', {
+          name: linkToDelete?.name || t('links.untitledLink'),
+        })}
+        confirmText={t('common.delete')}
       />
       <ManagePermissionsDialog
         isOpen={isManagePermissionsOpen}

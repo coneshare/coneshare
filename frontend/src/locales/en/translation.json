@@ -98,7 +98,9 @@
     "previewFailed": "Could not generate preview link. Please try again.",
     "copiedToClipboard": "Link copied to clipboard!",
     "copyFailed": "Failed to copy link.",
-    "deleteSuccess": "Link \"{{name}}\" deleted successfully."
+    "deleteSuccess": "Link \"{{name}}\" deleted successfully.",
+    "deleteLinkTitle": "Delete Share Link",
+    "deleteLinkConfirm": "Are you sure you want to permanently delete the link \"{{name}}\"? This action cannot be undone."
   },
   "linkSheet": {
     "editTitle": "Edit Link",

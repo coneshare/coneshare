@@ -98,7 +98,9 @@
     "previewFailed": "Vorschaulink konnte nicht generiert werden. Bitte versuchen Sie es erneut.",
     "copiedToClipboard": "Link in die Zwischenablage kopiert!",
     "copyFailed": "Link konnte nicht kopiert werden.",
-    "deleteSuccess": "Link „{{name}}“ erfolgreich gelöscht."
+    "deleteSuccess": "Link „{{name}}“ erfolgreich gelöscht.",
+    "deleteLinkTitle": "Freigabelink löschen",
+    "deleteLinkConfirm": "Sind Sie sicher, dass Sie den Link „{{name}}“ dauerhaft löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden."
   },
   "linkSheet": {
     "editTitle": "Link bearbeiten",

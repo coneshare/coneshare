@@ -97,7 +97,9 @@
     "previewFailed": "无法生成预览链接。请重试。",
     "copiedToClipboard": "链接已复制到剪贴板！",
     "copyFailed": "复制链接失败。",
-    "deleteSuccess": "链接“{{name}}”删除成功。"
+    "deleteSuccess": "链接“{{name}}”删除成功。",
+    "deleteLinkTitle": "删除分享链接",
+    "deleteLinkConfirm": "您确定要永久删除链接“{{name}}”吗？此操作无法撤销。"
   },
   "linkSheet": {
     "editTitle": "编辑链接",

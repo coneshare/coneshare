@@ -546,9 +546,11 @@ export function DocumentPage() {
         isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         onConfirm={handleConfirmDelete}
-        title="Delete Share Link"
-        description={`Are you sure you want to permanently delete the link "${linkToDelete?.name || 'Untitled Link'}"? This action cannot be undone.`}
-        confirmText="Delete"
+        title={t('links.deleteLinkTitle')}
+        description={t('links.deleteLinkConfirm', {
+          name: linkToDelete?.name || t('links.untitledLink'),
+        })}
+        confirmText={t('common.delete')}
       />
       <ConfirmationDialog
         isOpen={isDeleteDocDialogOpen}
