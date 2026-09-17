@@ -84,6 +84,19 @@ class FileServerClient:
             timeout = min(timeout, 120)
         self._post('/internal/v1/copy-file', data, expect_json=False, timeout=timeout)
 
+    def upload_file(self, storage_key: str, data, content_type: str = None, timeout: tuple = (10, 60)):
+        """Uploads file content directly using a generated internal upload URL."""
+        upload_url = self.generate_upload_url(storage_key, is_internal=True)
+        headers = {}
+        if content_type:
+            headers['Content-Type'] = content_type
+        try:
+            response = requests.put(upload_url, data=data, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            return response
+        except requests.exceptions.RequestException as e:
+            raise APIException(f"File upload failed: {e}")
+
 
 # A singleton instance of the client for use throughout the application.
 fileserver_client = FileServerClient()

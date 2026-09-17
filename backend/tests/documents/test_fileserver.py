@@ -193,6 +193,60 @@ class TestFileServerClient:
 
         assert "File server is unavailable" in str(excinfo.value)
 
+    @override_settings(
+        CORE_API_URL="http://core-api.test",
+        INTERNAL_API_TOKEN="test-token",
+        SITE_DOMAIN="http://coneshare.test"
+    )
+    @patch('documents.fileserver.requests.put')
+    @patch('documents.fileserver.requests.post')
+    def test_upload_file_success(self, mock_post, mock_put):
+        """
+        Tests that upload_file gets an upload URL and PUTs file data.
+        """
+        mock_post_resp = MagicMock()
+        mock_post_resp.json.return_value = {'url': '/files/upload/test-upload-token'}
+        mock_post.return_value = mock_post_resp
+
+        mock_put_resp = MagicMock()
+        mock_put_resp.status_code = 200
+        mock_put.return_value = mock_put_resp
+
+        client = fileserver.FileServerClient()
+        test_data = b"image-binary-content"
+        resp = client.upload_file('org/preview.jpg', test_data, content_type='image/jpeg')
+
+        assert resp == mock_put_resp
+        mock_put.assert_called_once_with(
+            "http://core-api.test/files/upload/test-upload-token",
+            data=test_data,
+            headers={'Content-Type': 'image/jpeg'},
+            timeout=(10, 60),
+        )
+
+    @override_settings(
+        CORE_API_URL="http://core-api.test",
+        INTERNAL_API_TOKEN="test-token",
+        SITE_DOMAIN="http://coneshare.test"
+    )
+    @patch('documents.fileserver.requests.put')
+    @patch('documents.fileserver.requests.post')
+    def test_upload_file_failure(self, mock_post, mock_put):
+        """
+        Tests that upload_file raises APIException on PUT error.
+        """
+        mock_post_resp = MagicMock()
+        mock_post_resp.json.return_value = {'url': '/files/upload/test-upload-token'}
+        mock_post.return_value = mock_post_resp
+
+        mock_put.side_effect = requests.exceptions.RequestException("Upload failed")
+
+        client = fileserver.FileServerClient()
+        with pytest.raises(APIException) as excinfo:
+            client.upload_file('org/preview.jpg', b"data")
+
+        assert "File upload failed" in str(excinfo.value)
+
 
 # Test initialization failures
 def test_client_init_raises_runtime_error_if_settings_missing():

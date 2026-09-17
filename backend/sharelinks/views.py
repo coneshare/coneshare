@@ -901,7 +901,7 @@ class ShareLinkViewDataView(APIView):
                 enable_watermark = False
 
             pages_data = []
-            if (preview_mode == 'image' or render_status == 'ready') and document.type != 'video':
+            if (render_status == 'ready' or (preview_mode == 'image' and primary_version.has_pages)) and document.type != 'video':
                 pages_data = prepare_pages_data(
                     document,
                     primary_version,
@@ -2072,7 +2072,8 @@ class ShareLinkPageView(APIView):
 
         source_image_key = None
         if document.type == 'image' and page_number == 1:
-            source_image_key = primary_version.original_storage_key
+            page = DocumentPage.objects.filter(document_version=primary_version, page_number=1).first()
+            source_image_key = page.storage_key if page else primary_version.original_storage_key
         elif primary_version.has_pages:
             try:
                 page = DocumentPage.objects.get(document_version=primary_version, page_number=page_number)
@@ -2167,7 +2168,8 @@ class WatermarkedPageRenderView(APIView):
         # Get source image
         source_image_key = None
         if document.type == 'image' and page_number == 1:
-            source_image_key = primary_version.original_storage_key
+            page = DocumentPage.objects.filter(document_version=primary_version, page_number=1).first()
+            source_image_key = page.storage_key if page else primary_version.original_storage_key
         elif primary_version.has_pages:
             try:
                 page = DocumentPage.objects.get(document_version=primary_version, page_number=page_number)
