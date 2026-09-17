@@ -1,6 +1,13 @@
 # Changelog
 
 
+## [1.10.0](https://github.com/coneshare/coneshare/compare/v1.9.1...v1.10.0) (2026-09-17)
+
+
+### Features
+
+* **backend:** support HEIC/HEIF image preview and watermarking ([#339](https://github.com/coneshare/coneshare/issues/339)) ([3b03aeb](https://github.com/coneshare/coneshare/commit/3b03aebf10ad619edce1c5fb2359381db0ec4ff4))
+
 ## [1.9.1](https://github.com/coneshare/coneshare/compare/v1.9.0...v1.9.1) (2026-09-10)
 
 
