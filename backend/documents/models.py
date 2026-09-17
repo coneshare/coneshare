@@ -334,5 +334,17 @@ class DocumentPage(BaseModel):
     page_links = models.JSONField(default=dict, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
 
+    @property
+    def text_content(self):
+        if not self.metadata or not isinstance(self.metadata, dict):
+            return {"lines": []}
+        return self.metadata.get('text_content', {"lines": []})
+
+    @text_content.setter
+    def text_content(self, value):
+        if self.metadata is None or not isinstance(self.metadata, dict):
+            self.metadata = {}
+        self.metadata['text_content'] = value
+
     def __str__(self):
         return f'Page {self.page_number} of {self.document_version}'
