@@ -7,8 +7,10 @@ import pytest
 from django.test import override_settings
 
 from documents.models import Document, DocumentVersion, DocumentPage
-from documents.tasks import generate_pdf_pages_task, generate_video_stream_task, _resolve_pdf_object
+from documents.tasks import generate_pdf_pages_task, generate_video_stream_task, _resolve_pdf_object, _extract_text_layout_for_pdf
+from documents.views import prepare_pages_data
 from documents.services import _normalize_content_type
+from django.core.management import call_command
 
 
 @pytest.mark.django_db
@@ -604,5 +606,193 @@ def test_resolve_pdf_object_circular_reference():
     # Resolving obj_a should break cycle and return safely
     result = _resolve_pdf_object(obj_a)
     assert result in (obj_a, obj_b)
+
+
+def test_extract_text_layout_for_pdf_valid_xml():
+    sample_xml = b"""<?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+    <html xmlns="http://www.w3.org/1999/xhtml">
+      <head><title>test</title></head>
+      <body>
+        <doc>
+          <page width="600.0" height="800.0">
+            <flow>
+              <block xMin="60.0" yMin="80.0" xMax="300.0" yMax="100.0">
+                <line xMin="60.0" yMin="80.0" xMax="300.0" yMax="100.0">
+                  <word xMin="60.0" yMin="80.0" xMax="120.0" yMax="100.0">Quarterly</word>
+                  <word xMin="125.0" yMin="80.0" xMax="200.0" yMax="100.0">Revenue</word>
+                  <word xMin="205.0" yMin="80.0" xMax="300.0" yMax="100.0">Summary</word>
+                </line>
+              </block>
+            </flow>
+          </page>
+        </doc>
+      </body>
+    </html>
+    """
+    with patch("documents.tasks.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(stdout=sample_xml)
+        result = _extract_text_layout_for_pdf(b"dummy_pdf_bytes")
+
+    assert 1 in result
+    lines = result[1]["lines"]
+    assert len(lines) == 1
+    assert lines[0]["text"] == "Quarterly Revenue Summary"
+    assert lines[0]["bbox"]["left"] == 10.0  # 60 / 600 * 100
+    assert lines[0]["bbox"]["top"] == 10.0   # 80 / 800 * 100
+    assert lines[0]["bbox"]["width"] == 40.0 # (300 - 60) / 600 * 100
+    assert lines[0]["bbox"]["height"] == 2.5 # (100 - 80) / 800 * 100
+    assert lines[0]["font_size_pt"] == 20.0  # 100 - 80
+
+
+def test_extract_text_layout_for_pdf_inverted_coordinates():
+    sample_xml = b"""
+    <html xmlns="http://www.w3.org/1999/xhtml">
+      <body>
+        <doc>
+          <page width="500.0" height="1000.0">
+            <flow>
+              <block>
+                <line xMin="250.0" yMin="200.0" xMax="50.0" yMax="100.0">
+                  <word>Inverted</word>
+                  <word>Line</word>
+                </line>
+              </block>
+            </flow>
+          </page>
+        </doc>
+      </body>
+    </html>
+    """
+    with patch("documents.tasks.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(stdout=sample_xml)
+        result = _extract_text_layout_for_pdf(b"dummy_pdf_bytes")
+
+    assert 1 in result
+    line = result[1]["lines"][0]
+    assert line["text"] == "Inverted Line"
+    assert line["bbox"]["left"] == 10.0  # min(250, 50) / 500 * 100
+    assert line["bbox"]["top"] == 10.0   # min(200, 100) / 1000 * 100
+    assert line["bbox"]["width"] == 40.0 # (250 - 50) / 500 * 100
+    assert line["bbox"]["height"] == 10.0 # (200 - 100) / 1000 * 100
+    assert line["font_size_pt"] == 100.0
+
+
+def test_extract_text_layout_for_pdf_error_handling():
+    # Empty bytes
+    assert _extract_text_layout_for_pdf(b"") == {}
+
+    # Subprocess error
+    with patch("documents.tasks.subprocess.run", side_effect=Exception("poppler error")):
+        assert _extract_text_layout_for_pdf(b"bad_bytes") == {}
+
+    # Corrupt XML
+    with patch("documents.tasks.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(stdout=b"<malformed xml")
+        assert _extract_text_layout_for_pdf(b"bytes") == {}
+
+
+@pytest.mark.django_db
+def test_prepare_pages_data_watermark_suppression(user):
+    document = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="test_text_watermark.pdf",
+        status="ready",
+    )
+    version = DocumentVersion.objects.create(
+        document=document,
+        version_number=1,
+        has_pages=True,
+        render_status=DocumentVersion.RENDER_READY,
+    )
+    page = DocumentPage.objects.create(
+        document_version=version,
+        page_number=1,
+        storage_key="test_page_1.png",
+        metadata={
+            "custom_meta": "keep_this",
+            "text_content": {
+                "lines": [
+                    {
+                        "text": "Confidential internal report",
+                        "bbox": {"left": 10, "top": 10, "width": 80, "height": 5},
+                        "font_size_pt": 12,
+                    }
+                ]
+            },
+        },
+    )
+
+    # 1. Non-watermarked preview: returns text_content and safe metadata
+    pages_unwatermarked = prepare_pages_data(document, version, share_link=None)
+    assert len(pages_unwatermarked) == 1
+    assert pages_unwatermarked[0]["text_content"] == {
+        "lines": [
+            {
+                "text": "Confidential internal report",
+                "bbox": {"left": 10, "top": 10, "width": 80, "height": 5},
+                "font_size_pt": 12,
+            }
+        ]
+    }
+    # safe_metadata does not leak text_content but preserves other metadata
+    assert "text_content" not in pages_unwatermarked[0]["metadata"]
+    assert pages_unwatermarked[0]["metadata"].get("custom_meta") == "keep_this"
+
+    # 2. Watermarked share link: strictly suppresses text_content and strips from metadata
+    mock_link = MagicMock()
+    mock_link.enable_watermark = True
+    mock_link.watermark_text = "CONFIDENTIAL"
+    mock_link.slug = "secret-slug"
+    mock_link.dataroom = None
+
+    pages_watermarked = prepare_pages_data(document, version, share_link=mock_link)
+    assert len(pages_watermarked) == 1
+    assert pages_watermarked[0]["text_content"] == {"lines": []}
+    assert "text_content" not in pages_watermarked[0]["metadata"]
+    assert pages_watermarked[0]["metadata"].get("custom_meta") == "keep_this"
+
+
+@pytest.mark.django_db
+def test_extract_page_text_management_command(user):
+    document = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="test_backfill.pdf",
+        status="ready",
+    )
+    version = DocumentVersion.objects.create(
+        document=document,
+        version_number=1,
+        storage_key="docs/test_backfill.pdf",
+        has_pages=True,
+        render_status=DocumentVersion.RENDER_READY,
+    )
+    page = DocumentPage.objects.create(
+        document_version=version,
+        page_number=1,
+        storage_key="docs/test_backfill_page_1.png",
+        metadata={},
+    )
+
+    sample_lines = [
+        {"text": "Backfilled Text", "bbox": {"left": 5, "top": 5, "width": 50, "height": 2}, "font_size_pt": 14}
+    ]
+
+    with patch("documents.management.commands.extract_page_text.fileserver_client.generate_download_url") as mock_url, \
+         patch("documents.management.commands.extract_page_text.requests.get") as mock_get, \
+         patch("documents.management.commands.extract_page_text._extract_text_layout_for_pdf") as mock_extract:
+
+        mock_url.return_value = "https://files.example.com/test_backfill.pdf"
+        mock_resp = MagicMock()
+        mock_resp.content = b"%PDF-dummy"
+        mock_get.return_value = mock_resp
+        mock_extract.return_value = {1: {"lines": sample_lines}}
+
+        call_command("extract_page_text", document_id=str(document.id))
+
+    page.refresh_from_db()
+    assert page.text_content == {"lines": sample_lines}
 
 

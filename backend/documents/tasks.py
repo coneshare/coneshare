@@ -8,6 +8,7 @@ from io import BytesIO
 from celery import shared_task
 from pdf2image import convert_from_bytes, pdfinfo_from_bytes
 from pypdf import PdfReader
+import xml.etree.ElementTree as ET
 
 from datetime import timedelta
 from django.utils import timezone
@@ -176,6 +177,96 @@ def _extract_links_for_page(pdf_page, page_num):
     return links
 
 
+def _extract_text_layout_for_pdf(pdf_bytes):
+    """
+    Extracts line-level bounding box coordinates and text for each page of a PDF
+    using `pdftotext -bbox-layout`.
+    Returns a dict mapping 1-indexed page_num -> {"lines": [...]}.
+    """
+    pages_text_by_num = {}
+    if not pdf_bytes:
+        return pages_text_by_num
+
+    try:
+        proc = subprocess.run(
+            ["pdftotext", "-bbox-layout", "-", "-"],
+            input=pdf_bytes,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=60,
+            check=True
+        )
+        xml_bytes = proc.stdout
+        if not xml_bytes:
+            return pages_text_by_num
+
+        root = ET.fromstring(xml_bytes)
+        # Match pages with or without XHTML namespace
+        pages = root.findall(".//{http://www.w3.org/1999/xhtml}page")
+        if not pages:
+            pages = root.findall(".//page")
+
+        for idx, page in enumerate(pages):
+            page_num = idx + 1
+            try:
+                page_w = float(page.attrib.get('width', 0))
+                page_h = float(page.attrib.get('height', 0))
+                if page_w <= 0 or page_h <= 0:
+                    continue
+
+                lines_data = []
+                xml_lines = page.findall(".//{http://www.w3.org/1999/xhtml}line")
+                if not xml_lines:
+                    xml_lines = page.findall(".//line")
+
+                for line in xml_lines:
+                    xml_words = line.findall(".//{http://www.w3.org/1999/xhtml}word")
+                    if not xml_words:
+                        xml_words = line.findall(".//word")
+
+                    words_text = [w.text for w in xml_words if w.text and w.text.strip()]
+                    if not words_text:
+                        continue
+                    line_text = " ".join(words_text)
+
+                    # Bounding box coordinates with min/max normalization
+                    raw_x_min = float(line.attrib.get('xMin', 0))
+                    raw_x_max = float(line.attrib.get('xMax', 0))
+                    raw_y_min = float(line.attrib.get('yMin', 0))
+                    raw_y_max = float(line.attrib.get('yMax', 0))
+
+                    x_min = min(raw_x_min, raw_x_max)
+                    x_max = max(raw_x_min, raw_x_max)
+                    y_min = min(raw_y_min, raw_y_max)
+                    y_max = max(raw_y_min, raw_y_max)
+
+                    left = round((x_min / page_w) * 100, 2)
+                    top = round((y_min / page_h) * 100, 2)
+                    width = round(((x_max - x_min) / page_w) * 100, 2)
+                    height = round(((y_max - y_min) / page_h) * 100, 2)
+                    font_size_pt = round(y_max - y_min, 1)
+
+                    lines_data.append({
+                        "text": line_text,
+                        "bbox": {
+                            "left": left,
+                            "top": top,
+                            "width": width,
+                            "height": height,
+                        },
+                        "font_size_pt": font_size_pt,
+                    })
+
+                pages_text_by_num[page_num] = {"lines": lines_data}
+            except Exception as page_err:
+                logger.warning(f"Error extracting text layout for page {page_num}: {page_err}")
+
+    except Exception as err:
+        logger.warning(f"Failed to extract text layout via pdftotext: {err}")
+
+    return pages_text_by_num
+
+
 @shared_task
 def generate_pdf_pages_task(version_id):
     """
@@ -249,6 +340,9 @@ def generate_pdf_pages_task(version_id):
         except Exception as reader_err:
             logger.warning(f"Failed to parse PDF annotations/links via pypdf: {reader_err}")
 
+        # Extract text layout using pdftotext (best-effort)
+        page_text_by_num = _extract_text_layout_for_pdf(pdf_bytes)
+
         # 3. Save page images and create DB records
         base_path, _ = os.path.splitext(version.original_storage_key)
         version.pages.all().delete()
@@ -267,7 +361,8 @@ def generate_pdf_pages_task(version_id):
                 document_version=version,
                 page_number=page_num,
                 storage_key=page_storage_key,
-                page_links=page_links_by_num.get(page_num, {"links": []})
+                page_links=page_links_by_num.get(page_num, {"links": []}),
+                metadata={"text_content": page_text_by_num.get(page_num, {"lines": []})},
             )
 
         # 4. Finalize status and metadata
