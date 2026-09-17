@@ -8,6 +8,7 @@ from io import BytesIO
 from celery import shared_task
 from pdf2image import convert_from_bytes, pdfinfo_from_bytes
 from pypdf import PdfReader
+from PIL import Image, ImageOps
 
 from datetime import timedelta
 from django.utils import timezone
@@ -66,6 +67,7 @@ def convert_office_to_pdf_task(version_id):
                 raise FileNotFoundError("LibreOffice did not create a PDF file.")
 
             # 3. Upload new PDF to storage
+            # TODO(refactor): Migrate to fileserver_client.upload_file(new_storage_key, pdf_file) in a separate chore PR
             base_path, _ = os.path.splitext(version.original_storage_key)
             new_storage_key = f"{base_path}.pdf"
 
@@ -259,6 +261,7 @@ def generate_pdf_pages_task(version_id):
             buffer = BytesIO()
             image.save(buffer, format='PNG')
             
+            # TODO(refactor): Migrate to fileserver_client.upload_file(page_storage_key, buffer.getvalue()) in a separate chore PR
             upload_url = fileserver_client.generate_upload_url(page_storage_key)
             upload_response = requests.put(upload_url, data=buffer.getvalue())
             upload_response.raise_for_status()
@@ -385,6 +388,7 @@ def generate_video_stream_task(version_id):
                     continue  # skip input file
                 
                 # The output file storage key
+                # TODO(refactor): Migrate to fileserver_client.upload_file(storage_key, f_in) in a separate chore PR
                 storage_key = f"{hls_prefix}/{file_path.name}"
                 upload_url = fileserver_client.generate_upload_url(storage_key)
                 
@@ -411,6 +415,90 @@ def generate_video_stream_task(version_id):
         try:
             version.render_status = DocumentVersion.RENDER_FAILED
             version.render_error = str(e)[:1000]
+            version.save(update_fields=['render_status', 'render_error', 'updated_at'])
+        except Exception:
+            pass
+
+
+@shared_task
+def transcode_heic_image_task(version_id):
+    """Transcodes a HEIC/HEIF image into a web-safe JPEG preview asset."""
+    try:
+        version = DocumentVersion.objects.select_related('document').get(id=version_id)
+        document = version.document
+
+        if version.has_pages:
+            version.render_status = DocumentVersion.RENDER_READY
+            version.render_error = ''
+            version.save(update_fields=['render_status', 'render_error', 'updated_at'])
+            return
+
+        version.render_status = DocumentVersion.RENDER_PROCESSING
+        version.render_error = ''
+        version.save(update_fields=['render_status', 'render_error', 'updated_at'])
+
+        # 1. Download original HEIC file
+        download_url = fileserver_client.generate_download_url(version.original_storage_key)
+        response = requests.get(download_url, timeout=(10, 120))
+        response.raise_for_status()
+
+        # 2. Decode and normalize
+        with Image.open(BytesIO(response.content)) as raw_img:
+            # Auto-rotate based on EXIF tags
+            img = ImageOps.exif_transpose(raw_img)
+
+            # Convert palette/transparency to RGB for JPEG
+            if img.mode in ('RGBA', 'LA', 'P'):
+                rgb_img = Image.new('RGB', img.size, (255, 255, 255))
+                rgb_img.paste(img, mask=img.split()[-1] if img.mode in ('RGBA', 'LA') else None)
+                img = rgb_img
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+
+            # Mandatory 2560px downsampling guard (OOM and load time protection)
+            max_dimension = 2560
+            if img.width > max_dimension or img.height > max_dimension:
+                img.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
+
+            # 3. Export to JPEG buffer
+            buffer = BytesIO()
+            img.save(buffer, format='JPEG', quality=88, optimize=True)
+            buffer.seek(0)
+            img_width, img_height = img.width, img.height
+
+        # 4. Upload preview asset (using tasks.py storage key naming convention)
+        base_path, _ = os.path.splitext(version.original_storage_key)
+        page_storage_key = f"{base_path}_page_1.jpg"
+        fileserver_client.upload_file(page_storage_key, buffer.getvalue(), content_type='image/jpeg')
+
+        # 5. Persist DocumentPage and update version
+        version.pages.all().delete()
+        DocumentPage.objects.create(
+            document_version=version,
+            page_number=1,
+            storage_key=page_storage_key,
+            metadata={"width": img_width, "height": img_height},
+            page_links={"links": []},
+        )
+
+        version.num_pages = 1
+        version.has_pages = True
+        version.render_status = DocumentVersion.RENDER_READY
+        version.render_error = ''
+        version.save(update_fields=['num_pages', 'has_pages', 'render_status', 'render_error', 'updated_at'])
+
+        if version.is_primary:
+            document.num_pages = 1
+            document.status = 'ready'
+            document.status_message = ''
+            document.save(update_fields=['num_pages', 'status', 'status_message', 'updated_at'])
+
+    except Exception as e:
+        logger.exception(f"Failed to transcode HEIC version {version_id}: {e}")
+        try:
+            version = DocumentVersion.objects.get(id=version_id)
+            version.render_status = DocumentVersion.RENDER_FAILED
+            version.render_error = f"Failed to transcode HEIC image: {str(e)}"
             version.save(update_fields=['render_status', 'render_error', 'updated_at'])
         except Exception:
             pass

@@ -17,7 +17,12 @@ from core.models import User
 from core.services import get_dynamic_setting
 from .fileserver import fileserver_client
 from .models import Document, DocumentPage, DocumentVersion, Folder
-from .tasks import convert_office_to_pdf_task, generate_pdf_pages_task, generate_video_stream_task
+from .tasks import (
+    convert_office_to_pdf_task,
+    generate_pdf_pages_task,
+    generate_video_stream_task,
+    transcode_heic_image_task,
+)
 
 
 OFFICE_MIMETYPES = [
@@ -28,7 +33,20 @@ OFFICE_MIMETYPES = [
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',  # .xlsx
     'application/vnd.ms-excel',  # .xls
 ]
-IMAGE_MIMETYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+HEIC_MIMETYPES = [
+    'image/heic',
+    'image/heif',
+    'image/heic-sequence',
+    'image/heif-sequence',
+]
+IMAGE_MIMETYPES = [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    *HEIC_MIMETYPES,
+]
+HEIC_EXTENSIONS = {'.heic', '.heif'}
 VIDEO_MIMETYPES = [
     'video/mp4',
     'video/quicktime',  # .mov
@@ -133,6 +151,22 @@ def _normalize_content_type(content_type: str, filename: str) -> str:
     return content_type
 
 
+def is_heic_file(content_type: str, filename: str = '') -> bool:
+    if content_type in HEIC_MIMETYPES:
+        return True
+    if filename:
+        ext = os.path.splitext(filename)[1].lower()
+        if ext in HEIC_EXTENSIONS:
+            return True
+    return False
+
+
+def is_heic_version(version: DocumentVersion) -> bool:
+    filename = version.document.name if version.document else ''
+    storage_key = version.original_storage_key or version.storage_key or ''
+    return is_heic_file(version.content_type, filename) or is_heic_file('', storage_key)
+
+
 def _get_doc_type_from_content_type(content_type: str) -> str:
     """Determines the document type from its MIME type."""
     if content_type in OFFICE_MIMETYPES:
@@ -154,11 +188,15 @@ def _route_document_for_processing(document: Document, version: DocumentVersion,
     TODO: We may need to rename this function (e.g., to `_initialize_document_metadata_and_states`)
     since it no longer directly routes/triggers Celery processing tasks under lazy preview mode.
     """
+    content_type = _normalize_content_type(content_type, document.name)
     max_preview_file_size_mb = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
     max_size_bytes = max_preview_file_size_mb * 1024 * 1024
     is_too_large = file_size > max_size_bytes
 
-    doc_type = _get_doc_type_from_content_type(content_type)
+    if is_heic_file(content_type, document.name):
+        doc_type = 'image'
+    else:
+        doc_type = _get_doc_type_from_content_type(content_type)
     
     if doc_type == 'video':
         max_video_size_mb = get_dynamic_setting('MAX_VIDEO_PREVIEW_SIZE_MB')
@@ -181,12 +219,20 @@ def _route_document_for_processing(document: Document, version: DocumentVersion,
     # generation is deferred until the first preview request.
     if is_previewable:
         if doc_type == 'image':
-            document.status = 'ready'
-            document.num_pages = 1
-            version.num_pages = 1
-            version.has_pages = True
-            version.render_status = DocumentVersion.RENDER_NOT_APPLICABLE
-            version.save()
+            if is_heic_file(content_type, document.name):
+                document.status = 'ready'
+                document.num_pages = 1
+                version.num_pages = 1
+                version.has_pages = False
+                version.render_status = DocumentVersion.RENDER_NOT_GENERATED
+                version.save(update_fields=['has_pages', 'num_pages', 'render_status', 'render_error', 'updated_at'])
+            else:
+                document.status = 'ready'
+                document.num_pages = 1
+                version.num_pages = 1
+                version.has_pages = True
+                version.render_status = DocumentVersion.RENDER_NOT_APPLICABLE
+                version.save()
         elif doc_type == 'video':
             document.status = 'ready'
             version.has_pages = False
@@ -251,6 +297,12 @@ def get_effective_render_status(version: DocumentVersion) -> str:
         if not settings.ENABLE_VIDEO_PREVIEW:
             return DocumentVersion.RENDER_NOT_APPLICABLE
         return version.render_status
+    if is_heic_version(version):
+        max_preview_size = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
+        file_size = version.file_size or (version.document.file_size if version.document else 0)
+        if file_size and file_size > (max_preview_size * 1024 * 1024):
+            return DocumentVersion.RENDER_NOT_APPLICABLE
+        return version.render_status
     if not is_server_renderable_version(version):
         return DocumentVersion.RENDER_NOT_APPLICABLE
     return version.render_status
@@ -259,6 +311,14 @@ def get_effective_render_status(version: DocumentVersion) -> str:
 def preview_mode_for_version(version: DocumentVersion) -> str:
     """Choose the viewer mode from document type and server-render eligibility."""
     document = version.document
+
+    if is_heic_version(version):
+        max_preview_file_size_mb = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
+        file_size = version.file_size or (document.file_size if document else 0)
+        if file_size and file_size > (max_preview_file_size_mb * 1024 * 1024):
+            return 'download_only'
+        return 'image'
+
     if document.is_download_only:
         return 'download_only'
         
@@ -306,6 +366,10 @@ def _is_dynamically_previewable(version: DocumentVersion) -> bool:
     """Helper to check if a version is dynamically previewable based on current settings."""
     if version.type == 'video':
         return settings.ENABLE_VIDEO_PREVIEW and not version.document.is_download_only
+    if is_heic_version(version):
+        max_preview_size = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
+        file_size = version.file_size or (version.document.file_size if version.document else 0)
+        return not bool(file_size and file_size > (max_preview_size * 1024 * 1024))
     return is_server_renderable_version(version)
 
 
@@ -336,6 +400,18 @@ def enqueue_server_preview_render(version: DocumentVersion) -> str:
                 render_status=DocumentVersion.RENDER_NOT_APPLICABLE,
             ).update(render_status=DocumentVersion.RENDER_NOT_GENERATED)
             version.render_status = DocumentVersion.RENDER_NOT_GENERATED
+            if is_heic_version(version):
+                doc = version.document
+                doc_update_fields = []
+                if doc.download_only:
+                    doc.download_only = False
+                    doc_update_fields.append('download_only')
+                if doc.type != 'image':
+                    doc.type = 'image'
+                    doc_update_fields.append('type')
+                if doc_update_fields:
+                    doc_update_fields.append('updated_at')
+                    doc.save(update_fields=doc_update_fields)
 
     # 2. Proceed with normal enqueue logic
     render_status = get_effective_render_status(version)
@@ -363,6 +439,8 @@ def enqueue_server_preview_render(version: DocumentVersion) -> str:
             generate_pdf_pages_task.delay(version.id)
         elif version.type == 'video':
             generate_video_stream_task.delay(version.id)
+        elif is_heic_version(version):
+            transcode_heic_image_task.delay(str(version.id))
         return DocumentVersion.RENDER_QUEUED
 
     # Another request or worker changed the row first. Refresh only the fields

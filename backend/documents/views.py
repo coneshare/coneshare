@@ -44,6 +44,7 @@ from .services import (
     preview_status_for_render_status,
     promote_document_version,
     touch_folder_ancestors,
+    is_heic_version,
 )
 
 
@@ -548,6 +549,10 @@ def prepare_pages_data(
         is_watermarked = False
 
     if document.type == 'image':
+        page_obj = primary_version.pages.filter(page_number=1).first()
+        source_storage_key = page_obj.storage_key if page_obj else primary_version.original_storage_key
+        page_metadata = page_obj.metadata if page_obj else {}
+
         absolute_url = None
         if share_link:
             base_url_part = "render-page" if is_watermarked else "page"
@@ -557,13 +562,13 @@ def prepare_pages_data(
             absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
         else:
             absolute_url = fileserver_client.generate_download_url(
-                primary_version.original_storage_key, is_internal=False, filename=document.name
+                source_storage_key, is_internal=False, filename=document.name
             )
 
         pages_data.append({
             'page_number': 1,
             'url': absolute_url,
-            'metadata': {},
+            'metadata': page_metadata,
             'page_links': {'links': []},
         })
     elif primary_version.has_pages:
@@ -694,11 +699,11 @@ class DocumentPreviewDataView(APIView):
 
         # Content Processing and Response Shaping
         pages_data = []
-        if (preview_mode == 'image' or render_status == 'ready') and document.type != 'video':
+        if (render_status == 'ready' or (preview_mode == 'image' and primary_version.has_pages)) and document.type != 'video':
             pages_data = prepare_pages_data(document, primary_version)
 
         download_url = None
-        if preview_mode == 'image' and pages_data:
+        if preview_mode == 'image' and pages_data and not is_heic_version(primary_version):
             download_url = pages_data[0]['url']
         elif primary_version.original_storage_key:
             try:
