@@ -7,8 +7,8 @@ import pytest
 from django.test import override_settings
 
 from documents.models import Document, DocumentVersion, DocumentPage
+from documents.renderers import normalize_content_type
 from documents.tasks import generate_pdf_pages_task, generate_video_stream_task, _resolve_pdf_object
-from documents.services import _normalize_content_type
 
 
 @pytest.mark.django_db
@@ -579,11 +579,11 @@ class TestGenerateVideoStreamTask:
 
 def test_normalize_content_type():
     # Generic or empty types should be guessed from filename
-    assert _normalize_content_type('', 'video.mov') == 'video/quicktime'
-    assert _normalize_content_type('application/octet-stream', 'movie.mp4') == 'video/mp4'
+    assert normalize_content_type('', 'video.mov') == 'video/quicktime'
+    assert normalize_content_type('application/octet-stream', 'movie.mp4') == 'video/mp4'
     # Existing valid types should be preserved
-    assert _normalize_content_type('video/mp4', 'movie.mov') == 'video/mp4'
-    assert _normalize_content_type('application/pdf', 'doc.pdf') == 'application/pdf'
+    assert normalize_content_type('video/mp4', 'movie.mov') == 'video/mp4'
+    assert normalize_content_type('application/pdf', 'doc.pdf') == 'application/pdf'
 
 
 def test_resolve_pdf_object_circular_reference():
