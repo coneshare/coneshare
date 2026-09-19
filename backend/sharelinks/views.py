@@ -38,13 +38,11 @@ from datarooms.serializers import (PublicDataroomDocumentSerializer,
                                    PublicDataroomFolderSerializer)
 from datarooms.views import get_dataroom_queryset_for_user
 from documents.fileserver import fileserver_client
-from documents.models import DocumentPage
 from documents.services import (
-    enqueue_server_preview_render,
-    preview_mode_for_version,
     preview_status_for_render_status,
 )
 from core.pagination import StandardResultsSetPagination
+from documents.renderers import get_renderer
 from documents.views import prepare_pages_data
 from automations.tasks import dispatch_automation_event_task
 from .models import (DataroomVisit, EmailVerificationToken, PreviewSession,
@@ -877,8 +875,9 @@ class ShareLinkViewDataView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            preview_mode = preview_mode_for_version(primary_version)
-            render_status = enqueue_server_preview_render(primary_version)
+            renderer = get_renderer(primary_version)
+            preview_mode = renderer.get_preview_mode(primary_version)
+            render_status = renderer.enqueue_render_task(primary_version)
 
             preview_status = preview_status_for_render_status(render_status)
             if preview_mode == 'client_pdf':
@@ -901,7 +900,7 @@ class ShareLinkViewDataView(APIView):
                 enable_watermark = False
 
             pages_data = []
-            if (render_status == 'ready' or (preview_mode == 'image' and primary_version.has_pages)) and document.type != 'video':
+            if renderer.should_serve_pages(primary_version, render_status):
                 pages_data = prepare_pages_data(
                     document,
                     primary_version,
@@ -2070,19 +2069,10 @@ class ShareLinkPageView(APIView):
         if not primary_version:
             return Response({"message": "Document version not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        source_image_key = None
-        if document.type == 'image' and page_number == 1:
-            page = DocumentPage.objects.filter(document_version=primary_version, page_number=1).first()
-            source_image_key = page.storage_key if page else primary_version.original_storage_key
-        elif primary_version.has_pages:
-            try:
-                page = DocumentPage.objects.get(document_version=primary_version, page_number=page_number)
-                source_image_key = page.storage_key
-            except DocumentPage.DoesNotExist:
-                return Response({"message": "Page not found."}, status=status.HTTP_404_NOT_FOUND)
-
+        renderer = get_renderer(primary_version)
+        source_image_key = renderer.get_page_storage_key(primary_version, page_number)
         if not source_image_key:
-            return Response({"message": "Source image for page not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "Page not found."}, status=status.HTTP_404_NOT_FOUND)
 
         try:
             download_url = fileserver_client.generate_download_url(source_image_key, is_internal=False)
@@ -2166,19 +2156,10 @@ class WatermarkedPageRenderView(APIView):
             return Response({"message": "Document version not found."}, status=status.HTTP_404_NOT_FOUND)
 
         # Get source image
-        source_image_key = None
-        if document.type == 'image' and page_number == 1:
-            page = DocumentPage.objects.filter(document_version=primary_version, page_number=1).first()
-            source_image_key = page.storage_key if page else primary_version.original_storage_key
-        elif primary_version.has_pages:
-            try:
-                page = DocumentPage.objects.get(document_version=primary_version, page_number=page_number)
-                source_image_key = page.storage_key
-            except DocumentPage.DoesNotExist:
-                return Response({"message": "Page not found."}, status=status.HTTP_404_NOT_FOUND)
-
+        renderer = get_renderer(primary_version)
+        source_image_key = renderer.get_page_storage_key(primary_version, page_number)
         if not source_image_key:
-            return Response({"message": "Source image for page not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "Page not found."}, status=status.HTTP_404_NOT_FOUND)
 
         viewer_email = auth_status.get('viewer_email', '')
 

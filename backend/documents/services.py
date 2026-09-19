@@ -17,6 +17,7 @@ from core.models import User
 from core.services import get_dynamic_setting
 from .fileserver import fileserver_client
 from .models import Document, DocumentPage, DocumentVersion, Folder
+from .renderers import get_renderer_for_file, normalize_content_type
 from .tasks import (
     convert_office_to_pdf_task,
     generate_pdf_pages_task,
@@ -143,30 +144,6 @@ def recalculate_user_document_size(user: User) -> int:
         return user.total_document_size
 
 
-def _normalize_content_type(content_type: str, filename: str) -> str:
-    if not content_type or content_type == 'application/octet-stream':
-        guessed_type, _ = mimetypes.guess_type(filename)
-        if guessed_type:
-            return guessed_type
-    return content_type
-
-
-def is_heic_file(content_type: str, filename: str = '') -> bool:
-    if content_type in HEIC_MIMETYPES:
-        return True
-    if filename:
-        ext = os.path.splitext(filename)[1].lower()
-        if ext in HEIC_EXTENSIONS:
-            return True
-    return False
-
-
-def is_heic_version(version: DocumentVersion) -> bool:
-    filename = version.document.name if version.document else ''
-    storage_key = version.original_storage_key or version.storage_key or ''
-    return is_heic_file(version.content_type, filename) or is_heic_file('', storage_key)
-
-
 def _get_doc_type_from_content_type(content_type: str) -> str:
     """Determines the document type from its MIME type."""
     if content_type in OFFICE_MIMETYPES:
@@ -184,166 +161,10 @@ def _route_document_for_processing(document: Document, version: DocumentVersion,
     """
     Sets initial metadata and preview rendering states on document and version
     records based on file type and size. Defers heavy processing tasks.
-
-    TODO: We may need to rename this function (e.g., to `_initialize_document_metadata_and_states`)
-    since it no longer directly routes/triggers Celery processing tasks under lazy preview mode.
+    Delegates to the active preview renderer.
     """
-    content_type = _normalize_content_type(content_type, document.name)
-    max_preview_file_size_mb = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
-    max_size_bytes = max_preview_file_size_mb * 1024 * 1024
-    is_too_large = file_size > max_size_bytes
-
-    if is_heic_file(content_type, document.name):
-        doc_type = 'image'
-    else:
-        doc_type = _get_doc_type_from_content_type(content_type)
-    
-    if doc_type == 'video':
-        max_video_size_mb = get_dynamic_setting('MAX_VIDEO_PREVIEW_SIZE_MB')
-        max_size_bytes = max_video_size_mb * 1024 * 1024
-        is_too_large = file_size > max_size_bytes
-        is_previewable = settings.ENABLE_VIDEO_PREVIEW and not is_too_large
-    else:
-        is_previewable = doc_type != 'file' and not is_too_large
-
-    # Update parent document attributes
-    document.download_only = not is_previewable
-    document.type = doc_type
-    document.content_type = content_type
-    document.file_size = file_size
-    document.status_message = ''
-
-    version.render_error = ''
-
-    # The file itself is ready after upload. Heavy server-rendered preview
-    # generation is deferred until the first preview request.
-    if is_previewable:
-        if doc_type == 'image':
-            if is_heic_file(content_type, document.name):
-                document.status = 'ready'
-                document.num_pages = 1
-                version.num_pages = 1
-                version.has_pages = False
-                version.render_status = DocumentVersion.RENDER_NOT_GENERATED
-                version.save(update_fields=['has_pages', 'num_pages', 'render_status', 'render_error', 'updated_at'])
-            else:
-                document.status = 'ready'
-                document.num_pages = 1
-                version.num_pages = 1
-                version.has_pages = True
-                version.render_status = DocumentVersion.RENDER_NOT_APPLICABLE
-                version.save()
-        elif doc_type == 'video':
-            document.status = 'ready'
-            version.has_pages = False
-            version.render_status = DocumentVersion.RENDER_NOT_GENERATED
-            version.save(update_fields=['has_pages', 'render_status', 'render_error', 'updated_at'])
-        else:  # Office or PDF
-            document.status = 'ready'
-            version.has_pages = False
-            version.render_status = DocumentVersion.RENDER_NOT_GENERATED
-            version.save(update_fields=['has_pages', 'render_status', 'render_error', 'updated_at'])
-    else:  # Download only
-        document.status = 'ready'
-        version.has_pages = False
-        version.render_status = DocumentVersion.RENDER_NOT_APPLICABLE
-        version.save(update_fields=['has_pages', 'render_status', 'render_error', 'updated_at'])
-
-    document.save()
-
-
-def is_server_renderable_version(version: DocumentVersion) -> bool:
-    """
-    Return whether this version can use the server page-image renderer.
-
-    Check both document.type and version.type because they can diverge during
-    Office conversion: the user-facing document remains "document", while the
-    processed version may become "pdf" after LibreOffice conversion. A
-    download-only document is excluded even if its MIME family is renderable;
-    upload routing uses download_only for unsupported files and files larger
-    than MAX_PREVIEW_FILE_SIZE_MB, and future capability flags may also use it
-    to keep Office/PDF files out of the heavy preview pipeline.
-    """
-    document = version.document
-    
-    if document.is_download_only:
-        return False
-        
-    if document.type not in SERVER_RENDERABLE_TYPES or version.type not in SERVER_RENDERABLE_TYPES:
-        return False
-        
-    if settings.PDF_PREVIEW_ENGINE != 'server_pages':
-        return False
-        
-    if document.type == 'document' and not settings.ENABLE_OFFICE_PREVIEW:
-        return False
-        
-    return True
-
-
-def get_effective_render_status(version: DocumentVersion) -> str:
-    """
-    Normalize persisted render fields into the status the preview API should expose.
-
-    has_pages wins because page-image assets are the server renderer's usable
-    output. If those assets exist, preview can proceed even if render_status is
-    stale from older rows, migrations, or interrupted task updates. The fallback
-    to not_generated is defensive for incomplete legacy/test objects; persisted
-    rows should normally have a non-empty render_status from the model default.
-    """
-    if version.has_pages:
-        return DocumentVersion.RENDER_READY
-    if version.type == 'video':
-        if not settings.ENABLE_VIDEO_PREVIEW:
-            return DocumentVersion.RENDER_NOT_APPLICABLE
-        return version.render_status
-    if is_heic_version(version):
-        max_preview_size = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
-        file_size = version.file_size or (version.document.file_size if version.document else 0)
-        if file_size and file_size > (max_preview_size * 1024 * 1024):
-            return DocumentVersion.RENDER_NOT_APPLICABLE
-        return version.render_status
-    if not is_server_renderable_version(version):
-        return DocumentVersion.RENDER_NOT_APPLICABLE
-    return version.render_status
-
-
-def preview_mode_for_version(version: DocumentVersion) -> str:
-    """Choose the viewer mode from document type and server-render eligibility."""
-    document = version.document
-
-    if is_heic_version(version):
-        max_preview_file_size_mb = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
-        file_size = version.file_size or (document.file_size if document else 0)
-        if file_size and file_size > (max_preview_file_size_mb * 1024 * 1024):
-            return 'download_only'
-        return 'image'
-
-    if document.is_download_only:
-        return 'download_only'
-        
-    if document.type == 'video':
-        if not settings.ENABLE_VIDEO_PREVIEW:
-            return 'download_only'
-        max_video_size = get_dynamic_setting('MAX_VIDEO_PREVIEW_SIZE_MB')
-        if version.file_size and version.file_size > (max_video_size * 1024 * 1024):
-            return 'download_only'
-        return 'video'
-
-    max_preview_file_size_mb = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
-    if version.file_size and version.file_size > (max_preview_file_size_mb * 1024 * 1024):
-        return 'download_only'
-
-    if document.type == 'image':
-        return 'image'
-        
-    if document.type == 'pdf' and settings.PDF_PREVIEW_ENGINE == 'pdfjs':
-        return 'client_pdf'
-        
-    if is_server_renderable_version(version):
-        return 'server_pages'
-        
-    return 'download_only'
+    renderer = get_renderer_for_file(content_type, document.name)
+    renderer.initialize_metadata(document, version, file_size, content_type)
 
 
 def preview_status_for_render_status(render_status: str) -> str:
@@ -360,93 +181,6 @@ def preview_status_for_render_status(render_status: str) -> str:
     if render_status == DocumentVersion.RENDER_NOT_GENERATED:
         return 'not_generated'
     return 'not_applicable'
-
-
-def _is_dynamically_previewable(version: DocumentVersion) -> bool:
-    """Helper to check if a version is dynamically previewable based on current settings."""
-    if version.type == 'video':
-        return settings.ENABLE_VIDEO_PREVIEW and not version.document.is_download_only
-    if is_heic_version(version):
-        max_preview_size = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
-        file_size = version.file_size or (version.document.file_size if version.document else 0)
-        return not bool(file_size and file_size > (max_preview_size * 1024 * 1024))
-    return is_server_renderable_version(version)
-
-
-def enqueue_server_preview_render(version: DocumentVersion) -> str:
-    """
-    Ensure server page-image generation is queued when this version needs it.
-
-    This is safe to call for any preview request: ready, failed, processing,
-    queued, download-only, and image versions are returned as-is.
-    
-    If the version was previously saved as RENDER_NOT_APPLICABLE but is now
-    dynamically previewable (e.g. settings limits were raised), it resets the
-    DB status to RENDER_NOT_GENERATED.
-    
-    Then, only not_generated server-renderable versions attempt the conditional
-    update to RENDER_QUEUED. That update is the idempotency boundary for
-    concurrent first views.
-
-    Returns the effective render status after the enqueue attempt or race
-    resolution. Keeps the passed model instance synchronized for callers that
-    also read render_error or render_status while shaping the response.
-    """
-    # 1. Reset persisted RENDER_NOT_APPLICABLE if settings changed to allow previews
-    if version.render_status == DocumentVersion.RENDER_NOT_APPLICABLE:
-        if _is_dynamically_previewable(version):
-            DocumentVersion.objects.filter(
-                pk=version.pk,
-                render_status=DocumentVersion.RENDER_NOT_APPLICABLE,
-            ).update(render_status=DocumentVersion.RENDER_NOT_GENERATED)
-            version.render_status = DocumentVersion.RENDER_NOT_GENERATED
-            if is_heic_version(version):
-                doc = version.document
-                doc_update_fields = []
-                if doc.download_only:
-                    doc.download_only = False
-                    doc_update_fields.append('download_only')
-                if doc.type != 'image':
-                    doc.type = 'image'
-                    doc_update_fields.append('type')
-                if doc_update_fields:
-                    doc_update_fields.append('updated_at')
-                    doc.save(update_fields=doc_update_fields)
-
-    # 2. Proceed with normal enqueue logic
-    render_status = get_effective_render_status(version)
-    if render_status != DocumentVersion.RENDER_NOT_GENERATED:
-        return render_status
-
-    # Atomically claim the render job. Only the first concurrent preview request
-    # that still sees not_generated should transition the row and enqueue work.
-    updated = DocumentVersion.objects.filter(
-        pk=version.pk,
-        render_status=DocumentVersion.RENDER_NOT_GENERATED,
-    ).update(
-        render_status=DocumentVersion.RENDER_QUEUED,
-        render_error='',
-    )
-
-    if updated:
-        # QuerySet.update() bypasses this Python model instance, so keep it in
-        # sync for callers that shape the API response from the same object.
-        version.render_status = DocumentVersion.RENDER_QUEUED
-        version.render_error = ''
-        if version.type == 'document':
-            convert_office_to_pdf_task.delay(version.id)
-        elif version.type == 'pdf':
-            generate_pdf_pages_task.delay(version.id)
-        elif version.type == 'video':
-            generate_video_stream_task.delay(version.id)
-        elif is_heic_version(version):
-            transcode_heic_image_task.delay(str(version.id))
-        return DocumentVersion.RENDER_QUEUED
-
-    # Another request or worker changed the row first. Refresh only the fields
-    # needed to compute the effective status and expose an accurate error.
-    version.refresh_from_db(fields=['render_status', 'has_pages', 'render_error'])
-    return get_effective_render_status(version)
 
 
 def _get_unique_document_name(requesting_user, folder, original_name: str) -> str:
@@ -502,7 +236,7 @@ def create_document_from_upload(
 
     for attempt in range(max_retries):
         target_name = _get_unique_document_name(requesting_user, folder, unique_name)
-        content_type = _normalize_content_type(content_type, target_name)
+        content_type = normalize_content_type(content_type, target_name)
         doc_type = _get_doc_type_from_content_type(content_type)
 
         try:
@@ -765,7 +499,7 @@ def create_new_document_version(
     latest_version = document.versions.order_by('-version_number').first()
     new_version_number = (latest_version.version_number if latest_version else 0) + 1
 
-    content_type = _normalize_content_type(content_type, document.name)
+    content_type = normalize_content_type(content_type, document.name)
     doc_type = _get_doc_type_from_content_type(content_type)
 
     with transaction.atomic():

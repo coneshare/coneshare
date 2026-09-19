@@ -39,13 +39,11 @@ from .services import (
     empty_trash,
     generate_storage_key,
     copy_document,
-    enqueue_server_preview_render,
-    preview_mode_for_version,
     preview_status_for_render_status,
     promote_document_version,
     touch_folder_ancestors,
-    is_heic_version,
 )
+from .renderers import get_renderer
 
 
 logger = logging.getLogger(__name__)
@@ -534,64 +532,16 @@ def prepare_pages_data(
 ):
     """
     Prepares a list of page data with absolute URLs for a given document version.
-    Handles both image types and paginated document types.
-    If a share_link is provided, it generates secure, permission-checked URLs.
+    Delegates to the active preview renderer.
     """
-    pages_data = []
-    if share_link:
-        watermark_enabled = (
-            enable_watermark_override
-            if enable_watermark_override is not None
-            else share_link.enable_watermark
-        )
-        is_watermarked = watermark_enabled and bool(share_link.watermark_text)
-    else:
-        is_watermarked = False
-
-    if document.type == 'image':
-        page_obj = primary_version.pages.filter(page_number=1).first()
-        source_storage_key = page_obj.storage_key if page_obj else primary_version.original_storage_key
-        page_metadata = page_obj.metadata if page_obj else {}
-
-        absolute_url = None
-        if share_link:
-            base_url_part = "render-page" if is_watermarked else "page"
-            page_url = f"/api/v1/links/{share_link.slug}/{base_url_part}/1/"
-            if share_link.dataroom:
-                page_url += f"?dataroom_document_id={dataroom_document_id}"
-            absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
-        else:
-            absolute_url = fileserver_client.generate_download_url(
-                source_storage_key, is_internal=False, filename=document.name
-            )
-
-        pages_data.append({
-            'page_number': 1,
-            'url': absolute_url,
-            'metadata': page_metadata,
-            'page_links': {'links': []},
-        })
-    elif primary_version.has_pages:
-        # For PDFs/Office docs, we have pre-generated page images.
-        pages = primary_version.pages.order_by('page_number')
-        for page in pages:
-            absolute_url = None
-            if share_link:
-                base_url_part = "render-page" if is_watermarked else "page"
-                page_url = f"/api/v1/links/{share_link.slug}/{base_url_part}/{page.page_number}/"
-                if share_link.dataroom:
-                    page_url += f"?dataroom_document_id={dataroom_document_id}"
-                absolute_url = urljoin(settings.SITE_DOMAIN, page_url)
-            else:
-                absolute_url = fileserver_client.generate_download_url(page.storage_key, is_internal=False)
-
-            pages_data.append({
-                "page_number": page.page_number,
-                "url": absolute_url,
-                "metadata": page.metadata,
-                "page_links": page.page_links if isinstance(page.page_links, dict) else {"links": []},
-            })
-    return pages_data
+    renderer = get_renderer(primary_version)
+    return renderer.get_preview_pages_data(
+        document=document,
+        version=primary_version,
+        share_link=share_link,
+        dataroom_document_id=dataroom_document_id,
+        enable_watermark_override=enable_watermark_override,
+    )
 
 
 @extend_schema(tags=['documents'])
@@ -690,8 +640,9 @@ class DocumentPreviewDataView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        preview_mode = preview_mode_for_version(primary_version)
-        render_status = enqueue_server_preview_render(primary_version)
+        renderer = get_renderer(primary_version)
+        preview_mode = renderer.get_preview_mode(primary_version)
+        render_status = renderer.enqueue_render_task(primary_version)
 
         preview_status = preview_status_for_render_status(render_status)
         if preview_mode == 'client_pdf':
@@ -699,19 +650,10 @@ class DocumentPreviewDataView(APIView):
 
         # Content Processing and Response Shaping
         pages_data = []
-        if (render_status == 'ready' or (preview_mode == 'image' and primary_version.has_pages)) and document.type != 'video':
+        if renderer.should_serve_pages(primary_version, render_status):
             pages_data = prepare_pages_data(document, primary_version)
 
-        download_url = None
-        if preview_mode == 'image' and pages_data and not is_heic_version(primary_version):
-            download_url = pages_data[0]['url']
-        elif primary_version.original_storage_key:
-            try:
-                download_url = fileserver_client.generate_download_url(
-                    primary_version.original_storage_key, is_internal=False
-                )
-            except APIException:
-                download_url = None
+        download_url = renderer.get_download_url(document, primary_version, pages_data)
 
         pdf_preview_url = None
         if preview_mode == 'client_pdf':
@@ -1121,7 +1063,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
                 logger.error(f"Failed to delete page file {storage_key} during force rebuild: {e}")
 
         # Re-enqueue the background task
-        render_status = enqueue_server_preview_render(primary_version)
+        render_status = get_renderer(primary_version).enqueue_render_task(primary_version)
         preview_status = preview_status_for_render_status(render_status)
 
         return Response({

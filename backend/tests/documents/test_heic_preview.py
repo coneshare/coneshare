@@ -7,12 +7,8 @@ from rest_framework.test import APIClient
 
 from documents.models import Document, DocumentVersion, DocumentPage
 from sharelinks.models import ShareLink
-from documents.services import (
-    _route_document_for_processing,
-    get_effective_render_status,
-    enqueue_server_preview_render,
-    preview_mode_for_version,
-)
+from documents.renderers import get_renderer
+from documents.services import _route_document_for_processing
 from documents.tasks import transcode_heic_image_task
 
 
@@ -97,7 +93,7 @@ class TestHeicPreviewLifecycle:
             content_type="image/heic",
         )
 
-        assert get_effective_render_status(ver) == DocumentVersion.RENDER_NOT_GENERATED
+        assert get_renderer(ver).get_effective_render_status(ver) == DocumentVersion.RENDER_NOT_GENERATED
 
     def test_get_effective_render_status_heic_ready_when_has_pages(self, user):
         doc = Document.objects.create(name="IMG_0001.HEIC", type="image", created_by=user, organization=user.organization)
@@ -112,7 +108,7 @@ class TestHeicPreviewLifecycle:
             content_type="image/heic",
         )
 
-        assert get_effective_render_status(ver) == DocumentVersion.RENDER_READY
+        assert get_renderer(ver).get_effective_render_status(ver) == DocumentVersion.RENDER_READY
 
     @patch('documents.tasks.transcode_heic_image_task.delay')
     def test_enqueue_server_preview_render_dispatches_task_for_heic(self, mock_delay, user):
@@ -128,7 +124,7 @@ class TestHeicPreviewLifecycle:
             content_type="image/heic",
         )
 
-        result = enqueue_server_preview_render(ver)
+        result = get_renderer(ver).enqueue_render_task(ver)
         ver.refresh_from_db()
 
         assert result == DocumentVersion.RENDER_QUEUED
@@ -267,7 +263,7 @@ class TestHeicPreviewDataApiView:
         assert data["preview_status"] == "processing"
         assert data["pages"] == []
 
-    @patch('documents.views.fileserver_client')
+    @patch('documents.fileserver.fileserver_client')
     def test_preview_data_heic_ready_state_serves_preview_page(self, mock_fileserver, user):
         mock_fileserver.generate_download_url.side_effect = lambda key, **kw: f"http://fileserver/{key}"
 
