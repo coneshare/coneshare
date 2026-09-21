@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import tempfile
@@ -11,6 +12,7 @@ from pypdf import PdfReader
 from PIL import Image, ImageOps
 
 from datetime import timedelta
+from django.conf import settings
 from django.utils import timezone
 from django.db.models import Q
 
@@ -342,12 +344,29 @@ def generate_video_stream_task(version_id):
             )
             duration = int(float(d_probe.stdout.strip()))
 
-            # 3. Detect codecs for H.264 / AAC compatibility
+            # 3. Detect video attributes (codec, dimensions, pixel format) and audio codec
             v_probe = subprocess.run(
-                ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name", "-of", "default=noprint_wrappers=1:nokey=1", str(original_file_path)],
+                [
+                    "ffprobe", "-v", "error", "-select_streams", "v:0",
+                    "-show_entries", "stream=codec_name,width,height,pix_fmt",
+                    "-of", "json", str(original_file_path)
+                ],
                 capture_output=True, text=True, check=True
             )
-            v_codec = v_probe.stdout.strip()
+            v_codec = ""
+            v_width = 0
+            v_height = 0
+            v_pix_fmt = ""
+            try:
+                probe_data = json.loads(v_probe.stdout)
+                streams = probe_data.get("streams", [])
+                if streams:
+                    v_codec = streams[0].get("codec_name", "") or ""
+                    v_width = int(streams[0].get("width", 0) or 0)
+                    v_height = int(streams[0].get("height", 0) or 0)
+                    v_pix_fmt = streams[0].get("pix_fmt", "") or ""
+            except (json.JSONDecodeError, ValueError, TypeError):
+                v_codec = v_probe.stdout.strip()
 
             a_probe = subprocess.run(
                 ["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=codec_name", "-of", "default=noprint_wrappers=1:nokey=1", str(original_file_path)],
@@ -356,14 +375,49 @@ def generate_video_stream_task(version_id):
             a_codec = a_probe.stdout.strip()
 
             # 4. Formulate the ffmpeg command.
-            # If web-safe, use copy codec; otherwise transcode.
-            playlist_name = "playlist.m3u8"
-            ffmpeg_cmd = ["nice", "-n", "19", "ffmpeg", "-i", str(original_file_path)]
+            transcode_preset = settings.VIDEO_TRANSCODE_PRESET
+            transcode_threads = str(settings.VIDEO_TRANSCODE_THREADS)
+            max_width = settings.VIDEO_TRANSCODE_MAX_WIDTH
+            max_height = settings.VIDEO_TRANSCODE_MAX_HEIGHT
+            scale_filter = (
+                f"scale='min({max_width},iw)':min'({max_height},ih)':force_original_aspect_ratio=decrease,"
+                f"scale=trunc(iw/2)*2:trunc(ih/2)*2"
+            )
 
-            if v_codec == 'h264' and a_codec in ('aac', 'mp3', ''):
-                ffmpeg_cmd += ["-codec", "copy"]
+            playlist_name = "playlist.m3u8"
+            # Bound filter graph threads, input decoder threads, and output encoder threads
+            ffmpeg_cmd = [
+                "nice", "-n", "19",
+                "ffmpeg",
+                "-filter_threads", transcode_threads,
+                "-threads", transcode_threads,
+                "-i", str(original_file_path),
+                "-threads", transcode_threads,
+            ]
+
+            # Video stream handling: only copy if already web-standard H.264, 8-bit YUV 4:2:0, and within bounds
+            can_copy_video = (
+                v_codec == 'h264'
+                and v_pix_fmt == 'yuv420p'
+                and 0 < v_width <= max_width
+                and 0 < v_height <= max_height
+            )
+
+            if can_copy_video:
+                ffmpeg_cmd += ["-vcodec", "copy"]
             else:
-                ffmpeg_cmd += ["-vcodec", "libx264", "-acodec", "aac"]
+                ffmpeg_cmd += [
+                    "-vcodec", "libx264",
+                    "-preset", transcode_preset,
+                    "-pix_fmt", "yuv420p",
+                    "-vf", scale_filter,
+                ]
+
+            # Audio stream handling
+            if a_codec in ('aac', 'mp3', ''):
+                ffmpeg_cmd += ["-acodec", "copy"]
+            else:
+                ffmpeg_cmd += ["-acodec", "aac"]
 
             # HLS segmenting options
             ffmpeg_cmd += [

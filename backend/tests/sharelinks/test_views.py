@@ -14,6 +14,7 @@ from rest_framework import status
 
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
 from documents.models import (Document, DocumentPage, DocumentVersion)
+from documents.renderers.base import BasePreviewRenderer
 from sharelinks.models import (DataroomVisit, EmailVerificationToken, PageView,
                                PreviewSession, ShareLink,
                                ShareLinkDataroomSetting, ViewSession, LinkClick)
@@ -577,7 +578,7 @@ class TestShareLinkViewDataView:
 
         mock_fs_download_url.assert_called_once_with("path/to/original.pdf", is_internal=False, filename=share_link.document.name)
 
-    @patch('sharelinks.views.enqueue_server_preview_render')
+    @patch.object(BasePreviewRenderer, 'enqueue_render_task')
     @patch('sharelinks.views.fileserver_client.generate_download_url')
     def test_get_share_link_data_hides_download_url_when_downloads_disabled(
         self, mock_fs_download_url, mock_enqueue_preview, public_client, share_link
@@ -1379,7 +1380,7 @@ class TestDataroomVisitTracking:
         data = response.json()
         assert "dataroom_context" not in data
 
-    @patch('sharelinks.views.enqueue_server_preview_render')
+    @patch.object(BasePreviewRenderer, 'enqueue_render_task')
     @patch('sharelinks.views.fileserver_client.generate_download_url')
     def test_get_dataroom_document_hides_download_url_when_item_downloads_disabled(
         self, mock_fs_download_url, mock_enqueue_preview, public_client, user, dataroom, document
@@ -1493,6 +1494,28 @@ class TestDataroomVisitTracking:
         data = response.json()
         assert data["link_settings"]["enable_watermark"] is False
         assert data["pages"][0]["url"] == f"http://test.coneshare.com/api/v1/links/{link.slug}/page/1/?dataroom_document_id={ddoc.id}"
+
+    @override_settings(SITE_DOMAIN="http://test.coneshare.com")
+    def test_dataroom_document_watermark_enabled_generates_render_page_url(
+        self, public_client, user, dataroom, image_document_with_content
+    ):
+        """
+        When watermarking is enabled for a dataroom document, view-data must
+        generate render-page URLs preserving the dataroom_document_id param.
+        """
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=image_document_with_content)
+        link = ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            enable_watermark=True,
+            watermark_text="CONFIDENTIAL",
+        )
+        response = public_client.get(f"/api/v1/links/{link.slug}/view-data/?dataroom_document_id={ddoc.id}")
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["link_settings"]["enable_watermark"] is True
+        assert data["pages"][0]["url"] == f"http://test.coneshare.com/api/v1/links/{link.slug}/render-page/1/?dataroom_document_id={ddoc.id}"
+
 
     def test_render_page_rejects_dataroom_document_when_item_watermark_is_disabled(
         self, public_client, user, dataroom, image_document_with_content
