@@ -177,6 +177,23 @@ if ENABLE_OFFICE_PREVIEW and PDF_PREVIEW_ENGINE != 'server_pages':
 
 ENABLE_VIDEO_PREVIEW = os.environ.get('ENABLE_VIDEO_PREVIEW', 'false').lower() in ('true', '1', 't')
 
+# Video transcoding optimization settings
+VIDEO_TRANSCODE_PRESET = os.environ.get('VIDEO_TRANSCODE_PRESET', 'superfast')
+try:
+    VIDEO_TRANSCODE_THREADS = int(os.environ.get('VIDEO_TRANSCODE_THREADS', '2'))
+except ValueError:
+    VIDEO_TRANSCODE_THREADS = 2
+
+try:
+    VIDEO_TRANSCODE_MAX_WIDTH = int(os.environ.get('VIDEO_TRANSCODE_MAX_WIDTH', '1920'))
+except ValueError:
+    VIDEO_TRANSCODE_MAX_WIDTH = 1920
+
+try:
+    VIDEO_TRANSCODE_MAX_HEIGHT = int(os.environ.get('VIDEO_TRANSCODE_MAX_HEIGHT', '1080'))
+except ValueError:
+    VIDEO_TRANSCODE_MAX_HEIGHT = 1080
+
 
 # ==============================================================================
 # APPLICATION STRUCTURE (defined in code)

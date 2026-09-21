@@ -1,9 +1,11 @@
+import json
 import tempfile as real_tempfile
 import shutil
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
+from django.conf import settings
 from django.test import override_settings
 
 from documents.models import Document, DocumentVersion, DocumentPage
@@ -532,7 +534,14 @@ class TestGenerateVideoStreamTask:
         mock_probe_duration = MagicMock()
         mock_probe_duration.stdout = "120.5\n"
         mock_probe_vcodec = MagicMock()
-        mock_probe_vcodec.stdout = "h264\n"
+        mock_probe_vcodec.stdout = json.dumps({
+            "streams": [{
+                "codec_name": "h264",
+                "width": 1920,
+                "height": 1080,
+                "pix_fmt": "yuv420p"
+            }]
+        })
         mock_probe_acodec = MagicMock()
         mock_probe_acodec.stdout = "aac\n"
 
@@ -575,6 +584,313 @@ class TestGenerateVideoStreamTask:
         assert version.render_status == DocumentVersion.RENDER_READY
         assert version.length == 120
         assert version.storage_key == "path/to/original_hls/playlist.m3u8"
+
+        # Assert ffmpeg command uses stream copying for both streams
+        ffmpeg_cmd = mock_subprocess.call_args_list[3][0][0]
+        assert "-vcodec" in ffmpeg_cmd and ffmpeg_cmd[ffmpeg_cmd.index("-vcodec") + 1] == "copy"
+        assert "-acodec" in ffmpeg_cmd and ffmpeg_cmd[ffmpeg_cmd.index("-acodec") + 1] == "copy"
+        assert "-threads" in ffmpeg_cmd
+
+    @patch('documents.tasks.subprocess.run')
+    @patch('documents.tasks.requests.put')
+    @patch('documents.tasks.fileserver_client.generate_upload_url')
+    @patch('documents.tasks.requests.get')
+    @patch('documents.tasks.fileserver_client.generate_download_url')
+    @patch('documents.tasks.tempfile.TemporaryDirectory')
+    def test_video_transcoding_non_h264_optimization(
+        self,
+        mock_temp_dir,
+        mock_fs_download_url,
+        mock_requests_get,
+        mock_fs_upload_url,
+        mock_requests_put,
+        mock_subprocess,
+        user
+    ):
+        document = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="clip.mov",
+            type="video",
+            status='processing',
+        )
+        version = DocumentVersion.objects.create(
+            document=document,
+            version_number=1,
+            original_storage_key="path/to/clip.mov",
+            storage_key="path/to/clip.mov",
+            is_primary=True,
+            type="video",
+        )
+
+        mock_fs_download_url.return_value = "/files/download/token"
+        mock_get_response = MagicMock()
+        mock_get_response.raise_for_status.return_value = None
+        mock_get_response.iter_content.return_value = [b"chunk1"]
+        mock_requests_get.return_value = mock_get_response
+
+        # Mock ffprobe and ffmpeg calls: HEVC video, AAC audio
+        mock_probe_duration = MagicMock()
+        mock_probe_duration.stdout = "30.0\n"
+        mock_probe_vcodec = MagicMock()
+        mock_probe_vcodec.stdout = json.dumps({
+            "streams": [{
+                "codec_name": "hevc",
+                "width": 2560,
+                "height": 1440,
+                "pix_fmt": "yuv420p10le"
+            }]
+        })
+        mock_probe_acodec = MagicMock()
+        mock_probe_acodec.stdout = "aac\n"
+        mock_ffmpeg_run = MagicMock()
+
+        mock_subprocess.side_effect = [
+            mock_probe_duration,
+            mock_probe_vcodec,
+            mock_probe_acodec,
+            mock_ffmpeg_run,
+        ]
+
+        mock_fs_upload_url.return_value = "/upload/hls-file"
+        mock_requests_put.return_value = MagicMock()
+
+        real_dir = real_tempfile.mkdtemp()
+        real_dir_path = Path(real_dir)
+        mock_context = MagicMock()
+        mock_context.__enter__.return_value = real_dir
+        mock_temp_dir.return_value = mock_context
+
+        (real_dir_path / "playlist.m3u8").write_text("#EXTM3U\n")
+        (real_dir_path / "playlist0.ts").write_bytes(b"ts-chunk")
+
+        try:
+            generate_video_stream_task(version.id)
+        finally:
+            shutil.rmtree(real_dir)
+
+        # Inspect the ffmpeg command executed
+        assert mock_subprocess.call_count == 4
+        ffmpeg_cmd = mock_subprocess.call_args_list[3][0][0]
+
+        # Verify performance & compatibility optimizations are applied
+        i_idx = ffmpeg_cmd.index("-i")
+
+        # Global filtergraph threads
+        assert "-filter_threads" in ffmpeg_cmd
+        ft_idx = ffmpeg_cmd.index("-filter_threads")
+        assert ft_idx < i_idx
+        assert ffmpeg_cmd[ft_idx + 1] == str(settings.VIDEO_TRANSCODE_THREADS)
+
+        # Pre-input decoder threads and post-input encoder threads
+        assert ffmpeg_cmd.count("-threads") == 2
+        pre_threads_idx = ffmpeg_cmd.index("-threads")
+        assert pre_threads_idx < i_idx
+        assert ffmpeg_cmd[pre_threads_idx + 1] == str(settings.VIDEO_TRANSCODE_THREADS)
+
+        post_threads_idx = ffmpeg_cmd.index("-threads", i_idx)
+        assert ffmpeg_cmd[post_threads_idx + 1] == str(settings.VIDEO_TRANSCODE_THREADS)
+
+        assert "-preset" in ffmpeg_cmd
+        preset_idx = ffmpeg_cmd.index("-preset")
+        assert ffmpeg_cmd[preset_idx + 1] == settings.VIDEO_TRANSCODE_PRESET
+
+        assert "-pix_fmt" in ffmpeg_cmd
+        pix_fmt_idx = ffmpeg_cmd.index("-pix_fmt")
+        assert ffmpeg_cmd[pix_fmt_idx + 1] == "yuv420p"
+
+        assert "-vf" in ffmpeg_cmd
+
+        # When audio is already AAC, it should be copied rather than re-encoded
+        acodec_idx = ffmpeg_cmd.index("-acodec")
+        assert ffmpeg_cmd[acodec_idx + 1] == "copy"
+
+    @patch('documents.tasks.subprocess.run')
+    @patch('documents.tasks.requests.put')
+    @patch('documents.tasks.fileserver_client.generate_upload_url')
+    @patch('documents.tasks.requests.get')
+    @patch('documents.tasks.fileserver_client.generate_download_url')
+    @patch('documents.tasks.tempfile.TemporaryDirectory')
+    def test_video_transcoding_h264_exceeds_bounds_transcodes(
+        self,
+        mock_temp_dir,
+        mock_fs_download_url,
+        mock_requests_get,
+        mock_fs_upload_url,
+        mock_requests_put,
+        mock_subprocess,
+        user
+    ):
+        document = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="4k_h264.mp4",
+            type="video",
+            status='processing',
+        )
+        version = DocumentVersion.objects.create(
+            document=document,
+            version_number=1,
+            original_storage_key="path/to/4k_h264.mp4",
+            storage_key="path/to/4k_h264.mp4",
+            is_primary=True,
+            type="video",
+        )
+
+        mock_fs_download_url.return_value = "/files/download/token"
+        mock_get_response = MagicMock()
+        mock_get_response.raise_for_status.return_value = None
+        mock_get_response.iter_content.return_value = [b"chunk1"]
+        mock_requests_get.return_value = mock_get_response
+
+        # Mock ffprobe: 4K H.264 video (3840x2160), exceeds MAX_WIDTH (1920)
+        mock_probe_duration = MagicMock()
+        mock_probe_duration.stdout = "60.0\n"
+
+        mock_probe_vcodec = MagicMock()
+        mock_probe_vcodec.stdout = json.dumps({
+            "streams": [{
+                "codec_name": "h264",
+                "width": 3840,
+                "height": 2160,
+                "pix_fmt": "yuv420p"
+            }]
+        })
+
+        mock_probe_acodec = MagicMock()
+        mock_probe_acodec.stdout = "aac\n"
+        mock_ffmpeg_run = MagicMock()
+
+        mock_subprocess.side_effect = [
+            mock_probe_duration,
+            mock_probe_vcodec,
+            mock_probe_acodec,
+            mock_ffmpeg_run,
+        ]
+
+        mock_fs_upload_url.return_value = "/upload/hls-file"
+        mock_requests_put.return_value = MagicMock()
+
+        real_dir = real_tempfile.mkdtemp()
+        real_dir_path = Path(real_dir)
+        mock_context = MagicMock()
+        mock_context.__enter__.return_value = real_dir
+        mock_temp_dir.return_value = mock_context
+
+        (real_dir_path / "playlist.m3u8").write_text("#EXTM3U\n")
+        (real_dir_path / "playlist0.ts").write_bytes(b"ts-chunk")
+
+        try:
+            generate_video_stream_task(version.id)
+        finally:
+            shutil.rmtree(real_dir)
+
+        # Inspect the ffprobe and ffmpeg commands executed
+        assert mock_subprocess.call_count == 4
+        v_probe_cmd = mock_subprocess.call_args_list[1][0][0]
+        assert any("width" in arg for arg in v_probe_cmd)
+        assert any("pix_fmt" in arg for arg in v_probe_cmd)
+
+        ffmpeg_cmd = mock_subprocess.call_args_list[3][0][0]
+
+        # 4K H.264 must NOT be stream copied; it must be transcoded with downscale filter
+        assert "-vcodec" in ffmpeg_cmd
+        vcodec_idx = ffmpeg_cmd.index("-vcodec")
+        assert ffmpeg_cmd[vcodec_idx + 1] == "libx264"
+        assert "-vf" in ffmpeg_cmd
+        assert "-pix_fmt" in ffmpeg_cmd
+        assert ffmpeg_cmd[ffmpeg_cmd.index("-pix_fmt") + 1] == "yuv420p"
+
+    @patch('documents.tasks.subprocess.run')
+    @patch('documents.tasks.requests.put')
+    @patch('documents.tasks.fileserver_client.generate_upload_url')
+    @patch('documents.tasks.requests.get')
+    @patch('documents.tasks.fileserver_client.generate_download_url')
+    @patch('documents.tasks.tempfile.TemporaryDirectory')
+    def test_video_transcoding_h264_non_yuv420p_transcodes(
+        self,
+        mock_temp_dir,
+        mock_fs_download_url,
+        mock_requests_get,
+        mock_fs_upload_url,
+        mock_requests_put,
+        mock_subprocess,
+        user
+    ):
+        document = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="10bit_h264.mp4",
+            type="video",
+            status='processing',
+        )
+        version = DocumentVersion.objects.create(
+            document=document,
+            version_number=1,
+            original_storage_key="path/to/10bit_h264.mp4",
+            storage_key="path/to/10bit_h264.mp4",
+            is_primary=True,
+            type="video",
+        )
+
+        mock_fs_download_url.return_value = "/files/download/token"
+        mock_get_response = MagicMock()
+        mock_get_response.raise_for_status.return_value = None
+        mock_get_response.iter_content.return_value = [b"chunk1"]
+        mock_requests_get.return_value = mock_get_response
+
+        # Mock ffprobe: 1080p H.264 video with 10-bit High 10 profile (yuv420p10le)
+        mock_probe_duration = MagicMock()
+        mock_probe_duration.stdout = "60.0\n"
+
+        mock_probe_vcodec = MagicMock()
+        mock_probe_vcodec.stdout = json.dumps({
+            "streams": [{
+                "codec_name": "h264",
+                "width": 1920,
+                "height": 1080,
+                "pix_fmt": "yuv420p10le"
+            }]
+        })
+
+        mock_probe_acodec = MagicMock()
+        mock_probe_acodec.stdout = "aac\n"
+        mock_ffmpeg_run = MagicMock()
+
+        mock_subprocess.side_effect = [
+            mock_probe_duration,
+            mock_probe_vcodec,
+            mock_probe_acodec,
+            mock_ffmpeg_run,
+        ]
+
+        mock_fs_upload_url.return_value = "/upload/hls-file"
+        mock_requests_put.return_value = MagicMock()
+
+        real_dir = real_tempfile.mkdtemp()
+        real_dir_path = Path(real_dir)
+        mock_context = MagicMock()
+        mock_context.__enter__.return_value = real_dir
+        mock_temp_dir.return_value = mock_context
+
+        (real_dir_path / "playlist.m3u8").write_text("#EXTM3U\n")
+        (real_dir_path / "playlist0.ts").write_bytes(b"ts-chunk")
+
+        try:
+            generate_video_stream_task(version.id)
+        finally:
+            shutil.rmtree(real_dir)
+
+        # Inspect the ffprobe and ffmpeg commands executed
+        assert mock_subprocess.call_count == 4
+        ffmpeg_cmd = mock_subprocess.call_args_list[3][0][0]
+
+        # 10-bit H.264 must NOT be stream copied; it must be transcoded to 8-bit yuv420p
+        assert "-vcodec" in ffmpeg_cmd
+        vcodec_idx = ffmpeg_cmd.index("-vcodec")
+        assert ffmpeg_cmd[vcodec_idx + 1] == "libx264"
+        assert "-pix_fmt" in ffmpeg_cmd
+        assert ffmpeg_cmd[ffmpeg_cmd.index("-pix_fmt") + 1] == "yuv420p"
 
 
 def test_normalize_content_type():
