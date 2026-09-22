@@ -978,6 +978,42 @@ def test_get_document_preview_data_success(mock_fs_download_url, api_client, use
 
 
 @pytest.mark.django_db
+@patch('documents.fileserver.fileserver_client.generate_download_url')
+def test_get_spreadsheet_document_preview_data_success(mock_fs_download_url, api_client, user):
+    """Test retrieving preview data for a spreadsheet document."""
+    mock_fs_download_url.return_value = "http://test.coneshare.com/files/download/sheet-json"
+    doc = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="sales.xlsx",
+        type="spreadsheet",
+        num_pages=2,
+        status='ready'
+    )
+    version = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        is_primary=True,
+        has_pages=False,
+        num_pages=2,
+        type="spreadsheet",
+        storage_key="documents/1/sales_spreadsheet.json",
+        original_storage_key="documents/1/sales.xlsx",
+        render_status="ready"
+    )
+
+    response = api_client.get(f'/api/v1/documents/{doc.id}/preview-data/')
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data['preview_mode'] == 'spreadsheet'
+    assert data['preview_status'] == 'ready'
+    assert data['spreadsheet_preview_url'] == "http://test.coneshare.com/files/download/sheet-json"
+    assert data['num_pages'] == 2
+    mock_fs_download_url.assert_any_call("documents/1/sales_spreadsheet.json", is_internal=False)
+
+
+@pytest.mark.django_db
 def test_get_document_preview_data_permission_denied_for_other_user(api_client, user2):
     """Test a user cannot access preview data for a document they don't own."""
     # user2 creates a document

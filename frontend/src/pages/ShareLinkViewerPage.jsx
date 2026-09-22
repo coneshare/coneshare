@@ -8,6 +8,7 @@ import { ViewerToolbar } from '../components/viewer/ViewerToolbar';
 import { PreviewViewer } from '../components/documents/PreviewViewer';
 import { PdfJsViewer } from '../components/documents/PdfJsViewer';
 import { VideoViewer } from '../components/documents/VideoViewer';
+import { SpreadsheetViewer } from '../components/documents/SpreadsheetViewer';
 import { DataroomViewer } from '../components/viewer/DataroomViewer';
 import { QnAPanel } from '../components/viewer/QnAPanel';
 import { printPdf, printImages } from '../lib/print';
@@ -475,15 +476,21 @@ export function ShareLinkViewerPage() {
   }
 
   // Document-specific state and handlers
-  const PREVIEWABLE_TYPES = ['image', 'pdf', 'document', 'video'];
+  const PREVIEWABLE_TYPES = ['image', 'pdf', 'document', 'video', 'spreadsheet'];
   const isPreviewable = viewData && PREVIEWABLE_TYPES.includes(viewData.type);
   const canDownload = Boolean(viewData?.link_settings?.allow_download);
   const isQnaEnabled = viewData?.link_settings?.enable_qna !== false;
   const isVideo = viewData && viewData.type === 'video';
   const isVideoReady = isVideo && viewData.preview_status === 'ready';
+  const isSpreadsheet = viewData && viewData.preview_mode === 'spreadsheet';
+  const isSpreadsheetReady = isSpreadsheet && (viewData.preview_status === 'ready' || Boolean(viewData.spreadsheet_preview_url));
   const canRenderPages = hasRenderablePages(viewData);
   const showPreviewState = viewData && isPreviewable && !viewData.download_only && (
-    isVideo ? !isVideoReady : (!canRenderPages && viewData.preview_mode !== 'client_pdf')
+    isVideo
+      ? !isVideoReady
+      : isSpreadsheet
+        ? !isSpreadsheetReady
+        : (!canRenderPages && viewData.preview_mode !== 'client_pdf')
   );
   const qnaButtonLabel = (isQnaOpen
     ? t('qna.closeQna', { defaultValue: 'Close Q&A' })
@@ -678,6 +685,20 @@ export function ShareLinkViewerPage() {
                 downloadUrl={downloadUrl}
               />
             </div>
+          ) : viewData.preview_mode === 'spreadsheet' ? (
+            <SpreadsheetViewer
+              ref={viewerComponentRef}
+              spreadsheetUrl={viewData.spreadsheet_preview_url}
+              title={viewData.name}
+              watermarkText={
+                viewData.link_settings?.enable_watermark
+                  ? (viewData.link_settings.resolved_watermark_text || viewData.link_settings.watermark_text || '')
+                  : ''
+              }
+              allowDownload={viewData.link_settings?.allow_download ?? true}
+              zoomLevel={zoomLevel}
+              documentData={viewData}
+            />
           ) : viewData.preview_mode === 'client_pdf' ? (
             <PdfJsViewer
               ref={viewerComponentRef}

@@ -27,8 +27,31 @@ describe("FileTypeIcon", () => {
   });
 
   it("renders fallback icon for unknown type", () => {
-    render(<FileTypeIcon type="xls" />);
+    render(<FileTypeIcon type="unknown_ext" />);
     expect(screen.getByTestId("file-type-icon-unknown")).toBeInTheDocument();
+  });
+
+  it("renders spreadsheet icon for spreadsheet, xlsx, csv, and spreadsheet filenames", () => {
+    const { rerender } = render(<FileTypeIcon type="spreadsheet" />);
+    expect(screen.getByTestId("file-type-icon-spreadsheet")).toBeInTheDocument();
+
+    rerender(<FileTypeIcon type="xlsx" />);
+    expect(screen.getByTestId("file-type-icon-spreadsheet")).toBeInTheDocument();
+
+    rerender(<FileTypeIcon type="csv" />);
+    expect(screen.getByTestId("file-type-icon-spreadsheet")).toBeInTheDocument();
+
+    rerender(<FileTypeIcon type="xls" />);
+    expect(screen.getByTestId("file-type-icon-spreadsheet")).toBeInTheDocument();
+
+    rerender(<FileTypeIcon type="tsv" />);
+    expect(screen.getByTestId("file-type-icon-spreadsheet")).toBeInTheDocument();
+
+    rerender(<FileTypeIcon type="financial_report.xlsx" />);
+    expect(screen.getByTestId("file-type-icon-spreadsheet")).toBeInTheDocument();
+
+    rerender(<FileTypeIcon type="data.csv" />);
+    expect(screen.getByTestId("file-type-icon-spreadsheet")).toBeInTheDocument();
   });
 
   it("renders video icon for video type", () => {

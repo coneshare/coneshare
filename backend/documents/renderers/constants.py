@@ -1,12 +1,17 @@
+SPREADSHEET_MIMETYPES = [
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',  # .xlsx
+    'text/csv',  # .csv
+]
+SPREADSHEET_EXTENSIONS = {'.xlsx', '.csv'}
+
 OFFICE_MIMETYPES = [
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',  # .docx
     'application/msword',  # .doc
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',  # .pptx
     'application/vnd.ms-powerpoint',  # .ppt
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',  # .xlsx
     'application/vnd.ms-excel',  # .xls
 ]
-OFFICE_EXTENSIONS = {'.docx', '.doc', '.pptx', '.ppt', '.xlsx', '.xls'}
+OFFICE_EXTENSIONS = {'.docx', '.doc', '.pptx', '.ppt', '.xls'}
 
 HEIC_MIMETYPES = [
     'image/heic',

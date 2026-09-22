@@ -16,8 +16,9 @@ help:
 	@echo "  up.malware      - Start services with malware profile (includes clamav)"
 	@echo "  down            - Stop and remove all services"
 	@echo "  build           - Build or rebuild services"
-	@echo "  portal    - Build the static portal site"
+	@echo "  portal          - Build the static portal site"
 	@echo "  logs            - Follow logs for all services"
+	@echo "  reload.celery   - Restart Celery workers (celery_worker, video_worker)"
 	@echo "  core.sh         - Attach a shell to the core container"
 	@echo "  back.sh         - Attach a shell to the backend container"
 	@echo "  front.sh        - Attach a shell to the frontend container"
@@ -74,6 +75,11 @@ dist:
 .PHONY: logs
 logs:
 	docker-compose logs -f
+
+.PHONY: reload.celery
+reload.celery:
+	@echo "Reloading Celery workers..."
+	COMPOSE_PROJECT_NAME=coneshare docker-compose restart celery_worker video_worker
 
 .PHONY: core.sh
 core.sh:

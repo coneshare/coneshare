@@ -959,6 +959,11 @@ class ShareLinkViewDataView(APIView):
                     logger.warning(f"Failed to generate client video URL for version {primary_version.id}: {e}")
                     video_preview_url = None
 
+            spreadsheet_preview_url = None
+            if preview_mode == 'spreadsheet' and render_status == 'ready':
+                if hasattr(renderer, 'get_spreadsheet_preview_url'):
+                    spreadsheet_preview_url = renderer.get_spreadsheet_preview_url(primary_version)
+
             # Resolve watermark template tokens for the frontend CSS overlay.
             # The raw template (e.g. "{{ip-address}} {{email}}") is resolved here so
             # the client does not need to know the viewer's email or IP.
@@ -982,6 +987,7 @@ class ShareLinkViewDataView(APIView):
                 "pages": pages_data,
                 "pdf_preview_url": pdf_preview_url,
                 "video_preview_url": video_preview_url,
+                "spreadsheet_preview_url": spreadsheet_preview_url,
                 "download_url": download_url,
                 "link_settings": {
                     "id": link.id,

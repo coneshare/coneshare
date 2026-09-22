@@ -600,6 +600,7 @@ class DocumentPreviewDataView(APIView):
         pages = serializers.ListField(child=serializers.DictField())
         pdf_preview_url = serializers.CharField(allow_null=True)
         video_preview_url = serializers.CharField(allow_null=True)
+        spreadsheet_preview_url = serializers.CharField(allow_null=True)
         download_url = serializers.CharField(allow_null=True)
 
     @extend_schema(
@@ -676,6 +677,11 @@ class DocumentPreviewDataView(APIView):
                 logger.warning(f"Failed to generate client video URL for version {primary_version.id}: {e}")
                 video_preview_url = None
 
+        spreadsheet_preview_url = None
+        if preview_mode == 'spreadsheet' and render_status == 'ready':
+            if hasattr(renderer, 'get_spreadsheet_preview_url'):
+                spreadsheet_preview_url = renderer.get_spreadsheet_preview_url(primary_version)
+
         response_data = {
             "id": document.id,
             "name": document.name,
@@ -688,6 +694,7 @@ class DocumentPreviewDataView(APIView):
             "pages": pages_data,
             "pdf_preview_url": pdf_preview_url,
             "video_preview_url": video_preview_url,
+            "spreadsheet_preview_url": spreadsheet_preview_url,
             "download_url": download_url,
         }
 

@@ -11,10 +11,12 @@ import { PreviewViewer } from './PreviewViewer';
 import {
   hasRenderablePages,
   isPreviewPending,
+  isPreviewFailed,
   PreviewStatePanel,
 } from './PreviewStatePanel';
 import { PdfJsViewer } from './PdfJsViewer';
 import { VideoViewer } from './VideoViewer';
+import { SpreadsheetViewer } from './SpreadsheetViewer';
 import { ViewerToolbar } from '../viewer/ViewerToolbar';
 import { printPdf, printImages } from '../../lib/print';
 
@@ -185,7 +187,7 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
             </div>
           )}
           {error && <p className="text-center text-red-500">{error}</p>}
-          {documentData && (hasRenderablePages(documentData) || documentData.preview_mode === 'client_pdf') && !isLoading && !error && (
+          {documentData && (hasRenderablePages(documentData) || documentData.preview_mode === 'client_pdf' || documentData.preview_mode === 'spreadsheet') && !isLoading && !error && (
             <ViewerToolbar
               allowDownload={Boolean(documentData.download_url)}
               downloadUrl={documentData.download_url}
@@ -204,12 +206,22 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
             />
           )}
 
-          {documentData && hasRenderablePages(documentData) && documentData.preview_mode !== 'client_pdf' && (
+          {documentData && hasRenderablePages(documentData) && documentData.preview_mode !== 'client_pdf' && documentData.preview_mode !== 'spreadsheet' && (
             <PreviewViewer
               ref={viewerComponentRef}
               documentData={documentData}
               zoomLevel={zoomLevel}
               onPageChange={setCurrentPage}
+            />
+          )}
+          {documentData && documentData.preview_mode === 'spreadsheet' && !isPreviewPending(documentData) && !isPreviewFailed(documentData) && (
+            <SpreadsheetViewer
+              ref={viewerComponentRef}
+              spreadsheetUrl={documentData.spreadsheet_preview_url}
+              title={documentData.name}
+              allowDownload={Boolean(documentData.download_url)}
+              zoomLevel={zoomLevel}
+              documentData={documentData}
             />
           )}
           {documentData && documentData.preview_mode === 'client_pdf' && (
@@ -233,7 +245,7 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
               />
             </div>
           )}
-          {documentData && !hasRenderablePages(documentData) && documentData.preview_mode !== 'client_pdf' && documentData.preview_mode !== 'video' && !error && (
+          {documentData && !hasRenderablePages(documentData) && documentData.preview_mode !== 'client_pdf' && documentData.preview_mode !== 'video' && (documentData.preview_mode !== 'spreadsheet' || isPreviewPending(documentData) || isPreviewFailed(documentData)) && !error && (
             <PreviewStatePanel
               documentData={documentData}
               allowDownload={Boolean(documentData.download_url)}

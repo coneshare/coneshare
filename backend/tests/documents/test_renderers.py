@@ -9,6 +9,7 @@ from documents.renderers import (
     GenericFileRenderer,
     OfficeRenderer,
     PDFRenderer,
+    SpreadsheetRenderer,
     TranscodedImageRenderer,
     VideoRenderer,
     get_renderer,
@@ -65,11 +66,20 @@ class TestRendererRegistryPriority:
             ("application/msword", "doc.doc"),
             ("application/vnd.openxmlformats-officedocument.presentationml.presentation", "slides.pptx"),
             ("application/vnd.ms-powerpoint", "slides.ppt"),
-            ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "data.xlsx"),
             ("application/vnd.ms-excel", "data.xls"),
         ]:
             renderer = get_renderer_for_file(ct, fn)
             assert isinstance(renderer, OfficeRenderer), f"Failed for {fn}"
+
+    def test_spreadsheet_resolves_to_spreadsheet_renderer(self):
+        for ct, fn in [
+            ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "data.xlsx"),
+            ("text/csv", "sheet.csv"),
+            ("application/octet-stream", "data.xlsx"),
+            ("application/octet-stream", "table.csv"),
+        ]:
+            renderer = get_renderer_for_file(ct, fn)
+            assert isinstance(renderer, SpreadsheetRenderer), f"Failed for {fn}"
 
     def test_video_resolves_to_video_renderer(self):
         for ct, fn in [
@@ -116,12 +126,20 @@ class TestVersionResolutionAndOfficeDivergence:
         )
         assert isinstance(get_renderer(ver), OfficeRenderer)
 
-    def test_version_resolution_native_pdf(self, user):
-        doc = Document.objects.create(name="report.pdf", type="pdf", created_by=user, organization=user.organization)
+    def test_version_resolution_spreadsheet(self, user):
+        doc = Document.objects.create(name="financials.xlsx", type="spreadsheet", created_by=user, organization=user.organization)
         ver = DocumentVersion.objects.create(
-            document=doc, version_number=1, original_storage_key="report.pdf", type="pdf", content_type="application/pdf"
+            document=doc, version_number=1, original_storage_key="financials.xlsx", type="spreadsheet", content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-        assert isinstance(get_renderer(ver), PDFRenderer)
+        assert isinstance(get_renderer(ver), SpreadsheetRenderer)
+
+    def test_version_resolution_legacy_xlsx_with_pages_falls_back_to_office(self, user):
+        """Zero migration invariant: legacy .xlsx with has_pages=True stays with OfficeRenderer."""
+        doc = Document.objects.create(name="legacy.xlsx", type="document", created_by=user, organization=user.organization)
+        ver = DocumentVersion.objects.create(
+            document=doc, version_number=1, original_storage_key="legacy.xlsx", type="document", has_pages=True
+        )
+        assert isinstance(get_renderer(ver), OfficeRenderer)
 
 
 @pytest.mark.django_db
@@ -169,15 +187,18 @@ class TestPageStorageKeyResolution:
         assert renderer.get_page_storage_key(ver, 2) == "pages/doc_p2.png"
         assert renderer.get_page_storage_key(ver, 3) is None
 
-    def test_video_and_generic_return_none(self, user):
+    def test_video_and_generic_and_spreadsheet_return_none(self, user):
         video_renderer = VideoRenderer()
         generic_renderer = GenericFileRenderer()
+        spreadsheet_renderer = SpreadsheetRenderer()
 
         doc = Document.objects.create(name="clip.mp4", type="video", created_by=user, organization=user.organization)
         ver = DocumentVersion.objects.create(document=doc, version_number=1, is_primary=True)
 
         assert video_renderer.get_page_storage_key(ver, 1) is None
         assert generic_renderer.get_page_storage_key(ver, 1) is None
+        assert spreadsheet_renderer.get_page_storage_key(ver, 1) is None
+        assert spreadsheet_renderer.should_serve_pages(ver, "ready") is False
 
 
 @pytest.mark.django_db

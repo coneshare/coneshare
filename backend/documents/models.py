@@ -213,6 +213,11 @@ class Document(BaseModel):
             max_preview_size = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
             return bool(self.file_size and self.file_size > (max_preview_size * 1024 * 1024))
 
+        # 5. Spreadsheets
+        if self.type == 'spreadsheet':
+            max_preview_size = get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
+            return bool(self.file_size and self.file_size > (max_preview_size * 1024 * 1024))
+
         # Fallback to the persisted DB column (e.g., images, manually overridden status)
         return self.download_only
 
