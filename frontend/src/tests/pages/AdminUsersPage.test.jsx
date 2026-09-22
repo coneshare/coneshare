@@ -242,7 +242,7 @@ describe('AdminUsersPage', () => {
     await screen.findByText('Alice Smith');
 
     // Click edit on the first user
-    const editButtons = screen.getAllByTitle(/edit/i);
+    const editButtons = await screen.findAllByTitle(/edit/i);
     fireEvent.click(editButtons[0]);
 
     // Name input should show the current name
@@ -286,7 +286,7 @@ describe('AdminUsersPage', () => {
 
     await screen.findByText('Alice Smith');
 
-    const editButtons = screen.getAllByTitle(/edit/i);
+    const editButtons = await screen.findAllByTitle(/edit/i);
     fireEvent.click(editButtons[0]);
 
     const nameInput = screen.getByDisplayValue('Alice Smith');
@@ -455,7 +455,7 @@ describe('AdminUsersPage', () => {
 
     await screen.findByText('Alice Smith');
 
-    const editButtons = screen.getAllByTitle(/edit/i);
+    const editButtons = await screen.findAllByTitle(/edit/i);
     fireEvent.click(editButtons[0]);
 
     const saveButton = screen.getByTitle(/save/i);
@@ -548,7 +548,7 @@ describe('AdminUsersPage', () => {
 
     // Delete the user on page 2
     api.deleteAdminUser.mockResolvedValue({});
-    const deleteButtons = screen.getAllByTitle(/delete/i);
+    const deleteButtons = await screen.findAllByTitle(/delete/i);
     fireEvent.click(deleteButtons[0]);
 
     // Confirm dialog
