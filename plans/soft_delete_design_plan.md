@@ -1,7 +1,7 @@
 # 🗑️ Document & Folder Soft-Delete Design Plan
 
 > **Prerequisite for:** [Coneshare Remote MCP Server Plan](./remote_mcp_server_plan.md)  
-> **Target Models:** [Document](file:///Users/xiez/coneshare/backend/documents/models.py#L49-L124), [Folder](file:///Users/xiez/coneshare/backend/documents/models.py#L19-L47)
+> **Target Models:** [Document](https://github.com/coneshare/coneshare/blob/main/backend/documents/models.py#L49-L124), [Folder](https://github.com/coneshare/coneshare/blob/main/backend/documents/models.py#L19-L47)
 
 ---
 
@@ -193,14 +193,14 @@ combined_qs = folders_qs.union(docs_qs).order_by('-deleted_at')
 ## 8. 🎨 Frontend UI Design Specification (`TrashPage.jsx`)
 
 ### 8.1 Sidebar Navigation Integration
-- Add Trash navigation item to [SidebarContent.jsx](file:///Users/xiez/coneshare/frontend/src/components/layout/SidebarContent.jsx):
+- Add Trash navigation item to [SidebarContent.jsx](https://github.com/coneshare/coneshare/blob/main/frontend/src/components/layout/SidebarContent.jsx):
   ```javascript
   import { Trash2 } from "lucide-react";
   { href: "/trash", label: "Trash", icon: Trash2 }
   ```
 
 ### 8.2 Page Layout & Header
-- **Page Route:** `/trash` ([TrashPage.jsx](file:///Users/xiez/coneshare/frontend/src/pages/TrashPage.jsx))
+- **Page Route:** `/trash` ([TrashPage.jsx](https://github.com/coneshare/coneshare/blob/main/frontend/src/pages/TrashPage.jsx))
 - **Header Title:** `"Trash"`
 - **Header Description:** `"Items in Trash are retained for 30 days before automatic purge."`
 - **Header Action:** **"Empty Trash"** button (Destructive variant with confirmation modal).

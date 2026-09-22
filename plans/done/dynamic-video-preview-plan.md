@@ -10,7 +10,7 @@ This plan details the steps to transition to **Option A (Fully Dynamic Read-Time
 ## 2. Proposed Changes
 
 ### A. Backend Model (`backend/documents/models.py`)
-Add a new `@property` named `is_download_only` to the [Document](file:///Users/xiez/coneshare/backend/documents/models.py#L49-L90) model to evaluate preview status at runtime based on the file type, size, and system configurations.
+Add a new `@property` named `is_download_only` to the [Document](https://github.com/coneshare/coneshare/blob/main/backend/documents/models.py#L49-L90) model to evaluate preview status at runtime based on the file type, size, and system configurations.
 
 ```python
     @property
@@ -61,12 +61,12 @@ Modify the `DocumentSerializer` to source the `download_only` field dynamically 
 Locate and update all read access references to `document.download_only` to use `document.is_download_only`.
 
 Specifically:
-1. **[services.py](file:///Users/xiez/coneshare/backend/documents/services.py)**:
+1. **[services.py](https://github.com/coneshare/coneshare/blob/main/backend/documents/services.py)**:
    - In `is_server_renderable_version`: Change `if document.download_only:` to `if document.is_download_only:`
    - In `preview_mode_for_version`: Change `if document.download_only:` to `if document.is_download_only:`
-2. **[sharelinks/serializers.py](file:///Users/xiez/coneshare/backend/sharelinks/serializers.py)**:
+2. **[sharelinks/serializers.py](https://github.com/coneshare/coneshare/blob/main/backend/sharelinks/serializers.py)**:
    - In `validate`: Change `if document.download_only:` to `if document.is_download_only:`
-3. **[sharelinks/views.py](file:///Users/xiez/coneshare/backend/sharelinks/views.py)**:
+3. **[sharelinks/views.py](https://github.com/coneshare/coneshare/blob/main/backend/sharelinks/views.py)**:
    - In `ShareLinkViewerPageDetailView`: Change `allow_download = True` checks to reference `document.is_download_only`.
    - Update serialized payload: `"download_only": document.is_download_only,`
 

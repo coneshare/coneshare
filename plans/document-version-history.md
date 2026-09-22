@@ -26,7 +26,7 @@ We will leverage the existing one-to-many relationship between `Document` and `D
     * If `version_id` is not provided, fallback to the current behavior of using the active (`is_primary=True`) version.
 
 ### 2. Frontend Changes
-* Add a **"Version History"** section or tab to [frontend/src/pages/DocumentPage.jsx](file:///Users/xiez/coneshare/frontend/src/pages/DocumentPage.jsx).
+* Add a **"Version History"** section or tab to [frontend/src/pages/DocumentPage.jsx](https://github.com/coneshare/coneshare/blob/main/frontend/src/pages/DocumentPage.jsx).
 * Render a table listing all versions for the document (retrieved from `document.versions` array).
 * **Table Columns:**
   * **Version Number** (e.g. `v1`, `v2`, `v3`)

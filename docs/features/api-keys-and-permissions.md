@@ -131,6 +131,6 @@ When an API key calls Admin endpoints (`/api/v1/admin/*`), authorization require
 
 The feature is covered by automated unit and integration test suites:
 
-- **Backend API Key Tests**: [backend/tests/core/test_api_keys.py](file:///Users/xiez/coneshare/backend/tests/core/test_api_keys.py) (7 tests covering HMAC auth, tier restrictions, 401 headers, and key expiration).
-- **Remote MCP Server Tests**: [mcp-server/tests/](file:///Users/xiez/coneshare/mcp-server/tests/) (8 tests covering tools over HTTP/SSE).
-- **Frontend UI Tests**: [frontend/src/tests/pages/ApiKeysSettingsPage.test.jsx](file:///Users/xiez/coneshare/frontend/src/tests/pages/ApiKeysSettingsPage.test.jsx) (2 tests covering key list rendering and creation flow).
+- **Backend API Key Tests**: [backend/tests/core/test_api_keys.py](https://github.com/coneshare/coneshare/blob/main/backend/tests/core/test_api_keys.py) (7 tests covering HMAC auth, tier restrictions, 401 headers, and key expiration).
+- **Remote MCP Server Tests**: [mcp-server/tests/](https://github.com/coneshare/coneshare/tree/main/mcp-server/tests/) (8 tests covering tools over HTTP/SSE).
+- **Frontend UI Tests**: [frontend/src/tests/pages/ApiKeysSettingsPage.test.jsx](https://github.com/coneshare/coneshare/blob/main/frontend/src/tests/pages/ApiKeysSettingsPage.test.jsx) (2 tests covering key list rendering and creation flow).

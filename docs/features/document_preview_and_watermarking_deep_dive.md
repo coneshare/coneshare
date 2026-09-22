@@ -75,13 +75,13 @@ sequenceDiagram
 The server rendering logic is implemented across three primary modules:
 
 1. **Routing & Upload Handler**: 
-   * **Location**: [backend/documents/services.py](file:///Users/xiez/coneshare/backend/documents/services.py#L74-L116)
+   * **Location**: [backend/documents/services.py](https://github.com/coneshare/coneshare/blob/main/backend/documents/services.py#L74-L116)
    * **Responsibility**: Checks if the file is previewable based on type and size limits (`MAX_PREVIEW_FILE_SIZE_MB`). Marks PDFs/Office files and videos with `render_status = DocumentVersion.RENDER_NOT_GENERATED` and `has_pages = False`.
 2. **Lazy Enqueue Handler**: 
-   * **Location**: [backend/documents/services.py](file:///Users/xiez/coneshare/backend/documents/services.py#L202-L245)
+   * **Location**: [backend/documents/services.py](https://github.com/coneshare/coneshare/blob/main/backend/documents/services.py#L202-L245)
    * **Responsibility**: Invoked on preview access. Uses an atomic `QuerySet.update()` filter to claim the job idempotently, preventing concurrent visitor views from spawning multiple Celery tasks.
 3. **Background Pipelines**: 
-   * **Location**: [backend/documents/tasks.py](file:///Users/xiez/coneshare/backend/documents/tasks.py)
+   * **Location**: [backend/documents/tasks.py](https://github.com/coneshare/coneshare/blob/main/backend/documents/tasks.py)
    * **Responsibility**: Handles file downloading, external process invocation (`libreoffice`), page conversion (`pdf2image`), database record population (`DocumentPage`), and video HLS segmentation (`generate_video_stream_task`).
 
 ### Database State Machine (`render_status`)
@@ -114,10 +114,10 @@ Personalized Watermark Text  ─────┘
 
 #### The Flow:
 1. **URL Construction**:
-   * When fetching page metadata, [backend/documents/views.py](file:///Users/xiez/coneshare/backend/documents/views.py#L503-L549) checks if watermarking is enabled for the share link or dataroom item.
+   * When fetching page metadata, [backend/documents/views.py](https://github.com/coneshare/coneshare/blob/main/backend/documents/views.py#L503-L549) checks if watermarking is enabled for the share link or dataroom item.
    * If yes, the image endpoint transitions from `/page/{page_number}/` to `/render-page/{page_number}/`.
 2. **Dynamic Rendering (`WatermarkedPageRenderView`)**:
-   * **Endpoint Location**: [backend/sharelinks/views.py](file:///Users/xiez/coneshare/backend/sharelinks/views.py#L1739)
+   * **Endpoint Location**: [backend/sharelinks/views.py](https://github.com/coneshare/coneshare/blob/main/backend/sharelinks/views.py#L1739)
    * Resolves template placeholders (e.g., `{{email}}` to the viewer's email and `{{ip-address}}` to their remote IP address).
    * Downloads the original page PNG from storage, converts it to an RGBA Pillow image layer.
    * Generates a tiled, rotated text tile using `ImageFont.truetype` and overlay composites it on the page using `Image.alpha_composite`.
@@ -145,7 +145,7 @@ When the preview engine is set to `pdfjs` (client-side rendering), the viewer re
 
 #### The Flow:
 1. **Dynamic SVG Creation**:
-   * **Location**: [frontend/src/components/documents/PdfJsViewer.jsx](file:///Users/xiez/coneshare/frontend/src/components/documents/PdfJsViewer.jsx#L287)
+   * **Location**: [frontend/src/components/documents/PdfJsViewer.jsx](https://github.com/coneshare/coneshare/blob/main/frontend/src/components/documents/PdfJsViewer.jsx#L287)
    * The `buildWatermarkSvg(text)` function builds a raw SVG string containing a `<pattern>` with diagonal rotated text matching the viewer credentials.
 2. **CSS Injection**:
    * Absolute positions a `div` element over the PDF container with `pointer-events: none` (allowing clicks to pass through to the document below).
@@ -159,7 +159,7 @@ When the preview engine is set to `pdfjs` (client-side rendering), the viewer re
 
 ### C. Watermarked PDF Download Generation
 If a visitor downloads a document from a watermarked folder or link:
-* **Location**: [backend/sharelinks/views.py](file:///Users/xiez/coneshare/backend/sharelinks/views.py#L1942)
+* **Location**: [backend/sharelinks/views.py](https://github.com/coneshare/coneshare/blob/main/backend/sharelinks/views.py#L1942)
 * The backend intercepts the file stream and uses **pypdf** and **reportlab** to dynamically modify the PDF file itself.
 * It overlays a transparent, rotated, and tiled text canvas on every page of the original PDF, ensuring any downloaded copy retains the dynamic watermark.
 
@@ -222,11 +222,11 @@ During the link extraction and watermarking implementation, the following key en
 
 ### A. Coordinate Normalization
 PDF coordinate rectangles (`/Rect`) can be written in any arbitrary order (e.g. `x1 > x2` or `y1 > y2`) depending on the PDF generating software. 
-* **Implementation**: The backend [tasks.py](file:///Users/xiez/coneshare/backend/documents/tasks.py) normalizes these arrays using `min()` and `max()` to prevent negative CSS widths or heights in the frontend.
+* **Implementation**: The backend [tasks.py](https://github.com/coneshare/coneshare/blob/main/backend/documents/tasks.py) normalizes these arrays using `min()` and `max()` to prevent negative CSS widths or heights in the frontend.
 
 ### B. DOM-Based XSS Prevention
 When rendering link destinations into the `href` attribute of overlay elements (`<a>`), malicious PDFs could inject scripts using `javascript:`, `data:`, or `vbscript:` protocols.
-* **Normalisation Bypass Mitigation**: Because browsers strip leading whitespaces and invisible control characters before executing links, the [isSafeUrl](file:///Users/xiez/coneshare/frontend/src/lib/utils.js#L62-L75) function trims inputs and cleans out ASCII control characters (`/[\u0000-\u001F\u007F-\u009F]/g`) before running protocol checks. 
+* **Normalisation Bypass Mitigation**: Because browsers strip leading whitespaces and invisible control characters before executing links, the [isSafeUrl](https://github.com/coneshare/coneshare/blob/main/frontend/src/lib/utils.js#L62-L75) function trims inputs and cleans out ASCII control characters (`/[\u0000-\u001F\u007F-\u009F]/g`) before running protocol checks. 
 * **Parity**: Both `PreviewViewer` and `PdfJsViewer` enforce this sanitization.
 
 ### C. Pillow Image Memory Leak Prevention
@@ -241,4 +241,4 @@ Flattening large documents consumes massive amounts of RAM in the synchronous Dj
 * **Optimization**: Instead of running a linear `.find()` for every single page iteration ($O(N^2)$ complexity), `PdfJsViewer.jsx` checks the direct index `pageNumber - 1` first, falling back to `.find()` only if pages are missing or misaligned.
 
 ### F. Migration Policy
-To retroactively extract link overlays for existing ready documents, a Django data migration [0004_reset_legacy_previews.py](file:///Users/xiez/coneshare/backend/documents/migrations/0004_reset_legacy_previews.py) resets ready PDF/Office versions back to `not_generated` and deletes their existing page models, allowing the lazy rendering system to regenerate pages and extract annotations on their next preview view.
+To retroactively extract link overlays for existing ready documents, a Django data migration [0004_reset_legacy_previews.py](https://github.com/coneshare/coneshare/blob/main/backend/documents/migrations/0004_reset_legacy_previews.py) resets ready PDF/Office versions back to `not_generated` and deletes their existing page models, allowing the lazy rendering system to regenerate pages and extract annotations on their next preview view.
