@@ -350,7 +350,7 @@ export function ShareLinkViewerPage() {
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault();
         if (viewerComponentRef.current?.seekBy) {
-          viewerComponentRef.current.seekBy(15);
+          viewerComponentRef.current.seekBy(5);
         } else {
           const nextPage = Math.min(currentPage + 1, totalPages);
           if (nextPage !== currentPage) {
@@ -360,7 +360,7 @@ export function ShareLinkViewerPage() {
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault();
         if (viewerComponentRef.current?.seekBy) {
-          viewerComponentRef.current.seekBy(-15);
+          viewerComponentRef.current.seekBy(-5);
         } else {
           const prevPage = Math.max(currentPage - 1, 1);
           if (prevPage !== currentPage) {
