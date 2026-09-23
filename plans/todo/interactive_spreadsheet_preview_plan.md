@@ -1,15 +1,15 @@
-# Interactive Multi-Sheet Spreadsheet Preview Plan (.xlsx, .csv)
+# Interactive Multi-Sheet Spreadsheet Preview Plan (.xlsx, .csv, .xls)
 
 ## 1. Overview and Problem Statement
 
-Currently, Coneshare treats `.xlsx` spreadsheets like printable office documents. In `convert_office_to_pdf_task`, headless LibreOffice Calc paginates spreadsheets into a fixed-width portrait PDF. When a spreadsheet has more columns than fit horizontally on a standard page (e.g. 8 columns), Calc splits the sheet across horizontal page bands. Under Calc's default "Down, then Over" print order, rows 1–N for columns 1–6 are rendered across Pages 1–3, followed by rows 1–N for columns 7–8 on Pages 4–6.
+Currently, Coneshare treats `.xlsx` and `.xls` spreadsheets like printable office documents when rendered through the legacy office pipeline. In `convert_office_to_pdf_task`, headless LibreOffice Calc paginates spreadsheets into a fixed-width portrait PDF. When a spreadsheet has more columns than fit horizontally on a standard page (e.g. 8 columns), Calc splits the sheet across horizontal page bands. Under Calc's default "Down, then Over" print order, rows 1–N for columns 1–6 are rendered across Pages 1–3, followed by rows 1–N for columns 7–8 on Pages 4–6.
 
 When `PreviewViewer.jsx` displays these rasterized PDF pages:
 - Content is fragmented: columns of the same row are split across distant pages.
 - Multi-sheet workbooks lose their native tab hierarchy.
 - Cells cannot be comfortably scrolled or searched as a continuous 2D table.
 
-**Goal**: Provide a native, interactive multi-sheet spreadsheet preview (`SpreadsheetViewer.jsx`) for `.xlsx` and `.csv` files that preserves grid layout, sheet tabs, and formatting while enforcing Coneshare's strict security, watermarking, and download protections.
+**Goal**: Provide a native, interactive multi-sheet spreadsheet preview (`SpreadsheetViewer.jsx`) for `.xlsx`, `.csv`, and `.xls` files that preserves grid layout, sheet tabs, and formatting while enforcing Coneshare's strict security, watermarking, and download protections.
 
 ---
 
@@ -25,7 +25,7 @@ When `PreviewViewer.jsx` displays these rasterized PDF pages:
 
 ### B. Backend Strategy Pattern (`SpreadsheetRenderer`)
 - Dedicated `SpreadsheetRenderer` extending [`BasePreviewRenderer`](https://github.com/coneshare/coneshare/blob/main/backend/documents/renderers/base.py) under [`backend/documents/renderers/`](https://github.com/coneshare/coneshare/tree/main/backend/documents/renderers/).
-- Background Celery task (`generate_spreadsheet_preview_task`) parses `.xlsx` (using `openpyxl` with `data_only=True`) and `.csv` into a compact, sanitized JSON payload (`<base_path>_spreadsheet.json`).
+- Background Celery task (`generate_spreadsheet_preview_task`) parses `.xlsx` (using `openpyxl` with `data_only=True`), `.csv`, and `.xls` (converted to `.xlsx` via headless LibreOffice) into a compact, sanitized JSON payload (`<base_path>_spreadsheet.json`).
 - Pre-formats numbers, currencies, and dates into human-readable display strings (`v`) using `openpyxl` formatters, avoiding the need for heavy client-side Excel format engines.
 - **Sheet Count Metadata**: Sets `version.num_pages = len(sheets)` and `document.num_pages = len(sheets)` so UI cards and tables display "N sheets".
 - **Security Benefit**: When `allow_download = False`, the viewer receives only the sanitized JSON preview payload. The raw binary file is never transmitted to the browser, protecting underlying data models and hidden formulas.
@@ -41,13 +41,13 @@ When `PreviewViewer.jsx` displays these rasterized PDF pages:
 - **CSV Parsing Robustness**: Detects encoding (`utf-8`, `utf-8-sig`/BOM, with `latin-1` fallback) and uses `csv.Sniffer` to auto-detect delimiters (comma, tab, semicolon, pipe) with comma fallback.
 
 ### E. Backward Compatibility (Zero Migration Policy)
-- **Zero Historical Migration**: Existing `.xlsx` and `.csv` files previously processed with `has_pages = True` remain untouched on their legacy `server_pages` image views.
-- **Selective Claiming**: `SpreadsheetRenderer.can_handle_version` claims versions where `type == 'spreadsheet'`, or ungenerated versions (`has_pages = False`) matching spreadsheet extensions. If a version already has `has_pages = True`, it falls through to `OfficeRenderer`.
+- **Zero Historical Migration**: Existing `.xlsx`, `.csv`, and `.xls` files previously processed with `has_pages = True` remain untouched on their legacy `server_pages` image views.
+- **Selective Claiming**: `SpreadsheetRenderer.can_handle_version` claims versions where `type == 'spreadsheet'`, or ungenerated versions (`has_pages = False`) matching spreadsheet extensions (`.xlsx`, `.csv`, `.xls`). If a version already has `has_pages = True`, it falls through to `OfficeRenderer`.
 
 ### F. Security, Watermarking & Fallbacks
 - **Watermark Overlay**: When `enable_watermark = True`, an SVG repeating pattern watermark (displaying viewer email, IP, and timestamp) is overlaid directly across the spreadsheet viewport, matching `PdfJsViewer.jsx`.
 - **Copy Protection**: When watermarking is active or downloads are restricted, the viewer disables browser text selection (`select-none`) and intercepts `copy` events to prevent data leaks.
-- **Legacy Formats**: `.xls` files continue to fall back to `OfficeRenderer` (LibreOffice PDF page pipeline).
+- **Legacy Formats (.xls)**: `.xls` files are converted to modern `.xlsx` via headless LibreOffice inside `generate_spreadsheet_preview_task` and then parsed into interactive JSON by `openpyxl`. This avoids Calc's "Down, then Over" horizontal split-page banding on multi-column spreadsheets. Historical versions with `has_pages = True` continue to be served by `OfficeRenderer`.
 - **On-Demand Watermarked PDF**: If an external recipient explicitly requests a watermarked PDF export of an `.xlsx` file, LibreOffice is invoked on-demand with `SinglePageSheets: true` to generate the download asset.
 
 ---
@@ -57,7 +57,7 @@ When `PreviewViewer.jsx` displays these rasterized PDF pages:
 ### Pipeline Sequence
 ```mermaid
 flowchart TD
-    A[".xlsx / .csv File Uploaded"] -->|renderers.get_renderer_for_file| B["SpreadsheetRenderer.initialize_metadata"]
+    A[".xlsx / .csv / .xls File Uploaded"] -->|renderers.get_renderer_for_file| B["SpreadsheetRenderer.initialize_metadata"]
     B -->|Check MAX_PREVIEW_FILE_SIZE_MB| C["status: 'ready', render_status: 'not_generated'"]
     C -->|GET /preview-data/| D["renderer.enqueue_render_task (Two-Phase Commit)"]
     D -->|Phase 1: Atomic update to QUEUED| E["SpreadsheetRenderer._dispatch_task"]

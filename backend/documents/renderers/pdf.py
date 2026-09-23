@@ -6,7 +6,7 @@ from django.conf import settings
 from core import services as core_services
 from documents.models import Document, DocumentVersion
 from .base import BasePreviewRenderer
-from .constants import PDF_EXTENSIONS, PDF_MIMETYPE
+from .constants import PDF_EXTENSIONS, PDF_MIMETYPE, SPREADSHEET_EXTENSIONS
 from .utils import normalize_content_type
 
 
@@ -32,12 +32,18 @@ class PDFRenderer(BasePreviewRenderer):
 
     @classmethod
     def can_handle_version(cls, version: DocumentVersion) -> bool:
-        # Exclude Office documents whose converted version may be PDF;
-        # those are managed by OfficeRenderer.
-        if version.document and version.document.type == 'document':
+        # Exclude Office and Spreadsheet documents whose converted version may be PDF;
+        # those are managed by OfficeRenderer and SpreadsheetRenderer.
+        if version.document and version.document.type in {'document', 'spreadsheet'}:
+            return False
+        if version.type in {'document', 'spreadsheet'}:
             return False
         filename = version.document.name if version.document else ''
         storage_key = version.original_storage_key or version.storage_key or ''
+        if (filename and os.path.splitext(filename)[1].lower() in SPREADSHEET_EXTENSIONS) or (
+            storage_key and os.path.splitext(storage_key)[1].lower() in SPREADSHEET_EXTENSIONS
+        ):
+            return False
         norm_type = normalize_content_type(version.content_type, filename)
         if norm_type == PDF_MIMETYPE:
             return True

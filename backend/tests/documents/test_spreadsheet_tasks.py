@@ -396,3 +396,186 @@ class TestSpreadsheetRendererPreviewReset:
         renderer._on_reset_to_previewable(ver)
         doc.refresh_from_db()
         assert doc.download_only is False
+
+
+@pytest.mark.django_db
+class TestXlsSpreadsheetSupport:
+    def test_xls_renderer_routing(self):
+        """Validates that .xls files and application/vnd.ms-excel are claimed by SpreadsheetRenderer."""
+        from documents.renderers import get_renderer_for_file
+        from documents.renderers.spreadsheet import SpreadsheetRenderer
+
+        renderer = get_renderer_for_file("application/vnd.ms-excel", "financial_report.xls")
+        assert isinstance(renderer, SpreadsheetRenderer)
+
+    @patch("documents.tasks.fileserver_client")
+    @patch("documents.tasks.requests")
+    @patch("subprocess.run")
+    def test_xls_preview_task_converts_via_libreoffice_and_generates_json(
+        self, mock_subprocess, mock_requests, mock_fileserver, user
+    ):
+        """Validates that .xls files are converted to .xlsx via LibreOffice and saved as spreadsheet JSON."""
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="wide_table.xls",
+            type="spreadsheet",
+            file_size=1024,
+        )
+        ver = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            original_storage_key="documents/123/wide_table.xls",
+            storage_key="documents/123/wide_table.xls",
+            file_size=1024,
+            type="spreadsheet",
+            content_type="application/vnd.ms-excel",
+            is_primary=True,
+            render_status=DocumentVersion.RENDER_NOT_GENERATED,
+        )
+
+        mock_fileserver.generate_download_url.return_value = "https://files.example.com/download/wide_table.xls"
+        mock_fileserver.generate_upload_url.return_value = "https://files.example.com/upload/wide_table_spreadsheet.json"
+
+        # Mock download response
+        mock_get_resp = MagicMock()
+        mock_get_resp.iter_content.return_value = [b"mock xls content"]
+        mock_requests.get.return_value = mock_get_resp
+
+        # Mock upload response
+        mock_put_resp = MagicMock()
+        mock_put_resp.raise_for_status.return_value = None
+        mock_requests.put.return_value = mock_put_resp
+
+        # Side effect for subprocess.run: create a valid dummy .xlsx workbook with 8 columns
+        def fake_subprocess_run(cmd, **kwargs):
+            outdir = cmd[cmd.index("--outdir") + 1]
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "WideSheet"
+            ws.append(["col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8"])
+            ws.append([1, 2, 3, 4, 5, 6, 7, 8])
+            wb.save(os.path.join(outdir, "wide_table.xlsx"))
+            return MagicMock(returncode=0)
+
+        mock_subprocess.side_effect = fake_subprocess_run
+
+        generate_spreadsheet_preview_task(ver.id)
+
+        # Confirm libreoffice conversion was called with xlsx target
+        mock_subprocess.assert_called_once()
+        cmd = mock_subprocess.call_args[0][0]
+        assert "libreoffice" in cmd
+        assert "--convert-to" in cmd
+        assert "xlsx" in cmd
+
+        # Confirm JSON was uploaded to storage
+        mock_requests.put.assert_called_once()
+        uploaded_json_bytes = mock_requests.put.call_args[1]["data"]
+        uploaded_data = json.loads(uploaded_json_bytes.decode("utf-8"))
+
+        assert uploaded_data["version"] == 1
+        assert len(uploaded_data["sheets"]) == 1
+        sheet = uploaded_data["sheets"][0]
+        assert sheet["name"] == "WideSheet"
+        assert sheet["col_count"] == 8
+        assert len(sheet["columns"]) == 8
+
+        ver.refresh_from_db()
+        assert ver.render_status == DocumentVersion.RENDER_READY
+        assert ver.type == "spreadsheet"
+        assert ver.storage_key == "documents/123/wide_table_spreadsheet.json"
+        assert ver.num_pages == 1
+
+    @patch("documents.tasks.fileserver_client")
+    @patch("documents.tasks.requests")
+    @patch("subprocess.run")
+    def test_xls_preview_task_records_stderr_on_conversion_failure(
+        self, mock_subprocess, mock_requests, mock_fileserver, user
+    ):
+        """Validates that LibreOffice stderr is captured and saved in render_error on failure."""
+        import subprocess
+
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="corrupted.xls",
+            type="spreadsheet",
+            file_size=1024,
+        )
+        ver = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            original_storage_key="documents/123/corrupted.xls",
+            storage_key="documents/123/corrupted.xls",
+            file_size=1024,
+            type="spreadsheet",
+            content_type="application/vnd.ms-excel",
+            is_primary=True,
+            render_status=DocumentVersion.RENDER_NOT_GENERATED,
+        )
+
+        mock_fileserver.generate_download_url.return_value = "https://files.example.com/download/corrupted.xls"
+        mock_get_resp = MagicMock()
+        mock_get_resp.iter_content.return_value = [b"corrupt xls content"]
+        mock_requests.get.return_value = mock_get_resp
+
+        mock_subprocess.side_effect = subprocess.CalledProcessError(
+            returncode=1,
+            cmd=["libreoffice", "--headless"],
+            stderr="Error: source file could not be loaded: unsupported binary format",
+        )
+
+        generate_spreadsheet_preview_task(ver.id)
+
+        ver.refresh_from_db()
+        assert ver.render_status == DocumentVersion.RENDER_FAILED
+        assert "unsupported binary format" in ver.render_error
+
+    @patch("documents.tasks.fileserver_client")
+    @patch("documents.tasks.requests")
+    @patch("documents.spreadsheet_utils.parse_xlsx_to_preview_data")
+    @patch("subprocess.run")
+    def test_xls_with_xlsx_filename_uses_isolated_conversion_dir_on_no_output(
+        self, mock_subprocess, mock_parse_xlsx, mock_requests, mock_fileserver, user
+    ):
+        """When an .xls file has an .xlsx filename and LibreOffice produces no output,
+        it must raise FileNotFoundError rather than passing the raw downloaded file to parse_xlsx_to_preview_data."""
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="actual_xls_named.xlsx",
+            type="spreadsheet",
+            file_size=1024,
+        )
+        ver = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            original_storage_key="documents/123/actual_xls_named.xlsx",
+            storage_key="documents/123/actual_xls_named.xlsx",
+            file_size=1024,
+            type="spreadsheet",
+            content_type="application/vnd.ms-excel",
+            is_primary=True,
+            render_status=DocumentVersion.RENDER_NOT_GENERATED,
+        )
+
+        mock_fileserver.generate_download_url.return_value = "https://files.example.com/download/actual_xls_named.xlsx"
+        mock_get_resp = MagicMock()
+        mock_get_resp.iter_content.return_value = [b"raw binary xls content"]
+        mock_requests.get.return_value = mock_get_resp
+
+        # LibreOffice exits 0 but produces NO output in outdir
+        mock_subprocess.return_value = MagicMock(returncode=0, stderr="")
+
+        generate_spreadsheet_preview_task(ver.id)
+
+        # parse_xlsx_to_preview_data should NOT have been called with the raw file
+        mock_parse_xlsx.assert_not_called()
+
+        ver.refresh_from_db()
+        assert ver.render_status == DocumentVersion.RENDER_FAILED
+        assert "LibreOffice failed to convert" in ver.render_error
+
+
+

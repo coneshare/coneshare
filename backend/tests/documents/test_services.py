@@ -7,7 +7,7 @@ from datetime import timedelta
 from django.utils import timezone
 
 from documents.models import Document, DocumentVersion, DocumentPage, Folder
-from documents.renderers import get_renderer
+from documents.renderers import get_renderer, SpreadsheetRenderer
 from documents.services import (
     create_document_from_upload,
     delete_document_and_files,
@@ -267,6 +267,46 @@ class TestCopyDocumentService:
         assert 'uploader_info' not in new_doc.metadata
         assert 'other_key' in new_doc.metadata
         assert new_doc.metadata['other_key'] == 'value'
+
+
+@pytest.mark.django_db
+@patch('documents.services.fileserver_client.copy_file')
+class TestCopySpreadsheetDocumentService:
+    def test_copy_document_office_converted_to_pdf_retains_spreadsheet_properties(self, mock_copy_file, user):
+        """When copying a spreadsheet whose primary version has content_type='application/pdf', the copy must retain spreadsheet type and resolve to SpreadsheetRenderer."""
+        original_doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="financials.xls",
+            type="spreadsheet",
+            content_type="application/vnd.ms-excel",
+            file_size=5000,
+            status="ready",
+        )
+        DocumentVersion.objects.create(
+            document=original_doc,
+            version_number=1,
+            is_primary=True,
+            original_storage_key="org/fin.xls",
+            storage_key="org/fin.pdf",
+            type="document",
+            content_type="application/pdf",
+            file_size=5000,
+            has_pages=False,
+            render_status=DocumentVersion.RENDER_READY,
+        )
+
+        new_doc = copy_document(original_doc, user)
+        new_version = new_doc.versions.first()
+
+        assert new_doc.type == 'spreadsheet'
+        assert new_doc.content_type == 'application/vnd.ms-excel'
+        assert new_version.type == 'spreadsheet'
+        assert new_version.content_type == 'application/vnd.ms-excel'
+        renderer = get_renderer(new_version)
+        assert isinstance(renderer, SpreadsheetRenderer)
+        assert renderer.get_preview_mode(new_version) == 'spreadsheet'
+        assert new_version.render_status == DocumentVersion.RENDER_NOT_GENERATED
 
 
 @pytest.mark.django_db

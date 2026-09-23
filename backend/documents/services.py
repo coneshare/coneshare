@@ -18,46 +18,21 @@ from core.services import get_dynamic_setting
 from .fileserver import fileserver_client
 from .models import Document, DocumentPage, DocumentVersion, Folder
 from .renderers import get_renderer_for_file, normalize_content_type
+from .renderers.constants import (
+    HEIC_EXTENSIONS,
+    HEIC_MIMETYPES,
+    IMAGE_MIMETYPES,
+    OFFICE_MIMETYPES,
+    PDF_MIMETYPE,
+    SPREADSHEET_MIMETYPES,
+    VIDEO_MIMETYPES,
+)
 from .tasks import (
     convert_office_to_pdf_task,
     generate_pdf_pages_task,
     generate_video_stream_task,
     transcode_heic_image_task,
 )
-
-
-OFFICE_MIMETYPES = [
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',  # .docx
-    'application/msword',  # .doc
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',  # .pptx
-    'application/vnd.ms-powerpoint',  # .ppt
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',  # .xlsx
-    'application/vnd.ms-excel',  # .xls
-]
-HEIC_MIMETYPES = [
-    'image/heic',
-    'image/heif',
-    'image/heic-sequence',
-    'image/heif-sequence',
-]
-IMAGE_MIMETYPES = [
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-    *HEIC_MIMETYPES,
-]
-HEIC_EXTENSIONS = {'.heic', '.heif'}
-VIDEO_MIMETYPES = [
-    'video/mp4',
-    'video/quicktime',  # .mov
-    'video/x-msvideo',  # .avi
-    'video/webm',
-    'video/ogg',
-    'video/mp2t',
-    'video/3gpp',
-]
-PDF_MIMETYPE = 'application/pdf'
 SERVER_RENDERABLE_TYPES = {'document', 'pdf'}
 
 
@@ -146,7 +121,9 @@ def recalculate_user_document_size(user: User) -> int:
 
 def _get_doc_type_from_content_type(content_type: str) -> str:
     """Determines the document type from its MIME type."""
-    if content_type in OFFICE_MIMETYPES:
+    if content_type in SPREADSHEET_MIMETYPES:
+        return 'spreadsheet'
+    elif content_type in OFFICE_MIMETYPES:
         return 'document'
     elif content_type == PDF_MIMETYPE:
         return 'pdf'
@@ -398,6 +375,8 @@ def copy_document(original_doc: Document, user: User) -> Document:
         folder=original_doc.folder,
         original_name=original_doc.name
     )
+    norm_content_type = normalize_content_type(original_doc.content_type, new_name)
+    doc_type = _get_doc_type_from_content_type(norm_content_type)
 
     # 3. Generate new storage key for the copied file
     new_storage_key = generate_storage_key(user.organization.id, new_name)
@@ -435,8 +414,8 @@ def copy_document(original_doc: Document, user: User) -> Document:
                 status='processing',
                 storage_key=new_storage_key,
                 original_storage_key=new_storage_key,
-                type=original_doc.type,
-                content_type=original_doc.content_type,
+                type=doc_type,
+                content_type=norm_content_type,
                 num_pages=original_doc.num_pages,
                 file_size=original_doc.file_size,
                 download_only=original_doc.is_download_only,
@@ -452,8 +431,8 @@ def copy_document(original_doc: Document, user: User) -> Document:
                 is_primary=True,
                 storage_key=new_storage_key,
                 original_storage_key=new_storage_key,
-                content_type=original_primary_version.content_type,
-                type=original_primary_version.type,
+                content_type=norm_content_type,
+                type=doc_type,
                 file_size=original_primary_version.file_size,
                 num_pages=original_primary_version.num_pages,
                 is_vertical=original_primary_version.is_vertical,
