@@ -66,7 +66,6 @@ class TestRendererRegistryPriority:
             ("application/msword", "doc.doc"),
             ("application/vnd.openxmlformats-officedocument.presentationml.presentation", "slides.pptx"),
             ("application/vnd.ms-powerpoint", "slides.ppt"),
-            ("application/vnd.ms-excel", "data.xls"),
         ]:
             renderer = get_renderer_for_file(ct, fn)
             assert isinstance(renderer, OfficeRenderer), f"Failed for {fn}"
@@ -74,8 +73,10 @@ class TestRendererRegistryPriority:
     def test_spreadsheet_resolves_to_spreadsheet_renderer(self):
         for ct, fn in [
             ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "data.xlsx"),
+            ("application/vnd.ms-excel", "data.xls"),
             ("text/csv", "sheet.csv"),
             ("application/octet-stream", "data.xlsx"),
+            ("application/octet-stream", "data.xls"),
             ("application/octet-stream", "table.csv"),
         ]:
             renderer = get_renderer_for_file(ct, fn)
@@ -140,6 +141,14 @@ class TestVersionResolutionAndOfficeDivergence:
             document=doc, version_number=1, original_storage_key="legacy.xlsx", type="document", has_pages=True
         )
         assert isinstance(get_renderer(ver), OfficeRenderer)
+
+    def test_version_resolution_spreadsheet_when_version_content_type_is_pdf(self, user):
+        """When a spreadsheet's version content_type was set to application/pdf without pages, it must resolve to SpreadsheetRenderer."""
+        doc = Document.objects.create(name="financials.xls", type="spreadsheet", created_by=user, organization=user.organization)
+        ver = DocumentVersion.objects.create(
+            document=doc, version_number=1, original_storage_key="financials.xls", type="document", content_type="application/pdf", has_pages=False
+        )
+        assert isinstance(get_renderer(ver), SpreadsheetRenderer)
 
 
 @pytest.mark.django_db

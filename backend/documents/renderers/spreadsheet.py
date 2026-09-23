@@ -63,6 +63,7 @@ class SpreadsheetRenderer(BasePreviewRenderer):
         document.status = 'ready'
 
         version.type = 'spreadsheet'
+        version.content_type = norm_type
         version.has_pages = False
         version.render_error = ''
         if is_too_large:

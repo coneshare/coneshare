@@ -637,6 +637,27 @@ def generate_spreadsheet_preview_task(version_id):
 
             if version.content_type == 'text/csv' or ext == '.csv':
                 preview_data = parse_csv_to_preview_data(str(original_file_path), doc_name)
+            elif ext == '.xls' or version.content_type == 'application/vnd.ms-excel':
+                # Convert legacy .xls to modern .xlsx using headless LibreOffice in an isolated directory
+                conv_dir = temp_dir_path / "converted"
+                conv_dir.mkdir(parents=True, exist_ok=True)
+                try:
+                    subprocess.run(
+                        ["libreoffice", "--headless", "--convert-to", "xlsx", "--outdir", str(conv_dir), str(original_file_path)],
+                        check=True, timeout=120, capture_output=True, text=True
+                    )
+                except subprocess.CalledProcessError as proc_err:
+                    err_msg = proc_err.stderr.strip() if proc_err.stderr else str(proc_err)
+                    logger.error(f"LibreOffice conversion failed for version {version_id}: {err_msg}")
+                    raise RuntimeError(f"LibreOffice conversion failed: {err_msg}") from proc_err
+                converted_xlsx = conv_dir / f"{original_file_path.stem}.xlsx"
+                if not converted_xlsx.exists():
+                    xlsx_matches = list(conv_dir.glob("*.xlsx"))
+                    if xlsx_matches:
+                        converted_xlsx = xlsx_matches[0]
+                    else:
+                        raise FileNotFoundError(f"LibreOffice failed to convert {original_file_name} to XLSX.")
+                preview_data = parse_xlsx_to_preview_data(str(converted_xlsx), doc_name)
             else:
                 preview_data = parse_xlsx_to_preview_data(str(original_file_path), doc_name)
 
