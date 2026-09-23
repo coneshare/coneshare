@@ -24,6 +24,7 @@ import { ViewerToolbar } from './ViewerToolbar';
 import { PreviewViewer } from '../documents/PreviewViewer';
 import { PdfJsViewer } from '../documents/PdfJsViewer';
 import { VideoViewer } from '../documents/VideoViewer';
+import { SpreadsheetViewer } from '../documents/SpreadsheetViewer';
 import { printPdf, printImages } from '../../lib/print';
 import {
   hasRenderablePages,
@@ -793,14 +794,20 @@ export function DataroomViewer({ data, slug, viewId }) {
       (currentScopeQnaThreadCount > 0 ? `, ${t('qna.threadsCount', { count: currentScopeQnaThreadCount, defaultValue: `${currentScopeQnaThreadCount} threads` })}` : '');
 
   // Inline Document Viewer specific layout parameters
-  const PREVIEWABLE_TYPES = ['image', 'pdf', 'document', 'video'];
+  const PREVIEWABLE_TYPES = ['image', 'pdf', 'document', 'video', 'spreadsheet'];
   const isPreviewable = documentViewData && PREVIEWABLE_TYPES.includes(documentViewData.type);
   const canDownload = Boolean(documentViewData?.link_settings?.allow_download);
   const isVideo = documentViewData && documentViewData.type === 'video';
   const isVideoReady = isVideo && documentViewData.preview_status === 'ready';
+  const isSpreadsheet = documentViewData && documentViewData.preview_mode === 'spreadsheet';
+  const isSpreadsheetReady = isSpreadsheet && (documentViewData.preview_status === 'ready' || Boolean(documentViewData.spreadsheet_preview_url));
   const canRenderPages = hasRenderablePages(documentViewData);
   const showPreviewState = documentViewData && isPreviewable && !documentViewData.download_only && (
-    isVideo ? !isVideoReady : (!canRenderPages && documentViewData.preview_mode !== 'client_pdf')
+    isVideo
+      ? !isVideoReady
+      : isSpreadsheet
+        ? !isSpreadsheetReady
+        : (!canRenderPages && documentViewData.preview_mode !== 'client_pdf')
   );
 
   let docDownloadUrl = `/api/v1/links/${slug}/download-file/`;
@@ -1069,6 +1076,20 @@ export function DataroomViewer({ data, slug, viewId }) {
                         downloadUrl={docDownloadUrl}
                       />
                     </div>
+                  ) : documentViewData.preview_mode === 'spreadsheet' ? (
+                    <SpreadsheetViewer
+                      ref={viewerComponentRef}
+                      spreadsheetUrl={documentViewData.spreadsheet_preview_url}
+                      title={documentViewData.name}
+                      watermarkText={
+                        documentViewData.link_settings?.enable_watermark
+                          ? (documentViewData.link_settings.resolved_watermark_text || documentViewData.link_settings.watermark_text || '')
+                          : ''
+                      }
+                      allowDownload={canDownload}
+                      zoomLevel={zoomLevel}
+                      documentData={documentViewData}
+                    />
                   ) : documentViewData.preview_mode === 'client_pdf' ? (
                     <PdfJsViewer
                       ref={viewerComponentRef}

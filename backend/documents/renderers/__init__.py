@@ -6,6 +6,7 @@ from .direct_image import DirectImageRenderer
 from .generic import GenericFileRenderer
 from .office import OfficeRenderer
 from .pdf import PDFRenderer
+from .spreadsheet import SpreadsheetRenderer
 from .transcoded_image import TranscodedImageRenderer
 from .utils import is_heic_file, normalize_content_type
 from .video import VideoRenderer
@@ -16,7 +17,8 @@ RENDERER_CLASSES: List[Type[BasePreviewRenderer]] = [
     TranscodedImageRenderer,  # Evaluates HEIC/HEIF before general image
     DirectImageRenderer,      # Standard raster images (JPEG, PNG, GIF, WEBP)
     PDFRenderer,              # PDF files
-    OfficeRenderer,           # Office formats (DOCX, PPTX, XLSX, etc.)
+    SpreadsheetRenderer,      # Modern spreadsheets (XLSX, CSV)
+    OfficeRenderer,           # Office formats (DOCX, PPTX, legacy XLS, etc.)
     VideoRenderer,            # Video formats (MP4, MOV, etc.)
     GenericFileRenderer,      # Catch-all fallback (download_only, SVG, etc.)
 ]
@@ -45,6 +47,7 @@ __all__ = [
     'OfficeRenderer',
     'PDFRenderer',
     'RENDERER_CLASSES',
+    'SpreadsheetRenderer',
     'TranscodedImageRenderer',
     'VideoRenderer',
     'get_renderer',

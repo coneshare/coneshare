@@ -578,6 +578,44 @@ class TestShareLinkViewDataView:
 
         mock_fs_download_url.assert_called_once_with("path/to/original.pdf", is_internal=False, filename=share_link.document.name)
 
+    @override_settings(SITE_DOMAIN="http://test.coneshare.com")
+    @patch('documents.fileserver.fileserver_client.generate_download_url')
+    def test_get_share_link_data_for_spreadsheet(self, mock_fs_download_url, public_client, user):
+        """Test that public share link returns spreadsheet_preview_url and preview_mode='spreadsheet'."""
+        mock_fs_download_url.return_value = "http://test.coneshare.com/files/download/sheet.json"
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="forecast.xlsx",
+            type="spreadsheet",
+            status="ready",
+            num_pages=3
+        )
+        ver = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            type="spreadsheet",
+            is_primary=True,
+            has_pages=False,
+            num_pages=3,
+            storage_key="documents/1/forecast_spreadsheet.json",
+            original_storage_key="documents/1/forecast.xlsx",
+            render_status="ready"
+        )
+        link = ShareLink.objects.create(
+            created_by=user,
+            document=doc,
+            slug="sheet-slug-123"
+        )
+        response = public_client.get(f'/api/v1/links/{link.slug}/view-data/')
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data['type'] == 'spreadsheet'
+        assert data['preview_mode'] == 'spreadsheet'
+        assert data['preview_status'] == 'ready'
+        assert data['spreadsheet_preview_url'] == "http://test.coneshare.com/files/download/sheet.json"
+        assert data['num_pages'] == 3
+
     @patch.object(BasePreviewRenderer, 'enqueue_render_task')
     @patch('sharelinks.views.fileserver_client.generate_download_url')
     def test_get_share_link_data_hides_download_url_when_downloads_disabled(

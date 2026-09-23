@@ -591,3 +591,91 @@ def purge_expired_trash_documents_task():
         except Exception as e:
             logger.error(f"Failed to auto-purge expired document {doc.id}: {e}")
 
+
+@shared_task
+def generate_spreadsheet_preview_task(version_id):
+    """
+    A Celery task to parse an uploaded spreadsheet file (.xlsx, .csv),
+    convert it to a sanitized, multi-sheet JSON structure, and save it to storage.
+    """
+    try:
+        version = DocumentVersion.objects.select_related('document').get(id=version_id)
+        document = version.document
+    except DocumentVersion.DoesNotExist:
+        return
+
+    try:
+        # Check if already generated
+        if (
+            version.storage_key
+            and version.storage_key.endswith('_spreadsheet.json')
+            and version.render_status == DocumentVersion.RENDER_READY
+        ):
+            return
+
+        version.render_status = DocumentVersion.RENDER_PROCESSING
+        version.render_error = ''
+        version.save(update_fields=['render_status', 'render_error', 'updated_at'])
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_dir_path = Path(temp_dir)
+            original_file_name = Path(version.original_storage_key).name
+            original_file_path = temp_dir_path / original_file_name
+
+            # 1. Download original file from storage
+            download_url = fileserver_client.generate_download_url(version.original_storage_key)
+            response = requests.get(download_url, stream=True, timeout=(5, 60))
+            response.raise_for_status()
+            with open(original_file_path, 'wb') as f_out:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f_out.write(chunk)
+
+            # 2. Parse into preview JSON
+            from .spreadsheet_utils import parse_xlsx_to_preview_data, parse_csv_to_preview_data
+            ext = original_file_path.suffix.lower()
+            doc_name = document.name if document else original_file_name
+
+            if version.content_type == 'text/csv' or ext == '.csv':
+                preview_data = parse_csv_to_preview_data(str(original_file_path), doc_name)
+            else:
+                preview_data = parse_xlsx_to_preview_data(str(original_file_path), doc_name)
+
+            json_bytes = json.dumps(preview_data, separators=(',', ':')).encode('utf-8')
+
+            # 3. Upload JSON to storage
+            base_path, _ = os.path.splitext(version.original_storage_key)
+            new_storage_key = f"{base_path}_spreadsheet.json"
+
+            upload_url = fileserver_client.generate_upload_url(new_storage_key)
+            upload_response = requests.put(upload_url, data=json_bytes, timeout=(5, 60))
+            upload_response.raise_for_status()
+
+            # 4. Finalize metadata and status
+            sheet_count = len(preview_data.get('sheets', []))
+            version.refresh_from_db(fields=['is_primary'])
+            version.storage_key = new_storage_key
+            version.type = 'spreadsheet'
+            version.content_type = 'application/json'
+            version.num_pages = sheet_count
+            version.has_pages = False
+            version.render_status = DocumentVersion.RENDER_READY
+            version.render_error = ''
+            version.save(update_fields=[
+                'storage_key', 'type', 'content_type', 'num_pages', 'has_pages',
+                'render_status', 'render_error', 'updated_at'
+            ])
+
+            if version.is_primary:
+                document.type = 'spreadsheet'
+                document.num_pages = sheet_count
+                document.status = 'ready'
+                document.status_message = ''
+                document.save(update_fields=['type', 'num_pages', 'status', 'status_message', 'updated_at'])
+
+    except Exception as e:
+        version.render_status = DocumentVersion.RENDER_FAILED
+        version.render_error = str(e)[:1000]
+        version.save(update_fields=['render_status', 'render_error', 'updated_at'])
+        logger.error(f"Error processing spreadsheet version {version_id}: {e}")
+
+
