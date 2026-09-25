@@ -334,6 +334,7 @@ NATIVE_LANGUAGE_NAMES = {
     'zh-hans': '简体中文',
     'ru': 'Русский',
     'de': 'Deutsch',
+    'fr': 'Français',
 }
 
 

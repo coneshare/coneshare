@@ -340,6 +340,7 @@ LANGUAGES = [
     ('zh-hans', _('Simplified Chinese')),
     ('ru', _('Russian')),
     ('de', _('German')),
+    ('fr', _('French')),
 ]
 
 LOCALE_PATHS = [

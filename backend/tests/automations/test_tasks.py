@@ -747,6 +747,11 @@ def test_format_duration_localization():
         assert _format_duration(120) == "2m"
         assert _format_duration(45) == "45s"
 
+    with translation_override('fr'):
+        assert _format_duration(150) == "2m 30s"
+        assert _format_duration(120) == "2m"
+        assert _format_duration(45) == "45s"
+
 
 def test_event_sentence_and_target_description_localization():
     from django.utils.translation import override as translation_override
@@ -776,6 +781,12 @@ def test_event_sentence_and_target_description_localization():
         assert target == 'Dokument „Annual_Report.pdf“ im Ordner „Finance“ im Datenraum „Secret Room“'
         sentence = _build_event_sentence('document_viewed', payload)
         assert sentence == 'Ihr geteiltes Dokument „Annual_Report.pdf“ im Ordner „Finance“ im Datenraum „Secret Room“ wurde von buyer@example.com angesehen.'
+
+    with translation_override('fr'):
+        target = _target_description(payload)
+        assert target == 'document « Annual_Report.pdf » dans le dossier « Finance » dans la dataroom « Secret Room »'
+        sentence = _build_event_sentence('document_viewed', payload)
+        assert sentence == 'Votre document « Annual_Report.pdf » dans le dossier « Finance » dans la dataroom « Secret Room » partagé(e) a été consulté(e) par buyer@example.com.'
 
 
 @patch('automations.emails.send_mail')

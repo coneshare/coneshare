@@ -63,6 +63,7 @@ class TestUserLanguagePreference:
             {'code': 'zh-hans', 'name': '简体中文'},
             {'code': 'ru', 'name': 'Русский'},
             {'code': 'de', 'name': 'Deutsch'},
+            {'code': 'fr', 'name': 'Français'},
         ]
 
     def test_api_error_respects_accept_language_header(self, api_client):
@@ -101,11 +102,24 @@ class TestUserLanguagePreference:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
         assert resp.data['old_password'] == ['Falsches Passwort.']
 
+    def test_api_error_in_french(self, api_client):
+        """Verify API response error messages in French when Accept-Language: fr."""
+        url = reverse('set_password')
+        payload = {
+            'old_password': 'wrong_password',
+            'new_password1': 'new_pass123',
+            'new_password2': 'new_pass123',
+        }
+        resp = api_client.post(url, payload, HTTP_ACCEPT_LANGUAGE='fr')
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.data['old_password'] == ['Mot de passe incorrect.']
+
     @pytest.mark.parametrize("lang, expected_subject, expected_snippet", [
         ("en", "Verify your Coneshare account", "Welcome to Coneshare."),
         ("zh-hans", "验证您的 Coneshare 账号", "欢迎使用 Coneshare。"),
         ("ru", "Подтвердите ваш аккаунт Coneshare", "Добро пожаловать в Coneshare."),
         ("de", "Bestätigen Sie Ihr Coneshare-Konto", "Willkommen bei Coneshare."),
+        ("fr", "Vérifiez votre compte Coneshare", "Bienvenue sur Coneshare."),
     ])
     def test_signup_verification_email_task_language_override(self, mailoutbox, lang, expected_subject, expected_snippet):
         """Verify Celery signup verification email task respects language override for subject and body."""
@@ -154,6 +168,7 @@ class TestUserLanguagePreference:
         ("zh-hans", "请验证您的邮箱以查看“Test Document.pdf”", "请点击下方链接查看“Test Document.pdf”："),
         ("ru", "Подтвердите email для просмотра «Test Document.pdf»", "Пожалуйста, перейдите по ссылке ниже для просмотра «Test Document.pdf»."),
         ("de", "Bestätigen Sie Ihre E-Mail-Adresse, um „Test Document.pdf“ anzuzeigen", "Bitte klicken Sie auf den unten stehenden Link, um „Test Document.pdf“ anzuzeigen."),
+        ("fr", "Vérifiez votre e-mail pour afficher « Test Document.pdf »", "Veuillez cliquer sur le lien ci-dessous pour afficher « Test Document.pdf »."),
     ])
     def test_sharelink_email_verification_language(self, mailoutbox, share_link_requires_email_verification, lang, expected_subject, expected_snippet):
         """Verify sharelink magic link email verification respects Accept-Language header."""
@@ -173,6 +188,7 @@ class TestUserLanguagePreference:
         ("zh-hans", "您分享的“Test Document.pdf”已被查看", "特此通知：您分享的“Test Document.pdf”已被查看。"),
         ("ru", "Ваш общий объект «Test Document.pdf» был просмотрен", "Сообщаем, что ваш общий объект «Test Document.pdf» был просмотрен."),
         ("de", "Ihr geteiltes Element „Test Document.pdf“ wurde aufgerufen", "Ihr geteiltes Element „Test Document.pdf“ wurde soeben aufgerufen."),
+        ("fr", "Votre élément partagé « Test Document.pdf » a été consulté", "Votre élément partagé « Test Document.pdf » a été consulté."),
     ])
     def test_sharelink_view_notification_email_owner_language(self, mailoutbox, share_link, lang, expected_subject, expected_snippet):
         """Verify sharelink view notification email respects the link owner's preferred language."""
@@ -224,7 +240,7 @@ class TestUserLanguagePreference:
         resp = client.post(
             url,
             {'email': 'inactive_ru@example.com', 'password': 'StrongPassword123!', 'name': 'Inactive User'},
-            HTTP_ACCEPT_LANGUAGE='fr-FR,fr;q=0.9'
+            HTTP_ACCEPT_LANGUAGE='ja-JP,ja;q=0.9'
         )
         assert resp.status_code == status.HTTP_202_ACCEPTED
         assert captured.get('language') == 'ru'
@@ -236,6 +252,7 @@ class TestUserLanguagePreference:
         ("zh-hans", "未知位置"),
         ("ru", "Неизвестное местоположение"),
         ("de", "Unbekannter Standort"),
+        ("fr", "Emplacement inconnu"),
     ])
     def test_sharelink_view_notification_email_fallbacks_translated(self, mailoutbox, share_link, lang, expected_loc):
         """Verify fallback values (Unknown Location) are translated to the owner's language."""
@@ -268,7 +285,7 @@ class TestUserLanguagePreference:
         mailoutbox.clear()
         client = APIClient()
         url = reverse('share-link-request-access', kwargs={'slug': share_link_requires_email_verification.slug})
-        resp = client.post(url, {'email': 'viewer@example.com'}, HTTP_ACCEPT_LANGUAGE='fr-FR,fr;q=0.9')
+        resp = client.post(url, {'email': 'viewer@example.com'}, HTTP_ACCEPT_LANGUAGE='ja-JP,ja;q=0.9')
         assert resp.status_code == status.HTTP_200_OK
         assert len(mailoutbox) == 1
         msg = mailoutbox[0]
@@ -280,11 +297,13 @@ class TestUserLanguagePreference:
         ("zh-CN,zh;q=0.9", "ru", "en", "zh-hans"),
         ("ru-RU,ru;q=0.9", None, "en", "ru"),
         ("de-DE,de;q=0.9", None, "en", "de"),
-        ("fr-FR,fr;q=0.9", "zh-hans", "en", "zh-hans"),
-        ("fr-FR,fr;q=0.9", None, "zh-hans", "zh-hans"),
-        ("fr-FR,fr;q=0.9", None, None, "en"),
+        ("fr-FR,fr;q=0.9", None, "en", "fr"),
+        ("ja-JP,ja;q=0.9", "zh-hans", "en", "zh-hans"),
+        ("ja-JP,ja;q=0.9", None, "zh-hans", "zh-hans"),
+        ("ja-JP,ja;q=0.9", None, None, "en"),
         ("", "ru", "en", "ru"),
         ("", "de", "en", "de"),
+        ("", "fr", "en", "fr"),
         ("", None, "zh-hans", "zh-hans"),
         ("", None, None, "en"),
     ])

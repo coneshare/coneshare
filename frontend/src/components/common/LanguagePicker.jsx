@@ -8,6 +8,9 @@ const LANG_CODE_MAP = {
   'zh-hans': 'zh-hans',
   'zh-tw': 'zh-hans',
   'zh-hk': 'zh-hans',
+  fr: 'fr',
+  'fr-fr': 'fr',
+  'fr-ca': 'fr',
 };
 
 export function LanguagePicker({ className = '' }) {
@@ -19,7 +22,7 @@ export function LanguagePicker({ className = '' }) {
   };
 
   const rawLang = (i18n.language || 'en').toLowerCase();
-  const currentLang = LANG_CODE_MAP[rawLang] || (rawLang.startsWith('zh') ? 'zh-hans' : rawLang);
+  const currentLang = LANG_CODE_MAP[rawLang] || (rawLang.startsWith('zh') ? 'zh-hans' : (rawLang.startsWith('fr') ? 'fr' : rawLang));
 
   return (
     <div className={`inline-flex items-center gap-1.5 text-xs text-muted-foreground ${className}`}>
