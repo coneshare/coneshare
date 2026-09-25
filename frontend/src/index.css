@@ -52,3 +52,17 @@
     @apply bg-background text-foreground;
   }
 }
+
+.text-layer {
+  container-type: size;
+}
+
+.text-layer span {
+  color: transparent;
+  transform-origin: 0% 0%;
+}
+
+.text-layer span::selection {
+  background: rgba(59, 130, 246, 0.35);
+  color: transparent;
+}

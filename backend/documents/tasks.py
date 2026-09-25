@@ -19,6 +19,7 @@ from django.db.models import Q
 from core.services import get_dynamic_setting
 from .fileserver import fileserver_client
 from .models import Document, DocumentPage, DocumentVersion, Folder
+from .pdf_utils import extract_text_layout_for_pdf
 
 
 logger = logging.getLogger('tasks')
@@ -180,6 +181,8 @@ def _extract_links_for_page(pdf_page, page_num):
     return links
 
 
+
+
 @shared_task
 def generate_pdf_pages_task(version_id):
     """
@@ -253,6 +256,9 @@ def generate_pdf_pages_task(version_id):
         except Exception as reader_err:
             logger.warning(f"Failed to parse PDF annotations/links via pypdf: {reader_err}")
 
+        # Extract text layout using pdftotext (best-effort)
+        page_text_by_num = extract_text_layout_for_pdf(pdf_bytes)
+
         # 3. Save page images and create DB records
         base_path, _ = os.path.splitext(version.original_storage_key)
         version.pages.all().delete()
@@ -272,7 +278,8 @@ def generate_pdf_pages_task(version_id):
                 document_version=version,
                 page_number=page_num,
                 storage_key=page_storage_key,
-                page_links=page_links_by_num.get(page_num, {"links": []})
+                page_links=page_links_by_num.get(page_num, {"links": []}),
+                metadata={"text_content": page_text_by_num.get(page_num, {"lines": []})},
             )
 
         # 4. Finalize status and metadata

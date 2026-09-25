@@ -194,6 +194,30 @@ export const PreviewViewer = forwardRef(({ documentData, zoomLevel, onPageChange
               className="mx-auto max-w-full rounded-md shadow-md"
               scrollContainer={scrollContainer}
             />
+            {page.text_content?.lines && page.text_content.lines.length > 0 && (
+              <div
+                className="absolute inset-0 pointer-events-auto overflow-hidden select-text text-layer"
+                data-testid={`text-layer-${page.page_number}`}
+              >
+                {page.text_content.lines.map((line, idx) => (
+                  <span
+                    key={idx}
+                    className="absolute leading-none whitespace-pre text-transparent cursor-text select-text"
+                    style={{
+                      left: `${line.bbox.left}%`,
+                      top: `${line.bbox.top}%`,
+                      width: `${line.bbox.width}%`,
+                      height: `${line.bbox.height}%`,
+                      fontSize: line.bbox?.height
+                        ? `${line.bbox.height}cqh`
+                        : (line.font_size_pt ? `${line.font_size_pt}pt` : undefined),
+                    }}
+                  >
+                    {line.text}
+                  </span>
+                ))}
+              </div>
+            )}
             {page.page_links?.links?.filter(link => isSafeUrl(link.url) && link.bbox).map((link, idx) => (
               <a
                 key={idx}

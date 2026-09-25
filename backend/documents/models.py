@@ -1,3 +1,5 @@
+from typing import List, Optional, TypedDict
+
 from django.db import models
 from django.db.models import Q
 from django.core.exceptions import ValidationError
@@ -327,6 +329,29 @@ class DocumentVersion(BaseModel):
         return f'{self.document.name} v{self.version_number}'
 
 
+class BoundingBoxDict(TypedDict):
+    left: float
+    top: float
+    width: float
+    height: float
+
+
+class PageTextLineDict(TypedDict):
+    text: str
+    bbox: BoundingBoxDict
+    font_size_pt: float
+
+
+class PageTextContentDict(TypedDict):
+    lines: List[PageTextLineDict]
+
+
+class DocumentPageMetadataDict(TypedDict, total=False):
+    text_content: PageTextContentDict
+    width: int
+    height: int
+
+
 class DocumentPage(BaseModel):
     """
     Represents a single page of a processed document, typically stored as an image
@@ -337,7 +362,68 @@ class DocumentPage(BaseModel):
     storage_key = models.CharField(max_length=1024)
     storage_type = models.CharField(max_length=20, blank=True)
     page_links = models.JSONField(default=dict, blank=True)
-    metadata = models.JSONField(default=dict, blank=True)
+
+    # Expected schema for metadata: DocumentPageMetadataDict
+    # {
+    #     'text_content': {'lines': [{'text': str, 'bbox': {'left': float, 'top': float, 'width': float, 'height': float}, 'font_size_pt': float}]},
+    #     'width': int (optional),
+    #     'height': int (optional),
+    # }
+    metadata: DocumentPageMetadataDict = models.JSONField(default=dict, blank=True)  # type: ignore[assignment]
+
+    @property
+    def text_content(self) -> PageTextContentDict:
+        if not self.metadata or not isinstance(self.metadata, dict):
+            return {"lines": []}
+        return self.metadata.get('text_content', {"lines": []})
+
+    @text_content.setter
+    def text_content(self, value: PageTextContentDict) -> None:
+        if self.metadata is None or not isinstance(self.metadata, dict):
+            self.metadata = {}
+        self.metadata['text_content'] = value
+
+    @property
+    def width(self) -> Optional[int]:
+        if not self.metadata or not isinstance(self.metadata, dict):
+            return None
+        return self.metadata.get('width')
+
+    @width.setter
+    def width(self, value: Optional[int]) -> None:
+        if self.metadata is None or not isinstance(self.metadata, dict):
+            self.metadata = {}
+        if value is None:
+            self.metadata.pop('width', None)
+        else:
+            self.metadata['width'] = value
+
+    @property
+    def height(self) -> Optional[int]:
+        if not self.metadata or not isinstance(self.metadata, dict):
+            return None
+        return self.metadata.get('height')
+
+    @height.setter
+    def height(self, value: Optional[int]) -> None:
+        if self.metadata is None or not isinstance(self.metadata, dict):
+            self.metadata = {}
+        if value is None:
+            self.metadata.pop('height', None)
+        else:
+            self.metadata['height'] = value
+
+    @property
+    def plain_text(self) -> str:
+        """
+        Returns a continuous text string of the page contents, useful for
+        full-text search indexing, embeddings, and text extraction.
+        """
+        lines = self.text_content.get('lines', [])
+        return "\n".join(
+            line['text'] for line in lines
+            if isinstance(line, dict) and line.get('text')
+        )
 
     def __str__(self):
         return f'Page {self.page_number} of {self.document_version}'

@@ -355,3 +355,8 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** After introducing Dataroom collaboration, outbound link notifications could cause missed alerts or duplicate noise between link creators and room owners.
 - **Resolution/Action:** Implemented Phase 1 notification resolution: link creators receive link alerts by default; room owners can subscribe to all room activity via DATAROOM-scoped AutomationRules; if a collaborator leaves or is deactivated, notifications automatically fall back to the Dataroom owner.
 
+### 2026-09-25 Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** Server-rendered document previews rasterize PDFs at 200 DPI (e.g. 2339px height for A4), while CSS fixed points (`pt`) assume 96 DPI. On unconstrained full-screen views (e.g., public share link viewer), text layer spans with fixed `font_size_pt` caused text selection highlights to render at ~50% of the image text height and misalign upwards.
+- **Resolution/Action:** Configured `.text-layer` with `container-type: size;` and scaled `fontSize` dynamically to `${line.bbox.height}cqh` (with fallback to `font_size_pt`). This ensures text selection glyphs scale responsively across all viewport and container dimensions.
+

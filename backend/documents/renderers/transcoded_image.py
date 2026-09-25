@@ -101,11 +101,17 @@ class TranscodedImageRenderer(BasePreviewRenderer):
             filename=document.name,
         )
 
+        safe_metadata = (
+            {k: v for k, v in page_metadata.items() if k != 'text_content'}
+            if isinstance(page_metadata, dict)
+            else {}
+        )
         return [{
             'page_number': 1,
             'url': url,
-            'metadata': page_metadata,
+            'metadata': safe_metadata,
             'page_links': {'links': []},
+            'text_content': {'lines': []},
         }]
 
     def _dispatch_task(self, version: DocumentVersion):

@@ -1,7 +1,7 @@
 import pytest
 from django.core.exceptions import ValidationError
 
-from documents.models import Document, Folder, validate_document_version_metadata
+from documents.models import Document, DocumentPage, Folder, validate_document_version_metadata
 
 
 @pytest.mark.django_db
@@ -76,4 +76,47 @@ def test_validate_document_version_metadata():
                 'provider': 123.45
             }
         })
+
+
+def test_document_page_metadata_properties():
+    """Test that DocumentPage typed metadata accessors and plain_text helper work correctly."""
+    # 1. Defaults on empty page
+    page = DocumentPage(metadata={})
+    assert page.text_content == {"lines": []}
+    assert page.width is None
+    assert page.height is None
+    assert page.plain_text == ""
+
+    # 2. None metadata is handled gracefully
+    page_none = DocumentPage(metadata=None)
+    assert page_none.text_content == {"lines": []}
+    assert page_none.width is None
+    assert page_none.height is None
+    assert page_none.plain_text == ""
+
+    # 3. Setter for text_content
+    sample_lines = [
+        {"text": "Executive Summary", "bbox": {"left": 10.0, "top": 12.0, "width": 80.0, "height": 3.0}, "font_size_pt": 16.0},
+        {"text": "Revenue grew by 20%.", "bbox": {"left": 10.0, "top": 16.0, "width": 80.0, "height": 2.5}, "font_size_pt": 11.0},
+    ]
+    page.text_content = {"lines": sample_lines}
+    assert page.text_content == {"lines": sample_lines}
+    assert page.metadata["text_content"] == {"lines": sample_lines}
+    assert page.plain_text == "Executive Summary\nRevenue grew by 20%."
+
+    # 4. Setters for width and height
+    page.width = 1920
+    page.height = 1080
+    assert page.width == 1920
+    assert page.height == 1080
+    assert page.metadata["width"] == 1920
+    assert page.metadata["height"] == 1080
+
+    # 5. Clear width and height with None
+    page.width = None
+    page.height = None
+    assert page.width is None
+    assert page.height is None
+    assert "width" not in page.metadata
+    assert "height" not in page.metadata
 

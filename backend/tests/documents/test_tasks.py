@@ -8,9 +8,17 @@ import pytest
 from django.conf import settings
 from django.test import override_settings
 
+from django.core.management import call_command
+
 from documents.models import Document, DocumentVersion, DocumentPage
+from documents.pdf_utils import extract_text_layout_for_pdf
 from documents.renderers import normalize_content_type
-from documents.tasks import generate_pdf_pages_task, generate_video_stream_task, _resolve_pdf_object
+from documents.tasks import (
+    generate_pdf_pages_task,
+    generate_video_stream_task,
+    _resolve_pdf_object,
+)
+from documents.views import prepare_pages_data
 
 
 @pytest.mark.django_db
@@ -920,5 +928,396 @@ def test_resolve_pdf_object_circular_reference():
     # Resolving obj_a should break cycle and return safely
     result = _resolve_pdf_object(obj_a)
     assert result in (obj_a, obj_b)
+
+
+def test_extract_text_layout_for_pdf_valid_xml():
+    sample_xml = b"""<?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+    <html xmlns="http://www.w3.org/1999/xhtml">
+      <head><title>test</title></head>
+      <body>
+        <doc>
+          <page width="600.0" height="800.0">
+            <flow>
+              <block xMin="60.0" yMin="80.0" xMax="300.0" yMax="100.0">
+                <line xMin="60.0" yMin="80.0" xMax="300.0" yMax="100.0">
+                  <word xMin="60.0" yMin="80.0" xMax="120.0" yMax="100.0">Quarterly</word>
+                  <word xMin="125.0" yMin="80.0" xMax="200.0" yMax="100.0">Revenue</word>
+                  <word xMin="205.0" yMin="80.0" xMax="300.0" yMax="100.0">Summary</word>
+                </line>
+              </block>
+            </flow>
+          </page>
+        </doc>
+      </body>
+    </html>
+    """
+    with patch("documents.pdf_utils._run_pdftotext") as mock_run:
+        mock_run.return_value = sample_xml
+        result = extract_text_layout_for_pdf(b"dummy_pdf_bytes")
+
+    assert 1 in result
+    lines = result[1]["lines"]
+    assert len(lines) == 1
+    assert lines[0]["text"] == "Quarterly Revenue Summary"
+    assert lines[0]["bbox"]["left"] == 10.0  # 60 / 600 * 100
+    assert lines[0]["bbox"]["top"] == 10.0   # 80 / 800 * 100
+    assert lines[0]["bbox"]["width"] == 40.0 # (300 - 60) / 600 * 100
+    assert lines[0]["bbox"]["height"] == 2.5 # (100 - 80) / 800 * 100
+    assert lines[0]["font_size_pt"] == 20.0  # 100 - 80
+
+
+def test_extract_text_layout_for_pdf_inverted_coordinates():
+    sample_xml = b"""
+    <html xmlns="http://www.w3.org/1999/xhtml">
+      <body>
+        <doc>
+          <page width="500.0" height="1000.0">
+            <flow>
+              <block>
+                <line xMin="250.0" yMin="200.0" xMax="50.0" yMax="100.0">
+                  <word>Inverted</word>
+                  <word>Line</word>
+                </line>
+              </block>
+            </flow>
+          </page>
+        </doc>
+      </body>
+    </html>
+    """
+    with patch("documents.pdf_utils._run_pdftotext") as mock_run:
+        mock_run.return_value = sample_xml
+        result = extract_text_layout_for_pdf(b"dummy_pdf_bytes")
+
+    assert 1 in result
+    line = result[1]["lines"][0]
+    assert line["text"] == "Inverted Line"
+    assert line["bbox"]["left"] == 10.0  # min(250, 50) / 500 * 100
+    assert line["bbox"]["top"] == 10.0   # min(200, 100) / 1000 * 100
+    assert line["bbox"]["width"] == 40.0 # (250 - 50) / 500 * 100
+    assert line["bbox"]["height"] == 10.0 # (200 - 100) / 1000 * 100
+    assert line["font_size_pt"] == 100.0
+
+
+def test_extract_text_layout_for_pdf_error_handling():
+    # Empty bytes
+    assert extract_text_layout_for_pdf(b"") == {}
+
+    # Subprocess/extraction error
+    with patch("documents.pdf_utils._run_pdftotext", side_effect=Exception("poppler error")):
+        assert extract_text_layout_for_pdf(b"bad_bytes") == {}
+
+    # Corrupt XML
+    with patch("documents.pdf_utils._run_pdftotext") as mock_run:
+        mock_run.return_value = b"<malformed xml"
+        assert extract_text_layout_for_pdf(b"bytes") == {}
+
+
+def test_run_pdftotext_bounded_output():
+    from documents.pdf_utils import _run_pdftotext
+
+    mock_proc = MagicMock()
+    mock_proc.poll.side_effect = [None, None, 0]
+    mock_proc.returncode = 0
+
+    def mock_popen(args, stdout, stderr, **kwargs):
+        stdout.write(b"x" * 2000)
+        stdout.flush()
+        return mock_proc
+
+    with patch("documents.pdf_utils.tempfile.NamedTemporaryFile"), \
+         patch("documents.pdf_utils.subprocess.Popen", side_effect=mock_popen):
+        # max_bytes = 1500; total will be 2000 -> exceeds threshold
+        result = _run_pdftotext(b"dummy_pdf", max_bytes=1500)
+        assert result == b""
+        mock_proc.kill.assert_called_once()
+
+
+def test_run_pdftotext_timeout():
+    from documents.pdf_utils import _run_pdftotext
+
+    mock_proc = MagicMock()
+    mock_proc.poll.return_value = None
+
+    with patch("documents.pdf_utils.tempfile.NamedTemporaryFile"), \
+         patch("documents.pdf_utils.subprocess.Popen", return_value=mock_proc):
+        result = _run_pdftotext(b"dummy_pdf", timeout=0.01)
+        assert result == b""
+        mock_proc.kill.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_prepare_pages_data_watermark_suppression(user):
+    document = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="test_text_watermark.pdf",
+        status="ready",
+    )
+    version = DocumentVersion.objects.create(
+        document=document,
+        version_number=1,
+        has_pages=True,
+        render_status=DocumentVersion.RENDER_READY,
+    )
+    page = DocumentPage.objects.create(
+        document_version=version,
+        page_number=1,
+        storage_key="test_page_1.png",
+        metadata={
+            "custom_meta": "keep_this",
+            "text_content": {
+                "lines": [
+                    {
+                        "text": "Confidential internal report",
+                        "bbox": {"left": 10, "top": 10, "width": 80, "height": 5},
+                        "font_size_pt": 12,
+                    }
+                ]
+            },
+        },
+    )
+
+    # 1. Non-watermarked preview: returns text_content and safe metadata
+    pages_unwatermarked = prepare_pages_data(document, version, share_link=None)
+    assert len(pages_unwatermarked) == 1
+    assert pages_unwatermarked[0]["text_content"] == {
+        "lines": [
+            {
+                "text": "Confidential internal report",
+                "bbox": {"left": 10, "top": 10, "width": 80, "height": 5},
+                "font_size_pt": 12,
+            }
+        ]
+    }
+    # safe_metadata does not leak text_content but preserves other metadata
+    assert "text_content" not in pages_unwatermarked[0]["metadata"]
+    assert pages_unwatermarked[0]["metadata"].get("custom_meta") == "keep_this"
+
+    # 2. Watermarked share link: strictly suppresses text_content and strips from metadata
+    mock_link = MagicMock()
+    mock_link.enable_watermark = True
+    mock_link.watermark_text = "CONFIDENTIAL"
+    mock_link.slug = "secret-slug"
+    mock_link.dataroom = None
+
+    pages_watermarked = prepare_pages_data(document, version, share_link=mock_link)
+    assert len(pages_watermarked) == 1
+    assert pages_watermarked[0]["text_content"] == {"lines": []}
+    assert "text_content" not in pages_watermarked[0]["metadata"]
+    assert pages_watermarked[0]["metadata"].get("custom_meta") == "keep_this"
+
+
+@pytest.mark.django_db
+def test_backfill_page_text_management_command(user):
+    document = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="test_backfill.pdf",
+        status="ready",
+    )
+    version = DocumentVersion.objects.create(
+        document=document,
+        version_number=1,
+        storage_key="docs/test_backfill.pdf",
+        has_pages=True,
+        render_status=DocumentVersion.RENDER_READY,
+    )
+    page = DocumentPage.objects.create(
+        document_version=version,
+        page_number=1,
+        storage_key="docs/test_backfill_page_1.png",
+        metadata={},
+    )
+
+    sample_lines = [
+        {"text": "Backfilled Text", "bbox": {"left": 5, "top": 5, "width": 50, "height": 2}, "font_size_pt": 14}
+    ]
+
+    with patch("documents.management.commands.backfill_page_text.fileserver_client.generate_download_url") as mock_url, \
+         patch("documents.management.commands.backfill_page_text.requests.get") as mock_get, \
+         patch("documents.management.commands.backfill_page_text.extract_text_layout_for_pdf") as mock_extract:
+
+        mock_url.return_value = "https://files.example.com/test_backfill.pdf"
+        mock_resp = MagicMock()
+        mock_resp.content = b"%PDF-dummy"
+        mock_get.return_value = mock_resp
+        mock_extract.return_value = {1: {"lines": sample_lines}}
+
+        call_command("backfill_page_text", document_id=str(document.id))
+
+    page.refresh_from_db()
+    assert page.text_content == {"lines": sample_lines}
+
+
+@pytest.mark.django_db
+def test_backfill_page_text_does_not_overwrite_on_extraction_failure(user):
+    document = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="test_existing.pdf",
+        status="ready",
+    )
+    version = DocumentVersion.objects.create(
+        document=document,
+        version_number=1,
+        storage_key="docs/test_existing.pdf",
+        has_pages=True,
+        render_status=DocumentVersion.RENDER_READY,
+    )
+    existing_lines = [{"text": "Original Valid Text", "bbox": {"left": 10, "top": 10, "width": 50, "height": 5}, "font_size_pt": 12}]
+    page = DocumentPage.objects.create(
+        document_version=version,
+        page_number=1,
+        storage_key="docs/test_existing_page_1.png",
+        metadata={"text_content": {"lines": existing_lines}},
+    )
+
+    with patch("documents.management.commands.backfill_page_text.fileserver_client.generate_download_url") as mock_url, \
+         patch("documents.management.commands.backfill_page_text.requests.get") as mock_get, \
+         patch("documents.management.commands.backfill_page_text.extract_text_layout_for_pdf") as mock_extract:
+
+        mock_url.return_value = "https://files.example.com/test_existing.pdf"
+        mock_resp = MagicMock()
+        mock_resp.content = b"%PDF-dummy"
+        mock_get.return_value = mock_resp
+        # Simulate extraction failure returning empty dict {}
+        mock_extract.return_value = {}
+
+        call_command("backfill_page_text", document_id=str(document.id), force=True)
+
+    page.refresh_from_db()
+    # Verifies original text was preserved and not overwritten with empty lines
+    assert page.text_content == {"lines": existing_lines}
+
+
+@pytest.mark.django_db
+def test_backfill_page_text_without_arguments_shows_help():
+    with patch("documents.management.commands.backfill_page_text.Command.print_help") as mock_help:
+        call_command("backfill_page_text")
+        mock_help.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_backfill_page_text_all_flag(user):
+    document = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="test_all.pdf",
+        status="ready",
+    )
+    version = DocumentVersion.objects.create(
+        document=document,
+        version_number=1,
+        storage_key="docs/test_all.pdf",
+        has_pages=True,
+        render_status=DocumentVersion.RENDER_READY,
+    )
+    page = DocumentPage.objects.create(
+        document_version=version,
+        page_number=1,
+        storage_key="docs/test_all_page_1.png",
+        metadata={},
+    )
+    sample_lines = [{"text": "All Docs Text", "bbox": {"left": 5, "top": 5, "width": 50, "height": 2}, "font_size_pt": 14}]
+
+    with patch("documents.management.commands.backfill_page_text.fileserver_client.generate_download_url") as mock_url, \
+         patch("documents.management.commands.backfill_page_text.requests.get") as mock_get, \
+         patch("documents.management.commands.backfill_page_text.extract_text_layout_for_pdf") as mock_extract:
+
+        mock_url.return_value = "https://files.example.com/test_all.pdf"
+        mock_resp = MagicMock()
+        mock_resp.content = b"%PDF-dummy"
+        mock_get.return_value = mock_resp
+        mock_extract.return_value = {1: {"lines": sample_lines}}
+
+        call_command("backfill_page_text", all=True)
+
+    page.refresh_from_db()
+    assert page.text_content == {"lines": sample_lines}
+
+
+@pytest.mark.django_db
+def test_backfill_page_text_skips_blank_pages_when_already_processed(user):
+    document = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="test_blank.pdf",
+        status="ready",
+    )
+    version = DocumentVersion.objects.create(
+        document=document,
+        version_number=1,
+        storage_key="docs/test_blank.pdf",
+        has_pages=True,
+        render_status=DocumentVersion.RENDER_READY,
+    )
+    # Page has empty lines but has been processed (contains "text_content")
+    page = DocumentPage.objects.create(
+        document_version=version,
+        page_number=1,
+        storage_key="docs/test_blank_page_1.png",
+        metadata={"text_content": {"lines": []}},
+    )
+
+    with patch("documents.management.commands.backfill_page_text.requests.get") as mock_get:
+        call_command("backfill_page_text", all=True)
+        # Should be skipped without downloading PDF
+        mock_get.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_backfill_page_text_preserves_existing_text_without_force(user):
+    document = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="test_preserve.pdf",
+        status="ready",
+    )
+    version = DocumentVersion.objects.create(
+        document=document,
+        version_number=1,
+        storage_key="docs/test_preserve.pdf",
+        has_pages=True,
+        render_status=DocumentVersion.RENDER_READY,
+    )
+    existing_lines = [{"text": "Keep Me", "bbox": {"left": 5, "top": 5, "width": 50, "height": 2}, "font_size_pt": 14}]
+    page1 = DocumentPage.objects.create(
+        document_version=version,
+        page_number=1,
+        storage_key="docs/test_preserve_page_1.png",
+        metadata={"text_content": {"lines": existing_lines}},
+    )
+    page2 = DocumentPage.objects.create(
+        document_version=version,
+        page_number=2,
+        storage_key="docs/test_preserve_page_2.png",
+        metadata={},  # missing text_content
+    )
+    new_page2_lines = [{"text": "Page 2 Text", "bbox": {"left": 5, "top": 5, "width": 50, "height": 2}, "font_size_pt": 12}]
+
+    with patch("documents.management.commands.backfill_page_text.fileserver_client.generate_download_url") as mock_url, \
+         patch("documents.management.commands.backfill_page_text.requests.get") as mock_get, \
+         patch("documents.management.commands.backfill_page_text.extract_text_layout_for_pdf") as mock_extract:
+
+        mock_url.return_value = "https://files.example.com/test_preserve.pdf"
+        mock_resp = MagicMock()
+        mock_resp.content = b"%PDF-dummy"
+        mock_get.return_value = mock_resp
+        # Extraction returns empty lines for page 1, and text for page 2
+        mock_extract.return_value = {1: {"lines": []}, 2: {"lines": new_page2_lines}}
+
+        call_command("backfill_page_text", document_id=str(document.id))
+
+    page1.refresh_from_db()
+    page2.refresh_from_db()
+    # Page 1 preserved its existing lines
+    assert page1.text_content == {"lines": existing_lines}
+    # Page 2 was backfilled
+    assert page2.text_content == {"lines": new_page2_lines}
+
+
+
 
 

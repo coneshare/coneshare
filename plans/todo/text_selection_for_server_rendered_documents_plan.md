@@ -25,8 +25,14 @@ Instead of switching to client-side rendering engines like PDF.js canvas mode or
 
 ### C. Universal scope
 - Applies to all documents processed through the `server_pages` engine: Word (`.docx`, `.doc`), PowerPoint (`.pptx`, `.ppt`), Excel (`.xlsx`, `.xls`), and native PDF (`.pdf`).
-- Extracted automatically on new uploads and first-access preview conversions.
+- Extracted automatically during first-access preview conversions.
 - Includes an optional management command to backfill text layers for existing documents without re-rasterizing images.
+
+### D. Document update lifecycle and lazy extraction policy
+- **Strictly deferred to preview stage:** Updating a document (e.g. uploading versions `v2` through `v10`, or triggering cloud sync refreshes) initializes each new `DocumentVersion` with `render_status = "not_generated"` and `has_pages = False`. Zero extraction, conversion, or Celery tasks run upon upload.
+- **On-demand execution:** Poppler text extraction (`extract_text_layout_for_pdf`) only executes when a version is previewed for the first time via `GET /preview-data/` or `GET /view-data/`.
+- **Intermediate unviewed versions skipped:** If a document is updated multiple times consecutively (e.g. 10 updates) without opening the previewer, intermediate versions (`v2` ~ `v9`) incur zero page rasterization, zero text extraction, and zero `DocumentPage` database rows. When previewed, only the active primary version (`v10`) triggers extraction.
+- **Version isolation:** Each `DocumentVersion` maintains isolated `DocumentPage` records. Rolling back or promoting an older version immediately serves that version's historical text layer without needing re-extraction.
 
 ---
 
@@ -59,12 +65,18 @@ flowchart TD
 ```
 
 ### Database model updates (`backend/documents/models.py`)
-Add `text_content` to `DocumentPage`:
+Store `text_content` inside `DocumentPage.metadata` with `TypedDict` static typing and property accessors (zero DB schema migrations):
 ```python
 class DocumentPage(BaseModel):
     ...
     page_links = models.JSONField(default=dict, blank=True)
-    text_content = models.JSONField(default=dict, blank=True)  # Line and word layout bboxes
+    metadata: DocumentPageMetadataDict = models.JSONField(default=dict, blank=True)
+
+    @property
+    def text_content(self) -> PageTextContentDict: ...
+
+    @property
+    def plain_text(self) -> str: ...
 ```
 
 ### JSON schema for `text_content`
@@ -100,7 +112,7 @@ Coordinates are percentages relative to page dimensions (`page_w`, `page_h`), ma
   <div class="absolute inset-0 pointer-events-auto overflow-hidden select-text text-layer">
     <span 
       class="absolute leading-none whitespace-pre text-transparent cursor-text select-text"
-      style="left: 10.5%; top: 5.2%; width: 52%; height: 3.1%; font-size: calc(18pt * var(--zoom));"
+      style="left: 10.5%; top: 5.2%; width: 52%; height: 3.1%; font-size: 3.1cqh;"
     >
       Quarterly Revenue Summary
     </span>
@@ -114,6 +126,10 @@ Coordinates are percentages relative to page dimensions (`page_w`, `page_h`), ma
 
 ### CSS styling rules
 ```css
+.text-layer {
+  container-type: size;
+}
+
 .text-layer span {
   color: transparent;
   transform-origin: 0% 0%;
@@ -148,8 +164,46 @@ Coordinates are percentages relative to page dimensions (`page_w`, `page_h`), ma
 6. Viewport optimization: mount the text overlay layer only on visible pages.
 
 ### Phase 3: Utilities and testing
-7. Backfill command: add `python manage.py extract_page_text [--document-id ID]` to generate `text_content` for existing `ready` documents without regenerating image assets.
+7. Backfill command: add `python manage.py backfill_page_text (--all | --document-id ID) [--force]` to generate `text_content` for existing `ready` documents without regenerating image assets.
 8. Tests:
    - Unit tests for `pdftotext` parsing and coordinate normalization in `tests/documents/test_tasks.py`.
    - Security tests verifying that `text_content` is stripped when `enable_watermark=True`.
    - Frontend Vitest tests for text selection and link overlay positioning in `PreviewViewer.test.jsx`.
+
+---
+
+## 7. Downstream feature integration: Full-text search and semantic search
+
+The extracted `text_content` stored in `DocumentPage.metadata` serves as the canonical ingestion foundation for upcoming search capabilities without requiring re-parsing or re-rasterizing original documents.
+
+### A. Full-text search (FTS)
+- **Primary role:** Serves as the source of truth for text tokens, page numbers, and spatial layout.
+- **Visual search highlighting:**
+  - Because each line retains normalized bounding box coordinates (`bbox: {left, top, width, height}`), search results in the frontend viewer can visually highlight matches directly on top of the document canvas (comparable to PDF.js / Acrobat search).
+- **Query performance & architectural guidelines:**
+  - *Anti-pattern:* Never query nested JSON arrays in SQL (`WHERE metadata->'text_content'->'lines' ...`) at search query time, as this forces full table scans and cannot leverage database GIN full-text indexes.
+  - *Recommended pattern:* Ingestion tasks feed flat text into a dedicated full-text index:
+    - PostgreSQL `SearchVectorField` (`tsvector` + GIN index) or SQLite FTS5 for local dev.
+    - External search indexers (Elasticsearch, OpenSearch, Meilisearch).
+  - *Helper accessor:* Use `DocumentPage.plain_text` property (`"\n".join(...)`) to extract clean page text on demand for indexers.
+
+### B. Semantic search and RAG (vector embeddings)
+- **Primary role:** Provides layout-aware text for chunking and precise citation overlays.
+- **Heading-aware semantic chunking:**
+  - Standard embedding chunkers slice text naively by character/token count, often cutting sentences or context boundaries.
+  - The `font_size_pt` attribute enables structural chunking: lines with larger font sizes (`font_size_pt >= 14`) can be detected as section headers or titles, producing semantically cohesive chunks (header + body).
+- **Accurate citations & jumping:**
+  - Vector similarity hits map directly to `(document_version_id, page_number, start_line_idx, end_line_idx)`, enabling the UI to navigate straight to the exact page and highlight the referenced paragraph.
+- **Storage and indexing guidelines:**
+  - *Anti-pattern:* Never store high-dimensional embeddings (e.g. 1536 floats * 4 bytes ≈ 6 KB per chunk) inside `DocumentPage.metadata`. This causes severe JSON bloat and cannot utilize vector indexes (HNSW, IVFFlat).
+  - *Recommended pattern:* Maintain a dedicated chunk model (e.g., `DocumentChunk` with `pgvector` or external vector database):
+    ```python
+    class DocumentChunk(BaseModel):
+        document_version = models.ForeignKey(DocumentVersion, on_delete=models.CASCADE, related_name='chunks')
+        page = models.ForeignKey(DocumentPage, on_delete=models.CASCADE, related_name='chunks')
+        chunk_text = models.TextField()
+        embedding = VectorField(dimensions=1536)  # pgvector
+        start_line_idx = models.IntegerField()
+        end_line_idx = models.IntegerField()
+    ```
+  - An asynchronous Celery task consumes `DocumentPage.metadata['text_content']`, generates chunk embeddings via the configured provider (OpenAI, Cohere, local models), and persists them to `DocumentChunk`.
