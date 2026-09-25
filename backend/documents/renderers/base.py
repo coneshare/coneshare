@@ -183,11 +183,22 @@ class BasePreviewRenderer(ABC):
                     dataroom_document_id=dataroom_document_id,
                     is_watermarked=is_watermarked,
                 )
+                safe_metadata = (
+                    {k: v for k, v in page.metadata.items() if k != 'text_content'}
+                    if isinstance(page.metadata, dict)
+                    else {}
+                )
+                text_content = (
+                    {"lines": []}
+                    if is_watermarked
+                    else (page.text_content if isinstance(page.text_content, dict) else {"lines": []})
+                )
                 pages_data.append({
                     'page_number': page.page_number,
                     'url': url,
-                    'metadata': page.metadata,
+                    'metadata': safe_metadata,
                     'page_links': page.page_links if isinstance(page.page_links, dict) else {'links': []},
+                    'text_content': text_content,
                 })
         return pages_data
 

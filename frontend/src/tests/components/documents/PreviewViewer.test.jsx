@@ -384,4 +384,143 @@ describe('PreviewViewer', () => {
     const allLinks = screen.getAllByRole('link');
     expect(allLinks).toHaveLength(1);
   });
+
+  it('should render selectable text overlay when text_content is present', () => {
+    const documentDataWithText = {
+      pages: [
+        {
+          page_number: 1,
+          url: '/page1.png',
+          text_content: {
+            lines: [
+              {
+                text: 'Quarterly Revenue Summary',
+                bbox: { left: 10.5, top: 5.2, width: 52.0, height: 3.1 },
+                font_size_pt: 18,
+              },
+              {
+                text: 'Total revenue increased by 24% year-over-year.',
+                bbox: { left: 10.5, top: 9.0, width: 78.4, height: 2.2 },
+                font_size_pt: 11,
+              },
+            ],
+          },
+        },
+      ],
+    };
+
+    renderComponent({ documentData: documentDataWithText });
+
+    const textLayer = screen.getByTestId('text-layer-1');
+    expect(textLayer).toBeInTheDocument();
+    expect(textLayer).toHaveClass('text-layer', 'select-text', 'absolute', 'inset-0');
+
+    const lineSpans = textLayer.querySelectorAll('span');
+    expect(lineSpans).toHaveLength(2);
+
+    expect(lineSpans[0]).toHaveTextContent('Quarterly Revenue Summary');
+    expect(lineSpans[0]).toHaveClass('text-transparent', 'cursor-text', 'select-text');
+    expect(lineSpans[0]).toHaveStyle({
+      left: '10.5%',
+      top: '5.2%',
+      width: '52%',
+      height: '3.1%',
+      fontSize: '3.1cqh',
+    });
+
+    expect(lineSpans[1]).toHaveTextContent('Total revenue increased by 24% year-over-year.');
+    expect(lineSpans[1]).toHaveStyle({
+      left: '10.5%',
+      top: '9%',
+      width: '78.4%',
+      height: '2.2%',
+      fontSize: '2.2cqh',
+    });
+  });
+
+  it('should fallback to font_size_pt when bbox.height is missing', () => {
+    const documentDataWithFallback = {
+      pages: [
+        {
+          page_number: 1,
+          url: '/page1.png',
+          text_content: {
+            lines: [
+              {
+                text: 'Fallback Text',
+                bbox: { left: 10, top: 10, width: 30 },
+                font_size_pt: 14,
+              },
+            ],
+          },
+        },
+      ],
+    };
+
+    renderComponent({ documentData: documentDataWithFallback });
+
+    const textLayer = screen.getByTestId('text-layer-1');
+    const span = textLayer.querySelector('span');
+    expect(span).toHaveStyle({
+      fontSize: '14pt',
+    });
+  });
+
+  it('should not render text overlay when text_content is empty or omitted', () => {
+    const documentDataNoText = {
+      pages: [
+        {
+          page_number: 1,
+          url: '/page1.png',
+          text_content: { lines: [] },
+        },
+        {
+          page_number: 2,
+          url: '/page2.png',
+        },
+      ],
+    };
+
+    renderComponent({ documentData: documentDataNoText });
+
+    expect(screen.queryByTestId('text-layer-1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('text-layer-2')).not.toBeInTheDocument();
+  });
+
+  it('should preserve link overlays above text layer with z-index 5', () => {
+    const documentDataWithBoth = {
+      pages: [
+        {
+          page_number: 1,
+          url: '/page1.png',
+          text_content: {
+            lines: [
+              {
+                text: 'Click here for details',
+                bbox: { left: 10, top: 10, width: 30, height: 5 },
+                font_size_pt: 12,
+              },
+            ],
+          },
+          page_links: {
+            links: [
+              {
+                url: 'https://example.com/details',
+                bbox: { left: 10, top: 10, width: 30, height: 5 },
+              },
+            ],
+          },
+        },
+      ],
+    };
+
+    renderComponent({ documentData: documentDataWithBoth });
+
+    const textLayer = screen.getByTestId('text-layer-1');
+    const linkElement = screen.getByRole('link');
+
+    expect(textLayer).toBeInTheDocument();
+    expect(linkElement).toBeInTheDocument();
+    expect(linkElement).toHaveStyle({ zIndex: '5' });
+  });
 });
