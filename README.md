@@ -59,6 +59,9 @@ Keep your existing storage workflows while gaining access controls, datarooms, a
 - Self-hosted on your own servers or private cloud.
 - Connects directly to existing storage without copying or duplicating files.
 
+### Internationalization
+- Available in English, Simplified Chinese, Russian, German, and French (`en`, `zh-hans`, `ru`, `de`, `fr`).
+
 ---
 
 ## Integrations

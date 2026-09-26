@@ -34,6 +34,7 @@ help:
 	@echo "  lint.docs       - Validate feature docs template sections"
 	@echo "  migrate         - Run database migrations"
 	@echo "  superuser       - Create a superuser"
+	@echo "  compile.po      - Compile translation catalogs (.po -> .mo)"
 	@echo "  api.schema      - Generate OpenAPI schema at backend/docs/api/openapi.yaml"
 	@echo "  api.schema.validate - Validate generated OpenAPI schema"
 
@@ -45,10 +46,16 @@ help:
 .PHONY: up
 up:
 	COMPOSE_PROJECT_NAME=coneshare docker-compose up -d
+	@COMPOSE_PROJECT_NAME=coneshare docker-compose exec -T backend python compile_po.py 2>/dev/null || true
 
 .PHONY: up.malware
 up.malware:
 	COMPOSE_PROJECT_NAME=coneshare docker-compose --profile malware up -d
+	@COMPOSE_PROJECT_NAME=coneshare docker-compose exec -T backend python compile_po.py 2>/dev/null || true
+
+.PHONY: compile.po
+compile.po:
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec -T backend python compile_po.py
 
 .PHONY: down
 down:

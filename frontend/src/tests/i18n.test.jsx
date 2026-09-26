@@ -5,6 +5,7 @@ import en from '../locales/en/translation.json';
 import zhHans from '../locales/zh-hans/translation.json';
 import ru from '../locales/ru/translation.json';
 import de from '../locales/de/translation.json';
+import fr from '../locales/fr/translation.json';
 import { formatDate, formatRelativeTime } from '../utils/formatters';
 import { getLocalizedErrorMessage } from '../utils/errorTranslator';
 import appI18n from '../i18n';
@@ -18,11 +19,12 @@ function createTestI18n() {
       zh: { translation: zhHans },
       ru: { translation: ru },
       de: { translation: de },
+      fr: { translation: fr },
     },
     fallbackLng: 'en',
     load: 'currentOnly',
     lowerCaseLng: true,
-    supportedLngs: ['en', 'zh-hans', 'zh', 'ru', 'de'],
+    supportedLngs: ['en', 'zh-hans', 'zh', 'ru', 'de', 'fr'],
     interpolation: { escapeValue: false },
   });
   return instance;
@@ -109,6 +111,24 @@ describe('Frontend i18n System', () => {
     expect(testI18n.t('admin.resetUserPasswordDesc')).toBe('Alle bestehenden aktiven Sitzungen für diesen Benutzer werden sofort widerrufen.');
   });
 
+  it('switches language to French (fr)', async () => {
+    const testI18n = createTestI18n();
+    await testI18n.changeLanguage('fr');
+    expect(testI18n.t('common.save')).toBe('Enregistrer les modifications');
+    expect(testI18n.t('common.edit')).toBe('Modifier');
+    expect(testI18n.t('viewer.preview')).toBe('Aperçu');
+    expect(testI18n.t('nav.dashboard')).toBe('Tableau de bord');
+    expect(testI18n.t('dashboard.title')).toBe('Tableau de bord');
+    expect(testI18n.t('dashboard.dailyVisits')).toBe('Visites quotidiennes (30 derniers jours)');
+    expect(testI18n.t('analytics.visitor')).toBe('Visiteur');
+    expect(testI18n.t('documents.newFolderTitle')).toBe('Créer un nouveau dossier');
+    expect(testI18n.t('documents.renameTitle')).toBe("Renommer l'élément");
+    expect(testI18n.t('documents.moveTitle')).toBe('Déplacer les éléments');
+    expect(testI18n.t('settings.title')).toBe('Paramètres utilisateur');
+    expect(testI18n.t('admin.resetPassword')).toBe('Réinitialiser le mot de passe');
+    expect(testI18n.t('admin.resetUserPasswordDesc')).toBe('Toutes les sessions actives existantes de cet utilisateur seront immédiatement révoquées.');
+  });
+
   it('falls back to English for missing keys in non-English locale', async () => {
     const testI18n = createTestI18n();
     await testI18n.changeLanguage('zh-hans');
@@ -128,6 +148,20 @@ describe('Frontend i18n System', () => {
     expect(testI18n.t('datarooms.addSelectedItems', { count: 4 })).toBe('Add 4 items');
     expect(testI18n.t('trash.itemsSelected', { count: 1 })).toBe('1 item selected');
     expect(testI18n.t('trash.itemsSelected', { count: 2 })).toBe('2 items selected');
+
+    // French plurals (_one / _other)
+    await testI18n.changeLanguage('fr');
+    expect(testI18n.t('links.settingCount', { count: 1 })).toBe('1 paramètre');
+    expect(testI18n.t('links.settingCount', { count: 5 })).toBe('5 paramètres');
+    expect(testI18n.t('documents.itemCount', { count: 1 })).toBe('1 élément');
+    expect(testI18n.t('documents.itemCount', { count: 3 })).toBe('3 éléments');
+    expect(testI18n.t('datarooms.addSelectedItems', { count: 1 })).toBe('Ajouter 1 élément');
+    expect(testI18n.t('datarooms.addSelectedItems', { count: 4 })).toBe('Ajouter 4 éléments');
+    expect(testI18n.t('trash.itemsSelected', { count: 1 })).toBe('1 élément sélectionné');
+    expect(testI18n.t('trash.itemsSelected', { count: 2 })).toBe('2 éléments sélectionnés');
+    expect(testI18n.t('qna.threadsCount', { count: 1 })).toBe('1 fil');
+    expect(testI18n.t('qna.threadsCount', { count: 5 })).toBe('5 fils');
+    expect(testI18n.t('qna.threadsCount', { count: 1000000 })).toBe('1000000 fils');
 
     // German plurals (_one / _other)
     await testI18n.changeLanguage('de');
@@ -286,6 +320,45 @@ describe('Frontend i18n System', () => {
     expect(testI18n.t('uploads.allComplete')).toBe('Все загрузки завершены!');
     expect(testI18n.t('uploads.failedCount', { count: 1 })).toBe('Не удалось загрузить 1 файл.');
     expect(testI18n.t('uploads.overallProgress')).toBe('Общий прогресс');
+
+    // French
+    await testI18n.changeLanguage('fr');
+    expect(testI18n.t('documents.folderCreatedSuccess', { name: 'Projects' })).toBe('Dossier "Projects" créé avec succès.');
+    expect(testI18n.t('documents.requestFiles')).toBe('Demander des fichiers');
+    expect(testI18n.t('documents.copy')).toBe('Copier');
+    expect(testI18n.t('documents.copyingItem', { name: 'Doc.pdf' })).toBe('Copie de "Doc.pdf"...');
+    expect(testI18n.t('documents.copySuccess', { name: 'Doc.pdf' })).toBe('"Doc.pdf" a été copié avec succès.');
+    expect(testI18n.t('documents.deleteConfirmTitleName', { name: 'Report.pdf' })).toBe('Déplacer "Report.pdf" vers la corbeille ?');
+    expect(testI18n.t('documents.moveToTrash')).toBe('Déplacer vers la corbeille');
+    expect(testI18n.t('documents.deleteItemSuccess', { name: 'Report.pdf' })).toBe('"Report.pdf" supprimé avec succès.');
+    expect(testI18n.t('documents.uploadedBy', { name: 'Alice', email: 'alice@example.com' })).toBe('Téléversé par Alice (alice@example.com)');
+    expect(testI18n.t('documents.me')).toBe('Moi');
+    expect(testI18n.t('cloudImport.title', { provider: 'Dropbox' })).toBe('Importer depuis Dropbox');
+    expect(testI18n.t('cloudImport.import')).toBe('Importer');
+    expect(testI18n.t('links.statusToggleSuccess', { name: 'Public Link', status: testI18n.t('links.activeStatus') })).toBe('Le lien "Public Link" est désormais actif.');
+    expect(testI18n.t('links.copiedToClipboard')).toBe('Lien copié dans le presse-papiers !');
+    expect(testI18n.t('fileRequests.copyLinkSuccess')).toBe('Lien copié dans le presse-papiers !');
+    expect(testI18n.t('errors.linkRequiresEmail')).toBe('Ce lien nécessite une adresse e-mail pour être consulté.');
+    expect(testI18n.t('errors.linkPasswordProtected')).toBe('Ce lien est protégé par mot de passe. Veuillez entrer le mot de passe pour continuer.');
+    expect(testI18n.t('viewer.previousPage')).toBe('Page précédente');
+    expect(testI18n.t('viewer.toggleFullscreen')).toBe('Plein écran');
+    expect(testI18n.t('viewer.view')).toBe('Afficher');
+    expect(testI18n.t('viewer.download')).toBe('Télécharger');
+    expect(testI18n.t('viewer.prevFile')).toBe('Fichier précédent');
+    expect(testI18n.t('viewer.nextFileLabel')).toBe('Fichier suivant');
+    expect(testI18n.t('viewer.collapseSidebar')).toBe('Réduire la barre latérale');
+    expect(testI18n.t('viewer.previewUnavailable')).toBe('Aperçu non disponible');
+    expect(testI18n.t('viewer.previewNotAvailableNotice')).toBe("Ce type de fichier n'est pas disponible pour l'aperçu en ligne. Téléchargez le fichier et ouvrez-le sur votre appareil.");
+    expect(testI18n.t('errors.documentTooManyPages')).toBe('Le document comporte trop de pages pour générer un aperçu.');
+    expect(testI18n.t('qna.title')).toBe('Q&R');
+    expect(testI18n.t('qna.documentQna')).toBe('Q&R du document');
+    expect(testI18n.t('qna.openDocumentQna')).toBe('Ouvrir les Q&R pour ce document');
+    expect(testI18n.t('qna.askPlaceholder')).toBe('Poser une question...');
+    expect(testI18n.t('qna.questionSent')).toBe('Question envoyée.');
+    expect(testI18n.t('uploads.uploading', { count: 2 })).toBe('Téléversement de 2 fichiers...');
+    expect(testI18n.t('uploads.allComplete')).toBe('Tous les téléversements sont terminés !');
+    expect(testI18n.t('uploads.failedCount', { count: 1 })).toBe('1 téléversement a échoué.');
+    expect(testI18n.t('uploads.overallProgress')).toBe('Progression globale');
   });
 
   it('translates raw backend Google Drive token expired error message using errorTranslator', async () => {
@@ -309,6 +382,9 @@ describe('Frontend i18n System', () => {
     await appI18n.changeLanguage('de');
     expect(getLocalizedErrorMessage(rawError)).toBe('Fehler beim Zugriff auf Google Drive. Ihr Autorisierungs-Token ist möglicherweise abgelaufen oder wurde widerrufen. Bitte verbinden Sie Ihr Konto erneut.');
 
+    await appI18n.changeLanguage('fr');
+    expect(getLocalizedErrorMessage(rawError)).toBe('Échec de l\'accès à Google Drive. Votre jeton d\'autorisation a peut-être expiré ou a été révoqué. Veuillez reconnecter votre compte.');
+
     // Dynamic storage quota errors
     const quotaError = {
       response: { data: { detail: 'Uploading this file would exceed your storage quota of 10 MB.' } },
@@ -321,6 +397,8 @@ describe('Frontend i18n System', () => {
     expect(getLocalizedErrorMessage(quotaError)).toBe('Das Hochladen dieser Datei würde Ihr Speicherkontingent von 10 MB überschreiten.');
     await appI18n.changeLanguage('ru');
     expect(getLocalizedErrorMessage(quotaError)).toBe('Загрузка этого файла превысит вашу квоту хранилища в 10 МБ.');
+    await appI18n.changeLanguage('fr');
+    expect(getLocalizedErrorMessage(quotaError)).toBe('Le téléversement de ce fichier dépasserait votre quota de stockage de 10 Mo.');
 
     // Dynamic dataroom storage limit errors
     const dataroomQuotaError = {
@@ -334,6 +412,8 @@ describe('Frontend i18n System', () => {
     expect(getLocalizedErrorMessage(dataroomQuotaError)).toBe('Das Hochladen dieser Datei würde das Dataroom-Speicherlimit von 50 MB überschreiten.');
     await appI18n.changeLanguage('ru');
     expect(getLocalizedErrorMessage(dataroomQuotaError)).toBe('Загрузка этого файла превысит лимит хранилища датарума в 50 МБ.');
+    await appI18n.changeLanguage('fr');
+    expect(getLocalizedErrorMessage(dataroomQuotaError)).toBe('Le téléversement de ce fichier dépasserait la limite de stockage de la dataroom de 50 Mo.');
 
     // LinkSheet & Dataroom toast translations
     await appI18n.changeLanguage('en');
@@ -372,6 +452,15 @@ describe('Frontend i18n System', () => {
     expect(appI18n.t('datarooms.themeColorsUpdated')).toBe('Цвета темы обновлены.');
     expect(appI18n.t('datarooms.displaySettingsUpdated')).toBe('Настройки отображения обновлены.');
     expect(appI18n.t('datarooms.qnaSettingsUpdated')).toBe('Настройки вопросов и ответов обновлены.');
+    await appI18n.changeLanguage('fr');
+    expect(appI18n.t('linkSheet.linkCreated')).toBe('Lien créé avec succès.');
+    expect(appI18n.t('linkSheet.linkUpdated')).toBe('Lien mis à jour avec succès.');
+    expect(appI18n.t('datarooms.permissionsUpdated')).toBe('Autorisations mises à jour avec succès.');
+    expect(appI18n.t('datarooms.nameUpdated')).toBe('Nom de la dataroom mis à jour.');
+    expect(appI18n.t('datarooms.bannerUpdated')).toBe('Bannière mise à jour.');
+    expect(appI18n.t('datarooms.themeColorsUpdated')).toBe('Couleurs du thème mises à jour.');
+    expect(appI18n.t('datarooms.displaySettingsUpdated')).toBe('Paramètres d\'affichage mis à jour.');
+    expect(appI18n.t('datarooms.qnaSettingsUpdated')).toBe('Paramètres de Q&R mis à jour.');
 
     // Fallback when error has no detail and no fallbackKey
     await appI18n.changeLanguage('en');
@@ -404,6 +493,9 @@ describe('Frontend i18n System', () => {
 
     await appI18n.changeLanguage('de');
     expect(getLocalizedErrorMessage({})).toBe('Ein unerwarteter Fehler ist aufgetreten.');
+
+    await appI18n.changeLanguage('fr');
+    expect(getLocalizedErrorMessage({})).toBe('Une erreur inattendue est survenue.');
   });
 
   it('formats dates localized according to current i18n language', async () => {
@@ -421,6 +513,11 @@ describe('Frontend i18n System', () => {
     const formattedDe = formatDate(testDate);
     expect(formattedDe).toBe('10. Aug. 2026');
     expect(formattedDe).not.toBe(formattedEn);
+
+    await appI18n.changeLanguage('fr');
+    const formattedFr = formatDate(testDate);
+    expect(formattedFr).toBe('10 août 2026');
+    expect(formattedFr).not.toBe(formattedEn);
 
     // Relative date test (e.g. 60 days ago)
     const pastDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
@@ -440,6 +537,10 @@ describe('Frontend i18n System', () => {
     await appI18n.changeLanguage('de');
     const relativeDe = formatRelativeTime(pastDate);
     expect(relativeDe).toContain('vor');
+
+    await appI18n.changeLanguage('fr');
+    const relativeFr = formatRelativeTime(pastDate);
+    expect(relativeFr).toContain('il y a');
 
     // Options merging tests
     await appI18n.changeLanguage('en');
