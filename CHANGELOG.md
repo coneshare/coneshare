@@ -1,6 +1,20 @@
 # Changelog
 
 
+## [1.11.0](https://github.com/coneshare/coneshare/compare/v1.10.0...v1.11.0) (2026-10-03)
+
+
+### Features
+
+* **admin:** export organization users to csv in admin portal ([44b6960](https://github.com/coneshare/coneshare/commit/44b696071324b0521f62d49fa26bd739bb54b542))
+* **frontend:** open dataroom in new tab from admin datarooms list ([92957e5](https://github.com/coneshare/coneshare/commit/92957e52b367a5aa932e2005acb8c583a31f530e))
+
+
+### Bug Fixes
+
+* **cloudfiles:** fix Google Drive token refresh and reconnect token preservation ([8a10c2a](https://github.com/coneshare/coneshare/commit/8a10c2ad12285ccabca09f9e1c19414ecb158396))
+* **frontend:** pass user_ids object payload in admin manage collaborators dialog ([#354](https://github.com/coneshare/coneshare/issues/354)) ([c519cb4](https://github.com/coneshare/coneshare/commit/c519cb497e015406c8301d4234253b221213bae9))
+
 ## [1.10.0](https://github.com/coneshare/coneshare/compare/v1.9.1...v1.10.0) (2026-09-29)
 
 
