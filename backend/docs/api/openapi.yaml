@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: ConeShare API
-  version: 1.9.0
+  version: 1.10.1
   description: OpenAPI schema for the ConeShare backend API.
 paths:
   /api/schema/:
@@ -27,6 +27,7 @@ paths:
           enum:
           - de
           - en
+          - fr
           - ru
           - zh-hans
       tags:
@@ -1091,6 +1092,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/admin/users/export/:
+    get:
+      operationId: v1_admin_users_export_retrieve
+      description: Exports organization users matching current filters to a CSV file.
+      summary: Export users to CSV
+      tags:
+      - v1
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
           description: ''
   /api/v1/analytics/daily-visits/:
     get:
@@ -6625,6 +6644,7 @@ components:
             * `zh-hans` - Simplified Chinese
             * `ru` - Russian
             * `de` - German
+            * `fr` - French
         date_joined:
           type: string
           format: date-time
@@ -7851,6 +7871,9 @@ components:
         video_preview_url:
           type: string
           nullable: true
+        spreadsheet_preview_url:
+          type: string
+          nullable: true
         download_url:
           type: string
           nullable: true
@@ -7865,6 +7888,7 @@ components:
       - preview_status
       - render_error
       - render_status
+      - spreadsheet_preview_url
       - type
       - video_preview_url
     DocumentStatusEnum:
@@ -8332,12 +8356,14 @@ components:
       - zh-hans
       - ru
       - de
+      - fr
       type: string
       description: |-
         * `en` - English
         * `zh-hans` - Simplified Chinese
         * `ru` - Russian
         * `de` - German
+        * `fr` - French
     LinkClick:
       type: object
       properties:
@@ -8627,13 +8653,19 @@ components:
       - view_session
     PaginatedAdminDataroomList:
       type: object
-      required:
-      - count
-      - results
       properties:
         count:
           type: integer
           example: 123
+        total_pages:
+          type: integer
+          example: 13
+        current_page:
+          type: integer
+          example: 1
+        page_size:
+          type: integer
+          example: 10
         next:
           type: string
           nullable: true
@@ -8644,6 +8676,10 @@ components:
           nullable: true
           format: uri
           example: http://api.example.org/accounts/?page=2
+        metrics:
+          type: object
+          nullable: true
+          additionalProperties: true
         results:
           type: array
           items:
@@ -8696,13 +8732,19 @@ components:
             $ref: '#/components/schemas/FileRequest'
     PaginatedLoginActivityList:
       type: object
-      required:
-      - count
-      - results
       properties:
         count:
           type: integer
           example: 123
+        total_pages:
+          type: integer
+          example: 13
+        current_page:
+          type: integer
+          example: 1
+        page_size:
+          type: integer
+          example: 10
         next:
           type: string
           nullable: true
@@ -8713,19 +8755,29 @@ components:
           nullable: true
           format: uri
           example: http://api.example.org/accounts/?page=2
+        metrics:
+          type: object
+          nullable: true
+          additionalProperties: true
         results:
           type: array
           items:
             $ref: '#/components/schemas/LoginActivity'
     PaginatedSecurityThreatEventList:
       type: object
-      required:
-      - count
-      - results
       properties:
         count:
           type: integer
           example: 123
+        total_pages:
+          type: integer
+          example: 13
+        current_page:
+          type: integer
+          example: 1
+        page_size:
+          type: integer
+          example: 10
         next:
           type: string
           nullable: true
@@ -8736,6 +8788,10 @@ components:
           nullable: true
           format: uri
           example: http://api.example.org/accounts/?page=2
+        metrics:
+          type: object
+          nullable: true
+          additionalProperties: true
         results:
           type: array
           items:
@@ -8788,13 +8844,19 @@ components:
             $ref: '#/components/schemas/UploadExportJob'
     PaginatedUserList:
       type: object
-      required:
-      - count
-      - results
       properties:
         count:
           type: integer
           example: 123
+        total_pages:
+          type: integer
+          example: 13
+        current_page:
+          type: integer
+          example: 1
+        page_size:
+          type: integer
+          example: 10
         next:
           type: string
           nullable: true
@@ -8805,6 +8867,10 @@ components:
           nullable: true
           format: uri
           example: http://api.example.org/accounts/?page=2
+        metrics:
+          type: object
+          nullable: true
+          additionalProperties: true
         results:
           type: array
           items:
@@ -9615,6 +9681,7 @@ components:
             * `zh-hans` - Simplified Chinese
             * `ru` - Russian
             * `de` - German
+            * `fr` - French
         date_joined:
           type: string
           format: date-time
@@ -10684,6 +10751,7 @@ components:
             * `zh-hans` - Simplified Chinese
             * `ru` - Russian
             * `de` - German
+            * `fr` - French
         date_joined:
           type: string
           format: date-time

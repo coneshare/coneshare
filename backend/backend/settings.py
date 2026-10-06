@@ -282,7 +282,7 @@ REST_FRAMEWORK = {
 SPECTACULAR_SETTINGS = {
     'TITLE': 'ConeShare API',
     'DESCRIPTION': 'OpenAPI schema for the ConeShare backend API.',
-    'VERSION': '1.9.0',
+    'VERSION': '1.10.1',
 }
 
 SIMPLE_JWT = {
