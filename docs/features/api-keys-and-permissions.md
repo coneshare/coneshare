@@ -2,7 +2,7 @@
 
 ## Strategy refs
 - [Coneshare Authentication Flow](./auth-flow.md)
-- [Remote MCP Server Plan](../plans/todo/remote_mcp_server_plan.md)
+- [Remote MCP Server Plan](../plans/mcp/remote_mcp_server_plan.md)
 
 ## Out of scope
 - Dynamic custom role builder (roles are currently static: `admin`, `member`, `viewer`).

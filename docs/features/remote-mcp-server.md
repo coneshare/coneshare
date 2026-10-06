@@ -3,7 +3,7 @@
 ## Strategy refs
 - [API Keys & Permission Logic](./api-keys-and-permissions.md)
 - [Skill Development & Distribution Workflow Strategy](../strategy/skill-development-workflow.md)
-- [Remote MCP Server Plan](../../plans/remote_mcp_server_plan.md)
+- [Remote MCP Server Plan](../../plans/mcp/remote_mcp_server_plan.md)
 
 ## Out of scope
 - Local Stdio transport mode (`MCP_TRANSPORT=stdio` is deprecated in production; server exclusively uses network HTTP/SSE streamable transport).

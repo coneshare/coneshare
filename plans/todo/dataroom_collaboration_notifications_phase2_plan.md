@@ -1,6 +1,7 @@
 # 🚀 Dataroom Collaboration Notifications - Phase 2 Design Plan
 
-## 1. 📌 Overview & Context
+> **Status:** Planned / Pending Implementation
+
 
 Phase 1 established backend recipient routing and automation cross-matching:
 - Link creators receive link activity alerts by default.

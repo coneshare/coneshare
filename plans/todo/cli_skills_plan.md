@@ -1,6 +1,7 @@
 # 🚀 Coneshare CLI & Agent Skills Design Plan
 
-## 1. 📌 Architectural Overview
+> **Status:** Planned / Pending Implementation
+
 
 The **Coneshare CLI** (`@coneshare/cli`) is a lightweight client binary that wraps Coneshare's Django REST Framework (DRF) HTTP API. It enables users, scripts, and AI agents (like Claude Code) to interact with Coneshare directly from the terminal.
 
