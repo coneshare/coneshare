@@ -17,6 +17,7 @@ import {
 import { PdfJsViewer } from './PdfJsViewer';
 import { VideoViewer } from './VideoViewer';
 import { SpreadsheetViewer } from './SpreadsheetViewer';
+import { MarkdownViewer } from './MarkdownViewer';
 import { ViewerToolbar } from '../viewer/ViewerToolbar';
 import { printPdf, printImages } from '../../lib/print';
 
@@ -187,7 +188,7 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
             </div>
           )}
           {error && <p className="text-center text-red-500">{error}</p>}
-          {documentData && (hasRenderablePages(documentData) || documentData.preview_mode === 'client_pdf' || documentData.preview_mode === 'spreadsheet') && !isLoading && !error && (
+          {documentData && (hasRenderablePages(documentData) || documentData.preview_mode === 'client_pdf' || documentData.preview_mode === 'spreadsheet' || documentData.preview_mode === 'markdown') && !isLoading && !error && (
             <ViewerToolbar
               allowDownload={Boolean(documentData.download_url)}
               downloadUrl={documentData.download_url}
@@ -206,7 +207,7 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
             />
           )}
 
-          {documentData && hasRenderablePages(documentData) && documentData.preview_mode !== 'client_pdf' && documentData.preview_mode !== 'spreadsheet' && (
+          {documentData && hasRenderablePages(documentData) && documentData.preview_mode !== 'client_pdf' && documentData.preview_mode !== 'spreadsheet' && documentData.preview_mode !== 'markdown' && (
             <PreviewViewer
               ref={viewerComponentRef}
               documentData={documentData}
@@ -218,6 +219,16 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
             <SpreadsheetViewer
               ref={viewerComponentRef}
               spreadsheetUrl={documentData.spreadsheet_preview_url}
+              title={documentData.name}
+              allowDownload={Boolean(documentData.download_url)}
+              zoomLevel={zoomLevel}
+              documentData={documentData}
+            />
+          )}
+          {documentData && documentData.preview_mode === 'markdown' && (
+            <MarkdownViewer
+              ref={viewerComponentRef}
+              markdownUrl={documentData.markdown_preview_url}
               title={documentData.name}
               allowDownload={Boolean(documentData.download_url)}
               zoomLevel={zoomLevel}
@@ -245,7 +256,7 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
               />
             </div>
           )}
-          {documentData && !hasRenderablePages(documentData) && documentData.preview_mode !== 'client_pdf' && documentData.preview_mode !== 'video' && (documentData.preview_mode !== 'spreadsheet' || isPreviewPending(documentData) || isPreviewFailed(documentData)) && !error && (
+          {documentData && !hasRenderablePages(documentData) && documentData.preview_mode !== 'client_pdf' && documentData.preview_mode !== 'video' && documentData.preview_mode !== 'markdown' && (documentData.preview_mode !== 'spreadsheet' || isPreviewPending(documentData) || isPreviewFailed(documentData)) && !error && (
             <PreviewStatePanel
               documentData={documentData}
               allowDownload={Boolean(documentData.download_url)}

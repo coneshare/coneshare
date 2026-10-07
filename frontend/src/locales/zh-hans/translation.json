@@ -732,7 +732,9 @@
     "downloadDisabledNotice": "根据链接权限设置，此文档禁止下载。",
     "previewNotAvailableNotice": "此文件类型不支持在线预览。请下载文件并在您的设备上打开。",
     "watermarkedVideoBlockedNotice": "此视频超出预览大小限制，且由于水印要求禁止下载。",
-    "downloadRestricted": "禁止下载"
+    "downloadRestricted": "禁止下载",
+    "loadingMarkdown": "正在加载 Markdown 文档...",
+    "previewFailed": "预览不可用"
   },
   "viewSessions": {
     "unknownLocation": "未知位置",
@@ -762,7 +764,9 @@
     "muted": "静音",
     "soundOn": "开启声音",
     "fullscreen": "全屏",
-    "standard": "标准"
+    "standard": "标准",
+    "document": "文档",
+    "readingDepth": "阅读深度"
   },
   "trash": {
     "title": "回收站",
@@ -1085,6 +1089,9 @@
     "documentNameExists": "该位置已存在同名文档。",
     "folderNameExists": "该位置已存在同名文件夹。",
     "storageQuotaExceeded": "上传此文件将超过您的存储配额 ({{quota}} MB)。",
-    "dataroomStorageLimitExceeded": "上传此文件将超过该资料室的存储容量上限 ({{limit}} MB)。"
+    "dataroomStorageLimitExceeded": "上传此文件将超过该资料室的存储容量上限 ({{limit}} MB)。",
+    "parseFailed": "解析 Markdown 内容失败。",
+    "unsupportedFormat": "文档不是 Markdown 文件。",
+    "notFound": "未找到 Markdown 预览链接。"
   }
 }

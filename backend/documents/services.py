@@ -22,6 +22,8 @@ from .renderers.constants import (
     HEIC_EXTENSIONS,
     HEIC_MIMETYPES,
     IMAGE_MIMETYPES,
+    MARKDOWN_EXTENSIONS,
+    MARKDOWN_MIMETYPES,
     OFFICE_MIMETYPES,
     PDF_MIMETYPE,
     SPREADSHEET_MIMETYPES,
@@ -119,17 +121,24 @@ def recalculate_user_document_size(user: User) -> int:
         return user.total_document_size
 
 
-def _get_doc_type_from_content_type(content_type: str) -> str:
-    """Determines the document type from its MIME type."""
-    if content_type in SPREADSHEET_MIMETYPES:
+def _get_doc_type_from_content_type(content_type: str, filename: str = '') -> str:
+    """Determines the document type from its MIME type and filename."""
+    norm_type = normalize_content_type(content_type, filename)
+    if norm_type in MARKDOWN_MIMETYPES:
+        return 'markdown'
+    if filename:
+        ext = os.path.splitext(filename)[1].lower()
+        if ext in MARKDOWN_EXTENSIONS:
+            return 'markdown'
+    if norm_type in SPREADSHEET_MIMETYPES:
         return 'spreadsheet'
-    elif content_type in OFFICE_MIMETYPES:
+    elif norm_type in OFFICE_MIMETYPES:
         return 'document'
-    elif content_type == PDF_MIMETYPE:
+    elif norm_type == PDF_MIMETYPE:
         return 'pdf'
-    elif content_type in IMAGE_MIMETYPES:
+    elif norm_type in IMAGE_MIMETYPES:
         return 'image'
-    elif content_type in VIDEO_MIMETYPES:
+    elif norm_type in VIDEO_MIMETYPES:
         return 'video'
     return 'file'  # default
 
@@ -214,7 +223,7 @@ def create_document_from_upload(
     for attempt in range(max_retries):
         target_name = _get_unique_document_name(requesting_user, folder, unique_name)
         content_type = normalize_content_type(content_type, target_name)
-        doc_type = _get_doc_type_from_content_type(content_type)
+        doc_type = _get_doc_type_from_content_type(content_type, target_name)
 
         try:
             with transaction.atomic():
@@ -376,7 +385,7 @@ def copy_document(original_doc: Document, user: User) -> Document:
         original_name=original_doc.name
     )
     norm_content_type = normalize_content_type(original_doc.content_type, new_name)
-    doc_type = _get_doc_type_from_content_type(norm_content_type)
+    doc_type = _get_doc_type_from_content_type(norm_content_type, new_name)
 
     # 3. Generate new storage key for the copied file
     new_storage_key = generate_storage_key(user.organization.id, new_name)
@@ -479,7 +488,7 @@ def create_new_document_version(
     new_version_number = (latest_version.version_number if latest_version else 0) + 1
 
     content_type = normalize_content_type(content_type, document.name)
-    doc_type = _get_doc_type_from_content_type(content_type)
+    doc_type = _get_doc_type_from_content_type(content_type, document.name)
 
     with transaction.atomic():
         # 1. Update user's total document size
@@ -572,7 +581,7 @@ def process_imported_file(document: Document, file_data: dict, version_id=None):
     version.original_storage_key = original_storage_key
     version.storage_key = original_storage_key
     version.content_type = content_type
-    version.type = _get_doc_type_from_content_type(content_type)
+    version.type = _get_doc_type_from_content_type(content_type, document.name)
     version.file_size = file_size
     
     # Store the etag/rev in version metadata

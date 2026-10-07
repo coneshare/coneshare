@@ -737,7 +737,9 @@
     "downloadDisabledNotice": "Download is disabled for this document by the link permissions.",
     "previewNotAvailableNotice": "This type of file is not available for online preview. Download the file and open it on your device.",
     "watermarkedVideoBlockedNotice": "This video exceeds the size limit to preview, and download is restricted due to watermark requirements.",
-    "downloadRestricted": "Download Restricted"
+    "downloadRestricted": "Download Restricted",
+    "loadingMarkdown": "Loading Markdown document...",
+    "previewFailed": "Preview unavailable"
   },
   "viewSessions": {
     "unknownLocation": "Unknown location",
@@ -767,7 +769,9 @@
     "muted": "Muted",
     "soundOn": "Sound On",
     "fullscreen": "Fullscreen",
-    "standard": "Standard"
+    "standard": "Standard",
+    "document": "Document",
+    "readingDepth": "Read depth"
   },
   "trash": {
     "title": "Trash",
@@ -1093,6 +1097,9 @@
     "documentNameExists": "A document with this name already exists in this location.",
     "folderNameExists": "A folder with this name already exists in this location.",
     "storageQuotaExceeded": "Uploading this file would exceed your storage quota of {{quota}} MB.",
-    "dataroomStorageLimitExceeded": "Uploading this file would exceed the Dataroom storage limit of {{limit}} MB."
+    "dataroomStorageLimitExceeded": "Uploading this file would exceed the Dataroom storage limit of {{limit}} MB.",
+    "parseFailed": "Failed to parse markdown content.",
+    "unsupportedFormat": "Document is not a markdown file.",
+    "notFound": "Markdown preview URL not found."
   }
 }

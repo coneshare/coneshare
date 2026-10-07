@@ -92,6 +92,72 @@ class TestRecordPageView:
         view_session.refresh_from_db()
         assert view_session.duration_seconds == 15  # 10 + 5
 
+    def test_record_page_view_with_scroll_percentage_and_markdown(self, public_client, user):
+        """Test recording page view with scroll_percentage on a markdown document."""
+        doc = Document.objects.create(name="README.md", type="markdown", created_by=user, organization=user.organization)
+        link = ShareLink.objects.create(document=doc, created_by=user)
+        view_session = ViewSession.objects.create(share_link=link)
+
+        data = {
+            'view_session': view_session.id,
+            'page_number': 1,
+            'duration_seconds': 12,
+            'scroll_percentage': 85
+        }
+        response = public_client.post('/api/v1/page-views/record/', data)
+
+        assert response.status_code == status.HTTP_200_OK
+        page_view = PageView.objects.get(view_session=view_session)
+        assert page_view.page_number == 1
+        assert page_view.duration_seconds == 12
+        assert page_view.scroll_percentage == 85
+        assert page_view.media_type == 'markdown'
+
+        view_session.refresh_from_db()
+        assert view_session.completion_rate == 0.85
+
+    def test_record_page_view_scroll_percentage_range_validation(self, public_client, user):
+        """Test that scroll_percentage outside 0-100 returns 400 Bad Request."""
+        doc = Document.objects.create(name="README.md", type="markdown", created_by=user, organization=user.organization)
+        link = ShareLink.objects.create(document=doc, created_by=user)
+        view_session = ViewSession.objects.create(share_link=link)
+
+        # > 100 should fail
+        response = public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session.id,
+            'page_number': 1,
+            'duration_seconds': 5,
+            'scroll_percentage': 101
+        })
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'scroll_percentage' in response.data
+
+        # < 0 should fail
+        response = public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session.id,
+            'page_number': 1,
+            'duration_seconds': 5,
+            'scroll_percentage': -1
+        })
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'scroll_percentage' in response.data
+
+    def test_record_page_view_markdown_without_scroll_percentage_does_not_set_100_percent(self, public_client, user):
+        """Test that markdown document without scroll_percentage does not falsely set completion_rate to 1.0."""
+        doc = Document.objects.create(name="README.md", type="markdown", created_by=user, organization=user.organization)
+        link = ShareLink.objects.create(document=doc, created_by=user)
+        view_session = ViewSession.objects.create(share_link=link)
+
+        response = public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session.id,
+            'page_number': 1,
+            'duration_seconds': 5,
+        })
+        assert response.status_code == status.HTTP_200_OK
+
+        view_session.refresh_from_db()
+        assert view_session.completion_rate is None or view_session.completion_rate == 0.0
+
     def test_record_page_view_invalid_view_id(self, public_client):
         """Test that recording a page view with an invalid view ID fails."""
         data = {
@@ -556,6 +622,26 @@ class TestShareLinkViewDataView:
         expected_url = f"http://test.coneshare.com/api/v1/links/{share_link.slug}/page/1/"
         assert data['pages'][0]['url'] == expected_url
         assert data['link_settings']['allow_download'] == share_link.allow_download
+
+    @override_settings(SITE_DOMAIN="http://test.coneshare.com")
+    def test_get_share_link_data_markdown_document(self, public_client, user):
+        """Test retrieval of share link data for markdown document exposes markdown_preview_url."""
+        doc = Document.objects.create(name="README.md", type="markdown", status="ready", created_by=user, organization=user.organization)
+        DocumentVersion.objects.create(
+            document=doc, version_number=1, is_primary=True, original_storage_key="org_1/notes.md",
+            content_type="text/markdown", file_size=1024, render_status="ready"
+        )
+        link = ShareLink.objects.create(document=doc, created_by=user)
+
+        with patch('documents.fileserver.fileserver_client.generate_preview_url', return_value="http://test.coneshare.com/files/preview/abc123"):
+            response = public_client.get(f'/api/v1/links/{link.slug}/view-data/')
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data['preview_mode'] == 'markdown'
+        assert data['preview_status'] == 'ready'
+        assert data['markdown_preview_url'] == "http://test.coneshare.com/files/preview/abc123"
+        assert data['pages'] == []
 
     @override_settings(SITE_DOMAIN="http://test.coneshare.com")
     @patch('sharelinks.views.fileserver_client.generate_download_url')

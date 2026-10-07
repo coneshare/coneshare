@@ -747,7 +747,9 @@
     "downloadDisabledNotice": "Скачивание этого документа отключено настройками доступа.",
     "previewNotAvailableNotice": "Этот тип файла недоступен для онлайн-просмотра. Скачайте файл и откройте его на своем устройстве.",
     "watermarkedVideoBlockedNotice": "Размер этого видео превышает лимит для предпросмотра, а скачивание ограничено из-за требований к водяным знакам.",
-    "downloadRestricted": "Скачивание ограничено"
+    "downloadRestricted": "Скачивание ограничено",
+    "loadingMarkdown": "Загрузка документа Markdown...",
+    "previewFailed": "Предпросмотр недоступен"
   },
   "viewSessions": {
     "unknownLocation": "Неизвестное местоположение",
@@ -777,7 +779,9 @@
     "muted": "Без звука",
     "soundOn": "Звук включен",
     "fullscreen": "Полноэкранный",
-    "standard": "Стандартный"
+    "standard": "Стандартный",
+    "document": "Документ",
+    "readingDepth": "Глубина чтения"
   },
   "trash": {
     "title": "Корзина",
@@ -1109,6 +1113,9 @@
     "documentNameExists": "Документ с таким именем уже существует в этой папке.",
     "folderNameExists": "Папка с таким именем уже существует в этой папке.",
     "storageQuotaExceeded": "Загрузка этого файла превысит вашу квоту хранилища в {{quota}} МБ.",
-    "dataroomStorageLimitExceeded": "Загрузка этого файла превысит лимит хранилища датарума в {{limit}} МБ."
+    "dataroomStorageLimitExceeded": "Загрузка этого файла превысит лимит хранилища датарума в {{limit}} МБ.",
+    "parseFailed": "Не удалось разобрать содержимое Markdown.",
+    "unsupportedFormat": "Документ не является файлом Markdown.",
+    "notFound": "URL предпросмотра Markdown не найден."
   }
 }

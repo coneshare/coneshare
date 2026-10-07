@@ -1,4 +1,4 @@
-import { FileIcon, FileImageIcon, FileQuestion, FileSpreadsheet, FileTextIcon, FolderIcon, FileVideo } from "lucide-react";
+import { FileCode, FileIcon, FileImageIcon, FileQuestion, FileSpreadsheet, FileTextIcon, FolderIcon, FileVideo } from "lucide-react";
 
 function normalizeType(type) {
   if (!type) return "unknown";
@@ -11,6 +11,16 @@ function normalizeType(type) {
     ["mov", "mp4", "avi", "webm", "m3u8", "mkv"].includes(raw) ||
     /\.(mov|mp4|avi|webm|m3u8|mkv)$/i.test(raw)
   ) return "video";
+  if (
+    raw === "markdown" ||
+    raw === "md" ||
+    ["md", "markdown"].includes(raw) ||
+    /\.(md|markdown)$/i.test(raw) ||
+    raw === "text/markdown" ||
+    raw === "text/x-markdown"
+  ) {
+    return "markdown";
+  }
   if (
     raw === "spreadsheet" ||
     raw === "sheet" ||
@@ -42,6 +52,7 @@ export function FileTypeIcon({ type, className = "h-5 w-5", palette = "default" 
       spreadsheet: "#15803d",
       image: "#0f766e",
       video: "#8a2be2",
+      markdown: "#0284c7",
       unknown: "var(--viewer-secondary)",
     },
     dataroom: {
@@ -51,6 +62,7 @@ export function FileTypeIcon({ type, className = "h-5 w-5", palette = "default" 
       spreadsheet: "#15803d",
       image: "#0f766e",
       video: "#8a2be2",
+      markdown: "#0284c7",
       unknown: "var(--dataroom-secondary)",
     },
     default: {
@@ -60,6 +72,7 @@ export function FileTypeIcon({ type, className = "h-5 w-5", palette = "default" 
       spreadsheet: "#15803d",
       image: "#0f766e",
       video: "#8a2be2",
+      markdown: "#0284c7",
       unknown: "#6b7280",
     },
   };
@@ -84,6 +97,9 @@ export function FileTypeIcon({ type, className = "h-5 w-5", palette = "default" 
   }
   if (normalized === "video") {
     return <FileVideo data-testid="file-type-icon-video" className={className} style={style} />;
+  }
+  if (normalized === "markdown") {
+    return <FileCode data-testid="file-type-icon-markdown" className={className} style={style} />;
   }
   return <FileQuestion data-testid="file-type-icon-unknown" className={className} style={style} />;
 }

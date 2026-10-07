@@ -7,6 +7,7 @@ from documents.models import Document, DocumentPage, DocumentVersion
 from documents.renderers import (
     DirectImageRenderer,
     GenericFileRenderer,
+    MarkdownRenderer,
     OfficeRenderer,
     PDFRenderer,
     SpreadsheetRenderer,
@@ -81,6 +82,16 @@ class TestRendererRegistryPriority:
         ]:
             renderer = get_renderer_for_file(ct, fn)
             assert isinstance(renderer, SpreadsheetRenderer), f"Failed for {fn}"
+
+    def test_markdown_resolves_to_markdown_renderer(self):
+        for ct, fn in [
+            ("text/markdown", "README.md"),
+            ("text/x-markdown", "notes.markdown"),
+            ("application/octet-stream", "README.md"),
+            ("application/octet-stream", "guide.markdown"),
+        ]:
+            renderer = get_renderer_for_file(ct, fn)
+            assert isinstance(renderer, MarkdownRenderer), f"Failed for {fn}"
 
     def test_video_resolves_to_video_renderer(self):
         for ct, fn in [
