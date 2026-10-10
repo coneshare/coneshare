@@ -601,6 +601,7 @@ class DocumentPreviewDataView(APIView):
         pdf_preview_url = serializers.CharField(allow_null=True)
         video_preview_url = serializers.CharField(allow_null=True)
         spreadsheet_preview_url = serializers.CharField(allow_null=True)
+        markdown_preview_url = serializers.CharField(allow_null=True)
         download_url = serializers.CharField(allow_null=True)
 
     @extend_schema(
@@ -646,7 +647,7 @@ class DocumentPreviewDataView(APIView):
         render_status = renderer.enqueue_render_task(primary_version)
 
         preview_status = preview_status_for_render_status(render_status)
-        if preview_mode == 'client_pdf':
+        if preview_mode in {'client_pdf', 'markdown'}:
             preview_status = 'ready'
 
         # Content Processing and Response Shaping
@@ -682,6 +683,17 @@ class DocumentPreviewDataView(APIView):
             if hasattr(renderer, 'get_spreadsheet_preview_url'):
                 spreadsheet_preview_url = renderer.get_spreadsheet_preview_url(primary_version)
 
+        markdown_preview_url = None
+        if preview_mode == 'markdown':
+            try:
+                source_key = primary_version.original_storage_key or primary_version.storage_key
+                markdown_preview_url = fileserver_client.generate_preview_url(
+                    source_key, is_internal=False
+                )
+            except APIException as e:
+                logger.warning(f"Failed to generate client Markdown URL for version {primary_version.id}: {e}")
+                markdown_preview_url = None
+
         response_data = {
             "id": document.id,
             "name": document.name,
@@ -695,6 +707,7 @@ class DocumentPreviewDataView(APIView):
             "pdf_preview_url": pdf_preview_url,
             "video_preview_url": video_preview_url,
             "spreadsheet_preview_url": spreadsheet_preview_url,
+            "markdown_preview_url": markdown_preview_url,
             "download_url": download_url,
         }
 

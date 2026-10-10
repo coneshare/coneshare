@@ -1,6 +1,6 @@
 # Markdown Preview Implementation Plan
 
-> **Status:** Planned / Pending Implementation
+> **Status:** Implemented & Verified
 
 This plan specifies the architecture and implementation steps to add first-class **Markdown (.md, .markdown)** preview capabilities to Coneshare. 
 
@@ -30,14 +30,28 @@ flowchart TD
 
 ## 3. Backend Implementation
 
-### A. Constants (`backend/documents/renderers/constants.py`)
+### A. Constants & Content Type Utilities (`backend/documents/renderers/constants.py` & `utils.py`)
 ```python
+# backend/documents/renderers/constants.py
 MARKDOWN_MIMETYPES = [
     'text/markdown',
     'text/x-markdown',
 ]
 MARKDOWN_EXTENSIONS = {'.md', '.markdown'}
 ```
+
+Update `normalize_content_type` in `backend/documents/renderers/utils.py` to ensure `.md` and `.markdown` are recognized as `text/markdown` even if standard Python `mimetypes.guess_type` returns `None`.
+
+Update `_get_doc_type_from_content_type` in `backend/documents/services.py`:
+```python
+def _get_doc_type_from_content_type(content_type: str, filename: str = '') -> str:
+    norm_type = normalize_content_type(content_type, filename)
+    if norm_type in MARKDOWN_MIMETYPES or (filename and os.path.splitext(filename)[1].lower() in MARKDOWN_EXTENSIONS):
+        return 'markdown'
+    ...
+```
+*(Prevents uploaded Markdown files from defaulting to `'file'` and being forced into `download_only` mode).*
+
 
 ### B. Strategy Renderer: `MarkdownRenderer` (`backend/documents/renderers/markdown.py`)
 Subclass `BasePreviewRenderer`:
@@ -299,18 +313,27 @@ Update `normalizeType` to recognize `"markdown"` and `.md`/`.markdown` extension
 
 ### D. Host Views Integration
 1. **`ShareLinkViewerPage.jsx`**:
-   Add `viewData.preview_mode === 'markdown'` branch to render `<MarkdownViewer />`.
+   * Add `'markdown'` to `PREVIEWABLE_TYPES = ['image', 'pdf', 'document', 'video', 'spreadsheet', 'markdown']`.
+   * Update `showPreviewState` guard to exclude `preview_mode === 'markdown'` (prevents infinite "Preparing preview..." loop):
+     `(!canRenderPages && viewData.preview_mode !== 'client_pdf' && viewData.preview_mode !== 'markdown')`.
+   * Add `viewData.preview_mode === 'markdown'` branch to render `<MarkdownViewer />`.
 2. **`DataroomViewer.jsx`**:
    * Add `'markdown'` to `PREVIEWABLE_TYPES`:
      ```javascript
      const PREVIEWABLE_TYPES = ['image', 'pdf', 'document', 'video', 'spreadsheet', 'markdown'];
      ```
+   * Update `showPreviewState` guard to exclude `preview_mode === 'markdown'` (prevents infinite "Preparing preview..." loop):
+     `(!canRenderPages && documentViewData.preview_mode !== 'client_pdf' && documentViewData.preview_mode !== 'markdown')`.
    * Render `<MarkdownViewer />` for `documentViewData.preview_mode === 'markdown'`.
 3. **`DocumentPreviewModal.jsx`**:
-   * Add `documentData.preview_mode === 'markdown'` rendering branch.
-   * Exclude `'markdown'` from fallback unrenderable container checks.
+   * Add `documentData.preview_mode === 'markdown'` to toolbar visibility condition (line 190).
+   * Render `<MarkdownViewer />` for `documentData.preview_mode === 'markdown'`.
+   * Exclude `'markdown'` from fallback unrenderable container checks (`PreviewStatePanel` condition on line 248).
 4. **`ViewerToolbar.jsx`**:
    * Hide page pagination controls (`[<] [1] / 1 [>]`) when `previewMode === 'markdown'`.
+5. **`PageViewsChart.jsx` & Analytics**:
+   * Display `scroll_percentage` telemetry in session activity views (e.g., "Read 85%").
+
 
 ### E. Whitelist Test Registration (`frontend/vitest.whitelist.json`)
 Append new test file to the whitelist array:
@@ -322,18 +345,28 @@ Append new test file to the whitelist array:
 
 ## 6. Security, Testing & Verification Checklist
 
-* [ ] **Renderer Enqueue Verification**: Ensure `enqueue_render_task` returns `RENDER_READY` immediately without touching Celery workers or creating queued DB states.
-* [ ] **Dynamic Limit Adjustment**: Test that raising `MAX_PREVIEW_FILE_SIZE_MB` dynamically enables previews for large `.md` files without re-uploading.
-* [ ] **XSS Audit**: Verify `javascript:`, `data:`, and control characters are stripped from both `href` and `img.src`.
-* [ ] **Anchor Navigation**: Verify in-page anchors (`[Jump](#section)`) preserve smooth on-page navigation without opening new tabs.
-* [ ] **Copy Protection**: Verify clipboard copying is prevented when `allowDownload=false` or watermarking is enabled.
-* [ ] **Dataroom Parity**: Verify `.md` files render seamlessly inside folder trees and preview modal dialogs.
-* [ ] **Targeted Test Execution**:
+* [x] **Renderer Enqueue Verification**: Ensure `enqueue_render_task` returns `RENDER_READY` immediately without touching Celery workers or creating queued DB states.
+* [x] **Dynamic Limit Adjustment**: Test that raising `MAX_PREVIEW_FILE_SIZE_MB` dynamically enables previews for large `.md` files without re-uploading.
+* [x] **XSS Audit**: Verify `javascript:`, `data:`, and control characters are stripped from both `href` and `img.src`.
+* [x] **Anchor Navigation**: Verify in-page anchors (`[Jump](#section)`) preserve smooth on-page navigation without opening new tabs.
+* [x] **Copy Protection**: Verify clipboard copying is prevented when `allowDownload=false` or watermarking is enabled.
+* [x] **Dataroom Parity**: Verify `.md` files render seamlessly inside folder trees and preview modal dialogs.
+* [x] **Targeted Test Execution**:
   * Backend:
     ```bash
-    COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend pytest tests/documents/test_renderers.py -k markdown
+    COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend pytest tests/documents/test_markdown_renderer.py
     ```
   * Frontend:
     ```bash
     COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npx vitest run src/tests/components/documents/MarkdownViewer.test.jsx
     ```
+
+---
+
+## 7. Accepted Security & Architectural Trade-offs
+
+1. **Remote Image IP Leakage (Accepted Trade-off)**:
+   External image links (`<img src="https://...">`) in client-side Markdown are rendered with `referrerpolicy="no-referrer"` and `loading="lazy"`, which prevents leaking the document or token URL in HTTP referrers. However, direct browser requests to third-party image hosts still reveal the viewer's IP address. Server-side caching or an image proxy was deliberately omitted to maintain a zero-delay, stateless client rendering pipeline without storage overhead.
+
+2. **Client-Side Source Delivery under Protection (Accepted Limitation)**:
+   Because Markdown previewing operates entirely in the browser, `markdown_preview_url` returns the raw Markdown text even when `allowDownload=false` or dynamic watermarks are active. The CSS `select-none`, clipboard `onCopy` prevention, and SVG watermark overlay protect against casual copying and sharing, but technical users can inspect network requests in DevTools. This is consistent with client-side video streaming and PDF.js viewing tradeoffs recorded in project architecture decisions.

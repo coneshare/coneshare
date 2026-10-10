@@ -39,7 +39,8 @@ class PageViewSerializer(serializers.ModelSerializer):
         model = PageView
         fields = [
             'page_number', 'duration_seconds', 'url', 'created_at', 'media_type',
-            'video_start_time', 'video_end_time', 'video_volume', 'is_fullscreen', 'playback_speed'
+            'video_start_time', 'video_end_time', 'video_volume', 'is_fullscreen', 'playback_speed',
+            'scroll_percentage'
         ]
 
     def get_url(self, obj) -> str | None:
@@ -219,8 +220,12 @@ class PageViewRecordSerializer(serializers.ModelSerializer):
         model = PageView
         fields = [
             'view_session', 'page_number', 'duration_seconds', 'dataroom_visit', 'media_type',
-            'video_start_time', 'video_end_time', 'video_volume', 'is_fullscreen', 'playback_speed'
+            'video_start_time', 'video_end_time', 'video_volume', 'is_fullscreen', 'playback_speed',
+            'scroll_percentage'
         ]
+        extra_kwargs = {
+            'scroll_percentage': {'min_value': 0, 'max_value': 100},
+        }
 
     def validate(self, data):
         view_session = data.get('view_session')
@@ -248,6 +253,8 @@ class PageViewRecordSerializer(serializers.ModelSerializer):
             validated_data['media_type'] = 'video'
         elif doc_type == 'audio':
             validated_data['media_type'] = 'audio'
+        elif doc_type == 'markdown':
+            validated_data['media_type'] = 'markdown'
         else:
             validated_data['media_type'] = 'document'
 

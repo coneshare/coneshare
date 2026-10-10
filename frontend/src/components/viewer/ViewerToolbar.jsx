@@ -155,7 +155,7 @@ export function ViewerToolbar({
       <div className="flex items-center gap-2 rounded-xl border border-gray-200/80 bg-white/90 p-1.5 shadow-lg backdrop-blur-md dark:border-gray-800/80 dark:bg-gray-950/90">
         
         {/* Group 1: Page Navigation */}
-        {previewMode !== 'spreadsheet' ? (
+        {previewMode !== 'spreadsheet' && previewMode !== 'markdown' ? (
           <div className="flex items-center gap-1 pr-1.5">
             {onPrevSibling && (
               <Button 
@@ -247,7 +247,7 @@ export function ViewerToolbar({
             )}
           </div>
         ) : null}
-        {(previewMode !== 'spreadsheet' || onPrevSibling || onNextSibling) && (
+        {((previewMode !== 'spreadsheet' && previewMode !== 'markdown') || onPrevSibling || onNextSibling) && (
           <div className="h-6 w-px bg-gray-200 dark:bg-gray-800" />
         )}
 

@@ -51,6 +51,7 @@
     "src/tests/components/layout/SidebarFooter.test.jsx",
     "src/tests/components/documents/ViewSessionsTable.test.jsx",
     "src/tests/components/documents/SpreadsheetViewer.test.jsx",
-    "src/tests/components/documents/PreviewViewer.test.jsx"
+    "src/tests/components/documents/PreviewViewer.test.jsx",
+    "src/tests/components/documents/MarkdownViewer.test.jsx"
   ]
 }

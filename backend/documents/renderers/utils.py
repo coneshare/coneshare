@@ -1,11 +1,16 @@
 import mimetypes
 import os
 
-from .constants import HEIC_EXTENSIONS, HEIC_MIMETYPES
+from .constants import HEIC_EXTENSIONS, HEIC_MIMETYPES, MARKDOWN_EXTENSIONS
 
 
 def normalize_content_type(content_type: str, filename: str = '') -> str:
     """Guesses MIME type if missing or application/octet-stream."""
+    if filename:
+        ext = os.path.splitext(filename)[1].lower()
+        if ext in MARKDOWN_EXTENSIONS:
+            return 'text/markdown'
+
     if not content_type or content_type == 'application/octet-stream':
         if filename:
             guessed_type, _ = mimetypes.guess_type(filename)

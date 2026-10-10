@@ -399,6 +399,9 @@ class PageView(models.Model):
     is_fullscreen = models.BooleanField(null=True, blank=True)
     playback_speed = models.FloatField(null=True, blank=True)
 
+    # Markdown / Reading engagement metrics
+    scroll_percentage = models.PositiveSmallIntegerField(null=True, blank=True)
+
     class Meta:
         ordering = ['created_at']
 

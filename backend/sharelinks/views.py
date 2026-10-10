@@ -25,7 +25,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, APIException, PermissionDenied
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
-from django.db.models import Count, F, Q
+from django.db.models import Count, F, Max, Q
 from geoip2.errors import AddressNotFoundError
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, inline_serializer
@@ -880,7 +880,7 @@ class ShareLinkViewDataView(APIView):
             render_status = renderer.enqueue_render_task(primary_version)
 
             preview_status = preview_status_for_render_status(render_status)
-            if preview_mode == 'client_pdf':
+            if preview_mode in {'client_pdf', 'markdown'}:
                 preview_status = 'ready'
 
             # Determine the correct settings to use (link vs. item-specific)
@@ -964,6 +964,17 @@ class ShareLinkViewDataView(APIView):
                 if hasattr(renderer, 'get_spreadsheet_preview_url'):
                     spreadsheet_preview_url = renderer.get_spreadsheet_preview_url(primary_version)
 
+            markdown_preview_url = None
+            if preview_mode == 'markdown':
+                try:
+                    source_key = primary_version.original_storage_key or primary_version.storage_key
+                    markdown_preview_url = fileserver_client.generate_preview_url(
+                        source_key, is_internal=False
+                    )
+                except APIException as e:
+                    logger.warning(f"Failed to generate client Markdown URL for version {primary_version.id}: {e}")
+                    markdown_preview_url = None
+
             # Resolve watermark template tokens for the frontend CSS overlay.
             # The raw template (e.g. "{{ip-address}} {{email}}") is resolved here so
             # the client does not need to know the viewer's email or IP.
@@ -988,6 +999,7 @@ class ShareLinkViewDataView(APIView):
                 "pdf_preview_url": pdf_preview_url,
                 "video_preview_url": video_preview_url,
                 "spreadsheet_preview_url": spreadsheet_preview_url,
+                "markdown_preview_url": markdown_preview_url,
                 "download_url": download_url,
                 "link_settings": {
                     "id": link.id,
@@ -3149,11 +3161,17 @@ class RecordPageView(APIView):
                 # 3. Update completion rate
                 document = view_session.share_link.document
                 update_fields = ['duration_seconds']
-                if document and document.num_pages and document.num_pages > 0:
-                    viewed_pages_count = view_session.page_views.values('page_number').distinct().count()
-                    completion_rate = viewed_pages_count / document.num_pages
-                    view_session.completion_rate = min(completion_rate, 1.0)
-                    update_fields.append('completion_rate')
+                if document:
+                    if document.type == 'markdown':
+                        max_scroll = view_session.page_views.filter(scroll_percentage__isnull=False).aggregate(Max('scroll_percentage'))['scroll_percentage__max']
+                        if max_scroll is not None:
+                            view_session.completion_rate = min(max_scroll / 100.0, 1.0)
+                            update_fields.append('completion_rate')
+                    elif document.num_pages and document.num_pages > 0:
+                        viewed_pages_count = view_session.page_views.values('page_number').distinct().count()
+                        completion_rate = viewed_pages_count / document.num_pages
+                        view_session.completion_rate = min(completion_rate, 1.0)
+                        update_fields.append('completion_rate')
 
                 view_session.save(update_fields=update_fields)
 

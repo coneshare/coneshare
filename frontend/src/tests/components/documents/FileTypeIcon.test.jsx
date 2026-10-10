@@ -58,5 +58,19 @@ describe("FileTypeIcon", () => {
     render(<FileTypeIcon type="video" />);
     expect(screen.getByTestId("file-type-icon-video")).toBeInTheDocument();
   });
+
+  it("renders markdown icon for markdown type and .md/.markdown filenames", () => {
+    const { rerender } = render(<FileTypeIcon type="markdown" />);
+    expect(screen.getByTestId("file-type-icon-markdown")).toBeInTheDocument();
+
+    rerender(<FileTypeIcon type="md" />);
+    expect(screen.getByTestId("file-type-icon-markdown")).toBeInTheDocument();
+
+    rerender(<FileTypeIcon type="README.md" />);
+    expect(screen.getByTestId("file-type-icon-markdown")).toBeInTheDocument();
+
+    rerender(<FileTypeIcon type="notes.markdown" />);
+    expect(screen.getByTestId("file-type-icon-markdown")).toBeInTheDocument();
+  });
 });
 

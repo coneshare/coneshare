@@ -90,17 +90,25 @@ export function PageViewsChart({ pageViews, documentType }) {
     );
   }
 
+  const isMarkdown = documentType === 'markdown' || pageViews[0]?.media_type === 'markdown';
+
   // Aggregate views by page_number to prevent duplicate key warnings
   const uniquePageViews = Object.values(
-    pageViews.reduce((acc, { page_number, duration_seconds, url }) => {
+    pageViews.reduce((acc, { page_number, duration_seconds, url, scroll_percentage }) => {
       if (acc[page_number]) {
         acc[page_number].duration_seconds += duration_seconds;
+        if (scroll_percentage != null) {
+          acc[page_number].scroll_percentage = Math.max(
+            acc[page_number].scroll_percentage ?? 0,
+            scroll_percentage
+          );
+        }
         // Prefer a valid URL if the existing one is missing.
         if (!acc[page_number].url && url) {
           acc[page_number].url = url;
         }
       } else {
-        acc[page_number] = { page_number, url, duration_seconds };
+        acc[page_number] = { page_number, url, duration_seconds, scroll_percentage };
       }
       return acc;
     }, {})    
@@ -120,8 +128,12 @@ export function PageViewsChart({ pageViews, documentType }) {
             .sort((a, b) => a.page_number - b.page_number)
             .map((view) => (
               <div key={view.page_number} className="flex items-center gap-4 text-sm">
-                <span className="w-16 flex-shrink-0 text-right text-gray-500">
-                  {t('viewSessions.pageNumber', { number: view.page_number })}
+                <span className="w-20 flex-shrink-0 text-right text-gray-500 truncate" title={isMarkdown ? (view.scroll_percentage != null ? `${t('viewSessions.readingDepth', { defaultValue: 'Read depth' })} ${view.scroll_percentage}%` : t('viewSessions.document', { defaultValue: 'Document' })) : t('viewSessions.pageNumber', { number: view.page_number })}>
+                  {isMarkdown ? (
+                    view.scroll_percentage != null ? `${view.scroll_percentage}%` : t('viewSessions.document', { defaultValue: 'Document' })
+                  ) : (
+                    t('viewSessions.pageNumber', { number: view.page_number })
+                  )}
                 </span>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -134,13 +146,17 @@ export function PageViewsChart({ pageViews, documentType }) {
                       />
                     </div>
                   </TooltipTrigger>
-                  {view.url && (
+                  {(view.url || (isMarkdown && view.scroll_percentage != null)) && (
                     <TooltipContent>
-                      <img
-                        src={view.url}
-                        alt={`Page ${view.page_number} preview`}
-                        className="h-48 w-auto rounded"
-                      />
+                      {view.url ? (
+                        <img
+                          src={view.url}
+                          alt={`Page ${view.page_number} preview`}
+                          className="h-48 w-auto rounded"
+                        />
+                      ) : (
+                        <p className="text-xs">{t('viewSessions.readingDepth', { defaultValue: 'Read depth' })}: {view.scroll_percentage}%</p>
+                      )}
                     </TooltipContent>
                   )}
                 </Tooltip>

@@ -26,3 +26,19 @@
 #### Rule 4: Never send OAuth tokens in URL query params during revocation calls
 - **Issue:** `GoogleDriveProvider.revoke_token()` passed the OAuth token via `params={"token": token}` in an `httpx.post()` call to `https://oauth2.googleapis.com/revoke`. This encodes the token in the request URL, leaking it into server access logs, HTTP proxy logs, and browser history.
 - **Prevention Rule:** Always send OAuth tokens in the **POST request body** (`data={"token": token}`) for revocation and any other sensitive token-passing calls. Never use `params=` for secrets. This applies to all providers (Google, Dropbox, Nextcloud, etc.) and is required by RFC 7009.
+
+---
+
+### [2026-10-07] Review of `22bfbed` — Client-Side Markdown Preview
+
+#### Rule 5: Decide previewability only via `Document.is_download_only` and the live setting
+- **Issue:** `MarkdownRenderer.is_dynamically_previewable` checked the persisted `doc.download_only` flag (written at upload), which cancelled the dynamic size-limit evaluation, so raising `MAX_PREVIEW_FILE_SIZE_MB` later did not re-enable large files.
+- **Prevention Rule:** In renderers, decide previewability only through `Document.is_download_only` and the live dynamic setting. Never `or` it with the persisted `download_only` column. Add a regression test that raises the limit after upload.
+
+#### Rule 6: Validate range on every client-supplied numeric analytics field
+- **Issue:** The new `scroll_percentage` field was added to `PageViewRecordSerializer` without a range check, so clients could store values up to 32767 and surface them in analytics.
+- **Prevention Rule:** Every client-supplied numeric analytics field needs explicit `min_value`/`max_value` on the serializer, plus a boundary test (e.g. 101 → 400).
+
+#### Rule 7: Add i18n keys to all locale catalogs in the same change
+- **Issue:** New UI strings and error messages used only in-code `t()` defaults, so the French locale shows English. One key (`viewSessions.readingDepth`) was used with two different defaults.
+- **Prevention Rule:** When adding `t('key', default)` calls, add the key to every locale catalog in the same change and keep a single default per key.

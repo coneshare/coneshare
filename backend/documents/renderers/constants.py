@@ -47,3 +47,10 @@ VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.webm', '.ogg', '.m4v', '.3gp'}
 
 PDF_MIMETYPE = 'application/pdf'
 PDF_EXTENSIONS = {'.pdf'}
+
+MARKDOWN_MIMETYPES = [
+    'text/markdown',
+    'text/x-markdown',
+]
+MARKDOWN_EXTENSIONS = {'.md', '.markdown'}
+

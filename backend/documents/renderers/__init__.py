@@ -4,6 +4,7 @@ from documents.models import DocumentVersion
 from .base import BasePreviewRenderer
 from .direct_image import DirectImageRenderer
 from .generic import GenericFileRenderer
+from .markdown import MarkdownRenderer
 from .office import OfficeRenderer
 from .pdf import PDFRenderer
 from .spreadsheet import SpreadsheetRenderer
@@ -17,6 +18,7 @@ RENDERER_CLASSES: List[Type[BasePreviewRenderer]] = [
     TranscodedImageRenderer,  # Evaluates HEIC/HEIF before general image
     DirectImageRenderer,      # Standard raster images (JPEG, PNG, GIF, WEBP)
     PDFRenderer,              # PDF files
+    MarkdownRenderer,         # Markdown files (.md, .markdown)
     SpreadsheetRenderer,      # Modern spreadsheets (XLSX, CSV)
     OfficeRenderer,           # Office formats (DOCX, PPTX, legacy XLS, etc.)
     VideoRenderer,            # Video formats (MP4, MOV, etc.)
@@ -44,6 +46,7 @@ __all__ = [
     'BasePreviewRenderer',
     'DirectImageRenderer',
     'GenericFileRenderer',
+    'MarkdownRenderer',
     'OfficeRenderer',
     'PDFRenderer',
     'RENDERER_CLASSES',

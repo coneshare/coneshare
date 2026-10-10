@@ -886,7 +886,9 @@
     "downloadDisabledNotice": "Le téléchargement est désactivé pour ce document par les autorisations du lien.",
     "previewNotAvailableNotice": "Ce type de fichier n'est pas disponible pour l'aperçu en ligne. Téléchargez le fichier et ouvrez-le sur votre appareil.",
     "watermarkedVideoBlockedNotice": "Cette vidéo dépasse la limite de taille pour l'aperçu, et le téléchargement est restreint en raison des exigences de filigrane.",
-    "downloadRestricted": "Téléchargement restreint"
+    "downloadRestricted": "Téléchargement restreint",
+    "loadingMarkdown": "Chargement du document Markdown...",
+    "previewFailed": "Aperçu non disponible"
   },
   "viewSessions": {
     "unknownLocation": "Emplacement inconnu",
@@ -916,7 +918,9 @@
     "muted": "Muet",
     "soundOn": "Son activé",
     "fullscreen": "Plein écran",
-    "standard": "Standard"
+    "standard": "Standard",
+    "document": "Document",
+    "readingDepth": "Profondeur de lecture"
   },
   "trash": {
     "title": "Corbeille",
@@ -1242,6 +1246,9 @@
     "documentNameExists": "Un document avec ce nom existe déjà à cet emplacement.",
     "folderNameExists": "Un dossier avec ce nom existe déjà à cet emplacement.",
     "storageQuotaExceeded": "Le téléversement de ce fichier dépasserait votre quota de stockage de {{quota}} Mo.",
-    "dataroomStorageLimitExceeded": "Le téléversement de ce fichier dépasserait la limite de stockage de la dataroom de {{limit}} Mo."
+    "dataroomStorageLimitExceeded": "Le téléversement de ce fichier dépasserait la limite de stockage de la dataroom de {{limit}} Mo.",
+    "parseFailed": "Échec de l'analyse du contenu Markdown.",
+    "unsupportedFormat": "Le document n'est pas un fichier Markdown.",
+    "notFound": "URL d'aperçu Markdown introuvable."
   }
 }

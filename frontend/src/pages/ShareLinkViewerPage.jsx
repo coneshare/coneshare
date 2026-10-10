@@ -9,6 +9,7 @@ import { PreviewViewer } from '../components/documents/PreviewViewer';
 import { PdfJsViewer } from '../components/documents/PdfJsViewer';
 import { VideoViewer } from '../components/documents/VideoViewer';
 import { SpreadsheetViewer } from '../components/documents/SpreadsheetViewer';
+import { MarkdownViewer } from '../components/documents/MarkdownViewer';
 import { DataroomViewer } from '../components/viewer/DataroomViewer';
 import { QnAPanel } from '../components/viewer/QnAPanel';
 import { printPdf, printImages } from '../lib/print';
@@ -476,7 +477,7 @@ export function ShareLinkViewerPage() {
   }
 
   // Document-specific state and handlers
-  const PREVIEWABLE_TYPES = ['image', 'pdf', 'document', 'video', 'spreadsheet'];
+  const PREVIEWABLE_TYPES = ['image', 'pdf', 'document', 'video', 'spreadsheet', 'markdown'];
   const isPreviewable = viewData && PREVIEWABLE_TYPES.includes(viewData.type);
   const canDownload = Boolean(viewData?.link_settings?.allow_download);
   const isQnaEnabled = viewData?.link_settings?.enable_qna !== false;
@@ -484,13 +485,17 @@ export function ShareLinkViewerPage() {
   const isVideoReady = isVideo && viewData.preview_status === 'ready';
   const isSpreadsheet = viewData && viewData.preview_mode === 'spreadsheet';
   const isSpreadsheetReady = isSpreadsheet && (viewData.preview_status === 'ready' || Boolean(viewData.spreadsheet_preview_url));
+  const isMarkdown = viewData && viewData.preview_mode === 'markdown';
+  const isMarkdownReady = isMarkdown && (viewData.preview_status === 'ready' || Boolean(viewData.markdown_preview_url));
   const canRenderPages = hasRenderablePages(viewData);
   const showPreviewState = viewData && isPreviewable && !viewData.download_only && (
     isVideo
       ? !isVideoReady
       : isSpreadsheet
         ? !isSpreadsheetReady
-        : (!canRenderPages && viewData.preview_mode !== 'client_pdf')
+        : isMarkdown
+          ? !isMarkdownReady
+          : (!canRenderPages && viewData.preview_mode !== 'client_pdf')
   );
   const qnaButtonLabel = (isQnaOpen
     ? t('qna.closeQna', { defaultValue: 'Close Q&A' })
@@ -696,6 +701,23 @@ export function ShareLinkViewerPage() {
                   : ''
               }
               allowDownload={viewData.link_settings?.allow_download ?? true}
+              zoomLevel={zoomLevel}
+              documentData={viewData}
+            />
+          ) : viewData.preview_mode === 'markdown' ? (
+            <MarkdownViewer
+              ref={viewerComponentRef}
+              markdownUrl={viewData.markdown_preview_url}
+              title={viewData.name}
+              viewId={viewId}
+              dataroomVisitId={dataroomVisitId}
+              watermarkText={
+                viewData.link_settings?.enable_watermark
+                  ? (viewData.link_settings.resolved_watermark_text || viewData.link_settings.watermark_text || '')
+                  : ''
+              }
+              allowDownload={viewData.link_settings?.allow_download ?? true}
+              canCopy={viewData.link_settings?.can_copy ?? null}
               zoomLevel={zoomLevel}
               documentData={viewData}
             />

@@ -760,7 +760,9 @@
     "downloadDisabledNotice": "Der Download ist für dieses Dokument durch die Linkberechtigungen deaktiviert.",
     "previewNotAvailableNotice": "Dieser Dateityp steht nicht für die Online-Vorschau zur Verfügung. Laden Sie die Datei herunter und öffnen Sie sie auf Ihrem Gerät.",
     "watermarkedVideoBlockedNotice": "Dieses Video überschreitet das Größenlimit für die Vorschau, und der Download ist aufgrund von Wasserzeichenanforderungen eingeschränkt.",
-    "downloadRestricted": "Download eingeschränkt"
+    "downloadRestricted": "Download eingeschränkt",
+    "loadingMarkdown": "Markdown-Dokument wird geladen...",
+    "previewFailed": "Vorschau nicht verfügbar"
   },
   "viewSessions": {
     "unknownLocation": "Unbekannter Standort",
@@ -790,7 +792,9 @@
     "muted": "Stummgeschaltet",
     "soundOn": "Ton an",
     "fullscreen": "Vollbild",
-    "standard": "Standard"
+    "standard": "Standard",
+    "document": "Dokument",
+    "readingDepth": "Lesetiefe"
   },
   "trash": {
     "title": "Papierkorb",
@@ -1116,6 +1120,9 @@
     "documentNameExists": "Ein Dokument mit diesem Namen existiert bereits an diesem Speicherort.",
     "folderNameExists": "Ein Ordner mit diesem Namen existiert bereits an diesem Speicherort.",
     "storageQuotaExceeded": "Das Hochladen dieser Datei würde Ihr Speicherkontingent von {{quota}} MB überschreiten.",
-    "dataroomStorageLimitExceeded": "Das Hochladen dieser Datei würde das Dataroom-Speicherlimit von {{limit}} MB überschreiten."
+    "dataroomStorageLimitExceeded": "Das Hochladen dieser Datei würde das Dataroom-Speicherlimit von {{limit}} MB überschreiten.",
+    "parseFailed": "Fehler beim Parsen des Markdown-Inhalts.",
+    "unsupportedFormat": "Das Dokument ist keine Markdown-Datei.",
+    "notFound": "Markdown-Vorschau-URL nicht gefunden."
   }
 }
