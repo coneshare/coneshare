@@ -1,6 +1,14 @@
 # Changelog
 
 
+## [1.11.0](https://github.com/coneshare/coneshare/compare/v1.10.1...v1.11.0) (2026-10-10)
+
+
+### Features
+
+* **documents:** client-side markdown preview and reading analytics ([#356](https://github.com/coneshare/coneshare/issues/356)) ([77f0f81](https://github.com/coneshare/coneshare/commit/77f0f81a29e8f4537e03473bf92c2352d947f33b))
+* **frontend:** add fixed topbar for share link and dataroom viewers ([1fbbe03](https://github.com/coneshare/coneshare/commit/1fbbe0324865a4af2655bb88886e2a7f87a0704e))
+
 ## [1.10.1](https://github.com/coneshare/coneshare/compare/v1.10.0...v1.10.1) (2026-10-06)
 
 
