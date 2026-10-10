@@ -57,7 +57,7 @@ vi.mock('../../components/viewer/QnAPanel', () => ({
     <div data-testid="qna-panel">
       {open ? 'Q&A Open' : 'Q&A Closed'}
       <span>{dataroomDocumentId || 'document-context'}</span>
-      <span>{contextLabel}</span>
+      <span data-testid="qna-context-label">{contextLabel}</span>
     </div>
   ),
 }));
@@ -318,7 +318,7 @@ describe('ShareLinkViewerPage', () => {
     renderComponent('/view/test-slug');
 
     await waitFor(() => {
-      expect(screen.getByText('Test Document')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Test Document' })).toBeInTheDocument();
     });
 
     expect(screen.queryByLabelText(/open q&a/i)).not.toBeInTheDocument();

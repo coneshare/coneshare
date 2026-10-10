@@ -19,6 +19,7 @@ import { formatBytes } from '../../lib/formatters';
 import { FileTypeIcon } from '../documents/FileTypeIcon';
 import { Button } from '../ui/Button';
 import { QnAPanel } from './QnAPanel';
+import { DocumentViewerHeader } from './DocumentViewerHeader';
 import { DataroomFileTree } from './DataroomFileTree';
 import { ViewerToolbar } from './ViewerToolbar';
 import { PreviewViewer } from '../documents/PreviewViewer';
@@ -153,7 +154,7 @@ function ListItem({ item, onItemClick, onDownloadClick, onQnaClick, qnaEnabled =
   );
 }
 
-export function DataroomViewer({ data, slug, viewId }) {
+export function DataroomViewer({ data, slug, viewId, publicMeta }) {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { brandName, brandLogoUrl, brandWebsiteUrl } = useBranding();
@@ -828,64 +829,21 @@ export function DataroomViewer({ data, slug, viewId }) {
       className={`flex h-screen w-screen flex-col bg-gray-50 transition-[padding] duration-200 ${isQnaEnabled && qnaContext ? 'lg:pr-[34rem] xl:pr-[38rem]' : ''}`}
       style={themeStyle}
     >
-      <header className="flex flex-shrink-0 items-center justify-between border-b bg-white p-3 sm:p-4">
-        <h1 className="mr-2 truncate text-base font-semibold sm:text-xl" style={{ color: 'var(--viewer-primary)' }}>{scopeData.name}</h1>
-        <div className="flex shrink-0 items-center gap-2">
-          {isQnaEnabled && (
-          <Button
-            type="button"
-            variant="outline"
-            className="h-9 rounded-full bg-white px-3 text-gray-900 hover:bg-gray-100 hover:text-gray-900 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 dark:hover:text-gray-900"
-            onClick={handleQnaToggle}
-            disabled={!viewId}
-            aria-label={currentScopeQnaButtonLabel}
-            title={currentScopeQnaButtonLabel}
-          >
-            <MessageCircle className="h-4 w-4" />
-            <span className="ml-2 font-semibold">{isDocActive ? t('qna.documentQna', { defaultValue: 'Document Q&A' }) : t('qna.title', { defaultValue: 'Q&A' })}</span>
-            {!isDocActive && currentScopeQnaThreadCount > 0 && (
-              <span
-                className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground"
-                aria-hidden="true"
-              >
-                {currentScopeQnaThreadCount}
-              </span>
-            )}
-          </Button>
-          )}
-          <div className="flex flex-col gap-0.5 items-end">
-            {brandWebsiteUrl ? (
-              <a
-                href={brandWebsiteUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 rounded-md p-2 font-semibold"
-                style={{ color: 'var(--viewer-primary)' }}
-              >
-                <img src={brandLogoUrl} alt={`${brandName} logo`} className="h-6 w-6 object-contain" />
-                <span className="hidden sm:inline">{brandName}</span>
-              </a>
-            ) : (
-              <a
-                href="/"
-                className="flex items-center gap-2 rounded-md p-2 font-semibold"
-                style={{ color: 'var(--viewer-primary)' }}
-              >
-                <img src={brandLogoUrl} alt={`${brandName} logo`} className="h-6 w-6 object-contain" />
-                <span className="hidden sm:inline">{brandName}</span>
-              </a>
-            )}
-            <div className="flex items-center gap-1.5 text-[9px] text-gray-400 select-none mr-2">
-              <span>
-                {t('viewer.poweredBy')}{' '}
-                <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" className="text-gray-900 hover:text-gray-700 hover:underline dark:text-gray-100 dark:hover:text-gray-300 transition-colors font-medium">Coneshare</a>
-              </span>
-              <span className="text-gray-300 select-none">&bull;</span>
-              <LanguagePicker />
-            </div>
-          </div>
-        </div>
-      </header>
+      <DocumentViewerHeader
+        documentName={scopeData.name}
+        brandName={brandName}
+        brandLogoUrl={brandLogoUrl}
+        brandWebsiteUrl={brandWebsiteUrl}
+        ownerName={publicMeta?.owner_name}
+        ownerAvatarUrl={publicMeta?.owner_avatar_url}
+        isQnaEnabled={isQnaEnabled}
+        isQnaOpen={Boolean(qnaContext)}
+        onToggleQna={handleQnaToggle}
+        qnaButtonLabel={currentScopeQnaButtonLabel}
+        qnaText={isDocActive ? t('qna.documentQna', { defaultValue: 'Document Q&A' }) : t('qna.title', { defaultValue: 'Q&A' })}
+        qnaThreadCount={!isDocActive ? currentScopeQnaThreadCount : 0}
+        hasViewSession={Boolean(viewId)}
+      />
       {scopeData.branding_banner && !showDocumentViewer && (
         <section className="flex-shrink-0 border-b bg-white">
           <img src={scopeData.branding_banner} alt={`${scopeData.name} banner`} className="h-40 w-full object-cover md:h-56" />
@@ -995,45 +953,51 @@ export function DataroomViewer({ data, slug, viewId }) {
           ) : documentViewData ? (
             <div className="flex-1 flex flex-col relative h-full bg-gray-100 overflow-hidden" ref={viewerRef}>
               {documentViewData.download_only || !isPreviewable ? (
-                <div className="flex h-full items-center justify-center p-4 w-full bg-white">
-                  <div className="w-full max-w-md rounded-lg bg-white p-8 text-center shadow-lg border">
-                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+                <div className="flex h-full items-center justify-center p-4 w-full bg-gray-50">
+                  <div className="w-full max-w-xl rounded-2xl bg-white border border-gray-200/80 p-8 sm:p-10 text-center shadow-xl shadow-gray-200/50">
+                    <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl">
                       {documentViewData.type === 'video' && documentViewData.link_settings?.enable_watermark && documentViewData.download_only ? (
-                        <AlertTriangle className="h-6 w-6 text-amber-600" />
+                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 ring-8 ring-amber-50/50">
+                          <AlertTriangle className="h-8 w-8" />
+                        </div>
                       ) : (
-                        <DownloadIcon className="h-6 w-6 text-gray-600" />
+                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-gray-600 ring-8 ring-gray-100/60">
+                          <DownloadIcon className="h-8 w-8" />
+                        </div>
                       )}
                     </div>
-                    <h1 className="mb-1 text-xl font-bold text-gray-900 truncate" title={documentViewData.name}>
+                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 truncate" title={documentViewData.name}>
                       {documentViewData.name}
                     </h1>
                     {documentViewData.file_size ? (
-                      <p className="mb-6 text-sm text-gray-500">{formatBytes(documentViewData.file_size)}</p>
+                      <p className="mt-1 text-sm font-medium text-gray-500">{formatBytes(documentViewData.file_size)}</p>
                     ) : null}
-                    <p className="mb-6 text-gray-700">
+                    <p className="mt-3 mb-6 text-sm text-gray-600 leading-relaxed max-w-sm mx-auto">
                       {documentViewData.type === 'video' && documentViewData.link_settings?.enable_watermark && documentViewData.download_only
                         ? t('viewer.watermarkedVideoBlockedNotice')
                         : t('viewer.previewNotAvailableNotice')}
                     </p>
                     {documentViewData.type === 'video' && documentViewData.link_settings?.enable_watermark && documentViewData.download_only ? (
-                      <Button size="lg" className="w-full" disabled>
+                      <Button size="lg" className="w-full h-11 rounded-xl font-medium" disabled>
                         {t('viewer.downloadRestricted')}
                       </Button>
                     ) : canDownload ? (
-                      <Button asChild size="lg" className="w-full">
+                      <Button asChild size="lg" className="w-full h-11 rounded-xl font-medium gap-2 shadow-sm">
                         <a href={docDownloadUrl} download={documentViewData.name}>
-                          {t('viewer.download')}
+                          <DownloadIcon className="h-4 w-4" />
+                          <span>{t('viewer.download')}</span>
                         </a>
                       </Button>
                     ) : (
-                      <>
-                        <Button size="lg" className="w-full" disabled>
-                          {t('viewer.download')}
+                      <div>
+                        <Button size="lg" className="w-full h-11 rounded-xl font-medium gap-2" disabled>
+                          <DownloadIcon className="h-4 w-4" />
+                          <span>{t('viewer.download')}</span>
                         </Button>
-                        <p className="mt-2 text-sm text-gray-500">
+                        <p className="mt-2.5 text-xs text-gray-500">
                           {t('viewer.downloadDisabledNotice')}
                         </p>
-                      </>
+                      </div>
                     )}
                   </div>
                 </div>
