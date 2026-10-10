@@ -98,12 +98,17 @@ if ADMINS_ENV:
 
 # Database Configuration
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-DATABASES = {
-    'default': dj_database_url.config(
-        default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
-        conn_max_age=600,
-    )
-}
+default_db_config = dj_database_url.config(
+    default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
+    conn_max_age=600,
+)
+
+if default_db_config.get('ENGINE') == 'django.db.backends.sqlite3':
+    default_db_config.setdefault('OPTIONS', {})
+    default_db_config['OPTIONS']['timeout'] = int(os.environ.get('SQLITE_BUSY_TIMEOUT', 20))
+
+DATABASES = {'default': default_db_config}
+print(DATABASES)
 
 # Log Level Configuration
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
