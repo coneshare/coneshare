@@ -10,7 +10,6 @@ These are pending implementation or active feature proposals:
 
 | Domain | Plan Document | Scope / Goal |
 |---|---|---|
-| **Documents** | [markdown_preview_plan.md](todo/markdown_preview_plan.md) | Client-side Markdown (`.md`, `.markdown`) preview with sanitization, text selection, and watermark overlay |
 | **Datarooms** | [dataroom_collaboration_notifications_phase2_plan.md](todo/dataroom_collaboration_notifications_phase2_plan.md) | In-room notification controls, room owner notification flags, and daily/weekly email digests |
 | **MCP** | [cli_skills_plan.md](todo/cli_skills_plan.md) | Coneshare CLI (`@coneshare/cli`) terminal tool and Agent Skill manifest (`SKILL.md`) |
 | **MCP** | [realtime_mcp_events_plan.md](todo/realtime_mcp_events_plan.md) | Real-time workspace event subscriptions over Remote MCP SSE stream without polling |
@@ -20,6 +19,7 @@ These are pending implementation or active feature proposals:
 ## 📂 Completed Plans by Domain
 
 ### 📄 [Documents](documents/)
+* [markdown_preview_plan.md](documents/markdown_preview_plan.md) — Client-side Markdown (`.md`, `.markdown`) preview with sanitization, text selection, and watermark overlay
 * [document-preview-modes.md](documents/document-preview-modes.md) — Multi-format preview modes and viewer strategy design
 * [document_preview_renderers_refactor_plan.md](documents/document_preview_renderers_refactor_plan.md) — Document preview renderer strategy pattern refactoring
 * [interactive_spreadsheet_preview_plan.md](documents/interactive_spreadsheet_preview_plan.md) — Interactive multi-sheet spreadsheet preview (`.xlsx`, `.csv`, `.xls`)
