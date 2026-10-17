@@ -341,6 +341,7 @@ LANGUAGES = [
     ('ru', _('Russian')),
     ('de', _('German')),
     ('fr', _('French')),
+    ('nl', _('Dutch')),
 ]
 
 LOCALE_PATHS = [

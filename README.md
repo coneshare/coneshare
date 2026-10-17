@@ -60,7 +60,7 @@ Keep your existing storage workflows while gaining access controls, datarooms, a
 - Connects directly to existing storage without copying or duplicating files.
 
 ### Internationalization
-- Available in English, Simplified Chinese, Russian, German, and French (`en`, `zh-hans`, `ru`, `de`, `fr`).
+- Available in English, Simplified Chinese, Russian, German, French, and Dutch (`en`, `zh-hans`, `ru`, `de`, `fr`, `nl`).
 
 ---
 

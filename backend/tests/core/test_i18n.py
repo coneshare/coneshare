@@ -64,6 +64,7 @@ class TestUserLanguagePreference:
             {'code': 'ru', 'name': 'Русский'},
             {'code': 'de', 'name': 'Deutsch'},
             {'code': 'fr', 'name': 'Français'},
+            {'code': 'nl', 'name': 'Nederlands'},
         ]
 
     def test_api_error_respects_accept_language_header(self, api_client):
@@ -114,12 +115,25 @@ class TestUserLanguagePreference:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
         assert resp.data['old_password'] == ['Mot de passe incorrect.']
 
+    def test_api_error_in_dutch(self, api_client):
+        """Verify API response error messages in Dutch when Accept-Language: nl."""
+        url = reverse('set_password')
+        payload = {
+            'old_password': 'wrong_password',
+            'new_password1': 'new_pass123',
+            'new_password2': 'new_pass123',
+        }
+        resp = api_client.post(url, payload, HTTP_ACCEPT_LANGUAGE='nl')
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp.data['old_password'] == ['Onjuist wachtwoord.']
+
     @pytest.mark.parametrize("lang, expected_subject, expected_snippet", [
         ("en", "Verify your Coneshare account", "Welcome to Coneshare."),
         ("zh-hans", "验证您的 Coneshare 账号", "欢迎使用 Coneshare。"),
         ("ru", "Подтвердите ваш аккаунт Coneshare", "Добро пожаловать в Coneshare."),
         ("de", "Bestätigen Sie Ihr Coneshare-Konto", "Willkommen bei Coneshare."),
         ("fr", "Vérifiez votre compte Coneshare", "Bienvenue sur Coneshare."),
+        ("nl", "Verifieer uw Coneshare-account", "Welkom bij Coneshare."),
     ])
     def test_signup_verification_email_task_language_override(self, mailoutbox, lang, expected_subject, expected_snippet):
         """Verify Celery signup verification email task respects language override for subject and body."""
@@ -169,6 +183,7 @@ class TestUserLanguagePreference:
         ("ru", "Подтвердите email для просмотра «Test Document.pdf»", "Пожалуйста, перейдите по ссылке ниже для просмотра «Test Document.pdf»."),
         ("de", "Bestätigen Sie Ihre E-Mail-Adresse, um „Test Document.pdf“ anzuzeigen", "Bitte klicken Sie auf den unten stehenden Link, um „Test Document.pdf“ anzuzeigen."),
         ("fr", "Vérifiez votre e-mail pour afficher « Test Document.pdf »", "Veuillez cliquer sur le lien ci-dessous pour afficher « Test Document.pdf »."),
+        ("nl", "Verifieer uw e-mailadres om ‘Test Document.pdf’ te bekijken", "Klik op de onderstaande link om ‘Test Document.pdf’ te bekijken."),
     ])
     def test_sharelink_email_verification_language(self, mailoutbox, share_link_requires_email_verification, lang, expected_subject, expected_snippet):
         """Verify sharelink magic link email verification respects Accept-Language header."""
@@ -189,6 +204,7 @@ class TestUserLanguagePreference:
         ("ru", "Ваш общий объект «Test Document.pdf» был просмотрен", "Сообщаем, что ваш общий объект «Test Document.pdf» был просмотрен."),
         ("de", "Ihr geteiltes Element „Test Document.pdf“ wurde aufgerufen", "Ihr geteiltes Element „Test Document.pdf“ wurde soeben aufgerufen."),
         ("fr", "Votre élément partagé « Test Document.pdf » a été consulté", "Votre élément partagé « Test Document.pdf » a été consulté."),
+        ("nl", "Uw gedeelde item ‘Test Document.pdf’ is bekeken", "Wij laten u weten dat uw gedeelde item ‘Test Document.pdf’ is bekeken."),
     ])
     def test_sharelink_view_notification_email_owner_language(self, mailoutbox, share_link, lang, expected_subject, expected_snippet):
         """Verify sharelink view notification email respects the link owner's preferred language."""
@@ -253,6 +269,7 @@ class TestUserLanguagePreference:
         ("ru", "Неизвестное местоположение"),
         ("de", "Unbekannter Standort"),
         ("fr", "Emplacement inconnu"),
+        ("nl", "Onbekende locatie"),
     ])
     def test_sharelink_view_notification_email_fallbacks_translated(self, mailoutbox, share_link, lang, expected_loc):
         """Verify fallback values (Unknown Location) are translated to the owner's language."""
@@ -298,12 +315,15 @@ class TestUserLanguagePreference:
         ("ru-RU,ru;q=0.9", None, "en", "ru"),
         ("de-DE,de;q=0.9", None, "en", "de"),
         ("fr-FR,fr;q=0.9", None, "en", "fr"),
+        ("nl-NL,nl;q=0.9", None, "en", "nl"),
+        ("nl-BE,nl;q=0.9", None, "en", "nl"),
         ("ja-JP,ja;q=0.9", "zh-hans", "en", "zh-hans"),
         ("ja-JP,ja;q=0.9", None, "zh-hans", "zh-hans"),
         ("ja-JP,ja;q=0.9", None, None, "en"),
         ("", "ru", "en", "ru"),
         ("", "de", "en", "de"),
         ("", "fr", "en", "fr"),
+        ("", "nl", "en", "nl"),
         ("", None, "zh-hans", "zh-hans"),
         ("", None, None, "en"),
     ])

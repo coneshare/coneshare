@@ -23,6 +23,8 @@ def normalize_language_code(code: Optional[str]) -> Optional[str]:
         return 'de'
     if code.startswith('fr'):
         return 'fr'
+    if code.startswith('nl'):
+        return 'nl'
     if code.startswith('en'):
         return 'en'
     prefix = code.split('-')[0]

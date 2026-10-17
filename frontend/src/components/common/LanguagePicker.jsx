@@ -2,16 +2,15 @@ import { useTranslation } from 'react-i18next';
 import { Globe } from 'lucide-react';
 import { SUPPORTED_LANGUAGES } from '../../lib/constants';
 
-const LANG_CODE_MAP = {
-  zh: 'zh-hans',
-  'zh-cn': 'zh-hans',
-  'zh-hans': 'zh-hans',
-  'zh-tw': 'zh-hans',
-  'zh-hk': 'zh-hans',
-  fr: 'fr',
-  'fr-fr': 'fr',
-  'fr-ca': 'fr',
-};
+// Maps a detected browser language (e.g. "nl-be", "zh-tw") to a supported code.
+const baseOf = (code) => code.split('-')[0];
+
+function resolveLanguage(rawLang) {
+  const match =
+    SUPPORTED_LANGUAGES.find((lang) => lang.code === rawLang) ||
+    SUPPORTED_LANGUAGES.find((lang) => baseOf(lang.code) === baseOf(rawLang));
+  return match ? match.code : rawLang;
+}
 
 export function LanguagePicker({ className = '' }) {
   const { i18n, t } = useTranslation();
@@ -21,8 +20,7 @@ export function LanguagePicker({ className = '' }) {
     i18n.changeLanguage(newLang);
   };
 
-  const rawLang = (i18n.language || 'en').toLowerCase();
-  const currentLang = LANG_CODE_MAP[rawLang] || (rawLang.startsWith('zh') ? 'zh-hans' : (rawLang.startsWith('fr') ? 'fr' : rawLang));
+  const currentLang = resolveLanguage((i18n.language || 'en').toLowerCase());
 
   return (
     <div className={`inline-flex items-center gap-1.5 text-xs text-muted-foreground ${className}`}>

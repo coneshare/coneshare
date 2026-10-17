@@ -335,6 +335,7 @@ NATIVE_LANGUAGE_NAMES = {
     'ru': 'Русский',
     'de': 'Deutsch',
     'fr': 'Français',
+    'nl': 'Nederlands',
 }
 
 

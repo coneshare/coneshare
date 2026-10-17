@@ -6,6 +6,7 @@ import zhHans from '../locales/zh-hans/translation.json';
 import ru from '../locales/ru/translation.json';
 import de from '../locales/de/translation.json';
 import fr from '../locales/fr/translation.json';
+import nl from '../locales/nl/translation.json';
 import { formatDate, formatRelativeTime } from '../utils/formatters';
 import { getLocalizedErrorMessage } from '../utils/errorTranslator';
 import appI18n from '../i18n';
@@ -20,11 +21,12 @@ function createTestI18n() {
       ru: { translation: ru },
       de: { translation: de },
       fr: { translation: fr },
+      nl: { translation: nl },
     },
     fallbackLng: 'en',
     load: 'currentOnly',
     lowerCaseLng: true,
-    supportedLngs: ['en', 'zh-hans', 'zh', 'ru', 'de', 'fr'],
+    supportedLngs: ['en', 'zh-hans', 'zh', 'ru', 'de', 'fr', 'nl'],
     interpolation: { escapeValue: false },
   });
   return instance;
@@ -129,6 +131,38 @@ describe('Frontend i18n System', () => {
     expect(testI18n.t('admin.resetUserPasswordDesc')).toBe('Toutes les sessions actives existantes de cet utilisateur seront immédiatement révoquées.');
   });
 
+  it('switches language to Dutch (nl)', async () => {
+    const testI18n = createTestI18n();
+    await testI18n.changeLanguage('nl');
+    expect(testI18n.t('common.save')).toBe('Wijzigingen opslaan');
+    expect(testI18n.t('common.edit')).toBe('Bewerken');
+    expect(testI18n.t('viewer.preview')).toBe('Voorbeeld');
+    expect(testI18n.t('nav.dashboard')).toBe('Dashboard');
+    expect(testI18n.t('nav.trash')).toBe('Prullenbak');
+    expect(testI18n.t('dashboard.dailyVisits')).toBe('Dagelijkse bezoeken (laatste 30 dagen)');
+    expect(testI18n.t('analytics.visitor')).toBe('Bezoeker');
+    expect(testI18n.t('documents.newFolderTitle')).toBe('Nieuwe map aanmaken');
+    expect(testI18n.t('documents.moveTitle')).toBe('Items verplaatsen');
+    expect(testI18n.t('settings.title')).toBe('Gebruikersinstellingen');
+    expect(testI18n.t('admin.resetPassword')).toBe('Wachtwoord resetten');
+    expect(testI18n.t('documents.folderCreatedSuccess', { name: 'Projects' })).toBe('Map "Projects" is aangemaakt.');
+    expect(testI18n.t('documents.uploadedBy', { name: 'Alice', email: 'alice@example.com' })).toBe('Geüpload door Alice (alice@example.com)');
+    expect(testI18n.t('cloudImport.title', { provider: 'Dropbox' })).toBe('Importeren uit Dropbox');
+    expect(testI18n.t('errors.linkRequiresEmail')).toBe('Voor deze link is een e-mailadres vereist om te bekijken.');
+  });
+
+  it('has the same keys as English for Dutch (nl)', () => {
+    const flatten = (obj, prefix = '') => Object.entries(obj).flatMap(([k, v]) =>
+      (v && typeof v === 'object' ? flatten(v, `${prefix}${k}.`) : [[`${prefix}${k}`, v]]));
+    const enEntries = Object.fromEntries(flatten(en));
+    const nlEntries = Object.fromEntries(flatten(nl));
+    expect(Object.keys(nlEntries).sort()).toEqual(Object.keys(enEntries).sort());
+    const placeholders = (str) => (String(str).match(/{{[^}]+}}/g) || []).sort();
+    for (const key of Object.keys(enEntries)) {
+      expect(placeholders(nlEntries[key]), key).toEqual(placeholders(enEntries[key]));
+    }
+  });
+
   it('falls back to English for missing keys in non-English locale', async () => {
     const testI18n = createTestI18n();
     await testI18n.changeLanguage('zh-hans');
@@ -162,6 +196,17 @@ describe('Frontend i18n System', () => {
     expect(testI18n.t('qna.threadsCount', { count: 1 })).toBe('1 fil');
     expect(testI18n.t('qna.threadsCount', { count: 5 })).toBe('5 fils');
     expect(testI18n.t('qna.threadsCount', { count: 1000000 })).toBe('1000000 fils');
+
+    // Dutch plurals (_one / _other)
+    await testI18n.changeLanguage('nl');
+    expect(testI18n.t('links.settingCount', { count: 1 })).toBe('1 instelling');
+    expect(testI18n.t('links.settingCount', { count: 5 })).toBe('5 instellingen');
+    expect(testI18n.t('documents.itemCount', { count: 1 })).toBe('1 item');
+    expect(testI18n.t('documents.itemCount', { count: 3 })).toBe('3 items');
+    expect(testI18n.t('datarooms.addSelectedItems', { count: 1 })).toBe('1 item toevoegen');
+    expect(testI18n.t('datarooms.addSelectedItems', { count: 4 })).toBe('4 items toevoegen');
+    expect(testI18n.t('trash.itemsSelected', { count: 1 })).toBe('1 item geselecteerd');
+    expect(testI18n.t('trash.itemsSelected', { count: 2 })).toBe('2 items geselecteerd');
 
     // German plurals (_one / _other)
     await testI18n.changeLanguage('de');
@@ -385,6 +430,9 @@ describe('Frontend i18n System', () => {
     await appI18n.changeLanguage('fr');
     expect(getLocalizedErrorMessage(rawError)).toBe('Échec de l\'accès à Google Drive. Votre jeton d\'autorisation a peut-être expiré ou a été révoqué. Veuillez reconnecter votre compte.');
 
+    await appI18n.changeLanguage('nl');
+    expect(getLocalizedErrorMessage(rawError)).toBe('Geen toegang tot Google Drive. Uw autorisatietoken is mogelijk verlopen of ingetrokken. Koppel uw account opnieuw.');
+
     // Dynamic storage quota errors
     const quotaError = {
       response: { data: { detail: 'Uploading this file would exceed your storage quota of 10 MB.' } },
@@ -399,6 +447,8 @@ describe('Frontend i18n System', () => {
     expect(getLocalizedErrorMessage(quotaError)).toBe('Загрузка этого файла превысит вашу квоту хранилища в 10 МБ.');
     await appI18n.changeLanguage('fr');
     expect(getLocalizedErrorMessage(quotaError)).toBe('Le téléversement de ce fichier dépasserait votre quota de stockage de 10 Mo.');
+    await appI18n.changeLanguage('nl');
+    expect(getLocalizedErrorMessage(quotaError)).toBe('Door dit bestand te uploaden zou uw opslagquotum van 10 MB worden overschreden.');
 
     // Dynamic dataroom storage limit errors
     const dataroomQuotaError = {
@@ -519,6 +569,11 @@ describe('Frontend i18n System', () => {
     expect(formattedFr).toBe('10 août 2026');
     expect(formattedFr).not.toBe(formattedEn);
 
+    await appI18n.changeLanguage('nl');
+    const formattedNl = formatDate(testDate);
+    expect(formattedNl).toBe('10 aug. 2026');
+    expect(formattedNl).not.toBe(formattedEn);
+
     // Relative date test (e.g. 60 days ago)
     const pastDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
 
@@ -541,6 +596,10 @@ describe('Frontend i18n System', () => {
     await appI18n.changeLanguage('fr');
     const relativeFr = formatRelativeTime(pastDate);
     expect(relativeFr).toContain('il y a');
+
+    await appI18n.changeLanguage('nl');
+    const relativeNl = formatRelativeTime(pastDate);
+    expect(relativeNl).toContain('geleden');
 
     // Options merging tests
     await appI18n.changeLanguage('en');

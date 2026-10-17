@@ -10,13 +10,13 @@ This document outlines the architectural decisions, design logic, and technical 
 | Decision Area | Choice | Rationale |
 |---|---|---|
 | **Scope Boundary** | System UI Text & API Error Messages | User-generated content (document names, dataroom names, folder titles) is stored and rendered as entered. System UI, navigation, buttons, status messages, and error responses are localized. |
-| **Supported Languages** | `en` (English), `zh-hans` (Simplified Chinese), `ru` (Russian), `de` (German), `fr` (French) | `en` is default fallback. Language codes follow standard BCP 47 lower-case strings (`zh-hans`, `ru`, `de`, `fr`). |
+| **Supported Languages** | `en` (English), `zh-hans` (Simplified Chinese), `ru` (Russian), `de` (German), `fr` (French), `nl` (Dutch) | `en` is default fallback. Language codes follow standard BCP 47 lower-case strings (`zh-hans`, `ru`, `de`, `fr`, `nl`). |
 | **Frontend Stack** | `react-i18next` + `i18next` + `i18next-browser-languagedetector` | Hook-based (`useTranslation()`), lightweight JSON bundles, seamless fallback and `localStorage` caching. Supports language-specific pluralization rules (e.g. French `_one` for count 0 and 1, `_other` for count >= 2). |
 | **Backend Stack** | Django `gettext` + `LocaleMiddleware` | Native Django internationalization with standard `.po` and `.mo` catalogs. |
 | **DRF Execution Order & Header Parsing** | Axios `Accept-Language` Header Interceptor | DRF token authentication runs *inside* API views (after Django HTTP middleware). Setting `Accept-Language: <lang>` on every Axios request allows Django `LocaleMiddleware` to parse the header prior to view invocation and auto-activate the matching translation catalog. |
 | **Email Localization** | Recipient Language Lookup | System emails use `user.language` preference, falling back to `'en'` for external/guest email addresses. |
 | **Public & Guest Pickers** | `LanguagePicker` component | Unauthenticated guests on share link viewer pages and login/signup footers can toggle languages dynamically via `localStorage`. |
-| **Date & Time Localization** | Centralized `date-fns` wrapper (`src/utils/formatters.js`) | Maps `i18n.language` to `date-fns/locale` (`enUS`, `zhCN`, `ru`, `de`, `fr`) for consistent formatting. |
+| **Date & Time Localization** | Centralized `date-fns` wrapper (`src/utils/formatters.js`) | Maps `i18n.language` to `date-fns/locale` (`enUS`, `zhCN`, `ru`, `de`, `fr`, `nl`) for consistent formatting. |
 
 ---
 
@@ -26,7 +26,7 @@ This document outlines the architectural decisions, design logic, and technical 
 flowchart TB
     subgraph Frontend["Frontend (React 19 SPA)"]
         i18nConfig["i18n.js Config\n(react-i18next)"]
-        LocaleBundles["src/locales/\nen/ | zh-hans/ | ru/ | de/ | fr/"]
+        LocaleBundles["src/locales/\nen/ | zh-hans/ | ru/ | de/ | fr/ | nl/"]
         AxiosInterceptor["Axios Request Interceptor\nHeader: Accept-Language: <lang>"]
         LangSyncHook["useLanguageSync()\nSync user.language from API"]
         Components["React Components\nuseTranslation() hook"]
@@ -41,7 +41,7 @@ flowchart TB
 
     subgraph Backend["Backend (Django REST API)"]
         LocaleMiddleware["django.middleware.locale.LocaleMiddleware"]
-        UserModel["User.language Field\nchoices=['en', 'zh-hans', 'ru', 'de', 'fr']"]
+        UserModel["User.language Field\nchoices=['en', 'zh-hans', 'ru', 'de', 'fr', 'nl']"]
         GetText["_() gettext / gettext_lazy"]
         POCatalogs["backend/locale/{lang}/LC_MESSAGES/django.po"]
         PyCompiler["backend/compile_po.py\nPure Python .mo compiler"]

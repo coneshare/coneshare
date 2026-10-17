@@ -1,0 +1,330 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ConeShare 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-10 10:00+0000\n"
+"PO-Revision-Date: 2026-10-17 12:00+0000\n"
+"Last-Translator: ConeShare <dev@coneshare.com>\n"
+"Language-Team: Dutch\n"
+"Language: nl\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "English"
+msgstr "Engels"
+
+msgid "Simplified Chinese"
+msgstr "Vereenvoudigd Chinees"
+
+msgid "Russian"
+msgstr "Russisch"
+
+msgid "German"
+msgstr "Duits"
+
+msgid "French"
+msgstr "Frans"
+
+msgid "Dutch"
+msgstr "Nederlands"
+
+msgid "Public signup is disabled."
+msgstr "Openbare registratie is uitgeschakeld."
+
+msgid "If this email is valid, a verification email has been sent."
+msgstr "Als dit e-mailadres geldig is, is er een verificatiemail verzonden."
+
+msgid "Server is not configured with a default organization."
+msgstr "De server is niet geconfigureerd met een standaardorganisatie."
+
+msgid "Invalid verification link."
+msgstr "Ongeldige verificatielink."
+
+msgid "Account is already verified."
+msgstr "Het account is al geverifieerd."
+
+msgid "Wrong password."
+msgstr "Onjuist wachtwoord."
+
+msgid "Verify your Coneshare account"
+msgstr "Verifieer uw Coneshare-account"
+
+msgid "Welcome to Coneshare."
+msgstr "Welkom bij Coneshare."
+
+msgid "Please verify your email to activate your account:"
+msgstr "Verifieer uw e-mailadres om uw account te activeren:"
+
+msgid "Verify account"
+msgstr "Account verifiëren"
+
+msgid "If you did not request this, you can ignore this email."
+msgstr "Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren."
+
+msgid "Verify your email to view '%(target_name)s'"
+msgstr "Verifieer uw e-mailadres om ‘%(target_name)s’ te bekijken"
+
+msgid "Your shared item '%(target_name)s' was viewed"
+msgstr "Uw gedeelde item ‘%(target_name)s’ is bekeken"
+
+msgid "Hello,"
+msgstr "Hallo,"
+
+msgid "Please click the link below to view '%(target_name)s'."
+msgstr "Klik op de onderstaande link om ‘%(target_name)s’ te bekijken."
+
+msgid "Please click the button below to view <strong>%(target_name)s</strong>."
+msgstr "Klik op de onderstaande knop om <strong>%(target_name)s</strong> te bekijken."
+
+msgid "This link will expire in 15 minutes."
+msgstr "Deze link verloopt over 15 minuten."
+
+msgid "Thank you."
+msgstr "Hartelijk dank."
+
+msgid "Verify and View"
+msgstr "Verifiëren en bekijken"
+
+msgid "If the button does not work, you can copy and paste this link into your browser:"
+msgstr "Als de knop niet werkt, kunt u deze link kopiëren en in uw browser plakken:"
+
+msgid "Coneshare Activity Notification"
+msgstr "Coneshare-activiteitsmelding"
+
+msgid "Coneshare Alert"
+msgstr "Coneshare-waarschuwing"
+
+msgid "Hi %(owner_name)s,"
+msgstr "Hallo %(owner_name)s,"
+
+msgid "Hi,"
+msgstr "Hallo,"
+
+msgid "Just letting you know that your shared item, '%(target_name)s', was viewed."
+msgstr "Wij laten u weten dat uw gedeelde item ‘%(target_name)s’ is bekeken."
+
+msgid "Just letting you know that your shared item, <strong>%(target_name)s</strong>, was viewed."
+msgstr "Wij laten u weten dat uw gedeelde item <strong>%(target_name)s</strong> is bekeken."
+
+msgid "View Details:"
+msgstr "Details bekijken:"
+
+msgid "Activity Details"
+msgstr "Activiteitsdetails"
+
+msgid "Operating System:"
+msgstr "Besturingssysteem:"
+
+msgid "Browser:"
+msgstr "Browser:"
+
+msgid "Time:"
+msgstr "Tijdstip:"
+
+msgid "IP Address:"
+msgstr "IP-adres:"
+
+msgid "Approximate Location:"
+msgstr "Geschatte locatie:"
+
+msgid "Approximate location:"
+msgstr "Geschatte locatie:"
+
+msgid "Location:"
+msgstr "Locatie:"
+
+msgid "File View Details:"
+msgstr "Details van bestandsweergave:"
+
+msgid "Engagement Statistics"
+msgstr "Betrokkenheidsstatistieken"
+
+msgid "View Session Details:"
+msgstr "Sessiedetails bekijken:"
+
+msgid "Show Details"
+msgstr "Details tonen"
+
+msgid "Sent by Coneshare Automations."
+msgstr "Verzonden door Coneshare-automatiseringen."
+
+msgid "All rights reserved."
+msgstr "Alle rechten voorbehouden."
+
+msgid "Thank you,"
+msgstr "Met vriendelijke groet,"
+
+msgid "The Coneshare Team"
+msgstr "Het Coneshare-team"
+
+msgid "Anonymous"
+msgstr "Anoniem"
+
+msgid "Unknown Location"
+msgstr "Onbekende locatie"
+
+msgid "A document with this name already exists in this location."
+msgstr "Er bestaat al een document met deze naam op deze locatie."
+
+msgid "A folder with this name already exists in this location."
+msgstr "Er bestaat al een map met deze naam op deze locatie."
+
+msgid "A visitor"
+msgstr "Een bezoeker"
+
+msgid "Shared Item"
+msgstr "Gedeeld item"
+
+msgid "Unknown OS"
+msgstr "Onbekend besturingssysteem"
+
+msgid "Unknown Browser"
+msgstr "Onbekende browser"
+
+msgid "%(actor)s viewed and downloaded files in your dataroom \"%(target_name)s\""
+msgstr "%(actor)s heeft bestanden in uw dataroom \"%(target_name)s\" bekeken en gedownload"
+
+msgid "%(actor)s downloaded files in your dataroom \"%(target_name)s\""
+msgstr "%(actor)s heeft bestanden in uw dataroom \"%(target_name)s\" gedownload"
+
+msgid "%(actor)s visited your dataroom \"%(target_name)s\""
+msgstr "%(actor)s heeft uw dataroom \"%(target_name)s\" bezocht"
+
+msgid "%(actor)s viewed and downloaded the document \"%(target_name)s\""
+msgstr "%(actor)s heeft het document \"%(target_name)s\" bekeken en gedownload"
+
+msgid "%(actor)s downloaded the document \"%(target_name)s\""
+msgstr "%(actor)s heeft het document \"%(target_name)s\" gedownload"
+
+msgid "%(actor)s viewed the document \"%(target_name)s\""
+msgstr "%(actor)s heeft het document \"%(target_name)s\" bekeken"
+
+msgid "%(duration_str)s, %(completion)s%% read"
+msgstr "%(duration_str)s, %(completion)s%% gelezen"
+
+msgid "Activity alert: %(target)s"
+msgstr "Activiteitsmelding: %(target)s"
+
+msgid "%(uploader)s uploaded a file to your file request \"%(req_name)s\""
+msgstr "%(uploader)s heeft een bestand geüpload naar uw bestandsaanvraag \"%(req_name)s\""
+
+msgid "Malware detected in your file request"
+msgstr "Malware gedetecteerd in uw bestandsaanvraag"
+
+msgid "Malware scanning failed"
+msgstr "Malwarescan mislukt"
+
+msgid "Someone"
+msgstr "Iemand"
+
+msgid "file request"
+msgstr "bestandsaanvraag"
+
+msgid "document \"%(document_name)s\" in folder \"%(folder_name)s\" in dataroom \"%(dataroom_name)s\""
+msgstr "document \"%(document_name)s\" in map \"%(folder_name)s\" in dataroom \"%(dataroom_name)s\""
+
+msgid "document \"%(document_name)s\" in dataroom \"%(dataroom_name)s\""
+msgstr "document \"%(document_name)s\" in dataroom \"%(dataroom_name)s\""
+
+msgid "document \"%(document_name)s\""
+msgstr "document \"%(document_name)s\""
+
+msgid "folder \"%(folder_name)s\" in dataroom \"%(dataroom_name)s\""
+msgstr "map \"%(folder_name)s\" in dataroom \"%(dataroom_name)s\""
+
+msgid "folder \"%(folder_name)s\""
+msgstr "map \"%(folder_name)s\""
+
+msgid "dataroom \"%(dataroom_name)s\""
+msgstr "dataroom \"%(dataroom_name)s\""
+
+msgid "item"
+msgstr "item"
+
+msgid "Additional fields: %(count)s"
+msgstr "Aanvullende velden: %(count)s"
+
+msgid "Your shared %(target)s was viewed by %(viewer)s."
+msgstr "Uw gedeelde %(target)s is bekeken door %(viewer)s."
+
+msgid "Your shared %(target)s was opened by %(viewer)s."
+msgstr "Uw gedeelde %(target)s is geopend door %(viewer)s."
+
+msgid "Your shared %(target)s was downloaded by %(viewer)s."
+msgstr "Uw gedeelde %(target)s is gedownload door %(viewer)s."
+
+msgid "%(viewer)s identified their email address for your shared %(target)s."
+msgstr "%(viewer)s heeft het eigen e-mailadres opgegeven voor uw gedeelde %(target)s."
+
+msgid "Q&A thread"
+msgstr "Q&A-thread"
+
+msgid "A team member"
+msgstr "Een teamlid"
+
+msgid "%(actor)s opened Q&A thread \"%(thread_subject)s\" on your shared %(target)s."
+msgstr "%(actor)s heeft Q&A-thread \"%(thread_subject)s\" geopend op uw gedeelde %(target)s."
+
+msgid "%(actor)s replied to Q&A thread \"%(thread_subject)s\" on your shared %(target)s."
+msgstr "%(actor)s heeft gereageerd op Q&A-thread \"%(thread_subject)s\" op uw gedeelde %(target)s."
+
+msgid "Q&A thread \"%(thread_subject)s\" was closed on your shared %(target)s."
+msgstr "Q&A-thread \"%(thread_subject)s\" is gesloten op uw gedeelde %(target)s."
+
+msgid "Q&A thread \"%(thread_subject)s\" was reopened on your shared %(target)s."
+msgstr "Q&A-thread \"%(thread_subject)s\" is heropend op uw gedeelde %(target)s."
+
+msgid "Unknown uploader"
+msgstr "Onbekende uploader"
+
+msgid "%(uploader)s uploaded \"%(file_name)s\" to file request \"%(req_name)s\"."
+msgstr "%(uploader)s heeft \"%(file_name)s\" geüpload naar bestandsaanvraag \"%(req_name)s\"."
+
+msgid "%(uploader)s uploaded \"%(file_name)s\"."
+msgstr "%(uploader)s heeft \"%(file_name)s\" geüpload."
+
+msgid "%(uploader)s uploaded to file request \"%(req_name)s\"."
+msgstr "%(uploader)s heeft geüpload naar bestandsaanvraag \"%(req_name)s\"."
+
+msgid "%(uploader)s uploaded a file."
+msgstr "%(uploader)s heeft een bestand geüpload."
+
+msgid "Malware was detected in uploaded file \"%(file_name)s\" to file request \"%(req_name)s\" from %(uploader)s."
+msgstr "Er is malware gedetecteerd in het geüploade bestand \"%(file_name)s\" voor bestandsaanvraag \"%(req_name)s\" van %(uploader)s."
+
+msgid "Malware was detected in uploaded file \"%(file_name)s\" from %(uploader)s."
+msgstr "Er is malware gedetecteerd in het geüploade bestand \"%(file_name)s\" van %(uploader)s."
+
+msgid "Malware was detected in uploaded file to file request \"%(req_name)s\" from %(uploader)s."
+msgstr "Er is malware gedetecteerd in een geüpload bestand voor bestandsaanvraag \"%(req_name)s\" van %(uploader)s."
+
+msgid "Malware was detected in uploaded file from %(uploader)s."
+msgstr "Er is malware gedetecteerd in een geüpload bestand van %(uploader)s."
+
+msgid "Malware scanning failed for uploaded file \"%(file_name)s\" to file request \"%(req_name)s\" from %(uploader)s."
+msgstr "De malwarescan is mislukt voor het geüploade bestand \"%(file_name)s\" voor bestandsaanvraag \"%(req_name)s\" van %(uploader)s."
+
+msgid "Malware scanning failed for uploaded file \"%(file_name)s\" from %(uploader)s."
+msgstr "De malwarescan is mislukt voor het geüploade bestand \"%(file_name)s\" van %(uploader)s."
+
+msgid "Malware scanning failed for uploaded file to file request \"%(req_name)s\" from %(uploader)s."
+msgstr "De malwarescan is mislukt voor een geüpload bestand voor bestandsaanvraag \"%(req_name)s\" van %(uploader)s."
+
+msgid "Malware scanning failed for uploaded file from %(uploader)s."
+msgstr "De malwarescan is mislukt voor een geüpload bestand van %(uploader)s."
+
+msgid "Coneshare automation event \"%(event_type)s\" was triggered for %(target)s."
+msgstr "Coneshare-automatiseringsgebeurtenis \"%(event_type)s\" is geactiveerd voor %(target)s."
+
+msgid "%(minutes)dm %(seconds)ds"
+msgstr "%(minutes)dm %(seconds)ds"
+
+msgid "%(minutes)dm"
+msgstr "%(minutes)dm"
+
+msgid "%(seconds)ds"
+msgstr "%(seconds)ds"
+
+msgid "Password reset successfully."
+msgstr "Wachtwoord succesvol opnieuw ingesteld."

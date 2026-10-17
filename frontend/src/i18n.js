@@ -7,6 +7,7 @@ import zhHans from './locales/zh-hans/translation.json';
 import ru from './locales/ru/translation.json';
 import de from './locales/de/translation.json';
 import fr from './locales/fr/translation.json';
+import nl from './locales/nl/translation.json';
 
 i18n
   .use(LanguageDetector)
@@ -19,11 +20,12 @@ i18n
       ru: { translation: ru },
       de: { translation: de },
       fr: { translation: fr },
+      nl: { translation: nl },
     },
     fallbackLng: 'en',
     load: 'currentOnly',
     lowerCaseLng: true,
-    supportedLngs: ['en', 'zh-hans', 'zh', 'ru', 'de', 'fr'],
+    supportedLngs: ['en', 'zh-hans', 'zh', 'ru', 'de', 'fr', 'nl'],
     interpolation: {
       escapeValue: false,
     },
