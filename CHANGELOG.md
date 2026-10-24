@@ -1,6 +1,50 @@
 # Changelog
 
 
+## [1.11.0](https://github.com/coneshare/coneshare/compare/v1.10.1...v1.11.0) (2026-10-24)
+
+
+### Features
+
+* **dataroom:** redesign Add Content dialog to match stitch mockup ([1269cd9](https://github.com/coneshare/coneshare/commit/1269cd9b5d438d2de470efc23b402760d6404dc2))
+* **dataroom:** split reorder dialog into distinct Folders and Documents sections ([ae16dc2](https://github.com/coneshare/coneshare/commit/ae16dc262a15c632a19119c2a56c1a4ae90b61af))
+* **datarooms:** support banner gallery mode and per-dataroom brand logo override ([142d0b6](https://github.com/coneshare/coneshare/commit/142d0b6050c37fe3a26ccb4eccf2f823a2c80f7c))
+* **documents:** client-side markdown preview and reading analytics ([#356](https://github.com/coneshare/coneshare/issues/356)) ([77f0f81](https://github.com/coneshare/coneshare/commit/77f0f81a29e8f4537e03473bf92c2352d947f33b))
+* **frontend:** add fixed topbar for share link and dataroom viewers ([1fbbe03](https://github.com/coneshare/coneshare/commit/1fbbe0324865a4af2655bb88886e2a7f87a0704e))
+* **frontend:** unify Move Items dialogs and enhance folder destination picker ([ee46e73](https://github.com/coneshare/coneshare/commit/ee46e730e90bd2eb0812a4741d2bc95ccdd6ab85))
+* **i18n:** add Dutch (nl) locale support ([5760369](https://github.com/coneshare/coneshare/commit/5760369b6663b9e661506bd02595ad507cc577cf))
+* **settings:** refine user settings layout, navigation items, and mcp guide ([31cc1e5](https://github.com/coneshare/coneshare/commit/31cc1e5294e5e016fe29de1e64bd4eedf700b14a))
+* **viewer:** collapse dataroom file tree sidebar by default on mobile ([ee85d85](https://github.com/coneshare/coneshare/commit/ee85d85fa16501dff7a35257bcf1cde1302cec08))
+* **viewer:** lazy load dataroom viewer with animated progress and isolate shared-ui chunk ([775858f](https://github.com/coneshare/coneshare/commit/775858fd94b1afc29032fdc1e90daa524d5c21ea))
+* **viewer:** redesign dataroom customer view to match stitch mockup ([6118832](https://github.com/coneshare/coneshare/commit/6118832baa36e7f6e99bc08b92005756f14e25dc))
+* **viewer:** redesign staged gate screens with unified GateLayout and hardened protections ([b81ccb0](https://github.com/coneshare/coneshare/commit/b81ccb0352ad298a986e88a3bcae19d266bda1f1))
+
+
+### Bug Fixes
+
+* **documents:** clear all primary flags when uploading a new version ([7bb8dc1](https://github.com/coneshare/coneshare/commit/7bb8dc1d12775e5c7e4789f73e2dd3c09b23e2c1))
+* **documents:** discard partial pages when PDF rendering fails ([9c55f8c](https://github.com/coneshare/coneshare/commit/9c55f8cb1c022e79c62d1c3b8aaba5fc2a279c15))
+* **documents:** isolate LibreOffice user profile to prevent concurrent conversion failures ([ac29e8d](https://github.com/coneshare/coneshare/commit/ac29e8d8e3e9b136ff0a2bb131f2da7f6dde75e3)), closes [#379](https://github.com/coneshare/coneshare/issues/379)
+* **documents:** render PDF preview pages one at a time ([a905b51](https://github.com/coneshare/coneshare/commit/a905b519d06d9c87619005ebd89f5315fd9c6126))
+* fix gunicorn.conf to limit workers counts ([ab569e8](https://github.com/coneshare/coneshare/commit/ab569e8b10deddb818025ad4ece92fa77e82372d))
+* fix TrashPage pagination ([47f59ac](https://github.com/coneshare/coneshare/commit/47f59ac84f2e76150249b76dda4eba7968c72833))
+* fix user api update and API key tier permission issue ([f655efe](https://github.com/coneshare/coneshare/commit/f655efe83459e236ffb3ae1ad42fb0104ce9d458))
+* **i18n:** deduplicate qna title, resolve catalog disparities and add universal parity tests ([73f9bbb](https://github.com/coneshare/coneshare/commit/73f9bbbba2dbb5621c208bc274f1c954d740cd43))
+* prevent client-controlled X-Real-IP spoofing and support trusted proxies ([2f60b7e](https://github.com/coneshare/coneshare/commit/2f60b7e2185c02a5d718b839e5c6220e26701dfc))
+* **sharelinks:** enforce 410 on expired links and add friendly expired view ([#373](https://github.com/coneshare/coneshare/issues/373)) ([42f7a0c](https://github.com/coneshare/coneshare/commit/42f7a0c6fb42f54f54e8b44476e1879ef3e51159))
+* **sharelinks:** enforce sequential session authorization on page render endpoints ([36f19a2](https://github.com/coneshare/coneshare/commit/36f19a2308681eb9e449b89628d482fbce884216))
+* **sharelinks:** prevent unwatermarked page bypass on watermarked links ([95c6b9a](https://github.com/coneshare/coneshare/commit/95c6b9ae0db78e9bc6dc920faa11a0ff70e55d63))
+* update eslint config and update CI to run lint ([64781a0](https://github.com/coneshare/coneshare/commit/64781a07aaf328a55e276c97f9f3b2786d188ce5))
+* validate storage key and confine file service to storage root ([c7aa2a5](https://github.com/coneshare/coneshare/commit/c7aa2a53c2be781e174d54e8a39f686c907baa08))
+
+
+### Performance Improvements
+
+* **frontend:** eliminate chunk fragmentation and lazy-load document viewers ([d6ee4a9](https://github.com/coneshare/coneshare/commit/d6ee4a91bd74b5366ea413b47f880f58b4b98d9b))
+* **frontend:** merge sub-10KB micro-chunks via experimentalMinChunkSize ([ee0673c](https://github.com/coneshare/coneshare/commit/ee0673c02fd10b569106e4b50958634f59fb313d))
+* **frontend:** reduce bundle size via route-level lazy loading and vendor chunking ([f64130c](https://github.com/coneshare/coneshare/commit/f64130cff11020554869e00f5901427146cf89e4))
+* tune nginx static cache and gzip, decouple previewState helpers and lazy-load PreviewStatePanel ([5b5de76](https://github.com/coneshare/coneshare/commit/5b5de76696aba368ec101c4d194cc6706d456a4b))
+
 ## [1.10.1](https://github.com/coneshare/coneshare/compare/v1.10.0...v1.10.1) (2026-10-06)
 
 
