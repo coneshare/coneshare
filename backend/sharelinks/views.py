@@ -60,6 +60,12 @@ from .serializers import (DataroomVisitSerializer, PageViewRecordSerializer,
                           ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
                           ShareLinkTemplateSerializer, ShareLinkSerializer,
                           ViewerSerializer, ViewSessionSerializer)
+from .services import (
+    can_user_edit_share_link,
+    can_user_manage_share_link,
+    get_accessible_share_links_q,
+    resolve_notification_recipient,
+)
 from .tasks import send_view_notification_email_task
 
 logger = logging.getLogger(__name__)
@@ -187,9 +193,12 @@ def _dispatch_automation_event(share_link, event_type: str, extra_payload=None, 
         if share_link.dataroom and share_link.dataroom.created_by_id:
             dataroom_owner_user_id = str(share_link.dataroom.created_by_id)
 
+    effective_owner = resolve_notification_recipient(share_link)
+    effective_owner_id = str(effective_owner.id) if effective_owner else str(share_link.created_by_id)
+
     payload = {
         'organization_id': str(share_link.created_by.organization_id),
-        'owner_user_id': str(share_link.created_by_id),
+        'owner_user_id': effective_owner_id,
         'dataroom_owner_user_id': dataroom_owner_user_id,
         'share_link_id': str(share_link.id),
         'dataroom_id': str(share_link.dataroom_id) if share_link.dataroom_id else None,
@@ -282,7 +291,7 @@ def _is_nda_accepted(link: ShareLink, request, auth_status) -> bool:
         return True
 
     # Owners / Staff / Admin bypass NDA
-    if request.user and request.user.is_authenticated and (request.user == link.created_by or request.user.is_staff):
+    if can_user_manage_share_link(request.user, link):
         return True
 
     # Preview mode bypasses NDA
@@ -688,51 +697,23 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         dataroom_id = self.request.query_params.get('dataroom_id')
-        accessible_datarooms = get_dataroom_queryset_for_user(user)
         if dataroom_id:
+            accessible_datarooms = get_dataroom_queryset_for_user(user)
             dataroom = get_object_or_404(accessible_datarooms, id=dataroom_id)
             return ShareLink.objects.filter(dataroom=dataroom).prefetch_related('dataroom_settings')
 
-        # Access Control Policy:
-        # 1. Direct document links (document__isnull=False): Scoped to the user who created them (or org admins).
-        # 2. Dataroom links (dataroom__in=accessible_datarooms): Dataroom links belong to the dataroom container.
-        #    Visibility is strictly tied to active membership (owner, active collaborator, or admin).
-        #    If a collaborator is removed or leaves a dataroom, their former dataroom links immediately become
-        #    invisible and inaccessible to them (while remaining active and managed by the dataroom owner).
-        # 3. Org Admins: Can oversee all document links across their organization.
-        base_filter = Q(document__isnull=False, created_by=user) | Q(dataroom__in=accessible_datarooms)
-        if getattr(user, 'role', '') == 'admin' and getattr(user, 'organization_id', None):
-            base_filter |= Q(document__organization_id=user.organization_id)
-
-        return ShareLink.objects.filter(base_filter).distinct().prefetch_related('dataroom_settings')
+        return ShareLink.objects.filter(get_accessible_share_links_q(user)).distinct().prefetch_related('dataroom_settings')
 
     def perform_update(self, serializer):
         instance = self.get_object()
-        user = self.request.user
-        is_admin = getattr(user, 'role', '') == 'admin' and instance.organization_id == user.organization_id
-        if instance.dataroom_id:
-            is_owner = instance.dataroom.created_by_id == user.id
-            is_collaborator = instance.dataroom.collaborators.filter(user=user).exists()
-            is_creator = instance.created_by_id == user.id and is_collaborator
-            if not (is_creator or is_owner or is_admin):
-                raise PermissionDenied("You do not have permission to update this share link.")
-        else:
-            if instance.created_by_id != user.id and not is_admin:
-                raise PermissionDenied("You do not have permission to update this share link.")
+        if not can_user_edit_share_link(self.request.user, instance):
+            raise PermissionDenied("You do not have permission to update this share link.")
         serializer.save()
 
     def perform_destroy(self, instance):
-        user = self.request.user
-        is_admin = getattr(user, 'role', '') == 'admin' and instance.organization_id == user.organization_id
-        if instance.dataroom_id:
-            is_owner = instance.dataroom.created_by_id == user.id
-            is_collaborator = instance.dataroom.collaborators.filter(user=user).exists()
-            is_creator = instance.created_by_id == user.id and is_collaborator
-            if not (is_creator or is_owner or is_admin):
-                raise PermissionDenied("You do not have permission to delete this share link.")
-        else:
-            if instance.created_by_id != user.id and not is_admin:
-                raise PermissionDenied("You do not have permission to delete this share link.")
+        instance = self.get_object()
+        if not can_user_edit_share_link(self.request.user, instance):
+            raise PermissionDenied("You do not have permission to delete this share link.")
         instance.delete()
 
     @action(detail=True, methods=['get'], url_path='view-sessions')
@@ -785,11 +766,7 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
             )
 
         # Permission check: Active Link creator, Dataroom Owner, or Org Admin
-        is_owner = bool(share_link.dataroom and share_link.dataroom.created_by_id == request.user.id)
-        is_collaborator = bool(share_link.dataroom and share_link.dataroom.collaborators.filter(user=request.user).exists())
-        is_creator = share_link.created_by_id == request.user.id and is_collaborator
-        is_admin = getattr(request.user, 'role', '') == 'admin' and share_link.organization_id == request.user.organization_id
-        if not (is_creator or is_owner or is_admin):
+        if not can_user_edit_share_link(request.user, share_link):
             raise PermissionDenied("You do not have permission to update settings for this share link.")
 
         serializer = ShareLinkDataroomSettingUpdateSerializer(data=request.data, many=True)
@@ -855,8 +832,8 @@ class ShareLinkViewDataView(APIView):
                     session = PreviewSession.objects.select_related('user', 'share_link__created_by').select_for_update().get(token=preview_token)
                     if not session.is_expired() and session.share_link.slug == slug:
                         # Security check: Ensure the user who created the preview session
-                        # is the same user who created the share link.
-                        if session.user == session.share_link.created_by:
+                        # is an authorized manager of the share link.
+                        if can_user_manage_share_link(session.user, session.share_link):
                             is_preview = True
                             request.session['preview_owner_email'] = session.user.email
                             request.session['preview_link_id'] = str(session.share_link.id)
@@ -886,7 +863,7 @@ class ShareLinkViewDataView(APIView):
 
         # If the user is the owner/creator or staff, automatically authorize the session
         # in the cookie context so that subsequent anonymous page/image requests pass.
-        if request.user and request.user.is_authenticated and (request.user == link.created_by or request.user.is_staff):
+        if can_user_manage_share_link(request.user, link):
             authorized_links = request.session.get('authorized_share_links', {})
             authorized_links[str(link.id)] = {
                 'password_verified': True,
@@ -896,6 +873,11 @@ class ShareLinkViewDataView(APIView):
                 'nda_accepted_version': link.nda_version,
             }
             request.session['authorized_share_links'] = authorized_links
+        elif request.user and request.user.is_authenticated and link.dataroom_id:
+            authorized_links = request.session.get('authorized_share_links', {})
+            if str(link.id) in authorized_links:
+                del authorized_links[str(link.id)]
+                request.session['authorized_share_links'] = authorized_links
 
         if access_token:
             try:
@@ -1689,10 +1671,12 @@ class QnAThreadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
             .prefetch_related('messages__sent_by_user', 'messages__sent_by_viewer', 'messages__sent_by_view_session')
         )
         if self.request.user.role != 'admin':
+            accessible_links = ShareLink.objects.filter(get_accessible_share_links_q(self.request.user))
+            accessible_datarooms = get_dataroom_queryset_for_user(self.request.user)
             queryset = queryset.filter(
-                Q(share_link__created_by=self.request.user)
+                Q(share_link__in=accessible_links)
                 | Q(document__created_by=self.request.user)
-                | Q(dataroom__created_by=self.request.user)
+                | Q(dataroom__in=accessible_datarooms)
             )
 
         share_link_id = self.request.query_params.get('share_link_id')
@@ -1720,7 +1704,7 @@ class QnAThreadViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
             created_by__organization=self.request.user.organization,
         )
         if self.request.user.role != 'admin':
-            queryset = queryset.filter(created_by=self.request.user)
+            queryset = queryset.filter(get_accessible_share_links_q(self.request.user))
         link = queryset.first()
         if not link:
             raise NotFound(detail="Share link not found.")
@@ -2654,7 +2638,7 @@ class ShareLinkFileDownloadView(APIView):
                 with transaction.atomic():
                     session = PreviewSession.objects.select_related('user', 'share_link__created_by').select_for_update().get(token=preview_token)
                     if not session.is_expired() and session.share_link.slug == slug:
-                        if session.user == session.share_link.created_by:
+                        if can_user_manage_share_link(session.user, session.share_link):
                             is_preview = True
                             request.session['preview_owner_email'] = session.user.email
                             request.session['preview_link_id'] = str(session.share_link.id)
@@ -2917,7 +2901,7 @@ class DataroomFolderDownloadView(APIView):
                 with transaction.atomic():
                     session = PreviewSession.objects.select_related('user', 'share_link__created_by').select_for_update().get(token=preview_token)
                     if not session.is_expired() and session.share_link.slug == slug:
-                        if session.user == session.share_link.created_by:
+                        if can_user_manage_share_link(session.user, session.share_link):
                             is_preview = True
                             request.session['preview_owner_email'] = session.user.email
                             request.session['preview_link_id'] = str(session.share_link.id)

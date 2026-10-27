@@ -1,5 +1,7 @@
 from typing import Optional
 
+from django.db.models import Q
+
 from backend.utils import get_unique_name
 from core.models import User
 from datarooms.models import Dataroom
@@ -55,3 +57,92 @@ def resolve_notification_recipient(share_link: ShareLink) -> Optional[User]:
         return dataroom.created_by
 
     return None
+
+
+def can_user_manage_share_link(user: Optional[User], share_link: ShareLink) -> bool:
+    """
+    Determines whether a user has administrative/owner privileges on a ShareLink
+    (e.g., to bypass viewer gates, create preview sessions, or manage settings/Q&A):
+    - User must be authenticated, active, and belong to the same organization.
+    - Staff / Org Admin -> True.
+    - Direct document link -> True if user is creator (share_link.created_by_id == user.id).
+    - Dataroom link -> True if user is the Dataroom owner OR an active collaborator in that Dataroom.
+    """
+    if not user or not user.is_authenticated or not getattr(user, 'is_active', True):
+        return False
+
+    if user.is_staff:
+        return True
+
+    org_id = share_link.organization_id
+    if not org_id or user.organization_id != org_id:
+        return False
+
+    if getattr(user, 'role', '') == 'admin':
+        return True
+
+    if share_link.document_id:
+        return share_link.created_by_id == user.id
+
+    if share_link.dataroom_id:
+        dataroom = share_link.dataroom
+        if not dataroom:
+            return False
+        if dataroom.created_by_id == user.id:
+            return True
+        return dataroom.collaborators.filter(user=user).exists()
+
+    return False
+
+
+def can_user_edit_share_link(user: Optional[User], share_link: ShareLink) -> bool:
+    """
+    Determines whether a user has mutation/deletion privileges on a ShareLink:
+    - User must be authenticated, active, and belong to the same organization.
+    - Staff / Org Admin -> True.
+    - Direct document link -> True if user is creator (share_link.created_by_id == user.id).
+    - Dataroom link -> True if user is Dataroom owner OR (user is link creator AND active collaborator).
+    """
+    if not user or not user.is_authenticated or not getattr(user, 'is_active', True):
+        return False
+
+    if user.is_staff:
+        return True
+
+    org_id = share_link.organization_id
+    if not org_id or user.organization_id != org_id:
+        return False
+
+    if getattr(user, 'role', '') == 'admin':
+        return True
+
+    if share_link.document_id:
+        return share_link.created_by_id == user.id
+
+    if share_link.dataroom_id:
+        dataroom = share_link.dataroom
+        if not dataroom:
+            return False
+        if dataroom.created_by_id == user.id:
+            return True
+        is_collaborator = dataroom.collaborators.filter(user=user).exists()
+        return share_link.created_by_id == user.id and is_collaborator
+
+    return False
+
+
+def get_accessible_share_links_q(user: User) -> Q:
+    """
+    Returns a Q object matching all ShareLinks manageable by the user:
+    - Direct document links created by the user (or all document links in org for org admins).
+    - Dataroom links belonging to datarooms accessible to the user (owner, active collaborator, or org admin).
+    """
+    # Deferred import to prevent circular dependency:
+    # sharelinks.services -> datarooms.views -> sharelinks.serializers -> sharelinks.services
+    from datarooms.views import get_dataroom_queryset_for_user
+    accessible_datarooms = get_dataroom_queryset_for_user(user)
+    base_q = Q(document__isnull=False, created_by=user) | Q(dataroom__in=accessible_datarooms)
+    if getattr(user, 'role', '') == 'admin' and getattr(user, 'organization_id', None):
+        base_q |= Q(document__organization_id=user.organization_id)
+    return base_q
+
