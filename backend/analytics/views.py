@@ -11,6 +11,7 @@ from drf_spectacular.utils import extend_schema
 from core.pagination import StandardResultsSetPagination
 from sharelinks.models import ShareLink, ViewSession
 from sharelinks.serializers import ShareLinkSerializer, ViewSessionSerializer
+from sharelinks.services import get_accessible_share_links_q
 from .serializers import (DashboardRecentLinkSerializer,
                           DashboardRecentViewSessionSerializer)
 
@@ -30,9 +31,11 @@ class DashboardSummaryView(APIView):
 
     @extend_schema(responses={200: DashboardSummaryResponseSerializer})
     def get(self, request, *args, **kwargs):
+        accessible_links = ShareLink.objects.filter(get_accessible_share_links_q(request.user))
+
         # 1. Get the 10 most recent view sessions
         recent_views = ViewSession.objects.filter(
-            share_link__created_by=request.user
+            share_link__in=accessible_links
         ).select_related(
             'share_link', 'share_link__document', 'share_link__dataroom', 'viewer'
         ).order_by('-viewed_at')[:10]
@@ -56,7 +59,7 @@ class DashboardSummaryView(APIView):
         # 1) Deferring session loading to frontend on-demand (via /api/v1/analytics/view-sessions/?share_link_id=...), or
         # 2) Bounded lateral join / windowed subquery to enforce top-10 per link at the database level.
         recent_links = ShareLink.objects.filter(
-            created_by=request.user
+            get_accessible_share_links_q(request.user)
         ).select_related(
             'document', 'dataroom', 'created_by'
         ).annotate(
@@ -92,10 +95,11 @@ class DailyVisitsView(APIView):
     def get(self, request, *args, **kwargs):
         organization = request.user.organization
         thirty_days_ago = timezone.now().date() - timedelta(days=30)
+        accessible_links = ShareLink.objects.filter(get_accessible_share_links_q(request.user))
 
         # Aggregate view counts by date
         daily_counts = ViewSession.objects.filter(
-            share_link__created_by=request.user,
+            share_link__in=accessible_links,
             viewed_at__date__gte=thirty_days_ago
         ).values('viewed_at__date').annotate(
             count=Count('id')
@@ -132,7 +136,7 @@ class AllLinksView(generics.ListAPIView):
         ).order_by('-viewed_at').values('viewed_at')[:1]
 
         return ShareLink.objects.filter(
-            created_by=self.request.user
+            get_accessible_share_links_q(self.request.user)
         ).annotate(
             last_viewed_at=Subquery(latest_view_subquery)
         ).filter(
@@ -150,8 +154,9 @@ class AllViewSessionsView(generics.ListAPIView):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
+        accessible_links = ShareLink.objects.filter(get_accessible_share_links_q(self.request.user))
         qs = ViewSession.objects.filter(
-            share_link__created_by=self.request.user
+            share_link__in=accessible_links
         ).select_related('share_link', 'share_link__document', 'share_link__dataroom')
 
         document_id = self.request.query_params.get('document_id') or self.request.query_params.get('document')
@@ -183,7 +188,8 @@ class ViewSessionDetailView(generics.RetrieveAPIView):
     lookup_field = 'pk'
 
     def get_queryset(self):
+        accessible_links = ShareLink.objects.filter(get_accessible_share_links_q(self.request.user))
         return ViewSession.objects.filter(
-            share_link__created_by=self.request.user
+            share_link__in=accessible_links
         ).select_related('share_link', 'share_link__document', 'share_link__dataroom')
 

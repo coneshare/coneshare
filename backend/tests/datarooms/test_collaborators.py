@@ -1,11 +1,13 @@
 import pytest
+from unittest.mock import patch
 from rest_framework import status
 
 from core.models import User, Organization
 from datarooms.models import Dataroom, DataroomCollaborator, DataroomFolder, DataroomDocument
 from datarooms.utils import get_dataroom_storage_folder_name
 from documents.models import Folder
-from sharelinks.models import ShareLink
+from sharelinks.models import QnAThread, ShareLink, ViewSession
+from sharelinks.views import _dispatch_automation_event
 
 pytestmark = pytest.mark.django_db
 
@@ -292,3 +294,104 @@ class TestDataroomCollaborators:
         folder_item = next(i for i in res_dr.data['items'] if i['id'] == res.data['id'])
         assert folder_item['created_by']['id'] == str(collab.id)
         assert folder_item['created_by']['email'] == 'folder_collab@test.com'
+
+    def test_removed_collaborator_privileges_revocation(
+        self, api_client, dataroom, user, organization
+    ):
+        """
+        Asserts that when a collaborator is removed from a dataroom, gate authorization,
+        Q&A access, analytics visibility, and notification recipient are revoked.
+        """
+        collab = User.objects.create_user(
+            email="former_collab@test.com",
+            username="former_collab@test.com",
+            password="password",
+            organization=organization,
+            name="Former Collab",
+        )
+        membership = DataroomCollaborator.objects.create(
+            dataroom=dataroom, user=collab, invited_by=user
+        )
+
+        link = ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=collab,
+            password="TestPassword123!",
+            require_nda=True,
+            nda_text="Confidential terms.",
+            nda_version=1,
+            enable_qna=True,
+        )
+
+        # 1. While still an active collaborator:
+        api_client.force_authenticate(user=collab)
+        res_view_data = api_client.get(f'/api/v1/links/{link.slug}/view-data/')
+        assert res_view_data.status_code == status.HTTP_200_OK
+
+        # 2. Owner removes collaborator from the dataroom:
+        membership.delete()
+
+        # A. Gate authorization: Former collaborator cannot bypass access gates,
+        # even with an active session cookie from before removal (stale authorization invalidated)
+        api_client.force_authenticate(user=collab)
+        res_view_data_after = api_client.get(f'/api/v1/links/{link.slug}/view-data/')
+        assert res_view_data_after.status_code == status.HTTP_401_UNAUTHORIZED
+        assert res_view_data_after.data.get('protectionType') == 'password'
+
+        # B. Q&A:
+        # Former collaborator cannot see threads for this dataroom
+        thread = QnAThread.objects.create(
+            organization=organization,
+            share_link=link,
+            dataroom=dataroom,
+            subject="Question from viewer",
+        )
+        res_collab_qna = api_client.get('/api/v1/qna-threads/')
+        assert res_collab_qna.status_code == status.HTTP_200_OK
+        assert len(res_collab_qna.data) == 0
+
+        # Former collaborator cannot create owner-side Q&A threads on this link
+        res_collab_create = api_client.post('/api/v1/qna-threads/', {
+            'share_link_id': str(link.id),
+            'subject': 'Unauthorized topic',
+            'body': 'Should fail',
+        })
+        assert res_collab_create.status_code == status.HTTP_404_NOT_FOUND
+
+        # Dataroom owner can see the thread and create owner-side Q&A threads on this link
+        api_client.force_authenticate(user=user)
+        res_owner_qna = api_client.get('/api/v1/qna-threads/')
+        assert res_owner_qna.status_code == status.HTTP_200_OK
+        assert any(t['id'] == str(thread.id) for t in res_owner_qna.data)
+
+        res_owner_create = api_client.post('/api/v1/qna-threads/', {
+            'share_link_id': str(link.id),
+            'subject': 'Owner topic',
+            'body': 'Should succeed',
+        })
+        assert res_owner_create.status_code == status.HTTP_201_CREATED
+
+        # C. Analytics: Former collaborator cannot see view sessions for this dataroom
+        vs = ViewSession.objects.create(
+            share_link=link,
+            viewer_email="investor@example.com",
+        )
+        api_client.force_authenticate(user=collab)
+        res_collab_analytics = api_client.get('/api/v1/analytics/view-sessions/')
+        assert res_collab_analytics.status_code == status.HTTP_200_OK
+        assert res_collab_analytics.data['count'] == 0
+
+        # Dataroom owner sees the view session in analytics
+        api_client.force_authenticate(user=user)
+        res_owner_analytics = api_client.get('/api/v1/analytics/view-sessions/')
+        assert res_owner_analytics.status_code == status.HTTP_200_OK
+        assert res_owner_analytics.data['count'] >= 1
+
+        # D. Automation events: owner_user_id falls back to the dataroom owner
+        with patch('sharelinks.views.dispatch_automation_event_task.delay') as mock_delay:
+            _dispatch_automation_event(link, 'link_viewed', view_session=vs)
+            assert mock_delay.called
+            call_payload = mock_delay.call_args[0][1]
+            assert call_payload['owner_user_id'] == str(user.id)
+            assert call_payload['dataroom_owner_user_id'] == str(user.id)
+
