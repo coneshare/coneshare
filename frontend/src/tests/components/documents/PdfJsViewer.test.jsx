@@ -253,6 +253,32 @@ describe('PdfJsViewer', () => {
     );
   });
 
+  it('does not reset inactivity when viewer rerenders while reader is idle', () => {
+    const { rerender, unmount } = renderComponent({ viewId });
+    const INACTIVITY_TIMEOUT = 60000;
+
+    // Reader becomes inactive after 65 seconds
+    act(() => {
+      vi.advanceTimersByTime(INACTIVITY_TIMEOUT + 5000);
+    });
+
+    // Rerender with changed zoom (which rebinds scrollContainer)
+    rerender(<PdfJsViewer pdfUrl={pdfUrl} title="Test PDF" onPageChange={mockOnPageChange} viewId={viewId} zoomLevel={1.5} />);
+
+    // Advance another 10 seconds without any user interaction
+    act(() => {
+      vi.advanceTimersByTime(10000);
+    });
+
+    unmount();
+
+    // Active time should strictly remain 60s
+    expect(api.recordPageView).toHaveBeenCalledWith(
+      expect.objectContaining({ duration_seconds: 60 }),
+      false
+    );
+  });
+
   it('should send tracking data when page changes', () => {
     renderComponent({ viewId });
 

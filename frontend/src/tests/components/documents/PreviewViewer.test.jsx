@@ -241,7 +241,7 @@ describe('PreviewViewer', () => {
   });
 
   it('resets inactivity timer on wheel or inner scroll container scroll', () => {
-    const { container, unmount } = renderComponent({ viewId });
+    const { unmount } = renderComponent({ viewId });
     const INACTIVITY_TIMEOUT = 60000;
 
     // 10 seconds of active time
