@@ -117,6 +117,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
+  const [initialExpiresAt, setInitialExpiresAt] = useState('');
   const [maxFileSize, setMaxFileSize] = useState('');
   const [allowedFileTypes, setAllowedFileTypes] = useState('');
   const [customFields, setCustomFields] = useState([]);
@@ -146,6 +147,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
         setName(currentRequest.name || '');
         setMessage(currentRequest.message || '');
         setExpiresAt(expiresAtValue);
+        setInitialExpiresAt(expiresAtValue);
         setMaxFileSize(currentRequest.max_file_size ? String(currentRequest.max_file_size / (1024 * 1024)) : '');
         setAllowedFileTypes(Array.isArray(currentRequest.allowed_file_types) ? currentRequest.allowed_file_types.join(', ') : '');
         setCustomFields(hydrateCustomFields(currentRequest.custom_fields));
@@ -154,6 +156,7 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
         setName('');
         setMessage('');
         setExpiresAt('');
+        setInitialExpiresAt('');
         setMaxFileSize('');
         setAllowedFileTypes('');
         setCustomFields([]);
@@ -174,11 +177,20 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
     try {
       const folderId = destinationFolder?.id || (await getRootFolderId()).data.id;
 
+      let resolvedExpiresAt = null;
+      if (expiresAt) {
+        if (isEditing && currentRequest?.expires_at && expiresAt === initialExpiresAt) {
+          resolvedExpiresAt = currentRequest.expires_at;
+        } else {
+          resolvedExpiresAt = new Date(expiresAt).toISOString();
+        }
+      }
+
       const payload = {
         name,
         message,
         folder: folderId,
-        expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+        expires_at: resolvedExpiresAt,
         max_file_size: maxFileSize ? parseInt(maxFileSize, 10) * 1024 * 1024 : null,
         allowed_file_types: parseAllowedFileTypes(allowedFileTypes),
         custom_fields: normalizeCustomFields(customFields),

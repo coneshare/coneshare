@@ -370,6 +370,36 @@ describe("API Service Interceptors", () => {
       expect(window.location.href).toBe("");
       expect(toast.error).toHaveBeenCalled();
     });
+
+    it("should redirect to /login on 401 when fetching protected document view-sessions without refresh token", async () => {
+      const originalError = {
+        response: {
+          status: 401,
+          data: { detail: "Authentication credentials were not provided." },
+        },
+        config: { url: "/documents/doc-1/view-sessions/?page=1" },
+      };
+      mockAdapter.mockRejectedValue(originalError);
+
+      await expect(api.get("/documents/doc-1/view-sessions/?page=1")).rejects.toBe(originalError);
+
+      expect(window.location.href).toBe("/login");
+    });
+
+    it("should redirect to /login on 401 when fetching protected analytics links without refresh token", async () => {
+      const originalError = {
+        response: {
+          status: 401,
+          data: { detail: "Authentication credentials were not provided." },
+        },
+        config: { url: "/analytics/links/?page=1" },
+      };
+      mockAdapter.mockRejectedValue(originalError);
+
+      await expect(api.get("/analytics/links/?page=1")).rejects.toBe(originalError);
+
+      expect(window.location.href).toBe("/login");
+    });
   });
 
   describe("Share Link View Data Params", () => {

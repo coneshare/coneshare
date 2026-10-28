@@ -263,4 +263,84 @@ describe('FileRequestSheet', () => {
     const dateInput = screen.getByLabelText(/Expires At/i);
     expect(dateInput.value).toBe(expectedLocal);
   });
+
+  it('preserves exact original expires_at when the field remains untouched on edit', async () => {
+    const originalIso = '2026-11-15T14:30:45.123Z';
+    const currentRequest = {
+      id: 'fr-1',
+      name: 'Existing Request',
+      message: 'Upload docs',
+      folder: 'folder-123',
+      folder_name: 'Contracts',
+      expires_at: originalIso,
+      allowed_file_types: ['pdf'],
+      custom_fields: [],
+    };
+
+    render(
+      <FileRequestSheet
+        isOpen
+        onOpenChange={vi.fn()}
+        folder={null}
+        currentRequest={currentRequest}
+        onSuccess={vi.fn()}
+      />
+    );
+
+    // Change only the name, leaving expiresAt untouched
+    fireEvent.change(screen.getByLabelText('Name (Visible to public)'), {
+      target: { value: 'Updated Request Name' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+    await waitFor(() => {
+      expect(updateFileRequest).toHaveBeenCalledWith(
+        'fr-1',
+        expect.objectContaining({
+          name: 'Updated Request Name',
+          expires_at: originalIso,
+        })
+      );
+    });
+  });
+
+  it('converts to new ISO timestamp when expires_at is actively changed on edit', async () => {
+    const originalIso = '2026-11-15T14:30:45.123Z';
+    const currentRequest = {
+      id: 'fr-1',
+      name: 'Existing Request',
+      message: 'Upload docs',
+      folder: 'folder-123',
+      folder_name: 'Contracts',
+      expires_at: originalIso,
+      allowed_file_types: ['pdf'],
+      custom_fields: [],
+    };
+
+    render(
+      <FileRequestSheet
+        isOpen
+        onOpenChange={vi.fn()}
+        folder={null}
+        currentRequest={currentRequest}
+        onSuccess={vi.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText(/Expires At/i), {
+      target: { value: '2026-12-25T10:00' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+    await waitFor(() => {
+      expect(updateFileRequest).toHaveBeenCalledWith(
+        'fr-1',
+        expect.objectContaining({
+          expires_at: new Date('2026-12-25T10:00').toISOString(),
+        })
+      );
+    });
+  });
 });
