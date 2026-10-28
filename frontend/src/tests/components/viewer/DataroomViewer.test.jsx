@@ -1200,6 +1200,28 @@ describe('DataroomViewer', () => {
     expect(focusSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('focuses search input when Ctrl+K keyboard shortcut is pressed', () => {
+    renderComponent();
+
+    const searchInput = screen.getByPlaceholderText(/Filter files in this folder/i);
+    const focusSpy = vi.spyOn(searchInput, 'focus');
+
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    expect(focusSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders ⌘K shortcut hint on macOS and Ctrl+K on Windows/Linux', () => {
+    vi.stubGlobal('navigator', { ...navigator, platform: 'MacIntel', userAgent: 'Macintosh' });
+    const { unmount } = renderComponent();
+    expect(screen.getByText('⌘K')).toBeInTheDocument();
+    unmount();
+
+    vi.stubGlobal('navigator', { ...navigator, platform: 'Win32', userAgent: 'Windows NT 10.0' });
+    renderComponent();
+    expect(screen.getByText('Ctrl+K')).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
   it('renders permanently resident Folders and Documents sections with empty tips when sections have 0 items', () => {
     render(
       <MemoryRouter initialEntries={['/view/test-slug']}>

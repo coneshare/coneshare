@@ -479,6 +479,16 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
   );
 
   // Global ⌘K / Ctrl+K listener to focus search input
+  const shortcutHint = useMemo(() => {
+    if (typeof navigator === 'undefined') return '⌘K';
+    const platform =
+      navigator.userAgentData?.platform ||
+      navigator.platform ||
+      navigator.userAgent ||
+      '';
+    return /Mac|iPhone|iPod|iPad/i.test(platform) ? '⌘K' : 'Ctrl+K';
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
@@ -1380,12 +1390,13 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={t('viewer.filterPlaceholder', { defaultValue: 'Filter files in this folder... ⌘K' })}
-                    aria-label={t('viewer.filterPlaceholder', { defaultValue: 'Filter files in this folder... ⌘K' })}
+                    placeholder={t('viewer.filterPlaceholder')}
+                    aria-label={t('viewer.filterPlaceholder')}
+                    aria-keyshortcuts="Control+K Meta+K"
                     className="w-full pl-8 pr-10 py-1.5 text-xs sm:text-sm bg-gray-100/70 border-0 rounded-lg placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-gray-300 transition-all"
                   />
                   <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 py-0.5 text-[10px] font-mono text-gray-400 bg-gray-100 border border-gray-200 rounded hidden sm:inline-block pointer-events-none">
-                    ⌘K
+                    {shortcutHint}
                   </kbd>
                 </div>
 

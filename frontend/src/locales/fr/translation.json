@@ -999,7 +999,7 @@
     "defaultHeroDescription": "Plans d'architecture sélectionnés, rapports d'audit tiers et documentation produit d'entreprise partagés en toute sécurité via Coneshare.",
     "viewDocument": "Afficher le document",
     "watchVideo": "Regarder la vidéo",
-    "filterPlaceholder": "Filtrer les fichiers de ce dossier... ⌘K",
+    "filterPlaceholder": "Filtrer les fichiers de ce dossier...",
     "gridView": "Vue en grille",
     "listView": "Vue en liste",
     "viewMode": "Mode d'affichage",
