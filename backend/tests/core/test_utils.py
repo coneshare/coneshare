@@ -1,6 +1,8 @@
 import importlib.util
 import os
+import signal
 import tempfile
+from unittest.mock import MagicMock
 import pytest
 from django.test import RequestFactory, override_settings
 
@@ -189,3 +191,68 @@ class TestConfigureNginxRealIp:
             # Malformed header should fall back to X-Forwarded-For
             assert "real_ip_header X-Forwarded-For;" in content
             assert "injection" not in content
+
+
+class TestEntrypointProcessLifecycle:
+    def test_custom_command_uses_execvp_with_gosu(self, monkeypatch):
+        """Custom container commands must replace the entrypoint via execvp with gosu."""
+        ep = _load_entrypoint_module()
+        monkeypatch.setattr(ep, "initialize_logdir", MagicMock())
+        monkeypatch.setattr(ep, "change_ugid", MagicMock())
+        monkeypatch.setattr(ep, "configure_nginx_real_ip", MagicMock())
+        monkeypatch.setenv("APP_DIR", "/app")
+        monkeypatch.setattr(os, "chdir", MagicMock())
+
+        mock_execvp = MagicMock()
+        monkeypatch.setattr(os, "execvp", mock_execvp)
+
+        ep.main(["entrypoint.py", "celery", "-A", "backend", "worker"])
+
+        mock_execvp.assert_called_once_with(
+            "gosu",
+            ["gosu", "coneshare", "celery", "-A", "backend", "worker"],
+        )
+
+    def test_coneshare_command_runs_supervisord_and_handles_signals(self, monkeypatch):
+        """Coneshare command runs supervisord in foreground, forwards SIGTERM, and exits with returncode."""
+        ep = _load_entrypoint_module()
+        monkeypatch.setattr(ep, "initialize_logdir", MagicMock())
+        monkeypatch.setattr(ep, "change_ugid", MagicMock())
+        monkeypatch.setattr(ep, "configure_nginx_real_ip", MagicMock())
+        monkeypatch.setenv("APP_DIR", "/app")
+        monkeypatch.setattr(os, "chdir", MagicMock())
+
+        signal_handlers = {}
+        def mock_signal(sig, handler):
+            signal_handlers[sig] = handler
+
+        monkeypatch.setattr(signal, "signal", mock_signal)
+        mock_check_call = MagicMock()
+        monkeypatch.setattr(ep, "check_call", mock_check_call)
+
+        mock_supervisord = MagicMock()
+        mock_supervisord.wait.return_value = 0
+
+        mock_popen = MagicMock(side_effect=[mock_supervisord, MagicMock()])
+        monkeypatch.setattr(ep, "Popen", mock_popen)
+        monkeypatch.setattr(ep.time, "sleep", MagicMock())
+
+        mock_exit = MagicMock(side_effect=SystemExit(0))
+        monkeypatch.setattr(ep.sys, "exit", mock_exit)
+
+        with pytest.raises(SystemExit):
+            ep.main(["entrypoint.py", "coneshare"])
+
+        assert signal.SIGTERM in signal_handlers
+        assert signal.SIGINT in signal_handlers
+
+        # Verify supervisord started with -n (foreground)
+        assert mock_popen.call_args_list[0][0][0] == [
+            "supervisord", "-n", "-c", "/home/coneshare/runtime/supervisord/supervisord.conf"
+        ]
+
+        # Trigger SIGTERM handler
+        signal_handlers[signal.SIGTERM](signal.SIGTERM, None)
+        mock_supervisord.terminate.assert_called_once()
+        mock_exit.assert_called_once_with(0)
+
