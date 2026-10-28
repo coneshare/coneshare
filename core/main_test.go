@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -560,6 +561,22 @@ func TestHandleDownloadForcesAttachmentForDangerousExtensions(t *testing.T) {
 	}
 }
 
+func TestHealthHandler(t *testing.T) {
+	req := httptest.NewRequest("GET", "/health", nil)
+	w := httptest.NewRecorder()
+	handler := healthHandler()
+	handler.ServeHTTP(w, req)
 
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
 
+	var res map[string]string
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 
+	if res["status"] != "ok" {
+		t.Errorf("expected status 'ok', got %q", res["status"])
+	}
+}

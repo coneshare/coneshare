@@ -1,8 +1,13 @@
 import io
+from unittest.mock import MagicMock
+import httpx
 import pytest
 from PIL import Image
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connections
+from django.db.utils import OperationalError
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -450,4 +455,84 @@ class TestTokenRevocationOnLifecycleEvents:
         assert refresh_resp.status_code == status.HTTP_401_UNAUTHORIZED
 
 
+@pytest.mark.django_db
+class TestHealthCheckView:
+    def test_health_check_all_healthy(self, monkeypatch):
+        """Verifies 200 OK and status 'ok' when database, redis, and file server are available."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        monkeypatch.setattr(httpx, 'get', MagicMock(return_value=mock_resp))
+
+        client = APIClient()
+        url = reverse('health-check')
+        response = client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == {
+            'database': 'ok',
+            'redis': 'ok',
+            'file_server': 'ok',
+        }
+
+    def test_health_check_database_unreachable(self, monkeypatch):
+        """Verifies 503 Service Unavailable when the database probe fails."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        monkeypatch.setattr(httpx, 'get', MagicMock(return_value=mock_resp))
+
+        mock_cursor = MagicMock()
+        mock_cursor.execute.side_effect = OperationalError("connection refused")
+        mock_ctx = MagicMock()
+        mock_ctx.__enter__.return_value = mock_cursor
+        mock_ctx.__exit__.return_value = None
+
+        monkeypatch.setattr(connections['default'], 'cursor', MagicMock(return_value=mock_ctx))
+
+        client = APIClient()
+        url = reverse('health-check')
+        response = client.get(url)
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert response.data['database'] == 'error'
+
+    def test_health_check_redis_unreachable(self, monkeypatch):
+        """Verifies 503 Service Unavailable when Redis cache operations fail."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        monkeypatch.setattr(httpx, 'get', MagicMock(return_value=mock_resp))
+
+        orig_set = cache.set
+
+        def mock_set(key, *args, **kwargs):
+            if key == '__health_check__':
+                raise Exception("redis down")
+            return orig_set(key, *args, **kwargs)
+
+        monkeypatch.setattr(cache, 'set', mock_set)
+
+        client = APIClient()
+        url = reverse('health-check')
+        response = client.get(url)
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert response.data['redis'] == 'error'
+
+    def test_health_check_file_server_unreachable(self, monkeypatch):
+        """Verifies 503 Service Unavailable when the file server does not respond."""
+        monkeypatch.setattr(httpx, 'get', MagicMock(side_effect=httpx.RequestError("connection refused")))
+
+        client = APIClient()
+        url = reverse('health-check')
+        response = client.get(url)
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert response.data['file_server'] == 'error'
+
+    def test_health_check_file_server_non_200(self, monkeypatch):
+        """Verifies 503 Service Unavailable when the file server returns an error code."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 500
+        monkeypatch.setattr(httpx, 'get', MagicMock(return_value=mock_resp))
+
+        client = APIClient()
+        url = reverse('health-check')
+        response = client.get(url)
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert response.data['file_server'] == 'error'
 

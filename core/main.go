@@ -85,6 +85,9 @@ func main() {
 		r.Post("/file-info", getFileInfoHandler(config))
 	})
 
+	// Health check endpoint
+	r.Get("/health", healthHandler())
+
 	// Public routes for file handling
 	r.Put("/files/upload/{token}", handleUpload(config))
 	r.Get("/files/download/{token}", handleDownload(config, "attachment"))
@@ -548,6 +551,14 @@ if token == "" {
 			}
 			next.ServeHTTP(w, r)
 		})
+	}
+}
+
+func healthHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	}
 }
 
