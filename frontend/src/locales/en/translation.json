@@ -849,7 +849,7 @@
     "defaultHeroDescription": "Curated architecture blueprints, third-party audit reports, and enterprise product documentation shared securely via Coneshare.",
     "viewDocument": "View Document",
     "watchVideo": "Watch Video",
-    "filterPlaceholder": "Filter files in this folder... ⌘K",
+    "filterPlaceholder": "Filter files in this folder...",
     "gridView": "Grid view",
     "listView": "List view",
     "viewMode": "View Mode",
