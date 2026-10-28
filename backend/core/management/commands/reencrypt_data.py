@@ -1,39 +1,80 @@
-'''
-# Set the environment variable with your old key
-export OLD_DJANGO_SECRET_KEY='the-old-secret-key-value'
-# Run the command
-python manage.py reencrypt_data
-'''
+"""
+Management command: reencrypt_data
+
+Purpose:
+    Re-encrypts database records in fields encrypted by django-cryptography
+    after a Django SECRET_KEY rotation.
+
+When to Use:
+    Execute this command immediately after updating SECRET_KEY in your environment (.env).
+    Without re-encryption, existing encrypted secrets (share link passwords, cloud OAuth tokens,
+    and webhook signing secrets) cannot be decrypted by the application using the new secret key.
+
+Encrypted Models & Fields Covered:
+    - sharelinks.ShareLink: password (public share link passwords)
+    - cloudfiles.CloudConnection: access_token, refresh_token (OAuth storage credentials)
+    - automations.AutomationDestination: signing_secret (HMAC webhook signature secrets)
+
+Usage Examples:
+
+    1. Using the --old-key CLI parameter (Recommended):
+       # Host / Local:
+       python manage.py reencrypt_data --old-key 'your-previous-secret-key'
+
+       # Docker Compose:
+       COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend python manage.py reencrypt_data --old-key 'your-previous-secret-key'
+
+    2. Using the OLD_DJANGO_SECRET_KEY environment variable:
+       # Host / Local:
+       export OLD_DJANGO_SECRET_KEY='your-previous-secret-key'
+       python manage.py reencrypt_data
+
+       # Docker Compose:
+       COMPOSE_PROJECT_NAME=coneshare docker-compose exec -e OLD_DJANGO_SECRET_KEY='your-previous-secret-key' backend python manage.py reencrypt_data
+"""
 import os
 import pickle
 
-from django.core.management.base import BaseCommand
-from django.db import connection
-
-from django_cryptography.core.signing import FernetSigner
-from django_cryptography.utils.crypto import FernetBytes, InvalidToken
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from django.core.management.base import BaseCommand
+from django.core.signing import BadSignature
+from django.db import connection
 from django.utils.encoding import force_bytes
 from django_cryptography.conf import CryptographyConf
+from django_cryptography.core.signing import FernetSigner
+from django_cryptography.utils.crypto import FernetBytes, InvalidToken
+
+from automations.models import AutomationDestination
+from cloudfiles.models import CloudConnection
+from sharelinks.models import ShareLink
+
 
 class Command(BaseCommand):
     help = "Re-encrypts data in encrypted fields after a SECRET_KEY rotation."
 
+    # Explicit list of models and their encrypted fields in Coneshare
+    MODELS_AND_FIELDS = [
+        (ShareLink, ["password"]),
+        (CloudConnection, ["access_token", "refresh_token"]),
+        (AutomationDestination, ["signing_secret"]),
+    ]
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--old-key",
+            dest="old_key",
+            help="The old DJANGO_SECRET_KEY used to decrypt existing data. Defaults to OLD_DJANGO_SECRET_KEY env var.",
+        )
+
     def handle(self, *args, **options):
-        OLD_SECRET_KEY = os.environ.get("OLD_DJANGO_SECRET_KEY")
+        OLD_SECRET_KEY = options.get("old_key") or os.environ.get("OLD_DJANGO_SECRET_KEY")
 
         if not OLD_SECRET_KEY:
             self.stderr.write(self.style.ERROR(
-                "OLD_DJANGO_SECRET_KEY environment variable not set. "
+                "OLD_DJANGO_SECRET_KEY environment variable not set (or --old-key not provided). "
                 "Cannot perform re-encryption."
             ))
             return
-
-        # A list of models and their encrypted field names to process
-        from documents.models import ShareLink
-        models_and_fields = [
-            (ShareLink, ["password"]),
-        ]
 
         # Get current cryptography settings to replicate the Key Derivation Function
         crypto_settings = CryptographyConf()
@@ -52,7 +93,7 @@ class Command(BaseCommand):
         old_signer = FernetSigner(key=OLD_SECRET_KEY)
         old_decryptor = FernetBytes(key=OLD_CRYPTOGRAPHY_KEY, signer=old_signer)
 
-        for model_class, field_names in models_and_fields:
+        for model_class, field_names in self.MODELS_AND_FIELDS:
             self.reencrypt_model(model_class, field_names, old_decryptor)
 
     def reencrypt_model(self, model_class, field_names, old_decryptor):
@@ -88,10 +129,10 @@ class Command(BaseCommand):
                     # Decrypt the raw value using the OLD key
                     decrypted_bytes = old_decryptor.decrypt(raw_encrypted_value)
                     original_value = pickle.loads(decrypted_bytes)
-                except InvalidToken:
+                except (InvalidToken, BadSignature, pickle.UnpicklingError, ValueError) as err:
                     self.stdout.write(self.style.WARNING(
                         f"Skipping {model_class.__name__}(pk={pk}, field={field_name}): "
-                        "could not decrypt value."
+                        f"could not decrypt value ({err})."
                     ))
                     continue
 
