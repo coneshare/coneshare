@@ -109,13 +109,18 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const isPublicViewer =
+      const isPublicRoute =
         typeof window !== 'undefined' &&
         (window.location?.pathname?.startsWith('/view/') ||
-         window.location?.pathname?.startsWith('/upload/') ||
-         originalRequest?.url?.includes('/links/') ||
-         originalRequest?.url?.includes('/public/') ||
-         originalRequest?.url?.includes('/view-sessions/'));
+         window.location?.pathname?.startsWith('/upload/'));
+
+      const normalizedUrl = (originalRequest?.url || '').replace(/^(\/api\/v1)?\//, '');
+      const isPublicEndpoint =
+        normalizedUrl.startsWith('links/') ||
+        normalizedUrl.startsWith('public/') ||
+        normalizedUrl.startsWith('view-sessions/');
+
+      const isPublicViewer = isPublicRoute || isPublicEndpoint;
 
       const refreshToken = localStorage.getItem('refresh_token');
       if (!refreshToken) {

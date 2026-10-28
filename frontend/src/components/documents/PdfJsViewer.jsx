@@ -104,19 +104,30 @@ export const PdfJsViewer = forwardRef(({
     };
   }, [viewId, sendTrackingData]);
 
-  // Inactivity detection (60 seconds)
+  const INACTIVITY_TIMEOUT = 60000;
+
+  const handleActivity = useCallback(() => {
+    isInactiveRef.current = false;
+    clearTimeout(inactivityTimerRef.current);
+    inactivityTimerRef.current = setTimeout(() => {
+      isInactiveRef.current = true;
+    }, INACTIVITY_TIMEOUT);
+  }, []);
+
+  // Inactivity detection timer lifecycle (only depends on viewId)
   useEffect(() => {
     if (!viewId) return;
 
-    const INACTIVITY_TIMEOUT = 60000;
+    handleActivity();
 
-    const handleActivity = () => {
-      isInactiveRef.current = false;
+    return () => {
       clearTimeout(inactivityTimerRef.current);
-      inactivityTimerRef.current = setTimeout(() => {
-        isInactiveRef.current = true;
-      }, INACTIVITY_TIMEOUT);
     };
+  }, [viewId, handleActivity]);
+
+  // Activity event listener binding (does not call handleActivity on rebinding)
+  useEffect(() => {
+    if (!viewId) return;
 
     const windowEvents = ['mousemove', 'keydown', 'mousedown', 'wheel', 'touchstart', 'touchmove'];
     windowEvents.forEach((event) => window.addEventListener(event, handleActivity, { passive: true }));
@@ -127,17 +138,14 @@ export const PdfJsViewer = forwardRef(({
       scrollContainer.addEventListener('scroll', handleActivity, { passive: true });
     }
 
-    handleActivity();
-
     return () => {
       windowEvents.forEach((event) => window.removeEventListener(event, handleActivity));
       window.removeEventListener('scroll', handleActivity, { capture: true });
       if (scrollContainer) {
         scrollContainer.removeEventListener('scroll', handleActivity);
       }
-      clearTimeout(inactivityTimerRef.current);
     };
-  }, [viewId, scrollContainer]);
+  }, [viewId, scrollContainer, handleActivity]);
 
   // Flush remaining duration on window unload
   useEffect(() => {

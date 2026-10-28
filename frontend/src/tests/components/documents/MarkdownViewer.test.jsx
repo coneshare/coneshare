@@ -329,7 +329,7 @@ describe('MarkdownViewer', () => {
 
     unmount();
 
-    // With activity reset, the last flush on unmount includes the active seconds (duration_seconds >= 4)
+    // With activity reset, the last flush on unmount includes exactly the active seconds (duration_seconds: 4)
     expect(api.recordPageView).toHaveBeenLastCalledWith(
       expect.objectContaining({
         view_session: viewId,
@@ -337,6 +337,6 @@ describe('MarkdownViewer', () => {
       }),
       false
     );
-    expect(api.recordPageView.mock.lastCall[0].duration_seconds).toBeGreaterThanOrEqual(4);
+    expect(api.recordPageView.mock.lastCall[0].duration_seconds).toBe(4);
   });
 });
