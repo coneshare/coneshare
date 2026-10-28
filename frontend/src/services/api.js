@@ -431,6 +431,7 @@ export const recordPageView = (data, useBeacon = false) => {
     method: 'POST',
     body: payload,
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     keepalive: true, // Critical for page unload scenarios
   });
 };
@@ -450,6 +451,7 @@ export const recordLinkClick = (data, useBeacon = false) => {
     method: 'POST',
     body: payload,
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     keepalive: true,
   });
 };

@@ -67,8 +67,21 @@ pytestmark = pytest.mark.django_db
 
 @pytest.mark.django_db
 class TestRecordPageView:
+    @staticmethod
+    def _authorize_link_session(client, link, viewer_email=''):
+        session = client.session
+        session['authorized_share_links'] = {
+            str(link.id): {
+                'password_verified': True,
+                'email_verified': True,
+                'viewer_email': viewer_email,
+            }
+        }
+        session.save()
+
     def test_record_page_view_success(self, public_client, share_link):
         """Test that a page view is recorded successfully."""
+        self._authorize_link_session(public_client, share_link)
         # 1. Create a View session
         view_session = ViewSession.objects.create(share_link=share_link, duration_seconds=10)
         assert PageView.objects.count() == 0
@@ -97,6 +110,7 @@ class TestRecordPageView:
         """Test recording page view with scroll_percentage on a markdown document."""
         doc = Document.objects.create(name="README.md", type="markdown", created_by=user, organization=user.organization)
         link = ShareLink.objects.create(document=doc, created_by=user)
+        self._authorize_link_session(public_client, link)
         view_session = ViewSession.objects.create(share_link=link)
 
         data = {
@@ -121,6 +135,7 @@ class TestRecordPageView:
         """Test recording page view preserves media_type spreadsheet for spreadsheet documents."""
         doc = Document.objects.create(name="Report.xlsx", type="spreadsheet", created_by=user, organization=user.organization)
         link = ShareLink.objects.create(document=doc, created_by=user)
+        self._authorize_link_session(public_client, link)
         view_session = ViewSession.objects.create(share_link=link)
 
         data = {
@@ -141,6 +156,7 @@ class TestRecordPageView:
         """Test that scroll_percentage outside 0-100 returns 400 Bad Request."""
         doc = Document.objects.create(name="README.md", type="markdown", created_by=user, organization=user.organization)
         link = ShareLink.objects.create(document=doc, created_by=user)
+        self._authorize_link_session(public_client, link)
         view_session = ViewSession.objects.create(share_link=link)
 
         # > 100 should fail
@@ -167,6 +183,7 @@ class TestRecordPageView:
         """Test that markdown document without scroll_percentage does not falsely set completion_rate to 1.0."""
         doc = Document.objects.create(name="README.md", type="markdown", created_by=user, organization=user.organization)
         link = ShareLink.objects.create(document=doc, created_by=user)
+        self._authorize_link_session(public_client, link)
         view_session = ViewSession.objects.create(share_link=link)
 
         response = public_client.post('/api/v1/page-views/record/', {
@@ -216,6 +233,7 @@ class TestRecordPageView:
         document.num_pages = 4
         document.save()
 
+        self._authorize_link_session(public_client, share_link)
         view_session = ViewSession.objects.create(share_link=share_link)
         assert view_session.completion_rate == 0.0
 
@@ -253,6 +271,7 @@ class TestRecordPageView:
         """
         link = dataroom_with_link_and_content['link']
         ddoc = dataroom_with_link_and_content['ddoc']
+        self._authorize_link_session(public_client, link)
         session = ViewSession.objects.create(share_link=link)
         visit = DataroomVisit.objects.create(view_session=session, dataroom_document=ddoc)
         
@@ -281,6 +300,7 @@ class TestRecordPageView:
         """
         link = dataroom_with_link_and_content['link']
         ddoc = dataroom_with_link_and_content['ddoc']
+        self._authorize_link_session(public_client, link)
         
         # Session A and its visit
         session_a = ViewSession.objects.create(share_link=link)
@@ -301,6 +321,138 @@ class TestRecordPageView:
         assert 'dataroom_visit' in response.data
         assert "does not belong to the provided view session" in response.data['dataroom_visit'][0]
         assert PageView.objects.count() == 0
+
+    def test_record_page_view_without_authorized_session_fails(self, public_client, share_link):
+        """Test that recording a page view fails when session is not authorized for a protected link."""
+        share_link.password = 'testpass'
+        share_link.save(update_fields=['password'])
+
+        view_session = ViewSession.objects.create(share_link=share_link)
+        response = public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session.id,
+            'page_number': 1,
+            'duration_seconds': 5
+        })
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.data.get('protectionType') == 'password'
+        assert PageView.objects.count() == 0
+
+    def test_record_page_view_inactive_link_fails(self, public_client, share_link):
+        """Test that recording a page view fails when the share link is inactive."""
+        self._authorize_link_session(public_client, share_link)
+        share_link.is_active = False
+        share_link.save(update_fields=['is_active'])
+
+        view_session = ViewSession.objects.create(share_link=share_link)
+        response = public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session.id,
+            'page_number': 1,
+            'duration_seconds': 5
+        })
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.data.get('detail') == 'This link is not available.'
+
+    def test_record_page_view_expired_link_fails(self, public_client, share_link):
+        """Test that recording a page view fails when the share link is expired."""
+        self._authorize_link_session(public_client, share_link)
+        share_link.expires_at = timezone.now() - timedelta(hours=1)
+        share_link.save(update_fields=['expires_at'])
+
+        view_session = ViewSession.objects.create(share_link=share_link)
+        response = public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session.id,
+            'page_number': 1,
+            'duration_seconds': 5
+        })
+        assert response.status_code == status.HTTP_410_GONE
+        assert response.data.get('message') == 'This link has expired.'
+
+    def test_record_page_view_duration_seconds_bounds(self, public_client, share_link):
+        """Test duration_seconds allows zero (fast scroll exit) and enforces upper cap."""
+        self._authorize_link_session(public_client, share_link)
+        view_session = ViewSession.objects.create(share_link=share_link)
+
+        # 0 seconds should succeed (e.g. fast markdown scroll depth flush)
+        resp_zero = public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session.id,
+            'page_number': 1,
+            'duration_seconds': 0
+        })
+        assert resp_zero.status_code == status.HTTP_200_OK
+
+        # Exceeding 86400 (24h) cap should fail
+        resp_over = public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session.id,
+            'page_number': 1,
+            'duration_seconds': 86401
+        })
+        assert resp_over.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'duration_seconds' in resp_over.data
+
+    def test_record_page_view_numeric_range_validations(self, public_client, share_link):
+        """Test range validation bounds on page_number and video numeric telemetry fields."""
+        self._authorize_link_session(public_client, share_link)
+        view_session = ViewSession.objects.create(share_link=share_link)
+
+        # page_number: 0 (< 1) should fail
+        resp = public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session.id, 'page_number': 0, 'duration_seconds': 5
+        })
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'page_number' in resp.data
+
+        # page_number: > 100000 should fail
+        resp = public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session.id, 'page_number': 100001, 'duration_seconds': 5
+        })
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'page_number' in resp.data
+
+        # video_volume: > 100 should fail
+        resp = public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session.id, 'page_number': 1, 'duration_seconds': 5, 'video_volume': 101
+        })
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'video_volume' in resp.data
+
+        # playback_speed: < 0.1 should fail
+        resp = public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session.id, 'page_number': 1, 'duration_seconds': 5, 'playback_speed': 0.05
+        })
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'playback_speed' in resp.data
+
+    def test_create_session_stores_false_flags_and_rejects_subsequently_added_password(self, public_client, share_link):
+        """Test that session flags store False on create, allowing access on unprotected links
+
+        but rejecting subsequent access if a password protection gate is added later.
+        """
+        # Create view session through endpoint on open link
+        resp_create = public_client.post('/api/v1/view-sessions/', {'share_link': share_link.id})
+        assert resp_create.status_code == status.HTTP_201_CREATED
+        view_session_id = resp_create.data['id']
+
+        # Assert flags in session are False (not prematurely pre-verified)
+        auth_status = public_client.session.get('authorized_share_links', {}).get(str(share_link.id), {})
+        assert auth_status.get('password_verified') is False
+        assert auth_status.get('email_verified') is False
+
+        # Recording page view succeeds while link is unprotected
+        resp_view = public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session_id, 'page_number': 1, 'duration_seconds': 5
+        })
+        assert resp_view.status_code == status.HTTP_200_OK
+
+        # Owner adds a password requirement to the link
+        share_link.password = 'securepass'
+        share_link.save(update_fields=['password'])
+
+        # Subsequent tracking request on existing session is rejected until password is authenticated
+        resp_blocked = public_client.post('/api/v1/page-views/record/', {
+            'view_session': view_session_id, 'page_number': 1, 'duration_seconds': 5
+        })
+        assert resp_blocked.status_code == status.HTTP_401_UNAUTHORIZED
+        assert resp_blocked.data.get('protectionType') == 'password'
 
 
 @pytest.mark.django_db

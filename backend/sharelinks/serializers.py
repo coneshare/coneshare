@@ -232,7 +232,13 @@ class PageViewRecordSerializer(serializers.ModelSerializer):
             'scroll_percentage'
         ]
         extra_kwargs = {
+            'page_number': {'min_value': 1, 'max_value': 100000},
             'scroll_percentage': {'min_value': 0, 'max_value': 100},
+            'duration_seconds': {'min_value': 0, 'max_value': 86400},
+            'video_volume': {'min_value': 0, 'max_value': 100},
+            'video_start_time': {'min_value': 0.0, 'max_value': 86400.0},
+            'video_end_time': {'min_value': 0.0, 'max_value': 86400.0},
+            'playback_speed': {'min_value': 0.1, 'max_value': 16.0},
         }
 
     def validate(self, data):
