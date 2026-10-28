@@ -1,3 +1,4 @@
+import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import axios from 'axios';
@@ -87,6 +88,61 @@ describe('SpreadsheetViewer', () => {
     await waitFor(() => {
       expect(screen.getByText(/Network error/i)).toBeInTheDocument();
     });
+  });
+
+  it('exposes goToPage via ref and switches active sheet', async () => {
+    axios.get.mockResolvedValue({ data: mockSpreadsheetData });
+    const ref = React.createRef();
+
+    render(<SpreadsheetViewer ref={ref} spreadsheetUrl={spreadsheetUrl} title="Quarterly Report" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Financials')).toBeInTheDocument();
+    });
+
+    expect(typeof ref.current.goToPage).toBe('function');
+
+    act(() => {
+      ref.current.goToPage(2); // Go to Sheet 2 ("Headcount")
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Headcount').closest('button')).toHaveClass('bg-background');
+    });
+  });
+
+  it('calls onPageChange and onDocumentLoad when navigating sheets', async () => {
+    axios.get.mockResolvedValue({ data: mockSpreadsheetData });
+    const onPageChange = vi.fn();
+    const onDocumentLoad = vi.fn();
+    const ref = React.createRef();
+
+    render(
+      <SpreadsheetViewer
+        ref={ref}
+        spreadsheetUrl={spreadsheetUrl}
+        title="Quarterly Report"
+        onPageChange={onPageChange}
+        onDocumentLoad={onDocumentLoad}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Financials')).toBeInTheDocument();
+    });
+
+    expect(onDocumentLoad).toHaveBeenCalledWith({ numPages: mockSpreadsheetData.sheets.length });
+
+    act(() => {
+      ref.current.goToPage(2);
+    });
+
+    expect(onPageChange).toHaveBeenCalledWith(2);
+
+    const sheet1Btn = screen.getByText('Financials').closest('button');
+    fireEvent.click(sheet1Btn);
+
+    expect(onPageChange).toHaveBeenCalledWith(1);
   });
 
   it('renders sheets, headers, and cells on successful load', async () => {

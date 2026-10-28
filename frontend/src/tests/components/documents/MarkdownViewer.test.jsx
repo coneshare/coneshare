@@ -288,4 +288,55 @@ describe('MarkdownViewer', () => {
       false
     );
   });
+
+  it('resets inactivity timer on container scroll or wheel event', async () => {
+    axios.get.mockResolvedValueOnce({ data: '# Inactivity Test' });
+
+    const { unmount } = render(
+      <MarkdownViewer markdownUrl={markdownUrl} viewId={viewId} />
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const container = screen.getByRole('region');
+
+    // 10s active
+    act(() => {
+      vi.advanceTimersByTime(10000);
+    });
+
+    // Inactivity timeout (60s)
+    act(() => {
+      vi.advanceTimersByTime(60000);
+    });
+
+    // 5s inactive time passes
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    // Scroll container resumes activity
+    act(() => {
+      fireEvent.scroll(container);
+    });
+
+    // 5s active time
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    unmount();
+
+    // With activity reset, the last flush on unmount includes the active seconds (duration_seconds >= 4)
+    expect(api.recordPageView).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        view_session: viewId,
+        media_type: 'markdown',
+      }),
+      false
+    );
+    expect(api.recordPageView.mock.lastCall[0].duration_seconds).toBeGreaterThanOrEqual(4);
+  });
 });

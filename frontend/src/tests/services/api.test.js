@@ -266,6 +266,110 @@ describe("API Service Interceptors", () => {
 
       expect(toast.error).toHaveBeenCalledWith("Invalid password.");
     });
+
+    it("should parse blob response error containing JSON protectionType and prevent redirect to /login", async () => {
+      const errorJson = JSON.stringify({ detail: "Password required", protectionType: "password" });
+      const blob = new Blob([errorJson], { type: "application/json" });
+
+      const originalError = {
+        response: {
+          status: 401,
+          data: blob,
+        },
+        config: { url: "/links/test-slug/download-folder/f1/" },
+      };
+      mockAdapter.mockRejectedValue(originalError);
+
+      let caught;
+      try {
+        await api.get("/links/test-slug/download-folder/f1/", { responseType: "blob" });
+      } catch (err) {
+        caught = err;
+      }
+
+      expect(window.location.href).toBe("");
+      expect(caught.response.data.protectionType).toBe("password");
+      expect(axios.post).not.toHaveBeenCalled();
+    });
+
+    it("should parse blob response error detail on 403 and display translated error toast", async () => {
+      const errorJson = JSON.stringify({ detail: "You do not have permission to view this document." });
+      const blob = new Blob([errorJson], { type: "application/json" });
+
+      const originalError = {
+        response: {
+          status: 403,
+          data: blob,
+        },
+        config: { url: "/links/test-slug/download-folder/f1/" },
+      };
+      mockAdapter.mockRejectedValue(originalError);
+
+      await expect(api.get("/links/test-slug/download-folder/f1/", { responseType: "blob" })).rejects.toBe(originalError);
+
+      expect(originalError.response.data.detail).toBe("You do not have permission to view this document.");
+      expect(toast.error).toHaveBeenCalled();
+    });
+
+    it("should not redirect to /login on 401 when request is for public viewer route without refresh token and should display toast", async () => {
+      window.location.pathname = "/view/public-slug";
+
+      const originalError = {
+        response: {
+          status: 401,
+          data: { detail: "Unauthorized" },
+        },
+        config: { url: "/links/public-slug/data/" },
+      };
+      mockAdapter.mockRejectedValue(originalError);
+
+      await expect(api.get("/links/public-slug/data/")).rejects.toBe(originalError);
+
+      expect(window.location.href).toBe("");
+      expect(toast.error).toHaveBeenCalled();
+    });
+
+    it("should not redirect to /login when token refresh fails for public viewer on /view/:slug route", async () => {
+      window.location.pathname = "/view/public-slug";
+      localStorage.setItem("refresh_token", "stale_token");
+      axios.post.mockRejectedValue(new Error("Refresh failed"));
+
+      const originalError = {
+        response: {
+          status: 401,
+          data: { detail: "Unauthorized link" },
+        },
+        config: { url: "/links/public-slug/data/" },
+      };
+      mockAdapter.mockRejectedValue(originalError);
+
+      await expect(api.get("/links/public-slug/data/")).rejects.toBeDefined();
+
+      expect(window.location.href).toBe("");
+      expect(localStorage.removeItem).toHaveBeenCalledWith("access_token");
+      expect(localStorage.removeItem).toHaveBeenCalledWith("refresh_token");
+      expect(toast.error).toHaveBeenCalled();
+    });
+
+    it("should not redirect to /login when token refresh fails on public upload route /upload/:slug", async () => {
+      window.location.pathname = "/upload/request-slug";
+      localStorage.setItem("refresh_token", "stale_token");
+      axios.post.mockRejectedValue(new Error("Refresh failed"));
+
+      const originalError = {
+        response: {
+          status: 401,
+          data: { detail: "File request expired" },
+        },
+        config: { url: "/file-requests/request-slug/public/" },
+      };
+      mockAdapter.mockRejectedValue(originalError);
+
+      await expect(api.get("/file-requests/request-slug/public/")).rejects.toBeDefined();
+
+      expect(window.location.href).toBe("");
+      expect(toast.error).toHaveBeenCalled();
+    });
   });
 
   describe("Share Link View Data Params", () => {

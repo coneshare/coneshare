@@ -1,7 +1,7 @@
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import * as BreadcrumbProvider from '../../components/layout/BreadcrumbProvider';
 import { UploadProvider } from '../../contexts/UploadProvider';
 import { useUser } from '../../contexts/UserProvider';
@@ -134,6 +134,68 @@ describe('DocumentsPage', () => {
         // Verify it passes the correct folder data to the breadcrumb context
         expect(mockSetBreadcrumbData).toHaveBeenCalledWith(mockCurrentFolder);
       });
+    });
+
+    it('should discard stale folder contents responses when previous fetch resolves out of order', async () => {
+      let resolveFolderA;
+      const folderAPromise = new Promise((resolve) => {
+        resolveFolderA = resolve;
+      });
+
+      api.getFolderContents.mockImplementation((id) => {
+        if (id === 'folder-A') return folderAPromise;
+        if (id === 'folder-B') {
+          return Promise.resolve({
+            data: {
+              current_folder: { id: 'folder-B', name: 'Folder B', ancestors: [] },
+              sub_folders: [],
+              documents: [{ id: 'doc-b', name: 'Doc B.pdf', type: 'pdf' }],
+            },
+          });
+        }
+        return Promise.resolve({ data: { current_folder: null, sub_folders: [], documents: [] } });
+      });
+
+      let navigateFn;
+      function TestNav() {
+        const navigate = useNavigate();
+        navigateFn = navigate;
+        return null;
+      }
+
+      render(
+        <MemoryRouter initialEntries={['/documents/folders/folder-A']}>
+          <UploadProvider>
+            <TestNav />
+            <Routes>
+              <Route path="/documents/folders/:folderId" element={<DocumentsPage />} />
+            </Routes>
+          </UploadProvider>
+        </MemoryRouter>
+      );
+
+      // Now navigate to Folder B
+      act(() => {
+        navigateFn('/documents/folders/folder-B');
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Doc B.pdf')).toBeInTheDocument();
+      });
+
+      // Now resolve the stale Folder A response
+      resolveFolderA({
+        data: {
+          current_folder: { id: 'folder-A', name: 'Folder A', ancestors: [] },
+          sub_folders: [],
+          documents: [{ id: 'doc-a', name: 'Doc A.pdf', type: 'pdf' }],
+        },
+      });
+
+      // Folder B content should still remain visible; Doc A should NOT overwrite it
+      await new Promise((r) => setTimeout(r, 50));
+      expect(screen.getByText('Doc B.pdf')).toBeInTheDocument();
+      expect(screen.queryByText('Doc A.pdf')).not.toBeInTheDocument();
     });
   });  
 

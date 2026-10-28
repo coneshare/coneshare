@@ -850,35 +850,30 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
         return;
       }
 
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-        e.preventDefault();
-        if (viewerComponentRef.current?.seekBy) {
+      // Allow ArrowDown / ArrowUp to scroll naturally without hijacking.
+      // ArrowLeft / ArrowRight are used for slide/page navigation or video seeking.
+      if (e.key === 'ArrowRight') {
+        if (typeof viewerComponentRef.current?.seekBy === 'function') {
+          e.preventDefault();
           viewerComponentRef.current.seekBy(5);
-        } else {
+        } else if (typeof viewerComponentRef.current?.goToPage === 'function') {
           const nextPage = Math.min(currentPage + 1, totalPages);
           if (nextPage !== currentPage) {
-            viewerComponentRef.current?.goToPage(nextPage);
+            e.preventDefault();
+            viewerComponentRef.current.goToPage(nextPage);
           }
         }
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        if (viewerComponentRef.current?.seekBy) {
+      } else if (e.key === 'ArrowLeft') {
+        if (typeof viewerComponentRef.current?.seekBy === 'function') {
+          e.preventDefault();
           viewerComponentRef.current.seekBy(-5);
-        } else {
+        } else if (typeof viewerComponentRef.current?.goToPage === 'function') {
           const prevPage = Math.max(currentPage - 1, 1);
           if (prevPage !== currentPage) {
-            viewerComponentRef.current?.goToPage(prevPage);
+            e.preventDefault();
+            viewerComponentRef.current.goToPage(prevPage);
           }
         }
-      } else if ((e.ctrlKey || e.metaKey) && e.key === '=') {
-        e.preventDefault();
-        setZoomLevel((prev) => Math.min(prev + 0.1, 3));
-      } else if ((e.ctrlKey || e.metaKey) && e.key === '-') {
-        e.preventDefault();
-        setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
-      } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
-        e.preventDefault();
-        setZoomLevel(1);
       }
     };
 
@@ -1241,6 +1236,8 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
                           allowDownload={canDownload}
                           canCopy={documentViewData.link_settings?.can_copy ?? null}
                           zoomLevel={zoomLevel}
+                          onPageChange={setCurrentPage}
+                          onDocumentLoad={handleDocumentLoad}
                           documentData={documentViewData}
                         />
                       ) : documentViewData.preview_mode === 'markdown' ? (

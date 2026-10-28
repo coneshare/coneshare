@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, forwardRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, AlertTriangle, FileSpreadsheet, Loader2, ChevronUp, ChevronDown, X } from 'lucide-react';
 import axios from 'axios';
@@ -37,6 +37,8 @@ export const SpreadsheetViewer = forwardRef(({
   canCopy = null,
   zoomLevel = 1,
   documentData = null,
+  onPageChange,
+  onDocumentLoad,
 }, ref) => {
   const { t } = useTranslation();
   const [data, setData] = useState(null);
@@ -49,6 +51,7 @@ export const SpreadsheetViewer = forwardRef(({
   const [scrollState, setScrollState] = useState({ top: 0, left: 0, viewportWidth: 800, viewportHeight: 600 });
 
   const containerRef = useRef(null);
+  const rootRef = useRef(null);
   const timeOnSheetRef = useRef(0);
   const activeSheetRef = useRef(activeSheetIndex);
   activeSheetRef.current = activeSheetIndex;
@@ -85,6 +88,9 @@ export const SpreadsheetViewer = forwardRef(({
           setData(res.data);
           setActiveSheetIndex(res.data.active_sheet_index || 0);
           setLoading(false);
+          if (typeof onDocumentLoad === 'function' && res.data?.sheets?.length) {
+            onDocumentLoad({ numPages: res.data.sheets.length });
+          }
         }
       })
       .catch((err) => {
@@ -293,7 +299,20 @@ export const SpreadsheetViewer = forwardRef(({
     }
     setActiveSheetIndex(newIndex);
     setSelectedCell(null);
-  }, [activeSheetIndex, sendTrackingData]);
+    if (typeof onPageChange === 'function') {
+      onPageChange(newIndex + 1);
+    }
+  }, [activeSheetIndex, onPageChange, sendTrackingData]);
+
+  useImperativeHandle(ref, () => ({
+    goToPage: (sheetNumber) => {
+      const targetIndex = sheetNumber - 1;
+      if (data?.sheets && targetIndex >= 0 && targetIndex < data.sheets.length) {
+        handleSheetChange(targetIndex);
+      }
+    },
+    container: rootRef.current,
+  }), [data, handleSheetChange]);
 
   // Real-time search matches calculation across active sheet
   const searchMatches = useMemo(() => {
@@ -412,7 +431,7 @@ export const SpreadsheetViewer = forwardRef(({
 
   return (
     <div
-      ref={ref}
+      ref={rootRef}
       aria-label={title || 'Spreadsheet'}
       className={`relative flex flex-col h-full w-full bg-background overflow-hidden border border-border ${
         isProtected ? 'select-none' : 'select-text'

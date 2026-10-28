@@ -233,4 +233,34 @@ describe('FileRequestSheet', () => {
 
     resolvePromise({ data: { id: 'fr-1' } });
   });
+
+  it('prefills expires_at using local datetime format without UTC shift on edit', async () => {
+    const testDate = new Date(2026, 10, 15, 14, 30); // Local Nov 15 2026, 14:30
+    const currentRequest = {
+      id: 'fr-1',
+      name: 'Existing Request',
+      message: 'Upload docs',
+      folder: 'folder-123',
+      folder_name: 'Contracts',
+      expires_at: testDate.toISOString(),
+      allowed_file_types: ['pdf'],
+      custom_fields: [],
+    };
+
+    render(
+      <FileRequestSheet
+        isOpen
+        onOpenChange={vi.fn()}
+        folder={null}
+        currentRequest={currentRequest}
+        onSuccess={vi.fn()}
+      />
+    );
+
+    const pad = (n) => String(n).padStart(2, '0');
+    const expectedLocal = `${testDate.getFullYear()}-${pad(testDate.getMonth() + 1)}-${pad(testDate.getDate())}T${pad(testDate.getHours())}:${pad(testDate.getMinutes())}`;
+
+    const dateInput = screen.getByLabelText(/Expires At/i);
+    expect(dateInput.value).toBe(expectedLocal);
+  });
 });

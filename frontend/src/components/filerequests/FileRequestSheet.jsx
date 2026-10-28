@@ -131,9 +131,18 @@ export function FileRequestSheet({ isOpen, onOpenChange, folder, currentRequest,
   useEffect(() => {
     if (isOpen) {
       if (isEditing) {
-        const expiresAtValue = currentRequest.expires_at
-          ? new Date(currentRequest.expires_at).toISOString().slice(0, 16)
-          : '';
+        let expiresAtValue = '';
+        if (currentRequest.expires_at) {
+          const d = new Date(currentRequest.expires_at);
+          if (!isNaN(d.getTime())) {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const hours = String(d.getHours()).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            expiresAtValue = `${year}-${month}-${day}T${hours}:${minutes}`;
+          }
+        }
         setName(currentRequest.name || '');
         setMessage(currentRequest.message || '');
         setExpiresAt(expiresAtValue);

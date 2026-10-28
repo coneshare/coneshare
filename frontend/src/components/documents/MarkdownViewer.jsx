@@ -219,12 +219,23 @@ export const MarkdownViewer = forwardRef(({
       }, INACTIVITY_TIMEOUT);
     };
 
-    const events = ['mousemove', 'keydown', 'scroll', 'mousedown'];
-    events.forEach((event) => window.addEventListener(event, handleActivity));
+    const windowEvents = ['mousemove', 'keydown', 'mousedown', 'wheel', 'touchstart', 'touchmove'];
+    windowEvents.forEach((event) => window.addEventListener(event, handleActivity, { passive: true }));
+    window.addEventListener('scroll', handleActivity, { capture: true, passive: true });
+
+    const scrollEl = containerRef.current;
+    if (scrollEl) {
+      scrollEl.addEventListener('scroll', handleActivity, { passive: true });
+    }
+
     handleActivity();
 
     return () => {
-      events.forEach((event) => window.removeEventListener(event, handleActivity));
+      windowEvents.forEach((event) => window.removeEventListener(event, handleActivity));
+      window.removeEventListener('scroll', handleActivity, { capture: true });
+      if (scrollEl) {
+        scrollEl.removeEventListener('scroll', handleActivity);
+      }
       clearTimeout(inactivityTimerRef.current);
     };
   }, [viewId]);

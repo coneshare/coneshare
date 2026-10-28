@@ -240,6 +240,41 @@ describe('PreviewViewer', () => {
     );
   });
 
+  it('resets inactivity timer on wheel or inner scroll container scroll', () => {
+    const { container, unmount } = renderComponent({ viewId });
+    const INACTIVITY_TIMEOUT = 60000;
+
+    // 10 seconds of active time
+    act(() => {
+      vi.advanceTimersByTime(10000);
+    });
+
+    // Inactivity timeout triggers
+    act(() => {
+      vi.advanceTimersByTime(INACTIVITY_TIMEOUT);
+    });
+
+    // 5 seconds pass while inactive
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    // Simulate wheel event on window
+    fireEvent.wheel(window);
+
+    // 5 more seconds of active time pass
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    unmount();
+
+    expect(api.recordPageView).toHaveBeenCalledWith(
+      expect.objectContaining({ duration_seconds: 65 }),
+      false
+    );
+  });
+
   it('should send tracking data when the page changes', () => {
     renderComponent({ viewId });
 
