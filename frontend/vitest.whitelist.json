@@ -1,5 +1,7 @@
 {
   "whitelist": [
+    "src/tests/contexts/UserProvider.test.jsx",
+    "src/tests/components/auth/AuthGuard.test.jsx",
     "src/tests/components/viewer/DataroomViewer.test.jsx",
     "src/tests/pages/ShareLinkViewerPage.test.jsx",
     "src/tests/components/viewer/EmailForm.test.jsx",

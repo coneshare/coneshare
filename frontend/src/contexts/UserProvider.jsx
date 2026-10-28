@@ -21,7 +21,7 @@ export function UserProvider({ children }) {
       setUser(updatedUserData);
       return;
     }
-    const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem("access_token") || localStorage.getItem("refresh_token");
     if (token) {
       try {
         const decoded = jwtDecode(token);
@@ -39,7 +39,7 @@ export function UserProvider({ children }) {
   useEffect(() => {
     let isMounted = true;
     const fetchUser = async () => {
-      const token = localStorage.getItem("access_token");
+      const token = localStorage.getItem("access_token") || localStorage.getItem("refresh_token");
       if (token) {
         try {
           const decoded = jwtDecode(token);
