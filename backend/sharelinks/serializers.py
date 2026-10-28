@@ -263,6 +263,8 @@ class PageViewRecordSerializer(serializers.ModelSerializer):
             validated_data['media_type'] = 'audio'
         elif doc_type == 'markdown':
             validated_data['media_type'] = 'markdown'
+        elif doc_type == 'spreadsheet':
+            validated_data['media_type'] = 'spreadsheet'
         else:
             validated_data['media_type'] = 'document'
 

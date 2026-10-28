@@ -25,7 +25,11 @@ vi.mock('../../../components/viewer/DataroomDocumentPreview', () => ({
 }));
 
 vi.mock('../../../components/documents/PdfJsViewer', () => ({
-  PdfJsViewer: () => <div data-testid="pdfjs-viewer">PdfJs Viewer</div>,
+  PdfJsViewer: ({ dataroomVisitId }) => (
+    <div data-testid="pdfjs-viewer" data-visit-id={dataroomVisitId || ''}>
+      PdfJs Viewer
+    </div>
+  ),
 }));
 
 vi.mock('../../../components/viewer/QnAPanel', () => ({
@@ -614,6 +618,103 @@ describe('DataroomViewer', () => {
     // Verify recordDataroomVisit was called exactly once
     expect(api.recordDataroomVisit).toHaveBeenCalledTimes(1);
     expect(api.recordDataroomVisit).toHaveBeenCalledWith('view-123', { dataroomDocumentId: 'doc2' });
+  });
+
+  it('ignores stale recordDataroomVisit responses when switching documents rapidly', async () => {
+    let resolveDoc1Visit;
+    const doc1VisitPromise = new Promise((resolve) => {
+      resolveDoc1Visit = resolve;
+    });
+
+    api.getShareLinkViewData.mockImplementation((slug, query) => {
+      if (query.parentId === 'folder1') {
+        return Promise.resolve({
+          data: {
+            ...mockDataroomData,
+            items: [
+              { type: 'document', id: 'doc1', name: 'Document 1', document_type: 'pdf' },
+              { type: 'document', id: 'doc2', name: 'Document 2', document_type: 'pdf' },
+            ],
+          },
+        });
+      }
+      if (query.dataroomDocumentId === 'doc1') {
+        return Promise.resolve({
+          data: {
+            id: 'doc1',
+            name: 'Document 1',
+            type: 'document',
+            preview_mode: 'client_pdf',
+            link_settings: { allow_download: true },
+          },
+        });
+      }
+      if (query.dataroomDocumentId === 'doc2') {
+        return Promise.resolve({
+          data: {
+            id: 'doc2',
+            name: 'Document 2',
+            type: 'document',
+            preview_mode: 'client_pdf',
+            link_settings: { allow_download: true },
+          },
+        });
+      }
+      return Promise.resolve({ data: mockDataroomData });
+    });
+
+    api.recordDataroomVisit.mockImplementation((viewId, payload) => {
+      if (payload.dataroomDocumentId === 'doc1') {
+        return doc1VisitPromise;
+      }
+      if (payload.dataroomDocumentId === 'doc2') {
+        return Promise.resolve({ data: { id: 'visit_doc2' } });
+      }
+      return Promise.resolve({ data: { id: 'visit_default' } });
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/view/test-slug?dataroom_document_id=doc1']}>
+        <DataroomViewer
+          data={{
+            ...mockDataroomData,
+            link_type: 'document',
+            id: 'doc1',
+            name: 'Document 1',
+            dataroom_context: {
+              id: 'dr1',
+              name: 'Test Dataroom',
+              parent_folder_id: 'folder1',
+              breadcrumbs: [{ id: 'folder1', name: 'Sub Folder A' }],
+            },
+          }}
+          slug="test-slug"
+          viewId="view-123"
+        />
+      </MemoryRouter>
+    );
+
+    // Wait for sidebar items to load
+    await screen.findByTitle('Document 1');
+    await screen.findByTitle('Document 2');
+
+    // Switch to Document 2 while doc1 visit call is still pending
+    fireEvent.click(screen.getByTitle('Document 2'));
+
+    // Wait for Document 2 view data to load and render with visit_doc2
+    await waitFor(() => {
+      const viewer = screen.getByTestId('pdfjs-viewer');
+      expect(viewer).toHaveAttribute('data-visit-id', 'visit_doc2');
+    });
+
+    // Now resolve doc1's visit out-of-order
+    resolveDoc1Visit({ data: { id: 'visit_doc1_stale' } });
+
+    // Ensure doc1's stale response did not overwrite the visit ID on doc2
+    await waitFor(() => {
+      const viewer = screen.getByTestId('pdfjs-viewer');
+      expect(viewer).toHaveAttribute('data-visit-id', 'visit_doc2');
+    });
   });
 
   it('records visit when returning to the same document after navigating away to folder/root', async () => {

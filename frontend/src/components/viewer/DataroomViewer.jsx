@@ -305,6 +305,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
   const docRequestRef = useRef(0);
   const activeDocIdRef = useRef(null);
   const lastRecordedVisitRef = useRef(null);
+  const visitRequestRef = useRef(0);
   const initialFolderLoadedRef = useRef(false);
 
   // Document viewing sub-states
@@ -680,6 +681,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
   // navigating away and returning to the same document correctly records the visit again.
   useEffect(() => {
     setCurrentDataroomVisitId(null);
+    visitRequestRef.current += 1;
     if (!selectedDocumentId) {
       lastRecordedVisitRef.current = null;
     }
@@ -695,17 +697,24 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
       return;
     }
     lastRecordedVisitRef.current = visitKey;
+    const currentRequestId = ++visitRequestRef.current;
+    let isCurrent = true;
 
     const recordVisit = async () => {
       try {
         const visitRes = await recordDataroomVisit(viewId, { dataroomDocumentId: selectedDocumentId });
-        setCurrentDataroomVisitId(visitRes.data.id);
+        if (isCurrent && currentRequestId === visitRequestRef.current) {
+          setCurrentDataroomVisitId(visitRes.data.id);
+        }
       } catch (err) {
         console.error('Failed to record document visit:', err);
       }
     };
 
     recordVisit();
+    return () => {
+      isCurrent = false;
+    };
   }, [viewId, selectedDocumentId]);
 
   // Rewrite URL on direct deep link load to include parent_id
@@ -1222,15 +1231,15 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
                           ref={viewerComponentRef}
                           spreadsheetUrl={documentViewData.spreadsheet_preview_url}
                           title={documentViewData.name}
+                          viewId={viewId}
+                          dataroomVisitId={currentDataroomVisitId}
                           watermarkText={
                             documentViewData.link_settings?.enable_watermark
                               ? (documentViewData.link_settings.resolved_watermark_text || documentViewData.link_settings.watermark_text || '')
                               : ''
                           }
                           allowDownload={canDownload}
-                          isWatermarked={Boolean(
-                            documentViewData.link_settings?.enable_watermark ?? scopeData?.link_settings?.enable_watermark
-                          )}
+                          canCopy={documentViewData.link_settings?.can_copy ?? null}
                           zoomLevel={zoomLevel}
                           documentData={documentViewData}
                         />
