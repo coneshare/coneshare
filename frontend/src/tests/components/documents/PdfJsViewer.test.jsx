@@ -222,6 +222,37 @@ describe('PdfJsViewer', () => {
     );
   });
 
+  it('should resume tracking on inner scroll, wheel, or touch events', () => {
+    const { container, unmount } = renderComponent({ viewId });
+    const INACTIVITY_TIMEOUT = 60000;
+
+    // Advance into inactivity
+    act(() => {
+      vi.advanceTimersByTime(INACTIVITY_TIMEOUT + 5000);
+    });
+
+    // Inner scroll container activity via wheel event
+    const scrollContainer = container.querySelector('.overflow-y-auto');
+    expect(scrollContainer).toBeTruthy();
+
+    act(() => {
+      fireEvent.wheel(scrollContainer);
+    });
+
+    // 10 more seconds active
+    act(() => {
+      vi.advanceTimersByTime(10000);
+    });
+
+    unmount();
+
+    // Total active: 60s + 10s = 70s
+    expect(api.recordPageView).toHaveBeenCalledWith(
+      expect.objectContaining({ duration_seconds: 70 }),
+      false
+    );
+  });
+
   it('should send tracking data when page changes', () => {
     renderComponent({ viewId });
 

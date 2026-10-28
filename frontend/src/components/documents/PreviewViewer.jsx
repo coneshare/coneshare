@@ -84,15 +84,25 @@ export const PreviewViewer = forwardRef(({ documentData, zoomLevel, onPageChange
       }, INACTIVITY_TIMEOUT);
     };
 
-    const events = ['mousemove', 'keydown', 'scroll', 'mousedown'];
-    events.forEach((event) => window.addEventListener(event, handleActivity));
+    const windowEvents = ['mousemove', 'keydown', 'mousedown', 'wheel', 'touchstart', 'touchmove'];
+    windowEvents.forEach((event) => window.addEventListener(event, handleActivity, { passive: true }));
+    window.addEventListener('scroll', handleActivity, { capture: true, passive: true });
+
+    if (scrollContainer) {
+      scrollContainer.addEventListener('scroll', handleActivity, { passive: true });
+    }
+
     handleActivity(); // Initial call to start the timer
 
     return () => {
-      events.forEach((event) => window.removeEventListener(event, handleActivity));
+      windowEvents.forEach((event) => window.removeEventListener(event, handleActivity));
+      window.removeEventListener('scroll', handleActivity, { capture: true });
+      if (scrollContainer) {
+        scrollContainer.removeEventListener('scroll', handleActivity);
+      }
       clearTimeout(inactivityTimerRef.current);
     };
-  }, [viewId]);
+  }, [viewId, scrollContainer]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
