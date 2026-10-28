@@ -117,6 +117,26 @@ class TestRecordPageView:
         view_session.refresh_from_db()
         assert view_session.completion_rate == 0.85
 
+    def test_record_page_view_with_spreadsheet_document(self, public_client, user):
+        """Test recording page view preserves media_type spreadsheet for spreadsheet documents."""
+        doc = Document.objects.create(name="Report.xlsx", type="spreadsheet", created_by=user, organization=user.organization)
+        link = ShareLink.objects.create(document=doc, created_by=user)
+        view_session = ViewSession.objects.create(share_link=link)
+
+        data = {
+            'view_session': view_session.id,
+            'page_number': 2,
+            'duration_seconds': 15,
+            'media_type': 'spreadsheet'
+        }
+        response = public_client.post('/api/v1/page-views/record/', data)
+
+        assert response.status_code == status.HTTP_200_OK
+        page_view = PageView.objects.get(view_session=view_session)
+        assert page_view.page_number == 2
+        assert page_view.duration_seconds == 15
+        assert page_view.media_type == 'spreadsheet'
+
     def test_record_page_view_scroll_percentage_range_validation(self, public_client, user):
         """Test that scroll_percentage outside 0-100 returns 400 Bad Request."""
         doc = Document.objects.create(name="README.md", type="markdown", created_by=user, organization=user.organization)

@@ -776,12 +776,15 @@ export function ShareLinkViewerPage() {
                   ref={viewerComponentRef}
                   spreadsheetUrl={viewData.spreadsheet_preview_url}
                   title={viewData.name}
+                  viewId={viewId}
+                  dataroomVisitId={dataroomVisitId}
                   watermarkText={
                     viewData.link_settings?.enable_watermark
                       ? (viewData.link_settings.resolved_watermark_text || viewData.link_settings.watermark_text || '')
                       : ''
                   }
                   allowDownload={viewData.link_settings?.allow_download ?? true}
+                  canCopy={viewData.link_settings?.can_copy ?? null}
                   zoomLevel={zoomLevel}
                   documentData={viewData}
                 />
