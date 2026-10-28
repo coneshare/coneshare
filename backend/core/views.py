@@ -1,4 +1,5 @@
 import logging
+import httpx
 from urllib.parse import urljoin
 
 from django.contrib.auth import get_user_model, logout
@@ -11,7 +12,7 @@ from django.core.cache import cache
 from django.db import connections
 from django.db import transaction
 from django.db import IntegrityError
-from django.db.utils import OperationalError
+from django.db.utils import DatabaseError
 from django.utils.encoding import force_bytes
 from django.utils.translation import gettext as _
 from django.utils import timezone
@@ -392,8 +393,8 @@ class LanguagesView(APIView):
 @extend_schema(tags=['core'])
 class HealthCheckView(APIView):
     """
-    Checks the health of the database and Redis cache.
-    Used by Docker for health checks.
+    Checks the health of the database, Redis cache, and file server.
+    Used by Docker / Kubernetes for health checks.
     """
     permission_classes = [permissions.AllowAny]
     throttle_classes = [ScopedRateThrottle]
@@ -402,6 +403,7 @@ class HealthCheckView(APIView):
     class HealthResponseSerializer(serializers.Serializer):
         database = serializers.CharField()
         redis = serializers.CharField()
+        file_server = serializers.CharField()
 
     @extend_schema(
         responses={200: HealthResponseSerializer, 503: HealthResponseSerializer},
@@ -410,27 +412,41 @@ class HealthCheckView(APIView):
         logger.debug('enter health check .. ')
         db_ok = False
         try:
-            connections['default'].cursor()
+            with connections['default'].cursor() as cursor:
+                cursor.execute("SELECT 1")
             db_ok = True
-        except OperationalError:
-            pass
+        except DatabaseError as exc:
+            logger.warning('Database health check failed: %s', exc)
         logger.debug('db checked')
 
         redis_ok = False
         try:
             cache.set('__health_check__', '1', 1)
             redis_ok = cache.get('__health_check__') == '1'
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning('Redis health check failed: %s', exc)
         logger.debug('redis checked')
+
+        fileserver_ok = False
+        core_api_url = getattr(settings, 'CORE_API_URL', 'http://core:8080')
+        try:
+            health_url = urljoin(core_api_url.rstrip('/') + '/', 'health')
+            res = httpx.get(health_url, timeout=0.5)
+            fileserver_ok = res.status_code == 200
+            if not fileserver_ok:
+                logger.warning('File server health check returned status code: %s', res.status_code)
+        except Exception as exc:
+            logger.warning('File server health check failed: %s', exc)
+        logger.debug('file server checked')
 
         health_status = {
             'database': 'ok' if db_ok else 'error',
-            'redis': 'ok' if redis_ok else 'error'
+            'redis': 'ok' if redis_ok else 'error',
+            'file_server': 'ok' if fileserver_ok else 'error',
         }
         logger.debug('finish health check.')
 
-        if db_ok and redis_ok:
+        if db_ok and redis_ok and fileserver_ok:
             return Response(health_status, status=status.HTTP_200_OK)
 
         return Response(health_status, status=status.HTTP_503_SERVICE_UNAVAILABLE)

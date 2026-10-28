@@ -2,9 +2,10 @@
 import ipaddress
 import os
 import re
+import signal
 import sys
 import time
-from subprocess import check_call
+from subprocess import check_call, Popen
 
 def initialize_logdir(app='coneshare'):
     """create log directory for app
@@ -90,22 +91,25 @@ def main(argv):
 
     if argv[1] == 'debug':
         print('Docker image is running, you can attach into the container for debug')
+        signal.signal(signal.SIGTERM, lambda s, f: sys.exit(0))
+        signal.signal(signal.SIGINT, lambda s, f: sys.exit(0))
         while 1:
             time.sleep(5)
     elif argv[1] == 'coneshare':
         check_call("gosu coneshare bash -c 'rm -rf /tmp/gunicorn.pid'", shell=True)
 
-        # Start the container.
-        check_call("supervisord -c /home/coneshare/runtime/supervisord/supervisord.conf", shell=True)
+        supervisord_proc = Popen(
+            ["supervisord", "-n", "-c", "/home/coneshare/runtime/supervisord/supervisord.conf"]
+        )
         time.sleep(5)
-        check_call("tail -f /home/coneshare/logs/*.log", shell=True)
-    # elif argv[1] == 'sudo':
-    #     command = ' '.join(argv[2:])  # Join all arguments after the first
-    #     check_call(f"{command}", shell=True)
+        Popen("tail -f /home/coneshare/logs/*.log", shell=True)
+
+        signal.signal(signal.SIGTERM, lambda s, f: supervisord_proc.terminate())
+        signal.signal(signal.SIGINT, lambda s, f: supervisord_proc.terminate())
+
+        sys.exit(supervisord_proc.wait())
     else:
-        # Run the command provided as the second argument
-        command = ' '.join(argv[1:])  # Join all arguments after the first
-        check_call(["gosu", "coneshare", "bash", "-c", command])
+        os.execvp("gosu", ["gosu", "coneshare"] + argv[1:])
 
 
 if __name__ == "__main__":
