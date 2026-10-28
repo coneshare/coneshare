@@ -107,9 +107,14 @@ class TestRendererRegistryPriority:
             ("application/zip", "archive.zip"),
             ("application/x-tar", "data.tar.gz"),
             ("application/octet-stream", "unknown.xyz"),
+            ("text/html", "index.html"),
+            ("text/markdown", "sample.html"),
+            ("application/pdf", "sample.html"),
+            ("text/markdown", "sample.htm"),
+            ("image/svg+xml", "sample.html"),
         ]:
             renderer = get_renderer_for_file(ct, fn)
-            assert isinstance(renderer, GenericFileRenderer), f"Failed for {fn}"
+            assert isinstance(renderer, GenericFileRenderer), f"Failed for {fn} with {ct}"
 
 
 @pytest.mark.django_db
@@ -129,6 +134,27 @@ class TestVersionResolutionAndOfficeDivergence:
             document=doc, version_number=1, original_storage_key="photo.png", content_type="image/png"
         )
         assert isinstance(get_renderer(ver), DirectImageRenderer)
+
+    def test_version_resolution_direct_image_with_benign_bin_storage_key(self, user):
+        doc = Document.objects.create(name="photo.png", type="image", created_by=user, organization=user.organization)
+        ver = DocumentVersion.objects.create(
+            document=doc, version_number=1, original_storage_key="photo.bin", content_type="image/png"
+        )
+        assert isinstance(get_renderer(ver), DirectImageRenderer)
+
+    def test_version_resolution_pdf_with_benign_bin_storage_key(self, user):
+        doc = Document.objects.create(name="report.pdf", type="pdf", created_by=user, organization=user.organization)
+        ver = DocumentVersion.objects.create(
+            document=doc, version_number=1, original_storage_key="report.bin", content_type="application/pdf"
+        )
+        assert isinstance(get_renderer(ver), PDFRenderer)
+
+    def test_version_resolution_dangerous_storage_key_falls_back_to_generic(self, user):
+        doc = Document.objects.create(name="readme.md", type="markdown", created_by=user, organization=user.organization)
+        ver = DocumentVersion.objects.create(
+            document=doc, version_number=1, original_storage_key="index.html", content_type="text/markdown"
+        )
+        assert isinstance(get_renderer(ver), GenericFileRenderer)
 
     def test_version_resolution_office_when_version_type_diverges_to_pdf(self, user):
         """When LibreOffice converts an Office doc to PDF, document.type='document' while version.type='pdf'."""

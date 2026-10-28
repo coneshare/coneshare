@@ -4,7 +4,7 @@ from typing import Optional
 from core import services as core_services
 from documents.models import Document, DocumentVersion
 from .base import BasePreviewRenderer
-from .constants import MARKDOWN_EXTENSIONS, MARKDOWN_MIMETYPES
+from .constants import DANGEROUS_SCRIPT_EXTENSIONS, MARKDOWN_EXTENSIONS, MARKDOWN_MIMETYPES
 from .utils import normalize_content_type
 
 
@@ -18,19 +18,27 @@ class MarkdownRenderer(BasePreviewRenderer):
 
     @classmethod
     def can_handle_file(cls, content_type: str, filename: str) -> bool:
-        norm_type = normalize_content_type(content_type, filename)
-        if norm_type in MARKDOWN_MIMETYPES:
-            return True
         if filename:
             ext = os.path.splitext(filename)[1].lower()
+            if ext in DANGEROUS_SCRIPT_EXTENSIONS:
+                return False
             if ext in MARKDOWN_EXTENSIONS:
                 return True
-        return False
+        norm_type = normalize_content_type(content_type, filename)
+        return norm_type in MARKDOWN_MIMETYPES
 
     @classmethod
     def can_handle_version(cls, version: DocumentVersion) -> bool:
         filename = version.document.name if version.document else ''
         storage_key = version.original_storage_key or version.storage_key or ''
+        if filename:
+            ext = os.path.splitext(filename)[1].lower()
+            if ext in DANGEROUS_SCRIPT_EXTENSIONS:
+                return False
+        if storage_key:
+            ext = os.path.splitext(storage_key)[1].lower()
+            if ext in DANGEROUS_SCRIPT_EXTENSIONS:
+                return False
         norm_type = normalize_content_type(version.content_type, filename)
         if norm_type in MARKDOWN_MIMETYPES:
             return True

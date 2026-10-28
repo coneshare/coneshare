@@ -71,7 +71,7 @@ class Organization(BaseModel):
         upload_to=organization_logo_path,
         null=True,
         blank=True,
-        validators=[FileExtensionValidator(allowed_extensions=['png', 'jpg', 'jpeg', 'svg'])]
+        validators=[FileExtensionValidator(allowed_extensions=['png', 'jpg', 'jpeg', 'webp'])]
     )
     brand_name = models.CharField(max_length=255, null=True, blank=True)
     brand_website_url = models.URLField(max_length=500, null=True, blank=True)

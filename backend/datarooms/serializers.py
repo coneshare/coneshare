@@ -208,6 +208,36 @@ class DataroomSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Uploaded file is not a valid image.")
         return value
 
+    def validate_branding_banner(self, value):
+        if not value:
+            return value
+        max_size_bytes = 5 * 1024 * 1024
+        if hasattr(value, 'size') and value.size > max_size_bytes:
+            raise serializers.ValidationError("Branding banner file size cannot exceed 5 MB.")
+        name = getattr(value, 'name', '') or ''
+        ext = os.path.splitext(name)[1].lower().lstrip('.')
+        allowed_extensions = ['png', 'jpg', 'jpeg', 'webp']
+        if ext and ext not in allowed_extensions:
+            raise serializers.ValidationError(
+                f"Unsupported file extension '{ext}'. Allowed extensions are: {', '.join(allowed_extensions)}."
+            )
+        try:
+            if hasattr(value, 'seek'):
+                value.seek(0)
+            img = Image.open(value)
+            img.verify()
+            if img.format not in ('PNG', 'JPEG', 'WEBP'):
+                raise serializers.ValidationError(
+                    f"Unsupported image format '{img.format}'. Allowed formats are PNG, JPEG, WEBP."
+                )
+            if hasattr(value, 'seek'):
+                value.seek(0)
+        except serializers.ValidationError:
+            raise
+        except Exception:
+            raise serializers.ValidationError("Uploaded file is not a valid image.")
+        return value
+
     def validate(self, attrs):
         request = self.context.get('request')
         if self.instance and request and hasattr(request, 'user') and request.user and request.user.is_authenticated:
