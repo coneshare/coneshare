@@ -68,6 +68,7 @@
     "src/tests/utils/previewState.test.js",
     "src/tests/components/viewer/GateLayout.test.jsx",
     "src/tests/pages/AllViewSessionsPage.test.jsx",
-    "src/tests/services/api.test.js"
+    "src/tests/services/api.test.js",
+    "src/tests/pages/DocumentsPage.test.jsx"
   ]
 }

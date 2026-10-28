@@ -108,7 +108,13 @@ function DocumentsPage() {
     }
   };
 
+  const fetchSeqRef = useRef(0);
+  const activeFolderIdRef = useRef(folderId);
+  activeFolderIdRef.current = folderId;
+
   const fetchData = useCallback(async () => {
+    const seq = ++fetchSeqRef.current;
+    const targetFolderId = folderId;
     setLoading(true);
     // Reset state before fetching
     setCurrentFolder(null);
@@ -116,9 +122,13 @@ function DocumentsPage() {
     setFolders([]);
 
     try {
-      const response = folderId
-        ? await getFolderContents(folderId)
+      const response = targetFolderId
+        ? await getFolderContents(targetFolderId)
         : await getRootFolderContents();
+
+      if (seq !== fetchSeqRef.current || targetFolderId !== activeFolderIdRef.current) {
+        return; // Discard stale response
+      }
 
       const { current_folder, sub_folders, documents } = response.data;
       setCurrentFolder(current_folder);
@@ -126,10 +136,15 @@ function DocumentsPage() {
       setDocuments(documents);
       setBreadcrumbData(current_folder);
     } catch (error) {
+      if (seq !== fetchSeqRef.current || targetFolderId !== activeFolderIdRef.current) {
+        return;
+      }
       console.error("Failed to fetch data:", error);
       // The API interceptor will show a toast for errors.
     } finally {
-      setLoading(false);
+      if (seq === fetchSeqRef.current && targetFolderId === activeFolderIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [folderId, setBreadcrumbData]);
 
@@ -322,6 +337,8 @@ function DocumentsPage() {
       return;
     }
 
+    const uploadTargetFolderId = folderId;
+
     // Add files to global state tracker
     const fileIdMap = addUploads(files);
 
@@ -405,7 +422,9 @@ function DocumentsPage() {
     });
 
     if (successfulUploads > 0) {
-      fetchData(); // Refresh data if at least one upload succeeded
+      if (activeFolderIdRef.current === uploadTargetFolderId) {
+        fetchData(); // Refresh data if at least one upload succeeded and user is still in the folder
+      }
       refreshUser(); // Refresh user quota
     }
   };

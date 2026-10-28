@@ -38,10 +38,45 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
+const readBlobText = (blob) => {
+  if (typeof blob.text === 'function') {
+    return blob.text();
+  }
+  if (typeof FileReader !== 'undefined') {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsText(blob);
+    });
+  }
+  return Promise.resolve('');
+};
+
 // Response interceptor to handle 401 errors and token refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // If the error response body is a Blob (e.g. from responseType: 'blob' requests),
+    // parse it so error details and protectionType can be read as JSON.
+    if (
+      error.response?.data instanceof Blob ||
+      (error.response?.data && typeof error.response.data === 'object' && typeof error.response.data.size === 'number')
+    ) {
+      try {
+        const text = await readBlobText(error.response.data);
+        try {
+          error.response.data = JSON.parse(text);
+        } catch {
+          if (text) {
+            error.response.data = { detail: text };
+          }
+        }
+      } catch (e) {
+        // Fallback: leave as Blob
+      }
+    }
+
     const originalRequest = error.config;
 
     const isPublicProtectionError =
@@ -50,14 +85,14 @@ api.interceptors.response.use(
 
     const isViewDataProtectionPrompt =
       error.response?.status === 401 &&
-      originalRequest.url.includes('/view-data/') &&
+      originalRequest?.url?.includes('/view-data/') &&
       ['password', 'email', 'nda'].includes(error.response?.data?.protectionType);
           
     // Check if the error is 401, not a retry, and not from a token-related endpoint or public link protect prompt
     if (
       error.response?.status === 401 &&
-      !originalRequest._retry &&
-      !originalRequest.url.includes('/token') &&
+      !originalRequest?._retry &&
+      !originalRequest?.url?.includes('/token') &&
       !isPublicProtectionError
     ) {
       if (isRefreshing) {
@@ -68,18 +103,34 @@ api.interceptors.response.use(
           .then(token => {
             originalRequest.headers['Authorization'] = 'Bearer ' + token;
             return api(originalRequest);
-          })
+          });
       }
 
       originalRequest._retry = true;
       isRefreshing = true;
+
+      const isPublicViewer =
+        typeof window !== 'undefined' &&
+        (window.location?.pathname?.startsWith('/view/') ||
+         window.location?.pathname?.startsWith('/upload/') ||
+         originalRequest?.url?.includes('/links/') ||
+         originalRequest?.url?.includes('/public/') ||
+         originalRequest?.url?.includes('/view-sessions/'));
 
       const refreshToken = localStorage.getItem('refresh_token');
       if (!refreshToken) {
         isRefreshing = false;
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
+
+        if (!isPublicViewer && typeof window !== 'undefined') {
+          window.location.href = '/login';
+        } else {
+          const errorMessage = getLocalizedErrorMessage(error);
+          if (!isViewDataProtectionPrompt && errorMessage) {
+            toast.error(errorMessage);
+          }
+        }
         return Promise.reject(error);
       }
 
@@ -99,7 +150,14 @@ api.interceptors.response.use(
             processQueue(err, null);
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
-            window.location.href = '/login';
+            if (!isPublicViewer && typeof window !== 'undefined') {
+              window.location.href = '/login';
+            } else {
+              const errorMessage = getLocalizedErrorMessage(error);
+              if (!isViewDataProtectionPrompt && errorMessage) {
+                toast.error(errorMessage);
+              }
+            }
             reject(err);
           })
           .finally(() => {
