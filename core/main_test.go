@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -417,6 +418,145 @@ func TestHandleDownloadSubpathAccessRestrictions(t *testing.T) {
 	r.ServeHTTP(wE, reqE)
 	if wE.Code != http.StatusForbidden {
 		t.Errorf("hls token with traversal subpath: expected 403 Forbidden, got %d", wE.Code)
+	}
+}
+
+func TestHandleDownloadPreviewSecurityHeaders(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "coneshare-test-preview")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	testFile := filepath.Join(tempDir, "doc.pdf")
+	if err := os.WriteFile(testFile, []byte("%PDF-1.4 test"), 0644); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	config := Config{
+		StoragePath: tempDir,
+	}
+
+	tokenStore["preview-pdf-token"] = TokenInfo{
+		StorageKey: "doc.pdf",
+		Filename:   "doc.pdf",
+		ExpiresAt:  time.Now().Add(1 * time.Hour),
+	}
+
+	r := chi.NewRouter()
+	r.Get("/files/preview/{token}", handleDownload(config, "inline"))
+
+	req := httptest.NewRequest("GET", "/files/preview/preview-pdf-token", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	if csp := w.Header().Get("Content-Security-Policy"); csp != "default-src 'none'; sandbox" {
+		t.Errorf("expected CSP 'default-src 'none'; sandbox', got %q", csp)
+	}
+	if nosniff := w.Header().Get("X-Content-Type-Options"); nosniff != "nosniff" {
+		t.Errorf("expected nosniff, got %q", nosniff)
+	}
+	if cd := w.Header().Get("Content-Disposition"); cd != "inline; filename*=UTF-8''doc.pdf" {
+		t.Errorf("expected inline disposition, got %q", cd)
+	}
+}
+
+func TestHandleDownloadForcesAttachmentForDangerousExtensions(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "coneshare-test-dangerous-preview")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	config := Config{
+		StoragePath: tempDir,
+	}
+
+	dangerousFiles := []struct {
+		filename string
+		content  string
+	}{
+		{"page.html", "<html><script>console.log(1)</script></html>"},
+		{"sample.htm", "<html><body>test</body></html>"},
+		{"vector.svg", "<svg><circle cx='5' cy='5' r='4'/></svg>"},
+		{"script.js", "console.log('hi');"},
+	}
+
+	r := chi.NewRouter()
+	r.Get("/files/preview/{token}", handleDownload(config, "inline"))
+
+	for i, df := range dangerousFiles {
+		filePath := filepath.Join(tempDir, df.filename)
+		if err := os.WriteFile(filePath, []byte(df.content), 0644); err != nil {
+			t.Fatalf("failed to write %s: %v", df.filename, err)
+		}
+
+		token := fmt.Sprintf("dangerous-token-%d", i)
+		tokenStore[token] = TokenInfo{
+			StorageKey: df.filename,
+			Filename:   df.filename,
+			ExpiresAt:  time.Now().Add(1 * time.Hour),
+		}
+
+		req := httptest.NewRequest("GET", "/files/preview/"+token, nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("file %s: expected status 200, got %d", df.filename, w.Code)
+		}
+
+		expectedCD := fmt.Sprintf("attachment; filename*=UTF-8''%s", df.filename)
+		if cd := w.Header().Get("Content-Disposition"); cd != expectedCD {
+			t.Errorf("file %s: expected Content-Disposition %q, got %q", df.filename, expectedCD, cd)
+		}
+		if nosniff := w.Header().Get("X-Content-Type-Options"); nosniff != "nosniff" {
+			t.Errorf("file %s: expected nosniff, got %q", df.filename, nosniff)
+		}
+	}
+
+	// Test diverging filename and storage key extension:
+	// Filename claims .png but physical file on disk is .html -> must still force attachment
+	divergingToken := "diverging-name-token"
+	tokenStore[divergingToken] = TokenInfo{
+		StorageKey: "page.html",
+		Filename:   "photo.png",
+		ExpiresAt:  time.Now().Add(1 * time.Hour),
+	}
+	reqDiverging := httptest.NewRequest("GET", "/files/preview/"+divergingToken, nil)
+	wDiverging := httptest.NewRecorder()
+	r.ServeHTTP(wDiverging, reqDiverging)
+	if wDiverging.Code != http.StatusOK {
+		t.Fatalf("diverging token: expected status 200, got %d", wDiverging.Code)
+	}
+	expectedDivergingCD := "attachment; filename*=UTF-8''photo.png"
+	if cd := wDiverging.Header().Get("Content-Disposition"); cd != expectedDivergingCD {
+		t.Errorf("diverging token: expected Content-Disposition %q, got %q", expectedDivergingCD, cd)
+	}
+
+	// Filename is dangerous but stored file on disk has a benign extension -> must still force attachment
+	if err := os.WriteFile(filepath.Join(tempDir, "payload.bin"), []byte("<html><body>content</body></html>"), 0644); err != nil {
+		t.Fatalf("failed to write payload.bin: %v", err)
+	}
+	benignKeyToken := "dangerous-filename-benign-key-token"
+	tokenStore[benignKeyToken] = TokenInfo{
+		StorageKey: "payload.bin",
+		Filename:   "page.html",
+		ExpiresAt:  time.Now().Add(1 * time.Hour),
+	}
+	reqBenign := httptest.NewRequest("GET", "/files/preview/"+benignKeyToken, nil)
+	wBenign := httptest.NewRecorder()
+	r.ServeHTTP(wBenign, reqBenign)
+	if wBenign.Code != http.StatusOK {
+		t.Fatalf("benign key token: expected status 200, got %d", wBenign.Code)
+	}
+	expectedBenignCD := "attachment; filename*=UTF-8''page.html"
+	if cd := wBenign.Header().Get("Content-Disposition"); cd != expectedBenignCD {
+		t.Errorf("benign key token: expected Content-Disposition %q, got %q", expectedBenignCD, cd)
 	}
 }
 

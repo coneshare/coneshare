@@ -1,4 +1,8 @@
+import csv
+import io
 import pytest
+from PIL import Image
+from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import status
 
 from core.models import AppConfiguration, Organization, User
@@ -278,8 +282,7 @@ class TestAdminOrganizationView:
         assert admin_user.organization.branding_extras.get('terms_url') == 'https://mycustombrand.com/terms'
         assert admin_user.organization.branding_extras.get('privacy_policy_url') == 'https://mycustombrand.com/privacy'
 
-    def test_patch_organization_branding_with_svg_logo(self, admin_api_client, admin_user):
-        from django.core.files.uploadedfile import SimpleUploadedFile
+    def test_patch_organization_branding_with_svg_logo_rejected(self, admin_api_client, admin_user):
         url = '/api/v1/admin/organization/'
         svg_content = b'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><circle cx="5" cy="5" r="4"/></svg>'
         svg_file = SimpleUploadedFile("logo.svg", svg_content, content_type="image/svg+xml")
@@ -289,13 +292,41 @@ class TestAdminOrganizationView:
             'brand_logo': svg_file,
         }
         response = admin_api_client.patch(url, data, format='multipart')
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'brand_logo' in response.data
+
+    def test_patch_organization_branding_with_corrupt_logo_rejected(self, admin_api_client, admin_user):
+        url = '/api/v1/admin/organization/'
+        corrupt_file = SimpleUploadedFile("logo.png", b"not-a-valid-image-binary", content_type="image/png")
+
+        data = {
+            'brand_name': 'My Custom Brand',
+            'brand_logo': corrupt_file,
+        }
+        response = admin_api_client.patch(url, data, format='multipart')
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'brand_logo' in response.data
+
+    def test_patch_organization_branding_with_png_logo(self, admin_api_client, admin_user):
+        url = '/api/v1/admin/organization/'
+
+        buf = io.BytesIO()
+        img = Image.new('RGB', (10, 10), color='blue')
+        img.save(buf, format='PNG')
+        png_file = SimpleUploadedFile("logo.png", buf.getvalue(), content_type="image/png")
+
+        data = {
+            'brand_name': 'My Custom Brand',
+            'brand_logo': png_file,
+        }
+        response = admin_api_client.patch(url, data, format='multipart')
         assert response.status_code == status.HTTP_200_OK
         assert response.data['brand_name'] == 'My Custom Brand'
-        assert 'logo.svg' in response.data['brand_logo_url']
+        assert 'logo.png' in response.data['brand_logo_url']
 
         admin_user.organization.refresh_from_db()
         assert admin_user.organization.brand_name == 'My Custom Brand'
-        assert admin_user.organization.brand_logo.name.endswith('logo.svg')
+        assert admin_user.organization.brand_logo.name.endswith('logo.png')
 
     def test_patch_organization_branding_clear_fields_and_partial_update(self, admin_api_client, admin_user):
         url = '/api/v1/admin/organization/'
@@ -633,9 +664,6 @@ class TestAdminUserExport:
     """
 
     def test_admin_can_export_users_csv(self, admin_api_client, admin_user, user):
-        import csv
-        import io
-
         user.total_document_size = 10 * 1024 * 1024
         user.custom_file_size_quota_mb = 500
         user.save()
@@ -676,9 +704,6 @@ class TestAdminUserExport:
         assert 'UTC' in user_row[6]
 
     def test_export_users_csv_respects_filters(self, admin_api_client, admin_user, user):
-        import csv
-        import io
-
         user.is_active = False
         user.save()
 
@@ -701,9 +726,6 @@ class TestAdminUserExport:
         assert user.email not in emails
 
     def test_export_users_csv_sanitizes_formula_injection(self, admin_api_client, admin_user):
-        import csv
-        import io
-
         User.objects.create_user(
             username='formula_user',
             email='=calc|x!A0@example.com',

@@ -42,6 +42,7 @@ from .services import (
     promote_document_version,
     touch_folder_ancestors,
     validate_storage_key,
+    validate_file_content_type_and_extension,
     ensure_storage_key_not_claimed,
     is_dataroom_vault_document,
     enforce_dataroom_storage_quota,
@@ -241,6 +242,11 @@ class DocumentUploadFinalizeView(APIView):
             )
             ensure_storage_key_not_claimed(
                 validated_data['storage_key'], request.user.organization.id
+            )
+            validate_file_content_type_and_extension(
+                validated_data.get('unique_name', ''),
+                validated_data.get('storage_key', ''),
+                validated_data.get('content_type', '')
             )
         except serializers.ValidationError as e:
             return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
@@ -543,6 +549,11 @@ class DocumentVersionUploadFinalizeView(APIView):
             )
             ensure_storage_key_not_claimed(
                 validated_data['storage_key'], document.organization.id
+            )
+            validate_file_content_type_and_extension(
+                document.name,
+                validated_data.get('storage_key', ''),
+                validated_data.get('content_type', '')
             )
         except serializers.ValidationError as e:
             return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
