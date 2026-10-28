@@ -910,9 +910,13 @@ class ShareLinkViewDataView(APIView):
         auth_status = request.session.get('authorized_share_links', {}).get(str(link.id), {})
         if not auth_status:
             authorized_links = request.session.get('authorized_share_links', {})
+            # Store False for password_verified and email_verified rather than True.
+            # An entry exists (truthy non-empty dict), satisfying require_session checks for
+            # unprotected links. If the owner later adds a password or email gate, the session
+            # will not falsely inherit bypass privileges and will be rejected until the real gate runs.
             authorized_links[str(link.id)] = {
-                'password_verified': True,  # Bypassed if not required
-                'email_verified': True,  # Bypassed if not required
+                'password_verified': False,
+                'email_verified': False,
                 'viewer_email': '',
                 'nda_accepted_version': 0,
             }
@@ -3256,6 +3260,22 @@ class ViewSessionViewSet(
         if auth_error:
             return auth_error
 
+        # If all checks passed, authorize the session for page views (matching ShareLinkViewDataView)
+        session_auth_status = request.session.get('authorized_share_links', {}).get(str(share_link.id), {})
+        if not session_auth_status:
+            authorized_links = request.session.get('authorized_share_links', {})
+            # Store False for password_verified and email_verified rather than True.
+            # An entry exists (truthy non-empty dict), satisfying require_session checks for
+            # unprotected links. If the owner later adds a password or email gate, the session
+            # will not falsely inherit bypass privileges and will be rejected until the real gate runs.
+            authorized_links[str(share_link.id)] = {
+                'password_verified': False,
+                'email_verified': False,
+                'viewer_email': '',
+                'nda_accepted_version': 0,
+            }
+            request.session['authorized_share_links'] = authorized_links
+
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
@@ -3360,6 +3380,23 @@ class RecordPageView(APIView):
         validated_data = serializer.validated_data
         view_session = validated_data['view_session']
         duration = validated_data['duration_seconds']
+        share_link = view_session.share_link
+
+        if not share_link.is_active or (share_link.document and share_link.document.deleted_at is not None):
+            return Response({'detail': 'This link is not available.'}, status=status.HTTP_404_NOT_FOUND)
+
+        preview_link_id = request.session.get('preview_link_id')
+        is_preview = bool(preview_link_id and str(preview_link_id) == str(share_link.id))
+
+        auth_error, _ = _verify_share_link_session_authorization(
+            share_link,
+            request,
+            is_preview=is_preview,
+            require_session=False,
+            nda_status_code=status.HTTP_403_FORBIDDEN,
+        )
+        if auth_error:
+            return auth_error
 
         try:
             with transaction.atomic():
