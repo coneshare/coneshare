@@ -1,5 +1,8 @@
+import io
 import pytest
+from PIL import Image
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -153,6 +156,32 @@ class TestUserViewSetPermissions:
         assert response.status_code == status.HTTP_200_OK
         user.refresh_from_db()
         assert user.name == 'Updated Via JSON'
+
+    def test_user_cannot_upload_svg_avatar(self, api_client, user):
+        svg_content = b'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><circle cx="5" cy="5" r="4"/></svg>'
+        svg_file = SimpleUploadedFile("avatar.svg", svg_content, content_type="image/svg+xml")
+        response = api_client.patch(f'/api/v1/users/{user.id}/', {'avatar': svg_file}, format='multipart')
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'avatar' in response.data
+
+    def test_user_cannot_upload_gif_disguised_as_png_avatar(self, api_client, user):
+        buf = io.BytesIO()
+        img = Image.new('RGB', (10, 10), color='blue')
+        img.save(buf, format='GIF')
+        gif_file = SimpleUploadedFile("avatar.png", buf.getvalue(), content_type="image/png")
+        response = api_client.patch(f'/api/v1/users/{user.id}/', {'avatar': gif_file}, format='multipart')
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'avatar' in response.data
+
+    def test_user_can_upload_valid_png_avatar(self, api_client, user):
+        buf = io.BytesIO()
+        img = Image.new('RGB', (20, 20), color='green')
+        img.save(buf, format='PNG')
+        png_file = SimpleUploadedFile("avatar.png", buf.getvalue(), content_type="image/png")
+        response = api_client.patch(f'/api/v1/users/{user.id}/', {'avatar': png_file}, format='multipart')
+        assert response.status_code == status.HTTP_200_OK
+        user.refresh_from_db()
+        assert user.avatar.name.endswith('.png')
 
     def test_user_cannot_update_other_user(self, api_client, user2):
         """A regular user cannot update another user's profile."""

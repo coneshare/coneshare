@@ -276,6 +276,29 @@ def validate_storage_key(storage_key: str, organization_id) -> str:
     return normalized_key
 
 
+def validate_file_content_type_and_extension(filename: str, storage_key: str, content_type: str):
+    """
+    Ensures that client-declared content_type and physical storage_key extension
+    do not conflict with the document name or masquerade as incompatible previewable types.
+    """
+    dangerous_script_extensions = ('.html', '.htm', '.xhtml', '.svg', '.xml', '.js', '.mjs', '.php', '.sh')
+    exts_to_check = set()
+    if filename:
+        exts_to_check.add(os.path.splitext(filename)[1].lower())
+    if storage_key:
+        exts_to_check.add(os.path.splitext(storage_key)[1].lower())
+
+    if exts_to_check & set(dangerous_script_extensions):
+        incompatible_preview_types = (
+            'text/markdown', 'text/x-markdown', 'application/pdf',
+            'image/png', 'image/jpeg', 'image/webp', 'image/gif',
+        )
+        if content_type and content_type.lower() in incompatible_preview_types:
+            raise serializers.ValidationError(
+                {"content_type": "Declared content type conflicts with file extension."}
+            )
+
+
 def is_storage_key_referenced(
     storage_key: str,
     organization_id,
@@ -410,6 +433,7 @@ def create_document_from_upload(
     file server, and routes it for processing.
     """
     ensure_storage_key_not_claimed(storage_key, requesting_user.organization.id)
+    validate_file_content_type_and_extension(unique_name, storage_key, content_type)
 
     if folder is None:
         folder, _ = Folder.objects.get_or_create(
@@ -695,6 +719,7 @@ def create_new_document_version(
     processing task based on file type and size.
     """
     ensure_storage_key_not_claimed(storage_key, document.organization_id)
+    validate_file_content_type_and_extension(document.name, storage_key, content_type)
 
     content_type = normalize_content_type(content_type, document.name)
     doc_type = _get_doc_type_from_content_type(content_type, document.name)

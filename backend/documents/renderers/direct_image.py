@@ -4,7 +4,7 @@ from typing import Optional
 from core import services as core_services
 from documents.models import Document, DocumentVersion
 from .base import BasePreviewRenderer
-from .constants import DIRECT_IMAGE_EXTENSIONS, DIRECT_IMAGE_MIMETYPES
+from .constants import DANGEROUS_SCRIPT_EXTENSIONS, DIRECT_IMAGE_EXTENSIONS, DIRECT_IMAGE_MIMETYPES
 from .utils import is_heic_file, normalize_content_type
 
 
@@ -19,21 +19,29 @@ class DirectImageRenderer(BasePreviewRenderer):
 
     @classmethod
     def can_handle_file(cls, content_type: str, filename: str) -> bool:
+        if filename:
+            ext = os.path.splitext(filename)[1].lower()
+            if ext in DANGEROUS_SCRIPT_EXTENSIONS:
+                return False
+            if ext in DIRECT_IMAGE_EXTENSIONS:
+                return True
         norm_type = normalize_content_type(content_type, filename)
         if is_heic_file(norm_type, filename):
             return False
-        if norm_type in DIRECT_IMAGE_MIMETYPES:
-            return True
-        if filename:
-            ext = os.path.splitext(filename)[1].lower()
-            if ext in DIRECT_IMAGE_EXTENSIONS:
-                return True
-        return False
+        return norm_type in DIRECT_IMAGE_MIMETYPES
 
     @classmethod
     def can_handle_version(cls, version: DocumentVersion) -> bool:
         filename = version.document.name if version.document else ''
         storage_key = version.original_storage_key or version.storage_key or ''
+        if filename:
+            ext = os.path.splitext(filename)[1].lower()
+            if ext in DANGEROUS_SCRIPT_EXTENSIONS:
+                return False
+        if storage_key:
+            ext = os.path.splitext(storage_key)[1].lower()
+            if ext in DANGEROUS_SCRIPT_EXTENSIONS:
+                return False
         norm_type = normalize_content_type(version.content_type, filename)
         if is_heic_file(norm_type, filename) or is_heic_file('', storage_key):
             return False

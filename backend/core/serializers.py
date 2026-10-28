@@ -1,5 +1,7 @@
 import logging
+import os
 from urllib.parse import urljoin
+from PIL import Image
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, password_validation
@@ -34,6 +36,36 @@ class OrganizationSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'brand_logo': {'write_only': True, 'required': False}
         }
+
+    def validate_brand_logo(self, value):
+        if not value:
+            return value
+        max_size_bytes = 2 * 1024 * 1024
+        if hasattr(value, 'size') and value.size > max_size_bytes:
+            raise serializers.ValidationError("Brand logo file size cannot exceed 2 MB.")
+        name = getattr(value, 'name', '') or ''
+        ext = os.path.splitext(name)[1].lower().lstrip('.')
+        allowed_extensions = ['png', 'jpg', 'jpeg', 'webp']
+        if ext and ext not in allowed_extensions:
+            raise serializers.ValidationError(
+                f"Unsupported file extension '{ext}'. Allowed extensions are: {', '.join(allowed_extensions)}."
+            )
+        try:
+            if hasattr(value, 'seek'):
+                value.seek(0)
+            img = Image.open(value)
+            img.verify()
+            if img.format not in ('PNG', 'JPEG', 'WEBP'):
+                raise serializers.ValidationError(
+                    f"Unsupported image format '{img.format}'. Allowed formats are PNG, JPEG, WEBP."
+                )
+            if hasattr(value, 'seek'):
+                value.seek(0)
+        except serializers.ValidationError:
+            raise
+        except Exception:
+            raise serializers.ValidationError("Uploaded file is not a valid image.")
+        return value
 
     @extend_schema_field(serializers.URLField(allow_null=True))
     def get_brand_logo_url(self, obj) -> str:
@@ -98,6 +130,36 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'avatar': {'write_only': True, 'required': False}
         }
+
+    def validate_avatar(self, value):
+        if not value:
+            return value
+        max_size_bytes = 2 * 1024 * 1024
+        if hasattr(value, 'size') and value.size > max_size_bytes:
+            raise serializers.ValidationError("Avatar file size cannot exceed 2 MB.")
+        name = getattr(value, 'name', '') or ''
+        ext = os.path.splitext(name)[1].lower().lstrip('.')
+        allowed_extensions = ['png', 'jpg', 'jpeg', 'webp']
+        if ext and ext not in allowed_extensions:
+            raise serializers.ValidationError(
+                f"Unsupported file extension '{ext}'. Allowed extensions are: {', '.join(allowed_extensions)}."
+            )
+        try:
+            if hasattr(value, 'seek'):
+                value.seek(0)
+            img = Image.open(value)
+            img.verify()
+            if img.format not in ('PNG', 'JPEG', 'WEBP'):
+                raise serializers.ValidationError(
+                    f"Unsupported image format '{img.format}'. Allowed formats are PNG, JPEG, WEBP."
+                )
+            if hasattr(value, 'seek'):
+                value.seek(0)
+        except serializers.ValidationError:
+            raise
+        except Exception:
+            raise serializers.ValidationError("Uploaded file is not a valid image.")
+        return value
 
 
     @extend_schema_field(serializers.URLField(allow_null=True))

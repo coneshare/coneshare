@@ -408,6 +408,18 @@ func copyFileHandler(config Config) http.HandlerFunc {
 	}
 }
 
+var dangerousInlineExtensions = map[string]bool{
+	".html":  true,
+	".htm":   true,
+	".xhtml": true,
+	".svg":   true,
+	".xml":   true,
+	".js":    true,
+	".mjs":   true,
+	".php":   true,
+	".sh":    true,
+}
+
 func handleDownload(config Config, disposition string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := chi.URLParam(r, "token")
@@ -485,9 +497,23 @@ func handleDownload(config Config, disposition string) http.HandlerFunc {
 		} else {
 			downloadName = filepath.Base(filePath)
 		}
+
+		downloadExt := strings.ToLower(filepath.Ext(downloadName))
+		fileExt := strings.ToLower(filepath.Ext(filePath))
+
+		effectiveDisposition := disposition
+		if effectiveDisposition == "inline" && (dangerousInlineExtensions[downloadExt] || dangerousInlineExtensions[fileExt]) {
+			effectiveDisposition = "attachment"
+		}
+
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if effectiveDisposition == "inline" {
+			w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
+		}
+
 		safeName := url.PathEscape(downloadName)
 		w.Header().Set("Content-Disposition",
-			fmt.Sprintf(`%s; filename*=UTF-8''%s`, disposition, safeName))
+			fmt.Sprintf(`%s; filename*=UTF-8''%s`, effectiveDisposition, safeName))
 		http.ServeFile(w, r, filePath)
 	}
 }

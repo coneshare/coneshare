@@ -1,4 +1,5 @@
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory, force_authenticate
@@ -542,6 +543,29 @@ class TestDataroomBrandingSerializers:
         assert "brand_logo_override" in serializer.errors
         err_msg = str(serializer.errors["brand_logo_override"]).lower()
         assert "svg" in err_msg and ("not allowed" in err_msg or "unsupported" in err_msg)
+
+    def test_dataroom_serializer_rejects_svg_branding_banner(self, dataroom, serializer_context):
+        svg_content = b'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="20"><rect width="100" height="20" fill="red"/></svg>'
+        svg_file = SimpleUploadedFile("banner.svg", svg_content, content_type="image/svg+xml")
+        serializer = DataroomSerializer(
+            instance=dataroom,
+            data={"branding_banner": svg_file},
+            partial=True,
+            context=serializer_context,
+        )
+        assert not serializer.is_valid()
+        assert "branding_banner" in serializer.errors
+
+    def test_dataroom_serializer_accepts_valid_png_branding_banner(self, dataroom, serializer_context):
+        png_data = _make_test_image_bytes(format="PNG")
+        banner_file = SimpleUploadedFile("banner.png", png_data, content_type="image/png")
+        serializer = DataroomSerializer(
+            instance=dataroom,
+            data={"branding_banner": banner_file},
+            partial=True,
+            context=serializer_context,
+        )
+        assert serializer.is_valid(), serializer.errors
 
     def test_dataroom_serializer_rejects_corrupted_or_non_image_brand_logo_override(self, dataroom, serializer_context):
         from django.core.files.uploadedfile import SimpleUploadedFile

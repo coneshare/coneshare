@@ -6,7 +6,7 @@ from django.conf import settings
 from core import services as core_services
 from documents.models import Document, DocumentVersion
 from .base import BasePreviewRenderer
-from .constants import PDF_EXTENSIONS, PDF_MIMETYPE, SPREADSHEET_EXTENSIONS
+from .constants import DANGEROUS_SCRIPT_EXTENSIONS, PDF_EXTENSIONS, PDF_MIMETYPE, SPREADSHEET_EXTENSIONS
 from .utils import normalize_content_type
 
 
@@ -21,14 +21,14 @@ class PDFRenderer(BasePreviewRenderer):
 
     @classmethod
     def can_handle_file(cls, content_type: str, filename: str) -> bool:
-        norm_type = normalize_content_type(content_type, filename)
-        if norm_type == PDF_MIMETYPE:
-            return True
         if filename:
             ext = os.path.splitext(filename)[1].lower()
+            if ext in DANGEROUS_SCRIPT_EXTENSIONS:
+                return False
             if ext in PDF_EXTENSIONS:
                 return True
-        return False
+        norm_type = normalize_content_type(content_type, filename)
+        return norm_type == PDF_MIMETYPE
 
     @classmethod
     def can_handle_version(cls, version: DocumentVersion) -> bool:
@@ -44,6 +44,14 @@ class PDFRenderer(BasePreviewRenderer):
             storage_key and os.path.splitext(storage_key)[1].lower() in SPREADSHEET_EXTENSIONS
         ):
             return False
+        if filename:
+            ext = os.path.splitext(filename)[1].lower()
+            if ext in DANGEROUS_SCRIPT_EXTENSIONS:
+                return False
+        if storage_key:
+            ext = os.path.splitext(storage_key)[1].lower()
+            if ext in DANGEROUS_SCRIPT_EXTENSIONS:
+                return False
         norm_type = normalize_content_type(version.content_type, filename)
         if norm_type == PDF_MIMETYPE:
             return True

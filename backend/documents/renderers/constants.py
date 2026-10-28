@@ -54,3 +54,8 @@ MARKDOWN_MIMETYPES = [
 ]
 MARKDOWN_EXTENSIONS = {'.md', '.markdown'}
 
+DANGEROUS_SCRIPT_EXTENSIONS = {
+    '.html', '.htm', '.xhtml', '.svg', '.xml', '.js', '.mjs', '.php', '.sh'
+}
+
+

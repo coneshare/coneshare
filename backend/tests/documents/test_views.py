@@ -2808,6 +2808,32 @@ class TestDocumentUploadConstraints:
         assert created_doc.file_size == 2048
 
     @patch('documents.views.fileserver_client.get_file_info')
+    def test_finalize_rejects_conflicting_extension_and_content_type(self, mock_get_info, api_client, user, organization):
+        api_client.force_authenticate(user=user)
+        mock_get_info.return_value = {'exists': True, 'size': 1024}
+
+        res = api_client.post('/api/v1/uploads/document/finalize/', {
+            'storage_key': f'{organization.id}/sample.html',
+            'unique_name': 'sample.html',
+            'content_type': 'text/markdown',
+        }, format='json')
+        assert res.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'conflicts with file extension' in str(res.data)
+
+    @patch('documents.views.fileserver_client.get_file_info')
+    def test_finalize_rejects_dangerous_storage_key_extension_with_safe_name(self, mock_get_info, api_client, user, organization):
+        api_client.force_authenticate(user=user)
+        mock_get_info.return_value = {'exists': True, 'size': 1024}
+
+        res = api_client.post('/api/v1/uploads/document/finalize/', {
+            'storage_key': f'{organization.id}/sample.html',
+            'unique_name': 'safe.md',
+            'content_type': 'text/x-markdown',
+        }, format='json')
+        assert res.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'conflicts with file extension' in str(res.data)
+
+    @patch('documents.views.fileserver_client.get_file_info')
     def test_version_upload_request_and_finalize_rejects_negative_and_zero_file_size(self, mock_get_info, api_client, user, organization):
         api_client.force_authenticate(user=user)
         doc = Document.objects.create(
