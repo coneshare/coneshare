@@ -25,9 +25,9 @@ describe("LoginPage", () => {
     authService.getPublicSettings.mockResolvedValue({ enable_public_signup: false });
   });
 
-  const renderComponent = () => {
+  const renderComponent = (initialEntries = ["/login"]) => {
     return render(
-      <MemoryRouter initialEntries={["/login"]}>
+      <MemoryRouter initialEntries={initialEntries}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<div>Homepage</div>} />
@@ -66,7 +66,73 @@ describe("LoginPage", () => {
     });
 
     await waitFor(() => {
-      expect(mockedNavigate).toHaveBeenCalledWith("/");
+      expect(mockedNavigate).toHaveBeenCalledWith("/", { replace: true });
+    });
+  });
+
+  it("navigates to location.state.from on successful login when provided", async () => {
+    authService.login.mockResolvedValue({});
+    renderComponent([
+      {
+        pathname: "/login",
+        state: { from: { pathname: "/documents", search: "?folder=f1", hash: "#row-2" } },
+      },
+    ]);
+
+    fireEvent.change(screen.getByLabelText(/Email address/i), {
+      target: { value: "test@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/Password/i), {
+      target: { value: "password123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Sign In/i }));
+
+    await waitFor(() => {
+      expect(mockedNavigate).toHaveBeenCalledWith("/documents?folder=f1#row-2", { replace: true });
+    });
+  });
+
+  it("falls back to '/' when location.state.from is /login or invalid external url", async () => {
+    authService.login.mockResolvedValue({});
+    renderComponent([
+      {
+        pathname: "/login",
+        state: { from: "/login" },
+      },
+    ]);
+
+    fireEvent.change(screen.getByLabelText(/Email address/i), {
+      target: { value: "test@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/Password/i), {
+      target: { value: "password123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Sign In/i }));
+
+    await waitFor(() => {
+      expect(mockedNavigate).toHaveBeenCalledWith("/", { replace: true });
+    });
+  });
+
+  it("falls back to '/' when location.state.from is protocol-relative", async () => {
+    authService.login.mockResolvedValue({});
+    renderComponent([
+      {
+        pathname: "/login",
+        state: { from: "//evil.com/phish" },
+      },
+    ]);
+
+    fireEvent.change(screen.getByLabelText(/Email address/i), {
+      target: { value: "test@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/Password/i), {
+      target: { value: "password123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Sign In/i }));
+
+    await waitFor(() => {
+      expect(mockedNavigate).toHaveBeenCalledWith("/", { replace: true });
     });
   });
 
