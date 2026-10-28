@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback, forwardRef } 
 import { useTranslation } from 'react-i18next';
 import { Search, AlertTriangle, FileSpreadsheet, Loader2, ChevronUp, ChevronDown, X } from 'lucide-react';
 import axios from 'axios';
+import { recordPageView } from '../../services/api';
 
 /**
  * Generates an SVG watermark pattern matching PdfJsViewer / PreviewViewer style.
@@ -29,6 +30,8 @@ const OVERSCAN_COLS = 3;
 export const SpreadsheetViewer = forwardRef(({
   spreadsheetUrl,
   title = 'Spreadsheet',
+  viewId,
+  dataroomVisitId,
   watermarkText = '',
   allowDownload = true,
   canCopy = null,
@@ -46,6 +49,20 @@ export const SpreadsheetViewer = forwardRef(({
   const [scrollState, setScrollState] = useState({ top: 0, left: 0, viewportWidth: 800, viewportHeight: 600 });
 
   const containerRef = useRef(null);
+  const timeOnSheetRef = useRef(0);
+  const activeSheetRef = useRef(activeSheetIndex);
+  activeSheetRef.current = activeSheetIndex;
+  const dataroomVisitIdRef = useRef(dataroomVisitId);
+  dataroomVisitIdRef.current = dataroomVisitId;
+  const loadingRef = useRef(loading);
+  loadingRef.current = loading;
+  const errorRef = useRef(error);
+  errorRef.current = error;
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  const intervalRef = useRef(null);
+  const isInactiveRef = useRef(false);
+  const inactivityTimerRef = useRef(null);
 
   // Resolved URL to fetch
   const urlToFetch = spreadsheetUrl || documentData?.spreadsheet_preview_url;
@@ -103,14 +120,24 @@ export const SpreadsheetViewer = forwardRef(({
     }
   }, []);
 
+  const INACTIVITY_TIMEOUT = 60000;
+  const handleActivity = useCallback(() => {
+    isInactiveRef.current = false;
+    clearTimeout(inactivityTimerRef.current);
+    inactivityTimerRef.current = setTimeout(() => {
+      isInactiveRef.current = true;
+    }, INACTIVITY_TIMEOUT);
+  }, []);
+
   const onScroll = useCallback((e) => {
+    handleActivity();
     const target = e.currentTarget;
     setScrollState((prev) => ({
       ...prev,
       top: target.scrollTop,
       left: target.scrollLeft,
     }));
-  }, []);
+  }, [handleActivity]);
 
   const activeSheet = useMemo(() => {
     if (!data || !data.sheets || !data.sheets[activeSheetIndex]) return null;
@@ -175,6 +202,98 @@ export const SpreadsheetViewer = forwardRef(({
       e.preventDefault();
     }
   }, [isProtected]);
+
+  const handleContextMenu = useCallback((e) => {
+    if (isProtected) {
+      e.preventDefault();
+    }
+  }, [isProtected]);
+
+  // Telemetry & duration tracking (matches MarkdownViewer & PdfJsViewer)
+  const sendTrackingData = useCallback((sheetIndex, duration, useBeacon = false) => {
+    if (!viewId || duration < 1) return;
+    const payload = {
+      view_session: viewId,
+      page_number: sheetIndex + 1,
+      duration_seconds: Math.round(duration),
+      media_type: 'spreadsheet',
+    };
+    if (dataroomVisitIdRef.current) {
+      payload.dataroom_visit = dataroomVisitIdRef.current;
+    }
+    recordPageView(payload, useBeacon);
+  }, [viewId]);
+
+  // Inactivity detection (60 seconds)
+  useEffect(() => {
+    if (!viewId) return;
+
+    const events = ['mousemove', 'keydown', 'mousedown'];
+    events.forEach((event) => window.addEventListener(event, handleActivity));
+    window.addEventListener('scroll', handleActivity, { capture: true, passive: true });
+    handleActivity();
+
+    return () => {
+      events.forEach((event) => window.removeEventListener(event, handleActivity));
+      window.removeEventListener('scroll', handleActivity, { capture: true });
+      clearTimeout(inactivityTimerRef.current);
+    };
+  }, [viewId, handleActivity]);
+
+  // Active time tracking loop (only when active and tab visible)
+  useEffect(() => {
+    if (!viewId) return;
+
+    const tick = () => {
+      const isReady = !loadingRef.current && !errorRef.current && Boolean(dataRef.current?.sheets?.length);
+      if (!isInactiveRef.current && !document.hidden && isReady) {
+        timeOnSheetRef.current += 1;
+        if (timeOnSheetRef.current >= 30) {
+          sendTrackingData(activeSheetRef.current, timeOnSheetRef.current);
+          timeOnSheetRef.current = 0;
+        }
+      }
+    };
+
+    intervalRef.current = setInterval(tick, 1000);
+
+    return () => {
+      clearInterval(intervalRef.current);
+      const isReady = !loadingRef.current && !errorRef.current && Boolean(dataRef.current?.sheets?.length);
+      if (isReady && timeOnSheetRef.current >= 1) {
+        sendTrackingData(activeSheetRef.current, timeOnSheetRef.current);
+        timeOnSheetRef.current = 0;
+      }
+    };
+  }, [viewId, sendTrackingData]);
+
+  // Send final telemetry on window unload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const isReady = !loadingRef.current && !errorRef.current && Boolean(dataRef.current?.sheets?.length);
+      if (isReady && timeOnSheetRef.current >= 1) {
+        sendTrackingData(activeSheetRef.current, timeOnSheetRef.current, true);
+        timeOnSheetRef.current = 0;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [sendTrackingData]);
+
+  // Sheet tab switching with duration flush
+  const handleSheetChange = useCallback((newIndex) => {
+    if (newIndex === activeSheetIndex) return;
+    const isReady = !loadingRef.current && !errorRef.current && Boolean(dataRef.current?.sheets?.length);
+    if (isReady && timeOnSheetRef.current >= 1) {
+      sendTrackingData(activeSheetIndex, timeOnSheetRef.current);
+      timeOnSheetRef.current = 0;
+    }
+    setActiveSheetIndex(newIndex);
+    setSelectedCell(null);
+  }, [activeSheetIndex, sendTrackingData]);
 
   // Real-time search matches calculation across active sheet
   const searchMatches = useMemo(() => {
@@ -295,10 +414,11 @@ export const SpreadsheetViewer = forwardRef(({
     <div
       ref={ref}
       aria-label={title || 'Spreadsheet'}
-      className={`relative flex flex-col h-full w-full bg-background overflow-hidden border border-border select-text ${
-        isProtected ? 'select-none' : ''
+      className={`relative flex flex-col h-full w-full bg-background overflow-hidden border border-border ${
+        isProtected ? 'select-none' : 'select-text'
       }`}
       onCopy={handleCopy}
+      onContextMenu={handleContextMenu}
     >
       {/* Top Controls Bar: Active Cell Coordinate + Search Input */}
       <div className="flex items-center justify-between px-3 py-1.5 border-b bg-muted/40 text-xs text-muted-foreground gap-3">
@@ -588,10 +708,7 @@ export const SpreadsheetViewer = forwardRef(({
               <button
                 key={sheet.id || sIdx}
                 type="button"
-                onClick={() => {
-                  setActiveSheetIndex(sIdx);
-                  setSelectedCell(null);
-                }}
+                onClick={() => handleSheetChange(sIdx)}
                 className={`flex items-center px-3 py-1 text-xs rounded-t border border-b-0 transition-colors whitespace-nowrap ${
                   isActive
                     ? 'bg-background text-primary font-semibold border-border border-t-2 border-t-primary'
