@@ -177,6 +177,71 @@ describe('PreviewViewer', () => {
     );
   });
 
+  describe('flushing on tab hide and unload', () => {
+    const setTabHidden = (hidden) => {
+      Object.defineProperty(document, 'hidden', { value: hidden, configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    };
+
+    afterEach(() => {
+      delete document.hidden;
+    });
+
+    it('should flush once when the tab is hidden and not count hidden time', () => {
+      const { unmount } = renderComponent({ viewId });
+
+      act(() => {
+        vi.advanceTimersByTime(4000);
+      });
+      act(() => {
+        setTabHidden(true);
+      });
+
+      expect(api.recordPageView).toHaveBeenCalledTimes(1);
+      expect(api.recordPageView).toHaveBeenCalledWith(
+        { view_session: viewId, page_number: 1, duration_seconds: 4 },
+        true
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(6000); // hidden, must not count
+      });
+      act(() => {
+        setTabHidden(false);
+      });
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      unmount();
+
+      expect(api.recordPageView).toHaveBeenCalledTimes(2);
+      expect(api.recordPageView).toHaveBeenLastCalledWith(
+        { view_session: viewId, page_number: 1, duration_seconds: 3 },
+        false
+      );
+    });
+
+    it('should not send the same seconds again on unmount after beforeunload', () => {
+      const { unmount } = renderComponent({ viewId });
+
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      act(() => {
+        window.dispatchEvent(new Event('beforeunload'));
+      });
+
+      unmount();
+
+      expect(api.recordPageView).toHaveBeenCalledTimes(1);
+      expect(api.recordPageView).toHaveBeenCalledWith(
+        { view_session: viewId, page_number: 1, duration_seconds: 5 },
+        true
+      );
+    });
+  });
+
   it('should pause time tracking after a period of inactivity', () => {
     const { unmount } = renderComponent({ viewId });
     const INACTIVITY_TIMEOUT = 60000;

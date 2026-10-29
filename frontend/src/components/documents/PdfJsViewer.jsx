@@ -149,13 +149,21 @@ export const PdfJsViewer = forwardRef(({
 
   // Flush remaining duration on window unload
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    // Also flush when the tab is hidden (mobile browsers often skip
+    // beforeunload), and reset the timer after every flush so no seconds are sent twice.
+    const flush = () => {
       sendTrackingData(activePageRef.current, timeOnPageRef.current, true);
+      timeOnPageRef.current = 0;
+    };
+    const handleVisibilityChange = () => {
+      if (document.hidden) flush();
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('beforeunload', flush);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('beforeunload', flush);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [sendTrackingData]);
 

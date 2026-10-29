@@ -55,7 +55,7 @@ export const PreviewViewer = forwardRef(({ documentData, zoomLevel, onPageChange
 
   useEffect(() => {
     const tick = () => {
-      if (!isInactiveRef.current) {
+      if (!isInactiveRef.current && !document.hidden) {
         timeOnPageRef.current += 1;
       }
     };
@@ -68,6 +68,7 @@ export const PreviewViewer = forwardRef(({ documentData, zoomLevel, onPageChange
       clearInterval(intervalRef.current);
       // Send final duration for the last active page when component unmounts
       sendTrackingData(activePageRef.current, timeOnPageRef.current);
+      timeOnPageRef.current = 0;
     };
   }, [viewId, sendTrackingData]);
 
@@ -105,13 +106,21 @@ export const PreviewViewer = forwardRef(({ documentData, zoomLevel, onPageChange
   }, [viewId, scrollContainer]);
 
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    // Also flush when the tab is hidden (mobile browsers often skip
+    // beforeunload), and reset the timer after every flush so no seconds are sent twice.
+    const flush = () => {
       sendTrackingData(activePageRef.current, timeOnPageRef.current, true);
+      timeOnPageRef.current = 0;
+    };
+    const handleVisibilityChange = () => {
+      if (document.hidden) flush();
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('beforeunload', flush);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('beforeunload', flush);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [sendTrackingData]);
 
