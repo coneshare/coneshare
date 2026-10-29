@@ -125,6 +125,41 @@ class TestDashboardAnalyticsViews:
             assert len(data['recent_links']) == 1
             assert len(data['recent_links'][0]['recent_view_sessions']) == 5
 
+    def test_dashboard_summary_includes_email_verification_method(self, api_client, user, document):
+        """
+        Test that dashboard summary returns email_verification_method in recent_views
+        and recent_links[].recent_view_sessions for badge display in UI.
+        """
+        link = ShareLink.objects.create(document=document, created_by=user, name="Badge Link")
+        vs_verified = ViewSession.objects.create(
+            share_link=link,
+            viewer_email="verified@example.com",
+            email_verification_method="verified",
+            viewed_at=timezone.now() - timedelta(minutes=1),
+        )
+        vs_self_reported = ViewSession.objects.create(
+            share_link=link,
+            viewer_email="self@example.com",
+            email_verification_method="self_reported",
+            viewed_at=timezone.now() - timedelta(minutes=2),
+        )
+
+        response = api_client.get('/api/v1/analytics/dashboard/')
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        views = data['recent_views']
+        assert len(views) == 2
+        assert views[0]['id'] == str(vs_verified.id)
+        assert views[0]['email_verification_method'] == 'verified'
+        assert views[1]['id'] == str(vs_self_reported.id)
+        assert views[1]['email_verification_method'] == 'self_reported'
+
+        link_sessions = data['recent_links'][0]['recent_view_sessions']
+        assert len(link_sessions) == 2
+        assert link_sessions[0]['email_verification_method'] == 'verified'
+        assert link_sessions[1]['email_verification_method'] == 'self_reported'
+
 
     def test_daily_visits_view(self, api_client, share_link, user2):
         """

@@ -159,13 +159,13 @@ class ViewSessionSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name', 'document_id', 'document_name', 'document_type',
             'dataroom_id', 'dataroom_name', 'ip_address', 'user_agent', 'country', 'city', 'latitude', 'longitude', 'duration_seconds',
-            'completion_rate', 'viewed_at', 'page_views', 'dataroom_visits', 'link_clicks', 'is_owner_view', 'downloaded_at'
+            'completion_rate', 'viewed_at', 'page_views', 'dataroom_visits', 'link_clicks', 'is_owner_view', 'downloaded_at', 'email_verification_method'
         ]
         read_only_fields = [
             'id', 'viewer', 'duration_seconds', 'completion_rate', 'viewed_at', 'ip_address', 'user_agent',
             'share_link_name', 'document_id', 'document_name', 'document_type', 'dataroom_id', 'dataroom_name',
             'country', 'city', 'latitude', 'longitude', 'page_views', 'dataroom_visits', 'link_clicks',
-            'is_owner_view', 'downloaded_at'
+            'is_owner_view', 'downloaded_at', 'email_verification_method'
         ]
     
     def get_is_owner_view(self, obj) -> bool:

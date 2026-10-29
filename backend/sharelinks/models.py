@@ -267,6 +267,13 @@ class ViewSession(models.Model):
     share_link = models.ForeignKey('ShareLink', on_delete=models.CASCADE, related_name='view_sessions')
     viewer = models.ForeignKey(Viewer, on_delete=models.SET_NULL, null=True, blank=True, related_name='view_sessions')
     viewer_email = models.EmailField(blank=True, default='')
+    # How viewer_email was obtained ('' = no email, or a session created before this field).
+    # db_default lets an older image keep inserting rows after a rollback.
+    email_verification_method = models.CharField(
+        max_length=20, blank=True, default='', db_default='',
+        choices=[('verified', 'Verified'), ('self_reported', 'Self-reported'),
+                 ('owner', 'Owner'), ('account', 'Account')],
+    )
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.CharField(max_length=255, blank=True)
     country = models.CharField(max_length=100, blank=True)
