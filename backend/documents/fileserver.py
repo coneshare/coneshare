@@ -56,9 +56,11 @@ class FileServerClient:
             return urljoin(self.base_url, relative_url)
         return urljoin(settings.SITE_DOMAIN, relative_url)
 
-    def generate_preview_url(self, storage_key: str, is_internal: bool = True) -> str:
+    def generate_preview_url(self, storage_key: str, is_internal: bool = True, expiry_seconds: int = None) -> str:
         """Requests a temporary URL for inline previewing a file."""
         data = {'storage_key': storage_key}
+        if expiry_seconds and expiry_seconds > 0:
+            data['expiry_seconds'] = expiry_seconds
         response_data = self._post('/internal/v1/generate-preview-url', data)
         relative_url = response_data.get('url')
         if is_internal:

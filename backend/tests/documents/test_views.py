@@ -1835,6 +1835,49 @@ def test_get_document_preview_data_client_pdf(mock_fs_preview_url, api_client, u
     assert data['pdf_preview_url'] == 'https://mock.fileserver/client_pdf.pdf'
 
 
+@pytest.mark.django_db
+@patch('documents.views.fileserver_client.generate_preview_url')
+def test_get_document_preview_data_video_stream_ttl(mock_fs_preview_url, api_client, user):
+    """Test that video preview URLs are generated with extended TTL based on video length."""
+    mock_fs_preview_url.return_value = "https://mock.fileserver/files/preview/token123"
+
+    doc = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name="test_video.mp4",
+        status="ready",
+        type="video",
+        content_type="video/mp4",
+    )
+    version = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        type="video",
+        is_primary=True,
+        original_storage_key="test_video.mp4",
+        storage_key="org_1/docs/video_hls",
+        render_status="ready",
+        length=18000,  # 5 hours
+    )
+
+    with override_settings(ENABLE_VIDEO_PREVIEW=True):
+        response = api_client.get(f'/api/v1/documents/{doc.id}/preview-data/')
+        assert response.status_code == 200
+        assert response.json()['preview_mode'] == 'video'
+        assert response.json()['video_preview_url'] == "https://mock.fileserver/files/preview/token123/playlist.m3u8"
+        # length 18000 + 3600 = 21600 (> 14400)
+        mock_fs_preview_url.assert_called_with("org_1/docs/video_hls", is_internal=False, expiry_seconds=21600)
+
+        # Short video (e.g. 120s) should fall back to 14400 (4 hours minimum)
+        version.length = 120
+        version.save()
+        mock_fs_preview_url.reset_mock()
+
+        response = api_client.get(f'/api/v1/documents/{doc.id}/preview-data/')
+        assert response.status_code == 200
+        mock_fs_preview_url.assert_called_with("org_1/docs/video_hls", is_internal=False, expiry_seconds=14400)
+
+
 def test_document_status_endpoint(api_client, user, organization):
     """Test retrieving document status via the lightweight status endpoint."""
     doc = Document.objects.create(

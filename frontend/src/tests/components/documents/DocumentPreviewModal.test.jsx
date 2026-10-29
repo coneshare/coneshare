@@ -6,6 +6,14 @@ import * as api from '../../../services/api';
 // Mock API service
 vi.mock('../../../services/api');
 
+vi.mock('../../../components/documents/VideoViewer', () => ({
+  VideoViewer: ({ onTokenExpired, videoUrl }) => (
+    <div data-testid="mock-video-viewer" data-url={videoUrl}>
+      <button onClick={onTokenExpired}>Trigger Token Expired</button>
+    </div>
+  ),
+}));
+
 describe('DocumentPreviewModal', () => {
   const mockFailedData = {
     name: 'test_file.pdf',
@@ -171,5 +179,145 @@ describe('DocumentPreviewModal', () => {
       vi.advanceTimersByTime(1000);
     });
     expect(screen.getByText('Retry generation')).toBeInTheDocument();
+  });
+
+  it('renders video preview and refreshes preview data when onTokenExpired is invoked', async () => {
+    const mockInitialVideoData = {
+      name: 'test_video.mp4',
+      preview_status: 'ready',
+      preview_mode: 'video',
+      video_preview_url: 'https://example.com/stream/playlist.m3u8?token=old',
+      download_url: 'https://example.com/download',
+    };
+
+    const mockRefreshedVideoData = {
+      name: 'test_video.mp4',
+      preview_status: 'ready',
+      preview_mode: 'video',
+      video_preview_url: 'https://example.com/stream/playlist.m3u8?token=refreshed_new',
+      download_url: 'https://example.com/download',
+    };
+
+    const mockGetPreview = vi.spyOn(api, 'getDocumentPreviewData')
+      .mockResolvedValueOnce({ data: mockInitialVideoData })
+      .mockResolvedValueOnce({ data: mockRefreshedVideoData });
+
+    render(
+      <DocumentPreviewModal
+        documentId="video-doc-1"
+        isOpen={true}
+        onOpenChange={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mockGetPreview).toHaveBeenCalledTimes(1);
+      expect(mockGetPreview).toHaveBeenCalledWith("video-doc-1", null);
+    });
+
+    const viewer = screen.getByTestId('mock-video-viewer');
+    expect(viewer).toBeInTheDocument();
+    expect(viewer.getAttribute('data-url')).toBe('https://example.com/stream/playlist.m3u8?token=old');
+
+    // Simulate token expiration callback from player
+    const triggerBtn = screen.getByText('Trigger Token Expired');
+    fireEvent.click(triggerBtn);
+
+    await waitFor(() => {
+      expect(mockGetPreview).toHaveBeenCalledTimes(2);
+      expect(viewer.getAttribute('data-url')).toBe('https://example.com/stream/playlist.m3u8?token=refreshed_new');
+    });
+  });
+
+  it('displays error message when token refresh fails', async () => {
+    const mockInitialVideoData = {
+      name: 'test_video.mp4',
+      preview_status: 'ready',
+      preview_mode: 'video',
+      video_preview_url: 'https://example.com/stream/playlist.m3u8?token=old',
+      download_url: 'https://example.com/download',
+    };
+
+    const mockGetPreview = vi.spyOn(api, 'getDocumentPreviewData')
+      .mockResolvedValueOnce({ data: mockInitialVideoData })
+      .mockRejectedValueOnce({
+        response: { data: { detail: 'Document access has been revoked.' } },
+      });
+
+    render(
+      <DocumentPreviewModal
+        documentId="video-doc-1"
+        isOpen={true}
+        onOpenChange={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mockGetPreview).toHaveBeenCalledTimes(1);
+    });
+
+    const triggerBtn = screen.getByText('Trigger Token Expired');
+    fireEvent.click(triggerBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Document access has been revoked.')).toBeInTheDocument();
+    });
+  });
+
+  it('does not write state if modal closes before token refresh completes', async () => {
+    const mockInitialVideoData = {
+      name: 'test_video.mp4',
+      preview_status: 'ready',
+      preview_mode: 'video',
+      video_preview_url: 'https://example.com/stream/playlist.m3u8?token=old',
+    };
+
+    let resolveRefresh;
+    const refreshPromise = new Promise((resolve) => {
+      resolveRefresh = resolve;
+    });
+
+    const mockGetPreview = vi.spyOn(api, 'getDocumentPreviewData')
+      .mockResolvedValueOnce({ data: mockInitialVideoData })
+      .mockImplementationOnce(() => refreshPromise);
+
+    const { rerender } = render(
+      <DocumentPreviewModal
+        documentId="video-doc-1"
+        isOpen={true}
+        onOpenChange={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mockGetPreview).toHaveBeenCalledTimes(1);
+    });
+
+    const triggerBtn = screen.getByText('Trigger Token Expired');
+    fireEvent.click(triggerBtn);
+
+    // Modal is closed while refresh is in flight
+    rerender(
+      <DocumentPreviewModal
+        documentId="video-doc-1"
+        isOpen={false}
+        onOpenChange={vi.fn()}
+      />
+    );
+
+    // Now late response resolves
+    await act(async () => {
+      resolveRefresh({
+        data: {
+          name: 'stale_video.mp4',
+          preview_status: 'ready',
+          preview_mode: 'video',
+          video_preview_url: 'https://example.com/stream/playlist.m3u8?token=stale',
+        },
+      });
+    });
+
+    // Modal is closed, should not render viewer
+    expect(screen.queryByTestId('mock-video-viewer')).toBeNull();
   });
 });

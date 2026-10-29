@@ -38,6 +38,23 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
     setRebuildTriggerCount((prev) => prev + 1);
   };
 
+  const handleTokenExpired = useCallback(async () => {
+    if (!isOpen || !documentId) return;
+    const requestContext = `${documentId}-${versionId}`;
+    try {
+      const response = await getDocumentPreviewData(documentId, versionId);
+      if (!isOpen || !documentId || lastLoadedDocRef.current !== requestContext) {
+        return;
+      }
+      setDocumentData(response.data);
+    } catch (err) {
+      console.error('Failed to refresh preview token:', err);
+      if (isOpen && documentId && lastLoadedDocRef.current === requestContext) {
+        setError(err.response?.data?.detail || 'Failed to refresh preview. Please reload the page.');
+      }
+    }
+  }, [isOpen, documentId, versionId]);
+
   const modalViewerRef = useRef(null);
   const viewerComponentRef = useRef(null);
   const lastLoadedDocRef = useRef(null);
@@ -252,6 +269,7 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
                 videoUrl={documentData.video_preview_url}
                 allowDownload={Boolean(documentData.download_url)}
                 downloadUrl={documentData.download_url}
+                onTokenExpired={handleTokenExpired}
               />
             </div>
           )}

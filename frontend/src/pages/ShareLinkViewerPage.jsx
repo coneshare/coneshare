@@ -764,6 +764,7 @@ export function ShareLinkViewerPage() {
                     dataroomVisitId={dataroomVisitId}
                     allowDownload={viewData.link_settings?.allow_download}
                     downloadUrl={downloadUrl}
+                    onTokenExpired={() => setRefetchTrigger((c) => c + 1)}
                   />
                 </div>
               ) : viewData.preview_mode === 'spreadsheet' ? (
