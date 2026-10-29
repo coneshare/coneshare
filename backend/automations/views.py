@@ -1,6 +1,7 @@
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.db.models import Q
 from drf_spectacular.utils import extend_schema
 from core.pagination import StandardResultsSetPagination
 from core.permissions import IsAdminOrReadOnly
@@ -22,8 +23,11 @@ class AutomationDestinationViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsAdminOrReadOnly]
 
     def get_queryset(self):
+        user = self.request.user
         return AutomationDestination.objects.filter(
-            organization=self.request.user.organization,
+            organization=user.organization,
+        ).filter(
+            ~Q(destination_type=AutomationDestination.DestinationType.EMAIL) | Q(created_by=user)
         )
 
     def perform_create(self, serializer):

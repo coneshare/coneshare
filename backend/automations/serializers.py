@@ -116,6 +116,12 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
             invalid = [d.id for d in destinations if d.organization_id != org.id]
             if invalid:
                 raise serializers.ValidationError(f'destinations contain ids outside your organization: {invalid}')
+            unauthorized_email = [
+                d.id for d in destinations
+                if d.destination_type == AutomationDestination.DestinationType.EMAIL and d.created_by_id != user.id
+            ]
+            if unauthorized_email:
+                raise serializers.ValidationError('Cannot attach email destinations belonging to another user.')
 
         # Require at least one destination for every automation rule.
         if self.instance:

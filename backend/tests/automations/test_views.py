@@ -132,6 +132,66 @@ class TestAutomationDestinationViewSet:
         assert other_user_destination.id in ids
         assert len(ids) == 2
 
+    def test_list_destinations_isolates_other_users_email_destinations(self, api_client, user, user2):
+        """
+        Verify that shared webhook destinations are visible organization-wide,
+        but personal email destinations are only visible to their creator.
+        """
+        shared_webhook = AutomationDestination.objects.create(
+            organization=user.organization,
+            created_by=user2,
+            name='Shared Team Webhook',
+            destination_type='webhook',
+            endpoint_url='https://example.com/webhook',
+        )
+        own_email_dest = AutomationDestination.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name=f'Default Email ({user.email})',
+            destination_type='email',
+            endpoint_url=None,
+        )
+        other_email_dest = AutomationDestination.objects.create(
+            organization=user.organization,
+            created_by=user2,
+            name=f'Default Email ({user2.email})',
+            destination_type='email',
+            endpoint_url=None,
+        )
+
+        response = api_client.get('/api/v1/automation-destinations/')
+        assert response.status_code == status.HTTP_200_OK
+
+        ids = {item['id'] for item in response.data}
+        assert shared_webhook.id in ids
+        assert own_email_dest.id in ids
+        assert other_email_dest.id not in ids
+        assert len(ids) == 2
+
+    def test_create_rule_cannot_attach_other_users_email_destination(self, api_client, user, user2):
+        other_email_dest = AutomationDestination.objects.create(
+            organization=user.organization,
+            created_by=user2,
+            name=f'Default Email ({user2.email})',
+            destination_type='email',
+            endpoint_url=None,
+        )
+
+        response = api_client.post(
+            '/api/v1/automations/',
+            {
+                'name': 'Malicious Hijack Rule',
+                'scope_type': 'global',
+                'subscribed_events': ['document_viewed'],
+                'actions': [{'type': 'notify_destination'}],
+                'destinations': [other_email_dest.id],
+            },
+            format='json',
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'Cannot attach email destinations belonging to another user' in str(response.data)
+
     def test_create_rule_allows_destination_in_same_org(self, api_client, user, user2):
         foreign_owned_destination = AutomationDestination.objects.create(
             organization=user.organization,
