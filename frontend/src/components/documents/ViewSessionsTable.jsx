@@ -23,6 +23,48 @@ import {
 import { parseUserAgent, isSafeUrl } from '../../lib/utils';
 import { formatDate } from '../../utils/formatters';
 
+function EmailVerificationBadge({ view, youLabel }) {
+  if (view.is_owner_view) {
+    return (
+      <span className="shrink-0 rounded-full bg-blue-100 dark:bg-blue-950/60 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:text-blue-300">
+        {youLabel}
+      </span>
+    );
+  }
+
+  const method = view.email_verification_method;
+  if (!method) return null;
+
+  switch (method) {
+    case 'verified':
+      return (
+        <span className="shrink-0 rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+          Verified
+        </span>
+      );
+    case 'self_reported':
+      return (
+        <span className="shrink-0 rounded-full bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+          Self-reported
+        </span>
+      );
+    case 'account':
+      return (
+        <span className="shrink-0 rounded-full bg-purple-100 dark:bg-purple-950/60 px-2 py-0.5 text-xs font-semibold text-purple-800 dark:text-purple-300">
+          Account
+        </span>
+      );
+    case 'owner':
+      return (
+        <span className="shrink-0 rounded-full bg-blue-100 dark:bg-blue-950/60 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:text-blue-300">
+          Owner
+        </span>
+      );
+    default:
+      return null;
+  }
+}
+
 function DataroomVisitRow({ visit }) {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -250,16 +292,12 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                           </button>
                         )}
                       </TableCell>
-                      <TableCell className="min-w-[160px] max-w-[220px]">
+                      <TableCell className="min-w-[160px] max-w-[240px]">
                         <div className="flex items-center gap-2 font-medium min-w-0">
                           <span className="truncate" title={view.viewer_email || t('viewSessions.anonymous')}>
                             {view.viewer_email || t('viewSessions.anonymous')}
                           </span>
-                          {view.is_owner_view && (
-                            <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">
-                              {t('viewSessions.you')}
-                            </span>
-                          )}
+                          <EmailVerificationBadge view={view} youLabel={t('viewSessions.you')} />
                         </div>
                         <div
                           className="text-xs text-muted-foreground truncate"

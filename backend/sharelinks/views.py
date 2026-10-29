@@ -840,11 +840,12 @@ class ShareLinkViewDataView(APIView):
                             
                             # Authorize the link in the session for page requests
                             authorized_links = request.session.get('authorized_share_links', {})
+                            is_owner = (session.user == session.share_link.created_by)
                             authorized_links[str(session.share_link.id)] = {
                                 'password_verified': True,
                                 'email_verified': True,
                                 'viewer_email': session.user.email,
-                                'email_method': 'owner',
+                                'email_method': 'owner' if is_owner else 'account',
                                 'nda_accepted_version': session.share_link.nda_version,
                             }
                             request.session['authorized_share_links'] = authorized_links
@@ -865,11 +866,12 @@ class ShareLinkViewDataView(APIView):
         # in the cookie context so that subsequent anonymous page/image requests pass.
         if can_user_manage_share_link(request.user, link):
             authorized_links = request.session.get('authorized_share_links', {})
+            is_owner = (request.user == link.created_by)
             authorized_links[str(link.id)] = {
                 'password_verified': True,
                 'email_verified': True,
                 'viewer_email': request.user.email,
-                'email_method': 'owner',
+                'email_method': 'owner' if is_owner else 'account',
                 'nda_accepted_version': link.nda_version,
             }
             request.session['authorized_share_links'] = authorized_links
@@ -1947,10 +1949,17 @@ class ShareLinkAcceptNDAView(APIView):
                 except Exception as e:
                     logger.error(f"GeoIP2 lookup failed: {e}")
 
+            email_method = auth_status.get('email_method', '')
+            if not email_val and request.user.is_authenticated:
+                email_val = request.user.email
+                is_owner = (request.user == link.created_by)
+                email_method = 'owner' if is_owner else 'account'
+
             view_session = ViewSession.objects.create(
                 share_link=link,
                 viewer=viewer,
                 viewer_email=email_val,
+                email_verification_method=email_method if email_val else '',
                 ip_address=ip_address,
                 user_agent=user_agent,
                 country=location_data.get('country_name') or '',
@@ -3297,7 +3306,8 @@ class ViewSessionViewSet(
         email_method = ''
         if preview_owner_email:
             viewer_email = preview_owner_email
-            email_method = 'owner'
+            is_owner = bool(share_link and share_link.created_by and preview_owner_email == share_link.created_by.email)
+            email_method = 'owner' if is_owner else 'account'
         else:
             # Attempt to find a regular viewer's email from the session if they've been
             # authorized via an email-required link.
@@ -3312,7 +3322,7 @@ class ViewSessionViewSet(
         # authenticated user and record their email.
         if not viewer_email and self.request.user.is_authenticated:
             viewer_email = self.request.user.email
-            is_owner = share_link and (self.request.user == share_link.created_by or self.request.user.is_staff)
+            is_owner = share_link and (self.request.user == share_link.created_by)
             email_method = 'owner' if is_owner else 'account'
 
         viewer = None

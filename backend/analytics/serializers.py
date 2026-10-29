@@ -25,7 +25,8 @@ class DashboardRecentViewSessionSerializer(serializers.ModelSerializer):
             'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name',
             'document_id', 'document_name', 'document_type', 'dataroom_id', 'dataroom_name',
             'ip_address', 'user_agent', 'country', 'city', 'latitude', 'longitude',
-            'duration_seconds', 'completion_rate', 'viewed_at', 'downloaded_at', 'is_owner_view'
+            'duration_seconds', 'completion_rate', 'viewed_at', 'downloaded_at', 'is_owner_view',
+            'email_verification_method'
         ]
         read_only_fields = fields
 

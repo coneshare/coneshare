@@ -194,4 +194,133 @@ describe('ViewSessionsTable - Audit Trail & Status Preservation', () => {
     expect(screen.getByText(/^Deleted$/i)).toBeInTheDocument();
     expect(screen.getByText(/^Downloaded$/i)).toBeInTheDocument();
   });
+
+  describe('Email Verification Badges', () => {
+    it('renders Verified badge when email_verification_method is verified', () => {
+      const views = [
+        {
+          ...baseViewSession,
+          id: 'session_verified',
+          viewer_email: 'verified@example.com',
+          email_verification_method: 'verified',
+        },
+      ];
+
+      renderWithRouter(
+        <ViewSessionsTable
+          views={views}
+          totalCount={1}
+          loading={false}
+          currentPage={1}
+          pageSize={10}
+          onPageChange={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText('verified@example.com')).toBeInTheDocument();
+      expect(screen.getByText('Verified')).toBeInTheDocument();
+    });
+
+    it('renders Self-reported badge when email_verification_method is self_reported', () => {
+      const views = [
+        {
+          ...baseViewSession,
+          id: 'session_self_reported',
+          viewer_email: 'typed@example.com',
+          email_verification_method: 'self_reported',
+        },
+      ];
+
+      renderWithRouter(
+        <ViewSessionsTable
+          views={views}
+          totalCount={1}
+          loading={false}
+          currentPage={1}
+          pageSize={10}
+          onPageChange={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText('typed@example.com')).toBeInTheDocument();
+      expect(screen.getByText('Self-reported')).toBeInTheDocument();
+    });
+
+    it('renders Account badge when email_verification_method is account', () => {
+      const views = [
+        {
+          ...baseViewSession,
+          id: 'session_account',
+          viewer_email: 'colleague@example.com',
+          email_verification_method: 'account',
+        },
+      ];
+
+      renderWithRouter(
+        <ViewSessionsTable
+          views={views}
+          totalCount={1}
+          loading={false}
+          currentPage={1}
+          pageSize={10}
+          onPageChange={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText('colleague@example.com')).toBeInTheDocument();
+      expect(screen.getByText('Account')).toBeInTheDocument();
+    });
+
+    it('renders Owner badge when email_verification_method is owner and is_owner_view is false', () => {
+      const views = [
+        {
+          ...baseViewSession,
+          id: 'session_owner',
+          viewer_email: 'creator@example.com',
+          email_verification_method: 'owner',
+          is_owner_view: false,
+        },
+      ];
+
+      renderWithRouter(
+        <ViewSessionsTable
+          views={views}
+          totalCount={1}
+          loading={false}
+          currentPage={1}
+          pageSize={10}
+          onPageChange={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText('creator@example.com')).toBeInTheDocument();
+      expect(screen.getByText('Owner')).toBeInTheDocument();
+    });
+
+    it('renders You badge when is_owner_view is true', () => {
+      const views = [
+        {
+          ...baseViewSession,
+          id: 'session_you',
+          viewer_email: 'me@example.com',
+          email_verification_method: 'owner',
+          is_owner_view: true,
+        },
+      ];
+
+      renderWithRouter(
+        <ViewSessionsTable
+          views={views}
+          totalCount={1}
+          loading={false}
+          currentPage={1}
+          pageSize={10}
+          onPageChange={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText('me@example.com')).toBeInTheDocument();
+      expect(screen.getByText(/You/i)).toBeInTheDocument();
+    });
+  });
 });
