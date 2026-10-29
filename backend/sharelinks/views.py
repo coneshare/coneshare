@@ -11,6 +11,7 @@ from urllib.parse import urljoin
 import requests
 from pdf2image import convert_from_bytes
 from django.conf import settings
+from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import send_mail
 from django.db import transaction
@@ -995,24 +996,32 @@ class ShareLinkViewDataView(APIView):
                 if not viewer_email and view_session:
                     viewer_email = view_session.viewer_email
 
-            if link.dataroom and dataroom_document_id:
-                extra_payload = {
-                    'document_id': str(document.id),
-                    'document_name': document.name,
-                }
-                if viewer_email:
-                    extra_payload['viewer_email'] = viewer_email
-                if view_session_id:
-                    extra_payload['view_session_id'] = view_session_id
-                if dataroom_visit_id:
-                    extra_payload['dataroom_visit_id'] = dataroom_visit_id
-                _dispatch_automation_event(link, 'document_viewed', extra_payload, view_session=view_session)
-
             if not primary_version or document.status != 'ready':
                 return Response(
                     {"message": "Document is not yet ready for viewing."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+
+            if link.dataroom and dataroom_document_id:
+                session_identifier = view_session_id
+                if not session_identifier:
+                    if not request.session.session_key:
+                        request.session.save()
+                    session_identifier = request.session.session_key
+
+                dedup_key = f"dataroom_doc_viewed:{link.id}:{session_identifier}:{document.id}"
+                if cache.add(dedup_key, True, timeout=7200):
+                    extra_payload = {
+                        'document_id': str(document.id),
+                        'document_name': document.name,
+                    }
+                    if viewer_email:
+                        extra_payload['viewer_email'] = viewer_email
+                    if view_session_id:
+                        extra_payload['view_session_id'] = view_session_id
+                    if dataroom_visit_id:
+                        extra_payload['dataroom_visit_id'] = dataroom_visit_id
+                    _dispatch_automation_event(link, 'document_viewed', extra_payload, view_session=view_session)
 
             renderer = get_renderer(primary_version)
             preview_mode = renderer.get_preview_mode(primary_version)
