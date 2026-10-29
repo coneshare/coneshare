@@ -580,3 +580,106 @@ func TestHealthHandler(t *testing.T) {
 		t.Errorf("expected status 'ok', got %q", res["status"])
 	}
 }
+
+func TestGeneratePreviewURLExpiryDuration(t *testing.T) {
+	handler := generateURLHandler("preview", 5*time.Minute)
+
+	// 1. Regular file without custom expiry -> 5 minutes
+	reqBody1 := URLRequest{StorageKey: "docs/sample.pdf"}
+	body1, _ := json.Marshal(reqBody1)
+	req1 := httptest.NewRequest("POST", "/internal/v1/generate-preview-url", strings.NewReader(string(body1)))
+	w1 := httptest.NewRecorder()
+	handler.ServeHTTP(w1, req1)
+	if w1.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w1.Code)
+	}
+	var res1 URLResponse
+	json.Unmarshal(w1.Body.Bytes(), &res1)
+	token1 := strings.TrimPrefix(res1.URL, "/files/preview/")
+	storeLock.RLock()
+	info1 := tokenStore[token1]
+	storeLock.RUnlock()
+	d1 := time.Until(info1.ExpiresAt)
+	if d1 < 4*time.Minute || d1 > 6*time.Minute {
+		t.Errorf("expected ~5m expiry for regular file, got %v", d1)
+	}
+
+	// 2. Video HLS playlist without custom expiry -> defaults to 4 hours
+	reqBody2 := URLRequest{StorageKey: "videos/vid_hls/playlist.m3u8"}
+	body2, _ := json.Marshal(reqBody2)
+	req2 := httptest.NewRequest("POST", "/internal/v1/generate-preview-url", strings.NewReader(string(body2)))
+	w2 := httptest.NewRecorder()
+	handler.ServeHTTP(w2, req2)
+	if w2.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w2.Code)
+	}
+	var res2 URLResponse
+	json.Unmarshal(w2.Body.Bytes(), &res2)
+	token2 := strings.TrimPrefix(res2.URL, "/files/preview/")
+	storeLock.RLock()
+	info2 := tokenStore[token2]
+	storeLock.RUnlock()
+	d2 := time.Until(info2.ExpiresAt)
+	if d2 < 3*time.Hour+50*time.Minute || d2 > 4*time.Hour+10*time.Minute {
+		t.Errorf("expected ~4h expiry for HLS video stream, got %v", d2)
+	}
+
+	// 3. Custom expiry_seconds provided (e.g. 2 hours = 7200s)
+	reqBody3 := URLRequest{StorageKey: "docs/sample.pdf", ExpirySeconds: 7200}
+	body3, _ := json.Marshal(reqBody3)
+	req3 := httptest.NewRequest("POST", "/internal/v1/generate-preview-url", strings.NewReader(string(body3)))
+	w3 := httptest.NewRecorder()
+	handler.ServeHTTP(w3, req3)
+	if w3.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w3.Code)
+	}
+	var res3 URLResponse
+	json.Unmarshal(w3.Body.Bytes(), &res3)
+	token3 := strings.TrimPrefix(res3.URL, "/files/preview/")
+	storeLock.RLock()
+	info3 := tokenStore[token3]
+	storeLock.RUnlock()
+	d3 := time.Until(info3.ExpiresAt)
+	if d3 < 1*time.Hour+50*time.Minute || d3 > 2*time.Hour+10*time.Minute {
+		t.Errorf("expected ~2h custom expiry, got %v", d3)
+	}
+
+	// 4. Custom expiry exceeding 24 hours -> capped at 24 hours
+	reqBody4 := URLRequest{StorageKey: "docs/sample.pdf", ExpirySeconds: 100000} // > 27 hours
+	body4, _ := json.Marshal(reqBody4)
+	req4 := httptest.NewRequest("POST", "/internal/v1/generate-preview-url", strings.NewReader(string(body4)))
+	w4 := httptest.NewRecorder()
+	handler.ServeHTTP(w4, req4)
+	if w4.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w4.Code)
+	}
+	var res4 URLResponse
+	json.Unmarshal(w4.Body.Bytes(), &res4)
+	token4 := strings.TrimPrefix(res4.URL, "/files/preview/")
+	storeLock.RLock()
+	info4 := tokenStore[token4]
+	storeLock.RUnlock()
+	d4 := time.Until(info4.ExpiresAt)
+	if d4 < 23*time.Hour+50*time.Minute || d4 > 24*time.Hour+time.Second {
+		t.Errorf("expected capped at ~24h, got %v", d4)
+	}
+
+	// 5. Huge ExpirySeconds that would overflow int64 if multiplied by time.Second (10 billion seconds)
+	body5, _ := json.Marshal(URLRequest{StorageKey: "org1/doc.pdf", ExpirySeconds: 10000000000})
+	req5 := httptest.NewRequest("POST", "/internal/v1/generate-preview-url", strings.NewReader(string(body5)))
+	w5 := httptest.NewRecorder()
+	handler.ServeHTTP(w5, req5)
+	if w5.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w5.Code)
+	}
+	var res5 URLResponse
+	json.Unmarshal(w5.Body.Bytes(), &res5)
+	token5 := strings.TrimPrefix(res5.URL, "/files/preview/")
+	storeLock.RLock()
+	info5 := tokenStore[token5]
+	storeLock.RUnlock()
+	d5 := time.Until(info5.ExpiresAt)
+	if d5 < 23*time.Hour+50*time.Minute || d5 > 24*time.Hour+time.Second {
+		t.Errorf("expected huge value capped at ~24h without overflow, got %v", d5)
+	}
+}

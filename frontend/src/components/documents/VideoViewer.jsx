@@ -10,6 +10,7 @@ export const VideoViewer = forwardRef(({
   dataroomVisitId,
   allowDownload = false,
   downloadUrl = '',
+  onTokenExpired = null,
 }, ref) => {
   const { t } = useTranslation();
   const videoRef = useRef(null);
@@ -93,9 +94,57 @@ export const VideoViewer = forwardRef(({
     }
   }, [viewId, dataroomVisitId]);
 
+  const savedPositionRef = useRef(0);
+  const isRefreshingTokenRef = useRef(false);
+  const resumeAfterRefreshRef = useRef(false);
+  const expiringVideoUrlRef = useRef(null);
+  const onTokenExpiredRef = useRef(onTokenExpired);
+
+  useEffect(() => {
+    onTokenExpiredRef.current = onTokenExpired;
+  }, [onTokenExpired]);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !videoUrl) return;
+
+    const getBaseVideoPath = (url) => {
+      if (!url) return '';
+      try {
+        return new URL(url, window.location.origin).pathname;
+      } catch {
+        return url.split('?')[0];
+      }
+    };
+
+    const isSameVideoRefresh = isRefreshingTokenRef.current &&
+      expiringVideoUrlRef.current &&
+      getBaseVideoPath(expiringVideoUrlRef.current) === getBaseVideoPath(videoUrl);
+
+    if (!isSameVideoRefresh) {
+      savedPositionRef.current = 0;
+      resumeAfterRefreshRef.current = false;
+    }
+    isRefreshingTokenRef.current = false;
+    expiringVideoUrlRef.current = null;
+
+    const handleTimeUpdate = () => {
+      if (video.currentTime > 0) {
+        savedPositionRef.current = video.currentTime;
+      }
+    };
+    video.addEventListener('timeupdate', handleTimeUpdate);
+
+    const handleLoadedMetadata = () => {
+      if (savedPositionRef.current > 0 && Math.abs(video.currentTime - savedPositionRef.current) > 0.5) {
+        video.currentTime = savedPositionRef.current;
+      }
+      if (resumeAfterRefreshRef.current) {
+        resumeAfterRefreshRef.current = false;
+        video.play()?.catch(() => {});
+      }
+    };
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
 
     if (Hls.isSupported()) {
       const hls = new Hls({
@@ -109,6 +158,13 @@ export const VideoViewer = forwardRef(({
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
+              if ((data.response?.code === 401 || data.response?.code === 403) && typeof onTokenExpiredRef.current === 'function') {
+                isRefreshingTokenRef.current = true;
+                resumeAfterRefreshRef.current = !video.paused;
+                expiringVideoUrlRef.current = videoUrl;
+                onTokenExpiredRef.current();
+                break;
+              }
               hls.startLoad();
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
@@ -120,11 +176,15 @@ export const VideoViewer = forwardRef(({
         }
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Native HLS support (Safari)
+      // Native HLS support (Safari/iOS).
+      // Note: HTMLMediaElement error events do not expose HTTP status codes (such as 401/403),
+      // so playback relies on server-side extended stream TTL (max(4h, duration + 1h)).
       video.src = videoUrl;
     }
 
     return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;

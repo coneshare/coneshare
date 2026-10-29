@@ -1,4 +1,4 @@
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import '../../../i18n';
 import { VideoViewer } from '../../../components/documents/VideoViewer';
@@ -282,5 +282,285 @@ describe('VideoViewer', () => {
       ref.current.seekBy(-10);
     });
     expect(video.currentTime).toBe(5);
+  });
+
+  it('calls onTokenExpired when fatal network error receives 401 or 403 response', () => {
+    const onTokenExpired = vi.fn();
+    render(
+      <VideoViewer
+        videoUrl={videoUrl}
+        viewId={viewId}
+        onTokenExpired={onTokenExpired}
+      />
+    );
+
+    const hlsInstance = vi.mocked(Hls).mock.results[0].value;
+    const errorCallback = hlsInstance.on.mock.calls.find(
+      ([event]) => event === Hls.Events.ERROR
+    )?.[1];
+
+    expect(errorCallback).toBeDefined();
+
+    // Trigger fatal 403 error
+    act(() => {
+      errorCallback('hlsError', {
+        fatal: true,
+        type: Hls.ErrorTypes.NETWORK_ERROR,
+        response: { code: 403 },
+      });
+    });
+
+    expect(onTokenExpired).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onTokenExpired when fatal network error receives 401 response', () => {
+    const onTokenExpired = vi.fn();
+    render(
+      <VideoViewer
+        videoUrl={videoUrl}
+        viewId={viewId}
+        onTokenExpired={onTokenExpired}
+      />
+    );
+
+    const hlsInstance = vi.mocked(Hls).mock.results[0].value;
+    const errorCallback = hlsInstance.on.mock.calls.find(
+      ([event]) => event === Hls.Events.ERROR
+    )?.[1];
+
+    expect(errorCallback).toBeDefined();
+
+    // Trigger fatal 401 error
+    act(() => {
+      errorCallback('hlsError', {
+        fatal: true,
+        type: Hls.ErrorTypes.NETWORK_ERROR,
+        response: { code: 401 },
+      });
+    });
+
+    expect(onTokenExpired).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not recreate Hls instance when onTokenExpired reference changes on parent re-render and routes to latest callback', () => {
+    const onTokenExpired1 = vi.fn();
+    const { rerender } = render(
+      <VideoViewer
+        videoUrl={videoUrl}
+        viewId={viewId}
+        onTokenExpired={onTokenExpired1}
+      />
+    );
+
+    const hlsInstance = vi.mocked(Hls).mock.results[0].value;
+    expect(hlsInstance.destroy).not.toHaveBeenCalled();
+
+    // Rerender with a new function reference as callers often pass inline arrow functions
+    const onTokenExpired2 = vi.fn();
+    rerender(
+      <VideoViewer
+        videoUrl={videoUrl}
+        viewId={viewId}
+        onTokenExpired={onTokenExpired2}
+      />
+    );
+
+    // Hls should not be destroyed or re-created
+    expect(hlsInstance.destroy).not.toHaveBeenCalled();
+    expect(vi.mocked(Hls).mock.results.length).toBe(1);
+
+    // Trigger error and assert the latest callback (onTokenExpired2) is invoked
+    const errorCallback = hlsInstance.on.mock.calls.find(
+      ([event]) => event === Hls.Events.ERROR
+    )?.[1];
+    act(() => {
+      errorCallback('hlsError', {
+        fatal: true,
+        type: Hls.ErrorTypes.NETWORK_ERROR,
+        response: { code: 403 },
+      });
+    });
+
+    expect(onTokenExpired2).toHaveBeenCalledTimes(1);
+    expect(onTokenExpired1).not.toHaveBeenCalled();
+  });
+
+  it('resets saved position when switching videoUrl without token expiration', () => {
+    const { container, rerender } = render(
+      <VideoViewer
+        videoUrl="https://example.com/video1.m3u8"
+        viewId={viewId}
+      />
+    );
+
+    const video = container.querySelector('video');
+    Object.defineProperty(video, 'currentTime', {
+      writable: true,
+      value: 45,
+    });
+    fireEvent.timeUpdate(video);
+
+    // Switch to video 2 directly without token expiration
+    rerender(
+      <VideoViewer
+        videoUrl="https://example.com/video2.m3u8"
+        viewId={viewId}
+      />
+    );
+
+    // Simulate loadedmetadata for new video
+    video.currentTime = 0;
+    fireEvent.loadedMetadata(video);
+
+    // Should NOT jump to 45
+    expect(video.currentTime).toBe(0);
+  });
+
+  it('preserves and restores saved position when videoUrl changes after token expiration', () => {
+    const onTokenExpired = vi.fn();
+    const { container, rerender } = render(
+      <VideoViewer
+        videoUrl="https://example.com/video1.m3u8?token=old"
+        viewId={viewId}
+        onTokenExpired={onTokenExpired}
+      />
+    );
+
+    const video = container.querySelector('video');
+    Object.defineProperty(video, 'currentTime', {
+      writable: true,
+      value: 60,
+    });
+    fireEvent.timeUpdate(video);
+
+    // Trigger token expiration
+    const hlsInstance = vi.mocked(Hls).mock.results[0].value;
+    const errorCallback = hlsInstance.on.mock.calls.find(
+      ([event]) => event === Hls.Events.ERROR
+    )?.[1];
+
+    act(() => {
+      errorCallback('hlsError', {
+        fatal: true,
+        type: Hls.ErrorTypes.NETWORK_ERROR,
+        response: { code: 403 },
+      });
+    });
+
+    expect(onTokenExpired).toHaveBeenCalledTimes(1);
+
+    // Rerender with refreshed token
+    rerender(
+      <VideoViewer
+        videoUrl="https://example.com/video1.m3u8?token=new"
+        viewId={viewId}
+        onTokenExpired={onTokenExpired}
+      />
+    );
+
+    video.currentTime = 0;
+    fireEvent.loadedMetadata(video);
+
+    // Should restore position to 60
+    expect(video.currentTime).toBe(60);
+  });
+
+  it('resumes playback after token refresh when video was actively playing', () => {
+    const onTokenExpired = vi.fn();
+    const { container, rerender } = render(
+      <VideoViewer
+        videoUrl="https://example.com/stream/video.m3u8?token=old"
+        viewId={viewId}
+        onTokenExpired={onTokenExpired}
+      />
+    );
+
+    const video = container.querySelector('video');
+    Object.defineProperty(video, 'paused', {
+      writable: true,
+      value: false, // Actively playing
+    });
+    Object.defineProperty(video, 'currentTime', {
+      writable: true,
+      value: 120,
+    });
+    video.play = vi.fn().mockResolvedValue();
+    fireEvent.timeUpdate(video);
+
+    // Trigger token expiration
+    const hlsInstance = vi.mocked(Hls).mock.results[0].value;
+    const errorCallback = hlsInstance.on.mock.calls.find(
+      ([event]) => event === Hls.Events.ERROR
+    )?.[1];
+
+    act(() => {
+      errorCallback('hlsError', {
+        fatal: true,
+        type: Hls.ErrorTypes.NETWORK_ERROR,
+        response: { code: 403 },
+      });
+    });
+
+    // Rerender with refreshed token
+    rerender(
+      <VideoViewer
+        videoUrl="https://example.com/stream/video.m3u8?token=new"
+        viewId={viewId}
+        onTokenExpired={onTokenExpired}
+      />
+    );
+
+    video.currentTime = 0;
+    fireEvent.loadedMetadata(video);
+
+    expect(video.currentTime).toBe(120);
+    expect(video.play).toHaveBeenCalledTimes(1);
+  });
+
+  it('discards saved position if URL switches to a completely different video after expiration', () => {
+    const onTokenExpired = vi.fn();
+    const { container, rerender } = render(
+      <VideoViewer
+        videoUrl="https://example.com/stream/video1.m3u8?token=old"
+        viewId={viewId}
+        onTokenExpired={onTokenExpired}
+      />
+    );
+
+    const video = container.querySelector('video');
+    Object.defineProperty(video, 'currentTime', {
+      writable: true,
+      value: 90,
+    });
+    fireEvent.timeUpdate(video);
+
+    // Trigger token expiration on video 1
+    const hlsInstance = vi.mocked(Hls).mock.results[0].value;
+    const errorCallback = hlsInstance.on.mock.calls.find(
+      ([event]) => event === Hls.Events.ERROR
+    )?.[1];
+
+    act(() => {
+      errorCallback('hlsError', {
+        fatal: true,
+        type: Hls.ErrorTypes.NETWORK_ERROR,
+        response: { code: 403 },
+      });
+    });
+
+    // User switches to video 2 instead of refreshing video 1
+    rerender(
+      <VideoViewer
+        videoUrl="https://example.com/stream/video2.m3u8?token=other"
+        viewId={viewId}
+        onTokenExpired={onTokenExpired}
+      />
+    );
+
+    video.currentTime = 0;
+    fireEvent.loadedMetadata(video);
+
+    // Should NOT restore position from video 1
+    expect(video.currentTime).toBe(0);
   });
 });

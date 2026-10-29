@@ -26,8 +26,9 @@ type Config struct {
 }
 
 type URLRequest struct {
-	StorageKey string `json:"storage_key"`
-	Filename   string `json:"filename"`
+	StorageKey    string `json:"storage_key"`
+	Filename      string `json:"filename"`
+	ExpirySeconds int    `json:"expiry_seconds,omitempty"`
 }
 
 type URLResponse struct {
@@ -126,9 +127,22 @@ func generateURLHandler(action string, expiryDuration time.Duration) http.Handle
 			return
 		}
 
+		tokenExpiry := expiryDuration
+		if reqBody.ExpirySeconds > 0 {
+			maxDuration := 24 * time.Hour
+			maxSeconds := int(maxDuration / time.Second)
+			if reqBody.ExpirySeconds > maxSeconds {
+				tokenExpiry = maxDuration
+			} else {
+				tokenExpiry = time.Duration(reqBody.ExpirySeconds) * time.Second
+			}
+		} else if action == "preview" && (strings.HasSuffix(cleanKey, "playlist.m3u8") || strings.Contains(cleanKey, "_hls")) {
+			// Video HLS streams require longer TTL to support playback beyond 5 minutes
+			tokenExpiry = 4 * time.Hour
+		}
 
 		token := uuid.New().String()
-		expiry := time.Now().Add(expiryDuration)
+		expiry := time.Now().Add(tokenExpiry)
 
 		storeLock.Lock()
 		tokenStore[token] = TokenInfo{

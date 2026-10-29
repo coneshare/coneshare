@@ -644,14 +644,16 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
     setDocumentViewData(null);
   }, []);
 
-  const fetchDocumentViewData = useCallback(async (docId, { force = false } = {}) => {
+  const fetchDocumentViewData = useCallback(async (docId, { force = false, silent = false } = {}) => {
     if (activeDocIdRef.current === docId && !force) {
       return;
     }
     activeDocIdRef.current = docId;
 
     const requestId = ++docRequestRef.current;
-    setIsDocumentLoading(true);
+    if (!silent) {
+      setIsDocumentLoading(true);
+    }
     try {
       const response = await getShareLinkViewData(slug, {
         dataroomDocumentId: docId,
@@ -669,7 +671,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
       }
       toast.error('Could not load document. Please try again.');
     } finally {
-      if (requestId === docRequestRef.current) {
+      if (requestId === docRequestRef.current && !silent) {
         setIsDocumentLoading(false);
       }
     }
@@ -1229,6 +1231,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
                             dataroomVisitId={currentDataroomVisitId}
                             allowDownload={documentViewData.link_settings?.allow_download}
                             downloadUrl={docDownloadUrl}
+                            onTokenExpired={() => fetchDocumentViewData(selectedDocumentId, { force: true, silent: true })}
                           />
                         </div>
                       ) : documentViewData.preview_mode === 'spreadsheet' ? (

@@ -835,6 +835,46 @@ class TestShareLinkViewDataView:
         assert data['markdown_preview_url'] == "http://test.coneshare.com/files/preview/abc123"
         assert data['pages'] == []
 
+    @override_settings(SITE_DOMAIN="http://test.coneshare.com", ENABLE_VIDEO_PREVIEW=True)
+    def test_get_share_link_data_video_stream_ttl(self, public_client, user):
+        """Test that video stream URL generation passes extended TTL calculated from video length."""
+        doc = Document.objects.create(
+            name="presentation.mp4",
+            type="video",
+            status="ready",
+            created_by=user,
+            organization=user.organization,
+        )
+        version = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            is_primary=True,
+            original_storage_key="org_1/presentation.mp4",
+            storage_key="org_1/hls/presentation_hls",
+            content_type="video/mp4",
+            file_size=1024 * 1024,
+            render_status="ready",
+            length=18000,  # 5 hours
+        )
+        link = ShareLink.objects.create(document=doc, created_by=user)
+
+        with patch('sharelinks.views.fileserver_client.generate_preview_url', return_value="http://test.coneshare.com/files/preview/stream123") as mock_preview_url:
+            response = public_client.get(f'/api/v1/links/{link.slug}/view-data/')
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data['preview_mode'] == 'video'
+            assert data['video_preview_url'] == "http://test.coneshare.com/files/preview/stream123/playlist.m3u8"
+            mock_preview_url.assert_called_with("org_1/hls/presentation_hls", is_internal=False, expiry_seconds=21600)
+
+            # Test short duration falls back to 14400 (4 hours)
+            version.length = 300
+            version.save()
+            mock_preview_url.reset_mock()
+
+            response = public_client.get(f'/api/v1/links/{link.slug}/view-data/')
+            assert response.status_code == status.HTTP_200_OK
+            mock_preview_url.assert_called_with("org_1/hls/presentation_hls", is_internal=False, expiry_seconds=14400)
+
     @override_settings(SITE_DOMAIN="http://test.coneshare.com")
     @patch('sharelinks.views.fileserver_client.generate_download_url')
     def test_get_share_link_data_includes_download_url(self, mock_fs_download_url, public_client, share_link):

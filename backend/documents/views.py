@@ -755,8 +755,10 @@ class DocumentPreviewDataView(APIView):
         video_preview_url = None
         if preview_mode == 'video' and render_status == 'ready':
             try:
+                video_duration = primary_version.length or 0
+                stream_ttl = max(14400, video_duration + 3600)
                 playlist_url = fileserver_client.generate_preview_url(
-                    primary_version.storage_key, is_internal=False
+                    primary_version.storage_key, is_internal=False, expiry_seconds=stream_ttl
                 )
                 video_preview_url = f"{playlist_url}/playlist.m3u8"
             except APIException as e:
