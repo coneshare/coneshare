@@ -1004,6 +1004,197 @@ class TestGenerateVideoStreamTask:
         assert "-pix_fmt" in ffmpeg_cmd
         assert ffmpeg_cmd[ffmpeg_cmd.index("-pix_fmt") + 1] == "yuv420p"
 
+    @patch('documents.tasks.subprocess.run')
+    @patch('documents.tasks.requests.put')
+    @patch('documents.tasks.fileserver_client.generate_upload_url')
+    @patch('documents.tasks.requests.get')
+    @patch('documents.tasks.fileserver_client.generate_download_url')
+    @patch('documents.tasks.tempfile.TemporaryDirectory')
+    def test_video_transcoding_webm_missing_container_duration_fallback_stream(
+        self,
+        mock_temp_dir,
+        mock_fs_download_url,
+        mock_requests_get,
+        mock_fs_upload_url,
+        mock_requests_put,
+        mock_subprocess,
+        user
+    ):
+        """Test that browser MediaRecorder WebM files where format=duration is N/A fall back to stream duration."""
+        document = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="recorded_screen.webm",
+            type="video",
+            status='processing',
+        )
+        version = DocumentVersion.objects.create(
+            document=document,
+            version_number=1,
+            original_storage_key="path/to/recorded_screen.webm",
+            storage_key="path/to/recorded_screen.webm",
+            is_primary=True,
+            type="video",
+        )
+
+        mock_fs_download_url.return_value = "/files/download/token"
+        mock_get_response = MagicMock()
+        mock_get_response.raise_for_status.return_value = None
+        mock_get_response.iter_content.return_value = [b"chunk1"]
+        mock_requests_get.return_value = mock_get_response
+
+        # Subprocess mock outputs:
+        # 1. Container duration: N/A (simulating browser MediaRecorder)
+        mock_container_dur = MagicMock()
+        mock_container_dur.stdout = "N/A\n"
+        # 2. Stream duration fallback: 42.0
+        mock_stream_dur = MagicMock()
+        mock_stream_dur.stdout = "42.0\n"
+        # 3. Video codec probe
+        mock_probe_vcodec = MagicMock()
+        mock_probe_vcodec.stdout = json.dumps({
+            "streams": [{
+                "codec_name": "vp8",
+                "width": 1280,
+                "height": 720,
+                "pix_fmt": "yuv420p"
+            }]
+        })
+        # 4. Audio codec probe
+        mock_probe_acodec = MagicMock()
+        mock_probe_acodec.stdout = "opus\n"
+        # 5. FFmpeg run
+        mock_ffmpeg_run = MagicMock()
+
+        mock_subprocess.side_effect = [
+            mock_container_dur,
+            mock_stream_dur,
+            mock_probe_vcodec,
+            mock_probe_acodec,
+            mock_ffmpeg_run,
+        ]
+
+        mock_fs_upload_url.return_value = "/upload/hls-file"
+        mock_requests_put.return_value = MagicMock()
+
+        real_dir = real_tempfile.mkdtemp()
+        real_dir_path = Path(real_dir)
+        mock_context = MagicMock()
+        mock_context.__enter__.return_value = real_dir
+        mock_temp_dir.return_value = mock_context
+
+        playlist_file = real_dir_path / "playlist.m3u8"
+        playlist_file.write_text("#EXTM3U\n#EXTINF:42.0,\nplaylist0.ts\n#EXT-X-ENDLIST\n")
+
+        try:
+            generate_video_stream_task(version.id)
+        finally:
+            shutil.rmtree(real_dir)
+
+        document.refresh_from_db()
+        version.refresh_from_db()
+
+        assert document.status == 'ready'
+        assert version.render_status == DocumentVersion.RENDER_READY
+        assert version.length == 42
+        assert version.render_error == ''
+
+    @patch('documents.tasks.subprocess.run')
+    @patch('documents.tasks.requests.put')
+    @patch('documents.tasks.fileserver_client.generate_upload_url')
+    @patch('documents.tasks.requests.get')
+    @patch('documents.tasks.fileserver_client.generate_download_url')
+    @patch('documents.tasks.tempfile.TemporaryDirectory')
+    def test_video_transcoding_webm_missing_all_durations_fallback_playlist(
+        self,
+        mock_temp_dir,
+        mock_fs_download_url,
+        mock_requests_get,
+        mock_fs_upload_url,
+        mock_requests_put,
+        mock_subprocess,
+        user
+    ):
+        """Test that browser MediaRecorder WebM files where all probes return N/A calculate duration from generated HLS playlist."""
+        document = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="webcam_note.webm",
+            type="video",
+            status='processing',
+        )
+        version = DocumentVersion.objects.create(
+            document=document,
+            version_number=1,
+            original_storage_key="path/to/webcam_note.webm",
+            storage_key="path/to/webcam_note.webm",
+            is_primary=True,
+            type="video",
+        )
+
+        mock_fs_download_url.return_value = "/files/download/token"
+        mock_get_response = MagicMock()
+        mock_get_response.raise_for_status.return_value = None
+        mock_get_response.iter_content.return_value = [b"chunk1"]
+        mock_requests_get.return_value = mock_get_response
+
+        # Subprocess mock outputs:
+        # 1. Container duration: N/A
+        mock_container_dur = MagicMock()
+        mock_container_dur.stdout = "N/A\n"
+        # 2. Stream duration: N/A
+        mock_stream_dur = MagicMock()
+        mock_stream_dur.stdout = "N/A\n"
+        # 3. Video codec probe
+        mock_probe_vcodec = MagicMock()
+        mock_probe_vcodec.stdout = json.dumps({
+            "streams": [{
+                "codec_name": "vp9",
+                "width": 1920,
+                "height": 1080,
+                "pix_fmt": "yuv420p"
+            }]
+        })
+        # 4. Audio codec probe
+        mock_probe_acodec = MagicMock()
+        mock_probe_acodec.stdout = "opus\n"
+        # 5. FFmpeg run
+        mock_ffmpeg_run = MagicMock()
+
+        mock_subprocess.side_effect = [
+            mock_container_dur,
+            mock_stream_dur,
+            mock_probe_vcodec,
+            mock_probe_acodec,
+            mock_ffmpeg_run,
+        ]
+
+        mock_fs_upload_url.return_value = "/upload/hls-file"
+        mock_requests_put.return_value = MagicMock()
+
+        real_dir = real_tempfile.mkdtemp()
+        real_dir_path = Path(real_dir)
+        mock_context = MagicMock()
+        mock_context.__enter__.return_value = real_dir
+        mock_temp_dir.return_value = mock_context
+
+        # Generated playlist has 2 segments: 10.0s + 8.5s = 18.5s -> int(18)
+        playlist_file = real_dir_path / "playlist.m3u8"
+        playlist_file.write_text("#EXTM3U\n#EXTINF:10.000000,\nplaylist0.ts\n#EXTINF:8.500000,\nplaylist1.ts\n#EXT-X-ENDLIST\n")
+
+        try:
+            generate_video_stream_task(version.id)
+        finally:
+            shutil.rmtree(real_dir)
+
+        document.refresh_from_db()
+        version.refresh_from_db()
+
+        assert document.status == 'ready'
+        assert version.render_status == DocumentVersion.RENDER_READY
+        assert version.length == 18
+        assert version.render_error == ''
+
 
 def test_normalize_content_type():
     # Generic or empty types should be guessed from filename

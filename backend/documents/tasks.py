@@ -352,6 +352,64 @@ def generate_pdf_pages_task(version_id):
         logger.error(f"Error processing document version {version_id}: {e}")
 
 
+def _extract_video_duration(original_file_path: Path) -> int:
+    """
+    Extract duration of the video in seconds using ffprobe.
+    Handles files without container duration (such as browser MediaRecorder WebM files)
+    by falling back to stream duration.
+    """
+    # 1. Try container format=duration
+    try:
+        d_probe = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(original_file_path)],
+            capture_output=True, text=True, check=False
+        )
+        val = d_probe.stdout.strip()
+        if val and val != "N/A":
+            parsed = float(val)
+            if parsed > 0:
+                return int(parsed)
+    except (ValueError, TypeError, subprocess.SubprocessError) as e:
+        logger.warning(f"Failed to probe container duration for {original_file_path}: {e}")
+
+    # 2. Fallback to stream duration (v:0)
+    try:
+        s_probe = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(original_file_path)],
+            capture_output=True, text=True, check=False
+        )
+        val = s_probe.stdout.strip()
+        if val and val != "N/A":
+            parsed = float(val)
+            if parsed > 0:
+                return int(parsed)
+    except (ValueError, TypeError, subprocess.SubprocessError) as e:
+        logger.warning(f"Failed to probe stream duration for {original_file_path}: {e}")
+
+    return 0
+
+
+def _calculate_playlist_duration(playlist_path: Path) -> int:
+    """
+    Calculate the total duration of an HLS playlist by summing #EXTINF tags.
+    Used as post-transcoding fallback when input container lacked duration metadata (e.g. browser WebM).
+    """
+    if not playlist_path.exists():
+        return 0
+    total_seconds = 0.0
+    try:
+        with open(playlist_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('#EXTINF:'):
+                    # Format: #EXTINF:10.000000,
+                    dur_str = line[len('#EXTINF:'):].split(',')[0].strip()
+                    total_seconds += float(dur_str)
+    except Exception as e:
+        logger.warning(f"Failed to calculate playlist duration from {playlist_path}: {e}")
+    return int(total_seconds)
+
+
 @shared_task
 def generate_video_stream_task(version_id):
     """
@@ -387,11 +445,7 @@ def generate_video_stream_task(version_id):
                         f_out.write(chunk)
 
             # 2. Extract duration of the video using ffprobe
-            d_probe = subprocess.run(
-                ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(original_file_path)],
-                capture_output=True, text=True, check=True
-            )
-            duration = int(float(d_probe.stdout.strip()))
+            duration = _extract_video_duration(original_file_path)
 
             # 3. Detect video attributes (codec, dimensions, pixel format) and audio codec
             v_probe = subprocess.run(
@@ -478,6 +532,11 @@ def generate_video_stream_task(version_id):
             ]
 
             subprocess.run(ffmpeg_cmd, check=True, timeout=900)  # 15 min timeout max for video encoding
+
+            # If duration could not be extracted before transcoding (e.g. browser WebM),
+            # calculate exact duration from the generated HLS playlist.
+            if duration <= 0:
+                duration = _calculate_playlist_duration(temp_dir_path / playlist_name)
 
             # 5. Save output HLS files (.m3u8 and .ts) to local file server
             base_path, _ = os.path.splitext(version.original_storage_key)
