@@ -275,14 +275,36 @@ func deleteFileHandler(config Config) http.HandlerFunc {
 			return
 		}
 
-		err = os.Remove(filePath)
+		fileInfo, err := os.Stat(cleanPath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				// Not an error if file is already gone
 				w.WriteHeader(http.StatusNoContent)
 				return
 			}
-			log.Printf("Error deleting file %s: %v", filePath, err)
+			log.Printf("Error stating file %s: %v", cleanPath, err)
+			http.Error(w, "Could not delete file", http.StatusInternalServerError)
+			return
+		}
+
+		if fileInfo.IsDir() {
+			baseName := filepath.Base(cleanPath)
+			if strings.HasSuffix(baseName, "_hls") {
+				err = os.RemoveAll(cleanPath)
+			} else {
+				err = os.Remove(cleanPath)
+			}
+		} else {
+			err = os.Remove(cleanPath)
+		}
+
+		if err != nil {
+			if os.IsNotExist(err) {
+				// Not an error if file is already gone
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			log.Printf("Error deleting file %s: %v", cleanPath, err)
 			http.Error(w, "Could not delete file", http.StatusInternalServerError)
 			return
 		}

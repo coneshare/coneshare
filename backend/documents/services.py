@@ -12,7 +12,8 @@ from django.utils import timezone
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import F, Q, Sum
+from django.db.models import F, Q, Sum, Value
+from django.db.models.functions import Greatest
 from rest_framework import serializers
 from rest_framework.exceptions import APIException
 
@@ -156,7 +157,8 @@ def enforce_dataroom_storage_quota(
 
 def recalculate_user_document_size(user: User) -> int:
     """
-    Computes and updates the true total_document_size for a user from their active documents.
+    Computes and updates the true total_document_size for a user from their active
+    and trashed documents (both consume physical storage until permanently purged).
     Excludes documents residing in the organization Dataroom storage vault.
     Returns the corrected size in bytes.
 
@@ -165,7 +167,7 @@ def recalculate_user_document_size(user: User) -> int:
     """
     with transaction.atomic():
         locked_user = User.objects.select_for_update().get(pk=user.pk)
-        qs = Document.objects.active().filter(created_by=locked_user).exclude(
+        qs = Document.objects.filter(created_by=locked_user).exclude(
             folder__folder_type=Folder.FOLDER_TYPE_VAULT
         )
 
@@ -324,6 +326,16 @@ def is_storage_key_referenced(
         storage_key=storage_key
     )
 
+    if storage_key.endswith('_hls'):
+        doc_qs = doc_qs | Document.objects.filter(
+            Q(organization_id=organization_id) &
+            (Q(storage_key__startswith=f"{storage_key}/") | Q(original_storage_key__startswith=f"{storage_key}/"))
+        )
+        version_qs = version_qs | DocumentVersion.objects.filter(
+            Q(document__organization_id=organization_id) &
+            (Q(storage_key__startswith=f"{storage_key}/") | Q(original_storage_key__startswith=f"{storage_key}/"))
+        )
+
     if exclude_document_ids:
         doc_qs = doc_qs.exclude(pk__in=exclude_document_ids)
         version_qs = version_qs.exclude(document_id__in=exclude_document_ids)
@@ -355,8 +367,16 @@ def filter_unreferenced_storage_keys(
         return set()
 
     referenced_keys = set()
+    hls_keys = {k for k in storage_keys if k.endswith('_hls')}
+    standard_keys = storage_keys - hls_keys
+
+    # Check directory keys (e.g. *_hls) using prefix/ancestor reference check
+    for hls_key in hls_keys:
+        if is_storage_key_referenced(hls_key, organization_id, exclude_document_ids=exclude_document_ids):
+            referenced_keys.add(hls_key)
+
     chunk_size = 500
-    key_list = list(storage_keys)
+    key_list = list(standard_keys)
 
     for i in range(0, len(key_list), chunk_size):
         chunk = key_list[i:i + chunk_size]
@@ -501,6 +521,27 @@ def create_document_from_upload(
 logger = logging.getLogger(__name__)
 
 
+def _collect_version_storage_keys(version: DocumentVersion) -> Set[str]:
+    """
+    Collects all physical storage keys associated with a document version,
+    including the original file, converted/playlist file, and HLS streaming directory.
+    """
+    keys = set()
+    if version.original_storage_key:
+        keys.add(version.original_storage_key)
+    if version.storage_key and version.storage_key != version.original_storage_key:
+        keys.add(version.storage_key)
+        if version.type == 'video' or version.storage_key.endswith('/playlist.m3u8') or '_hls' in version.storage_key:
+            hls_dir = os.path.dirname(version.storage_key)
+            if hls_dir.endswith('_hls'):
+                keys.add(hls_dir)
+    elif version.type == 'video' and version.original_storage_key:
+        base_path, _ = os.path.splitext(version.original_storage_key)
+        hls_dir = f"{base_path}_hls"
+        keys.add(hls_dir)
+    return keys
+
+
 def delete_folder_and_contents(folder: Folder):
     """
     Deletes a folder and all its contents (subfolders and documents),
@@ -518,10 +559,7 @@ def delete_folder_and_contents(folder: Folder):
     pages = DocumentPage.objects.filter(document_version__in=versions)
 
     for version in versions:
-        if version.original_storage_key:
-            storage_keys_to_delete.add(version.original_storage_key)
-        if version.storage_key and version.storage_key != version.original_storage_key:
-            storage_keys_to_delete.add(version.storage_key)
+        storage_keys_to_delete.update(_collect_version_storage_keys(version))
 
     for page in pages:
         if page.storage_key:
@@ -546,7 +584,9 @@ def delete_folder_and_contents(folder: Folder):
     with transaction.atomic():
         user = folder.created_by
         if user and total_size > 0:
-            User.objects.filter(pk=user.pk).update(total_document_size=F('total_document_size') - total_size)
+            User.objects.filter(pk=user.pk).update(
+                total_document_size=Greatest(Value(0), F('total_document_size') - total_size)
+            )
         # Explicitly delete the documents. This will cascade to versions and pages.
         documents_to_delete.delete()
         folder.delete()
@@ -563,10 +603,7 @@ def delete_document_and_files(document: Document, is_vault: Optional[bool] = Non
     storage_keys_to_delete = set()
 
     for version in document.versions.all():
-        if version.original_storage_key:
-            storage_keys_to_delete.add(version.original_storage_key)
-        if version.storage_key and version.storage_key != version.original_storage_key:
-            storage_keys_to_delete.add(version.storage_key)
+        storage_keys_to_delete.update(_collect_version_storage_keys(version))
 
         for page in version.pages.all():
             if page.storage_key:
@@ -592,7 +629,9 @@ def delete_document_and_files(document: Document, is_vault: Optional[bool] = Non
         user = document.created_by
         is_vault_doc = is_vault if is_vault is not None else is_dataroom_vault_document(document)
         if user and document.file_size and not is_vault_doc:
-            User.objects.filter(pk=user.pk).update(total_document_size=F('total_document_size') - document.file_size)
+            User.objects.filter(pk=user.pk).update(
+                total_document_size=Greatest(Value(0), F('total_document_size') - document.file_size)
+            )
         # Delete the document record, which will cascade to versions, pages, share links etc.
         document.delete()
         if parent_folder:

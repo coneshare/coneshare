@@ -50,6 +50,26 @@ def test_viewer_creation(organization):
 
 
 @pytest.mark.django_db
+def test_viewer_email_case_insensitivity_and_whitespace(organization):
+    """Bug 7: Viewer email must be normalized to lowercase and stripped."""
+    viewer = Viewer.objects.create(
+        organization=organization,
+        email="  TestViewer@EXAMPLE.com  "
+    )
+    assert viewer.email == "testviewer@example.com"
+
+    # Subsequent lookup / get_or_create with different casing returns the same record
+    v2, created = Viewer.objects.get_or_create(
+        organization=organization,
+        email="TESTVIEWER@example.COM"
+    )
+    assert created is False
+    assert v2.id == viewer.id
+    assert Viewer.objects.filter(organization=organization).count() == 1
+
+
+
+@pytest.mark.django_db
 def test_view_session_creation(user):
     """Test that a ViewSession instance can be created."""
     document = Document.objects.create(

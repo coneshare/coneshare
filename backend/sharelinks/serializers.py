@@ -171,7 +171,7 @@ class ViewSessionSerializer(serializers.ModelSerializer):
     def get_is_owner_view(self, obj) -> bool:
         request = self.context.get('request')
         if request and hasattr(request, 'user') and request.user.is_authenticated:
-            return obj.viewer_email == request.user.email
+            return (obj.viewer_email or '').strip().lower() == request.user.email.strip().lower()
         return False
 
     def create(self, validated_data):
@@ -188,6 +188,7 @@ class ViewSessionSerializer(serializers.ModelSerializer):
                 # Should not happen due to model constraints
                 return super().create(validated_data)
 
+            email = email.strip().lower()
             viewer, _ = Viewer.objects.get_or_create(
                 organization=organization,
                 email=email

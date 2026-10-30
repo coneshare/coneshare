@@ -130,6 +130,8 @@ class EmailVerificationToken(models.Model):
     expires_at = models.DateTimeField()
 
     def save(self, *args, **kwargs):
+        if self.email:
+            self.email = self.email.strip().lower()
         if not self.token:
             self.token = secrets.token_urlsafe(32)
         if not self.expires_at:
@@ -249,14 +251,42 @@ class DataroomVisit(models.Model):
         super().save(*args, **kwargs)
 
 
+class ViewerQuerySet(models.QuerySet):
+    def get_or_create(self, defaults=None, **kwargs):
+        if 'email' in kwargs and isinstance(kwargs['email'], str):
+            kwargs['email'] = kwargs['email'].strip().lower()
+        return super().get_or_create(defaults=defaults, **kwargs)
+
+    def get(self, *args, **kwargs):
+        if 'email' in kwargs and isinstance(kwargs['email'], str):
+            kwargs['email'] = kwargs['email'].strip().lower()
+        return super().get(*args, **kwargs)
+
+    def filter(self, *args, **kwargs):
+        if 'email' in kwargs and isinstance(kwargs['email'], str):
+            kwargs['email'] = kwargs['email'].strip().lower()
+        return super().filter(*args, **kwargs)
+
+
+class ViewerManager(models.Manager.from_queryset(ViewerQuerySet)):
+    pass
+
+
 class Viewer(models.Model):
     id = ULIDField(primary_key=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='viewers')
     email = models.EmailField()
 
+    objects = ViewerManager()
+
     class Meta:
         unique_together = ('organization', 'email')
+
+    def save(self, *args, **kwargs):
+        if self.email:
+            self.email = self.email.strip().lower()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.email
@@ -284,6 +314,11 @@ class ViewSession(models.Model):
     completion_rate = models.FloatField(default=0.0)
     downloaded_at = models.DateTimeField(null=True, blank=True)
     viewed_at = models.DateTimeField(default=timezone.now)
+
+    def save(self, *args, **kwargs):
+        if self.viewer_email:
+            self.viewer_email = self.viewer_email.strip().lower()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"ViewSession {self.id} on {self.share_link}"

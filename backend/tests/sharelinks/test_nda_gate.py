@@ -1,7 +1,7 @@
 import pytest
 from rest_framework import status
 from django.utils import timezone
-from sharelinks.models import ShareLink, NDAAcceptance, ViewSession
+from sharelinks.models import ShareLink, NDAAcceptance, ViewSession, Viewer
 from documents.models import Document, DocumentVersion, DocumentPage
 
 @pytest.fixture
@@ -178,7 +178,6 @@ class TestShareLinkNDAGate:
 
     def test_accept_nda_email_verified_flow(self, public_client, nda_share_link):
         """Test that accepting NDA when email verification is required satisfies constraints (XOR check)."""
-        from sharelinks.models import Viewer
         org = nda_share_link.document.organization
         Viewer.objects.create(organization=org, email='viewer@example.com')
 
@@ -215,6 +214,38 @@ class TestShareLinkNDAGate:
         assert acceptance.viewer is not None
         assert acceptance.viewer.email == 'viewer@example.com'
         assert acceptance.view_session is None  # <--- Satisfies the XOR constraint!
+
+    def test_nda_acceptance_recognized_with_different_email_casing(self, public_client, nda_share_link):
+        """
+        Bug 7: When user signs NDA with Uppercase email (e.g. Viewer@Example.COM),
+        accessing with lowercase email (viewer@example.com) should recognize the NDA.
+        """
+        org = nda_share_link.document.organization
+        Viewer.objects.create(organization=org, email='Viewer@Example.COM')
+
+        nda_share_link.requires_email = True
+        nda_share_link.save()
+
+        # 1. User with uppercase email accepts NDA
+        session = public_client.session
+        session['authorized_share_links'] = {
+            str(nda_share_link.id): {
+                'email_verified': True,
+                'viewer_email': 'Viewer@Example.COM'
+            }
+        }
+        session.save()
+
+        response_accept = public_client.post(f'/api/v1/links/{nda_share_link.slug}/accept-nda/')
+        assert response_accept.status_code == status.HTTP_200_OK
+
+        # 2. User accesses later with lowercase email
+        session['authorized_share_links'][str(nda_share_link.id)]['viewer_email'] = 'viewer@example.com'
+        session.save()
+
+        response_view = public_client.get(f'/api/v1/links/{nda_share_link.slug}/view-data/')
+        assert response_view.status_code == status.HTTP_200_OK
+
 
     def test_accept_nda_password_verified_flow(self, public_client, nda_share_link):
         """Test that accepting NDA when password verification is required allows access."""
