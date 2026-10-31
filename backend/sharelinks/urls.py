@@ -24,6 +24,7 @@ urlpatterns = [
     path('links/<slug:slug>/render-page/<int:page_number>/', views.WatermarkedPageRenderView.as_view(), name='watermarked-page-render'),
     path('links/<slug:slug>/download-file/', views.ShareLinkFileDownloadView.as_view(), name='sharelink-file-download'),
     path('links/<slug:slug>/download-folder/<str:folder_id>/', views.DataroomFolderDownloadView.as_view(), name='dataroom-folder-download'),
+    path('links/<slug:slug>/download-dataroom/', views.DataroomDownloadAllView.as_view(), name='dataroom-download-all'),
     path('page-views/record/', views.RecordPageView.as_view(), name='record-page-view'),
     path('link-clicks/record/', views.RecordLinkClickView.as_view(), name='record-link-click'),
 

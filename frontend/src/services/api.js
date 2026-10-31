@@ -754,6 +754,17 @@ export const downloadDataroomFolder = (slug, folderId, viewSessionId = null) => 
   });
 };
 
+export const downloadDataroomArchive = (slug, viewSessionId = null) => {
+  const params = {};
+  if (viewSessionId) {
+    params.view_session_id = viewSessionId;
+  }
+  return api.get(`/links/${slug}/download-dataroom/`, {
+    responseType: 'blob',
+    params,
+  });
+};
+
 // File Requests
 export const getFileRequests = (page = 1) => api.get(`/file-requests/?page=${page}`);
 export const getFileRequest = (id) => api.get(`/file-requests/${id}/`);

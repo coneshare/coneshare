@@ -138,5 +138,48 @@ describe('DocumentViewerHeader', () => {
     expect(screen.getByTestId('header-nda-badge')).toBeInTheDocument();
     expect(screen.getByText(/NDA Active/i)).toBeInTheDocument();
   });
+
+  it('renders Download all button and fires onDownloadAll when isDownloadAllAllowed is true', async () => {
+    const handleDownloadAll = vi.fn();
+    render(
+      <DocumentViewerHeader
+        documentName="Deal Room"
+        isDownloadAllAllowed={true}
+        onDownloadAll={handleDownloadAll}
+        downloadAllButtonLabel="Download all"
+      />
+    );
+
+    const downloadAllBtn = screen.getByRole('button', { name: 'Download all' });
+    expect(downloadAllBtn).toBeInTheDocument();
+
+    fireEvent.click(downloadAllBtn);
+    expect(handleDownloadAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides Download all button when isDownloadAllAllowed is false', () => {
+    render(
+      <DocumentViewerHeader
+        documentName="Deal Room"
+        isDownloadAllAllowed={false}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: 'Download all' })).not.toBeInTheDocument();
+  });
+
+  it('disables Download all button when isDownloadingAll is true', () => {
+    render(
+      <DocumentViewerHeader
+        documentName="Deal Room"
+        isDownloadAllAllowed={true}
+        isDownloadingAll={true}
+        downloadAllButtonLabel="Download all"
+      />
+    );
+
+    const downloadAllBtn = screen.getByRole('button', { name: 'Download all' });
+    expect(downloadAllBtn).toBeDisabled();
+  });
 });
 
