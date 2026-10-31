@@ -16,6 +16,7 @@ vi.mock('../../../services/api', () => ({
   getShareLinkViewData: vi.fn(),
   getPublicQnaSummary: vi.fn(),
   downloadDataroomFolder: vi.fn(),
+  downloadDataroomArchive: vi.fn(),
   recordDataroomVisit: vi.fn(),
 }));
 
@@ -1478,6 +1479,151 @@ describe('DataroomViewer', () => {
 
       expect(screen.queryByTitle('Print document')).not.toBeInTheDocument();
       expect(printPdf).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Download All whole-dataroom feature', () => {
+    it('renders Download all button when link allows download and items allow download', () => {
+      renderComponent({
+        data: {
+          ...mockDataroomData,
+          link_settings: { allow_download: true },
+        },
+      });
+
+      expect(screen.getByRole('button', { name: 'Download all' })).toBeInTheDocument();
+    });
+
+    it('renders Download all button at root even if initial loaded items are all view-only (fixes Issue 11 pagination blind spot)', () => {
+      renderComponent({
+        data: {
+          ...mockDataroomData,
+          items: [
+            { id: 'doc-restricted-1', name: 'Restricted 1.pdf', allow_download: false, type: 'document' },
+            { id: 'doc-restricted-2', name: 'Restricted 2.pdf', allow_download: false, type: 'document' },
+          ],
+          link_settings: { allow_download: true },
+        },
+      });
+
+      expect(screen.getByRole('button', { name: 'Download all' })).toBeInTheDocument();
+    });
+
+    it('hides Download all button when link allow_download is false', () => {
+      renderComponent({
+        data: {
+          ...mockDataroomData,
+          link_settings: { allow_download: false },
+        },
+      });
+
+      expect(screen.queryByRole('button', { name: 'Download all' })).not.toBeInTheDocument();
+    });
+
+    it('triggers whole-dataroom download with view_session_id when Download all is clicked', async () => {
+      const originalCreateObjectURL = window.URL.createObjectURL;
+      const originalRevokeObjectURL = window.URL.revokeObjectURL;
+      window.URL.createObjectURL = vi.fn(() => 'blob:mock-archive-url');
+      window.URL.revokeObjectURL = vi.fn();
+
+      api.downloadDataroomArchive.mockResolvedValueOnce({
+        data: new Blob(['archive-data']),
+        headers: { 'content-disposition': 'attachment; filename="Test Dataroom.zip"' },
+      });
+
+      renderComponent({
+        data: {
+          ...mockDataroomData,
+          link_settings: { allow_download: true },
+        },
+        viewId: 'view-session-123',
+      });
+
+      const downloadAllBtn = screen.getByRole('button', { name: 'Download all' });
+      fireEvent.click(downloadAllBtn);
+
+      await waitFor(() => {
+        expect(api.downloadDataroomArchive).toHaveBeenCalledWith('test-slug', 'view-session-123');
+      });
+
+      window.URL.createObjectURL = originalCreateObjectURL;
+      window.URL.revokeObjectURL = originalRevokeObjectURL;
+    });
+
+    it('switches to Download folder button when inside a subfolder and triggers downloadDataroomFolder on click', async () => {
+      const originalCreateObjectURL = window.URL.createObjectURL;
+      const originalRevokeObjectURL = window.URL.revokeObjectURL;
+      window.URL.createObjectURL = vi.fn(() => 'blob:mock-folder-url');
+      window.URL.revokeObjectURL = vi.fn();
+
+      api.downloadDataroomFolder.mockResolvedValueOnce({
+        data: new Blob(['folder-data']),
+        headers: { 'content-disposition': 'attachment; filename="Contracts.zip"' },
+      });
+
+      renderComponent({
+        data: {
+          ...mockDataroomData,
+          current_parent_id: 'subfolder-contracts',
+          breadcrumbs: [{ id: 'subfolder-contracts', name: 'Contracts' }],
+          items: [
+            { id: 'doc-contract', name: 'Agreement.pdf', allow_download: true, type: 'document' },
+          ],
+          link_settings: { allow_download: true },
+        },
+        viewId: 'view-session-123',
+      });
+
+      const downloadFolderBtn = screen.getByRole('button', { name: 'Download folder' });
+      expect(downloadFolderBtn).toBeInTheDocument();
+
+      fireEvent.click(downloadFolderBtn);
+
+      await waitFor(() => {
+        expect(api.downloadDataroomFolder).toHaveBeenCalledWith('test-slug', 'subfolder-contracts', 'view-session-123');
+      });
+
+      window.URL.createObjectURL = originalCreateObjectURL;
+      window.URL.revokeObjectURL = originalRevokeObjectURL;
+    });
+
+    it('hides Download folder button when inside a subfolder if subfolder has no downloadable items', () => {
+      renderComponent({
+        data: {
+          ...mockDataroomData,
+          current_parent_id: 'subfolder-123',
+          items: [
+            { id: 'doc-restricted', name: 'Confidential.pdf', allow_download: false, type: 'document' },
+          ],
+          link_settings: { allow_download: true },
+        },
+      });
+
+      expect(screen.queryByRole('button', { name: 'Download folder' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Download all' })).not.toBeInTheDocument();
+    });
+
+    it('shows error toast when whole-dataroom download fails', async () => {
+      api.downloadDataroomArchive.mockRejectedValueOnce(new Error('Network error'));
+
+      renderComponent({
+        data: {
+          ...mockDataroomData,
+          link_settings: { allow_download: true },
+        },
+        viewId: 'view-session-123',
+      });
+
+      const downloadAllBtn = screen.getByRole('button', { name: 'Download all' });
+      fireEvent.click(downloadAllBtn);
+
+      await waitFor(() => {
+        expect(api.downloadDataroomArchive).toHaveBeenCalledWith('test-slug', 'view-session-123');
+      });
+
+      await waitFor(() => {
+        expect(downloadAllBtn).not.toBeDisabled();
+      });
     });
   });
 });

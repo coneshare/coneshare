@@ -60,8 +60,8 @@ Feature: Dataroom Share Link Permissions
     And the link's settings make the folder "Downloadable Folder" downloadable
     When a viewer downloads the folder "Downloadable Folder"
     Then the response should be a ZIP file named "Downloadable_Folder.zip"
-    And the ZIP file should contain "Downloadable_Folder/Document_A.pdf"
-    And the ZIP file should contain "Downloadable_Folder/Subfolder/Document_B.pdf"
+    And the ZIP file should contain "Downloadable Folder/Document A.pdf"
+    And the ZIP file should contain "Downloadable Folder/Subfolder/Document B.pdf"
 
   Scenario: Viewer cannot download a folder that is not marked as downloadable
     Given I am an authenticated user
@@ -83,9 +83,9 @@ Feature: Dataroom Share Link Permissions
     And its settings make "Invisible.pdf" not visible
     When a viewer downloads the folder "Mixed Permissions Folder"
     Then the response should be a ZIP file
-    And the ZIP file should contain "Mixed_Permissions_Folder/Visible_and_Downloadable.pdf"
-    And the ZIP file should not contain "Mixed_Permissions_Folder/Visible_Not_Downloadable.pdf"
-    And the ZIP file should not contain "Mixed_Permissions_Folder/Invisible.pdf"
+    And the ZIP file should contain "Mixed Permissions Folder/Visible and Downloadable.pdf"
+    And the ZIP file should not contain "Mixed Permissions Folder/Visible Not Downloadable.pdf"
+    And the ZIP file should not contain "Mixed Permissions Folder/Invisible.pdf"
 
   Scenario: A document in a downloaded folder is watermarked
     Given I am an authenticated user
@@ -96,7 +96,7 @@ Feature: Dataroom Share Link Permissions
     And the link's settings make the document "Report.pdf" enable watermarking
     When a viewer downloads the folder "Watermarked Content"
     Then the response should be a ZIP file
-    And the file "Watermarked_Content/Report.pdf" inside the ZIP should be a watermarked PDF
+    And the file "Watermarked Content/Report.pdf" inside the ZIP should be a watermarked PDF
 
   Scenario: Updating a link to disallow downloads does not cascade to existing item settings
     Given I am an authenticated user

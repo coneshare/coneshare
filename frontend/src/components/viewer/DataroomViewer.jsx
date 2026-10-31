@@ -46,6 +46,7 @@ import {
 import { PreviewStatePanel } from '../documents/PreviewStatePanel';
 import {
   downloadDataroomFolder,
+  downloadDataroomArchive,
   getPublicQnaSummary,
   getShareLinkViewData,
   recordDataroomVisit,
@@ -276,6 +277,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [rootItems, setRootItems] = useState([]);
   const [isRootLoading, setIsRootLoading] = useState(false);
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [qnaContext, setQnaContext] = useState(null);
   const [currentScopeQnaThreadCount, setCurrentScopeQnaThreadCount] = useState(0);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -344,17 +346,23 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
     viewerComponentRef.current?.goToPage(pageNumber);
   };
 
-  const handleDownloadFolder = async (folder) => {
+  const handleDownloadFolder = useCallback(async (folder) => {
+    setIsDownloadingAll(true);
     toast.info(`Preparing to download "${folder.name}"...`);
     try {
       const response = await downloadDataroomFolder(slug, folder.id, viewId);
 
-      const contentDisposition = response.headers['content-disposition'];
+      const contentDisposition = response.headers?.['content-disposition'];
       let filename = `${folder.name}.zip`;
       if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-        if (filenameMatch && filenameMatch.length > 1) {
-          filename = filenameMatch[1];
+        const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+        if (utf8Match && utf8Match[1]) {
+          filename = decodeURIComponent(utf8Match[1]);
+        } else {
+          const asciiMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+          if (asciiMatch && asciiMatch[1]) {
+            filename = asciiMatch[1];
+          }
         }
       }
 
@@ -370,8 +378,11 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
       toast.success(`Successfully downloaded "${filename}".`);
     } catch (error) {
       console.error('Failed to download folder:', error);
+      toast.error('Failed to download folder');
+    } finally {
+      setIsDownloadingAll(false);
     }
-  };
+  }, [slug, viewId]);
 
   const handleDownloadDocument = (doc) => {
     const params = new URLSearchParams({ dataroom_document_id: doc.id });
@@ -1006,6 +1017,69 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
   const isNdaProtected = Boolean(
     scopeData?.link_settings?.require_nda || publicMeta?.require_nda
   );
+
+  const isLinkDownloadAllowed = Boolean(
+    scopeData?.link_settings?.allow_download ?? data?.link_settings?.allow_download
+  );
+
+  const downloadButtonLabel = currentFolderId ? 'Download folder' : 'Download all';
+
+  const hasDownloadableItems = useMemo(() => {
+    if (currentFolderId) {
+      return allItems.some((item) => item.allow_download);
+    }
+    return isLinkDownloadAllowed;
+  }, [allItems, isLinkDownloadAllowed, currentFolderId]);
+
+  const isDownloadAllowed = isLinkDownloadAllowed && hasDownloadableItems;
+
+  const handleDownloadAll = useCallback(async () => {
+    if (!slug) return;
+    setIsDownloadingAll(true);
+    try {
+      const response = await downloadDataroomArchive(slug, viewId);
+
+      const contentDisposition = response.headers?.['content-disposition'];
+      let filename = `${scopeData?.name || 'dataroom'}.zip`;
+      if (contentDisposition) {
+        const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+        if (utf8Match && utf8Match[1]) {
+          filename = decodeURIComponent(utf8Match[1]);
+        } else {
+          const asciiMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+          if (asciiMatch && asciiMatch[1]) {
+            filename = asciiMatch[1];
+          }
+        }
+      }
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Download started');
+    } catch (error) {
+      console.error('Failed to download dataroom archive:', error);
+      toast.error('Failed to download dataroom archive');
+    } finally {
+      setIsDownloadingAll(false);
+    }
+  }, [slug, viewId, scopeData?.name]);
+
+  const handleHeaderDownload = useCallback(() => {
+    if (currentFolderId) {
+      const currentFolderName = breadcrumbs[breadcrumbs.length - 1]?.name || scopeData?.name || 'folder';
+      handleDownloadFolder({ id: currentFolderId, name: currentFolderName });
+    } else {
+      handleDownloadAll();
+    }
+  }, [currentFolderId, breadcrumbs, scopeData?.name, handleDownloadFolder, handleDownloadAll]);
+
   const hasCustomBanner = Boolean(
     (scopeData?.banner_images && scopeData.banner_images.length > 0) ||
     scopeData?.branding_banner ||
@@ -1031,6 +1105,10 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
         hasViewSession={Boolean(viewId)}
         isWatermarked={isWatermarked}
         isNdaProtected={isNdaProtected}
+        isDownloadAllAllowed={isDownloadAllowed}
+        isDownloadingAll={isDownloadingAll}
+        onDownloadAll={handleHeaderDownload}
+        downloadAllButtonLabel={downloadButtonLabel}
       />
       {showDocumentViewer ? (
         <>

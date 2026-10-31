@@ -6,7 +6,7 @@ import secrets
 import zipfile
 from datetime import timedelta
 from io import BytesIO
-from urllib.parse import urljoin
+from urllib.parse import quote, urljoin
 
 import requests
 from pdf2image import convert_from_bytes
@@ -15,7 +15,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import send_mail
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -68,6 +68,7 @@ from .services import (
     resolve_notification_recipient,
 )
 from .tasks import send_view_notification_email_task
+from .archive import generate_dataroom_archive_stream, sanitize_zip_entry_name
 
 logger = logging.getLogger(__name__)
 
@@ -1045,6 +1046,12 @@ class ShareLinkViewDataView(APIView):
 
             # Forcefully disable video downloading if watermarking is enabled
             if document.type == 'video' and enable_watermark:
+                allow_download = False
+
+            # Forcefully disable downloading if watermarking is enabled but file exceeds watermark size limit
+            max_watermark_mb = get_dynamic_setting('MAX_WATERMARK_FILE_SIZE_MB') or get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB') or 100
+            file_size = (primary_version.file_size if primary_version else 0) or getattr(document, 'file_size', 0) or 0
+            if enable_watermark and file_size > (max_watermark_mb * 1024 * 1024):
                 allow_download = False
 
             # Watermarking is not supported for video previews
@@ -2464,6 +2471,11 @@ def _generate_watermarked_image(document, primary_version, watermark_text_templa
     if not Image:
         raise WatermarkingDependenciesMissingError("Pillow is not installed. Watermarking is not available.")
 
+    max_watermark_mb = get_dynamic_setting('MAX_WATERMARK_FILE_SIZE_MB') or get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB') or 100
+    file_size = getattr(primary_version, 'file_size', None) or getattr(document, 'file_size', 0) or 0
+    if file_size > (max_watermark_mb * 1024 * 1024):
+        raise WatermarkingError(f"Image size ({file_size // (1024 * 1024)}MB) exceeds the maximum limit ({max_watermark_mb}MB) for watermarking.")
+
     # For images, the original storage key is the one we want.
     source_image_key = primary_version.original_storage_key
     if not source_image_key:
@@ -2502,6 +2514,11 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
         if not canvas: missing.append("reportlab")
         logger.error(f"{', '.join(missing)} is not installed. PDF watermarking is not available.")
         raise WatermarkingDependenciesMissingError("PDF watermarking service is currently unavailable.")
+
+    max_watermark_mb = get_dynamic_setting('MAX_WATERMARK_FILE_SIZE_MB') or get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB') or 100
+    file_size = getattr(primary_version, 'file_size', None) or getattr(document, 'file_size', 0) or 0
+    if file_size > (max_watermark_mb * 1024 * 1024):
+        raise WatermarkingError(f"Document size ({file_size // (1024 * 1024)}MB) exceeds the maximum limit ({max_watermark_mb}MB) for watermarking.")
 
     # Get source PDF. For office docs, use the converted PDF (storage_key). For PDFs, use original.
     if document.type == 'pdf':
@@ -2794,6 +2811,14 @@ class ShareLinkFileDownloadView(APIView):
             return Response({"message": "Document version not found."}, status=status.HTTP_404_NOT_FOUND)
 
         if enable_watermark:
+            max_watermark_mb = get_dynamic_setting('MAX_WATERMARK_FILE_SIZE_MB') or get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB') or 100
+            file_size = (primary_version.file_size if primary_version else 0) or getattr(document, 'file_size', 0) or 0
+            if file_size > (max_watermark_mb * 1024 * 1024):
+                return Response(
+                    {"message": f"This file ({file_size // (1024 * 1024)}MB) exceeds the maximum allowed size ({max_watermark_mb}MB) for secure watermarked download."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
             effective_watermark_text = get_effective_watermark_text(link)
             authorized_links = request.session.get('authorized_share_links', {})
             auth_status = authorized_links.get(str(link.id), {})
@@ -2853,71 +2878,9 @@ class ShareLinkFileDownloadView(APIView):
 @extend_schema(tags=['sharelinks'])
 class DataroomFolderDownloadView(APIView):
     """
-    Handles the download of an entire dataroom folder as a ZIP archive.
+    Handles the download of an entire dataroom folder as a low-memory streaming ZIP archive.
     """
     permission_classes = [permissions.AllowAny]
-
-    def _add_folder_to_zip(self, zipf, folder, current_path, link, request, viewer_email):
-        """
-        Recursively adds a folder's contents to the ZIP archive, respecting
-        all visibility and permission settings.
-        """
-        # To avoid N+1 queries, fetch settings for all children at once.
-        child_folders = folder.children.all()
-        child_docs = DataroomDocument.objects.filter(
-            folder=folder, document__deleted_at__isnull=True
-        ).select_related('document').prefetch_related('document__versions')
-
-        settings_qs = ShareLinkDataroomSetting.objects.filter(share_link=link)
-        folder_settings = {s.dataroom_folder_id: s for s in settings_qs.filter(dataroom_folder__in=child_folders)}
-        doc_settings = {s.dataroom_document_id: s for s in settings_qs.filter(dataroom_document__in=child_docs)}
-        
-        for child_folder in child_folders:
-            setting = folder_settings.get(child_folder.id)
-            if setting and setting.is_visible:
-                new_path = os.path.join(current_path, get_valid_filename(child_folder.name))
-                zipf.writestr(new_path + '/', '')
-                self._add_folder_to_zip(zipf, child_folder, new_path, link, request, viewer_email)
-
-        for child_doc in child_docs:
-            setting = doc_settings.get(child_doc.id)
-            if setting and setting.is_visible and setting.allow_download:
-                doc = child_doc.document
-                primary_version = doc.versions.filter(is_primary=True).first()
-                if not primary_version:
-                    continue
-
-                file_path = os.path.join(current_path, get_valid_filename(doc.name))
-                
-                try:
-                    if setting.enable_watermark:
-                        effective_watermark_text = get_effective_watermark_text(link)
-                        if doc.type == 'image':
-                            image_buffer, _ = _generate_watermarked_image(
-                                doc, primary_version, effective_watermark_text, request, viewer_email
-                            )
-                            # Ensure filename has .jpg extension
-                            zipf.writestr(f"{os.path.splitext(file_path)[0]}.jpg", image_buffer.getvalue())
-                        else:
-                            flatten_active = get_dynamic_setting('FLATTEN_WATERMARKED_DOWNLOADS')
-                            if flatten_active:
-                                pdf_buffer = _generate_flattened_watermarked_pdf(
-                                    doc, primary_version, effective_watermark_text, request, viewer_email
-                                )
-                            else:
-                                pdf_buffer = _generate_watermarked_pdf(
-                                    doc, primary_version, effective_watermark_text, request, viewer_email
-                                )
-                            # Ensure filename has .pdf extension
-                            zipf.writestr(f"{os.path.splitext(file_path)[0]}.pdf", pdf_buffer.getvalue())
-                    elif primary_version.original_storage_key:
-                        storage_key = primary_version.original_storage_key
-                        download_url = fileserver_client.generate_download_url(storage_key, is_internal=True)
-                        response = requests.get(download_url)
-                        response.raise_for_status()
-                        zipf.writestr(file_path, response.content)
-                except Exception as e:
-                    logger.error(f"Failed to add file '{doc.name}' to zip for link '{link.slug}'. Error: {e}")
 
     @extend_schema(
         responses={200: None, 400: dict, 401: dict, 403: dict, 404: dict, 410: dict},
@@ -2969,6 +2932,19 @@ class DataroomFolderDownloadView(APIView):
         except ShareLinkDataroomSetting.DoesNotExist:
             return Response({"message": "Download permission not configured for this folder."}, status=status.HTTP_403_FORBIDDEN)
 
+        authorized_links = request.session.get('authorized_share_links', {})
+        auth_status = authorized_links.get(str(link.id), {})
+        viewer_email = auth_status.get('viewer_email', '')
+
+        zs, count = generate_dataroom_archive_stream(
+            link=link,
+            request=request,
+            viewer_email=viewer_email,
+            root_folder=root_folder,
+        )
+        if count == 0:
+            return Response({"message": "No downloadable files available in this folder."}, status=status.HTTP_400_BAD_REQUEST)
+
         view_session_id = request.query_params.get('view_session_id')
         if view_session_id:
             try:
@@ -3011,24 +2987,125 @@ class DataroomFolderDownloadView(APIView):
             except ViewSession.DoesNotExist:
                 logger.warning(f"Could not find view session {view_session_id} for link {link.id} to record download.")
 
+        safe_ascii = sanitize_zip_entry_name(root_folder.name, fallback="folder")
+        raw_ascii = safe_ascii.replace(' ', '_').encode('ascii', 'ignore').decode('ascii').strip('._- ')
+        ascii_name = raw_ascii or "folder"
+        utf8_name = quote(f"{root_folder.name}.zip")
+        response = StreamingHttpResponse(zs, content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{ascii_name}.zip"; filename*=UTF-8\'\'{utf8_name}'
+        return response
+
+
+@extend_schema(tags=['sharelinks'])
+class DataroomDownloadAllView(APIView):
+    """
+    Handles the download of an entire dataroom (all visible/downloadable folders and root files)
+    as a low-memory streaming ZIP archive.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        responses={200: None, 400: dict, 401: dict, 403: dict, 404: dict, 410: dict},
+    )
+    def get(self, request, slug, *args, **kwargs):
+        is_preview = False
+        preview_token = request.query_params.get('previewToken')
+        if preview_token:
+            try:
+                with transaction.atomic():
+                    session = PreviewSession.objects.select_related('user', 'share_link__created_by').select_for_update().get(token=preview_token)
+                    if not session.is_expired() and session.share_link.slug == slug:
+                        if can_user_manage_share_link(session.user, session.share_link):
+                            is_preview = True
+                            request.session['preview_owner_email'] = session.user.email
+                            request.session['preview_link_id'] = str(session.share_link.id)
+                            session.delete()
+            except PreviewSession.DoesNotExist:
+                pass
+
+        try:
+            link = _get_active_share_link(slug)
+        except NotFound as e:
+            return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
+        except LinkExpired as e:
+            return Response({"message": e.detail}, status=status.HTTP_410_GONE)
+
+        auth_error, _ = _verify_share_link_session_authorization(
+            link, request, is_preview=is_preview, require_session=False, nda_status_code=status.HTTP_403_FORBIDDEN
+        )
+        if auth_error:
+            return auth_error
+
+        if not link.dataroom:
+            return Response({"message": "This link is not for a dataroom."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not link.allow_download:
+            return Response({"message": "You are not allowed to download files from this dataroom."}, status=status.HTTP_403_FORBIDDEN)
+
         authorized_links = request.session.get('authorized_share_links', {})
         auth_status = authorized_links.get(str(link.id), {})
         viewer_email = auth_status.get('viewer_email', '')
 
-        zip_buffer = BytesIO()
-        # TODO: For very large folders, creating the zip in-memory can consume a lot of RAM.
-        # Consider replacing this with a streaming approach (e.g., using zipstream-ng)
-        # to improve memory efficiency.
-        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            root_folder_name = get_valid_filename(root_folder.name)
-            zipf.writestr(root_folder_name + '/', '')
-            self._add_folder_to_zip(zipf, root_folder, root_folder_name, link, request, viewer_email)
+        zs, count = generate_dataroom_archive_stream(
+            link=link,
+            request=request,
+            viewer_email=viewer_email,
+            root_folder=None,
+        )
+        if count == 0:
+            return Response({"message": "No downloadable files available in this dataroom."}, status=status.HTTP_400_BAD_REQUEST)
 
-        zip_buffer.seek(0)
-        
-        response = HttpResponse(zip_buffer, content_type='application/zip')
-        response['Content-Disposition'] = f'attachment; filename="{get_valid_filename(root_folder.name)}.zip"'
+        view_session_id = request.query_params.get('view_session_id')
+        if view_session_id:
+            try:
+                view_session = ViewSession.objects.get(id=view_session_id, share_link=link)
+                now = timezone.now()
+                if not view_session.downloaded_at:
+                    view_session.downloaded_at = now
+                    view_session.save(update_fields=['downloaded_at'])
+
+                visit = DataroomVisit.objects.filter(
+                    view_session=view_session,
+                    item_type='folder',
+                    item_path='/',
+                    dataroom_folder__isnull=True,
+                ).order_by('-visited_at').first()
+
+                if not visit:
+                    visit = DataroomVisit.objects.create(
+                        view_session=view_session,
+                        item_type='folder',
+                        item_name=link.dataroom.name,
+                        item_path='/',
+                        visited_at=now,
+                        downloaded_at=now,
+                    )
+                elif visit.downloaded_at is None:
+                    visit.downloaded_at = now
+                    visit.save(update_fields=['downloaded_at'])
+
+                _dispatch_automation_event(
+                    link,
+                    'document_downloaded',
+                    {
+                        'view_session_id': str(view_session.id),
+                        'viewer_email': view_session.viewer_email,
+                        'dataroom_id': str(link.dataroom.id),
+                        'dataroom_name': link.dataroom.name,
+                    },
+                    view_session=view_session,
+                )
+            except ViewSession.DoesNotExist:
+                logger.warning(f"Could not find view session {view_session_id} for link {link.id} to record download.")
+
+        safe_ascii = sanitize_zip_entry_name(link.dataroom.name, fallback=f"dataroom_{link.slug}")
+        raw_ascii = safe_ascii.replace(' ', '_').encode('ascii', 'ignore').decode('ascii').strip('._- ')
+        ascii_name = raw_ascii or f"dataroom_{link.slug}"
+        utf8_name = quote(f"{link.dataroom.name}.zip")
+        response = StreamingHttpResponse(zs, content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{ascii_name}.zip"; filename*=UTF-8\'\'{utf8_name}'
         return response
+
 
 
 @extend_schema(tags=['sharelinks'])
