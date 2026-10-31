@@ -1017,6 +1017,122 @@ class TestDataroomViewSet:
         }, format="json")
         assert response_reorder.status_code == status.HTTP_200_OK
 
+    def test_reorder_source_folder_after_moving_item_avoids_orphaned_row_integrity_error(self, api_client, dataroom, user, organization):
+        """
+        Bug 5: Moving an item from folder_src to folder_dest must not leave an orphaned
+        DataroomItemOrder record in folder_src that causes IntegrityError 500 when folder_src
+        is reordered.
+        """
+        folder_src = DataroomFolder.objects.create(dataroom=dataroom, name="Source")
+        folder_dest = DataroomFolder.objects.create(dataroom=dataroom, name="Dest")
+
+        doc1 = Document.objects.create(name="Doc 1", organization=organization, created_by=user)
+        doc2 = Document.objects.create(name="Doc 2", organization=organization, created_by=user)
+
+        ddoc1 = DataroomDocument.objects.create(dataroom=dataroom, document=doc1, name=doc1.name, folder=folder_src)
+        ddoc2 = DataroomDocument.objects.create(dataroom=dataroom, document=doc2, name=doc2.name, folder=folder_src)
+
+        url_reorder = f'/api/v1/datarooms/{dataroom.id}/reorder-items/'
+
+        # 1. Order folder_src: ddoc1 at 0, ddoc2 at 1
+        res1 = api_client.post(url_reorder, {
+            "parent_id": str(folder_src.id),
+            "ordered_items": [
+                {"type": "document", "id": str(ddoc1.id)},
+                {"type": "document", "id": str(ddoc2.id)},
+            ],
+        }, format="json")
+        assert res1.status_code == status.HTTP_200_OK
+
+        # 2. Move ddoc1 to folder_dest
+        url_move = f'/api/v1/datarooms/{dataroom.id}/move-content/'
+        res_move = api_client.post(url_move, {
+            "dataroom_document_ids": [str(ddoc1.id)],
+            "destination_folder_id": str(folder_dest.id),
+        }, format="json")
+        assert res_move.status_code == status.HTTP_200_OK
+
+        # 3. Reorder folder_src with remaining item (ddoc2 at pos 0).
+        # Before fix, ddoc1 still occupies pos 0 in folder_src, causing IntegrityError 500.
+        res_reorder_src = api_client.post(url_reorder, {
+            "parent_id": str(folder_src.id),
+            "ordered_items": [
+                {"type": "document", "id": str(ddoc2.id)},
+            ],
+        }, format="json")
+        assert res_reorder_src.status_code == status.HTTP_200_OK
+
+    def test_move_content_does_not_delete_order_rows_in_other_datarooms(self, api_client, dataroom, user, organization):
+        """
+        Finding 2: Deleting order rows during move-content must be strictly scoped to the
+        target dataroom. Passing foreign item IDs must not delete DataroomItemOrder in other datarooms.
+        """
+        from datarooms.models import DataroomItemOrder
+        dataroom2 = Dataroom.objects.create(name="Other Dataroom", organization=organization, created_by=user)
+        folder2 = DataroomFolder.objects.create(dataroom=dataroom2, name="Folder in Room 2")
+        doc2 = Document.objects.create(name="Doc Room 2", organization=organization, created_by=user)
+        ddoc2 = DataroomDocument.objects.create(dataroom=dataroom2, document=doc2, name=doc2.name, folder=folder2)
+
+        order_row = DataroomItemOrder.objects.create(
+            dataroom=dataroom2,
+            parent_folder=folder2,
+            item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
+            dataroom_document=ddoc2,
+            position=0,
+        )
+
+        # Call move-content on dataroom 1, maliciously or mistakenly passing ddoc2.id from dataroom 2
+        url_move = f'/api/v1/datarooms/{dataroom.id}/move-content/'
+        api_client.post(url_move, {
+            "dataroom_document_ids": [str(ddoc2.id)],
+            "dataroom_folder_ids": [],
+            "destination_folder_id": None,
+        }, format="json")
+
+        # The order row in dataroom 2 must NOT be deleted
+        assert DataroomItemOrder.objects.filter(id=order_row.id).exists()
+
+    def test_move_content_within_same_folder_preserves_custom_order(self, api_client, dataroom, user, organization):
+        """
+        Review Comment #2: Moving items to the same folder where they already reside
+        must not delete and destroy their saved custom order.
+        """
+        from datarooms.models import DataroomItemOrder
+        folder = DataroomFolder.objects.create(dataroom=dataroom, name="Ordered Folder")
+        doc1 = Document.objects.create(name="Doc 1", organization=organization, created_by=user)
+        doc2 = Document.objects.create(name="Doc 2", organization=organization, created_by=user)
+        ddoc1 = DataroomDocument.objects.create(dataroom=dataroom, document=doc1, name=doc1.name, folder=folder)
+        ddoc2 = DataroomDocument.objects.create(dataroom=dataroom, document=doc2, name=doc2.name, folder=folder)
+
+        # Custom order: ddoc1 at 0, ddoc2 at 1
+        url_reorder = f'/api/v1/datarooms/{dataroom.id}/reorder-items/'
+        res_reorder = api_client.post(url_reorder, {
+            "parent_id": str(folder.id),
+            "ordered_items": [
+                {"type": "document", "id": str(ddoc1.id)},
+                {"type": "document", "id": str(ddoc2.id)},
+            ],
+        }, format="json")
+        assert res_reorder.status_code == status.HTTP_200_OK
+
+        # Call move-content moving both docs to the same folder they already reside in
+        url_move = f'/api/v1/datarooms/{dataroom.id}/move-content/'
+        res_move = api_client.post(url_move, {
+            "dataroom_document_ids": [str(ddoc1.id), str(ddoc2.id)],
+            "dataroom_folder_ids": [],
+            "destination_folder_id": str(folder.id),
+        }, format="json")
+        assert res_move.status_code == status.HTTP_200_OK
+
+        # Order rows must still exist and maintain their positions
+        orders = list(DataroomItemOrder.objects.filter(dataroom=dataroom, parent_folder=folder).order_by('position'))
+        assert len(orders) == 2
+        assert orders[0].dataroom_document_id == ddoc1.id
+        assert orders[0].position == 0
+        assert orders[1].dataroom_document_id == ddoc2.id
+        assert orders[1].position == 1
+
+
     def test_reorder_items_after_adding_content_should_succeed(self, api_client, dataroom, document, user, organization):
         # 1. Setup a folder and a document inside it.
         folder_dest = DataroomFolder.objects.create(dataroom=dataroom, name="Destination")
@@ -1069,6 +1185,7 @@ class TestDataroomViewSet:
             ],
         }, format="json")
         assert response_reorder.status_code == status.HTTP_200_OK
+
 
     def test_list_view_sessions_for_dataroom(self, api_client, user, dataroom, organization):
         """

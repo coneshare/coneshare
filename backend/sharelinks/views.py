@@ -138,9 +138,12 @@ def _resolve_dataroom_document_setting(link: ShareLink, requested_dataroom_docum
         # Public document/page/download endpoints should only operate on visible items.
         base_qs = base_qs.filter(is_visible=True)
 
-    # Use .get() intentionally: this should be unique per (share_link, dataroom_document).
+    # Resolve target setting defensively: use .filter().order_by('-updated_at').first()
+    # to guard against MultipleObjectsReturned if duplicate legacy rows ever exist.
     # DoesNotExist is handled by callers as a permission failure.
-    setting = base_qs.get(dataroom_document_id=requested_dataroom_document_id)
+    setting = base_qs.filter(dataroom_document_id=requested_dataroom_document_id).order_by('-updated_at').first()
+    if not setting:
+        raise ShareLinkDataroomSetting.DoesNotExist()
     if visible_only and setting.dataroom_document.folder:
         if not _is_dataroom_folder_path_visible(link, setting.dataroom_document.folder):
             raise ShareLinkDataroomSetting.DoesNotExist()

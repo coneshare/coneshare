@@ -2,8 +2,9 @@ import pytest
 
 from django.db import IntegrityError, transaction
 
-from datarooms.models import DataroomDocument, DataroomFolder
-from sharelinks.models import QnAMessage, QnAThread, ShareLink, ShareLinkTemplate, ViewSession, Viewer
+from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
+from sharelinks.models import (QnAMessage, QnAThread, ShareLink, ShareLinkDataroomSetting,
+                               ShareLinkTemplate, ViewSession, Viewer)
 from documents.models import Document
 
 pytestmark = pytest.mark.django_db
@@ -80,6 +81,110 @@ def test_view_session_creation(user):
     share_link = ShareLink.objects.create(document=document, slug="another-slug", created_by=user)
     view_session = ViewSession.objects.create(share_link=share_link, duration_seconds=0, completion_rate=0)
     assert isinstance(view_session, ViewSession)
+
+
+@pytest.mark.django_db
+def test_sharelink_dataroom_setting_unique_constraint(user, organization):
+    """Bug 6: ShareLinkDataroomSetting must enforce unique target per share link."""
+    dataroom = Dataroom.objects.create(name="Test Room", organization=organization, created_by=user)
+    doc = Document.objects.create(name="Doc", organization=organization, created_by=user)
+    ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=doc, name=doc.name)
+    link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+    # Note: signals already create default setting for existing ddocs.
+    # Attempting to create a duplicate setting for the same (share_link, dataroom_document) must raise IntegrityError.
+    with pytest.raises(IntegrityError):
+        ShareLinkDataroomSetting.objects.create(
+            share_link=link,
+            dataroom_document=ddoc,
+            allow_download=True,
+        )
+
+    # Similarly for dataroom_folder:
+    dfolder = DataroomFolder.objects.create(dataroom=dataroom, name="Folder")
+    with pytest.raises(IntegrityError):
+        ShareLinkDataroomSetting.objects.create(
+            share_link=link,
+            dataroom_folder=dfolder,
+            allow_download=True,
+        )
+
+
+def test_migration_deduplicate_dataroom_settings(user, organization):
+    """
+    Review Comment #5: Verify that deduplicate_dataroom_settings cleanly purges
+    older duplicate rows and retains the record with latest updated_at.
+    """
+    import importlib
+    from datetime import timedelta
+    from django.apps import apps
+    from django.db import connection
+    from django.utils import timezone
+    migration_mod = importlib.import_module(
+        'sharelinks.migrations.0013_sharelinkdataroomsetting_unique_sharelink_dataroom_document_and_more'
+    )
+    deduplicate_dataroom_settings = migration_mod.deduplicate_dataroom_settings
+
+    dataroom = Dataroom.objects.create(name="Migration Test Room", organization=organization, created_by=user)
+    doc = Document.objects.create(name="Doc", organization=organization, created_by=user)
+    ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=doc, name=doc.name)
+    link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+    s1 = ShareLinkDataroomSetting.objects.get(share_link=link, dataroom_document=ddoc)
+    s1.updated_at = timezone.now() - timedelta(days=1)
+    s1.save(update_fields=['updated_at'])
+
+    # Drop constraint temporarily in test to simulate pre-migration state with duplicate rows
+    with connection.cursor() as cursor:
+        cursor.execute("DROP INDEX IF EXISTS unique_sharelink_dataroom_document")
+        cursor.execute("DROP INDEX IF EXISTS unique_sharelink_dataroom_folder")
+
+    # Insert duplicate row directly via bulk_create
+    s2 = ShareLinkDataroomSetting.objects.bulk_create([
+        ShareLinkDataroomSetting(
+            share_link=link,
+            dataroom_document=ddoc,
+            is_visible=False,
+            allow_download=False,
+            updated_at=timezone.now(),
+        )
+    ])[0]
+
+    assert ShareLinkDataroomSetting.objects.filter(share_link=link, dataroom_document=ddoc).count() == 2
+
+    # Run deduplication
+    schema_editor = connection.schema_editor()
+    deduplicate_dataroom_settings(apps, schema_editor)
+
+    # Verify only 1 row remains and it is the newer s2
+    remaining = ShareLinkDataroomSetting.objects.filter(share_link=link, dataroom_document=ddoc)
+    assert remaining.count() == 1
+    assert remaining.first().id == s2.id
+
+    # Test folder duplicate deduplication
+    dfolder = DataroomFolder.objects.create(dataroom=dataroom, name="Folder")
+    f1 = ShareLinkDataroomSetting.objects.get(share_link=link, dataroom_folder=dfolder)
+    f1.updated_at = timezone.now() - timedelta(days=1)
+    f1.save(update_fields=['updated_at'])
+
+    f2 = ShareLinkDataroomSetting.objects.bulk_create([
+        ShareLinkDataroomSetting(
+            share_link=link,
+            dataroom_folder=dfolder,
+            is_visible=False,
+            allow_download=False,
+            updated_at=timezone.now(),
+        )
+    ])[0]
+
+    assert ShareLinkDataroomSetting.objects.filter(share_link=link, dataroom_folder=dfolder).count() == 2
+
+    deduplicate_dataroom_settings(apps, schema_editor)
+
+    remaining_folders = ShareLinkDataroomSetting.objects.filter(share_link=link, dataroom_folder=dfolder)
+    assert remaining_folders.count() == 1
+    assert remaining_folders.first().id == f2.id
+
 
 
 def test_qna_thread_creation_for_document_share_link(share_link, user):

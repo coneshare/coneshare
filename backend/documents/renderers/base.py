@@ -4,6 +4,7 @@ from typing import Optional
 from urllib.parse import urljoin
 
 from django.conf import settings
+from django.utils import timezone
 from rest_framework.exceptions import APIException
 
 from core import services as core_services
@@ -93,17 +94,20 @@ class BasePreviewRenderer(ABC):
             return render_status
 
         # 3. Atomic claim (idempotency boundary for concurrent first views)
+        now = timezone.now()
         updated = DocumentVersion.objects.filter(
             pk=version.pk,
             render_status=DocumentVersion.RENDER_NOT_GENERATED,
         ).update(
             render_status=DocumentVersion.RENDER_QUEUED,
             render_error='',
+            updated_at=now,
         )
 
         if updated:
             version.render_status = DocumentVersion.RENDER_QUEUED
             version.render_error = ''
+            version.updated_at = now
             try:
                 self._dispatch_task(version)
             except Exception as exc:
@@ -112,15 +116,18 @@ class BasePreviewRenderer(ABC):
                     exc_info=True,
                 )
                 error_msg = f"Failed to dispatch background rendering task: {exc}"
+                fail_now = timezone.now()
                 DocumentVersion.objects.filter(
                     pk=version.pk,
                     render_status=DocumentVersion.RENDER_QUEUED,
                 ).update(
                     render_status=DocumentVersion.RENDER_FAILED,
                     render_error=error_msg,
+                    updated_at=fail_now,
                 )
                 version.render_status = DocumentVersion.RENDER_FAILED
                 version.render_error = error_msg
+                version.updated_at = fail_now
                 raise
             return DocumentVersion.RENDER_QUEUED
 

@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import timedelta
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -7,6 +8,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Count, Sum, Value, CharField, BigIntegerField, F, Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import permissions, serializers, status, viewsets, throttling
 from rest_framework.decorators import action
@@ -1141,12 +1143,20 @@ class DocumentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Concurrency race guard: reject if rendering is already in progress
+        # Concurrency race guard: reject if rendering is actively in progress.
+        # Allow recovery if caller passes force=True or if the task has been stuck
+        # in processing/queued for >15 minutes (indicating a crashed worker or dead task).
+        is_force = request.data.get('force') in (True, 'true', 'True', 1, '1')
+        is_stale = bool(
+            primary_version.updated_at
+            and primary_version.updated_at < timezone.now() - timedelta(minutes=15)
+        )
         if primary_version.render_status in {DocumentVersion.RENDER_QUEUED, DocumentVersion.RENDER_PROCESSING}:
-            return Response(
-                {"detail": "A preview generation is already in progress. Please wait."},
-                status=status.HTTP_409_CONFLICT
-            )
+            if not (is_force or is_stale):
+                return Response(
+                    {"detail": "A preview generation is already in progress. Please wait."},
+                    status=status.HTTP_409_CONFLICT
+                )
 
         # Collect storage keys before deleting database rows
         page_storage_keys = list(primary_version.pages.values_list('storage_key', flat=True))
