@@ -370,7 +370,8 @@ class TestAdminOrganizationView:
             total_document_size=9999999,  # Corrupted / drifted value
         )
 
-        # Create two active documents and one deleted document for this member
+        # Create two active documents and one trashed document for this member.
+        # Both active and trashed documents count toward storage quota until permanently purged.
         Document.objects.create(
             organization=admin_user.organization,
             created_by=member,
@@ -400,8 +401,8 @@ class TestAdminOrganizationView:
         assert response.status_code == status.HTTP_200_OK
 
         member.refresh_from_db()
-        assert member.total_document_size == 1024 + 2048
-        assert response.data['total_document_size'] == 3072
+        assert member.total_document_size == 1024 + 2048 + 5000
+        assert response.data['total_document_size'] == 8072
 
     def test_recalculate_user_quota_excludes_dataroom_vault_documents(self, admin_api_client, admin_user):
         from documents.models import Document, Folder

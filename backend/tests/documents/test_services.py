@@ -24,6 +24,7 @@ from documents.services import (
     ensure_storage_key_not_claimed,
     safe_delete_storage_file,
     filter_unreferenced_storage_keys,
+    recalculate_user_document_size,
 )
 from rest_framework import serializers
 from core.services import get_dynamic_setting
@@ -1515,6 +1516,167 @@ class TestStorageKeyIsolationAndSafeDeletion:
             {k1, k2, k3}, user.organization.id, exclude_document_ids=[doc1.pk]
         )
         assert unreferenced_with_exclusion == {k1, k3}
+
+
+@pytest.mark.django_db
+class TestDataConsistencyBatch1:
+    @patch('documents.services.safe_delete_storage_file')
+    def test_quota_recalculation_includes_trashed_documents_and_no_double_subtract(self, mock_delete, user):
+        """
+        Bug 1: Recalculate quota must include trashed documents because they still
+        consume storage until purged. Purging from trash must not subtract twice
+        or make total_document_size negative.
+        """
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="test.pdf",
+            status="ready",
+            file_size=1000,
+        )
+        user.total_document_size = 1000
+        user.save()
+
+        # 1. Soft-delete document into Trash
+        soft_delete_document(doc, user)
+        assert doc.deleted_at is not None
+        user.refresh_from_db()
+        assert user.total_document_size == 1000
+
+        # 2. Recalculate quota while document is in Trash
+        recalculated = recalculate_user_document_size(user)
+        # MUST count trashed documents (still taking up physical disk space)
+        assert recalculated == 1000
+        user.refresh_from_db()
+        assert user.total_document_size == 1000
+
+        # 3. Permanently purge the document from Trash
+        delete_document_and_files(doc)
+        user.refresh_from_db()
+        assert user.total_document_size == 0
+
+    @patch('documents.services.safe_delete_storage_file')
+    def test_delete_document_and_files_prevents_negative_quota(self, mock_delete, user):
+        """
+        Bug 1: Defensive guard ensures total_document_size never goes below 0.
+        """
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="test.pdf",
+            status="ready",
+            file_size=5000,
+        )
+        user.total_document_size = 1000  # Smaller than file_size
+        user.save()
+
+        delete_document_and_files(doc)
+        user.refresh_from_db()
+        assert user.total_document_size == 0
+
+    @patch('documents.services.safe_delete_storage_file')
+    def test_delete_video_document_deletes_hls_directory(self, mock_safe_delete, user):
+        """
+        Bug 9: Deleting a video document must enqueue the entire _hls directory
+        so orphaned .ts segments are not left on disk.
+        """
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="demo.mp4",
+            status="ready",
+            type="video",
+            file_size=1000,
+        )
+        version = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            original_storage_key="org_1/videos/demo.mp4",
+            storage_key="org_1/videos/demo_hls/playlist.m3u8",
+            type="video",
+            is_primary=True,
+        )
+
+        delete_document_and_files(doc)
+
+        # Check all keys passed to safe_delete_storage_file
+        deleted_keys = {call.args[0] for call in mock_safe_delete.call_args_list}
+        assert "org_1/videos/demo.mp4" in deleted_keys
+        assert "org_1/videos/demo_hls" in deleted_keys
+
+    @patch('documents.services.fileserver_client.delete_file')
+    def test_delete_folder_and_contents_deletes_hls_directory(self, mock_delete_file, user):
+        """
+        Finding 1: Deleting a folder containing video documents must enqueue and delete
+        the entire _hls directory.
+        """
+        from documents.services import delete_folder_and_contents
+
+        folder = Folder.objects.create(
+            organization=user.organization,
+            name="VideoFolder",
+            created_by=user,
+        )
+        doc = Document.objects.create(
+            organization=user.organization,
+            folder=folder,
+            created_by=user,
+            name="demo.mp4",
+            status="ready",
+            type="video",
+            file_size=1000,
+        )
+        DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            original_storage_key=f"{user.organization.id}/videos/demo.mp4",
+            storage_key=f"{user.organization.id}/videos/demo_hls/playlist.m3u8",
+            type="video",
+            is_primary=True,
+        )
+
+        delete_folder_and_contents(folder)
+
+        deleted_keys = {call.args[0] for call in mock_delete_file.call_args_list}
+        assert f"{user.organization.id}/videos/demo.mp4" in deleted_keys
+        assert f"{user.organization.id}/videos/demo_hls" in deleted_keys
+
+    def test_filter_unreferenced_storage_keys_handles_hls_prefix_referencing(self, user):
+        """
+        Finding 2: filter_unreferenced_storage_keys must correctly detect references
+        to an _hls directory prefix.
+        """
+        hls_dir = f"{user.organization.id}/videos/demo_hls"
+        playlist_key = f"{hls_dir}/playlist.m3u8"
+
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="video.mp4",
+            status="ready",
+            type="video",
+            file_size=1000,
+        )
+        DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            original_storage_key=f"{user.organization.id}/videos/video.mp4",
+            storage_key=playlist_key,
+            type="video",
+            is_primary=True,
+        )
+
+        # 1. hls_dir is referenced by doc's version
+        unreferenced = filter_unreferenced_storage_keys({hls_dir}, user.organization.id)
+        assert unreferenced == set(), "hls_dir should be detected as referenced"
+
+        # 2. When doc is excluded, hls_dir becomes unreferenced
+        unreferenced_excluded = filter_unreferenced_storage_keys(
+            {hls_dir}, user.organization.id, exclude_document_ids=[doc.pk]
+        )
+        assert unreferenced_excluded == {hls_dir}
+
+
 
 
 

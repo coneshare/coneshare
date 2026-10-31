@@ -33,7 +33,7 @@ class DashboardRecentViewSessionSerializer(serializers.ModelSerializer):
     def get_is_owner_view(self, obj) -> bool:
         request = self.context.get('request')
         if request and hasattr(request, 'user') and request.user.is_authenticated:
-            return obj.viewer_email == request.user.email
+            return (obj.viewer_email or '').strip().lower() == request.user.email.strip().lower()
         return False
 
 

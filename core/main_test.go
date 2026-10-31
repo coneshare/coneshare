@@ -683,3 +683,46 @@ func TestGeneratePreviewURLExpiryDuration(t *testing.T) {
 		t.Errorf("expected huge value capped at ~24h without overflow, got %v", d5)
 	}
 }
+
+func TestDeleteFileHandler_HLSFolderRecursively(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "coneshare-test-delete-hls")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	config := Config{
+		StoragePath: tempDir,
+	}
+
+	// 1. Create HLS folder with m3u8 playlist and .ts segments
+	hlsKey := "org1/videos/demo_hls"
+	hlsDir := filepath.Join(tempDir, hlsKey)
+	if err := os.MkdirAll(hlsDir, 0755); err != nil {
+		t.Fatalf("failed to create hls dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(hlsDir, "playlist.m3u8"), []byte("#EXTM3U"), 0644); err != nil {
+		t.Fatalf("failed to write m3u8: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(hlsDir, "segment0.ts"), []byte("video data"), 0644); err != nil {
+		t.Fatalf("failed to write ts: %v", err)
+	}
+
+	handler := deleteFileHandler(config)
+
+	// Call delete-file on the HLS directory
+	body, _ := json.Marshal(URLRequest{StorageKey: hlsKey})
+	req := httptest.NewRequest("POST", "/delete-file", strings.NewReader(string(body)))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 No Content, got %d (body: %s)", w.Code, w.Body.String())
+	}
+
+	// Verify the entire HLS directory and its contents are gone
+	if _, err := os.Stat(hlsDir); !os.IsNotExist(err) {
+		t.Fatalf("expected hls dir %s to be deleted, but it still exists", hlsDir)
+	}
+}
+

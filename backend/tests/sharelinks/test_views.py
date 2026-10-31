@@ -2517,6 +2517,42 @@ class TestShareLinkEmailProtection:
         response_view = public_client.get(view_data_url)
         assert response_view.status_code == status.HTTP_401_UNAUTHORIZED
 
+    @patch('sharelinks.views.send_mail')
+    def test_request_access_replaces_existing_token_case_insensitively(
+        self, mock_send_mail, public_client, share_link_requires_email_verification
+    ):
+        """
+        Requesting access again should invalidate any existing tokens for that email,
+        even if the existing token was saved with uppercase casing (pre-deploy state).
+        """
+        old_token = EmailVerificationToken.objects.create(
+            share_link=share_link_requires_email_verification,
+            email='viewer@example.com',
+        )
+        # Simulate pre-deploy database state with uppercase casing
+        EmailVerificationToken.objects.filter(id=old_token.id).update(email='Viewer@Example.COM')
+
+        request_url = f'/api/v1/links/{share_link_requires_email_verification.slug}/request-access/'
+        response = public_client.post(request_url, {'email': 'viewer@example.com'})
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()['verification_required'] is True
+
+        tokens = EmailVerificationToken.objects.filter(share_link=share_link_requires_email_verification)
+        assert tokens.count() == 1
+        new_token = tokens.first()
+        assert new_token.id != old_token.id
+        assert new_token.email == 'viewer@example.com'
+
+    def test_email_verification_token_save_normalizes_email(self, share_link_requires_email_verification):
+        token = EmailVerificationToken.objects.create(
+            share_link=share_link_requires_email_verification,
+            email='  Viewer.Case@Example.COM  '
+        )
+        assert token.email == 'viewer.case@example.com'
+        token.refresh_from_db()
+        assert token.email == 'viewer.case@example.com'
+
     def test_view_data_with_valid_access_token(self, public_client, share_link_requires_email_verification):
         """
         Using a valid access token from an email magic link should NOT grant access immediately on GET.
@@ -2730,6 +2766,33 @@ class TestOwnerPreviewFlag:
         assert len(results) == 1
         assert results[0]['is_owner_view'] is False
         assert results[0]['viewer_email'] == viewer_email
+
+    def test_owner_view_flagged_when_user_email_has_uppercase_letters(
+        self, api_client, user, document
+    ):
+        """
+        Verify that is_owner_view evaluates to True even when request.user.email
+        contains uppercase characters and ViewSession.viewer_email is lowercase.
+        """
+        user.email = "OwnerAdmin@Example.COM"
+        user.save(update_fields=['email'])
+
+        share_link = ShareLink.objects.create(document=document, created_by=user)
+        ViewSession.objects.create(
+            share_link=share_link,
+            viewer_email="owneradmin@example.com",
+            duration_seconds=10,
+        )
+
+        api_client.force_authenticate(user=user)
+        sessions_url = f'/api/v1/documents/{document.id}/view-sessions/'
+        response_sessions = api_client.get(sessions_url)
+        assert response_sessions.status_code == status.HTTP_200_OK
+
+        results = response_sessions.json()['results']
+        assert len(results) == 1
+        assert results[0]['is_owner_view'] is True
+
 
 
 @pytest.mark.django_db

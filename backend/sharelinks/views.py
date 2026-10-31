@@ -311,7 +311,8 @@ def _is_nda_accepted(link: ShareLink, request, auth_status) -> bool:
     # 2. Check NDAAcceptance by viewer email
     viewer_email = auth_status.get('viewer_email')
     if viewer_email:
-        if NDAAcceptance.objects.filter(share_link=link, viewer__email=viewer_email, nda_version=link.nda_version).exists():
+        normalized_viewer_email = viewer_email.strip().lower()
+        if NDAAcceptance.objects.filter(share_link=link, viewer__email=normalized_viewer_email, nda_version=link.nda_version).exists():
             # Update session
             authorized_links = request.session.get('authorized_share_links', {})
             if str(link.id) in authorized_links:
@@ -1486,7 +1487,7 @@ class ShareLinkQnAThreadListCreateView(APIView):
         if not viewer and view_session.viewer_email and organization:
             viewer, _created = Viewer.objects.get_or_create(
                 organization=organization,
-                email=view_session.viewer_email,
+                email=view_session.viewer_email.strip().lower(),
             )
             view_session.viewer = viewer
             view_session.save(update_fields=['viewer'])
@@ -1649,7 +1650,7 @@ class ShareLinkQnAMessageListCreateView(APIView):
         if not viewer and view_session.viewer_email and organization:
             viewer, _created = Viewer.objects.get_or_create(
                 organization=organization,
-                email=view_session.viewer_email,
+                email=view_session.viewer_email.strip().lower(),
             )
             view_session.viewer = viewer
             view_session.save(update_fields=['viewer'])
@@ -1921,7 +1922,7 @@ class ShareLinkAcceptNDAView(APIView):
         if viewer_email:
             try:
                 org = _get_share_link_organization(link)
-                viewer = Viewer.objects.get(organization=org, email=viewer_email)
+                viewer = Viewer.objects.get(organization=org, email=viewer_email.strip().lower())
             except Viewer.DoesNotExist:
                 pass
 
@@ -2059,6 +2060,7 @@ class ShareLinkRequestAccessView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+        email = email.strip().lower()
         Viewer.objects.get_or_create(
             organization=organization,
             email=email
@@ -2082,7 +2084,7 @@ class ShareLinkRequestAccessView(APIView):
         else:
             # To prevent database bloat and user confusion from multiple valid links,
             # atomically delete any existing tokens for this email and link before creating a new one.
-            EmailVerificationToken.objects.filter(share_link=link, email=email).delete()
+            EmailVerificationToken.objects.filter(share_link=link, email__iexact=email).delete()
             verification = EmailVerificationToken.objects.create(share_link=link, email=email)
             
             # Construct magic link URL
@@ -3342,7 +3344,7 @@ class ViewSessionViewSet(
             if organization:
                 viewer, _created = Viewer.objects.get_or_create(
                     organization=organization,
-                    email=viewer_email,
+                    email=viewer_email.strip().lower(),
                 )
 
         # GeoIP lookup

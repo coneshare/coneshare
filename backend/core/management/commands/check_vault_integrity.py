@@ -268,7 +268,7 @@ class Command(BaseCommand):
         quota_mismatches = []
         for user in User.objects.filter(total_document_size__gt=0):
             expected_size = (
-                Document.objects.active()
+                Document.objects
                 .filter(created_by=user)
                 .exclude(folder__folder_type="vault")
                 .aggregate(total=Sum("file_size"))["total"]
