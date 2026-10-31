@@ -19,7 +19,7 @@ from sharelinks.models import (DataroomVisit, EmailVerificationToken, PageView,
                                PreviewSession, ShareLink,
                                ShareLinkDataroomSetting, ViewSession, LinkClick)
 from sharelinks.views import (DATAROOM_VIEWDATA_DEFAULT_LIMIT, _is_dataroom_folder_path_visible,
-                              _build_dataroom_breadcrumbs)
+                              _build_dataroom_breadcrumbs, _resolve_dataroom_document_setting)
 import zipfile
 from io import BytesIO
 try:
@@ -1481,6 +1481,31 @@ class TestDataroomVisitTracking:
         assert "Parent Folder" not in item_names
         assert "Subfolder" not in item_names
         assert "Secret.pdf" not in item_names
+
+    def test_view_data_with_duplicate_dataroom_setting_does_not_500(
+        self, public_client, user, organization, document_factory
+    ):
+        """Bug 6: If duplicate ShareLinkDataroomSetting records exist, view-data must not crash with MultipleObjectsReturned 500."""
+        dataroom = Dataroom.objects.create(name="Duplicate Settings Dataroom", created_by=user, organization=organization)
+        doc = document_factory(name="Doc.pdf")
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=None)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+        # Signal already created one setting row
+        setting = ShareLinkDataroomSetting.objects.get(share_link=link, dataroom_document=ddoc)
+
+        # Test defensive resolution: simulate multiple matching records in the queryset
+        mock_qs = MagicMock()
+        mock_qs.filter.return_value = mock_qs
+        mock_qs.order_by.return_value.first.return_value = setting
+
+        with patch.object(type(link.dataroom_settings), 'select_related', return_value=mock_qs):
+            resolved = _resolve_dataroom_document_setting(link, str(ddoc.id))
+            assert resolved == setting
+
+        response = public_client.get(f'/api/v1/links/{link.slug}/view-data/?dataroom_document_id={ddoc.id}')
+        assert response.status_code == status.HTTP_200_OK
+
 
     def test_get_dataroom_link_data_root_scope_returns_only_root_direct_children(
         self, public_client, user, organization, document_factory

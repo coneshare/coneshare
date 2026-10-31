@@ -11,6 +11,7 @@ from rest_framework.exceptions import APIException
 
 from core.models import Organization
 from documents.models import (Document, DocumentPage, DocumentVersion, Folder)
+from documents.renderers.pdf import PDFRenderer
 from documents.services import QuotaExceededError
 from sharelinks.models import (ShareLink, ViewSession)
 
@@ -1166,6 +1167,108 @@ def test_rebuild_preview_concurrency_conflict(mock_task_delay, mock_delete_file,
     assert DocumentPage.objects.filter(document_version=version).count() == 1
     mock_delete_file.assert_not_called()
     mock_task_delay.assert_not_called()
+
+
+@pytest.mark.django_db
+@override_settings(PDF_PREVIEW_ENGINE='server_pages')
+@patch('documents.views.fileserver_client.delete_file')
+@patch('documents.services.generate_pdf_pages_task.delay')
+def test_rebuild_preview_force_override_processing_status(mock_task_delay, mock_delete_file, api_client, user):
+    """Bug 8: Passing force=True must override RENDER_PROCESSING and trigger rebuild."""
+    doc = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        status='processing',
+        type='pdf',
+    )
+    version = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        original_storage_key="test_force.pdf",
+        storage_key="test_force.pdf",
+        type='pdf',
+        is_primary=True,
+        render_status=DocumentVersion.RENDER_PROCESSING,
+        has_pages=False,
+    )
+
+    response = api_client.post(f'/api/v1/documents/{doc.id}/rebuild-preview/', {'force': True}, format='json')
+    assert response.status_code == status.HTTP_200_OK
+    mock_task_delay.assert_called_once_with(version.id)
+
+
+@pytest.mark.django_db
+@override_settings(PDF_PREVIEW_ENGINE='server_pages')
+@patch('documents.views.fileserver_client.delete_file')
+@patch('documents.services.generate_pdf_pages_task.delay')
+def test_rebuild_preview_stale_processing_task_auto_recovers(mock_task_delay, mock_delete_file, api_client, user):
+    """Bug 8: If worker died and render_status remained 'processing' for >15 mins, rebuild must succeed without 409."""
+    doc = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        status='processing',
+        type='pdf',
+    )
+    version = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        original_storage_key="test_stale.pdf",
+        storage_key="test_stale.pdf",
+        type='pdf',
+        is_primary=True,
+        render_status=DocumentVersion.RENDER_PROCESSING,
+        has_pages=False,
+    )
+    # Simulate crashed worker task from 20 minutes ago
+    DocumentVersion.objects.filter(id=version.id).update(
+        updated_at=timezone.now() - timedelta(minutes=20)
+    )
+
+    response = api_client.post(f'/api/v1/documents/{doc.id}/rebuild-preview/')
+    assert response.status_code == status.HTTP_200_OK
+    mock_task_delay.assert_called_once_with(version.id)
+
+
+@pytest.mark.django_db
+@override_settings(PDF_PREVIEW_ENGINE='server_pages')
+@patch('documents.views.fileserver_client.delete_file')
+@patch('documents.services.generate_pdf_pages_task.delay')
+def test_enqueue_render_task_stamps_updated_at_preventing_premature_stale_rebuild(mock_task_delay, mock_delete_file, api_client, user):
+    """
+    Review Comment #3: Enqueueing a render task must update updated_at, preventing
+    rebuild_preview from incorrectly treating freshly queued tasks as stale.
+    """
+    doc = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        status='ready',
+        type='pdf',
+    )
+    old_time = timezone.now() - timedelta(hours=2)
+    version = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        original_storage_key="test_queue.pdf",
+        storage_key="test_queue.pdf",
+        type='pdf',
+        is_primary=True,
+        render_status=DocumentVersion.RENDER_NOT_GENERATED,
+        has_pages=False,
+    )
+    DocumentVersion.objects.filter(id=version.id).update(updated_at=old_time)
+
+    # Enqueue render task
+    renderer = PDFRenderer()
+    renderer.enqueue_render_task(version)
+
+    version.refresh_from_db()
+    assert version.render_status == DocumentVersion.RENDER_QUEUED
+    assert version.updated_at > old_time
+
+    # Immediate rebuild-preview without force must return 409 Conflict
+    response = api_client.post(f'/api/v1/documents/{doc.id}/rebuild-preview/')
+    assert response.status_code == status.HTTP_409_CONFLICT
+
 
 
 @pytest.mark.django_db

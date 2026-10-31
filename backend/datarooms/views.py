@@ -339,29 +339,33 @@ class DataroomViewSet(viewsets.ModelViewSet):
         if parent_id:
             parent = get_object_or_404(DataroomFolder, id=parent_id, dataroom=dataroom)
 
-        existing_folders = DataroomFolder.objects.filter(dataroom=dataroom, parent=parent)
-        existing_documents = DataroomDocument.objects.filter(dataroom=dataroom, folder=parent, document__deleted_at__isnull=True)
-
-        existing_item_keys = {
-            *{("folder", str(folder_id)) for folder_id in existing_folders.values_list('id', flat=True)},
-            *{("document", str(doc_id)) for doc_id in existing_documents.values_list('id', flat=True)},
-        }
-        requested_item_keys = {(item["type"], str(item["id"])) for item in ordered_items}
-
-        if existing_item_keys != requested_item_keys:
-            return Response(
-                {"detail": "ordered_items must include all and only items in the target scope."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        folder_ids = [item["id"] for item in ordered_items if item["type"] == "folder"]
-        doc_ids = [item["id"] for item in ordered_items if item["type"] == "document"]
-
         with transaction.atomic():
-            # Clear any existing order rows for these specific items to prevent
+            locked_dataroom = Dataroom.objects.select_for_update().get(id=dataroom.id)
+
+            existing_folders = DataroomFolder.objects.filter(dataroom=locked_dataroom, parent=parent)
+            existing_documents = DataroomDocument.objects.filter(dataroom=locked_dataroom, folder=parent, document__deleted_at__isnull=True)
+
+            existing_item_keys = {
+                *{("folder", str(folder_id)) for folder_id in existing_folders.values_list('id', flat=True)},
+                *{("document", str(doc_id)) for doc_id in existing_documents.values_list('id', flat=True)},
+            }
+            requested_item_keys = {(item["type"], str(item["id"])) for item in ordered_items}
+
+            if existing_item_keys != requested_item_keys:
+                return Response(
+                    {"detail": "ordered_items must include all and only items in the target scope."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            folder_ids = [item["id"] for item in ordered_items if item["type"] == "folder"]
+            doc_ids = [item["id"] for item in ordered_items if item["type"] == "document"]
+
+            # Clear all existing order rows for this scope to prevent
             # UniqueConstraint collisions and OneToOne validation errors.
-            DataroomItemOrder.objects.filter(folder_id__in=folder_ids).delete()
-            DataroomItemOrder.objects.filter(dataroom_document_id__in=doc_ids).delete()
+            DataroomItemOrder.objects.filter(dataroom=locked_dataroom, parent_folder=parent).delete()
+            # Also clear any order rows for these specific items in case they originated elsewhere
+            DataroomItemOrder.objects.filter(dataroom=locked_dataroom, folder_id__in=folder_ids).delete()
+            DataroomItemOrder.objects.filter(dataroom=locked_dataroom, dataroom_document_id__in=doc_ids).delete()
 
             # Recreate them in the new sequence using bulk_create to avoid N+1 query overhead.
             orders_to_create = []
@@ -369,7 +373,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
                 if item["type"] == "folder":
                     orders_to_create.append(
                         DataroomItemOrder(
-                            dataroom=dataroom,
+                            dataroom=locked_dataroom,
                             parent_folder=parent,
                             item_type=DataroomItemOrder.ITEM_TYPE_FOLDER,
                             folder_id=item["id"],
@@ -379,7 +383,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
                 else:
                     orders_to_create.append(
                         DataroomItemOrder(
-                            dataroom=dataroom,
+                            dataroom=locked_dataroom,
                             parent_folder=parent,
                             item_type=DataroomItemOrder.ITEM_TYPE_DOCUMENT,
                             dataroom_document_id=item["id"],
@@ -414,27 +418,52 @@ class DataroomViewSet(viewsets.ModelViewSet):
                 # (N+1 queries) when moving many documents. This should be converted to use bulk_update.
                 source_folders = set()
                 docs_to_move = DataroomDocument.objects.filter(id__in=doc_ids, dataroom=dataroom)
+                docs_changed_parent = []
                 for doc in docs_to_move:
-                    if doc.folder:
-                        source_folders.add(doc.folder)
-                    doc.name = self._get_unique_dataroom_document_name(dataroom, destination_folder, doc.name)
-                    doc.folder = destination_folder
-                    doc.save()
+                    old_folder = doc.folder
+                    if old_folder != destination_folder:
+                        docs_changed_parent.append(doc)
+                        if old_folder:
+                            source_folders.add(old_folder)
+                        doc.name = self._get_unique_dataroom_document_name(dataroom, destination_folder, doc.name)
+                        doc.folder = destination_folder
+                        doc.save()
 
                 folders_to_move = DataroomFolder.objects.filter(id__in=folder_ids, dataroom=dataroom)
+                folders_changed_parent = []
                 for folder in folders_to_move:
                     if folder.id == dest_folder_id:
                         raise serializers.ValidationError("Cannot move a folder into itself.")
-                    if folder.parent:
-                        source_folders.add(folder.parent)
-                    folder.name = self._get_unique_dataroom_folder_name(dataroom, destination_folder, folder.name)
-                    folder.parent = destination_folder
-                    folder.save()
+                    old_parent = folder.parent
+                    if old_parent != destination_folder:
+                        folders_changed_parent.append(folder)
+                        if old_parent:
+                            source_folders.add(old_parent)
+                        folder.name = self._get_unique_dataroom_folder_name(dataroom, destination_folder, folder.name)
+                        folder.parent = destination_folder
+                        folder.save()
 
                 for src_folder in source_folders:
                     touch_dataroom_folder_ancestors(src_folder)
-                if destination_folder:
+                if destination_folder and (docs_changed_parent or folders_changed_parent):
                     touch_dataroom_folder_ancestors(destination_folder)
+
+                # Clear old order rows for items that actually changed parent folders
+                if folders_changed_parent:
+                    DataroomItemOrder.objects.filter(dataroom=dataroom, folder__in=folders_changed_parent).delete()
+                if docs_changed_parent:
+                    DataroomItemOrder.objects.filter(dataroom=dataroom, dataroom_document__in=docs_changed_parent).delete()
+
+                # If destination scope uses custom ordering, append items that changed parent to the end
+                if (folders_changed_parent or docs_changed_parent) and self._scope_has_item_order_rows(dataroom, destination_folder):
+                    for folder in folders_changed_parent:
+                        self._append_item_order(
+                            dataroom, destination_folder, DataroomItemOrder.ITEM_TYPE_FOLDER, folder=folder
+                        )
+                    for doc in docs_changed_parent:
+                        self._append_item_order(
+                            dataroom, destination_folder, DataroomItemOrder.ITEM_TYPE_DOCUMENT, dataroom_document=doc
+                        )
 
             return Response({"detail": "Content moved successfully."}, status=status.HTTP_200_OK)
         except serializers.ValidationError as e:

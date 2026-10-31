@@ -3,7 +3,7 @@ import secrets
 from datetime import timedelta
 
 from django.conf import settings
-from django.db import models
+from django.db import IntegrityError, models
 from django.db.models import Q
 from django.utils import timezone
 
@@ -173,8 +173,28 @@ class ShareLinkDataroomSetting(BaseModel):
                     Q(dataroom_document__isnull=True, dataroom_folder__isnull=False)
                 ),
                 name='sharelinkdataroomsetting_exactly_one_target'
-            )
+            ),
+            models.UniqueConstraint(
+                fields=['share_link', 'dataroom_document'],
+                condition=Q(dataroom_document__isnull=False),
+                name='unique_sharelink_dataroom_document'
+            ),
+            models.UniqueConstraint(
+                fields=['share_link', 'dataroom_folder'],
+                condition=Q(dataroom_folder__isnull=False),
+                name='unique_sharelink_dataroom_folder'
+            ),
         ]
+
+    def save(self, *args, **kwargs):
+        # Application-level guard against duplicate setting rows
+        if self._state.adding or kwargs.get('force_insert'):
+            qs = ShareLinkDataroomSetting.objects.filter(share_link_id=self.share_link_id)
+            if self.dataroom_document_id and qs.filter(dataroom_document_id=self.dataroom_document_id).exists():
+                raise IntegrityError("Duplicate setting for share link and dataroom document.")
+            if self.dataroom_folder_id and qs.filter(dataroom_folder_id=self.dataroom_folder_id).exists():
+                raise IntegrityError("Duplicate setting for share link and dataroom folder.")
+        super().save(*args, **kwargs)
 
     def __str__(self):
         target = self.dataroom_document or self.dataroom_folder
