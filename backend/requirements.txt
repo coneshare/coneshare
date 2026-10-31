@@ -12,7 +12,7 @@ pytest-bdd==8.1.0
 celery[redis]==5.4.0
 pdf2image==1.17.0
 djangorestframework-simplejwt==5.3.1
-Pillow==10.4.0
+Pillow==13.0.0
 pillow-heif==0.22.0
 geoip2==5.1.0
 reportlab==4.4.4
