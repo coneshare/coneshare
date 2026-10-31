@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import patch
+from django.utils import timezone
 
 from automations.models import AutomationDelivery, AutomationDestination, AutomationRule
 from automations.tasks import deliver_automation_delivery_task
@@ -61,6 +62,24 @@ def test_deliver_task_marks_success(mock_request, user, share_link):
     assert delivery.response_code == 200
     assert delivery.delivered_at is not None
     assert delivery.next_retry_at is None
+
+
+@patch('automations.tasks.requests.request')
+def test_deliver_task_skips_if_already_succeeded(mock_request, user, share_link):
+    """
+    Issue #398 (Item 10): If delivery already succeeded (e.g. via manual replay),
+    a subsequent/concurrent delivery task (such as a pending retry) must skip execution
+    to prevent duplicate webhook delivery.
+    """
+    delivery = _make_delivery(user, share_link)
+    delivery.status = AutomationDelivery.Status.SUCCESS
+    delivery.response_code = 200
+    delivery.delivered_at = timezone.now()
+    delivery.save()
+
+    deliver_automation_delivery_task(str(delivery.id))
+
+    mock_request.assert_not_called()
 
 
 @patch('automations.tasks.requests.request')

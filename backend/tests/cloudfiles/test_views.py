@@ -650,6 +650,47 @@ class TestCloudRefreshView:
 
 
 @pytest.mark.django_db
+@patch('cloudfiles.views.import_from_cloud_task.delay')
+def test_refresh_records_previous_primary_version_in_metadata(mock_task_delay, api_client, user):
+    connection = CloudConnection.objects.create(
+        user=user,
+        provider='google_drive',
+        email='user@gmail.com',
+        access_token='token123',
+    )
+    doc = Document.objects.create(
+        name="test_refresh_metadata.pdf",
+        organization=user.organization,
+        created_by=user,
+        status="ready",
+        file_size=100,
+    )
+    v1 = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        is_primary=True,
+        file_size=100,
+        metadata={
+            "cloud_import": {
+                "provider": "google_drive",
+                "provider_display": "Google Drive",
+                "connection_id": str(connection.id),
+                "file_id": "file_123"
+            }
+        }
+    )
+    api_client.force_authenticate(user=user)
+    response = api_client.post(f'/api/v1/cloud/documents/{doc.id}/refresh/')
+    assert response.status_code == status.HTTP_202_ACCEPTED
+
+    mock_task_delay.assert_called_once()
+    version_id = mock_task_delay.call_args[1]['version_id']
+    new_version = DocumentVersion.objects.get(id=version_id)
+    assert new_version.metadata['previous_primary_version_id'] == str(v1.id)
+    assert new_version.metadata['cloud_import']['previous_primary_version_id'] == str(v1.id)
+
+
+@pytest.mark.django_db
 def test_refresh_soft_deleted_document_returns_404(api_client, user):
     """
     RED Test: Verify that cloud refresh requests for soft-deleted documents return 404.

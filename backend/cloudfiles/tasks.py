@@ -5,7 +5,11 @@ from django.db import transaction
 
 from core.services import get_dynamic_setting
 from documents.models import Document, DocumentVersion
-from documents.services import process_imported_file, QuotaExceededError
+from documents.services import (
+    process_imported_file,
+    QuotaExceededError,
+    recalculate_user_document_size,
+)
 from .models import CloudConnection
 from .providers import CloudProviderError, get_cloud_provider
 
@@ -36,29 +40,56 @@ def _handle_import_failure(document, version_id, error_message):
                     locked_document = Document.objects.select_for_update().get(id=document.id)
 
                     # 2. Query previous version inside the transaction and lock
-                    prev_version = locked_document.versions.exclude(id=version_id).order_by('-version_number').first()
+                    prev_version = None
+                    prev_version_id = None
+                    if isinstance(version.metadata, dict):
+                        prev_version_id = version.metadata.get('previous_primary_version_id')
+                        if not prev_version_id and 'cloud_import' in version.metadata and isinstance(version.metadata['cloud_import'], dict):
+                            prev_version_id = version.metadata['cloud_import'].get('previous_primary_version_id')
 
-                    if prev_version:
-                        # Restore the previous primary version and copy back its attributes
-                        prev_version.is_primary = True
-                        prev_version.save(update_fields=['is_primary'])
-                        
-                        locked_document.file_size = prev_version.file_size
-                        locked_document.content_type = prev_version.content_type
-                        locked_document.type = prev_version.type
+                    versions_qs = locked_document.versions.select_for_update()
+                    locked_version = versions_qs.filter(id=version_id).first()
+                    failed_version = locked_version or version
 
-                        # Revert status to ready but record the error message for context
-                        locked_document.status = 'ready'
-                        locked_document.status_message = f"Last update failed: {error_message}"
+                    # Only restore predecessor if the failed version was still the active primary version
+                    if failed_version.is_primary:
+                        if prev_version_id:
+                            prev_version = versions_qs.filter(id=prev_version_id).first()
+
+                        if not prev_version:
+                            prev_version = versions_qs.exclude(id=version_id).order_by('-version_number').first()
+
+                        if prev_version:
+                            # Restore the previous primary version and copy back its attributes
+                            prev_version.is_primary = True
+                            prev_version.save(update_fields=['is_primary'])
+                            
+                            locked_document.file_size = prev_version.file_size
+                            locked_document.content_type = prev_version.content_type
+                            locked_document.type = prev_version.type
+
+                            # Revert status to ready but record the error message for context
+                            locked_document.status = 'ready'
+                            locked_document.status_message = f"Last update failed: {error_message}"
+                        else:
+                            # If there is no previous version, fall back to error status
+                            locked_document.status = 'error'
+                            locked_document.status_message = f"Import failed: {error_message}"
+
+                        locked_document.save()
                     else:
-                        # If there is no previous version, fall back to error status
-                        locked_document.status = 'error'
-                        locked_document.status_message = f"Import failed: {error_message}"
+                        logger.info(
+                            "Failed version %s for document %s is no longer primary. Skipping predecessor restoration.",
+                            version_id,
+                            document.id,
+                        )
 
-                    locked_document.save()
-                    
                     # 3. Delete the failed un-imported version
-                    version.delete()
+                    failed_version.delete()
+
+                    # 4. Re-sync quota for user to prevent any quota drift
+                    if locked_document.created_by:
+                        recalculate_user_document_size(locked_document.created_by)
                 return
     except Exception as e:
         logger.exception(f"Failed to revert document state after import failure: {e}")
@@ -67,6 +98,8 @@ def _handle_import_failure(document, version_id, error_message):
     document.status = 'error'
     document.status_message = f"Import failed: {error_message}"
     document.save()
+    if document.created_by:
+        recalculate_user_document_size(document.created_by)
 
 
 @shared_task

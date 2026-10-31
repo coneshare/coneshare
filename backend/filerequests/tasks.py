@@ -47,12 +47,25 @@ def export_upload_to_cloud_task(job_id):
                 job.save(update_fields=['status', 'error_message'])
                 return
 
-            # Check for active unresolved SecurityThreatEvents for this document/key
-            unresolved_threats = SecurityThreatEvent.objects.filter(
-                file_request=uploaded_file.file_request,
-                file_name=doc.name,
-                status=SecurityThreatEvent.Status.NEW
-            ).exists()
+            # Check for active unresolved SecurityThreatEvents for this document's storage key(s)
+            doc_storage_keys = set()
+            if getattr(doc, 'storage_key', None):
+                doc_storage_keys.add(doc.storage_key)
+            if getattr(doc, 'original_storage_key', None):
+                doc_storage_keys.add(doc.original_storage_key)
+            for key in doc.versions.values_list('storage_key', flat=True):
+                if key:
+                    doc_storage_keys.add(key)
+            for key in doc.versions.values_list('original_storage_key', flat=True):
+                if key:
+                    doc_storage_keys.add(key)
+
+            unresolved_threats = False
+            if doc_storage_keys:
+                unresolved_threats = SecurityThreatEvent.objects.filter(
+                    file_request=uploaded_file.file_request,
+                    storage_key__in=doc_storage_keys,
+                ).exclude(status=SecurityThreatEvent.Status.RESOLVED).exists()
 
             if unresolved_threats:
                 job.status = UploadExportJob.Status.BLOCKED_SCAN

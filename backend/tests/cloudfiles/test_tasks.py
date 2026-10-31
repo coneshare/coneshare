@@ -106,6 +106,142 @@ def test_import_from_cloud_task_failure_revert(mock_get_provider, cloud_connecti
 
 @pytest.mark.django_db
 @patch('cloudfiles.tasks.get_cloud_provider')
+def test_import_from_cloud_task_failure_restores_correct_previous_primary_version_and_resyncs_quota(mock_get_provider, cloud_connection, user):
+    document = Document.objects.create(
+        name="test.pdf",
+        organization=user.organization,
+        created_by=user,
+        status="uploading",
+        file_size=50,
+        content_type="application/pdf",
+        type="pdf"
+    )
+    # v1 was the active primary version before the refresh attempt
+    v1 = DocumentVersion.objects.create(
+        document=document,
+        version_number=1,
+        is_primary=False,
+        file_size=50,
+        content_type="application/pdf",
+        type="pdf"
+    )
+    # v2 was a non-primary version with a different size
+    v2 = DocumentVersion.objects.create(
+        document=document,
+        version_number=2,
+        is_primary=False,
+        file_size=500,
+        content_type="application/pdf",
+        type="pdf"
+    )
+    # v3 is the new version created for refresh that fails
+    v3 = DocumentVersion.objects.create(
+        document=document,
+        version_number=3,
+        is_primary=True,
+        file_size=100,
+        content_type="application/pdf",
+        type="pdf",
+        metadata={
+            "cloud_import": {
+                "previous_primary_version_id": v1.id,
+            },
+            "previous_primary_version_id": v1.id,
+        }
+    )
+    user.total_document_size = 50
+    user.save(update_fields=['total_document_size'])
+
+    mock_provider = MagicMock()
+    mock_provider.download_file.side_effect = CloudProviderError("Network timeout")
+    mock_get_provider.return_value = mock_provider
+
+    import_from_cloud_task(document.id, cloud_connection.id, '/test.pdf', version_id=v3.id)
+
+    document.refresh_from_db()
+    v1.refresh_from_db()
+    v2.refresh_from_db()
+    user.refresh_from_db()
+
+    # Crucial assertion: v1 must be restored to primary, NOT v2
+    assert v1.is_primary is True
+    assert v2.is_primary is False
+    assert document.file_size == 50
+    assert user.total_document_size == 50
+
+
+@pytest.mark.django_db
+@patch('cloudfiles.tasks.get_cloud_provider')
+def test_import_from_cloud_task_failure_skips_restoring_predecessor_when_failed_version_no_longer_primary(mock_get_provider, cloud_connection, user):
+    document = Document.objects.create(
+        name="test.pdf",
+        organization=user.organization,
+        created_by=user,
+        status="ready",
+        file_size=300,
+        content_type="application/pdf",
+        type="pdf"
+    )
+    # v1 was original primary
+    v1 = DocumentVersion.objects.create(
+        document=document,
+        version_number=1,
+        is_primary=False,
+        file_size=100,
+        content_type="application/pdf",
+        type="pdf"
+    )
+    # v2 was started as a cloud import (had v1 as predecessor), but was later superseded
+    v2 = DocumentVersion.objects.create(
+        document=document,
+        version_number=2,
+        is_primary=False,  # no longer primary!
+        file_size=200,
+        content_type="application/pdf",
+        type="pdf",
+        metadata={
+            "cloud_import": {"previous_primary_version_id": v1.id},
+            "previous_primary_version_id": v1.id,
+        }
+    )
+    # v3 was imported or promoted successfully and is the current active primary version
+    v3 = DocumentVersion.objects.create(
+        document=document,
+        version_number=3,
+        is_primary=True,
+        file_size=300,
+        content_type="application/pdf",
+        type="pdf"
+    )
+    user.total_document_size = 300
+    user.save(update_fields=['total_document_size'])
+
+    mock_provider = MagicMock()
+    mock_provider.download_file.side_effect = CloudProviderError("Import failed")
+    mock_get_provider.return_value = mock_provider
+
+    # v2's background import fails after v3 already became primary
+    import_from_cloud_task(document.id, cloud_connection.id, '/test.pdf', version_id=v2.id)
+
+    document.refresh_from_db()
+    v1.refresh_from_db()
+    v3.refresh_from_db()
+    user.refresh_from_db()
+
+    # v2 must be deleted
+    assert not DocumentVersion.objects.filter(id=v2.id).exists()
+    # v3 must remain the sole primary version
+    assert v3.is_primary is True
+    assert v1.is_primary is False
+    assert DocumentVersion.objects.filter(document=document, is_primary=True).count() == 1
+    # Document attributes and quota should stay intact for v3
+    assert document.file_size == 300
+    assert document.status == "ready"
+    assert user.total_document_size == 300
+
+
+@pytest.mark.django_db
+@patch('cloudfiles.tasks.get_cloud_provider')
 def test_import_from_cloud_task_failure_first_version(mock_get_provider, cloud_connection, user):
     document = Document.objects.create(
         name="test.pdf",
