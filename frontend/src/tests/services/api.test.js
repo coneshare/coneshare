@@ -11,6 +11,8 @@ import {
   getPublicQnaThreads,
   getShareLinkViewData,
   updateOwnerQnaThreadStatus,
+  downloadDataroomFolder,
+  downloadDataroomArchive,
 } from "../../services/api";
 import { DATAROOM_VIEWER_PAGE_SIZE } from "../../constants/pagination";
 import axios from "axios";
@@ -582,6 +584,56 @@ describe("API Service Interceptors", () => {
         subject: "Owner question",
         body: "Please review this.",
       });
+    });
+  });
+
+  describe("Dataroom Archive and Folder Downloads", () => {
+    it("should trigger native anchor download for dataroom archive with viewSessionId", () => {
+      const appendChildSpy = vi.spyOn(document.body, "appendChild");
+      const clickSpy = vi.fn();
+
+      const originalCreateElement = document.createElement.bind(document);
+      vi.spyOn(document, "createElement").mockImplementation((tag) => {
+        const el = originalCreateElement(tag);
+        if (tag === "a") {
+          el.click = clickSpy;
+        }
+        return el;
+      });
+
+      downloadDataroomArchive("my-slug", "view-123");
+
+      expect(clickSpy).toHaveBeenCalled();
+      const createdAnchor = appendChildSpy.mock.calls.find((call) => call[0].tagName === "A")?.[0];
+      expect(createdAnchor).toBeDefined();
+      expect(createdAnchor.href).toContain("/api/v1/links/my-slug/download-dataroom/?view_session_id=view-123");
+      expect(createdAnchor.getAttribute("download")).toBe("");
+
+      vi.restoreAllMocks();
+    });
+
+    it("should trigger native anchor download for dataroom folder with viewSessionId", () => {
+      const appendChildSpy = vi.spyOn(document.body, "appendChild");
+      const clickSpy = vi.fn();
+
+      const originalCreateElement = document.createElement.bind(document);
+      vi.spyOn(document, "createElement").mockImplementation((tag) => {
+        const el = originalCreateElement(tag);
+        if (tag === "a") {
+          el.click = clickSpy;
+        }
+        return el;
+      });
+
+      downloadDataroomFolder("my-slug", "folder-456", "view-123");
+
+      expect(clickSpy).toHaveBeenCalled();
+      const createdAnchor = appendChildSpy.mock.calls.find((call) => call[0].tagName === "A")?.[0];
+      expect(createdAnchor).toBeDefined();
+      expect(createdAnchor.href).toContain("/api/v1/links/my-slug/download-folder/folder-456/?view_session_id=view-123");
+      expect(createdAnchor.getAttribute("download")).toBe("");
+
+      vi.restoreAllMocks();
     });
   });
 });

@@ -61,8 +61,8 @@ paths:
     get:
       operationId: v1__health_retrieve
       description: |-
-        Checks the health of the database and Redis cache.
-        Used by Docker for health checks.
+        Checks the health of the database, Redis cache, and file server.
+        Used by Docker / Kubernetes for health checks.
       tags:
       - core
       security:
@@ -4002,159 +4002,6 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/v1/groups/:
-    get:
-      operationId: v1_groups_list
-      description: API endpoint that allows user groups to be viewed or edited.
-      tags:
-      - core
-      security:
-      - apiKeyAuth: []
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/UserGroup'
-          description: ''
-    post:
-      operationId: v1_groups_create
-      description: API endpoint that allows user groups to be viewed or edited.
-      tags:
-      - core
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UserGroup'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/UserGroup'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/UserGroup'
-        required: true
-      security:
-      - apiKeyAuth: []
-      - jwtAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserGroup'
-          description: ''
-  /api/v1/groups/{id}/:
-    get:
-      operationId: v1_groups_retrieve
-      description: API endpoint that allows user groups to be viewed or edited.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this User Group.
-        required: true
-      tags:
-      - core
-      security:
-      - apiKeyAuth: []
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserGroup'
-          description: ''
-    put:
-      operationId: v1_groups_update
-      description: API endpoint that allows user groups to be viewed or edited.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this User Group.
-        required: true
-      tags:
-      - core
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UserGroup'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/UserGroup'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/UserGroup'
-        required: true
-      security:
-      - apiKeyAuth: []
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserGroup'
-          description: ''
-    patch:
-      operationId: v1_groups_partial_update
-      description: API endpoint that allows user groups to be viewed or edited.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this User Group.
-        required: true
-      tags:
-      - core
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedUserGroup'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedUserGroup'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedUserGroup'
-      security:
-      - apiKeyAuth: []
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserGroup'
-          description: ''
-    delete:
-      operationId: v1_groups_destroy
-      description: API endpoint that allows user groups to be viewed or edited.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this User Group.
-        required: true
-      tags:
-      - core
-      security:
-      - apiKeyAuth: []
-      - jwtAuth: []
-      responses:
-        '204':
-          description: No response body
   /api/v1/languages/:
     get:
       operationId: v1_languages_list
@@ -4275,6 +4122,62 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/links/{slug}/download-dataroom/:
+    get:
+      operationId: v1_links_download_dataroom_retrieve
+      description: |-
+        Handles the download of an entire dataroom (all visible/downloadable folders and root files)
+        as a low-memory streaming ZIP archive.
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - sharelinks
+      security:
+      - apiKeyAuth: []
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '410':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/links/{slug}/download-file/:
     get:
       operationId: v1_links_download_file_retrieve
@@ -4351,7 +4254,8 @@ paths:
   /api/v1/links/{slug}/download-folder/{folder_id}/:
     get:
       operationId: v1_links_download_folder_retrieve
-      description: Handles the download of an entire dataroom folder as a ZIP archive.
+      description: Handles the download of an entire dataroom folder as a low-memory
+        streaming ZIP archive.
       parameters:
       - in: path
         name: folder_id
@@ -5069,7 +4973,9 @@ paths:
   /api/v1/organizations/:
     get:
       operationId: v1_organizations_list
-      description: API endpoint that allows organizations to be viewed or edited.
+      description: |-
+        API endpoint that allows organizations to be viewed.
+        Scoped to the requesting user's own organization.
       tags:
       - core
       security:
@@ -5087,7 +4993,9 @@ paths:
   /api/v1/organizations/{id}/:
     get:
       operationId: v1_organizations_retrieve
-      description: API endpoint that allows organizations to be viewed or edited.
+      description: |-
+        API endpoint that allows organizations to be viewed.
+        Scoped to the requesting user's own organization.
       parameters:
       - in: path
         name: id
@@ -6449,88 +6357,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ViewSession'
           description: ''
-    put:
-      operationId: v1_view_sessions_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        description: A unique value identifying this view session.
-        required: true
-      tags:
-      - sharelinks
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ViewSession'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ViewSession'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ViewSession'
-        required: true
-      security:
-      - apiKeyAuth: []
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ViewSession'
-          description: ''
-    patch:
-      operationId: v1_view_sessions_partial_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        description: A unique value identifying this view session.
-        required: true
-      tags:
-      - sharelinks
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedViewSession'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedViewSession'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedViewSession'
-      security:
-      - apiKeyAuth: []
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ViewSession'
-          description: ''
-    delete:
-      operationId: v1_view_sessions_destroy
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        description: A unique value identifying this view session.
-        required: true
-      tags:
-      - sharelinks
-      security:
-      - apiKeyAuth: []
-      - jwtAuth: []
-      responses:
-        '204':
-          description: No response body
   /api/v1/view-sessions/{id}/record-visit/:
     post:
       operationId: v1_view_sessions_record_visit_create
@@ -6585,32 +6411,6 @@ paths:
                 items:
                   $ref: '#/components/schemas/Viewer'
           description: ''
-    post:
-      operationId: v1_viewers_create
-      tags:
-      - sharelinks
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Viewer'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Viewer'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Viewer'
-        required: true
-      security:
-      - apiKeyAuth: []
-      - jwtAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Viewer'
-          description: ''
   /api/v1/viewers/{id}/:
     get:
       operationId: v1_viewers_retrieve
@@ -6633,88 +6433,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Viewer'
           description: ''
-    put:
-      operationId: v1_viewers_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        description: A unique value identifying this viewer.
-        required: true
-      tags:
-      - sharelinks
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Viewer'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Viewer'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Viewer'
-        required: true
-      security:
-      - apiKeyAuth: []
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Viewer'
-          description: ''
-    patch:
-      operationId: v1_viewers_partial_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        description: A unique value identifying this viewer.
-        required: true
-      tags:
-      - sharelinks
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedViewer'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedViewer'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedViewer'
-      security:
-      - apiKeyAuth: []
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Viewer'
-          description: ''
-    delete:
-      operationId: v1_viewers_destroy
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-        description: A unique value identifying this viewer.
-        required: true
-      tags:
-      - sharelinks
-      security:
-      - apiKeyAuth: []
-      - jwtAuth: []
-      responses:
-        '204':
-          description: No response body
 components:
   schemas:
     APIKey:
@@ -7643,6 +7361,10 @@ components:
         is_owner_view:
           type: boolean
           readOnly: true
+        email_verification_method:
+          allOf:
+          - $ref: '#/components/schemas/EmailVerificationMethodEnum'
+          readOnly: true
       required:
       - city
       - completion_rate
@@ -7654,6 +7376,7 @@ components:
       - document_type
       - downloaded_at
       - duration_seconds
+      - email_verification_method
       - id
       - ip_address
       - is_owner_view
@@ -8193,44 +7916,43 @@ components:
           type: string
           readOnly: true
         folder:
-          type: string
-          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/Folder'
+          readOnly: true
         name:
           type: string
           maxLength: 255
         description:
           type: string
         status:
-          $ref: '#/components/schemas/DocumentStatusEnum'
+          allOf:
+          - $ref: '#/components/schemas/DocumentStatusEnum'
+          readOnly: true
         status_message:
           type: string
+          readOnly: true
           nullable: true
-          maxLength: 255
         storage_key:
           type: string
+          readOnly: true
           nullable: true
-          maxLength: 1024
         original_storage_key:
           type: string
+          readOnly: true
           nullable: true
-          maxLength: 1024
         type:
           type: string
-          maxLength: 20
+          readOnly: true
         content_type:
           type: string
-          maxLength: 255
+          readOnly: true
         num_pages:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          readOnly: true
           nullable: true
         file_size:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          readOnly: true
           nullable: true
         download_only:
           type: boolean
@@ -8287,11 +8009,18 @@ components:
       - created_by
       - created_by_user
       - download_only
+      - file_size
+      - folder
       - id
       - name
+      - num_pages
       - organization
+      - original_storage_key
       - share_link_view_count
       - share_links
+      - status
+      - status_message
+      - storage_key
       - type
       - updated_at
       - uploader_info
@@ -8399,8 +8128,6 @@ components:
           type: string
         unique_name:
           type: string
-        file_size:
-          type: integer
         content_type:
           type: string
         path:
@@ -8408,7 +8135,6 @@ components:
           nullable: true
       required:
       - content_type
-      - file_size
       - storage_key
       - unique_name
     DocumentUploadRequest:
@@ -8418,6 +8144,7 @@ components:
           type: string
         file_size:
           type: integer
+          minimum: 1
         path:
           type: string
           nullable: true
@@ -8501,6 +8228,7 @@ components:
           type: string
         file_size:
           type: integer
+          minimum: 1
       required:
       - file_name
       - file_size
@@ -8514,6 +8242,18 @@ components:
       required:
       - storage_key
       - upload_url
+    EmailVerificationMethodEnum:
+      enum:
+      - verified
+      - self_reported
+      - owner
+      - account
+      type: string
+      description: |-
+        * `verified` - Verified
+        * `self_reported` - Self-reported
+        * `owner` - Owner
+        * `account` - Account
     EnsureFolderPaths:
       type: object
       description: Serializer for validating paths for the ensure-paths endpoint.
@@ -8693,8 +8433,6 @@ components:
           type: string
         unique_name:
           type: string
-        file_size:
-          type: integer
         content_type:
           type: string
         uploader_name:
@@ -8706,7 +8444,6 @@ components:
         custom_field_values: {}
       required:
       - content_type
-      - file_size
       - storage_key
       - unique_name
       - uploader_email
@@ -8718,6 +8455,7 @@ components:
           type: string
         file_size:
           type: integer
+          minimum: 1
       required:
       - file_name
       - file_size
@@ -8739,13 +8477,10 @@ components:
       properties:
         storage_key:
           type: string
-        file_size:
-          type: integer
         content_type:
           type: string
       required:
       - content_type
-      - file_size
       - storage_key
     Folder:
       type: object
@@ -8798,8 +8533,11 @@ components:
           type: string
         redis:
           type: string
+        file_server:
+          type: string
       required:
       - database
+      - file_server
       - redis
     HttpMethodEnum:
       enum:
@@ -9018,7 +8756,7 @@ components:
           format: uri
           writeOnly: true
           nullable: true
-          pattern: (?:png|jpg|jpeg|svg)$
+          pattern: (?:png|jpg|jpeg|webp)$
         brand_logo_url:
           type: string
           format: uri
@@ -9117,14 +8855,12 @@ components:
           type: string
         page_number:
           type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
+          maximum: 100000
+          minimum: 1
         duration_seconds:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 86400
           minimum: 0
-          format: int64
         dataroom_visit:
           type: string
           nullable: true
@@ -9134,16 +8870,19 @@ components:
         video_start_time:
           type: number
           format: double
+          maximum: 86400.0
+          minimum: 0.0
           nullable: true
         video_end_time:
           type: number
           format: double
+          maximum: 86400.0
+          minimum: 0.0
           nullable: true
         video_volume:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 100
+          minimum: 0
           nullable: true
         is_fullscreen:
           type: boolean
@@ -9151,6 +8890,8 @@ components:
         playback_speed:
           type: number
           format: double
+          maximum: 16.0
+          minimum: 0.1
           nullable: true
         scroll_percentage:
           type: integer
@@ -9874,44 +9615,43 @@ components:
           type: string
           readOnly: true
         folder:
-          type: string
-          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/Folder'
+          readOnly: true
         name:
           type: string
           maxLength: 255
         description:
           type: string
         status:
-          $ref: '#/components/schemas/DocumentStatusEnum'
+          allOf:
+          - $ref: '#/components/schemas/DocumentStatusEnum'
+          readOnly: true
         status_message:
           type: string
+          readOnly: true
           nullable: true
-          maxLength: 255
         storage_key:
           type: string
+          readOnly: true
           nullable: true
-          maxLength: 1024
         original_storage_key:
           type: string
+          readOnly: true
           nullable: true
-          maxLength: 1024
         type:
           type: string
-          maxLength: 20
+          readOnly: true
         content_type:
           type: string
-          maxLength: 255
+          readOnly: true
         num_pages:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          readOnly: true
           nullable: true
         file_size:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          readOnly: true
           nullable: true
         download_only:
           type: boolean
@@ -10075,7 +9815,7 @@ components:
           format: uri
           writeOnly: true
           nullable: true
-          pattern: (?:png|jpg|jpeg|svg)$
+          pattern: (?:png|jpg|jpeg|webp)$
         brand_logo_url:
           type: string
           format: uri
@@ -10392,126 +10132,6 @@ components:
           title: Active
           description: Designates whether this user should be treated as active. Unselect
             this instead of deleting accounts.
-    PatchedUserGroup:
-      type: object
-      description: Serializer for the UserGroup model.
-      properties:
-        id:
-          type: integer
-          readOnly: true
-        name:
-          type: string
-          maxLength: 150
-        organization:
-          type: string
-    PatchedViewSession:
-      type: object
-      properties:
-        id:
-          type: string
-          readOnly: true
-        share_link:
-          type: string
-        viewer:
-          type: string
-          nullable: true
-        viewer_email:
-          type: string
-          format: email
-          maxLength: 254
-        share_link_name:
-          type: string
-          readOnly: true
-        document_id:
-          type: string
-          readOnly: true
-        document_name:
-          type: string
-          readOnly: true
-        document_type:
-          type: string
-          readOnly: true
-        dataroom_id:
-          type: string
-          readOnly: true
-        dataroom_name:
-          type: string
-          readOnly: true
-        ip_address:
-          type: string
-          readOnly: true
-          nullable: true
-        user_agent:
-          type: string
-          readOnly: true
-        country:
-          type: string
-          readOnly: true
-        city:
-          type: string
-          readOnly: true
-        latitude:
-          type: number
-          format: double
-          readOnly: true
-          nullable: true
-        longitude:
-          type: number
-          format: double
-          readOnly: true
-          nullable: true
-        duration_seconds:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-        completion_rate:
-          type: number
-          format: double
-        viewed_at:
-          type: string
-          format: date-time
-          readOnly: true
-        page_views:
-          type: array
-          items:
-            $ref: '#/components/schemas/PageView'
-          readOnly: true
-        dataroom_visits:
-          type: array
-          items:
-            $ref: '#/components/schemas/DataroomVisit'
-          readOnly: true
-        link_clicks:
-          type: array
-          items:
-            $ref: '#/components/schemas/LinkClick'
-          readOnly: true
-        is_owner_view:
-          type: boolean
-          readOnly: true
-        downloaded_at:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
-    PatchedViewer:
-      type: object
-      properties:
-        id:
-          type: string
-          readOnly: true
-        organization:
-          type: string
-          readOnly: true
-        email:
-          type: string
-          format: email
-          maxLength: 254
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
     ProviderEnum:
       enum:
       - dropbox
@@ -11472,22 +11092,6 @@ components:
       - role
       - total_document_size
       - updated_at
-    UserGroup:
-      type: object
-      description: Serializer for the UserGroup model.
-      properties:
-        id:
-          type: integer
-          readOnly: true
-        name:
-          type: string
-          maxLength: 150
-        organization:
-          type: string
-      required:
-      - id
-      - name
-      - organization
     ViewSession:
       type: object
       properties:
@@ -11498,6 +11102,7 @@ components:
           type: string
         viewer:
           type: string
+          readOnly: true
           nullable: true
         viewer_email:
           type: string
@@ -11546,12 +11151,11 @@ components:
           nullable: true
         duration_seconds:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          readOnly: true
         completion_rate:
           type: number
           format: double
+          readOnly: true
         viewed_at:
           type: string
           format: date-time
@@ -11579,8 +11183,13 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        email_verification_method:
+          allOf:
+          - $ref: '#/components/schemas/EmailVerificationMethodEnum'
+          readOnly: true
       required:
       - city
+      - completion_rate
       - country
       - dataroom_id
       - dataroom_name
@@ -11589,6 +11198,8 @@ components:
       - document_name
       - document_type
       - downloaded_at
+      - duration_seconds
+      - email_verification_method
       - id
       - ip_address
       - is_owner_view
@@ -11600,6 +11211,7 @@ components:
       - share_link_name
       - user_agent
       - viewed_at
+      - viewer
     Viewer:
       type: object
       properties:

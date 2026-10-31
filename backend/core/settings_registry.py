@@ -4,6 +4,7 @@ import json
 DEFAULT_SETTINGS = {
     'MAX_PREVIEW_FILE_SIZE_MB': {'description': 'Max file size in MB for preview generation. Files larger than this will be marked as download-only.', 'type': 'int'},
     'MAX_VIDEO_PREVIEW_SIZE_MB': {'description': 'Max file size in MB for video preview generation. Files larger than this will be marked as download-only.', 'type': 'int'},
+    'MAX_WATERMARK_FILE_SIZE_MB': {'description': 'Max file size in MB for on-the-fly watermark generation. Files larger than this will be restricted.', 'type': 'int', 'min': 0},
     'MAX_PREVIEW_PAGES': {'description': 'Maximum number of pages for document preview. Documents with more pages will be available for download only.', 'type': 'int'},
     'FILE_SIZE_QUOTA_MB': {'description': 'Per-user file size quota in MB. 0 means unlimited.', 'type': 'int'},
     'MAX_FILES_PER_UPLOAD': {'description': 'Maximum number of files allowed in a single upload operation.', 'type': 'int'},
@@ -35,7 +36,7 @@ def infer_setting_type(default_value):
     return 'string'
 
 
-def coerce_to_typed_value(setting_type: str, value):
+def coerce_to_typed_value(setting_type: str, value, setting_key: str = None):
     if setting_type == 'bool':
         if isinstance(value, bool):
             return value
@@ -50,7 +51,11 @@ def coerce_to_typed_value(setting_type: str, value):
     if setting_type == 'int':
         if isinstance(value, bool):
             raise ValueError('Expected an integer value.')
-        return int(value)
+        coerced = int(value)
+        min_val = DEFAULT_SETTINGS.get(setting_key, {}).get('min') if setting_key else None
+        if min_val is not None and coerced < min_val:
+            raise ValueError(f'{setting_key} must be greater than or equal to {min_val}.')
+        return coerced
 
     if setting_type == 'json':
         if isinstance(value, str):

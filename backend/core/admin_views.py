@@ -115,9 +115,12 @@ class AdminSettingsViewSet(viewsets.ModelViewSet):
         description = config['description']
         setting_type = config['type']
         try:
-            coerced_value = coerce_to_typed_value(setting_type, value)
-        except (ValueError, TypeError):
-            raise serializers.ValidationError({'value': f'Invalid value for type {setting_type}.'})
+            coerced_value = coerce_to_typed_value(setting_type, value, setting_key=key)
+        except (ValueError, TypeError) as err:
+            err_msg = str(err)
+            if not err_msg or 'invalid literal' in err_msg or 'Expected an integer' in err_msg:
+                err_msg = f'Invalid value for type {setting_type}.'
+            raise serializers.ValidationError({'value': err_msg})
         stored_value = serialize_typed_to_db_value(setting_type, coerced_value)
 
         obj, created = AppConfiguration.objects.update_or_create(

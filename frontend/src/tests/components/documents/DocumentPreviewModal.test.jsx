@@ -256,7 +256,7 @@ describe('DocumentPreviewModal', () => {
       expect(mockGetPreview).toHaveBeenCalledTimes(1);
     });
 
-    const triggerBtn = screen.getByText('Trigger Token Expired');
+    const triggerBtn = await screen.findByText('Trigger Token Expired');
     fireEvent.click(triggerBtn);
 
     await waitFor(() => {
@@ -293,7 +293,7 @@ describe('DocumentPreviewModal', () => {
       expect(mockGetPreview).toHaveBeenCalledTimes(1);
     });
 
-    const triggerBtn = screen.getByText('Trigger Token Expired');
+    const triggerBtn = await screen.findByText('Trigger Token Expired');
     fireEvent.click(triggerBtn);
 
     // Modal is closed while refresh is in flight

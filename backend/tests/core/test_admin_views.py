@@ -170,6 +170,26 @@ class TestAdminSettingsTypedValues:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert 'value' in response.json()
 
+    def test_update_watermark_file_size_rejects_negative_value(self, admin_api_client):
+        response = admin_api_client.patch(
+            '/api/v1/admin/settings/MAX_WATERMARK_FILE_SIZE_MB/',
+            {'value': -50},
+            format='json',
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'value' in response.json()
+        assert 'greater than or equal to 0' in str(response.json()['value'])
+
+    def test_update_watermark_file_size_accepts_non_negative_value(self, admin_api_client):
+        response = admin_api_client.patch(
+            '/api/v1/admin/settings/MAX_WATERMARK_FILE_SIZE_MB/',
+            {'value': 50},
+            format='json',
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()['value'] == 50
+        assert AppConfiguration.objects.get(key='MAX_WATERMARK_FILE_SIZE_MB').value == '50'
+
 
 @pytest.mark.django_db
 class TestAdminSecurityThreatEventsViewSet:
