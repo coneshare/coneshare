@@ -1,6 +1,92 @@
 # Changelog
 
 
+## [1.11.0](https://github.com/coneshare/coneshare/compare/v1.10.1...v1.11.0) (2026-10-31)
+
+
+### Features
+
+* **automations:** restrict webhook destinations to admin role and add ssrf protection ([f4fee0c](https://github.com/coneshare/coneshare/commit/f4fee0cecab9494d681c27f0baf0160118542c3a))
+* **dataroom:** redesign Add Content dialog to match stitch mockup ([1269cd9](https://github.com/coneshare/coneshare/commit/1269cd9b5d438d2de470efc23b402760d6404dc2))
+* **dataroom:** split reorder dialog into distinct Folders and Documents sections ([ae16dc2](https://github.com/coneshare/coneshare/commit/ae16dc262a15c632a19119c2a56c1a4ae90b61af))
+* **datarooms:** support banner gallery mode and per-dataroom brand logo override ([142d0b6](https://github.com/coneshare/coneshare/commit/142d0b6050c37fe3a26ccb4eccf2f823a2c80f7c))
+* display email verification badges and refine owner vs account distinction ([#412](https://github.com/coneshare/coneshare/issues/412)) ([6c51021](https://github.com/coneshare/coneshare/commit/6c510216dd125e30bb79c2ad6a382d3032c828f4))
+* **documents:** client-side markdown preview and reading analytics ([#356](https://github.com/coneshare/coneshare/issues/356)) ([77f0f81](https://github.com/coneshare/coneshare/commit/77f0f81a29e8f4537e03473bf92c2352d947f33b))
+* **frontend:** add fixed topbar for share link and dataroom viewers ([1fbbe03](https://github.com/coneshare/coneshare/commit/1fbbe0324865a4af2655bb88886e2a7f87a0704e))
+* **frontend:** unify Move Items dialogs and enhance folder destination picker ([ee46e73](https://github.com/coneshare/coneshare/commit/ee46e730e90bd2eb0812a4741d2bc95ccdd6ab85))
+* **i18n:** add Dutch (nl) locale support ([5760369](https://github.com/coneshare/coneshare/commit/5760369b6663b9e661506bd02595ad507cc577cf))
+* **settings:** refine user settings layout, navigation items, and mcp guide ([31cc1e5](https://github.com/coneshare/coneshare/commit/31cc1e5294e5e016fe29de1e64bd4eedf700b14a))
+* **sharelinks:** record how a view session's email was obtained ([83d6c19](https://github.com/coneshare/coneshare/commit/83d6c19dcd6dc8c81deac2c38ea4e56acd7235e5))
+* **viewer:** collapse dataroom file tree sidebar by default on mobile ([ee85d85](https://github.com/coneshare/coneshare/commit/ee85d85fa16501dff7a35257bcf1cde1302cec08))
+* **viewer:** lazy load dataroom viewer with animated progress and isolate shared-ui chunk ([775858f](https://github.com/coneshare/coneshare/commit/775858fd94b1afc29032fdc1e90daa524d5c21ea))
+* **viewer:** redesign dataroom customer view to match stitch mockup ([6118832](https://github.com/coneshare/coneshare/commit/6118832baa36e7f6e99bc08b92005756f14e25dc))
+* **viewer:** redesign staged gate screens with unified GateLayout and hardened protections ([b81ccb0](https://github.com/coneshare/coneshare/commit/b81ccb0352ad298a986e88a3bcae19d266bda1f1))
+
+
+### Bug Fixes
+
+* **auth:** add client-side AuthGuard and preserve post-login destination ([#402](https://github.com/coneshare/coneshare/issues/402)) ([4982551](https://github.com/coneshare/coneshare/commit/4982551a9165437c7a5340cfceda126af6d6b10a))
+* **auth:** add client-side AuthGuard and preserve post-login destination ([#402](https://github.com/coneshare/coneshare/issues/402)) ([1a2fb11](https://github.com/coneshare/coneshare/commit/1a2fb113e709cf70bce8b2678bf1edcbf6925d83))
+* **automations,datarooms:** enforce scope boundary on rules and duplicate check on folder moves ([617c026](https://github.com/coneshare/coneshare/commit/617c02660e721c667bc2b108f9b0a686f30c7496))
+* **automations:** isolate personal email destinations to owner in destination list and rule creation ([d8cd2ab](https://github.com/coneshare/coneshare/commit/d8cd2abd61c693b324f2df8c8f76272984fb8718))
+* blacklist inactive user token and add access control to org info ([8674f59](https://github.com/coneshare/coneshare/commit/8674f59c55d0bff6e032f4281133e3b4382ed521))
+* **core,documents:** enforce safe inline preview headers and mime validation ([31bc4cc](https://github.com/coneshare/coneshare/commit/31bc4cc8b3bb5bd90f3e729c5450cd6fe933cfbd))
+* **core,documents:** enforce safe inline preview headers and mime validation ([63d1d37](https://github.com/coneshare/coneshare/commit/63d1d370693ef2ac01835988c6978ef15229e73a))
+* **core:** correct reencrypt_data import and cover all encrypted fields ([ed10ada](https://github.com/coneshare/coneshare/commit/ed10adaae0aefb98aca3cd21a91b1a7afdd170d9))
+* **core:** correct reencrypt_data import and cover all encrypted fields ([dda85cc](https://github.com/coneshare/coneshare/commit/dda85ccb3230525007b98a81cf9ec83781b6caf6))
+* **core:** enhance health check probing and container signal forwarding ([#395](https://github.com/coneshare/coneshare/issues/395), [#397](https://github.com/coneshare/coneshare/issues/397)) ([213b35c](https://github.com/coneshare/coneshare/commit/213b35cc11bc8ed8a68f7d7baded8211f4b9f7a5))
+* **core:** enhance health check probing and container signal forwarding ([#395](https://github.com/coneshare/coneshare/issues/395), [#397](https://github.com/coneshare/coneshare/issues/397)) ([2d58a64](https://github.com/coneshare/coneshare/commit/2d58a6487e369afe4ca7f701f750c9db352ebd25))
+* **dataroom:** enforce dataroom folder visibility and watermark fallback ([10ecf70](https://github.com/coneshare/coneshare/commit/10ecf704417f4bd2346eca172a69dd5617ad26b6))
+* **datarooms:** scope sharelink management and revoke collaborator privileges on removal ([2ff1cbb](https://github.com/coneshare/coneshare/commit/2ff1cbb08b54306c345260b24b4bb1ef5bbbb00f))
+* **datarooms:** scope sharelink management and revoke collaborator privileges on removal ([8dd7197](https://github.com/coneshare/coneshare/commit/8dd7197f60100e791bf9a6fd7ee9c7aa9878977f))
+* **documents:** check whether storage_key is claimed after upload ([9292f1c](https://github.com/coneshare/coneshare/commit/9292f1c3cd8f68fdf1023ce08ded3f2ae12319bf))
+* **documents:** clear all primary flags when uploading a new version ([7bb8dc1](https://github.com/coneshare/coneshare/commit/7bb8dc1d12775e5c7e4789f73e2dd3c09b23e2c1))
+* **documents:** discard partial pages when PDF rendering fails ([9c55f8c](https://github.com/coneshare/coneshare/commit/9c55f8cb1c022e79c62d1c3b8aaba5fc2a279c15))
+* **documents:** enforce server-side physical file size verification and folder constraints ([cfc1f1f](https://github.com/coneshare/coneshare/commit/cfc1f1ff664d4912e8a8466fcd5471c4b26ac29d))
+* **documents:** isolate LibreOffice user profile to prevent concurrent conversion failures ([ac29e8d](https://github.com/coneshare/coneshare/commit/ac29e8d8e3e9b136ff0a2bb131f2da7f6dde75e3)), closes [#379](https://github.com/coneshare/coneshare/issues/379)
+* **documents:** render PDF preview pages one at a time ([a905b51](https://github.com/coneshare/coneshare/commit/a905b519d06d9c87619005ebd89f5315fd9c6126))
+* fix dataroom quota exceeded issue ([dc15a70](https://github.com/coneshare/coneshare/commit/dc15a7042b329ff1c26e4e2a1dabf99cd0056222))
+* fix gunicorn.conf to limit workers counts ([ab569e8](https://github.com/coneshare/coneshare/commit/ab569e8b10deddb818025ad4ece92fa77e82372d))
+* fix HLS playback stops after 5 minutes issue ([#392](https://github.com/coneshare/coneshare/issues/392)) ([5bdbec3](https://github.com/coneshare/coneshare/commit/5bdbec33c91ad3047850ec9c62fc5a5605d7820d))
+* fix TrashPage pagination ([47f59ac](https://github.com/coneshare/coneshare/commit/47f59ac84f2e76150249b76dda4eba7968c72833))
+* fix user api update and API key tier permission issue ([f655efe](https://github.com/coneshare/coneshare/commit/f655efe83459e236ffb3ae1ad42fb0104ce9d458))
+* **frontend:** address PR [#418](https://github.com/coneshare/coneshare/issues/418) review comments across viewers, auth, and expiry handling ([#418](https://github.com/coneshare/coneshare/issues/418)) ([ccd90a9](https://github.com/coneshare/coneshare/commit/ccd90a99f6f837c8e51b1d2297a3bd93768ba80f))
+* **frontend:** address PR [#418](https://github.com/coneshare/coneshare/issues/418) review comments across viewers, auth, and expiry handling ([#418](https://github.com/coneshare/coneshare/issues/418)) ([6c53459](https://github.com/coneshare/coneshare/commit/6c534592b98648cf5d59ae293935938acd1b1f13))
+* **frontend:** make dataroom search filter shortcut platform-aware ([#411](https://github.com/coneshare/coneshare/issues/411)) ([ff2994a](https://github.com/coneshare/coneshare/commit/ff2994afd86992468a7fd7eb22c2ad490b930b70))
+* **frontend:** make dataroom search filter shortcut platform-aware ([#411](https://github.com/coneshare/coneshare/issues/411)) ([8fdf711](https://github.com/coneshare/coneshare/commit/8fdf71135cee0d5f34a7f0805768926522e431c9))
+* **frontend:** resolve viewer sync, keydown handlers, folder race, and public auth errors ([#399](https://github.com/coneshare/coneshare/issues/399)) ([7704476](https://github.com/coneshare/coneshare/commit/7704476d6f9fcedb6b4789d0148c49612e0ed8f7))
+* **frontend:** resolve viewer sync, keydown handlers, folder race, and public auth errors ([#399](https://github.com/coneshare/coneshare/issues/399)) ([1bc491a](https://github.com/coneshare/coneshare/commit/1bc491a88c991f1b68177deffef0b36b8987a7f4))
+* **i18n:** deduplicate qna title, resolve catalog disparities and add universal parity tests ([73f9bbb](https://github.com/coneshare/coneshare/commit/73f9bbbba2dbb5621c208bc274f1c954d740cd43))
+* **mcp:** resolve MCP server endpoints, upload path contract, and pagination ([8a10c7d](https://github.com/coneshare/coneshare/commit/8a10c7db7cb346dc062db6b095f4d263146cf6ea)), closes [#381](https://github.com/coneshare/coneshare/issues/381)
+* prevent client-controlled X-Real-IP spoofing and support trusted proxies ([2f60b7e](https://github.com/coneshare/coneshare/commit/2f60b7e2185c02a5d718b839e5c6220e26701dfc))
+* resolve cloud refresh rollback, trash uploads, threat export checks, and duplicate webhook delivery ([#398](https://github.com/coneshare/coneshare/issues/398)) ([5eb1fa4](https://github.com/coneshare/coneshare/commit/5eb1fa4278faa15e754a1075904a2902a1d98c1f))
+* resolve quota underflow, orphaned HLS segments, and case-sensitive viewer email ([#398](https://github.com/coneshare/coneshare/issues/398)) ([89e0e32](https://github.com/coneshare/coneshare/commit/89e0e3282434ebbf25a435c9f9192acbd2f3c26b))
+* resolve reorder move collisions, dataroom settings duplicates, and stuck render status ([#398](https://github.com/coneshare/coneshare/issues/398)) ([12940fb](https://github.com/coneshare/coneshare/commit/12940fb892529f72739f128c38903b705976b8c3))
+* **security:** resolve MCP path validation (T4-02) and viewer print restriction bypass (T4-03) ([53f4dfe](https://github.com/coneshare/coneshare/commit/53f4dfef9a519a82392538a742e444760dae5135))
+* **sharelinks,datarooms:** restrict view session access and prevent folder hierarchy cycles ([9f08422](https://github.com/coneshare/coneshare/commit/9f0842205410e161a5dc31a675b2e172b96d2e55))
+* **sharelinks:** deduplicate document_viewed events during dataroom view-data polling ([#396](https://github.com/coneshare/coneshare/issues/396)) ([34f66b9](https://github.com/coneshare/coneshare/commit/34f66b9630976d98d15f010858f67c8a673e9eb3))
+* **sharelinks:** enforce 410 on expired links and add friendly expired view ([#373](https://github.com/coneshare/coneshare/issues/373)) ([42f7a0c](https://github.com/coneshare/coneshare/commit/42f7a0c6fb42f54f54e8b44476e1879ef3e51159))
+* **sharelinks:** enforce access gate and link state validation in record page view ([b4cbb5a](https://github.com/coneshare/coneshare/commit/b4cbb5a556f13db2c513881a7704df2b42b5d53b))
+* **sharelinks:** enforce access gate and link state validation in record page view ([355a2a9](https://github.com/coneshare/coneshare/commit/355a2a948c6b08f8a371e487c4e1cebf22a953df))
+* **sharelinks:** enforce sequential gate flow (email -&gt; password -> nda) and suppress prompt toast (T3-02, [#405](https://github.com/coneshare/coneshare/issues/405)) ([271d490](https://github.com/coneshare/coneshare/commit/271d4909a997e148944f2e4bd056252d298a941a))
+* **sharelinks:** enforce sequential session authorization on page render endpoints ([36f19a2](https://github.com/coneshare/coneshare/commit/36f19a2308681eb9e449b89628d482fbce884216))
+* **sharelinks:** prevent unwatermarked page bypass on watermarked links ([95c6b9a](https://github.com/coneshare/coneshare/commit/95c6b9ae0db78e9bc6dc920faa11a0ff70e55d63))
+* **tasks:** fallback duration parsing for videos without container duration ([#393](https://github.com/coneshare/coneshare/issues/393)) ([f19bacc](https://github.com/coneshare/coneshare/commit/f19bacc8b2f177346e85b788bdd1e0bafc3eec84))
+* update eslint config and update CI to run lint ([64781a0](https://github.com/coneshare/coneshare/commit/64781a07aaf328a55e276c97f9f3b2786d188ce5))
+* validate storage key and confine file service to storage root ([c7aa2a5](https://github.com/coneshare/coneshare/commit/c7aa2a53c2be781e174d54e8a39f686c907baa08))
+* **viewer:** add spreadsheet viewing telemetry and copy protection ([#410](https://github.com/coneshare/coneshare/issues/410)) ([a8b4781](https://github.com/coneshare/coneshare/commit/a8b478133e58d0f13c22bd227f54d9085838773e))
+* **viewer:** add spreadsheet viewing telemetry and copy protection ([#410](https://github.com/coneshare/coneshare/issues/410)) ([7117302](https://github.com/coneshare/coneshare/commit/7117302ff6bb3a12b588a4f385498a6ec80b3b89))
+* **viewer:** flush page time on tab hide and stop double counting ([c944c65](https://github.com/coneshare/coneshare/commit/c944c65820cd9126e10adb14f2b35360dd865572))
+
+
+### Performance Improvements
+
+* **frontend:** eliminate chunk fragmentation and lazy-load document viewers ([d6ee4a9](https://github.com/coneshare/coneshare/commit/d6ee4a91bd74b5366ea413b47f880f58b4b98d9b))
+* **frontend:** merge sub-10KB micro-chunks via experimentalMinChunkSize ([ee0673c](https://github.com/coneshare/coneshare/commit/ee0673c02fd10b569106e4b50958634f59fb313d))
+* **frontend:** reduce bundle size via route-level lazy loading and vendor chunking ([f64130c](https://github.com/coneshare/coneshare/commit/f64130cff11020554869e00f5901427146cf89e4))
+* **sharelinks:** optimize dataroom folder visibility and breadcrumb queries ([b5b055d](https://github.com/coneshare/coneshare/commit/b5b055dd478bc3fe3f0bfcff7b4eb6a1f9b8c7e6))
+* tune nginx static cache and gzip, decouple previewState helpers and lazy-load PreviewStatePanel ([5b5de76](https://github.com/coneshare/coneshare/commit/5b5de76696aba368ec101c4d194cc6706d456a4b))
+
 ## [1.10.1](https://github.com/coneshare/coneshare/compare/v1.10.0...v1.10.1) (2026-10-06)
 
 
