@@ -195,6 +195,39 @@ class TestPublicFileRequestViews:
         response = public_client.get(url)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_get_public_details_folder_in_trash(self, public_client, file_request):
+        file_request.folder.deleted_at = timezone.now()
+        file_request.folder.save(update_fields=['deleted_at'])
+        url = f'/api/v1/public/file-requests/{file_request.slug}/'
+        response = public_client.get(url)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "trash" in response.data['detail'].lower()
+
+    def test_request_upload_url_folder_in_trash(self, public_client, file_request):
+        file_request.folder.deleted_at = timezone.now()
+        file_request.folder.save(update_fields=['deleted_at'])
+        url = f'/api/v1/public/file-requests/{file_request.slug}/request-upload/'
+        data = {'file_name': 'test.pdf', 'file_size': 12345}
+        response = public_client.post(url, data)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "trash" in response.data['detail'].lower()
+
+    def test_finalize_upload_folder_in_trash(self, public_client, file_request):
+        file_request.folder.deleted_at = timezone.now()
+        file_request.folder.save(update_fields=['deleted_at'])
+        url = f'/api/v1/public/file-requests/{file_request.slug}/finalize-upload/'
+        data = {
+            'storage_key': 'test/key',
+            'unique_name': 'test.pdf',
+            'file_size': 100,
+            'content_type': 'application/pdf',
+            'uploader_name': 'Test User',
+            'uploader_email': 'test@example.com',
+        }
+        response = public_client.post(url, data)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "trash" in response.data['detail'].lower()
+
     @patch('filerequests.views.fileserver_client.generate_upload_url')
     def test_request_upload_url_success(self, mock_generate_url, public_client, file_request):
         """Test successfully requesting an upload URL."""

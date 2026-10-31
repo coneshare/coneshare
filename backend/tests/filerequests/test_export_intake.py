@@ -200,7 +200,9 @@ class TestExportCeleryTask:
 
     @patch('filerequests.tasks.get_cloud_provider')
     def test_export_task_blocked_by_threat_event(self, mock_get_provider, uploaded_file, cloud_connection):
-        # Unresolved threat event
+        # Unresolved threat event matching the file's storage key
+        primary_version = uploaded_file.document.versions.first()
+        storage_key = primary_version.original_storage_key
         SecurityThreatEvent.objects.create(
             organization=uploaded_file.file_request.folder.organization,
             owner_user=uploaded_file.file_request.created_by,
@@ -208,6 +210,7 @@ class TestExportCeleryTask:
             event_type=SecurityThreatEvent.EventType.MALWARE_DETECTED,
             severity=SecurityThreatEvent.Severity.HIGH,
             status=SecurityThreatEvent.Status.NEW,
+            storage_key=storage_key,
             file_name=uploaded_file.document.name
         )
 
@@ -223,3 +226,113 @@ class TestExportCeleryTask:
         job.refresh_from_db()
         assert job.status == UploadExportJob.Status.BLOCKED_SCAN
         assert "unresolved security threat event" in job.error_message
+
+    @patch('filerequests.tasks.get_cloud_provider')
+    def test_export_task_blocked_by_acknowledged_threat_event(self, mock_get_provider, uploaded_file, cloud_connection):
+        # Acknowledged threat event matching the file's storage key (still unresolved)
+        primary_version = uploaded_file.document.versions.first()
+        storage_key = primary_version.original_storage_key
+        SecurityThreatEvent.objects.create(
+            organization=uploaded_file.file_request.folder.organization,
+            owner_user=uploaded_file.file_request.created_by,
+            file_request=uploaded_file.file_request,
+            event_type=SecurityThreatEvent.EventType.MALWARE_DETECTED,
+            severity=SecurityThreatEvent.Severity.HIGH,
+            status=SecurityThreatEvent.Status.ACKNOWLEDGED,
+            storage_key=storage_key,
+            file_name=uploaded_file.document.name
+        )
+
+        job = UploadExportJob.objects.create(
+            uploaded_file=uploaded_file,
+            connection=cloud_connection,
+            destination_folder_id="dropbox_dest",
+            status=UploadExportJob.Status.QUEUED
+        )
+
+        export_upload_to_cloud_task(job.id)
+
+        job.refresh_from_db()
+        assert job.status == UploadExportJob.Status.BLOCKED_SCAN
+        assert "unresolved security threat event" in job.error_message
+
+    @patch('filerequests.tasks.get_cloud_provider')
+    @patch('filerequests.tasks.fileserver_client')
+    @patch('filerequests.tasks.requests.get')
+    def test_export_task_allowed_when_threat_event_is_resolved(
+        self, mock_get, mock_fileserver, mock_get_provider, uploaded_file, cloud_connection
+    ):
+        primary_version = uploaded_file.document.versions.first()
+        storage_key = primary_version.original_storage_key
+        SecurityThreatEvent.objects.create(
+            organization=uploaded_file.file_request.folder.organization,
+            owner_user=uploaded_file.file_request.created_by,
+            file_request=uploaded_file.file_request,
+            event_type=SecurityThreatEvent.EventType.MALWARE_DETECTED,
+            severity=SecurityThreatEvent.Severity.HIGH,
+            status=SecurityThreatEvent.Status.RESOLVED,
+            storage_key=storage_key,
+            file_name=uploaded_file.document.name
+        )
+
+        job = UploadExportJob.objects.create(
+            uploaded_file=uploaded_file,
+            connection=cloud_connection,
+            destination_folder_id="dropbox_dest",
+            status=UploadExportJob.Status.QUEUED
+        )
+
+        mock_fileserver.generate_download_url.return_value = "http://internal-fileserver/download/key"
+        mock_response = MagicMock()
+        mock_response.iter_content.return_value = [b"chunk1"]
+        mock_get.return_value.__enter__.return_value = mock_response
+
+        mock_provider = MagicMock()
+        mock_provider.upload_file.return_value = "remote_file_clean"
+        mock_get_provider.return_value = mock_provider
+
+        export_upload_to_cloud_task(job.id)
+
+        job.refresh_from_db()
+        assert job.status == UploadExportJob.Status.EXPORTED
+        assert job.error_message == ""
+
+    @patch('filerequests.tasks.get_cloud_provider')
+    @patch('filerequests.tasks.fileserver_client')
+    @patch('filerequests.tasks.requests.get')
+    def test_export_task_allowed_when_threat_event_shares_same_name_but_different_storage_key(
+        self, mock_get, mock_fileserver, mock_get_provider, uploaded_file, cloud_connection
+    ):
+        # A previous upload with the same filename was flagged as malware, with a different storage_key
+        SecurityThreatEvent.objects.create(
+            organization=uploaded_file.file_request.folder.organization,
+            owner_user=uploaded_file.file_request.created_by,
+            file_request=uploaded_file.file_request,
+            event_type=SecurityThreatEvent.EventType.MALWARE_DETECTED,
+            severity=SecurityThreatEvent.Severity.HIGH,
+            status=SecurityThreatEvent.Status.NEW,
+            storage_key="unrelated/other_threat_storage_key",
+            file_name=uploaded_file.document.name
+        )
+
+        job = UploadExportJob.objects.create(
+            uploaded_file=uploaded_file,
+            connection=cloud_connection,
+            destination_folder_id="dropbox_dest",
+            status=UploadExportJob.Status.QUEUED
+        )
+
+        mock_fileserver.generate_download_url.return_value = "http://internal-fileserver/download/key"
+        mock_response = MagicMock()
+        mock_response.iter_content.return_value = [b"chunk1"]
+        mock_get.return_value.__enter__.return_value = mock_response
+
+        mock_provider = MagicMock()
+        mock_provider.upload_file.return_value = "remote_file_clean"
+        mock_get_provider.return_value = mock_provider
+
+        export_upload_to_cloud_task(job.id)
+
+        job.refresh_from_db()
+        assert job.status == UploadExportJob.Status.EXPORTED
+        assert job.error_message == ""

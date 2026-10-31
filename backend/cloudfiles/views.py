@@ -383,8 +383,10 @@ class CloudRefreshView(APIView):
                         "provider": connection.provider,
                         "provider_display": connection.get_provider_display(),
                         "connection_id": str(connection.id),
-                        "file_id": file_id
-                    }
+                        "file_id": file_id,
+                        "previous_primary_version_id": str(current_primary.id) if current_primary else None,
+                    },
+                    "previous_primary_version_id": str(current_primary.id) if current_primary else None,
                 }
             )
 
@@ -479,8 +481,10 @@ class CloudImportVersionView(APIView):
                         "provider": connection.provider,
                         "provider_display": connection.get_provider_display(),
                         "connection_id": str(connection.id),
-                        "file_id": file_id
-                    }
+                        "file_id": file_id,
+                        "previous_primary_version_id": str(current_primary.id) if current_primary else None,
+                    },
+                    "previous_primary_version_id": str(current_primary.id) if current_primary else None,
                 }
             )
 

@@ -412,6 +412,13 @@ def deliver_automation_delivery_task(delivery_id: str):
         logger.warning('AutomationDelivery not found: %s', delivery_id)
         return
 
+    if delivery.status == AutomationDelivery.Status.SUCCESS:
+        logger.info(
+            'Automation delivery already succeeded; skipping duplicate execution: delivery_id=%s',
+            delivery_id,
+        )
+        return
+
     if not delivery.rule.is_active or not delivery.destination.is_active:
         logger.debug(
             'Automation delivery skipped due to inactive state: delivery_id=%s rule_active=%s destination_active=%s',

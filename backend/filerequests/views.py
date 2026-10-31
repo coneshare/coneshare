@@ -211,12 +211,15 @@ class PublicFileRequestView(APIView):
     )
     def get(self, request, slug, *args, **kwargs):
         try:
-            file_request = FileRequest.objects.select_related('created_by').get(slug=slug, is_active=True)
+            file_request = FileRequest.objects.select_related('created_by', 'folder').get(slug=slug, is_active=True)
         except FileRequest.DoesNotExist:
             return Response({"detail": "File request not found or has been disabled."}, status=status.HTTP_404_NOT_FOUND)
 
         if file_request.expires_at and file_request.expires_at < timezone.now():
             return Response({"detail": "This file request has expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if file_request.folder and file_request.folder.deleted_at is not None:
+            return Response({"detail": "Target folder has been moved to trash."}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = PublicFileRequestSerializer(file_request)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -244,12 +247,15 @@ class FileRequestUploadRequestView(APIView):
     )
     def post(self, request, slug, *args, **kwargs):
         try:
-            file_request = FileRequest.objects.get(slug=slug, is_active=True)
+            file_request = FileRequest.objects.select_related('folder', 'created_by').get(slug=slug, is_active=True)
         except FileRequest.DoesNotExist:
             return Response({"detail": "File request not found or has been disabled."}, status=status.HTTP_404_NOT_FOUND)
 
         if file_request.expires_at and file_request.expires_at < timezone.now():
             return Response({"detail": "This file request has expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if file_request.folder and file_request.folder.deleted_at is not None:
+            return Response({"detail": "Target folder has been moved to trash."}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = self.FileRequestUploadRequestSerializer(data=request.data)
         if not serializer.is_valid():
@@ -304,12 +310,15 @@ class FileRequestUploadFinalizeView(APIView):
     )
     def post(self, request, slug, *args, **kwargs):
         try:
-            file_request = FileRequest.objects.get(slug=slug, is_active=True)
+            file_request = FileRequest.objects.select_related('folder', 'created_by').get(slug=slug, is_active=True)
         except FileRequest.DoesNotExist:
             return Response({"detail": "File request not found or has been disabled."}, status=status.HTTP_404_NOT_FOUND)
 
         if file_request.expires_at and file_request.expires_at < timezone.now():
             return Response({"detail": "This file request has expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if file_request.folder and file_request.folder.deleted_at is not None:
+            return Response({"detail": "Target folder has been moved to trash."}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = FileRequestUploadFinalizeSerializer(data=request.data)
         if not serializer.is_valid():
