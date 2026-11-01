@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import logging
 import os
 import re
 import sys
@@ -343,8 +344,6 @@ if not AUTH_PASSWORD_VALIDATORS:
     # As a safe default, ensure at least a minimum length validator is active if the env var is empty/invalid.
     AUTH_PASSWORD_VALIDATORS = [POSSIBLE_PASSWORD_VALIDATORS['min_length']]
 
-print("AUTH_PASSWORD_VALIDATORS", AUTH_PASSWORD_VALIDATORS)
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
@@ -414,17 +413,14 @@ AUTH_USER_MODEL = 'core.User'
 GEOIP_PATH = '/geoip'
 try:
     GEOIP = GeoIP2()
-    print("Successfully initialized GeoIP2.")
 except Exception as e:
     GEOIP = None
-    print(f"Failed to initialize GeoIP2: {e}")
+    logging.getLogger('core').warning("Failed to initialize GeoIP2: %s", e)
 
-# Determine the log directory path for coneshare.log
-compose_root_log_dir = BASE_DIR.parent / 'logs'
-if compose_root_log_dir.is_dir():
-    coneshare_log_path = compose_root_log_dir / 'coneshare.log'
-else:
-    coneshare_log_path = BASE_DIR / 'logs' / 'coneshare.log'
+# Celery worker logging: retain Celery's default root logger hijacking (worker_hijack_root_logger=True)
+# to preserve worker subprocess identification (e.g., ForkPoolWorker-N) and task timing metadata.
+CELERY_WORKER_HIJACK_ROOT_LOGGER = True
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -433,7 +429,7 @@ LOGGING = {
             'format': '%(asctime)s %(pathname)s:%(lineno)d: %(levelname)-5s: %(funcName)s()- %(message)s'
         },
         'simple': {
-            'format': '%(asctime)s [%(levelname)s] %(name)s:%(lineno)s %(funcName)s %(message)s'
+            'format': '%(asctime)s [%(levelname)s] %(name)s:%(lineno)s %(funcName)s() - %(message)s'
         },
     },
     'filters': {
@@ -451,61 +447,38 @@ LOGGING = {
             'class': 'django.utils.log.AdminEmailHandler',
             'include_html': True,
         },
-        'coneshare_log_hdlr': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': coneshare_log_path,
-            'maxBytes': 1024 * 1024 * 500,  # 500 MB
-            'backupCount': 10,
-            'formatter': 'standard',
-        },
         'console': {
-            'level': 'DEBUG',
-            'filters': ['require_debug_true'],
+            'level': LOG_LEVEL,
             'class': 'logging.StreamHandler',
+            'stream': 'ext://sys.stdout',
             'formatter': 'simple',
-        },
-        'scripts_handler': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(str(BASE_DIR) + '/logs/', 'script.log'),
-            'maxBytes': 1024 * 1024 * 5,  # 5 MB
-            'backupCount': 5,
-            'formatter': 'standard',
         },
     },
     'loggers': {
-        # root logger — catches everything
+        # root logger — catches everything from Django, Celery, and custom apps
         '': {
-            'handlers': ['console', 'coneshare_log_hdlr'],
+            'handlers': ['console'],
             'level': LOG_LEVEL,
         },
-        # Django internal logs (optional)
+        # Django internal logs
         'django': {
-            'handlers': ['console'],
             'level': 'INFO',
-            'propagate': True
+            'propagate': True,
         },
         'django.request': {
-            'handlers': [
-                'mail_admins', 'coneshare_log_hdlr',
-            ],
+            'handlers': ['mail_admins'],
             'level': LOG_LEVEL,
-            'propagate': True
+            'propagate': True,
         },
         'tasks': {
-            'handlers': [
-                'console', 'coneshare_log_hdlr',
-            ],
             'level': LOG_LEVEL,
-            'propagate': True
+            'propagate': True,
         },
         'scripts': {
-            'handlers': ['scripts_handler'],
             'level': 'ERROR',
-            'propagate': False
+            'propagate': True,
         },
-    }
+    },
 }
 
 # ==============================================================================
@@ -600,7 +573,6 @@ def load_local_settings(module):
 
 try:
     from . import local_settings
-    print("loading local_settings ... Done.")
 except ImportError:
     pass
 else:

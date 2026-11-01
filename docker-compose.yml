@@ -1,5 +1,13 @@
+x-logging: &default-logging
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "20m"
+      max-file: "3"
+
 services:
   core:
+    <<: *default-logging
     build:
       context: ./core
       dockerfile: Dockerfile-dev
@@ -12,6 +20,7 @@ services:
       - ~/.coneshare-data:/storage
 
   backend:
+    <<: *default-logging
     image: coneshare:dev
     build:
       context: ./backend
@@ -29,6 +38,7 @@ services:
     env_file: .env
 
   redis:
+    <<: *default-logging
     image: redis:7-alpine
     restart: unless-stopped
     command: redis-server --save "" --appendonly no
@@ -36,6 +46,7 @@ services:
       - redis_data:/data
 
   celery_worker:
+    <<: *default-logging
     image: coneshare:dev
     command: celery -A backend worker -l INFO -Q celery --concurrency=${CELERY_WORKER_CONCURRENCY:-4}
     volumes:
@@ -48,6 +59,7 @@ services:
     env_file: .env
 
   video_worker:
+    <<: *default-logging
     image: coneshare:dev
     command: celery -A backend worker -l INFO -Q video_processing --concurrency=${CELERY_VIDEO_WORKER_CONCURRENCY:-1}
     volumes:
@@ -60,6 +72,7 @@ services:
     env_file: .env
 
   celery_beat:
+    <<: *default-logging
     image: coneshare:dev
     command: celery -A backend beat -l INFO
     volumes:
@@ -71,6 +84,7 @@ services:
     env_file: .env
 
   frontend:
+    <<: *default-logging
     image: coneshare:frontend
     build:
       context: ./frontend
@@ -85,6 +99,7 @@ services:
       - backend
 
   portal:
+    <<: *default-logging
     image: coneshare:portal
     build:
       context: ./portal
@@ -98,6 +113,7 @@ services:
     restart: unless-stopped
 
   mcp_server:
+    <<: *default-logging
     image: coneshare:mcp
     build:
       context: ./mcp-server
@@ -124,6 +140,7 @@ services:
       - backend
 
   clamav:
+    <<: *default-logging
     image: clamav/clamav:stable-debian
     restart: unless-stopped
     profiles:

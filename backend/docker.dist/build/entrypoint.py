@@ -7,20 +7,6 @@ import sys
 import time
 from subprocess import check_call, Popen
 
-def initialize_logdir(app='coneshare'):
-    """create log directory for app
-            /var/log/supervisor
-            /var/log/nginx
-    """
-
-    log_dir = os.environ['LOG_DIR']
-
-    for dirname in ['nginx']:
-        check_call('mkdir -p %s/%s' % (log_dir, dirname), shell=True)
-
-    check_call('chown -R coneshare:coneshare %s' % (log_dir), shell=True)
-    check_call('chmod -R 0755 %s' % (log_dir), shell=True)
-
 def change_ugid():
     """Change the UID/GID of the existing container user at runtime
     so they match the host user that owns the mounted files.
@@ -82,7 +68,6 @@ def configure_nginx_real_ip():
 
 
 def main(argv):
-    initialize_logdir()
     change_ugid()
     configure_nginx_real_ip()
 
@@ -101,8 +86,6 @@ def main(argv):
         supervisord_proc = Popen(
             ["supervisord", "-n", "-c", "/home/coneshare/runtime/supervisord/supervisord.conf"]
         )
-        time.sleep(5)
-        Popen("tail -f /home/coneshare/logs/*.log", shell=True)
 
         signal.signal(signal.SIGTERM, lambda s, f: supervisord_proc.terminate())
         signal.signal(signal.SIGINT, lambda s, f: supervisord_proc.terminate())
