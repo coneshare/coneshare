@@ -744,14 +744,33 @@ export const getDataroomViewSessions = (dataroomId, page = 1) => api.get(`/datar
 export const getDataroomStats = (dataroomId) => api.get(`/datarooms/${dataroomId}/stats/`);
 
 export const downloadDataroomFolder = (slug, folderId, viewSessionId = null) => {
-  const params = {};
+  const params = new URLSearchParams();
   if (viewSessionId) {
-    params.view_session_id = viewSessionId;
+    params.set('view_session_id', viewSessionId);
   }
-  return api.get(`/links/${slug}/download-folder/${folderId}/`, {
-    responseType: 'blob',
-    params,
-  });
+  const queryString = params.toString() ? `?${params.toString()}` : '';
+  const downloadUrl = `/api/v1/links/${slug}/download-folder/${folderId}/${queryString}`;
+  const link = document.createElement('a');
+  link.href = downloadUrl;
+  link.setAttribute('download', '');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
+
+export const downloadDataroomArchive = (slug, viewSessionId = null) => {
+  const params = new URLSearchParams();
+  if (viewSessionId) {
+    params.set('view_session_id', viewSessionId);
+  }
+  const queryString = params.toString() ? `?${params.toString()}` : '';
+  const downloadUrl = `/api/v1/links/${slug}/download-dataroom/${queryString}`;
+  const link = document.createElement('a');
+  link.href = downloadUrl;
+  link.setAttribute('download', '');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 };
 
 // File Requests

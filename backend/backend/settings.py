@@ -519,6 +519,10 @@ LOGGING = {
 # Files larger than this will be marked as download-only.
 MAX_PREVIEW_FILE_SIZE_MB = 100
 
+# Maximum file size in megabytes for on-the-fly watermark generation.
+# Files larger than this will be restricted from watermarked download to prevent memory exhaustion.
+MAX_WATERMARK_FILE_SIZE_MB = 100
+
 # Maximum file size in megabytes for which a video preview will be generated.
 # Files larger than this will be marked as download-only.
 MAX_VIDEO_PREVIEW_SIZE_MB = 100

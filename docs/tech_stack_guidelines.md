@@ -63,4 +63,17 @@
 - **Issue:** Developers and AI assistants repeatedly pass inline `defaultValue` or fallback string arguments inside React `t('key', { defaultValue: '...' })`. All 6 locale catalogs (`en`, `zh-hans`, `de`, `fr`, `ru`, `nl`) are statically bundled and configured with `fallbackLng: 'en'`. Inline defaults introduce string duplication, violate DRY, cause text drift between JSX and JSON files, and bloat component code.
 - **Prevention Rule:** All user-facing strings must be defined exclusively in the 6 locale catalogs (`frontend/src/locales/*/translation.json`). In React components and hooks, always call `t('key')` directly without `defaultValue` or inline fallback strings.
 
+---
+
+### [2026-10-31] Review of `c716294` — Dataroom Streaming Archive Download
+
+#### Rule 11: Enforce ASCII fallback parameter in RFC 6266 `Content-Disposition` headers
+- **Issue:** In Django's `get_valid_filename()`, Unicode characters (e.g. Chinese, Cyrillic) are preserved. Placing `get_valid_filename()` output directly into HTTP response headers (`filename="{ascii_name}"`) causes Gunicorn/WSGI to throw `UnicodeEncodeError` (Latin-1 constraint) and crash with HTTP 500.
+- **Prevention Rule:** In RFC 6266 `Content-Disposition` headers, always force ASCII encoding (`.encode('ascii', 'ignore').decode('ascii')`) with a safe fallback on the `filename="..."` attribute, while encoding full Unicode names exclusively inside `filename*=UTF-8''{quote(name)}`.
+
+#### Rule 12: Enforce download permissions at all depth levels during archive recursion
+- **Issue:** In recursive dataroom archive generators, checking `allow_download` only at the root level allowed subfolders with `allow_download=False` to have their contents downloaded during whole-room archives.
+- **Prevention Rule:** When building archive streaming traversals for hierarchical entities, enforce `is_visible` and `allow_download` checks at every recursion step for both folders and documents.
+
+
 

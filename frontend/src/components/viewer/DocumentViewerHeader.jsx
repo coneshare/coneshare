@@ -1,4 +1,4 @@
-import { MessageCircle, Lock, ShieldCheck } from 'lucide-react';
+import { MessageCircle, Lock, ShieldCheck, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../ui/Button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/Avatar';
@@ -27,6 +27,10 @@ export function DocumentViewerHeader({
   hasViewSession = false,
   isWatermarked = false,
   isNdaProtected = false,
+  isDownloadAllAllowed = false,
+  isDownloadingAll = false,
+  onDownloadAll,
+  downloadAllButtonLabel = 'Download all',
 }) {
   const { t } = useTranslation();
   const resolvedQnaText = qnaText ?? t('qna.title', { defaultValue: 'Q&A' });
@@ -111,6 +115,21 @@ export function DocumentViewerHeader({
               {ownerName}
             </span>
           </div>
+        )}
+
+        {isDownloadAllAllowed && (
+          <Button
+            type="button"
+            size="sm"
+            className="h-8 px-3 text-xs font-medium gap-1.5 shrink-0 rounded-lg bg-gray-950 hover:bg-gray-800 text-white shadow-xs transition-all"
+            onClick={onDownloadAll}
+            disabled={isDownloadingAll}
+            aria-label={downloadAllButtonLabel}
+            title={downloadAllButtonLabel}
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{downloadAllButtonLabel}</span>
+          </Button>
         )}
 
         {isQnaEnabled && (

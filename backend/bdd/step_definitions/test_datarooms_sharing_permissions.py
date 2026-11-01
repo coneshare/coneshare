@@ -325,7 +325,10 @@ def download_folder(public_client, dataroom_context, folder_name):
         mock_requests_get.return_value = mock_response
 
         response = public_client.get(url)
-    return {'response': response}
+        content = getattr(response, 'content', None)
+        if content is None and hasattr(response, 'streaming_content'):
+            content = b"".join(response.streaming_content)
+    return {'response': response, 'content': content}
 
 @when(parsers.parse('a viewer attempts to download the folder "{folder_name}"'), target_fixture="download_response_context")
 def attempt_download_folder(public_client, dataroom_context, folder_name):
@@ -441,10 +444,20 @@ def response_is_a_zip_file(download_response_context):
     assert response.get('Content-Type') == 'application/zip'
 
 
+def _get_response_content(download_response_context):
+    if 'content' not in download_response_context:
+        response = download_response_context['response']
+        content = getattr(response, 'content', None)
+        if content is None:
+            content = b"".join(response.streaming_content)
+        download_response_context['content'] = content
+    return download_response_context['content']
+
+
 @then(parsers.parse('the ZIP file should contain "{file_path}"'))
 def zip_contains_file(download_response_context, file_path):
-    response = download_response_context['response']
-    zip_buffer = io.BytesIO(response.content)
+    content = _get_response_content(download_response_context)
+    zip_buffer = io.BytesIO(content)
     with zipfile.ZipFile(zip_buffer, 'r') as zf:
         assert file_path in zf.namelist()
 
@@ -457,16 +470,16 @@ def download_is_forbidden(download_response_context):
 
 @then(parsers.parse('the ZIP file should not contain "{file_path}"'))
 def zip_does_not_contain_file(download_response_context, file_path):
-    response = download_response_context['response']
-    zip_buffer = io.BytesIO(response.content)
+    content = _get_response_content(download_response_context)
+    zip_buffer = io.BytesIO(content)
     with zipfile.ZipFile(zip_buffer, 'r') as zf:
         assert file_path not in zf.namelist()
 
 
 @then(parsers.parse('the file "{file_path}" inside the ZIP should be a watermarked PDF'))
 def file_in_zip_is_watermarked(download_response_context, file_path):
-    response = download_response_context['response']
-    zip_buffer = io.BytesIO(response.content)
+    content = _get_response_content(download_response_context)
+    zip_buffer = io.BytesIO(content)
     with zipfile.ZipFile(zip_buffer, 'r') as zf:
         pdf_content = zf.read(file_path)
     # This is a basic check. The unit tests for the view are responsible for

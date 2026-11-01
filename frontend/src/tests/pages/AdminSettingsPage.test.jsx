@@ -86,4 +86,29 @@ describe('AdminSettingsPage typed inputs', () => {
       expect(api.updateAdminSetting).toHaveBeenCalledWith('MAX_FILES_PER_UPLOAD', 20)
     })
   })
+
+  it('renders MAX_WATERMARK_FILE_SIZE_MB under the Quota section', async () => {
+    api.getAdminSettings.mockResolvedValue({
+      data: [
+        {
+          key: 'MAX_WATERMARK_FILE_SIZE_MB',
+          value: 100,
+          value_type: 'int',
+          raw_value: '100',
+          description: 'Max file size in MB for on-the-fly watermark generation.',
+        },
+      ],
+    })
+
+    render(
+      <MemoryRouter>
+        <AdminSettingsPage />
+      </MemoryRouter>
+    )
+
+    expect(await screen.findByRole('heading', { name: /quota/i })).toBeInTheDocument()
+    expect(screen.getByText('Max Watermark File Size Mb')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('100')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /other/i })).not.toBeInTheDocument()
+  })
 })

@@ -30,3 +30,4 @@ openapi-spec-validator==0.7.1
 gunicorn==23.0.0
 sentry-sdk==2.60.0
 openpyxl==3.1.5
+zipstream-ng==1.8.0

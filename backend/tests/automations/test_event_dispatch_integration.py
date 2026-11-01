@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from rest_framework import status
 from django.utils import timezone
 
@@ -351,14 +351,25 @@ class TestEventDispatchIntegration:
         event_types = [call.args[0] for call in mock_delay.call_args_list]
         assert 'document_downloaded' in event_types
 
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
     @patch('sharelinks.views.dispatch_automation_event_task.delay')
     def test_dataroom_download_folder_dispatches_document_downloaded(
         self,
         mock_delay,
+        mock_fs_download,
+        mock_requests_get,
         public_client,
         user,
         organization,
+        image_document_with_content,
     ):
+        mock_fs_download.return_value = "/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"file content"
+        mock_requests_get.return_value = mock_response
+
         dataroom = Dataroom.objects.create(
             name='Dispatch Dataroom For Folder Download',
             organization=organization,
@@ -374,10 +385,25 @@ class TestEventDispatchIntegration:
             name='Root Folder',
             parent=None,
         )
+        ddoc = DataroomDocument.objects.create(
+            dataroom=dataroom,
+            document=image_document_with_content,
+            folder=root_folder,
+            name='Test Image.gif',
+        )
 
         ShareLinkDataroomSetting.objects.update_or_create(
             share_link=link,
             dataroom_folder=root_folder,
+            defaults={
+                'is_visible': True,
+                'allow_download': True,
+                'enable_watermark': False,
+            },
+        )
+        ShareLinkDataroomSetting.objects.update_or_create(
+            share_link=link,
+            dataroom_document=ddoc,
             defaults={
                 'is_visible': True,
                 'allow_download': True,

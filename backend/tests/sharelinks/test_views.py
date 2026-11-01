@@ -1,4 +1,5 @@
 import pytest
+import requests
 from unittest.mock import patch, mock_open, MagicMock
 from datetime import timedelta
 from rest_framework.test import APIClient
@@ -1042,6 +1043,79 @@ class TestShareLinkViewDataView:
         assert link_settings['enable_watermark'] is True
         assert link_settings['watermark_text'] == 'CONFIDENTIAL - {{email}}'
         assert link_settings['resolved_watermark_text'] != ''
+
+    def test_get_share_link_data_dataroom_catalog_gates_allow_download_on_watermark_size_and_video(
+        self, public_client, dataroom, user, document_factory
+    ):
+        link = ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            allow_download=True,
+            enable_watermark=True,
+        )
+
+        # 1. Normal PDF within size limit
+        doc_normal = document_factory(name="Normal.pdf", type='pdf')
+        v_normal = doc_normal.versions.filter(is_primary=True).first()
+        v_normal.file_size = 5 * 1024 * 1024  # 5 MB
+        v_normal.save()
+        ddoc_normal = DataroomDocument.objects.create(dataroom=dataroom, document=doc_normal)
+
+        # 2. Oversized PDF exceeding max watermark limit (100 MB)
+        doc_oversized = document_factory(name="Oversized.pdf", type='pdf')
+        v_oversized = doc_oversized.versions.filter(is_primary=True).first()
+        v_oversized.file_size = 150 * 1024 * 1024  # 150 MB
+        v_oversized.save()
+        ddoc_oversized = DataroomDocument.objects.create(dataroom=dataroom, document=doc_oversized)
+
+        # 3. Video (cannot be watermarked, so allow_download must be False)
+        doc_video = document_factory(name="Movie.mp4", type='video')
+        v_video = doc_video.versions.filter(is_primary=True).first()
+        v_video.file_size = 20 * 1024 * 1024
+        v_video.save()
+        ddoc_video = DataroomDocument.objects.create(dataroom=dataroom, document=doc_video)
+
+        # 4. Folder
+        folder = DataroomFolder.objects.create(dataroom=dataroom, name="Presentations")
+
+        response = public_client.get(f'/api/v1/links/{link.slug}/view-data/')
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        items = data['items']
+
+        doc_map = {item['id']: item for item in items if item['type'] == 'document'}
+        folder_map = {item['id']: item for item in items if item['type'] == 'folder'}
+
+        # Normal PDF must allow download
+        assert doc_map[str(ddoc_normal.id)]['allow_download'] is True
+        # Oversized PDF must have allow_download forced to False
+        assert doc_map[str(ddoc_oversized.id)]['allow_download'] is False
+        # Video in watermark link must have allow_download forced to False
+        assert doc_map[str(ddoc_video.id)]['allow_download'] is False
+        # Folder must have allow_download True (since link.allow_download is True)
+        assert folder_map[str(folder.id)]['allow_download'] is True
+
+    def test_get_share_link_data_dataroom_catalog_gates_allow_download_on_link_allow_download_false(
+        self, public_client, dataroom, user, document_factory
+    ):
+        link = ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            allow_download=False,
+            enable_watermark=False,
+        )
+
+        doc = document_factory(name="Doc.pdf", type='pdf')
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=doc)
+        folder = DataroomFolder.objects.create(dataroom=dataroom, name="Docs")
+
+        response = public_client.get(f'/api/v1/links/{link.slug}/view-data/')
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        items = data['items']
+
+        for item in items:
+            assert item['allow_download'] is False
 
 
 @pytest.mark.django_db
@@ -3565,6 +3639,40 @@ class TestWatermarkingViews:
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert "not allowed for this item" in response.data['message']
 
+    def test_download_file_watermark_blocked_when_exceeds_size_limit(self, public_client, watermarked_link):
+        """
+        Test that downloading a watermarked document is blocked (403 Forbidden)
+        if its file size exceeds the MAX_WATERMARK_FILE_SIZE_MB threshold to prevent worker OOM.
+        """
+        version = watermarked_link.document.versions.get(is_primary=True)
+        version.file_size = 500 * 1024 * 1024  # 500MB
+        version.save()
+        watermarked_link.document.file_size = 500 * 1024 * 1024
+        watermarked_link.document.save()
+
+        url = f'/api/v1/links/{watermarked_link.slug}/download-file/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert "exceeds the maximum" in response.data['message']
+
+    def test_view_data_disables_download_when_watermarked_file_exceeds_size_limit(self, public_client, watermarked_link):
+        """
+        Test that view-data sets allow_download=False when watermarking is enabled
+        on a document that exceeds the watermark size limit.
+        """
+        version = watermarked_link.document.versions.get(is_primary=True)
+        version.file_size = 500 * 1024 * 1024  # 500MB
+        version.save()
+        watermarked_link.document.file_size = 500 * 1024 * 1024
+        watermarked_link.document.save()
+
+        url = f'/api/v1/links/{watermarked_link.slug}/view-data/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['link_settings']['allow_download'] is False
+
     @patch('sharelinks.views.fileserver_client.generate_download_url')
     def test_download_non_watermarked_file_redirects(self, mock_fs_download_url, public_client, document_with_page):
         """
@@ -4133,46 +4241,47 @@ class TestWatermarkingViews:
         assert response.data['protectionType'] == 'email'
 
 
+@pytest.fixture
+def dataroom_with_content_and_link(dataroom, user, document_factory, image_document_with_content):
+    """
+    Sets up a dataroom with a nested structure, documents of various types,
+    and a share link.
+    """
+    # Create folder structure
+    root_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Root Folder")
+    subfolder = DataroomFolder.objects.create(dataroom=dataroom, name="Subfolder", parent=root_folder)
+
+    # Create documents of different types
+    doc_pdf = document_factory(name="Doc A.pdf", type='pdf')
+    doc_office = document_factory(name="Doc B.docx", type='document')
+    doc_image = image_document_with_content
+    invisible_doc = document_factory(name="Invisible.pdf", type='pdf')
+    not_downloadable_doc = document_factory(name="Not Downloadable.pdf", type='pdf')
+
+    # Add documents to dataroom
+    ddoc_pdf = DataroomDocument.objects.create(dataroom=dataroom, document=doc_pdf, folder=root_folder)
+    ddoc_office = DataroomDocument.objects.create(dataroom=dataroom, document=doc_office, folder=subfolder)
+    ddoc_image = DataroomDocument.objects.create(dataroom=dataroom, document=doc_image, folder=root_folder)
+    ddoc_invisible = DataroomDocument.objects.create(dataroom=dataroom, document=invisible_doc, folder=root_folder)
+    ddoc_not_downloadable = DataroomDocument.objects.create(dataroom=dataroom, document=not_downloadable_doc, folder=root_folder)
+
+    # Create share link, which will auto-generate settings
+    link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+
+    return {
+        'link': link,
+        'root_folder': root_folder,
+        'subfolder': subfolder,
+        'ddoc_pdf': ddoc_pdf,
+        'ddoc_office': ddoc_office,
+        'ddoc_image': ddoc_image,
+        'ddoc_invisible': ddoc_invisible,
+        'ddoc_not_downloadable': ddoc_not_downloadable,
+    }
+
+
 @pytest.mark.django_db
 class TestDataroomFolderDownloadView:
-    @pytest.fixture
-    def dataroom_with_content_and_link(self, dataroom, user, document_factory, image_document_with_content):
-        """
-        Sets up a dataroom with a nested structure, documents of various types,
-        and a share link.
-        """
-        # Create folder structure
-        root_folder = DataroomFolder.objects.create(dataroom=dataroom, name="Root Folder")
-        subfolder = DataroomFolder.objects.create(dataroom=dataroom, name="Subfolder", parent=root_folder)
-
-        # Create documents of different types
-        doc_pdf = document_factory(name="Doc A.pdf", type='pdf')
-        doc_office = document_factory(name="Doc B.docx", type='document')
-        doc_image = image_document_with_content
-        invisible_doc = document_factory(name="Invisible.pdf", type='pdf')
-        not_downloadable_doc = document_factory(name="Not Downloadable.pdf", type='pdf')
-
-        # Add documents to dataroom
-        ddoc_pdf = DataroomDocument.objects.create(dataroom=dataroom, document=doc_pdf, folder=root_folder)
-        ddoc_office = DataroomDocument.objects.create(dataroom=dataroom, document=doc_office, folder=subfolder)
-        ddoc_image = DataroomDocument.objects.create(dataroom=dataroom, document=doc_image, folder=root_folder)
-        ddoc_invisible = DataroomDocument.objects.create(dataroom=dataroom, document=invisible_doc, folder=root_folder)
-        ddoc_not_downloadable = DataroomDocument.objects.create(dataroom=dataroom, document=not_downloadable_doc, folder=root_folder)
-
-        # Create share link, which will auto-generate settings
-        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
-
-        return {
-            'link': link,
-            'root_folder': root_folder,
-            'subfolder': subfolder,
-            'ddoc_pdf': ddoc_pdf,
-            'ddoc_office': ddoc_office,
-            'ddoc_image': ddoc_image,
-            'ddoc_invisible': ddoc_invisible,
-            'ddoc_not_downloadable': ddoc_not_downloadable,
-        }
-
     @patch('sharelinks.views.requests.get')
     @patch('sharelinks.views.fileserver_client.generate_download_url')
     def test_download_folder_success(self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link):
@@ -4192,14 +4301,49 @@ class TestDataroomFolderDownloadView:
         assert response['Content-Type'] == 'application/zip'
         assert 'attachment; filename="Root_Folder.zip"' in response['Content-Disposition']
 
-        zip_buffer = BytesIO(response.content)
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+        zip_buffer = BytesIO(content)
         with zipfile.ZipFile(zip_buffer, 'r') as zf:
             names = zf.namelist()
-            assert 'Root_Folder/' in names
-            assert 'Root_Folder/Doc_A.pdf' in names
-            assert 'Root_Folder/test_image.gif' in names
-            assert 'Root_Folder/Subfolder/' in names
-            assert 'Root_Folder/Subfolder/Doc_B.docx' in names
+            assert 'Root Folder/' in names
+            assert 'Root Folder/Doc A.pdf' in names
+            assert 'Root Folder/test_image.gif' in names
+            assert 'Root Folder/Subfolder/' in names
+            assert 'Root Folder/Subfolder/Doc B.docx' in names
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_folder_edge_case_names_do_not_crash(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link, document_factory
+    ):
+        mock_fs_download.return_value = "/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"content"
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        root_folder = DataroomFolder.objects.create(dataroom=link.dataroom, name=".")
+        s = link.dataroom_settings.get(dataroom_folder=root_folder)
+        s.is_visible = True
+        s.allow_download = True
+        s.save()
+
+        doc = document_factory(name="test.pdf", type='pdf')
+        ddoc = DataroomDocument.objects.create(dataroom=link.dataroom, document=doc, folder=root_folder)
+        sd = link.dataroom_settings.get(dataroom_document=ddoc)
+        sd.is_visible = True
+        sd.allow_download = True
+        sd.save()
+
+        url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/'
+        response = public_client.get(url)
+
+        # Must not crash with 500 SuspiciousFileOperation
+        assert response.status_code == status.HTTP_200_OK
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+        with zipfile.ZipFile(BytesIO(content), 'r') as zf:
+            assert any('test.pdf' in n for n in zf.namelist())
 
     def test_download_folder_permission_denied(self, public_client, dataroom_with_content_and_link):
         link = dataroom_with_content_and_link['link']
@@ -4214,6 +4358,29 @@ class TestDataroomFolderDownloadView:
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_folder_succeeds_when_folder_allow_download_is_true_even_if_link_allow_download_is_false(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link
+    ):
+        mock_fs_download.return_value = "http://core:8080/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"file content"
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        root_folder = dataroom_with_content_and_link['root_folder']
+
+        # Folder setting allows download, but link disables download
+        link.allow_download = False
+        link.save()
+
+        url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
 
     @patch('sharelinks.views.requests.get')
     @patch('sharelinks.views.fileserver_client.generate_download_url')
@@ -4242,12 +4409,13 @@ class TestDataroomFolderDownloadView:
 
         assert response.status_code == status.HTTP_200_OK
 
-        zip_buffer = BytesIO(response.content)
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+        zip_buffer = BytesIO(content)
         with zipfile.ZipFile(zip_buffer, 'r') as zf:
             names = zf.namelist()
-            assert 'Root_Folder/Doc_A.pdf' in names
-            assert 'Root_Folder/Invisible.pdf' not in names
-            assert 'Root_Folder/Not_Downloadable.pdf' not in names
+            assert 'Root Folder/Doc A.pdf' in names
+            assert 'Root Folder/Invisible.pdf' not in names
+            assert 'Root Folder/Not Downloadable.pdf' not in names
 
     @patch('sharelinks.views._generate_watermarked_pdf')
     def test_zip_archive_includes_watermarked_pdf(self, mock_generate_pdf, public_client, dataroom_with_content_and_link):
@@ -4270,11 +4438,12 @@ class TestDataroomFolderDownloadView:
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
         mock_generate_pdf.assert_called_once()
 
-        zip_buffer = BytesIO(response.content)
+        zip_buffer = BytesIO(content)
         with zipfile.ZipFile(zip_buffer, 'r') as zf:
-            content = zf.read('Root_Folder/Doc_A.pdf')
+            content = zf.read('Root Folder/Doc A.pdf')
             assert content == b"watermarked pdf content"
 
     @patch('sharelinks.views._generate_watermarked_pdf')
@@ -4302,14 +4471,15 @@ class TestDataroomFolderDownloadView:
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
         mock_generate_pdf.assert_called_once()
 
-        zip_buffer = BytesIO(response.content)
+        zip_buffer = BytesIO(content)
         with zipfile.ZipFile(zip_buffer, 'r') as zf:
             names = zf.namelist()
-            assert 'Root_Folder/Subfolder/Doc_B.pdf' in names
-            assert 'Root_Folder/Subfolder/Doc_B.docx' not in names
-            content = zf.read('Root_Folder/Subfolder/Doc_B.pdf')
+            assert 'Root Folder/Subfolder/Doc B.pdf' in names
+            assert 'Root Folder/Subfolder/Doc B.docx' not in names
+            content = zf.read('Root Folder/Subfolder/Doc B.pdf')
             assert content == b"watermarked office content"
 
     @patch('sharelinks.views._generate_watermarked_image')
@@ -4333,14 +4503,15 @@ class TestDataroomFolderDownloadView:
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
         mock_generate_image.assert_called_once()
 
-        zip_buffer = BytesIO(response.content)
+        zip_buffer = BytesIO(content)
         with zipfile.ZipFile(zip_buffer, 'r') as zf:
             names = zf.namelist()
-            assert 'Root_Folder/test_image.jpg' in names
-            assert 'Root_Folder/test_image.gif' not in names
-            content = zf.read('Root_Folder/test_image.jpg')
+            assert 'Root Folder/test_image.jpg' in names
+            assert 'Root Folder/test_image.gif' not in names
+            content = zf.read('Root Folder/test_image.jpg')
             assert content == b"watermarked image content"
 
     @patch('sharelinks.views.requests.get')
@@ -4376,7 +4547,64 @@ class TestDataroomFolderDownloadView:
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
+        _ = getattr(response, 'content', None) or b"".join(response.streaming_content)
         mock_generate_pdf.assert_called_once()
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_folder_excludes_oversized_watermarked_document(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link, document_factory
+    ):
+        mock_fs_download.return_value = "/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"content"
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        link.enable_watermark = True
+        link.save()
+
+        root_folder = dataroom_with_content_and_link['root_folder']
+        link.dataroom_settings.update(enable_watermark=True, allow_download=True, is_visible=True)
+
+        # Create normal doc (1MB)
+        normal_doc = document_factory(name="FolderNormal.pdf", type='pdf')
+        normal_v = normal_doc.versions.get(is_primary=True)
+        normal_v.file_size = 1 * 1024 * 1024
+        normal_v.save()
+        normal_doc.file_size = 1 * 1024 * 1024
+        normal_doc.save()
+        DataroomDocument.objects.create(dataroom=link.dataroom, document=normal_doc, folder=root_folder)
+
+        # Create oversized doc (500MB)
+        huge_doc = document_factory(name="FolderHuge.pdf", type='pdf')
+        huge_v = huge_doc.versions.get(is_primary=True)
+        huge_v.file_size = 500 * 1024 * 1024
+        huge_v.save()
+        huge_doc.file_size = 500 * 1024 * 1024
+        huge_doc.save()
+        DataroomDocument.objects.create(dataroom=link.dataroom, document=huge_doc, folder=root_folder)
+
+        # Refresh link settings for newly created docs
+        for ddoc in DataroomDocument.objects.filter(dataroom=link.dataroom):
+            s, _ = ShareLinkDataroomSetting.objects.get_or_create(share_link=link, dataroom_document=ddoc)
+            s.is_visible = True
+            s.allow_download = True
+            s.enable_watermark = True
+            s.save()
+
+        with patch('sharelinks.views._generate_watermarked_pdf') as mock_gen_pdf:
+            mock_gen_pdf.return_value = BytesIO(b"watermarked pdf stream")
+            url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/'
+            response = public_client.get(url)
+
+            assert response.status_code == status.HTTP_200_OK
+            content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+            with zipfile.ZipFile(BytesIO(content), 'r') as zf:
+                names = zf.namelist()
+                assert any('FolderNormal.pdf' in n for n in names)
+                assert not any('FolderHuge.pdf' in n for n in names)
 
     def test_download_folder_password_protected_fails(self, public_client, dataroom_with_content_and_link):
         link = dataroom_with_content_and_link['link']
@@ -4429,6 +4657,28 @@ class TestDataroomFolderDownloadView:
         response = public_client.get(url)
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    @patch('sharelinks.views._dispatch_automation_event')
+    def test_download_folder_no_downloadable_items_does_not_record_visit_or_dispatch_automation(
+        self, mock_dispatch, public_client, dataroom_with_content_and_link
+    ):
+        link = dataroom_with_content_and_link['link']
+        root_folder = dataroom_with_content_and_link['root_folder']
+        # Set all document settings to allow_download = False
+        link.dataroom_settings.filter(dataroom_document__isnull=False).update(allow_download=False)
+
+        session = ViewSession.objects.create(share_link=link, viewer_email='viewer@example.com')
+
+        url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/?view_session_id={session.id}'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "No downloadable files available in this folder" in response.data['message']
+
+        session.refresh_from_db()
+        assert session.downloaded_at is None
+        assert not DataroomVisit.objects.filter(view_session=session).exists()
+        mock_dispatch.assert_not_called()
 
     def test_view_data_document_in_hidden_folder_denied(self, public_client, dataroom_with_content_and_link):
         """
@@ -4856,5 +5106,989 @@ class TestViewSessionAndViewerAccessControl:
         emails_admin = [v['email'] for v in results_admin]
         assert "viewer1@example.com" in emails_admin
         assert "viewer2@example.com" in emails_admin
+
+
+@pytest.mark.django_db
+class TestDataroomDownloadAllView:
+    """
+    Tests for GET /api/v1/links/<slug>/download-dataroom/ whole-dataroom streaming downloads.
+    """
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_dataroom_success(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link, document_factory
+    ):
+        mock_fs_download.return_value = "/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"file content"
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        dataroom = link.dataroom
+        dataroom.name = "Test Dataroom"
+        dataroom.save()
+
+        # Add a root-level document (folder=None)
+        root_doc = document_factory(name="Root Doc.txt", type='text')
+        ddoc_root = DataroomDocument.objects.create(dataroom=dataroom, document=root_doc, folder=None)
+        setting_root = link.dataroom_settings.get(dataroom_document=ddoc_root)
+        setting_root.is_visible = True
+        setting_root.allow_download = True
+        setting_root.save()
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response['Content-Type'] == 'application/zip'
+        assert 'attachment; filename="Test_Dataroom.zip"' in response['Content-Disposition']
+
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+        zip_buffer = BytesIO(content)
+        with zipfile.ZipFile(zip_buffer, 'r') as zf:
+            names = zf.namelist()
+            assert 'Test Dataroom/' in names
+            assert 'Test Dataroom/Root Folder/' in names
+            assert 'Test Dataroom/Root Folder/Doc A.pdf' in names
+            assert 'Test Dataroom/Root Folder/test_image.gif' in names
+            assert 'Test Dataroom/Root Folder/Subfolder/' in names
+            assert 'Test Dataroom/Root Folder/Subfolder/Doc B.docx' in names
+            assert 'Test Dataroom/Root Doc.txt' in names
+
+    def test_download_dataroom_permission_denied_when_link_download_disabled(self, public_client, dataroom_with_content_and_link):
+        link = dataroom_with_content_and_link['link']
+        link.allow_download = False
+        link.save()
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert "You are not allowed to download files" in response.data['message']
+
+    def test_download_dataroom_expired_fails(self, public_client, dataroom_with_content_and_link):
+        link = dataroom_with_content_and_link['link']
+        link.expires_at = timezone.now() - timedelta(days=1)
+        link.save()
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_410_GONE
+
+    def test_download_dataroom_password_protected_fails(self, public_client, dataroom_with_content_and_link):
+        link = dataroom_with_content_and_link['link']
+        link.password = "secret123"
+        link.save()
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_dataroom_respects_document_visibility_and_download_flags(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link
+    ):
+        mock_fs_download.return_value = "http://core:8080/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"file content"
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        ddoc_invisible = dataroom_with_content_and_link['ddoc_invisible']
+        ddoc_not_downloadable = dataroom_with_content_and_link['ddoc_not_downloadable']
+
+        setting_invisible = link.dataroom_settings.get(dataroom_document=ddoc_invisible)
+        setting_invisible.is_visible = False
+        setting_invisible.save()
+
+        setting_not_downloadable = link.dataroom_settings.get(dataroom_document=ddoc_not_downloadable)
+        setting_not_downloadable.allow_download = False
+        setting_not_downloadable.save()
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+        with zipfile.ZipFile(BytesIO(content), 'r') as zf:
+            names = zf.namelist()
+            assert any('Doc A.pdf' in n for n in names)
+            assert not any('Invisible.pdf' in n for n in names)
+            assert not any('Not Downloadable.pdf' in n for n in names)
+
+    @patch('sharelinks.views._generate_watermarked_pdf')
+    def test_download_dataroom_watermarks_pdf(self, mock_generate_pdf, public_client, dataroom_with_content_and_link):
+        link = dataroom_with_content_and_link['link']
+        ddoc_pdf = dataroom_with_content_and_link['ddoc_pdf']
+
+        link.enable_watermark = True
+        link.watermark_text = "CONFIDENTIAL"
+        link.save()
+
+        setting_pdf = link.dataroom_settings.get(dataroom_document=ddoc_pdf)
+        setting_pdf.enable_watermark = True
+        setting_pdf.save()
+
+        mock_generate_pdf.return_value = BytesIO(b"watermarked pdf stream")
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+        mock_generate_pdf.assert_called_once()
+
+        with zipfile.ZipFile(BytesIO(content), 'r') as zf:
+            target_name = [n for n in zf.namelist() if 'Doc A.pdf' in n][0]
+            assert zf.read(target_name) == b"watermarked pdf stream"
+
+    @patch('sharelinks.views._dispatch_automation_event')
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_dataroom_records_visit_and_dispatches_automation(
+        self, mock_fs_download, mock_requests_get, mock_dispatch, public_client, dataroom_with_content_and_link
+    ):
+        mock_fs_download.return_value = "http://core:8080/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"content"
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        session = ViewSession.objects.create(share_link=link, viewer_email='viewer@example.com')
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/?view_session_id={session.id}'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        _ = getattr(response, 'content', None) or b"".join(response.streaming_content)
+
+        session.refresh_from_db()
+        assert session.downloaded_at is not None
+
+        visit = DataroomVisit.objects.filter(view_session=session, item_type='folder', item_path='/').first()
+        assert visit is not None
+        assert visit.item_name == link.dataroom.name
+        assert visit.downloaded_at is not None
+
+        mock_dispatch.assert_called_once_with(
+            link,
+            'document_downloaded',
+            {
+                'view_session_id': str(session.id),
+                'viewer_email': 'viewer@example.com',
+                'dataroom_id': str(link.dataroom.id),
+                'dataroom_name': link.dataroom.name,
+                'status': 'download_started',
+            },
+            view_session=session,
+        )
+
+    def test_download_dataroom_no_downloadable_items_returns_400(self, public_client, dataroom_with_content_and_link):
+        link = dataroom_with_content_and_link['link']
+        # Set all settings to allow_download = False
+        link.dataroom_settings.update(allow_download=False)
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "No downloadable files available" in response.data['message']
+
+    @patch('sharelinks.views._dispatch_automation_event')
+    def test_download_dataroom_no_downloadable_items_does_not_record_visit_or_dispatch_automation(
+        self, mock_dispatch, public_client, dataroom_with_content_and_link
+    ):
+        link = dataroom_with_content_and_link['link']
+        link.dataroom_settings.update(allow_download=False)
+
+        session = ViewSession.objects.create(share_link=link, viewer_email='viewer@example.com')
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/?view_session_id={session.id}'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "No downloadable files available" in response.data['message']
+
+        session.refresh_from_db()
+        assert session.downloaded_at is None
+        assert not DataroomVisit.objects.filter(view_session=session).exists()
+        mock_dispatch.assert_not_called()
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_dataroom_renamed_does_not_create_duplicate_root_visit(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link
+    ):
+        mock_fs_download.return_value = "http://core:8080/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"content"
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        dataroom = link.dataroom
+        dataroom.name = "Initial Room Name"
+        dataroom.save()
+
+        session = ViewSession.objects.create(share_link=link, viewer_email='viewer@example.com')
+        initial_visit = DataroomVisit.objects.create(
+            view_session=session,
+            item_type='folder',
+            item_name="Initial Room Name",
+            item_path='/',
+            visited_at=timezone.now() - timedelta(minutes=5),
+        )
+
+        # Room is renamed before download
+        dataroom.name = "Renamed Room Name"
+        dataroom.save()
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/?view_session_id={session.id}'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        _ = getattr(response, 'content', None) or b"".join(response.streaming_content)
+
+        # Must not create a duplicate root visit
+        root_visits = DataroomVisit.objects.filter(view_session=session, item_type='folder', item_path='/')
+        assert root_visits.count() == 1
+
+        initial_visit.refresh_from_db()
+        assert initial_visit.downloaded_at is not None
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_dataroom_filename_collisions(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link, document_factory
+    ):
+        mock_fs_download.return_value = "/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"content"
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        root_folder = dataroom_with_content_and_link['root_folder']
+
+        # Add a second document with distinct physical Document name, but same DataroomDocument display name
+        doc_dup = document_factory(name="Other Doc.pdf", type='pdf')
+        ddoc_dup = DataroomDocument.objects.create(dataroom=link.dataroom, document=doc_dup, folder=root_folder, name="Doc A.pdf")
+        setting_dup = link.dataroom_settings.get(dataroom_document=ddoc_dup)
+        setting_dup.is_visible = True
+        setting_dup.allow_download = True
+        setting_dup.save()
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+        with zipfile.ZipFile(BytesIO(content), 'r') as zf:
+            names = zf.namelist()
+            assert any('Doc A.pdf' in n for n in names)
+            assert any('Doc A (1).pdf' in n for n in names)
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_dataroom_excludes_non_downloadable_subfolder(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link
+    ):
+        mock_fs_download.return_value = "/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"content"
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        subfolder = dataroom_with_content_and_link['subfolder']
+
+        # Set allow_download = False on the subfolder
+        subfolder_setting = link.dataroom_settings.get(dataroom_folder=subfolder)
+        subfolder_setting.allow_download = False
+        subfolder_setting.save()
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+        with zipfile.ZipFile(BytesIO(content), 'r') as zf:
+            names = zf.namelist()
+            # Root items and root folder items should exist
+            assert any('Doc A.pdf' in n for n in names)
+            # The non-downloadable subfolder and its contents must be excluded
+            assert not any('Subfolder' in n for n in names)
+            assert not any('Doc_B.docx' in n for n in names)
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_dataroom_non_ascii_name_header_encoding(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link
+    ):
+        mock_fs_download.return_value = "/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"content"
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        link.dataroom.name = "财务数据室"
+        link.dataroom.save()
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        cd_header = response['Content-Disposition']
+        # Must be Latin-1 encodable to prevent Gunicorn WSGI 500 crash
+        cd_header.encode('latin-1')
+        assert f'filename="dataroom_{link.slug}.zip"' in cd_header
+        assert "filename*=UTF-8''%E8%B4%A2%E5%8A%A1%E6%95%B0%E6%8D%AE%E5%AE%A4.zip" in cd_header
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_dataroom_preserves_spaces_and_punctuation(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link, document_factory
+    ):
+        mock_fs_download.return_value = "/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"content"
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        dataroom = link.dataroom
+        dataroom.name = "Due Diligence (Project Apollo)"
+        dataroom.save()
+
+        # Create folder with spaces, parentheses and brackets
+        folder = DataroomFolder.objects.create(dataroom=dataroom, name="Q1 Reports (2024)")
+        setting_folder = link.dataroom_settings.get(dataroom_folder=folder)
+        setting_folder.is_visible = True
+        setting_folder.allow_download = True
+        setting_folder.save()
+
+        # Create document with spaces and punctuation
+        doc = document_factory(name="Financial Summary [Final] - Draft.pdf", type='pdf')
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=doc, folder=folder)
+        setting_doc = link.dataroom_settings.get(dataroom_document=ddoc)
+        setting_doc.is_visible = True
+        setting_doc.allow_download = True
+        setting_doc.save()
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+        with zipfile.ZipFile(BytesIO(content), 'r') as zf:
+            names = zf.namelist()
+            assert 'Due Diligence (Project Apollo)/' in names
+            assert 'Due Diligence (Project Apollo)/Q1 Reports (2024)/' in names
+            assert 'Due Diligence (Project Apollo)/Q1 Reports (2024)/Financial Summary [Final] - Draft.pdf' in names
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_dataroom_sibling_folder_collisions(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link, document_factory
+    ):
+        mock_fs_download.return_value = "/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"content"
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        dataroom = link.dataroom
+        dataroom.name = "Collision Dataroom"
+        dataroom.save()
+
+        # Two sibling folders with spaces vs underscores: "Q1 Reports" and "Q1_Reports"
+        f1 = DataroomFolder.objects.create(dataroom=dataroom, name="Q1 Reports")
+        s1 = link.dataroom_settings.get(dataroom_folder=f1)
+        s1.is_visible = True
+        s1.allow_download = True
+        s1.save()
+
+        f2 = DataroomFolder.objects.create(dataroom=dataroom, name="Q1_Reports")
+        s2 = link.dataroom_settings.get(dataroom_folder=f2)
+        s2.is_visible = True
+        s2.allow_download = True
+        s2.save()
+
+        # A third folder with identical name "Q1 Reports"
+        f3 = DataroomFolder.objects.create(dataroom=dataroom, name="Q1 Reports")
+        s3 = link.dataroom_settings.get(dataroom_folder=f3)
+        s3.is_visible = True
+        s3.allow_download = True
+        s3.save()
+
+        doc1 = document_factory(name="doc1.pdf", type='pdf')
+        dd1 = DataroomDocument.objects.create(dataroom=dataroom, document=doc1, folder=f1)
+        s_d1 = link.dataroom_settings.get(dataroom_document=dd1)
+        s_d1.is_visible = True
+        s_d1.allow_download = True
+        s_d1.save()
+
+        doc2 = document_factory(name="doc2.pdf", type='pdf')
+        dd2 = DataroomDocument.objects.create(dataroom=dataroom, document=doc2, folder=f2)
+        s_d2 = link.dataroom_settings.get(dataroom_document=dd2)
+        s_d2.is_visible = True
+        s_d2.allow_download = True
+        s_d2.save()
+
+        doc3 = document_factory(name="doc3.pdf", type='pdf')
+        dd3 = DataroomDocument.objects.create(dataroom=dataroom, document=doc3, folder=f3)
+        s_d3 = link.dataroom_settings.get(dataroom_document=dd3)
+        s_d3.is_visible = True
+        s_d3.allow_download = True
+        s_d3.save()
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+        with zipfile.ZipFile(BytesIO(content), 'r') as zf:
+            names = zf.namelist()
+            # Folders must NOT be merged together
+            assert 'Collision Dataroom/Q1 Reports/' in names
+            assert 'Collision Dataroom/Q1_Reports/' in names
+            assert 'Collision Dataroom/Q1 Reports (1)/' in names
+
+            assert 'Collision Dataroom/Q1 Reports/doc1.pdf' in names
+            assert 'Collision Dataroom/Q1_Reports/doc2.pdf' in names
+            assert 'Collision Dataroom/Q1 Reports (1)/doc3.pdf' in names
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_dataroom_edge_case_names_do_not_crash(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link, document_factory
+    ):
+        mock_fs_download.return_value = "/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"content"
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        dataroom = link.dataroom
+        dataroom.name = "???"
+        dataroom.save()
+
+        # Folder named "."
+        dot_folder = DataroomFolder.objects.create(dataroom=dataroom, name=".")
+        setting_folder = link.dataroom_settings.get(dataroom_folder=dot_folder)
+        setting_folder.is_visible = True
+        setting_folder.allow_download = True
+        setting_folder.save()
+
+        # Document named with special chars and path separators
+        slash_doc = document_factory(name="path/to/my:report?.pdf", type='pdf')
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=slash_doc, folder=dot_folder)
+        setting_doc = link.dataroom_settings.get(dataroom_document=ddoc)
+        setting_doc.is_visible = True
+        setting_doc.allow_download = True
+        setting_doc.save()
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+        with zipfile.ZipFile(BytesIO(content), 'r') as zf:
+            names = zf.namelist()
+            # Path separators and invalid chars are sanitized, no traversal or SuspiciousFileOperation
+            assert not any('/to/' in n for n in names)
+            assert not any('..' in n for n in names)
+            assert any('path-to-my-report-.pdf' in n for n in names)
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_dataroom_excludes_oversized_watermarked_document(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link, document_factory
+    ):
+        mock_fs_download.return_value = "/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"content"
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        link.enable_watermark = True
+        link.save()
+
+        root_folder = dataroom_with_content_and_link['root_folder']
+        link.dataroom_settings.update(enable_watermark=True, allow_download=True, is_visible=True)
+
+        # Create normal doc (1MB)
+        normal_doc = document_factory(name="Normal.pdf", type='pdf')
+        normal_v = normal_doc.versions.get(is_primary=True)
+        normal_v.file_size = 1 * 1024 * 1024
+        normal_v.save()
+        normal_doc.file_size = 1 * 1024 * 1024
+        normal_doc.save()
+        DataroomDocument.objects.create(dataroom=link.dataroom, document=normal_doc, folder=root_folder)
+
+        # Create oversized doc (500MB)
+        huge_doc = document_factory(name="Huge_Oversized.pdf", type='pdf')
+        huge_v = huge_doc.versions.get(is_primary=True)
+        huge_v.file_size = 500 * 1024 * 1024
+        huge_v.save()
+        huge_doc.file_size = 500 * 1024 * 1024
+        huge_doc.save()
+        DataroomDocument.objects.create(dataroom=link.dataroom, document=huge_doc, folder=root_folder)
+
+        # Refresh link settings for newly created docs
+        for ddoc in DataroomDocument.objects.filter(dataroom=link.dataroom):
+            s, _ = ShareLinkDataroomSetting.objects.get_or_create(share_link=link, dataroom_document=ddoc)
+            s.is_visible = True
+            s.allow_download = True
+            s.enable_watermark = True
+            s.save()
+
+        with patch('sharelinks.views._generate_watermarked_pdf') as mock_gen_pdf:
+            mock_gen_pdf.return_value = BytesIO(b"watermarked pdf stream")
+            url = f'/api/v1/links/{link.slug}/download-dataroom/'
+            response = public_client.get(url)
+
+            assert response.status_code == status.HTTP_200_OK
+            content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+            with zipfile.ZipFile(BytesIO(content), 'r') as zf:
+                names = zf.namelist()
+                # Normal document must be included
+                assert any('Normal.pdf' in n for n in names)
+                # Oversized document must be excluded from watermarked archive to prevent worker OOM
+                assert not any('Huge_Oversized.pdf' in n for n in names)
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_dataroom_raw_stream_failure_writes_error_file_and_masks_token(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link
+    ):
+        secret_token = "secret-token-hmac-signed-xyz123"
+        download_url = f"http://core:8080/files/download/{secret_token}"
+        mock_fs_download.return_value = download_url
+
+        # Simulate requests.get failure raising HTTPError containing the full URL and secret token
+        mock_response = MagicMock()
+        http_error = requests.exceptions.HTTPError(
+            f"404 Client Error: Not Found for url: {download_url}",
+            response=mock_response
+        )
+        mock_requests_get.side_effect = http_error
+
+        link = dataroom_with_content_and_link['link']
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+
+        # Token must NOT leak into archive content under any circumstance (PR #438 Comment #6)
+        assert secret_token.encode('utf-8') not in content
+        assert b"http://core:8080" not in content
+
+        with zipfile.ZipFile(BytesIO(content), 'r') as zf:
+            names = zf.namelist()
+            # Separate _error.txt entry must exist in the archive (PR #438 Comment #5)
+            error_entry = next((n for n in names if n.endswith('Doc A_error.txt')), None)
+            assert error_entry is not None, f"Expected Doc A_error.txt in {names}"
+
+            error_text = zf.read(error_entry).decode('utf-8')
+            assert "[Coneshare Archive Note]" in error_text
+            assert "Reason: HTTPError" in error_text
+
+            # The original target file must NOT contain plaintext archive note
+            pdf_entry = next((n for n in names if n.endswith('Doc A.pdf')), None)
+            assert pdf_entry is not None
+            pdf_bytes = zf.read(pdf_entry)
+            assert b"[Coneshare Archive Note]" not in pdf_bytes
+
+    @patch('sharelinks.views._generate_watermarked_pdf')
+    def test_download_dataroom_watermark_failure_writes_error_file(
+        self, mock_generate_pdf, public_client, dataroom_with_content_and_link
+    ):
+        link = dataroom_with_content_and_link['link']
+        ddoc_pdf = dataroom_with_content_and_link['ddoc_pdf']
+
+        link.enable_watermark = True
+        link.watermark_text = "CONFIDENTIAL"
+        link.save()
+
+        setting_pdf = link.dataroom_settings.get(dataroom_document=ddoc_pdf)
+        setting_pdf.enable_watermark = True
+        setting_pdf.save()
+
+        # Watermark rendering fails with RuntimeError
+        mock_generate_pdf.side_effect = RuntimeError("Watermark rendering engine internal failure")
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+
+        with zipfile.ZipFile(BytesIO(content), 'r') as zf:
+            names = zf.namelist()
+            # Separate _error.txt entry must exist in the archive (PR #438 Comment #5)
+            error_entry = next((n for n in names if n.endswith('Doc A_error.txt')), None)
+            assert error_entry is not None, f"Expected Doc A_error.txt in {names}"
+
+            error_text = zf.read(error_entry).decode('utf-8')
+            assert "[Coneshare Archive Note]" in error_text
+            assert "Reason: RuntimeError" in error_text
+
+            # The original target file must NOT contain plaintext archive note
+            pdf_entry = next((n for n in names if n.endswith('Doc A.pdf')), None)
+            assert pdf_entry is not None
+            pdf_bytes = zf.read(pdf_entry)
+            assert b"[Coneshare Archive Note]" not in pdf_bytes
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_dataroom_midstream_failure_writes_error_file_and_preserves_partial_bytes(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link
+    ):
+        secret_token = "secret-token-hmac-signed-midstream"
+        download_url = f"http://core:8080/files/download/{secret_token}"
+        mock_fs_download.return_value = download_url
+
+        # Simulate requests.get returning a response whose iter_content yields 1 chunk and then fails
+        def faulty_iter_content(chunk_size=64 * 1024):
+            yield b"PARTIAL_CONTENT_CHUNK_1"
+            raise requests.exceptions.ChunkedEncodingError("Connection broken mid-stream")
+
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.iter_content = faulty_iter_content
+        mock_response.__enter__.return_value = mock_response
+        mock_response.__exit__.return_value = None
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+
+        with zipfile.ZipFile(BytesIO(content), 'r') as zf:
+            names = zf.namelist()
+            # Separate _error.txt entry must exist in the archive (PR #438 Comment #5)
+            error_entry = next((n for n in names if n.endswith('Doc A_error.txt')), None)
+            assert error_entry is not None, f"Expected Doc A_error.txt in {names}"
+
+            error_text = zf.read(error_entry).decode('utf-8')
+            assert "[Coneshare Archive Note]" in error_text
+            assert "Reason: ChunkedEncodingError" in error_text
+            assert "Transfer was interrupted mid-stream after 23 bytes" in error_text
+
+            # The original target file must have the partial content streamed before failure,
+            # but MUST NOT have the plaintext archive note appended to it.
+            pdf_entry = next((n for n in names if n.endswith('Doc A.pdf')), None)
+            assert pdf_entry is not None
+            pdf_bytes = zf.read(pdf_entry)
+            assert pdf_bytes == b"PARTIAL_CONTENT_CHUNK_1"
+            assert b"[Coneshare Archive Note]" not in pdf_bytes
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_dataroom_detects_content_length_truncation_and_writes_error_file(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link
+    ):
+        mock_fs_download.return_value = "http://core:8080/files/download/token"
+
+        # Content-Length is 500, but stream yields only 100 bytes and cleanly exits
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.headers = {'Content-Length': '500'}
+        mock_response.iter_content = lambda chunk_size=64 * 1024: [b"A" * 100]
+        mock_response.__enter__.return_value = mock_response
+        mock_response.__exit__.return_value = None
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+
+        with zipfile.ZipFile(BytesIO(content), 'r') as zf:
+            names = zf.namelist()
+            error_entry = next((n for n in names if n.endswith('Doc A_error.txt')), None)
+            assert error_entry is not None
+            error_text = zf.read(error_entry).decode('utf-8')
+            assert "Reason: OSError" in error_text
+            assert "Transfer was interrupted mid-stream after 100 bytes" in error_text
+
+    def test_sanitize_zip_entry_name_windows_reserved_names(self):
+        from sharelinks.archive import sanitize_zip_entry_name
+        assert sanitize_zip_entry_name("CON") == "_CON"
+        assert sanitize_zip_entry_name("con.pdf") == "_con.pdf"
+        assert sanitize_zip_entry_name("AUX") == "_AUX"
+        assert sanitize_zip_entry_name("aux.tar.gz") == "_aux.tar.gz"
+        assert sanitize_zip_entry_name("nul") == "_nul"
+        assert sanitize_zip_entry_name("COM1") == "_COM1"
+        assert sanitize_zip_entry_name("com9.txt") == "_com9.txt"
+        assert sanitize_zip_entry_name("LPT1") == "_LPT1"
+        assert sanitize_zip_entry_name("lpt8.log") == "_lpt8.log"
+        assert sanitize_zip_entry_name("normal_file.pdf") == "normal_file.pdf"
+
+    def test_unique_zip_path_disambiguates_file_and_directory_collision(self):
+        from sharelinks.archive import _get_unique_zip_path, _get_unique_dir_path
+
+        # Case 1: Directory added first, then extensionless file with same name
+        seen_paths = set()
+        dir_path = _get_unique_dir_path(seen_paths, "parent", "data")
+        assert dir_path == "parent/data"
+        assert "parent/data/" in seen_paths
+
+        file_path = _get_unique_zip_path(seen_paths, "parent", "data")
+        assert file_path == "parent/data (1)"
+
+        # Case 2: Extensionless file added first, then directory with same name
+        seen_paths2 = set()
+        file_path2 = _get_unique_zip_path(seen_paths2, "parent", "reports")
+        assert file_path2 == "parent/reports"
+        assert "parent/reports" in seen_paths2
+
+        dir_path2 = _get_unique_dir_path(seen_paths2, "parent", "reports")
+        assert dir_path2 == "parent/reports (1)"
+        assert "parent/reports (1)/" in seen_paths2
+
+    @patch('sharelinks.archive.logger.error')
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_resilient_generator_logger_does_not_leak_url_or_traceback(
+        self, mock_fs_download, mock_requests_get, mock_logger_error, public_client, dataroom_with_content_and_link
+    ):
+        secret_token = "secret-token-hmac-signed-masked-check"
+        download_url = f"http://core:8080/files/download/{secret_token}"
+        mock_fs_download.return_value = download_url
+
+        mock_requests_get.side_effect = requests.exceptions.HTTPError(
+            f"500 Server Error: Internal Server Error for url: {download_url}"
+        )
+
+        link = dataroom_with_content_and_link['link']
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        _ = getattr(response, 'content', None) or b"".join(response.streaming_content)
+
+        # Ensure logger.error was called
+        assert mock_logger_error.called
+        # Check all logger.error calls: none should contain the secret token, raw URL, or exc_info=True
+        for call_args in mock_logger_error.call_args_list:
+            args, kwargs = call_args
+            assert kwargs.get('exc_info') is not True
+            for arg in args:
+                assert secret_token not in str(arg)
+                assert "http://core:8080" not in str(arg)
+
+    @patch('sharelinks.views._generate_watermarked_pdf')
+    def test_download_dataroom_skips_unwatermarkable_types_and_unconverted_docs(
+        self, mock_generate_pdf, public_client, dataroom, user, document_factory
+    ):
+        # Setup dataroom with watermark enabled
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user, enable_watermark=True, watermark_text="CONF")
+
+        # 1. Valid PDF
+        doc_valid = document_factory(name="Valid.pdf", type='pdf')
+        DataroomDocument.objects.create(dataroom=dataroom, document=doc_valid)
+
+        # 2. Spreadsheet (cannot be watermarked on download, must be skipped)
+        doc_spreadsheet = document_factory(name="Financials.xlsx", type='spreadsheet')
+        DataroomDocument.objects.create(dataroom=dataroom, document=doc_spreadsheet)
+
+        # 3. Office document without converted PDF storage_key (cannot be watermarked, must be skipped)
+        doc_office_unconverted = document_factory(name="Unconverted.docx", type='document')
+        v_office = doc_office_unconverted.versions.filter(is_primary=True).first()
+        v_office.storage_key = ""  # No converted PDF
+        v_office.save()
+        DataroomDocument.objects.create(dataroom=dataroom, document=doc_office_unconverted)
+
+        # 4. Office document with converted PDF storage_key (can be watermarked, must be included)
+        doc_office_converted = document_factory(name="Converted.docx", type='document')
+        v_conv = doc_office_converted.versions.filter(is_primary=True).first()
+        v_conv.storage_key = "path/to/converted.pdf"
+        v_conv.save()
+        DataroomDocument.objects.create(dataroom=dataroom, document=doc_office_converted)
+
+        mock_generate_pdf.return_value = BytesIO(b"watermarked-pdf-content")
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+        with zipfile.ZipFile(BytesIO(content), 'r') as zf:
+            names = zf.namelist()
+            # Valid PDF was included
+            assert any('Valid.pdf' in n for n in names)
+            # Converted office document was included as PDF
+            assert any('Converted.pdf' in n for n in names)
+            # Spreadsheet was skipped
+            assert not any('Financials' in n for n in names)
+            # Unconverted document was skipped
+            assert not any('Unconverted' in n for n in names)
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_dataroom_skips_keyless_doc_without_reserving_name(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link, document_factory
+    ):
+        mock_fs_download.return_value = "/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"content"
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        dataroom = link.dataroom
+        link.enable_watermark = False
+        link.save()
+
+        # Doc 1: has empty original_storage_key
+        doc_keyless = document_factory(name="DocKeyless.pdf", type="document")
+        v1 = doc_keyless.versions.filter(is_primary=True).first()
+        v1.original_storage_key = ""
+        v1.save()
+        DataroomDocument.objects.create(dataroom=dataroom, document=doc_keyless, name="Important.pdf")
+
+        # Doc 2: has same dataroom display name but valid original_storage_key
+        doc_valid = document_factory(name="DocValid.pdf", type="document")
+        v2 = doc_valid.versions.filter(is_primary=True).first()
+        v2.original_storage_key = "path/to/important.pdf"
+        v2.save()
+        DataroomDocument.objects.create(dataroom=dataroom, document=doc_valid, name="Important.pdf")
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+
+        content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+        with zipfile.ZipFile(BytesIO(content), 'r') as zf:
+            names = zf.namelist()
+            # The valid document MUST get Important.pdf directly, NOT Important (1).pdf
+            assert any(n.endswith('/Important.pdf') or n == 'Important.pdf' for n in names)
+            assert not any('(1)' in n for n in names)
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_dataroom_filename_star_uses_safe_empty(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link
+    ):
+        mock_fs_download.return_value = "/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"content"
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        link.dataroom.name = "Alice's Project / Vault"
+        link.dataroom.save()
+
+        url = f'/api/v1/links/{link.slug}/download-dataroom/'
+        response = public_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        cd_header = response['Content-Disposition']
+        cd_header.encode('latin-1')
+        assert "%27" in cd_header
+        assert "%2F" in cd_header
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    def test_download_folder_filename_star_uses_safe_empty(
+        self, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link
+    ):
+        mock_fs_download.return_value = "/files/download/token"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.content = b"content"
+        mock_requests_get.return_value = mock_response
+
+        link = dataroom_with_content_and_link['link']
+        folder = dataroom_with_content_and_link['root_folder']
+        folder.name = "Bob's / Files"
+        folder.save()
+
+        url = f'/api/v1/links/{link.slug}/download-folder/{folder.id}/'
+        response = public_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        cd_header = response['Content-Disposition']
+        cd_header.encode('latin-1')
+        assert "%27" in cd_header
+        assert "%2F" in cd_header
+
+
+class TestWatermarkErrorLoggingAndSizeLimit:
+    def test_generate_watermarked_image_logs_exception_type_without_leaking_url(self, caplog, document_factory):
+        from sharelinks.views import _generate_watermarked_image, WatermarkingError
+        import logging
+        doc = document_factory(name="test.jpg", type="image")
+        version = doc.versions.filter(is_primary=True).first()
+        version.file_size = 1000
+        version.storage_key = "test_key.jpg"
+        version.save()
+
+        secret_token = "secret-hmac-token-12345"
+        sensitive_url = f"http://core:8080/files/download/{secret_token}"
+
+        with patch('sharelinks.views.fileserver_client.generate_download_url', return_value=sensitive_url):
+            with patch('sharelinks.views.requests.get', side_effect=requests.HTTPError(f"403 Client Error: Forbidden for url: {sensitive_url}")):
+                with caplog.at_level(logging.ERROR):
+                    with pytest.raises(WatermarkingError):
+                        _generate_watermarked_image(doc, version, "Watermark", None, "viewer@test.com")
+
+        assert secret_token not in caplog.text
+        assert sensitive_url not in caplog.text
+        assert "Failed to apply watermark to image: HTTPError" in caplog.text
+
+    def test_generate_watermarked_pdf_logs_exception_type_without_leaking_url(self, caplog, document_factory):
+        from sharelinks.views import _generate_watermarked_pdf, WatermarkingError
+        import logging
+        doc = document_factory(name="test.pdf", type="document")
+        version = doc.versions.filter(is_primary=True).first()
+        version.file_size = 1000
+        version.storage_key = "test_key.pdf"
+        version.save()
+
+        secret_token = "secret-hmac-token-67890"
+        sensitive_url = f"http://core:8080/files/download/{secret_token}"
+
+        with patch('sharelinks.views.fileserver_client.generate_download_url', return_value=sensitive_url):
+            with patch('sharelinks.views.requests.get', side_effect=requests.HTTPError(f"500 Server Error: {sensitive_url}")):
+                with caplog.at_level(logging.ERROR):
+                    with pytest.raises(WatermarkingError):
+                        _generate_watermarked_pdf(doc, version, "Watermark", None, "viewer@test.com")
+
+        assert secret_token not in caplog.text
+        assert sensitive_url not in caplog.text
+        assert "Failed to apply watermark to PDF: HTTPError" in caplog.text
+
+    def test_watermark_generation_blocked_when_max_size_zero(self, document_factory):
+        from sharelinks.views import _generate_watermarked_image, _generate_watermarked_pdf, WatermarkingError
+        doc = document_factory(name="small.jpg", type="image")
+        version = doc.versions.filter(is_primary=True).first()
+        version.file_size = 100  # 100 bytes
+        version.storage_key = "small.jpg"
+        version.save()
+
+        with patch('sharelinks.views.get_max_watermark_file_size_mb', return_value=0):
+            with pytest.raises(WatermarkingError, match="exceeds the maximum limit"):
+                _generate_watermarked_image(doc, version, "Watermark", None, "viewer@test.com")
+
+            with pytest.raises(WatermarkingError, match="exceeds the maximum limit"):
+                _generate_watermarked_pdf(doc, version, "Watermark", None, "viewer@test.com")
 
 

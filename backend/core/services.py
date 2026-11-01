@@ -46,3 +46,18 @@ def get_dynamic_setting(key: str):
     default_value = getattr(settings, key)
     setting_type = DEFAULT_SETTINGS.get(key, {}).get('type') or infer_setting_type(default_value)
     return deserialize_db_value(setting_type, value_str, default_value)
+
+
+def get_max_watermark_file_size_mb() -> int:
+    """
+    Returns the maximum file size (in MB) for watermarked operations.
+    Preserves an explicit 0 (which restricts all watermarking) rather than
+    falsy-falling back via `or`.
+    """
+    try:
+        val = get_dynamic_setting('MAX_WATERMARK_FILE_SIZE_MB')
+    except AttributeError:
+        val = None
+    if val is not None:
+        return val
+    return 100
