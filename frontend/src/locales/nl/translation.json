@@ -859,8 +859,17 @@
     "openFolder": "Map openen",
     "loading": "Laden...",
     "restrictedConfidential": "VERTROUWELIJK BEPERKT",
+    "publicAccess": "OPENBARE TOEGANG",
     "bannerGallery": "Interactieve bannergalerij",
-    "goToSlide": "Ga naar dia {{number}}"
+    "goToSlide": "Ga naar dia {{number}}",
+    "downloadAll": "Alles downloaden",
+    "downloadFolder": "Map downloaden",
+    "home": "Startpagina",
+    "downloadStarted": "Download gestart",
+    "downloadFolderFailed": "Map downloaden mislukt",
+    "downloadArchiveFailed": "Dataroom-archief downloaden mislukt",
+    "loadFolderError": "Kan map niet laden. Probeer het opnieuw.",
+    "loadDocumentError": "Kan document niet laden. Probeer het opnieuw."
   },
   "viewSessions": {
     "unknownLocation": "Onbekende locatie",
@@ -1136,6 +1145,7 @@
     "settingDescriptions": {
       "MAX_PREVIEW_FILE_SIZE_MB": "Maximale bestandsgrootte in MB voor het genereren van voorbeelden. Grotere bestanden worden gemarkeerd als alleen downloaden.",
       "MAX_VIDEO_PREVIEW_SIZE_MB": "Maximale bestandsgrootte in MB voor het genereren van videovoorbeelden. Grotere bestanden worden gemarkeerd als alleen downloaden.",
+      "MAX_WATERMARK_FILE_SIZE_MB": "Maximale bestandsgrootte in MB voor realtime watermerkaanmaak. Bestanden groter dan dit worden beperkt.",
       "MAX_PREVIEW_PAGES": "Maximaal aantal pagina's voor een documentvoorbeeld. Documenten met meer pagina's zijn alleen beschikbaar om te downloaden.",
       "FILE_SIZE_QUOTA_MB": "Bestandsgroottequotum per gebruiker in MB. 0 betekent onbeperkt.",
       "MAX_FILES_PER_UPLOAD": "Maximaal aantal bestanden dat in één uploadbewerking is toegestaan.",

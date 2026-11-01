@@ -860,8 +860,17 @@
     "openFolder": "打开文件夹",
     "loading": "加载中...",
     "restrictedConfidential": "机密受限",
+    "publicAccess": "公开访问",
     "bannerGallery": "交互式横幅画廊",
-    "goToSlide": "前往第 {{number}} 张幻灯片"
+    "goToSlide": "前往第 {{number}} 张幻灯片",
+    "downloadAll": "下载全部",
+    "downloadFolder": "下载文件夹",
+    "home": "首页",
+    "downloadStarted": "下载已开始",
+    "downloadFolderFailed": "下载文件夹失败",
+    "downloadArchiveFailed": "下载资料室归档失败",
+    "loadFolderError": "无法加载文件夹，请重试。",
+    "loadDocumentError": "无法加载文档，请重试。"
   },
   "viewSessions": {
     "unknownLocation": "未知位置",
@@ -1137,6 +1146,7 @@
     "settingDescriptions": {
       "MAX_PREVIEW_FILE_SIZE_MB": "生成文件预览的最大文件限制 (MB)。超出此大小的文件将被标注为仅限下载。",
       "MAX_VIDEO_PREVIEW_SIZE_MB": "视频预览生成的最大文件限制 (MB)。超出此大小的视频将被标注为仅限下载。",
+      "MAX_WATERMARK_FILE_SIZE_MB": "实时水印生成的最大文件大小限制 (MB)。超出此大小的文件将被限制。",
       "MAX_PREVIEW_PAGES": "文档预览的最大页数限制。超出的页数或文档将仅限下载。",
       "FILE_SIZE_QUOTA_MB": "单个用户的存储空间配额限制 (MB)。0 表示不限制。",
       "MAX_FILES_PER_UPLOAD": "单次上传允许的最大文件数量限制。",

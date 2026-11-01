@@ -1,4 +1,4 @@
-import { Clock, Lock, ShieldCheck } from 'lucide-react';
+import { Clock, Globe, Lock, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatRelativeTime } from '../../utils/formatters';
 
@@ -9,11 +9,10 @@ export function DataroomDefaultHeroBanner({
   updatedAt = null,
   isWatermarked = false,
   isNdaProtected = false,
+  isRestricted = false,
   hasViewSession = false,
 }) {
   const { t } = useTranslation();
-  const rawId = String(dataroomId || '').trim();
-  const shareIdSuffix = rawId ? (rawId.length <= 8 ? rawId : rawId.slice(-6)).toUpperCase() : '';
 
   return (
     <section
@@ -43,32 +42,17 @@ export function DataroomDefaultHeroBanner({
       <div className="absolute inset-0 bg-gradient-to-r from-[#141b2b]/95 via-[#141b2b]/80 to-transparent pointer-events-none" />
 
       {/* Banner Content */}
-      <div className="relative z-10 p-5 sm:p-7 md:p-8 flex flex-col justify-between min-h-[200px] gap-4">
-        {/* Top bar: Visitor Status & Last Updated */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-[#f8f9fa] text-xs font-medium border border-white/10 shadow-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#c3c0ff] animate-pulse" />
-            <span>
-              {hasViewSession
-                ? t('viewer.visitorMode', { defaultValue: 'Visitor Mode' })
-                : t('viewer.previewMode', { defaultValue: 'Customer View · Read-Only' })}
-            </span>
+      <div className="relative z-10 p-5 sm:p-7 md:p-8 flex flex-col justify-between min-h-[180px] gap-4">
+        {/* Top bar: Last Updated */}
+        {updatedAt ? (
+          <div className="flex items-center justify-end gap-1.5 text-[#c6c6cd] text-xs font-medium">
+            <Clock className="h-3.5 w-3.5 text-gray-400" />
+            <span>{t('common.updated')} {formatRelativeTime(updatedAt)}</span>
           </div>
-
-          {updatedAt ? (
-            <div className="flex items-center gap-1.5 text-[#c6c6cd] text-xs font-medium">
-              <Clock className="h-3.5 w-3.5 text-gray-400" />
-              <span>{t('common.updated', { defaultValue: 'Updated' })} {formatRelativeTime(updatedAt)}</span>
-            </div>
-          ) : null}
-        </div>
+        ) : null}
 
         {/* Center Title & Description */}
-        <div className="max-w-3xl mt-1 sm:mt-2">
-          <span className="font-mono text-[11px] uppercase tracking-wider text-[#c3c0ff] font-semibold block mb-1.5">
-            {t('viewer.virtualDataroom', { defaultValue: 'Virtual Dataroom' })}
-            {shareIdSuffix ? ` · Share ID #${shareIdSuffix}` : ''}
-          </span>
+        <div className="max-w-3xl my-auto py-2 sm:py-3">
           <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[#f8f9fa] tracking-tight leading-tight">
             {dataroomName}
           </h2>
@@ -82,16 +66,29 @@ export function DataroomDefaultHeroBanner({
         {/* Bottom tags: Compliance & Protections */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-3 mt-1 border-t border-white/10">
           <div className="flex items-center gap-2 flex-wrap text-xs">
-            <span className="px-2 py-0.5 rounded bg-white/10 text-[#f8f9fa] text-[10px] font-mono font-bold tracking-wider uppercase">
-              {t('viewer.restrictedConfidential', { defaultValue: 'RESTRICTED CONFIDENTIAL' })}
-            </span>
+            {isRestricted ? (
+              <span
+                data-testid="hero-restricted-badge"
+                className="px-2 py-0.5 rounded bg-white/10 text-[#f8f9fa] text-[10px] font-mono font-bold tracking-wider uppercase"
+              >
+                {t('viewer.restrictedConfidential')}
+              </span>
+            ) : (
+              <span
+                data-testid="hero-public-access-badge"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/10 text-[#f8f9fa] text-[10px] font-mono font-bold tracking-wider uppercase"
+              >
+                <Globe className="h-3 w-3 text-[#c3c0ff]" />
+                <span>{t('viewer.publicAccess')}</span>
+              </span>
+            )}
             {isWatermarked && (
               <span
                 data-testid="hero-watermark-badge"
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 text-white/90 border border-white/15 text-[10px] font-medium"
               >
                 <Lock className="h-3 w-3 text-[#c3c0ff]" />
-                <span>{t('viewer.watermarked', { defaultValue: 'Watermarked' })}</span>
+                <span>{t('viewer.watermarked')}</span>
               </span>
             )}
             {isNdaProtected && (
@@ -100,7 +97,7 @@ export function DataroomDefaultHeroBanner({
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 text-white/90 border border-white/15 text-[10px] font-medium"
               >
                 <ShieldCheck className="h-3 w-3 text-emerald-300" />
-                <span>{t('viewer.ndaActive', { defaultValue: 'NDA Active' })}</span>
+                <span>{t('viewer.ndaActive')}</span>
               </span>
             )}
           </div>

@@ -1601,6 +1601,8 @@ class TestDataroomVisitTracking:
         assert data['breadcrumbs'] == []
         assert data['updated_at'] == dataroom.updated_at.isoformat()
         assert data['link_settings']['require_nda'] is False
+        assert data['link_settings']['has_password'] is False
+        assert data['link_settings']['is_restricted'] is False
         item_names = {item['name'] for item in data['items']}
         assert item_names == {"Root Folder", "Root Doc.pdf"}
 
@@ -2186,6 +2188,25 @@ class TestShareLinkPasswordProtection:
         assert payload['owner_name'] == expected_owner_name
         assert 'owner_email_masked' in payload
         assert payload['organization_name'] == share_link.created_by.organization.name
+        assert payload['has_password'] is False
+        assert payload['is_restricted'] is False
+
+    def test_public_meta_includes_protection_and_restriction_flags(self, public_client, share_link_with_password):
+        url = f'/api/v1/links/{share_link_with_password.slug}/public-meta/'
+        response = public_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        payload = response.json()
+        assert payload['has_password'] is True
+        assert payload['is_restricted'] is True
+
+        share_link_with_password.password = ''
+        share_link_with_password.requires_email = False
+        share_link_with_password.requires_email_verification = False
+        share_link_with_password.save()
+        res_unprotected = public_client.get(url)
+        payload_unprotected = res_unprotected.json()
+        assert payload_unprotected['has_password'] is False
+        assert payload_unprotected['is_restricted'] is False
 
     def test_public_meta_for_unknown_slug_returns_404(self, public_client):
         response = public_client.get('/api/v1/links/non-existent/public-meta/')

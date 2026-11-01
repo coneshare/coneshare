@@ -859,8 +859,17 @@
     "openFolder": "Open Folder",
     "loading": "Loading...",
     "restrictedConfidential": "RESTRICTED CONFIDENTIAL",
+    "publicAccess": "PUBLIC ACCESS",
     "bannerGallery": "Interactive banner gallery",
-    "goToSlide": "Go to slide {{number}}"
+    "goToSlide": "Go to slide {{number}}",
+    "downloadAll": "Download all",
+    "downloadFolder": "Download folder",
+    "home": "Home",
+    "downloadStarted": "Download started",
+    "downloadFolderFailed": "Failed to download folder",
+    "downloadArchiveFailed": "Failed to download dataroom archive",
+    "loadFolderError": "Could not load folder. Please try again.",
+    "loadDocumentError": "Could not load document. Please try again."
   },
   "viewSessions": {
     "unknownLocation": "Unknown location",
@@ -1136,6 +1145,7 @@
     "settingDescriptions": {
       "MAX_PREVIEW_FILE_SIZE_MB": "Max file size in MB for preview generation. Files larger than this will be marked as download-only.",
       "MAX_VIDEO_PREVIEW_SIZE_MB": "Max file size in MB for video preview generation. Files larger than this will be marked as download-only.",
+      "MAX_WATERMARK_FILE_SIZE_MB": "Max file size in MB for on-the-fly watermark generation. Files larger than this will be restricted.",
       "MAX_PREVIEW_PAGES": "Maximum number of pages for document preview. Documents with more pages will be available for download only.",
       "FILE_SIZE_QUOTA_MB": "Per-user file size quota in MB. 0 means unlimited.",
       "MAX_FILES_PER_UPLOAD": "Maximum number of files allowed in a single upload operation.",

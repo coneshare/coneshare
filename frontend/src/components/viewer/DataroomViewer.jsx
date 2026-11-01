@@ -353,10 +353,10 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
     }
     try {
       await downloadDataroomFolder(slug, folder.id, viewId);
-      toast.success('Download started');
+      toast.success(t('viewer.downloadStarted'));
     } catch (error) {
       console.error('Failed to download folder:', error);
-      toast.error('Failed to download folder');
+      toast.error(t('viewer.downloadFolderFailed'));
     } finally {
       if (isHeader) {
         setIsDownloadingAll(false);
@@ -574,7 +574,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
     } catch (err) {
       if (requestId !== requestRef.current) return;
       console.error('Failed to load folder scope:', err);
-      toast.error('Could not load folder. Please try again.');
+      toast.error(t('viewer.loadFolderError'));
     } finally {
       if (requestId === requestRef.current) {
         if (append) {
@@ -660,7 +660,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
       if (activeDocIdRef.current === docId) {
         activeDocIdRef.current = null;
       }
-      toast.error('Could not load document. Please try again.');
+      toast.error(t('viewer.loadDocumentError'));
     } finally {
       if (requestId === docRequestRef.current && !silent) {
         setIsDocumentLoading(false);
@@ -997,10 +997,20 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
   const isNdaProtected = Boolean(
     scopeData?.link_settings?.require_nda || publicMeta?.require_nda
   );
+  const isRestricted = Boolean(
+    scopeData?.link_settings?.has_password ||
+    scopeData?.link_settings?.requires_email ||
+    scopeData?.link_settings?.requires_email_verification ||
+    scopeData?.link_settings?.is_restricted ||
+    publicMeta?.has_password ||
+    publicMeta?.requires_email ||
+    publicMeta?.requires_email_verification ||
+    publicMeta?.is_restricted
+  );
 
   const isLinkDownloadAllowed = Boolean(scopeData?.link_settings?.allow_download);
 
-  const downloadButtonLabel = currentFolderId ? 'Download folder' : 'Download all';
+  const downloadButtonLabel = currentFolderId ? t('viewer.downloadFolder') : t('viewer.downloadAll');
 
   const hasDownloadableItems = useMemo(() => {
     if (currentFolderId) {
@@ -1016,14 +1026,14 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
     setIsDownloadingAll(true);
     try {
       await downloadDataroomArchive(slug, viewId);
-      toast.success('Download started');
+      toast.success(t('viewer.downloadStarted'));
     } catch (error) {
       console.error('Failed to download dataroom archive:', error);
-      toast.error('Failed to download dataroom archive');
+      toast.error(t('viewer.downloadArchiveFailed'));
     } finally {
       setIsDownloadingAll(false);
     }
-  }, [slug, viewId]);
+  }, [slug, viewId, t]);
 
   const handleHeaderDownload = useCallback(() => {
     if (currentFolderId) {
@@ -1084,7 +1094,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
                   style={{ color: 'var(--viewer-secondary)' }}
                 >
                   <HomeIcon className="h-4 w-4" />
-                  <span>Home</span>
+                  <span>{t('viewer.home')}</span>
                 </button>
               </li>
               {breadcrumbs.map(crumb => (
@@ -1367,6 +1377,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
                 updatedAt={scopeData?.updated_at || data?.updated_at || data?.dataroom_context?.updated_at || data?.created_at}
                 isWatermarked={isWatermarked}
                 isNdaProtected={isNdaProtected}
+                isRestricted={isRestricted}
                 hasViewSession={Boolean(viewId)}
               />
             ) : null}
@@ -1390,7 +1401,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
                   className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
                 >
                   <HomeIcon className="h-4 w-4" />
-                  <span>Home</span>
+                  <span>{t('viewer.home')}</span>
                 </button>
                 {breadcrumbs.map((crumb) => (
                   <div key={crumb.id} className="flex items-center gap-1.5">

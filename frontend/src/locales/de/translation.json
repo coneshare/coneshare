@@ -885,8 +885,17 @@
     "openFolder": "Ordner öffnen",
     "loading": "Wird geladen...",
     "restrictedConfidential": "VERTRAULICH BESCHRÄNKT",
+    "publicAccess": "ÖFFENTLICHER ZUGRIFF",
     "bannerGallery": "Interaktive Banner-Galerie",
-    "goToSlide": "Gehe zu Folie {{number}}"
+    "goToSlide": "Gehe zu Folie {{number}}",
+    "downloadAll": "Alle herunterladen",
+    "downloadFolder": "Ordner herunterladen",
+    "home": "Startseite",
+    "downloadStarted": "Download gestartet",
+    "downloadFolderFailed": "Fehler beim Herunterladen des Ordners",
+    "downloadArchiveFailed": "Fehler beim Herunterladen des Datenraum-Archivs",
+    "loadFolderError": "Ordner konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "loadDocumentError": "Dokument konnte nicht geladen werden. Bitte versuchen Sie es erneut."
   },
   "viewSessions": {
     "unknownLocation": "Unbekannter Standort",
@@ -1162,6 +1171,7 @@
     "settingDescriptions": {
       "MAX_PREVIEW_FILE_SIZE_MB": "Maximale Dateigröße in MB für die Vorschaugenerierung. Größere Dateien werden als Nur-Download markiert.",
       "MAX_VIDEO_PREVIEW_SIZE_MB": "Maximale Dateigröße in MB für die Video-Vorschaugenerierung. Größere Dateien werden als Nur-Download markiert.",
+      "MAX_WATERMARK_FILE_SIZE_MB": "Maximale Dateigröße in MB für die dynamische Wasserzeichengenerierung. Größere Dateien werden eingeschränkt.",
       "MAX_PREVIEW_PAGES": "Maximale Seitenzahl für die Dokumentvorschau. Dokumente mit mehr Seiten stehen nur zum Download zur Verfügung.",
       "FILE_SIZE_QUOTA_MB": "Dateigrößenkontingent pro Benutzer in MB. 0 bedeutet unbegrenzt.",
       "MAX_FILES_PER_UPLOAD": "Maximale Anzahl von Dateien in einem einzelnen Upload-Vorgang.",

@@ -440,6 +440,10 @@ def _build_share_link_public_meta(link: ShareLink, request=None) -> dict:
         "has_accepted_current_nda": has_accepted_current_nda,
         "logo_mode": logo_mode,
         "resolved_brand_logo_url": resolved_brand_logo_url,
+        "has_password": bool(link.password),
+        "requires_email": bool(link.requires_email),
+        "requires_email_verification": bool(link.requires_email_verification),
+        "is_restricted": bool(link.password or link.requires_email or link.requires_email_verification),
     }
 
 
@@ -1171,6 +1175,10 @@ class ShareLinkViewDataView(APIView):
                     # Interpolated final text (with {{email}}, {{ip-address}}, etc.) for client-side visual overlays (PDF.js, Markdown, Spreadsheet).
                     "resolved_watermark_text": resolved_watermark_text,
                     "require_nda": link.require_nda,
+                    "has_password": bool(link.password),
+                    "requires_email": bool(link.requires_email),
+                    "requires_email_verification": bool(link.requires_email_verification),
+                    "is_restricted": bool(link.password or link.requires_email or link.requires_email_verification),
                 }
             }
             if dataroom_context:
@@ -1392,6 +1400,10 @@ class ShareLinkViewDataView(APIView):
                     # Interpolated final text (with {{email}}, {{ip-address}}, etc.) for client-side visual overlays (PDF.js, Markdown, Spreadsheet).
                     'resolved_watermark_text': resolved_watermark_text,
                     'require_nda': link.require_nda,
+                    'has_password': bool(link.password),
+                    'requires_email': bool(link.requires_email),
+                    'requires_email_verification': bool(link.requires_email_verification),
+                    'is_restricted': bool(link.password or link.requires_email or link.requires_email_verification),
                 }
             }
             return Response(response_data, status=status.HTTP_200_OK)

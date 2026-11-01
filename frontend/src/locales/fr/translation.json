@@ -1009,8 +1009,17 @@
     "openFolder": "Ouvrir le dossier",
     "loading": "Chargement...",
     "restrictedConfidential": "CONFIDENTIEL RESTREINT",
+    "publicAccess": "ACCÈS PUBLIC",
     "bannerGallery": "Galerie de bannières interactive",
-    "goToSlide": "Aller à la diapositive {{number}}"
+    "goToSlide": "Aller à la diapositive {{number}}",
+    "downloadAll": "Tout télécharger",
+    "downloadFolder": "Télécharger le dossier",
+    "home": "Accueil",
+    "downloadStarted": "Téléchargement commencé",
+    "downloadFolderFailed": "Échec du téléchargement du dossier",
+    "downloadArchiveFailed": "Échec du téléchargement de l'archive du dataroom",
+    "loadFolderError": "Impossible de charger le dossier. Veuillez réessayer.",
+    "loadDocumentError": "Impossible de charger le document. Veuillez réessayer."
   },
   "viewSessions": {
     "unknownLocation": "Emplacement inconnu",
@@ -1286,6 +1295,7 @@
     "settingDescriptions": {
       "MAX_PREVIEW_FILE_SIZE_MB": "Taille maximale en Mo pour la génération de l'aperçu. Les fichiers plus volumineux seront disponibles uniquement au téléchargement.",
       "MAX_VIDEO_PREVIEW_SIZE_MB": "Taille maximale en Mo pour l'aperçu vidéo. Les vidéos plus volumineuses seront disponibles uniquement au téléchargement.",
+      "MAX_WATERMARK_FILE_SIZE_MB": "Taille maximale de fichier en Mo pour la génération de filigrane à la volée. Les fichiers plus volumineux seront restreints.",
       "MAX_PREVIEW_PAGES": "Nombre maximal de pages pour l'aperçu de document. Les documents comportant davantage de pages seront disponibles uniquement au téléchargement.",
       "FILE_SIZE_QUOTA_MB": "Quota de stockage par utilisateur en Mo. 0 signifie illimité.",
       "MAX_FILES_PER_UPLOAD": "Nombre maximal de fichiers autorisés lors d'une seule opération de téléversement.",

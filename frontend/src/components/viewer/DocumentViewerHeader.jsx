@@ -30,10 +30,11 @@ export function DocumentViewerHeader({
   isDownloadAllAllowed = false,
   isDownloadingAll = false,
   onDownloadAll,
-  downloadAllButtonLabel = 'Download all',
+  downloadAllButtonLabel = null,
 }) {
   const { t } = useTranslation();
   const resolvedQnaText = qnaText ?? t('qna.title', { defaultValue: 'Q&A' });
+  const resolvedDownloadLabel = downloadAllButtonLabel ?? t('viewer.downloadAll');
 
   return (
     <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-gray-200/80 bg-white px-3 sm:px-6 shadow-xs z-20">
@@ -124,11 +125,11 @@ export function DocumentViewerHeader({
             className="h-8 px-3 text-xs font-medium gap-1.5 shrink-0 rounded-lg bg-gray-950 hover:bg-gray-800 text-white shadow-xs transition-all"
             onClick={onDownloadAll}
             disabled={isDownloadingAll}
-            aria-label={downloadAllButtonLabel}
-            title={downloadAllButtonLabel}
+            aria-label={resolvedDownloadLabel}
+            title={resolvedDownloadLabel}
           >
             <Download className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{downloadAllButtonLabel}</span>
+            <span className="hidden sm:inline">{resolvedDownloadLabel}</span>
           </Button>
         )}
 
