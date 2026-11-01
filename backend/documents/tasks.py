@@ -202,7 +202,7 @@ def _iter_pdf_page_images(pdf_bytes, page_count):
         pdf_file.write(pdf_bytes)
         pdf_file.flush()
         for page_num in range(1, page_count + 1):
-            images = convert_from_path(pdf_file.name, fmt='png', first_page=page_num, last_page=page_num)
+            images = convert_from_path(pdf_file.name, fmt='jpeg', first_page=page_num, last_page=page_num)
             if not images:
                 raise ValueError(f"Rendering returned no image for page {page_num} of {page_count}.")
             yield page_num, images[0]
@@ -299,10 +299,13 @@ def generate_pdf_pages_task(version_id):
         uploaded_keys = []
         try:
             for page_num, image in _iter_pdf_page_images(pdf_bytes, page_count):
-                page_storage_key = f"{base_path}_page_{page_num}.png"
+                page_storage_key = f"{base_path}_page_{page_num}.jpg"
+
+                if getattr(image, 'mode', None) in ('RGBA', 'LA', 'P'):
+                    image = image.convert('RGB')
 
                 buffer = BytesIO()
-                image.save(buffer, format='PNG')
+                image.save(buffer, 'JPEG')
                 image.close()
 
                 # TODO(refactor): Migrate to fileserver_client.upload_file(page_storage_key, buffer.getvalue()) in a separate chore PR

@@ -73,7 +73,7 @@ class TestGeneratePdfPagesTask:
         # 2. Assert that each page was rendered on its own
         assert mock_convert.call_count == 2
         for page_num, call in enumerate(mock_convert.call_args_list, start=1):
-            assert call.kwargs == {'fmt': 'png', 'first_page': page_num, 'last_page': page_num}
+            assert call.kwargs == {'fmt': 'jpeg', 'first_page': page_num, 'last_page': page_num}
 
         # 3. Assert that file server upload was called for each page
         assert mock_fs_upload_url.call_count == 2
@@ -599,7 +599,7 @@ class TestGeneratePdfPagesTask:
         assert not version.has_pages
         # Pages from the failed attempt must not be left behind
         assert not DocumentPage.objects.filter(document_version=version).exists()
-        mock_delete_file.assert_called_once_with("path/to/broken_page_1.png")
+        mock_delete_file.assert_called_once_with("path/to/broken_page_1.jpg")
 
 
 @pytest.mark.django_db
