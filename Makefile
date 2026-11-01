@@ -27,7 +27,8 @@ help:
 	@echo "  clean           - Remove migrations, .pyc files, and database"
 	@echo "  test            - Run backend tests with pytest"
 	@echo "  test.bdd        - Run backend BDD tests with pytest"
-	@echo "  test.front      - Run whitelisted frontend tests with vitest"
+	@echo "  test.front      - Run frontend linter and whitelisted tests"
+	@echo "  lint.front      - Run frontend linter with eslint"
 	@echo "  test.core       - Run core service tests with go test"
 	@echo "  test.mcp        - Run mcp server tests with unittest"
 	@echo "  test.portal     - Run portal unit tests with vitest"
@@ -132,8 +133,15 @@ test.bdd:
 	@echo "Running backend BDD tests..."
 	COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend pytest bdd/
 
+.PHONY: lint.front
+lint.front:
+	@echo "Running frontend linter..."
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm run lint
+
 .PHONY: test.front
 test.front:
+	@echo "Running frontend linter..."
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm run lint
 	@echo "Running frontend tests..."
 	COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm run test:whitelist
 

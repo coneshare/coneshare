@@ -278,7 +278,6 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
   const [rootItems, setRootItems] = useState([]);
   const [isRootLoading, setIsRootLoading] = useState(false);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
-  const [downloadingFolderId, setDownloadingFolderId] = useState(null);
   const [qnaContext, setQnaContext] = useState(null);
   const [currentScopeQnaThreadCount, setCurrentScopeQnaThreadCount] = useState(0);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -351,8 +350,6 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
     if (!slug || !folder?.id) return;
     if (isHeader) {
       setIsDownloadingAll(true);
-    } else {
-      setDownloadingFolderId(folder.id);
     }
     try {
       await downloadDataroomFolder(slug, folder.id, viewId);
@@ -363,8 +360,6 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
     } finally {
       if (isHeader) {
         setIsDownloadingAll(false);
-      } else {
-        setDownloadingFolderId(null);
       }
     }
   }, [slug, viewId]);
