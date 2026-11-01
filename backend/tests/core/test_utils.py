@@ -197,7 +197,6 @@ class TestEntrypointProcessLifecycle:
     def test_custom_command_uses_execvp_with_gosu(self, monkeypatch):
         """Custom container commands must replace the entrypoint via execvp with gosu."""
         ep = _load_entrypoint_module()
-        monkeypatch.setattr(ep, "initialize_logdir", MagicMock())
         monkeypatch.setattr(ep, "change_ugid", MagicMock())
         monkeypatch.setattr(ep, "configure_nginx_real_ip", MagicMock())
         monkeypatch.setenv("APP_DIR", "/app")
@@ -216,7 +215,6 @@ class TestEntrypointProcessLifecycle:
     def test_coneshare_command_runs_supervisord_and_handles_signals(self, monkeypatch):
         """Coneshare command runs supervisord in foreground, forwards SIGTERM, and exits with returncode."""
         ep = _load_entrypoint_module()
-        monkeypatch.setattr(ep, "initialize_logdir", MagicMock())
         monkeypatch.setattr(ep, "change_ugid", MagicMock())
         monkeypatch.setattr(ep, "configure_nginx_real_ip", MagicMock())
         monkeypatch.setenv("APP_DIR", "/app")
@@ -233,9 +231,8 @@ class TestEntrypointProcessLifecycle:
         mock_supervisord = MagicMock()
         mock_supervisord.wait.return_value = 0
 
-        mock_popen = MagicMock(side_effect=[mock_supervisord, MagicMock()])
+        mock_popen = MagicMock(return_value=mock_supervisord)
         monkeypatch.setattr(ep, "Popen", mock_popen)
-        monkeypatch.setattr(ep.time, "sleep", MagicMock())
 
         mock_exit = MagicMock(side_effect=SystemExit(0))
         monkeypatch.setattr(ep.sys, "exit", mock_exit)
