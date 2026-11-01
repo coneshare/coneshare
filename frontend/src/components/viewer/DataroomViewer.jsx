@@ -362,7 +362,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
         setIsDownloadingAll(false);
       }
     }
-  }, [slug, viewId]);
+  }, [slug, viewId, t]);
 
   const handleDownloadDocument = (doc) => {
     const params = new URLSearchParams({ dataroom_document_id: doc.id });
@@ -584,7 +584,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
         }
       }
     }
-  }, [slug]);
+  }, [slug, t]);
 
   useEffect(() => {
     if (scopeData && (scopeData.current_parent_id === null || scopeData.current_parent_id === undefined) && Array.isArray(scopeData.items) && scopeData.items.length > 0) {
@@ -666,7 +666,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
         setIsDocumentLoading(false);
       }
     }
-  }, [slug, viewId]);
+  }, [slug, viewId, t]);
 
   useEffect(() => {
     if (selectedDocumentId) {

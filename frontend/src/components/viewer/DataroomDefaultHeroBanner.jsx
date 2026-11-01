@@ -4,13 +4,13 @@ import { formatRelativeTime } from '../../utils/formatters';
 
 export function DataroomDefaultHeroBanner({
   dataroomName = '',
-  dataroomId = '',
+  _dataroomId = '',
   description = '',
   updatedAt = null,
   isWatermarked = false,
   isNdaProtected = false,
   isRestricted = false,
-  hasViewSession = false,
+  _hasViewSession = false,
 }) {
   const { t } = useTranslation();
 

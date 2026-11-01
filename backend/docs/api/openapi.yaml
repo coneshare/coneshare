@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: ConeShare API
-  version: 1.10.1
+  version: 1.11.0
   description: OpenAPI schema for the ConeShare backend API.
 paths:
   /api/schema/:
@@ -4128,6 +4128,8 @@ paths:
       description: |-
         Handles the download of an entire dataroom (all visible/downloadable folders and root files)
         as a low-memory streaming ZIP archive.
+        Audit records (DataroomVisit) and automation events ('document_downloaded' with status='download_started')
+        are recorded upon verifying authorization and confirming downloadable content exists before streaming.
       parameters:
       - in: path
         name: slug
@@ -4254,8 +4256,10 @@ paths:
   /api/v1/links/{slug}/download-folder/{folder_id}/:
     get:
       operationId: v1_links_download_folder_retrieve
-      description: Handles the download of an entire dataroom folder as a low-memory
-        streaming ZIP archive.
+      description: |-
+        Handles the download of an entire dataroom folder as a low-memory streaming ZIP archive.
+        Audit records (DataroomVisit) and automation events ('document_downloaded' with status='download_started')
+        are recorded upon verifying authorization and confirming downloadable content exists before streaming.
       parameters:
       - in: path
         name: folder_id
