@@ -40,9 +40,9 @@ wsgi_app = "backend.wsgi:application"
 user = "coneshare"
 group = "coneshare"
 
-# Log files
-accesslog = "/home/coneshare/logs/gunicorn.access.log"
-errorlog = "/home/coneshare/logs/gunicorn.error.log"
+# Log files (stream to stdout/stderr for container-native logging)
+accesslog = "-"
+errorlog = "-"
 
 # Logging level
 loglevel = "info"

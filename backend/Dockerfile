@@ -49,14 +49,12 @@ RUN dpkgArch="$(dpkg --print-architecture)" \
     && chmod +x /usr/local/bin/gosu
 
 ENV HOME_DIR="/home/coneshare"
-ENV LOG_DIR="${HOME_DIR}/logs"
 ENV BUILD_DIR="${HOME_DIR}/build"
 ENV RUNTIME_DIR="${HOME_DIR}/runtime"
 ENV APP_DIR="${HOME_DIR}/app"
 
 # SET work dir
 WORKDIR ${HOME_DIR}
-RUN mkdir -p ${LOG_DIR}
 
 # Download GeoIP database
 RUN mkdir -p /geoip && \
