@@ -96,9 +96,19 @@ class DataroomVisitSerializer(serializers.ModelSerializer):
             return obj.document_type or None
         return None
 
+    def _get_root_dataroom(self, obj):
+        if obj.item_path == '/' and not obj.dataroom_folder_id:
+            view_session = getattr(obj, 'view_session', None)
+            share_link = getattr(view_session, 'share_link', None)
+            return getattr(share_link, 'dataroom', None)
+        return None
+
     def get_dataroom_folder_name(self, obj):
         if obj.dataroom_folder:
             return obj.dataroom_folder.name
+        root_dataroom = self._get_root_dataroom(obj)
+        if root_dataroom:
+            return root_dataroom.name
         if obj.item_type == 'folder':
             return obj.item_name or None
         return None
@@ -107,6 +117,13 @@ class DataroomVisitSerializer(serializers.ModelSerializer):
         """Returns 'active', 'deleted', or 'renamed'."""
         if obj.item_type == 'folder' or (not obj.item_type and obj.dataroom_folder_id):
             if not obj.dataroom_folder:
+                if obj.item_path == '/' and not obj.dataroom_folder_id:
+                    root_dataroom = self._get_root_dataroom(obj)
+                    if not root_dataroom:
+                        return 'deleted'
+                    if obj.item_name and root_dataroom.name != obj.item_name:
+                        return 'renamed'
+                    return 'active'
                 return 'deleted'
             if obj.item_name and obj.dataroom_folder.name != obj.item_name:
                 return 'renamed'

@@ -73,12 +73,17 @@ function DataroomVisitRow({ visit }) {
   const isFolder = visit.item_type === 'folder' || Boolean(visit.dataroom_folder_id);
   const isDocumentVisit = !isFolder;
   const isExpandable = isDocumentVisit && (hasPageViews || hasLinkClicks);
+  const isRootDataroom = isFolder && visit.item_path === '/' && !visit.dataroom_folder_id;
 
-  const itemName = isFolder
+  const itemName = isRootDataroom
+    ? (visit.dataroom_folder_name || visit.item_name || t('viewSessions.deletedDataroom'))
+    : isFolder
     ? (visit.dataroom_folder_name || visit.item_name || t('viewSessions.deletedFolder'))
     : (visit.dataroom_document_name || visit.item_name || t('viewSessions.deletedDocument'));
 
-  const viewText = isFolder
+  const viewText = isRootDataroom
+    ? t('viewSessions.viewedDataroom', { name: itemName })
+    : isFolder
     ? t('viewSessions.viewedFolder', { name: itemName })
     : t('viewSessions.viewedDocument', { name: itemName });
 

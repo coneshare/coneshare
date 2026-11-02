@@ -195,6 +195,47 @@ describe('ViewSessionsTable - Audit Trail & Status Preservation', () => {
     expect(screen.getByText(/^Downloaded$/i)).toBeInTheDocument();
   });
 
+  it('renders root dataroom download visits as viewed dataroom with Downloaded badge and active status', () => {
+    const views = [
+      {
+        ...baseViewSession,
+        dataroom_visits: [
+          {
+            id: 'visit_root_droom',
+            dataroom_folder_id: null,
+            dataroom_folder_name: 'Project Alpha',
+            item_type: 'folder',
+            item_name: 'Project Alpha',
+            item_path: '/',
+            item_status: 'active',
+            visited_at: new Date().toISOString(),
+            downloaded_at: new Date().toISOString(),
+            page_views: [],
+            link_clicks: [],
+          },
+        ],
+      },
+    ];
+
+    renderWithRouter(
+      <ViewSessionsTable
+        views={views}
+        totalCount={1}
+        loading={false}
+        currentPage={1}
+        pageSize={10}
+        onPageChange={vi.fn()}
+      />
+    );
+
+    const expandButton = screen.getByRole('button', { name: 'Expand row' });
+    fireEvent.click(expandButton);
+
+    expect(screen.getByText(/Viewed dataroom: Project Alpha/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Downloaded$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^Deleted$/i)).not.toBeInTheDocument();
+  });
+
   describe('Email Verification Badges', () => {
     it('renders Verified badge when email_verification_method is verified', () => {
       const views = [

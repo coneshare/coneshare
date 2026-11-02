@@ -1373,6 +1373,67 @@ class TestDataroomVisitTracking:
         # Audit trail must preserve the original historical path
         assert visit_data['item_path'] == "/Parent/Child"
 
+    def test_audit_trail_root_dataroom_download_item_status(self, api_client, dataroom_link_with_content):
+        """
+        Validate that a root dataroom archive download visit (item_path='/' and dataroom_folder=None)
+        reports item_status='active' when the dataroom exists, rather than 'deleted'.
+        """
+        session = dataroom_link_with_content['session']
+        link = session.share_link
+        dataroom = link.dataroom
+        now = timezone.now()
+
+        visit = DataroomVisit.objects.create(
+            view_session=session,
+            item_type='folder',
+            item_name=dataroom.name,
+            item_path='/',
+            visited_at=now,
+            downloaded_at=now,
+        )
+
+        url = f'/api/v1/share-links/{link.id}/view-sessions/'
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        visit_data = [v for v in data['results'][0]['dataroom_visits'] if v['id'] == str(visit.id)][0]
+
+        assert visit_data['item_status'] == 'active'
+        assert visit_data['dataroom_folder_name'] == dataroom.name
+        assert visit_data['item_name'] == dataroom.name
+
+    def test_audit_trail_root_dataroom_download_when_renamed(self, api_client, dataroom_link_with_content):
+        """
+        Validate that renaming the dataroom sets item_status='renamed' while preserving original item_name.
+        """
+        session = dataroom_link_with_content['session']
+        link = session.share_link
+        dataroom = link.dataroom
+        original_name = dataroom.name
+        now = timezone.now()
+
+        visit = DataroomVisit.objects.create(
+            view_session=session,
+            item_type='folder',
+            item_name=original_name,
+            item_path='/',
+            visited_at=now,
+            downloaded_at=now,
+        )
+
+        dataroom.name = "Renamed Project"
+        dataroom.save()
+
+        url = f'/api/v1/share-links/{link.id}/view-sessions/'
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        visit_data = [v for v in data['results'][0]['dataroom_visits'] if v['id'] == str(visit.id)][0]
+
+        assert visit_data['item_status'] == 'renamed'
+        assert visit_data['dataroom_folder_name'] == "Renamed Project"
+        assert visit_data['item_name'] == original_name
+
     def test_record_visit_for_hidden_document_fails_with_404(self, public_client, dataroom_link_with_content):
         """Test that recording a visit for a document with is_visible=False fails with 404."""
         session = dataroom_link_with_content['session']
