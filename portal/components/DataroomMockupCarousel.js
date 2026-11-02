@@ -6,14 +6,14 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const mockImages = [
   {
-    src: '/screenshots/feat-vdr-add-content.png',
-    alt: 'Organize files and folders in custom datarooms',
-    url: 'https://app.coneshare.com/datarooms/01KNEQH639ANTVC0JE8JP37298?tab=documents'
-  },
-  {
     src: '/screenshots/feat-vdr-viewer.png',
     alt: 'Preview documents and videos in datarooms',
     url: 'https://app.coneshare.com/view/PpyMwCrvJeQAXlaq1cREAw'
+  },
+  {
+    src: '/screenshots/feat-vdr-add-content.png',
+    alt: 'Organize files and folders in custom datarooms',
+    url: 'https://app.coneshare.com/datarooms/01KNEQH639ANTVC0JE8JP37298?tab=documents'
   },
   {
     src: '/screenshots/feat-vdr-manage-perm.png',

@@ -2,3 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Inline code styling in markdown / prose */
+.prose :where(code):not(:where([class~="not-prose"] *))::before,
+.prose :where(code):not(:where([class~="not-prose"] *))::after {
+  content: none !important;
+}
+
+.prose :where(code):not(:where([class~="not-prose"] *)) {
+  background-color: #f3f4f6;
+  color: #1f2937;
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+  font-size: 0.875em;
+}
+
+.prose :where(pre code)::before,
+.prose :where(pre code)::after {
+  content: none !important;
+}
+
+.prose :where(pre code) {
+  background-color: transparent !important;
+  padding: 0 !important;
+  color: inherit !important;
+  font-size: inherit !important;
+}
+

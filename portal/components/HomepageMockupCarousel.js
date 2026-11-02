@@ -6,6 +6,11 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const homepageImages = [
   {
+    src: '/screenshots/feat-vdr-viewer.png',
+    alt: "Dynamic watermarking displaying the viewer's verified email",
+    url: 'https://app.coneshare.com/view/PpyMwCrvJeQAXlaq1cREAw'
+  },
+  {
     src: '/screenshots/feat-upload.png',
     alt: 'Upload and catalog your documents securely',
     url: 'https://app.coneshare.com/documents'
@@ -16,19 +21,9 @@ const homepageImages = [
     url: 'https://app.coneshare.com/links/create'
   },
   {
-    src: '/screenshots/feat-vdr-viewer.png',
-    alt: "Dynamic watermarking displaying the viewer's verified email",
-    url: 'https://app.coneshare.com/view/PpyMwCrvJeQAXlaq1cREAw'
-  },
-  {
     src: '/screenshots/feat-analytics.png',
     alt: 'Monitor real-time engagement and page-by-page viewing duration',
     url: 'https://app.coneshare.com/analytics/sessions/01abc'
-  },
-  {
-    src: '/screenshots/feat-automations.png',
-    alt: 'Trigger webhook actions based on document view sessions',
-    url: 'https://app.coneshare.com/automations'
   }
 ];
 
