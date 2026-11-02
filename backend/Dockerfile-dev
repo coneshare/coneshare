@@ -1,5 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM python:3.12-bookworm
+FROM python:3.12-slim-bookworm
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-noto-cjk \
     curl \
     ffmpeg \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 # Download GeoIP database
