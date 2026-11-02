@@ -269,8 +269,11 @@ class DocumentSerializer(serializers.ModelSerializer):
         from sharelinks.serializers import ShareLinkSerializer
         # The 'share_links' related manager is often prefetched in the viewset,
         # so this should be efficient.
-        queryset = instance.share_links.all()
-        return ShareLinkSerializer(queryset, many=True, context=self.context).data
+        if hasattr(instance, '_prefetched_objects_cache') and 'share_links' in instance._prefetched_objects_cache:
+            links = sorted(instance._prefetched_objects_cache['share_links'], key=lambda l: l.created_at, reverse=True)
+        else:
+            links = instance.share_links.order_by('-created_at')
+        return ShareLinkSerializer(links, many=True, context=self.context).data
 
     @extend_schema_field(serializers.DictField(allow_null=True))
     def get_uploader_info(self, obj) -> dict:

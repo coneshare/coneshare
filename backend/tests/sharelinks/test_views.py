@@ -2356,6 +2356,36 @@ class TestShareLinkViewSet:
         assert len(response_filtered.data) == 1
         assert response_filtered.data[0]['name'] == "Dataroom Link"
 
+    def test_list_share_links_ordered_by_created_at_desc(self, api_client, dataroom, document, user):
+        """
+        Test that share links are ordered by -created_at descending.
+        """
+        import datetime
+        from django.utils import timezone
+        now = timezone.now()
+        link1 = ShareLink.objects.create(dataroom=dataroom, name="Link 1", created_by=user)
+        ShareLink.objects.filter(id=link1.id).update(created_at=now - datetime.timedelta(hours=2))
+
+        link2 = ShareLink.objects.create(dataroom=dataroom, name="Link 2", created_by=user)
+        ShareLink.objects.filter(id=link2.id).update(created_at=now - datetime.timedelta(hours=1))
+
+        link3 = ShareLink.objects.create(dataroom=dataroom, name="Link 3", created_by=user)
+        ShareLink.objects.filter(id=link3.id).update(created_at=now)
+
+        resp = api_client.get(f'/api/v1/share-links/?dataroom_id={dataroom.id}')
+        assert resp.status_code == status.HTTP_200_OK
+        assert [l['name'] for l in resp.data] == ["Link 3", "Link 2", "Link 1"]
+
+        doc_link1 = ShareLink.objects.create(document=document, name="Doc Link 1", created_by=user)
+        ShareLink.objects.filter(id=doc_link1.id).update(created_at=now - datetime.timedelta(hours=2))
+
+        doc_link2 = ShareLink.objects.create(document=document, name="Doc Link 2", created_by=user)
+        ShareLink.objects.filter(id=doc_link2.id).update(created_at=now)
+
+        doc_resp = api_client.get(f'/api/v1/documents/{document.id}/')
+        assert doc_resp.status_code == status.HTTP_200_OK
+        assert [l['name'] for l in doc_resp.data['share_links']] == ["Doc Link 2", "Doc Link 1"]
+
     def test_bulk_update_dataroom_settings(self, api_client, dataroom, document, user):
         """
         Test bulk updating visibility and permissions for items in a dataroom

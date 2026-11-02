@@ -708,9 +708,9 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
         if dataroom_id:
             accessible_datarooms = get_dataroom_queryset_for_user(user)
             dataroom = get_object_or_404(accessible_datarooms, id=dataroom_id)
-            return ShareLink.objects.filter(dataroom=dataroom).prefetch_related('dataroom_settings')
+            return ShareLink.objects.filter(dataroom=dataroom).prefetch_related('dataroom_settings').order_by('-created_at')
 
-        return ShareLink.objects.filter(get_accessible_share_links_q(user)).distinct().prefetch_related('dataroom_settings')
+        return ShareLink.objects.filter(get_accessible_share_links_q(user)).distinct().prefetch_related('dataroom_settings').order_by('-created_at')
 
     def perform_update(self, serializer):
         instance = self.get_object()
