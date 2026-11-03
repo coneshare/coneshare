@@ -7,11 +7,13 @@ import { toast } from 'sonner';
 import '../../../i18n';
 
 // Mock ResizeObserver for Radix UI components in JSDOM
-const ResizeObserverMock = vi.fn(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+const ResizeObserverMock = vi.fn(function () {
+  return {
+    observe: vi.fn(),
+    unobserve: vi.fn(),
+    disconnect: vi.fn(),
+  };
+});
 vi.stubGlobal('ResizeObserver', ResizeObserverMock);
 
 // Mock the API service

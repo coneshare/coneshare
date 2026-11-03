@@ -6,12 +6,14 @@ import * as api from '../../../services/api';
 import Hls from 'hls.js';
 
 vi.mock('hls.js', () => {
-  const mockHls = vi.fn().mockImplementation(() => ({
-    loadSource: vi.fn(),
-    attachMedia: vi.fn(),
-    on: vi.fn(),
-    destroy: vi.fn(),
-  }));
+  const mockHls = vi.fn().mockImplementation(function () {
+    return {
+      loadSource: vi.fn(),
+      attachMedia: vi.fn(),
+      on: vi.fn(),
+      destroy: vi.fn(),
+    };
+  });
   mockHls.isSupported = vi.fn().mockReturnValue(true);
   mockHls.Events = { ERROR: 'hlsError' };
   mockHls.ErrorTypes = { NETWORK_ERROR: 'networkError', MEDIA_ERROR: 'mediaError' };

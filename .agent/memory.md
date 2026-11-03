@@ -419,6 +419,12 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** In-flight streaming uploads in Go core service exposed partial files on disk if `/finalize` or `/internal/v1/file-info` was called concurrently, bypassing physical size validation and leaving corrupt partial files on connection drop.
 - **Resolution/Action:** Updated `handleUpload` to stream into a temporary part file (`%s.part-%s`) in the same directory and execute an atomic `os.Rename` only after `io.Copy` finishes successfully. Aborted streams automatically delete temporary part files in a deferred cleanup hook.
 
+### [2026-11-03] Session Entry
+- **Category:** Tooling Update
+- **Context/Implication:** Vitest 5.x dropped support for Node 20 (`requires node: ^22.12.0 || ^24.0.0 || >=26.0.0`), producing `EBADENGINE` warnings and potential incompatibilities when running in `node:20-alpine`.
+- **Resolution/Action:** Upgraded the frontend base images (`frontend/Dockerfile` and `frontend/Dockerfile-dev`) to `node:22-alpine`, and updated GitHub Actions CI (`.github/workflows/build-ci.yml`) frontend test job to `node-version: '22'`.
+
+
 
 
 
