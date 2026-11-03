@@ -18,7 +18,7 @@ let intersectionCallback;
 beforeAll(() => {
   vi.stubGlobal(
     'IntersectionObserver',
-    vi.fn((callback) => {
+    vi.fn(function (callback) {
       intersectionCallback = callback;
       return {
         observe: mockIntersectionObserver,

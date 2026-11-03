@@ -29,7 +29,7 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             "--subject",
-            default="Coneshare V1.10 is out!",
+            default="Coneshare V1.11 is out! Redesign dataroom experience and security updates.",
             help="Email subject line.",
         )
         parser.add_argument(

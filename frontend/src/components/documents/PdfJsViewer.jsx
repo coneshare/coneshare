@@ -111,7 +111,7 @@ export const PdfJsViewer = forwardRef(({
     clearTimeout(inactivityTimerRef.current);
     inactivityTimerRef.current = setTimeout(() => {
       isInactiveRef.current = true;
-    }, INACTIVITY_TIMEOUT);
+    }, INACTIVITY_TIMEOUT + 1);
   }, []);
 
   // Inactivity detection timer lifecycle (only depends on viewId)
