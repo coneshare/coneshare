@@ -38,7 +38,7 @@
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.544.0",
     "marked": "^18.1.0",
-    "pdfjs-dist": "^5.6.205",
+    "pdfjs-dist": "^6.2.108",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-dropzone": "^14.3.8",
