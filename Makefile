@@ -32,6 +32,7 @@ help:
 	@echo "  test.core       - Run core service tests with go test"
 	@echo "  test.mcp        - Run mcp server tests with unittest"
 	@echo "  test.portal     - Run portal unit tests with vitest"
+	@echo "  test.e2e        - Run Playwright end-to-end tests"
 	@echo "  lint.portal     - Run portal linter with eslint"
 	@echo "  lint.docs       - Validate feature docs template sections"
 	@echo "  migrate         - Run database migrations"
@@ -159,6 +160,11 @@ test.mcp:
 test.portal:
 	@echo "Running portal unit tests..."
 	COMPOSE_PROJECT_NAME=coneshare docker-compose exec portal npm run test:run
+
+.PHONY: test.e2e
+test.e2e:
+	@echo "Running Playwright E2E tests..."
+	cd e2e && npx playwright test
 
 .PHONY: lint.portal
 lint.portal:

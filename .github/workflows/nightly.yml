@@ -1,0 +1,122 @@
+name: Nightly E2E & Full Regression
+
+on:
+  schedule:
+    # Runs every day at 18:00 UTC (02:00 CST / UTC+8)
+    - cron: '0 18 * * *'
+  # Allow manual dispatch from GitHub Actions UI anytime
+  workflow_dispatch:
+    inputs:
+      run_bdd:
+        description: 'Also execute Backend BDD integration tests'
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nightly-regression:
+    name: Full Stack Regression & E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup environment file (.env)
+        run: |
+          cp .env.template .env
+          # Enable malware scanning for ClamAV tests in CI
+          sed -i 's/MALWARE_SCAN_ENABLED=false/MALWARE_SCAN_ENABLED=true/' .env
+          echo "MALWARE_SCAN_FAIL_MODE=closed" >> .env
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: 'e2e/package-lock.json'
+
+      - name: Install E2E dependencies
+        working-directory: ./e2e
+        run: npm ci
+
+      - name: Install Playwright browsers and system dependencies
+        working-directory: ./e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Start full Docker Compose stack with ClamAV
+        run: |
+          COMPOSE_PROJECT_NAME=coneshare docker-compose --profile malware up -d --build
+
+      - name: Wait for services to become healthy
+        run: |
+          echo "Waiting for Backend (http://localhost:8000/api/v1/public/settings/)..."
+          timeout 120s bash -c 'until [ "$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/v1/public/settings/)" = "200" ]; do sleep 3; done'
+          
+          echo "Waiting for Frontend (http://localhost:5173)..."
+          timeout 60s bash -c 'until [ "$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5173)" = "200" ]; do sleep 2; done'
+          
+          echo "Waiting for Core file server (http://localhost:8080/health)..."
+          timeout 60s bash -c 'until [ "$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health)" = "200" ]; do sleep 2; done'
+
+          echo "All core services are online and responding!"
+
+      - name: Initialize Database Migrations & Seed E2E Test Fixtures
+        run: |
+          COMPOSE_PROJECT_NAME=coneshare docker-compose exec -T backend python manage.py migrate
+          COMPOSE_PROJECT_NAME=coneshare docker-compose exec -T backend python manage.py create_test_data
+
+      - name: Run Playwright E2E Tests
+        id: run-e2e
+        run: |
+          make test.e2e
+        env:
+          CI: true
+
+      - name: Run Backend BDD Integration Tests
+        id: run-bdd
+        if: always() && (inputs.run_bdd != false)
+        run: |
+          COMPOSE_PROJECT_NAME=coneshare docker-compose exec -T backend pytest bdd/
+
+      - name: Collect Docker logs on failure
+        if: failure()
+        run: |
+          mkdir -p logs-dump
+          COMPOSE_PROJECT_NAME=coneshare docker-compose logs --tail=500 > logs-dump/docker-compose-all.log || true
+          COMPOSE_PROJECT_NAME=coneshare docker-compose ps > logs-dump/docker-ps.log || true
+
+      - name: Upload Test Results & Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-test-results-${{ github.run_id }}
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+            logs-dump/
+          retention-days: 7
+
+      - name: Create GitHub Issue on Nightly Failure
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Nightly Regression Failed [${new Date().toISOString().slice(0, 10)}]`,
+              body: `### ❌ Nightly E2E / BDD 流水线执行失败\n\n- **运行记录**: [查看完整日志](${runUrl})\n- **Commit**: \`${context.sha.substring(0, 7)}\`\n- **触发方式**: 定时调度 (Schedule)\n\n请在 Actions 详情页下载 \`nightly-test-results-${context.runId}\` 归档工件，排查现场 Playwright Trace 与容器日志。`,
+              labels: ['bug', 'ci/nightly']
+            });
+
+      - name: Teardown Docker Stack
+        if: always()
+        run: |
+          COMPOSE_PROJECT_NAME=coneshare docker-compose --profile malware down -v || true

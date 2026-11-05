@@ -434,9 +434,7 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** Next.js 16 completely removed `next lint`. Invoking `next lint` treats "lint" as a directory parameter and crashes with `Invalid project directory provided: /app/lint`.
 - **Resolution/Action:** Installed `eslint` and `eslint-config-next` into `portal/package.json`, migrated to flat config (`portal/eslint.config.mjs`), and executed linting and builds via Docker container targets (`make lint.portal`, `make test.portal`, `make portal`).
 
-
-
-
-
-
-
+### 2026-11-05 Session Entry
+- **Category:** Gotcha / Tooling Update
+- **Context/Implication:** Running Playwright E2E tests in background tasks or non-interactive shells hangs indefinitely on failure because the default HTML reporter launches a local web server and waits for interactive Ctrl+C.
+- **Resolution/Action:** Configure `reporter: [['html', { open: 'never' }], ['list']]` in `e2e/playwright.config.js` to ensure the process exits cleanly with code 1 upon test failure.

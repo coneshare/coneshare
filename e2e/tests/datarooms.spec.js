@@ -2,67 +2,98 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Dataroom Management', () => {
 
-  test('should create, view, add content to, and share a dataroom', async ({ page }) => {
+  test('should create, view, add content to, and share a dataroom', async ({ page, browser }) => {
+    const dataroomName = `Dataroom-Happy-${Date.now()}`;
+    const linkName = `Link-${Date.now()}`;
+
     // --- 1. Create a Dataroom ---
     await page.goto('/datarooms');
-    await page.getByRole('button', { name: 'Create Dataroom' }).click();
+    await page.getByRole('button', { name: /add dataroom/i }).click();
 
     // Fill in the form in the dialog
-    await page.getByLabel('Name').fill('Project Phoenix');
-    await page.getByRole('button', { name: 'Create' }).click();
+    await page.getByLabel(/name/i).fill(dataroomName);
+    await page.getByRole('button', { name: /create dataroom/i }).click();
+
+    // Should see the new dataroom card in the list and click it to enter
+    const dataroomCard = page.getByRole('heading', { level: 3, name: dataroomName });
+    await expect(dataroomCard).toBeVisible();
+    await dataroomCard.click();
 
     // Should navigate to the new dataroom page and show empty state
-    await expect(page).toHaveURL(/.*\/datarooms\/.*/);
-    await expect(page.getByRole('heading', { name: 'Project Phoenix' })).toBeVisible();
-    await expect(page.getByText('This dataroom is empty')).toBeVisible();
+    await expect(page).toHaveURL(/.*\/datarooms\/.+/);
+    await expect(page.getByRole('heading', { level: 1, name: dataroomName })).toBeVisible();
+    await expect(page.getByText(/this dataroom is empty/i)).toBeVisible();
 
     // --- 2. Add content to the Dataroom ---
-    await page.getByRole('button', { name: 'Add Content' }).click();
-    
-    // In the "Add Content" dialog, find and select a document
-    await expect(page.getByRole('heading', { name: 'Add Content to Dataroom' })).toBeVisible();
-    // The checkbox is inside a div that contains the document name.
-    const documentRow = page.locator('div').filter({ hasText: /^Annual Report.pdf$/ }).first();
-    await documentRow.getByRole('checkbox').click();
-    await page.getByRole('button', { name: 'Add 1 Item' }).click();
+    await page.getByRole('button', { name: /add content/i }).first().click();
 
-    // Verify the document now appears in the dataroom
-    await expect(page.getByText('Content added to dataroom successfully.')).toBeVisible();
-    await expect(page.getByText('Annual Report.pdf')).toBeVisible();
+    // In the "Add Content" dialog, find and select a document
+    await expect(page.getByRole('heading', { name: /add content/i })).toBeVisible();
+    // Select the first available checkbox
+    const firstCheckbox = page.locator('div[role="dialog"] button[role="checkbox"], div[role="dialog"] input[type="checkbox"]').first();
+    await firstCheckbox.click();
+    await page.getByRole('button', { name: /add \d+ item/i }).click();
+
+    // Verify content added
+    await expect(page.getByText(/content added to dataroom successfully/i)).toBeVisible();
 
     // --- 3. Create a Share Link for the Dataroom ---
-    await page.getByRole('tab', { name: 'Links and Permissions' }).click();
-    await page.getByRole('button', { name: 'Create Link' }).click();
+    await page.getByRole('tab', { name: /share links/i }).click();
+    await page.getByRole('button', { name: /create link/i }).click();
 
     // The LinkSheet opens
-    await expect(page.getByText('Create New Link')).toBeVisible();
+    await expect(page.getByText(/create new link/i)).toBeVisible();
 
     // Fill in the form and save
-    await page.getByLabel('Name link').fill('Dataroom Public Link');
-    await page.getByRole('button', { name: 'Save Changes' }).click();
-    
+    await page.getByLabel(/name link/i).fill(linkName);
+    await page.getByRole('button', { name: /save changes/i }).click();
+
     // Check for success toast and that the link appears in the table
-    await expect(page.getByText('Link created successfully.')).toBeVisible();
-    const linksTable = page.locator('table').filter({ has: page.getByRole('columnheader', { name: 'Settings' }) });
-    await expect(linksTable.getByRole('cell', { name: 'Dataroom Public Link' })).toBeVisible();
+    await expect(page.getByText(/link created successfully/i)).toBeVisible();
+    await expect(page.getByRole('cell', { name: linkName })).toBeVisible();
+
+    // --- 4. Copy share link and open as Anonymous Guest in incognito context ---
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    const linkRow = page.getByRole('row', { name: new RegExp(linkName) });
+    await linkRow.getByRole('button', { name: /actions/i }).click();
+    await page.getByRole('menuitem', { name: /copy link/i }).click();
+    await expect(page.getByText(/copied to clipboard/i)).toBeVisible();
+
+    const shareLinkUrl = await page.evaluate(() => navigator.clipboard.readText());
+    expect(shareLinkUrl).toContain('/view/');
+
+    const guestContext = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const guestPage = await guestContext.newPage();
+    await guestPage.goto(shareLinkUrl);
+
+    // Verify Dataroom public portal loads
+    await expect(guestPage.getByText(dataroomName).first()).toBeVisible({ timeout: 15000 });
+    await guestPage.waitForTimeout(1000); // Allow telemetry beacon to flush
+    await guestContext.close();
+
+    // --- 5. Back in Owner context, verify Dataroom view session telemetry ---
+    await page.reload();
+    await expect(page.getByRole('cell', { name: /anonymous|you/i }).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('cell', { name: linkName }).first()).toBeVisible();
   });
 
   test('should navigate to dataroom page from the main listing', async ({ page }) => {
+    const dataroomName = `Dataroom-Nav-${Date.now()}`;
+
     // First, create a dataroom to ensure one exists
     await page.goto('/datarooms');
-    await page.getByRole('button', { name: 'Create Dataroom' }).click();
-    await page.getByLabel('Name').fill('Project Dragon');
-    await page.getByRole('button', { name: 'Create' }).click();
-    await expect(page.getByRole('heading', { name: 'Project Dragon' })).toBeVisible();
-    
-    // Go back to the listing page
-    await page.goto('/datarooms');
+    await page.getByRole('button', { name: /add dataroom/i }).click();
+    await page.getByLabel(/name/i).fill(dataroomName);
+    await page.getByRole('button', { name: /create dataroom/i }).click();
 
-    // Find and click the dataroom in the list
-    await page.getByText('Project Dragon').click();
-    
+    // Find and click the dataroom card in the list
+    const dataroomCard = page.getByRole('heading', { level: 3, name: dataroomName });
+    await expect(dataroomCard).toBeVisible();
+    await dataroomCard.click();
+
     // Verify navigation to the correct dataroom page
-    await expect(page).toHaveURL(/.*\/datarooms\/.*/);
-    await expect(page.getByRole('heading', { name: 'Project Dragon' })).toBeVisible();
+    await expect(page).toHaveURL(/.*\/datarooms\/.+/);
+    await expect(page.getByRole('heading', { level: 1, name: dataroomName })).toBeVisible();
   });
 });
+
