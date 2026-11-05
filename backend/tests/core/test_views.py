@@ -326,6 +326,14 @@ def test_public_settings_branding(api_client, organization):
     assert 'brand_logo_url' in response.data
 
 
+def test_x_frame_options_sameorigin_header(api_client):
+    """Verify that Django responses emit X-Frame-Options: SAMEORIGIN for same-origin iframe printing."""
+    url = reverse('public_settings')
+    response = api_client.get(url)
+    assert response.status_code == status.HTTP_200_OK
+    assert response.headers.get('X-Frame-Options') == 'SAMEORIGIN'
+
+
 @pytest.mark.django_db
 class TestOrganizationAccessPermissions:
     @pytest.fixture

@@ -726,3 +726,194 @@ func TestDeleteFileHandler_HLSFolderRecursively(t *testing.T) {
 	}
 }
 
+func TestHandleDownloadAndPreviewHeadMethod(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "coneshare-test-head")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	config := Config{
+		StoragePath:      tempDir,
+		InternalAPIToken: "test-secret",
+	}
+
+	storageKey := "org/files/doc.pdf"
+	fullPath := filepath.Join(tempDir, storageKey)
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
+	content := []byte("pdf document content for head method check")
+	if err := os.WriteFile(fullPath, content, 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	downloadToken := "head-download-token"
+	previewToken := "head-preview-token"
+	storeLock.Lock()
+	tokenStore[downloadToken] = TokenInfo{
+		StorageKey: storageKey,
+		Filename:   "doc.pdf",
+		ExpiresAt:  time.Now().Add(1 * time.Hour),
+	}
+	tokenStore[previewToken] = TokenInfo{
+		StorageKey: storageKey,
+		Filename:   "doc.pdf",
+		ExpiresAt:  time.Now().Add(1 * time.Hour),
+	}
+	storeLock.Unlock()
+
+	router := setupRouter(config)
+
+	// 1. HEAD request for download
+	reqDownload := httptest.NewRequest(http.MethodHead, "/files/download/"+downloadToken, nil)
+	wDownload := httptest.NewRecorder()
+	router.ServeHTTP(wDownload, reqDownload)
+
+	if wDownload.Code != http.StatusOK {
+		t.Fatalf("expected HEAD /files/download to return 200 OK, got %d", wDownload.Code)
+	}
+	if wDownload.Body.Len() != 0 {
+		t.Fatalf("expected HEAD response body to be empty, got %d bytes", wDownload.Body.Len())
+	}
+	if length := wDownload.Header().Get("Content-Length"); length != fmt.Sprintf("%d", len(content)) {
+		t.Errorf("expected Content-Length %d, got %s", len(content), length)
+	}
+	if ranges := wDownload.Header().Get("Accept-Ranges"); ranges != "bytes" {
+		t.Errorf("expected Accept-Ranges: bytes, got %s", ranges)
+	}
+	if disp := wDownload.Header().Get("Content-Disposition"); !strings.HasPrefix(disp, "attachment;") {
+		t.Errorf("expected attachment Content-Disposition, got %s", disp)
+	}
+
+	// 2. HEAD request for preview
+	reqPreview := httptest.NewRequest(http.MethodHead, "/files/preview/"+previewToken, nil)
+	wPreview := httptest.NewRecorder()
+	router.ServeHTTP(wPreview, reqPreview)
+
+	if wPreview.Code != http.StatusOK {
+		t.Fatalf("expected HEAD /files/preview to return 200 OK, got %d", wPreview.Code)
+	}
+	if wPreview.Body.Len() != 0 {
+		t.Fatalf("expected HEAD response body to be empty, got %d bytes", wPreview.Body.Len())
+	}
+	if disp := wPreview.Header().Get("Content-Disposition"); !strings.HasPrefix(disp, "inline;") {
+		t.Errorf("expected inline Content-Disposition, got %s", disp)
+	}
+
+	// 3. HEAD request for HLS wildcard subpath
+	hlsDirKey := "org/videos/movie_hls/playlist.m3u8"
+	hlsFullPath := filepath.Join(tempDir, hlsDirKey)
+	segmentPath := filepath.Join(tempDir, "org/videos/movie_hls/segment_001.ts")
+	if err := os.MkdirAll(filepath.Dir(hlsFullPath), 0755); err != nil {
+		t.Fatalf("failed to create hls dir: %v", err)
+	}
+	if err := os.WriteFile(hlsFullPath, []byte("#EXTM3U\n#EXT-X-STREAM-INF\n"), 0644); err != nil {
+		t.Fatalf("failed to write playlist: %v", err)
+	}
+	segmentContent := []byte("ts segment data 123456789")
+	if err := os.WriteFile(segmentPath, segmentContent, 0644); err != nil {
+		t.Fatalf("failed to write segment: %v", err)
+	}
+
+	hlsToken := "head-hls-token"
+	storeLock.Lock()
+	tokenStore[hlsToken] = TokenInfo{
+		StorageKey: hlsDirKey,
+		Filename:   "playlist.m3u8",
+		ExpiresAt:  time.Now().Add(1 * time.Hour),
+	}
+	storeLock.Unlock()
+
+	reqHLS := httptest.NewRequest(http.MethodHead, "/files/preview/"+hlsToken+"/segment_001.ts", nil)
+	wHLS := httptest.NewRecorder()
+	router.ServeHTTP(wHLS, reqHLS)
+
+	if wHLS.Code != http.StatusOK {
+		t.Fatalf("expected HEAD /files/preview/* to return 200 OK, got %d", wHLS.Code)
+	}
+	if wHLS.Body.Len() != 0 {
+		t.Fatalf("expected HEAD HLS response body to be empty, got %d bytes", wHLS.Body.Len())
+	}
+	if length := wHLS.Header().Get("Content-Length"); length != fmt.Sprintf("%d", len(segmentContent)) {
+		t.Errorf("expected Content-Length %d, got %s", len(segmentContent), length)
+	}
+}
+
+func TestCopyFileHandlerAtomicAndCleanup(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "coneshare-test-copy")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	config := Config{
+		StoragePath:      tempDir,
+		InternalAPIToken: "secret-token",
+	}
+
+	sourceKey := "org/source/document.pdf"
+	destKey := "org/dest/document_copy.pdf"
+	sourceFullPath := filepath.Join(tempDir, sourceKey)
+	destFullPath := filepath.Join(tempDir, destKey)
+
+	if err := os.MkdirAll(filepath.Dir(sourceFullPath), 0755); err != nil {
+		t.Fatalf("failed to create source dir: %v", err)
+	}
+	content := []byte("source file content for atomic copy test")
+	if err := os.WriteFile(sourceFullPath, content, 0644); err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
+
+	router := setupRouter(config)
+
+	// 1. Successful copy
+	reqBody := CopyFileRequest{
+		SourceStorageKey:      sourceKey,
+		DestinationStorageKey: destKey,
+	}
+	bodyBytes, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodPost, "/internal/v1/copy-file", strings.NewReader(string(bodyBytes)))
+	req.Header.Set("Authorization", "Bearer secret-token")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created, got %d: %s", w.Code, w.Body.String())
+	}
+
+	destData, err := os.ReadFile(destFullPath)
+	if err != nil {
+		t.Fatalf("failed to read copied destination file: %v", err)
+	}
+	if string(destData) != string(content) {
+		t.Fatalf("copied content mismatch: got %q, expected %q", string(destData), string(content))
+	}
+
+	// Verify no temporary .part- files remain
+	destEntries, err := os.ReadDir(filepath.Dir(destFullPath))
+	if err != nil {
+		t.Fatalf("failed to read destination dir: %v", err)
+	}
+	for _, entry := range destEntries {
+		if strings.Contains(entry.Name(), ".part-") {
+			t.Errorf("expected no leftover .part- files, found: %s", entry.Name())
+		}
+	}
+
+	// 2. Source file not found
+	reqBodyNotFound := CopyFileRequest{
+		SourceStorageKey:      "org/missing/file.pdf",
+		DestinationStorageKey: "org/dest/another.pdf",
+	}
+	notFoundBytes, _ := json.Marshal(reqBodyNotFound)
+	reqNotFound := httptest.NewRequest(http.MethodPost, "/internal/v1/copy-file", strings.NewReader(string(notFoundBytes)))
+	reqNotFound.Header.Set("Authorization", "Bearer secret-token")
+	wNotFound := httptest.NewRecorder()
+	router.ServeHTTP(wNotFound, reqNotFound)
+
+	if wNotFound.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 NotFound, got %d", wNotFound.Code)
+	}
+}
+

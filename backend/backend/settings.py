@@ -249,6 +249,11 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# Security / Clickjacking Protection
+# SAMEORIGIN permits legitimate same-origin iframe usage (e.g. hidden iframe PDF printing)
+# while preventing cross-origin clickjacking attacks.
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
 ROOT_URLCONF = 'backend.urls'
 
 TEMPLATES = [

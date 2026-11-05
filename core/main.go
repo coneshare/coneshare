@@ -71,6 +71,15 @@ func main() {
 	// Start a background goroutine to clean up expired tokens
 	go cleanupExpiredTokens()
 
+	r := setupRouter(config)
+
+	log.Printf("Starting file server on port %s", config.ServerPort)
+	if err := http.ListenAndServe(":"+config.ServerPort, r); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
+}
+
+func setupRouter(config Config) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
@@ -92,13 +101,13 @@ func main() {
 	// Public routes for file handling
 	r.Put("/files/upload/{token}", handleUpload(config))
 	r.Get("/files/download/{token}", handleDownload(config, "attachment"))
+	r.Head("/files/download/{token}", handleDownload(config, "attachment"))
 	r.Get("/files/preview/{token}", handleDownload(config, "inline"))
+	r.Head("/files/preview/{token}", handleDownload(config, "inline"))
 	r.Get("/files/preview/{token}/*", handleDownload(config, "inline"))
+	r.Head("/files/preview/{token}/*", handleDownload(config, "inline"))
 
-	log.Printf("Starting file server on port %s", config.ServerPort)
-	if err := http.ListenAndServe(":"+config.ServerPort, r); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
-	}
+	return r
 }
 
 func loadConfig() Config {
@@ -428,20 +437,41 @@ func copyFileHandler(config Config) http.HandlerFunc {
 			return
 		}
 
-		destFile, err := os.Create(destPath)
+		tmpPath := fmt.Sprintf("%s.part-%s", destPath, uuid.New().String())
+		destFile, err := os.Create(tmpPath)
 		if err != nil {
-			log.Printf("Error creating destination file %s: %v", destPath, err)
+			log.Printf("Error creating temp file %s: %v", tmpPath, err)
 			http.Error(w, "Could not create destination file", http.StatusInternalServerError)
 			return
 		}
-		defer destFile.Close()
+
+		copySuccess := false
+		defer func() {
+			destFile.Close()
+			if !copySuccess {
+				os.Remove(tmpPath)
+			}
+		}()
 
 		_, err = io.Copy(destFile, sourceFile)
 		if err != nil {
-			log.Printf("Error copying file from %s to %s: %v", sourcePath, destPath, err)
+			log.Printf("Error copying file from %s to %s: %v", sourcePath, tmpPath, err)
 			http.Error(w, "Failed to copy file content", http.StatusInternalServerError)
 			return
 		}
+
+		if err := destFile.Close(); err != nil {
+			log.Printf("Error closing temp file %s: %v", tmpPath, err)
+			http.Error(w, "Failed to flush file", http.StatusInternalServerError)
+			return
+		}
+
+		if err := os.Rename(tmpPath, destPath); err != nil {
+			log.Printf("Error renaming file from %s to %s: %v", tmpPath, destPath, err)
+			http.Error(w, "Failed to finalize destination file", http.StatusInternalServerError)
+			return
+		}
+		copySuccess = true
 
 		w.WriteHeader(http.StatusCreated)
 	}
