@@ -6,8 +6,6 @@ drf-spectacular==0.28.0
 python-ulid==3.0.0
 pytest==8.2.2
 pytest-django==4.8.0
-django-storages==1.14.3
-boto3==1.34.148
 pytest-bdd==8.1.0
 celery[redis]==5.4.0
 # Pin kombu < 5.7.0: kombu 5.7.0+ requires redis>=6.1.0, which conflicts with celery 5.4.0 (caps redis < 6.0.0)

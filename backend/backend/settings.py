@@ -384,21 +384,15 @@ STATIC_URL = 'static/'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Storage Configuration (for FileSystem or MinIO)
-STORAGE_TYPE = os.environ.get('STORAGE_TYPE', 'FILESYSTEM')
-
-if STORAGE_TYPE == 'MINIO':
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    AWS_ACCESS_KEY_ID = os.environ.get('MINIO_ROOT_USER')
-    AWS_SECRET_ACCESS_KEY = os.environ.get('MINIO_ROOT_PASSWORD')
-    AWS_STORAGE_BUCKET_NAME = os.environ.get('MINIO_BUCKET_NAME', 'coneshare')
-    AWS_S3_ENDPOINT_URL = os.environ.get('MINIO_ENDPOINT')  # e.g., 'http://minio:9000'
-    AWS_S3_OBJECT_PARAMETERS = {
-        'CacheControl': 'max-age=86400',
-    }
-    AWS_LOCATION = 'media'  # Subdirectory within the bucket
-else:  # Default to FileSystemStorage
-    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+# File storage configuration (FileSystem)
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    },
+}
 
 
 # Default primary key field type
