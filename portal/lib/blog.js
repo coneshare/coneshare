@@ -18,13 +18,13 @@ function getBlogSlugs() {
 
 export async function getBlogPostBySlug(slug) {
   try {
-    const module = await import(`../content/blog/${slug}.mdx`);
-    const metadata = module.metadata || {};
+    const blogModule = await import(`../content/blog/${slug}.mdx`);
+    const metadata = blogModule.metadata || {};
 
     return {
       slug,
       ...metadata,
-      Content: module.default,
+      Content: blogModule.default,
     };
   } catch {
     return null;

@@ -429,6 +429,12 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Context/Implication:** `kombu 5.7.0+` requires `redis>=6.1.0` at runtime, but `celery[redis]==5.4.0` specifies `redis < 6.0.0, >= 4.5.2` (installing `redis==5.3.1`). When `kombu` is unpinned, pip installs `kombu 5.7.0`, causing Celery workers to crash on startup with `kombu.exceptions.VersionMismatch: Redis transport requires redis-py versions 6.1.0 or later. You have 5.3.1`.
 - **Resolution/Action:** Pin `kombu==5.6.2` (or `<5.7.0`) in `backend/requirements.txt` until `celery` is upgraded to a version supporting `redis-py 6.x`.
 
+### [2026-11-05] Session Entry
+- **Category:** Tooling Update
+- **Context/Implication:** Next.js 16 completely removed `next lint`. Invoking `next lint` treats "lint" as a directory parameter and crashes with `Invalid project directory provided: /app/lint`.
+- **Resolution/Action:** Installed `eslint` and `eslint-config-next` into `portal/package.json`, migrated to flat config (`portal/eslint.config.mjs`), and executed linting and builds via Docker container targets (`make lint.portal`, `make test.portal`, `make portal`).
+
+
 
 
 

@@ -12,6 +12,8 @@ export function ZoomableImage({ src, alt, width, height, className = '' }) {
   useEffect(() => {
     if (!isOpen) return;
 
+    const triggerEl = triggerRef.current;
+
     // Focus the close button when modal opens
     closeButtonRef.current?.focus();
 
@@ -29,7 +31,7 @@ export function ZoomableImage({ src, alt, width, height, className = '' }) {
       window.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
       // Restore focus to the trigger button when modal closes
-      triggerRef.current?.focus();
+      triggerEl?.focus();
     };
   }, [isOpen]);
 

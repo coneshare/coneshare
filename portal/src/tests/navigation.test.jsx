@@ -12,7 +12,7 @@ vi.mock('next/navigation', () => ({
 
 // Mock next/image to render standard img tag
 vi.mock('next/image', () => ({
-  default: ({ priority, ...props }) => <img {...props} />,
+  default: ({ priority, alt = '', ...props }) => <img alt={alt} {...props} />,
 }));
 
 describe('Header & Footer Localization', () => {

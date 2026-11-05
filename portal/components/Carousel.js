@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -8,16 +8,12 @@ export function Carousel({ images, autoPlayInterval = 5000 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const goToPrevious = () => {
-    const isFirstSlide = currentIndex === 0;
-    const newIndex = isFirstSlide ? images.length - 1 : currentIndex - 1;
-    setCurrentIndex(newIndex);
+    setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
   };
 
-  const goToNext = () => {
-    const isLastSlide = currentIndex === images.length - 1;
-    const newIndex = isLastSlide ? 0 : currentIndex + 1;
-    setCurrentIndex(newIndex);
-  };
+  const goToNext = useCallback(() => {
+    setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  }, [images.length]);
 
   const goToSlide = (slideIndex) => {
     setCurrentIndex(slideIndex);
@@ -29,7 +25,7 @@ export function Carousel({ images, autoPlayInterval = 5000 }) {
       goToNext();
     }, autoPlayInterval);
     return () => clearInterval(interval);
-  }, [currentIndex, autoPlayInterval, goToNext]);
+  }, [autoPlayInterval, goToNext]);
 
   return (
     <div className="relative w-full max-w-4xl mx-auto">
