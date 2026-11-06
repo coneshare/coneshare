@@ -327,6 +327,8 @@
     "noDocuments": "Nog geen documenten",
     "emptyStateNotice": "Sleep bestanden of mappen hierheen of gebruik de uploadknop om aan de slag te gaan.",
     "noStarredDocuments": "Geen documenten met ster gevonden.",
+    "noSearchResults": "Geen documenten gevonden voor \"{{query}}\"",
+    "noSearchResultsDescription": "Controleer op typefouten of probeer een ander trefwoord.",
     "versions": "Versiegeschiedenis",
     "download": "Downloaden",
     "allDocuments": "Alle documenten",

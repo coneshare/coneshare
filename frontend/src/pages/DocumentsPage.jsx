@@ -1,21 +1,21 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useDebounce } from '../hooks/useDebounce';
 import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Star, Cloud } from 'lucide-react';
+import { Star, Cloud, Search } from 'lucide-react';
 import { DocumentsList } from "../components/documents/DocumentsList";
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
 import { Separator } from '../components/ui/Separator';
 import { SearchBox } from '../components/SearchBox';
-import { SortButton } from '../components/documents/filters/SortButton';
 import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl, getDocumentDownloadUrl, copyDocument } from '../services/api';
+import { uploadDocument, getDocuments, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl, getDocumentDownloadUrl, copyDocument } from '../services/api';
 import { useUser } from '../contexts/UserProvider';
 import { useUpload } from '../contexts/UploadProvider';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
@@ -47,6 +47,8 @@ function DocumentsPage() {
   const [isFileRequestSheetOpen, setIsFileRequestSheetOpen] = useState(false);
   const [selectedFolderForRequest, setSelectedFolderForRequest] = useState(null);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const { user, refreshUser } = useUser();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
@@ -115,6 +117,7 @@ function DocumentsPage() {
   const fetchData = useCallback(async () => {
     const seq = ++fetchSeqRef.current;
     const targetFolderId = folderId;
+    const trimmedQuery = debouncedSearch.trim();
     setLoading(true);
     // Reset state before fetching
     setCurrentFolder(null);
@@ -122,19 +125,38 @@ function DocumentsPage() {
     setFolders([]);
 
     try {
-      const response = targetFolderId
-        ? await getFolderContents(targetFolderId)
-        : await getRootFolderContents();
+      if (trimmedQuery) {
+        const params = { search: trimmedQuery };
+        if (targetFolderId) {
+          params.folder = targetFolderId;
+        }
+        const response = await getDocuments(params);
 
-      if (seq !== fetchSeqRef.current || targetFolderId !== activeFolderIdRef.current) {
-        return; // Discard stale response
+        if (seq !== fetchSeqRef.current || targetFolderId !== activeFolderIdRef.current) {
+          return; // Discard stale response
+        }
+
+        const docs = Array.isArray(response.data) ? response.data : (response.data?.results || []);
+        setFolders([]);
+        setDocuments(docs);
+        if (!targetFolderId) {
+          setBreadcrumbData(null);
+        }
+      } else {
+        const response = targetFolderId
+          ? await getFolderContents(targetFolderId)
+          : await getRootFolderContents();
+
+        if (seq !== fetchSeqRef.current || targetFolderId !== activeFolderIdRef.current) {
+          return; // Discard stale response
+        }
+
+        const { current_folder, sub_folders, documents } = response.data;
+        setCurrentFolder(current_folder);
+        setFolders(sub_folders);
+        setDocuments(documents);
+        setBreadcrumbData(current_folder);
       }
-
-      const { current_folder, sub_folders, documents } = response.data;
-      setCurrentFolder(current_folder);
-      setFolders(sub_folders);
-      setDocuments(documents);
-      setBreadcrumbData(current_folder);
     } catch (error) {
       if (seq !== fetchSeqRef.current || targetFolderId !== activeFolderIdRef.current) {
         return;
@@ -146,7 +168,7 @@ function DocumentsPage() {
         setLoading(false);
       }
     }
-  }, [folderId, setBreadcrumbData]);
+  }, [folderId, debouncedSearch, setBreadcrumbData]);
 
   const handleCopy = useCallback(async (item) => {
     const toastId = toast.loading(t('documents.copyingItem', { name: item.name }));
@@ -160,6 +182,10 @@ function DocumentsPage() {
       toast.dismiss(toastId);
     }
   }, [fetchData, refreshUser, t]);
+
+  useEffect(() => {
+    setSearchQuery('');
+  }, [folderId]);
 
   useEffect(() => {
     setSelection({ documents: [], folders: [] });
@@ -557,41 +583,58 @@ function DocumentsPage() {
         </div>
       </section>
 
-      {/* <div className="mb-2 flex justify-end gap-x-2"> */}
-      {/*   <div className="relative w-full sm:max-w-xs"> */}
-      {/*     <SearchBox loading={loading} inputClassName="h-10" /> */}
-      {/*   </div> */}
-      {/*   <SortButton onSort={handleSort} sortConfig={sortConfig} /> */}
-      {/* </div> */}
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          {selection.documents.length > 0 || selection.folders.length > 0 ? (
+            <SelectionActionBar
+              selectedDocumentsCount={selection.documents.length}
+              selectedFoldersCount={selection.folders.length}
+              onClearSelection={handleClearSelection}
+              onDelete={() => setIsBulkDeleteConfirmOpen(true)}
+              onMove={() => setIsMoveItemsOpen(true)}
+            />
+          ) : (
+            <div className="flex min-h-[48px] items-center">
+              <Button
+                variant={showStarredOnly ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setShowStarredOnly(prev => !prev)}
+              >
+                <Star className="mr-2 h-4 w-4" />
+                {t('documents.starred')}
+              </Button>
+            </div>
+          )}
+        </div>
 
-      <div className="mb-4">
-        {selection.documents.length > 0 || selection.folders.length > 0 ? (
-          <SelectionActionBar
-            selectedDocumentsCount={selection.documents.length}
-            selectedFoldersCount={selection.folders.length}
-            onClearSelection={handleClearSelection}
-            onDelete={() => setIsBulkDeleteConfirmOpen(true)}
-            onMove={() => setIsMoveItemsOpen(true)}
+        <div className="relative w-full sm:max-w-xs">
+          <SearchBox
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onClear={() => setSearchQuery('')}
+            loading={loading || searchQuery !== debouncedSearch}
+            inputClassName="h-10"
+            placeholder={t('documents.searchPlaceholder')}
           />
-        ) : (
-          <div className="flex min-h-[48px] items-center">
-            <Button
-              variant={showStarredOnly ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setShowStarredOnly(prev => !prev)}
-            >
-              <Star className="mr-2 h-4 w-4" />
-              {t('documents.starred')}
-            </Button>
-          </div>
-        )}
+        </div>
       </div>
-
-      {/* <Separator className="mb-5 bg-gray-200 dark:bg-gray-800" /> */}
 
       <DocumentsList
         allItems={allItems}
         loading={loading}
+        emptyState={
+          debouncedSearch.trim() ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <Search className="h-10 w-10 text-muted-foreground mb-3" />
+              <p className="text-base font-medium text-foreground">
+                {t('documents.noSearchResults', { query: debouncedSearch.trim() })}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t('documents.noSearchResultsDescription')}
+              </p>
+            </div>
+          ) : null
+        }
         onDataRefresh={() => {
           fetchData();
           refreshUser();

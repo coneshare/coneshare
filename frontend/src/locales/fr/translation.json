@@ -339,6 +339,8 @@
     "actions": "Actions",
     "emptyStateTitle": "Aucun document pour le moment",
     "emptyStateNotice": "Glissez-déposez des fichiers ou des dossiers ici, ou utilisez le bouton de téléversement pour commencer.",
+    "noSearchResults": "Aucun document trouvé correspondant à \"{{query}}\"",
+    "noSearchResultsDescription": "Vérifiez l'orthographe ou essayez avec un autre mot-clé.",
     "dragDropOverlay": "Déposez les fichiers ou dossiers à téléverser",
     "dragDropFolderNotice": "La structure des dossiers sera préservée.",
     "dropHere": "Déposez les fichiers ici",

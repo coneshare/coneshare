@@ -153,8 +153,21 @@ class TestMCPIntegrationLiveContracts:
         }
         res = mcp_api_client.post(url, payload, format="json")
         assert res.status_code == status.HTTP_200_OK
+
+    def test_search_documents_endpoint_contract(self, mcp_api_client, user, organization):
+        """MCP search_documents calling /documents/?search=query returns matching documents."""
+        from rest_framework import status
+        from documents.models import Document, Folder
+
+        root_folder = Folder.objects.filter(organization=organization, name="__root__").first()
+        sub_folder = Folder.objects.create(name="Contracts", organization=organization, created_by=user, parent=root_folder)
+        doc1 = Document.objects.create(name="Vendor_Agreement.pdf", organization=organization, created_by=user, folder=sub_folder)
+        Document.objects.create(name="Other.pdf", organization=organization, created_by=user, folder=sub_folder)
+
+        url = "/api/v1/documents/?search=Vendor"
+        res = mcp_api_client.get(url)
+        assert res.status_code == status.HTTP_200_OK
         data = res.json()
-        assert "upload_url" in data
-        assert "storage_key" in data
-        assert "unique_name" in data
+        assert any(item["id"] == str(doc1.id) for item in data)
+        assert not any(item["name"] == "Other.pdf" for item in data)
 

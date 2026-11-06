@@ -256,6 +256,8 @@ export const ensureFolderPaths = (paths, parentPath = null) =>
   // `paths` and `parentPath` are root-relative folder paths (no leading '/').
   api.post('/folders/ensure-paths/', { paths, parent_path: parentPath });
 
+export const getDocuments = (params = {}) => api.get('/documents/', { params });
+
 export const deleteDocument = (id) => api.delete(`/documents/${id}/`);
 
 export const copyDocument = (id) => api.post(`/documents/${id}/copy/`);

@@ -327,6 +327,8 @@
     "noDocuments": "Noch keine Dokumente",
     "emptyStateNotice": "Ziehen Sie Dateien oder Ordner hierher oder verwenden Sie die Upload-Schaltfläche.",
     "noStarredDocuments": "Keine favorisierten Dokumente gefunden.",
+    "noSearchResults": "Keine Dokumente gefunden, die zu \"{{query}}\" passen",
+    "noSearchResultsDescription": "Überprüfen Sie die Rechtschreibung oder versuchen Sie es mit einem anderen Suchbegriff.",
     "versions": "Versionsverlauf",
     "download": "Herunterladen",
     "allDocuments": "Alle Dokumente",

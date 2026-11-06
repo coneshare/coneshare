@@ -327,6 +327,8 @@
     "noDocuments": "No documents yet",
     "emptyStateNotice": "Drag and drop files or folders here, or use the upload button to get started.",
     "noStarredDocuments": "No starred documents found.",
+    "noSearchResults": "No documents found matching \"{{query}}\"",
+    "noSearchResultsDescription": "Check for typos or try searching for a different keyword.",
     "versions": "Version History",
     "download": "Download",
     "allDocuments": "All Documents",
