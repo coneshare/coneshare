@@ -240,6 +240,7 @@ export const uploadNewVersion = async (documentId, file) => {
   return api.post(`/uploads/document/${documentId}/versions/finalize/`, {
     storage_key,
     content_type: file.type,
+    file_name: file.name,
   });
 };
 

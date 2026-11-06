@@ -22,7 +22,14 @@ from backend.utils import get_unique_name
 from core.models import User
 from core.services import get_dynamic_setting
 from .fileserver import fileserver_client
-from .models import Document, DocumentPage, DocumentVersion, Folder
+from .models import (
+    Document,
+    DocumentPage,
+    DocumentVersion,
+    Folder,
+    resolve_version_filename,
+    sanitize_filename,
+)
 from .renderers import get_renderer_for_file, normalize_content_type
 from .renderers.constants import (
     HEIC_EXTENSIONS,
@@ -200,13 +207,20 @@ def _get_doc_type_from_content_type(content_type: str, filename: str = '') -> st
     return 'file'  # default
 
 
-def _route_document_for_processing(document: Document, version: DocumentVersion, file_size: int, content_type: str):
+def _route_document_for_processing(
+    document: Document,
+    version: DocumentVersion,
+    file_size: int,
+    content_type: str,
+    filename: Optional[str] = None,
+):
     """
     Sets initial metadata and preview rendering states on document and version
     records based on file type and size. Defers heavy processing tasks.
     Delegates to the active preview renderer.
     """
-    renderer = get_renderer_for_file(content_type, document.name)
+    effective_filename = filename or version.get_filename()
+    renderer = get_renderer_for_file(content_type, effective_filename)
     renderer.initialize_metadata(document, version, file_size, content_type)
 
 
@@ -281,14 +295,34 @@ def validate_storage_key(storage_key: str, organization_id) -> str:
 def validate_file_content_type_and_extension(filename: str, storage_key: str, content_type: str):
     """
     Ensures that client-declared content_type and physical storage_key extension
-    do not conflict with the document name or masquerade as incompatible previewable types.
+    do not conflict with the document name or masquerade as incompatible previewable types,
+    and requires the filename extension to match the storage_key extension.
     """
+    storage_ext = os.path.splitext(storage_key)[1].lower() if storage_key else ''
+    file_ext = os.path.splitext(filename)[1].lower() if filename else ''
+
+    def _norm_ext(ext: str) -> str:
+        """
+        Normalizes file extensions for reliable comparison:
+        1. Strips whitespace and non-alphanumeric chars to align with generate_storage_key sanitization (e.g. '.p df' -> '.pdf').
+        2. Unifies common format synonyms (e.g. '.jpeg' -> '.jpg', '.yml' -> '.yaml').
+        3. Exposes obfuscated script extensions for dangerous extension validation (e.g. '.ht ml' -> '.html').
+        """
+        clean = re.sub(r'[^a-zA-Z0-9._-]', '', ext.lower())
+        if clean == '.jpeg':
+            return '.jpg'
+        if clean == '.yml':
+            return '.yaml'
+        return clean
+
     dangerous_script_extensions = ('.html', '.htm', '.xhtml', '.svg', '.xml', '.js', '.mjs', '.php', '.sh')
     exts_to_check = set()
     if filename:
-        exts_to_check.add(os.path.splitext(filename)[1].lower())
+        exts_to_check.add(file_ext)
+        exts_to_check.add(_norm_ext(file_ext))
     if storage_key:
-        exts_to_check.add(os.path.splitext(storage_key)[1].lower())
+        exts_to_check.add(storage_ext)
+        exts_to_check.add(_norm_ext(storage_ext))
 
     if exts_to_check & set(dangerous_script_extensions):
         incompatible_preview_types = (
@@ -299,6 +333,11 @@ def validate_file_content_type_and_extension(filename: str, storage_key: str, co
             raise serializers.ValidationError(
                 {"content_type": "Declared content type conflicts with file extension."}
             )
+
+    if storage_ext and _norm_ext(storage_ext) != _norm_ext(file_ext):
+        raise serializers.ValidationError(
+            {"file_name": "File extension does not match upload storage key."}
+        )
 
 
 def is_storage_key_referenced(
@@ -504,6 +543,7 @@ def create_document_from_upload(
         file_size=file_size,
         type=doc_type,
         is_primary=True,
+        metadata={'file_name': unique_name},
     )
 
     # Route for processing
@@ -752,16 +792,19 @@ def create_new_document_version(
     storage_key: str,
     file_size: int,
     content_type: str,
+    file_name: Optional[str] = None,
 ) -> DocumentVersion:
     """
     Handles creating a new version of a document, routing to the correct
     processing task based on file type and size.
     """
     ensure_storage_key_not_claimed(storage_key, document.organization_id)
-    validate_file_content_type_and_extension(document.name, storage_key, content_type)
+    clean_file_name = sanitize_filename(file_name) if file_name else None
+    version_filename = resolve_version_filename(document.name, storage_key, clean_file_name)
+    validate_file_content_type_and_extension(version_filename, storage_key, content_type)
 
-    content_type = normalize_content_type(content_type, document.name)
-    doc_type = _get_doc_type_from_content_type(content_type, document.name)
+    content_type = normalize_content_type(content_type, version_filename)
+    doc_type = _get_doc_type_from_content_type(content_type, version_filename)
 
     with transaction.atomic():
         locked_doc = Document.objects.select_for_update().get(pk=document.pk)
@@ -785,6 +828,10 @@ def create_new_document_version(
         locked_doc.versions.filter(is_primary=True).update(is_primary=False)
 
         # 3. Create the new version record
+        version_metadata = {}
+        if clean_file_name:
+            version_metadata['file_name'] = clean_file_name
+
         new_version = DocumentVersion.objects.create(
             document=locked_doc,
             version_number=new_version_number,
@@ -793,7 +840,8 @@ def create_new_document_version(
             is_primary=True,
             content_type=content_type,
             file_size=file_size,
-            type=doc_type
+            type=doc_type,
+            metadata=version_metadata,
         )
 
         # 4. Route for processing
@@ -802,6 +850,7 @@ def create_new_document_version(
             version=new_version,
             file_size=file_size,
             content_type=content_type,
+            filename=version_filename,
         )
 
         # Refresh caller's document instance after the locked update so callers have up-to-date attributes
@@ -866,15 +915,23 @@ def process_imported_file(document: Document, file_data: dict, version_id=None):
     else:
         version = document.versions.get(version_number=1)
 
+    clean_file_name = sanitize_filename(file_name) if file_name else None
+    effective_file_name = clean_file_name or resolve_version_filename(document.name, original_storage_key, None)
+
     version.original_storage_key = original_storage_key
     version.storage_key = original_storage_key
     version.content_type = content_type
-    version.type = _get_doc_type_from_content_type(content_type, document.name)
+    version.type = _get_doc_type_from_content_type(content_type, effective_file_name)
     version.file_size = file_size
     
-    # Store the etag/rev in version metadata
+    # Store the etag/rev and file_name in version metadata
     if not isinstance(version.metadata, dict):
         version.metadata = {}
+    if clean_file_name:
+        version.metadata['file_name'] = clean_file_name
+    elif 'file_name' in version.metadata:
+        version.metadata.pop('file_name', None)
+
     if 'cloud_import' in version.metadata:
         version.metadata['cloud_import']['etag_or_rev'] = etag_or_rev
 
@@ -887,6 +944,7 @@ def process_imported_file(document: Document, file_data: dict, version_id=None):
             version=version,
             file_size=file_size,
             content_type=content_type,
+            filename=effective_file_name,
         )
         if user and old_file_size != file_size:
             User.objects.filter(pk=user.pk).update(

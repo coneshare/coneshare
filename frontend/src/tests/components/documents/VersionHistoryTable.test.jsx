@@ -4,12 +4,12 @@ import { VersionHistoryTable } from '../../../components/documents/VersionHistor
 
 describe('VersionHistoryTable', () => {
   const mockVersions = [
-    { id: 'v6', version_number: 6, created_at: '2026-07-06T12:00:00Z', file_size: 6000, is_primary: true },
-    { id: 'v5', version_number: 5, created_at: '2026-07-05T12:00:00Z', file_size: 5000, is_primary: false },
-    { id: 'v4', version_number: 4, created_at: '2026-07-04T12:00:00Z', file_size: 4000, is_primary: false },
-    { id: 'v3', version_number: 3, created_at: '2026-07-03T12:00:00Z', file_size: 3000, is_primary: false },
-    { id: 'v2', version_number: 2, created_at: '2026-07-02T12:00:00Z', file_size: 2000, is_primary: false },
-    { id: 'v1', version_number: 1, created_at: '2026-07-01T12:00:00Z', file_size: 1000, is_primary: false },
+    { id: 'v6', version_number: 6, file_name: 'clip.mp4', created_at: '2026-07-06T12:00:00Z', file_size: 6000, is_primary: true },
+    { id: 'v5', version_number: 5, file_name: 'v5.pdf', created_at: '2026-07-05T12:00:00Z', file_size: 5000, is_primary: false },
+    { id: 'v4', version_number: 4, file_name: 'v4.pdf', created_at: '2026-07-04T12:00:00Z', file_size: 4000, is_primary: false },
+    { id: 'v3', version_number: 3, file_name: 'v3.pdf', created_at: '2026-07-03T12:00:00Z', file_size: 3000, is_primary: false },
+    { id: 'v2', version_number: 2, file_name: 'v2.pdf', created_at: '2026-07-02T12:00:00Z', file_size: 2000, is_primary: false },
+    { id: 'v1', version_number: 1, file_name: 'v1.pdf', created_at: '2026-07-01T12:00:00Z', file_size: 1000, is_primary: false },
   ];
 
   it('renders versions sorted by latest version first', () => {
@@ -26,6 +26,7 @@ describe('VersionHistoryTable', () => {
 
     // v6 is primary
     expect(screen.getByText('v6')).toBeInTheDocument();
+    expect(screen.getByText('(clip.mp4)')).toBeInTheDocument();
     expect(screen.getByText('Active')).toBeInTheDocument();
 
     // v5 and v4 are inactive (no inactive badge should be displayed)
@@ -41,9 +42,9 @@ describe('VersionHistoryTable', () => {
     const onPreviewVersion = vi.fn();
     const onPromoteVersion = vi.fn();
     const mockFailedVersions = [
-      { id: 'v1', version_number: 1, created_at: '2026-07-01T12:00:00Z', file_size: 1000, is_primary: false, render_status: 'failed', render_error: 'Could not process PDF' },
-      { id: 'v2', version_number: 2, created_at: '2026-07-02T12:00:00Z', file_size: 2000, is_primary: false, render_status: 'processing' },
-      { id: 'v3', version_number: 3, created_at: '2026-07-03T12:00:00Z', file_size: 3000, is_primary: false, render_status: 'not_generated' },
+      { id: 'v1', version_number: 1, file_name: 'failed.pdf', created_at: '2026-07-01T12:00:00Z', file_size: 1000, is_primary: false, render_status: 'failed', render_error: 'Could not process PDF' },
+      { id: 'v2', version_number: 2, file_name: 'processing.pdf', created_at: '2026-07-02T12:00:00Z', file_size: 2000, is_primary: false, render_status: 'processing' },
+      { id: 'v3', version_number: 3, file_name: 'pending.pdf', created_at: '2026-07-03T12:00:00Z', file_size: 3000, is_primary: false, render_status: 'not_generated' },
     ];
 
     render(

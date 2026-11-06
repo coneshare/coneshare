@@ -356,7 +356,13 @@ def generate_dataroom_archive_stream(
                 base_stem = posixpath.splitext(display_name)[0]
                 final_name = f"{base_stem}{target_ext}"
             else:
-                final_name = display_name
+                version_fn = primary_version.get_filename()
+                version_ext = posixpath.splitext(version_fn)[1]
+                if version_ext and target_ext != version_ext:
+                    base_stem = posixpath.splitext(display_name)[0]
+                    final_name = f"{base_stem}{version_ext}"
+                else:
+                    final_name = display_name
 
             unique_file_path = _get_unique_zip_path(seen_paths, current_zip_path, final_name)
 

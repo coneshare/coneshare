@@ -32,7 +32,9 @@ class DirectImageRenderer(BasePreviewRenderer):
 
     @classmethod
     def can_handle_version(cls, version: DocumentVersion) -> bool:
-        filename = version.document.name if version.document else ''
+        if version.type and version.type != 'image':
+            return False
+        filename = version.get_filename()
         storage_key = version.original_storage_key or version.storage_key or ''
         if filename:
             ext = os.path.splitext(filename)[1].lower()
@@ -51,14 +53,16 @@ class DirectImageRenderer(BasePreviewRenderer):
             return True
         if storage_key and os.path.splitext(storage_key)[1].lower() in DIRECT_IMAGE_EXTENSIONS:
             return True
-        if version.document and version.document.type == 'image':
+        if version.type == 'image':
+            return True
+        if not version.type and version.document and version.document.type == 'image':
             return True
         return False
 
     def initialize_metadata(
         self, document: Document, version: DocumentVersion, file_size: int, content_type: str
     ):
-        norm_type = normalize_content_type(content_type, document.name)
+        norm_type = normalize_content_type(content_type, version.get_filename())
         max_preview_size_mb = core_services.get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
         is_too_large = file_size > (max_preview_size_mb * 1024 * 1024)
 

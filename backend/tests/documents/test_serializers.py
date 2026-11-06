@@ -263,6 +263,22 @@ class TestDocumentVersionSerializers:
             assert ci["provider"] == "dropbox"
             assert ci["file_name"] == "Test.pdf"
             assert ci["file_path"] == "/photos/Test.pdf"
+            assert data["file_name"] == doc.name
+
+        v2 = DocumentVersion.objects.create(
+            document=doc,
+            version_number=2,
+            is_primary=False,
+            file_size=500,
+            content_type="video/mp4",
+            original_storage_key="v2.mp4",
+            storage_key="v2.mp4",
+            type="video",
+            metadata={"file_name": "clip.mp4"},
+        )
+        for serializer_class in [DocumentVersionSerializer, DocumentVersionListSerializer]:
+            data = serializer_class(instance=v2).data
+            assert data["file_name"] == "clip.mp4"
             
             # Assert sensitive details are filtered out
             assert "connection_id" not in ci

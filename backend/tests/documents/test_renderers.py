@@ -711,3 +711,34 @@ class TestBuildPageUrlContract:
         assert url_without_id == "http://test.coneshare.com/api/v1/links/abc1234/page/1/"
 
 
+class TestVersionRendererResolution:
+    """Verifies that version renderer resolution is determined by version file attributes, not parent doc name."""
+
+    def test_version_renderer_resolution_not_polluted_by_parent_document_name(self, user):
+        """
+        A Document named report.pdf with a video version (clip.mp4) must resolve
+        to VideoRenderer, not PDFRenderer.
+        """
+        doc = Document.objects.create(
+            name="report.pdf",
+            organization=user.organization,
+            created_by=user,
+            file_size=1024,
+            content_type="application/pdf",
+            type="pdf",
+        )
+        v2 = DocumentVersion.objects.create(
+            document=doc,
+            version_number=2,
+            is_primary=True,
+            file_size=5000,
+            content_type="video/mp4",
+            storage_key=f"{user.organization.id}/uuid.mp4",
+            original_storage_key=f"{user.organization.id}/uuid.mp4",
+            type="video",
+        )
+        renderer = get_renderer(v2)
+        assert isinstance(renderer, VideoRenderer)
+
+
+
