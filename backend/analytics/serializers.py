@@ -1,9 +1,17 @@
 from urllib.parse import urljoin
 from django.conf import settings
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from sharelinks.models import ShareLink, ViewSession
 from sharelinks.serializers import ShareLinkDataroomSettingSerializer
+
+
+class DashboardUserSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    email = serializers.CharField()
+    name = serializers.CharField()
+    avatar_url = serializers.CharField(allow_null=True, required=False)
 
 
 class DashboardRecentViewSessionSerializer(serializers.ModelSerializer):
@@ -72,7 +80,8 @@ class DashboardRecentLinkSerializer(serializers.ModelSerializer):
     def get_has_password(self, obj) -> bool:
         return bool(obj.password)
 
-    def get_created_by_user(self, obj):
+    @extend_schema_field(DashboardUserSerializer(allow_null=True))
+    def get_created_by_user(self, obj) -> dict | None:
         if obj.created_by:
             avatar_url = None
             if obj.created_by.avatar and hasattr(obj.created_by.avatar, 'url'):

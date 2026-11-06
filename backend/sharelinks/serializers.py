@@ -78,7 +78,8 @@ class DataroomVisitSerializer(serializers.ModelSerializer):
             'id', 'visited_at', 'downloaded_at', 'item_type', 'item_name', 'item_path', 'item_status'
         ]
 
-    def get_dataroom_document_name(self, obj):
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_dataroom_document_name(self, obj) -> str | None:
         # Prefer live item name if exists, fallback to snapshot name
         if obj.dataroom_document:
             if obj.dataroom_document.name:
@@ -89,7 +90,8 @@ class DataroomVisitSerializer(serializers.ModelSerializer):
             return obj.item_name or None
         return None
 
-    def get_dataroom_document_type(self, obj):
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_dataroom_document_type(self, obj) -> str | None:
         if obj.dataroom_document and obj.dataroom_document.document:
             return obj.dataroom_document.document.type
         if obj.item_type == 'document' or not obj.item_type:
@@ -103,7 +105,8 @@ class DataroomVisitSerializer(serializers.ModelSerializer):
             return getattr(share_link, 'dataroom', None)
         return None
 
-    def get_dataroom_folder_name(self, obj):
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_dataroom_folder_name(self, obj) -> str | None:
         if obj.dataroom_folder:
             return obj.dataroom_folder.name
         root_dataroom = self._get_root_dataroom(obj)
@@ -113,7 +116,8 @@ class DataroomVisitSerializer(serializers.ModelSerializer):
             return obj.item_name or None
         return None
 
-    def get_item_status(self, obj):
+    @extend_schema_field(serializers.CharField())
+    def get_item_status(self, obj) -> str:
         """Returns 'active', 'deleted', or 'renamed'."""
         if obj.item_type == 'folder' or (not obj.item_type and obj.dataroom_folder_id):
             if not obj.dataroom_folder:

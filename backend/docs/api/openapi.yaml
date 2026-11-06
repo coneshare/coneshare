@@ -7181,7 +7181,9 @@ components:
           type: string
           readOnly: true
         created_by_user:
-          type: string
+          allOf:
+          - $ref: '#/components/schemas/DashboardUser'
+          nullable: true
           readOnly: true
         name:
           type: string
@@ -7406,6 +7408,22 @@ components:
       required:
       - recent_links
       - recent_views
+    DashboardUser:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        avatar_url:
+          type: string
+          nullable: true
+      required:
+      - email
+      - id
+      - name
     Dataroom:
       type: object
       properties:
@@ -7850,12 +7868,15 @@ components:
           readOnly: true
         dataroom_document_name:
           type: string
+          nullable: true
           readOnly: true
         dataroom_document_type:
           type: string
+          nullable: true
           readOnly: true
         dataroom_folder_name:
           type: string
+          nullable: true
           readOnly: true
         item_type:
           type: string
@@ -8177,6 +8198,9 @@ components:
         version_number:
           type: integer
           readOnly: true
+        file_name:
+          type: string
+          readOnly: true
         file_size:
           type: integer
           readOnly: true
@@ -8216,6 +8240,7 @@ components:
       required:
       - cloud_import
       - created_at
+      - file_name
       - file_size
       - has_pages
       - id
@@ -8483,8 +8508,12 @@ components:
           type: string
         content_type:
           type: string
+          default: ''
+        file_name:
+          type: string
+          default: ''
+          maxLength: 255
       required:
-      - content_type
       - storage_key
     Folder:
       type: object
