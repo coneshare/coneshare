@@ -173,4 +173,113 @@ describe('DocumentHeader', () => {
     // Should not render Get Link / Share button
     expect(screen.queryByRole('button', { name: /getLink|Share/i })).not.toBeInTheDocument();
   });
+
+  describe('Document Description', () => {
+    it('renders document description when present', () => {
+      const docWithDesc = {
+        ...mockDoc,
+        description: 'Quarterly financial analysis report.',
+      };
+      renderComponent({ document: docWithDesc });
+
+      expect(screen.getByText('Quarterly financial analysis report.')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Edit Description' })).toBeInTheDocument();
+    });
+
+    it('renders placeholder when description is empty and canManage is true', () => {
+      renderComponent({ document: { ...mockDoc, description: '' }, canManage: true });
+
+      expect(screen.getByText('Add description...')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Edit Description' })).toBeInTheDocument();
+    });
+
+    it('does not render description or placeholder when canManage is false and description is empty', () => {
+      renderComponent({ document: { ...mockDoc, description: '' }, canManage: false });
+
+      expect(screen.queryByText('Add description...')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Edit Description' })).not.toBeInTheDocument();
+    });
+
+    it('renders description without edit trigger when canManage is false and description is present', () => {
+      const docWithDesc = {
+        ...mockDoc,
+        description: 'Investor memo.',
+      };
+      renderComponent({ document: docWithDesc, canManage: false });
+
+      expect(screen.getByText('Investor memo.')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Edit Description' })).not.toBeInTheDocument();
+      fireEvent.click(screen.getByText('Investor memo.'));
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    });
+
+    it('enters editing mode when clicking the description text or edit button', () => {
+      const docWithDesc = {
+        ...mockDoc,
+        description: 'Initial description',
+      };
+      renderComponent({ document: docWithDesc });
+
+      const descText = screen.getByText('Initial description');
+      fireEvent.click(descText);
+
+      const input = screen.getByPlaceholderText('Add description...');
+      expect(input).toBeInTheDocument();
+      expect(input.value).toBe('Initial description');
+    });
+
+    it('cancels description edit on Escape key press', () => {
+      const docWithDesc = {
+        ...mockDoc,
+        description: 'Keep this description',
+      };
+      renderComponent({ document: docWithDesc });
+
+      fireEvent.click(screen.getByText('Keep this description'));
+      const input = screen.getByPlaceholderText('Add description...');
+      fireEvent.change(input, { target: { value: 'Changed text' } });
+      fireEvent.keyDown(input, { key: 'Escape', code: 'Escape' });
+
+      expect(screen.queryByPlaceholderText('Add description...')).not.toBeInTheDocument();
+      expect(screen.getByText('Keep this description')).toBeInTheDocument();
+    });
+
+    it('submits description edit on Enter key press or blur', () => {
+      const onUpdateDescription = vi.fn();
+      const docWithDesc = {
+        ...mockDoc,
+        description: 'Old description',
+      };
+      renderComponent({ document: docWithDesc, onUpdateDescription });
+
+      // 1. Submit on Enter
+      fireEvent.click(screen.getByText('Old description'));
+      let input = screen.getByPlaceholderText('Add description...');
+      fireEvent.change(input, { target: { value: 'Updated on Enter' } });
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+      expect(onUpdateDescription).toHaveBeenCalledWith('Updated on Enter');
+
+      // 2. Submit on Blur
+      onUpdateDescription.mockClear();
+      fireEvent.click(screen.getByText('Old description'));
+      input = screen.getByPlaceholderText('Add description...');
+      fireEvent.change(input, { target: { value: 'Updated on Blur' } });
+      fireEvent.blur(input);
+      expect(onUpdateDescription).toHaveBeenCalledWith('Updated on Blur');
+    });
+
+    it('does not trigger update if description is unchanged', () => {
+      const onUpdateDescription = vi.fn();
+      const docWithDesc = {
+        ...mockDoc,
+        description: 'Same description',
+      };
+      renderComponent({ document: docWithDesc, onUpdateDescription });
+
+      fireEvent.click(screen.getByText('Same description'));
+      const input = screen.getByPlaceholderText('Add description...');
+      fireEvent.blur(input);
+      expect(onUpdateDescription).not.toHaveBeenCalled();
+    });
+  });
 });

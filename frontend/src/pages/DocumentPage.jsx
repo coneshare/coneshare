@@ -5,7 +5,7 @@ import { useUser } from '../contexts/UserProvider';
 import { toast } from 'sonner';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Loader2, AlertTriangle, Shield } from 'lucide-react';
-import { renameDocument, getDocumentDetails, getDocumentStatus, getDocumentViews, getDocumentStats, deleteShareLink, uploadNewVersion, getDocumentDownloadUrl, deleteDocument, getDataroom, getDataroomFolderContents, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl, refreshCloudDocument, importCloudVersion } from '../services/api';
+import { renameDocument, updateDocumentDescription, getDocumentDetails, getDocumentStatus, getDocumentViews, getDocumentStats, deleteShareLink, uploadNewVersion, getDocumentDownloadUrl, deleteDocument, getDataroom, getDataroomFolderContents, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl, refreshCloudDocument, importCloudVersion } from '../services/api';
 import { getLocalizedErrorMessage } from '../utils/errorTranslator';
 import { DocumentHeader } from '../components/documents/DocumentHeader';
 import { LinksTable } from '../components/documents/LinksTable';
@@ -274,6 +274,17 @@ export function DocumentPage() {
     }
   };
 
+  const handleUpdateDescription = async (newDescription) => {
+    try {
+      await updateDocumentDescription(documentId, newDescription);
+      setDocument(prev => ({ ...prev, description: newDescription }));
+      toast.success(t('documents.documentDescriptionUpdatedSuccess'));
+    } catch (error) {
+      console.error("Failed to update document description:", error);
+      toast.error(getLocalizedErrorMessage(error, t('documents.failedToUpdateDescription')));
+    }
+  };
+
   const handleDelete = () => {
     setIsDeleteDocDialogOpen(true);
   };
@@ -484,6 +495,7 @@ export function DocumentPage() {
         onVersionHistory={() => navigate(`/documents/${documentId}/versions`)}
         onDelete={handleDelete}
         onRenameDocument={handleRenameDocument}
+        onUpdateDescription={handleUpdateDescription}
         isProcessing={isProcessing}
         cloudProviders={cloudProviders}
         canManage={canManage}

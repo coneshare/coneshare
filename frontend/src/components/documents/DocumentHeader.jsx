@@ -30,6 +30,7 @@ export function DocumentHeader({
   onVersionHistory,
   onDelete,
   onRenameDocument,
+  onUpdateDescription,
   isProcessing,
   cloudProviders = [],
   canManage = true,
@@ -37,10 +38,16 @@ export function DocumentHeader({
   const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(document.name);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editedDescription, setEditedDescription] = useState(document.description || '');
 
   useEffect(() => {
     setEditedName(document.name);
   }, [document.name]);
+
+  useEffect(() => {
+    setEditedDescription(document.description || '');
+  }, [document.description]);
 
   const handleStartEdit = () => {
     if (!canManage || isProcessing) return;
@@ -66,6 +73,31 @@ export function DocumentHeader({
     } else if (e.key === 'Escape') {
       setIsEditing(false);
       setEditedName(document.name);
+    }
+  };
+
+  const handleStartEditDescription = () => {
+    if (!canManage || isProcessing) return;
+    setEditedDescription(document.description || '');
+    setIsEditingDescription(true);
+  };
+
+  const handleSaveDescription = () => {
+    setIsEditingDescription(false);
+    const trimmed = editedDescription.trim();
+    if (trimmed !== (document.description || '')) {
+      if (onUpdateDescription) {
+        onUpdateDescription(trimmed);
+      }
+    }
+  };
+
+  const handleDescriptionKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSaveDescription();
+    } else if (e.key === 'Escape') {
+      setIsEditingDescription(false);
+      setEditedDescription(document.description || '');
     }
   };
 
@@ -104,6 +136,43 @@ export function DocumentHeader({
                 </button>
               )}
             </div>
+          )}
+          {isEditingDescription && canManage ? (
+            <div className="mt-1">
+              <input
+                type="text"
+                className="text-sm text-gray-700 dark:text-gray-200 border-b border-gray-900 dark:border-gray-100 focus:outline-none bg-transparent w-full max-w-2xl focus:border-b-2 py-0.5"
+                placeholder={t('documents.addDescription')}
+                value={editedDescription}
+                onChange={(e) => setEditedDescription(e.target.value)}
+                onBlur={handleSaveDescription}
+                onKeyDown={handleDescriptionKeyDown}
+                autoFocus
+              />
+            </div>
+          ) : (
+            (document.description || canManage) && (
+              <div className="mt-1 flex items-center gap-1.5 group max-w-2xl">
+                <p
+                  className={`text-sm rounded px-1 -mx-1 break-words ${document.description ? 'text-gray-500 dark:text-gray-400' : 'italic text-gray-400 dark:text-gray-500'} ${canManage ? 'cursor-pointer hover:bg-gray-100/50 dark:hover:bg-gray-800/50 hover:text-gray-700 dark:hover:text-gray-300' : ''}`}
+                  onClick={canManage ? handleStartEditDescription : undefined}
+                  title={canManage ? t('documents.clickToEditDescription') : undefined}
+                >
+                  {document.description || (canManage ? t('documents.addDescription') : '')}
+                </p>
+                {canManage && (
+                  <button
+                    onClick={handleStartEditDescription}
+                    disabled={isProcessing}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-gray-400 hover:text-gray-600 focus:opacity-100 disabled:pointer-events-none shrink-0"
+                    title={t('documents.editDescription')}
+                    aria-label={t('documents.editDescription')}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            )
           )}
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {!canManage && (

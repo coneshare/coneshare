@@ -1689,6 +1689,24 @@ class TestDocumentViewSet:
         document.refresh_from_db()
         assert document.is_starred is False
 
+    def test_update_document_description(self, api_client, document):
+        """Test updating document description."""
+        assert document.description == "" or document.description is not None
+
+        # Set new description
+        response = api_client.patch(f'/api/v1/documents/{document.id}/', {'description': 'Primary diligence architecture overview.'})
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['description'] == 'Primary diligence architecture overview.'
+        document.refresh_from_db()
+        assert document.description == 'Primary diligence architecture overview.'
+
+        # Clear description
+        response = api_client.patch(f'/api/v1/documents/{document.id}/', {'description': ''})
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['description'] == ''
+        document.refresh_from_db()
+        assert document.description == ''
+
     def test_star_document_permission_denied(self, api_client, user2, organization):
         """Test a user cannot star another user's document."""
         doc_by_user2 = Document.objects.create(

@@ -264,6 +264,8 @@ export const deleteFolder = (id) => api.delete(`/folders/${id}/`);
 
 export const renameDocument = (id, name) => api.patch(`/documents/${id}/`, { name });
 
+export const updateDocumentDescription = (id, description) => api.patch(`/documents/${id}/`, { description });
+
 export const renameFolder = (id, name) => api.patch(`/folders/${id}/`, { name });
 
 export const updateDocument = (id, data) => api.patch(`/documents/${id}/`, data);

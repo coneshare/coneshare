@@ -20,13 +20,14 @@ import { DocumentPage } from '../../pages/DocumentPage';
 
 // Mock child components to isolate the page
 vi.mock('../../components/documents/DocumentHeader', () => ({
-  DocumentHeader: ({ onUploadNewVersion, onDownload, onDelete, onRenameDocument }) => (
+  DocumentHeader: ({ onUploadNewVersion, onDownload, onDelete, onRenameDocument, onUpdateDescription }) => (
     <div>
       <span>Document Header</span>
       <button onClick={onUploadNewVersion}>Upload New Version</button>
       <button onClick={onDownload}>Download</button>
       <button onClick={onDelete}>Delete</button>
       <button onClick={() => onRenameDocument('New Document Name')}>Rename</button>
+      <button onClick={() => onUpdateDescription('Updated Description')}>Update Description</button>
     </div>
   ),
 }));
@@ -324,6 +325,20 @@ describe('DocumentPage', () => {
       await waitFor(() => {
         expect(api.renameDocument).toHaveBeenCalledWith('doc123', 'New Document Name');
         expect(toast.success).toHaveBeenCalledWith('文档重命名成功。');
+      });
+    });
+
+    it('handles document description update with localized toast', async () => {
+      await i18n.changeLanguage('zh-hans');
+      api.updateDocumentDescription.mockResolvedValue({ data: { id: 'doc123', description: 'Updated Description' } });
+
+      renderComponent();
+      const updateDescButton = await screen.findByRole('button', { name: /update description/i });
+      fireEvent.click(updateDescButton);
+
+      await waitFor(() => {
+        expect(api.updateDocumentDescription).toHaveBeenCalledWith('doc123', 'Updated Description');
+        expect(toast.success).toHaveBeenCalledWith('文档描述更新成功。');
       });
     });
 
