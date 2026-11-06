@@ -8,7 +8,7 @@ test.describe('Dataroom Management', () => {
 
     // --- 1. Create a Dataroom ---
     await page.goto('/datarooms');
-    await page.getByRole('button', { name: /add dataroom/i }).click();
+    await page.getByRole('button', { name: /add dataroom/i }).first().click();
 
     // Fill in the form in the dialog
     await page.getByLabel(/name/i).fill(dataroomName);
@@ -82,7 +82,7 @@ test.describe('Dataroom Management', () => {
 
     // First, create a dataroom to ensure one exists
     await page.goto('/datarooms');
-    await page.getByRole('button', { name: /add dataroom/i }).click();
+    await page.getByRole('button', { name: /add dataroom/i }).first().click();
     await page.getByLabel(/name/i).fill(dataroomName);
     await page.getByRole('button', { name: /create dataroom/i }).click();
 
