@@ -200,4 +200,5 @@ The Nightly workflow automates end-to-end regression testing with the following 
 2. **Healthcheck Loop**: Polls backend (`/api/v1/public/settings/`), frontend (`:5173`), and Go core (`/health`) until HTTP 200 is returned.
 3. **Seed Data Invariant**: Automatically runs `python manage.py migrate` and `python manage.py create_test_data` to ensure `test@coneshare.com` and initial folders/documents exist in clean environments.
 4. **Diagnostic Retention**: On failure, uploads Playwright traces, error screenshots, and container logs with a 7-day retention period for post-mortem debugging.
+5. **Runner OS Pinning**: Uses `runs-on: ubuntu-24.04` rather than `ubuntu-latest`. Playwright's system dependency installer (`--with-deps`) requires explicit Ubuntu LTS support (e.g. `ubuntu-24.04` or `ubuntu-22.04`) and will reject unmapped future distributions.
 
