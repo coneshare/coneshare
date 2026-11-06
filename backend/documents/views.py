@@ -20,7 +20,13 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParamet
 from core.pagination import StandardResultsSetPagination
 
 
-from .models import (Document, Folder, DocumentVersion)
+from .models import (
+    Document,
+    Folder,
+    DocumentVersion,
+    resolve_version_filename,
+    sanitize_filename,
+)
 from .serializers import (DocumentSerializer, EnsureFolderPathsSerializer,
                           FolderSerializer, DocumentVersionListSerializer,
                           TrashItemSerializer, TrashRestoreResponseSerializer)
@@ -529,7 +535,8 @@ class DocumentVersionUploadFinalizeView(APIView):
 
     class FinalizeSerializer(serializers.Serializer):
         storage_key = serializers.CharField()
-        content_type = serializers.CharField(allow_blank=True)
+        content_type = serializers.CharField(allow_blank=True, required=False, default='')
+        file_name = serializers.CharField(allow_blank=True, required=False, default='', max_length=255)
 
     @extend_schema(
         request=FinalizeSerializer,
@@ -545,6 +552,10 @@ class DocumentVersionUploadFinalizeView(APIView):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
+        raw_file_name = validated_data.get('file_name', '')
+        clean_file_name = sanitize_filename(raw_file_name) if raw_file_name else None
+        version_filename = resolve_version_filename(document.name, validated_data['storage_key'], clean_file_name)
+
         try:
             validated_data['storage_key'] = validate_storage_key(
                 validated_data['storage_key'], document.organization.id
@@ -553,7 +564,7 @@ class DocumentVersionUploadFinalizeView(APIView):
                 validated_data['storage_key'], document.organization.id
             )
             validate_file_content_type_and_extension(
-                document.name,
+                version_filename,
                 validated_data.get('storage_key', ''),
                 validated_data.get('content_type', '')
             )
@@ -594,6 +605,7 @@ class DocumentVersionUploadFinalizeView(APIView):
                 storage_key=validated_data['storage_key'],
                 file_size=actual_file_size,
                 content_type=validated_data['content_type'],
+                file_name=clean_file_name,
             )
         except (serializers.ValidationError, QuotaExceededError) as e:
             detail = e.detail if hasattr(e, 'detail') else str(e)
@@ -661,7 +673,7 @@ class DocumentDownloadView(APIView):
 
         try:
             download_url = fileserver_client.generate_download_url(
-                primary_version.original_storage_key, is_internal=False, filename=document.name
+                primary_version.original_storage_key, is_internal=False, filename=primary_version.get_filename()
             )
             return Response({'download_url': download_url}, status=status.HTTP_200_OK)
         except APIException as e:

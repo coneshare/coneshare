@@ -143,6 +143,11 @@ export function VersionHistoryTable({
                   <TableCell className="font-semibold">
                     <div className="flex items-center gap-2">
                       <span>v{version.version_number}</span>
+                      {version.file_name && (
+                        <span className="text-xs font-normal text-gray-500 truncate max-w-[180px]" title={version.file_name}>
+                          ({version.file_name})
+                        </span>
+                      )}
                       {version.is_primary && (
                         <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
                           {t('documents.activeStatus')}

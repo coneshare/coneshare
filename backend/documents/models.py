@@ -1,3 +1,5 @@
+import os
+import posixpath
 from typing import List, Optional, TypedDict
 
 from django.db import models
@@ -238,6 +240,62 @@ class Document(BaseModel):
         super().save(*args, **kwargs)
 
 
+def sanitize_filename(name: Optional[str], max_length: int = 255) -> str:
+    """
+    Sanitizes a client-supplied filename:
+    - Strips leading/trailing whitespace.
+    - Strips directory components and path separators (cross-platform).
+    - Removes ASCII control characters (< 32, 127).
+    - Removes trailing dots and spaces.
+    - Prevents directory traversal tokens ('.', '..').
+    - Binds length to max_length while preserving file extension.
+    """
+    if not name or not isinstance(name, str):
+        return ""
+
+    s = name.strip()
+    s = s.replace('\\', '/')
+    s = posixpath.basename(s)
+
+    s = "".join(c for c in s if ord(c) >= 32 and ord(c) != 127)
+    s = s.rstrip('. ')
+
+    if not s or s in {'.', '..'}:
+        return ""
+
+    if len(s) > max_length:
+        base, ext = posixpath.splitext(s)
+        allowed_base = max(1, max_length - len(ext))
+        s = f"{base[:allowed_base]}{ext}"[:max_length]
+
+    return s
+
+
+def resolve_version_filename(
+    document_name: str,
+    storage_key: str = '',
+    file_name: Optional[str] = None
+) -> str:
+    """
+    Resolves the canonical filename for a document version:
+    1. Returns sanitized client-supplied file_name if present.
+    2. Falls back to document_name with storage_key extension if storage_key has an extension.
+    3. Falls back to document_name or storage_key basename.
+    """
+    if file_name:
+        clean = sanitize_filename(file_name)
+        if clean:
+            return clean
+
+    doc_base, _ = posixpath.splitext(document_name) if document_name else ('', '')
+    key_ext = posixpath.splitext(storage_key)[1] if storage_key else ''
+
+    if doc_base and key_ext:
+        return f"{doc_base}{key_ext}"
+
+    return document_name or (posixpath.basename(storage_key) if storage_key else '')
+
+
 def validate_document_version_metadata(value):
     """
     Validates the keys and values inside the DocumentVersion metadata JSON field
@@ -246,10 +304,22 @@ def validate_document_version_metadata(value):
     if not isinstance(value, dict):
         raise ValidationError("metadata must be a dictionary.")
 
-    allowed_keys = {'cloud_import'}
+    allowed_keys = {'cloud_import', 'file_name'}
     invalid_keys = set(value.keys()) - allowed_keys
     if invalid_keys:
         raise ValidationError(f"Invalid keys in metadata: {', '.join(invalid_keys)}")
+
+    if 'file_name' in value:
+        val = value['file_name']
+        if val is not None:
+            if not isinstance(val, str):
+                raise ValidationError("Value for 'file_name' in metadata must be a string.")
+            if len(val) > 255:
+                raise ValidationError("Value for 'file_name' in metadata cannot exceed 255 characters.")
+            if any(ord(c) < 32 or ord(c) == 127 for c in val):
+                raise ValidationError("Value for 'file_name' in metadata contains invalid control characters.")
+            if '/' in val or '\\' in val or val in ('.', '..'):
+                raise ValidationError("Value for 'file_name' in metadata cannot contain path separators or traversal characters.")
 
     if 'cloud_import' in value:
         cloud_import = value['cloud_import']
@@ -316,6 +386,7 @@ class DocumentVersion(BaseModel):
 
     # Expected schema for metadata:
     # {
+    #     'file_name': str (optional, max 255 chars, sanitized original version file name),
     #     'cloud_import': {
     #         'provider': str (optional),
     #         'provider_display': str (optional),
@@ -329,6 +400,24 @@ class DocumentVersion(BaseModel):
         blank=True,
         validators=[validate_document_version_metadata]
     )
+
+    def get_filename(self) -> str:
+        """
+        Returns the original filename for this specific version.
+        Prioritizes the uploaded file_name recorded in metadata,
+        falling back to document.name for version 1, or document.name with version storage_key extension.
+        """
+        stored_name = self.metadata.get('file_name') if isinstance(self.metadata, dict) else None
+        if stored_name:
+            clean = sanitize_filename(stored_name)
+            if clean:
+                return clean
+        doc = self.document if self.document_id else None
+        doc_name = doc.name if doc and doc.name else ''
+        if self.version_number == 1 and doc_name:
+            return doc_name
+        key = self.original_storage_key or self.storage_key or ''
+        return resolve_version_filename(doc_name, key, None)
 
     def __str__(self):
         return f'{self.document.name} v{self.version_number}'

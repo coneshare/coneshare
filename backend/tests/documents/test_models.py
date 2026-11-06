@@ -1,7 +1,15 @@
 import pytest
 from django.core.exceptions import ValidationError
 
-from documents.models import Document, DocumentPage, Folder, validate_document_version_metadata
+from documents.models import (
+    Document,
+    DocumentPage,
+    DocumentVersion,
+    Folder,
+    validate_document_version_metadata,
+    sanitize_filename,
+    resolve_version_filename,
+)
 
 
 @pytest.mark.django_db
@@ -76,6 +84,82 @@ def test_validate_document_version_metadata():
                 'provider': 123.45
             }
         })
+
+
+    # Valid file_name
+    validate_document_version_metadata({'file_name': 'clip.mp4'})
+    validate_document_version_metadata({'file_name': None})
+
+    # Invalid file_name: not a string
+    with pytest.raises(ValidationError):
+        validate_document_version_metadata({'file_name': 123})
+
+    # Invalid file_name: exceeds 255 chars
+    with pytest.raises(ValidationError):
+        validate_document_version_metadata({'file_name': 'a' * 256})
+
+    # Invalid file_name: contains control characters
+    with pytest.raises(ValidationError):
+        validate_document_version_metadata({'file_name': 'bad\x00file.pdf'})
+    with pytest.raises(ValidationError):
+        validate_document_version_metadata({'file_name': 'bad\nfile.pdf'})
+
+    # Invalid file_name: contains path separators or traversal
+    with pytest.raises(ValidationError):
+        validate_document_version_metadata({'file_name': '../hack.pdf'})
+    with pytest.raises(ValidationError):
+        validate_document_version_metadata({'file_name': 'sub/hack.pdf'})
+    with pytest.raises(ValidationError):
+        validate_document_version_metadata({'file_name': r'sub\hack.pdf'})
+    with pytest.raises(ValidationError):
+        validate_document_version_metadata({'file_name': '..'})
+
+
+def test_sanitize_filename():
+    """Test sanitize_filename bounds length, strips traversal, and purges control characters."""
+    assert sanitize_filename("") == ""
+    assert sanitize_filename(None) == ""
+    assert sanitize_filename("   ") == ""
+    assert sanitize_filename("normal.pdf") == "normal.pdf"
+    assert sanitize_filename("   spaced name.pdf   ") == "spaced name.pdf"
+
+    # Traversal and path separators
+    assert sanitize_filename("../../etc/passwd.txt") == "passwd.txt"
+    assert sanitize_filename(r"..\..\Windows\system32\cmd.exe") == "cmd.exe"
+    assert sanitize_filename("folder/sub/file.pdf") == "file.pdf"
+    assert sanitize_filename(".") == ""
+    assert sanitize_filename("..") == ""
+
+    # Control characters
+    assert sanitize_filename("evil\x00name\r\n.pdf") == "evilname.pdf"
+
+    # Trailing dots and spaces
+    assert sanitize_filename("document.pdf. . ") == "document.pdf"
+
+    # Length bounded to 255 while preserving extension
+    long_name = "a" * 300 + ".pdf"
+    sanitized = sanitize_filename(long_name)
+    assert len(sanitized) == 255
+    assert sanitized.endswith(".pdf")
+
+
+def test_resolve_version_filename():
+    """Test resolve_version_filename deduplicated resolution logic."""
+    # 1. Custom file_name prioritized
+    assert resolve_version_filename("report.pdf", "org/uuid.mp4", "custom_clip.mp4") == "custom_clip.mp4"
+
+    # 2. Sanitized file_name
+    assert resolve_version_filename("report.pdf", "org/uuid.mp4", "../safe.mp4") == "safe.mp4"
+
+    # 3. Fallback to doc name with storage_key extension
+    assert resolve_version_filename("report.pdf", "org/uuid.mp4", None) == "report.mp4"
+    assert resolve_version_filename("report.pdf", "org/uuid.mp4", "") == "report.mp4"
+
+    # 4. Fallback to doc name when storage key has no extension
+    assert resolve_version_filename("report.pdf", "org/uuid_no_ext", None) == "report.pdf"
+
+    # 5. Fallback to storage key basename when doc name is empty
+    assert resolve_version_filename("", "org/uuid.pdf", None) == "uuid.pdf"
 
 
 def test_document_page_metadata_properties():

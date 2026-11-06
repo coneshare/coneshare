@@ -31,7 +31,9 @@ class VideoRenderer(BasePreviewRenderer):
 
     @classmethod
     def can_handle_version(cls, version: DocumentVersion) -> bool:
-        filename = version.document.name if version.document else ''
+        if version.type and version.type != 'video':
+            return False
+        filename = version.get_filename()
         storage_key = version.original_storage_key or version.storage_key or ''
         norm_type = normalize_content_type(version.content_type, filename)
         if norm_type in VIDEO_MIMETYPES:
@@ -40,14 +42,16 @@ class VideoRenderer(BasePreviewRenderer):
             return True
         if storage_key and os.path.splitext(storage_key)[1].lower() in VIDEO_EXTENSIONS:
             return True
-        if version.type == 'video' or (version.document and version.document.type == 'video'):
+        if version.type == 'video':
+            return True
+        if not version.type and version.document and version.document.type == 'video':
             return True
         return False
 
     def initialize_metadata(
         self, document: Document, version: DocumentVersion, file_size: int, content_type: str
     ):
-        norm_type = normalize_content_type(content_type, document.name)
+        norm_type = normalize_content_type(content_type, version.get_filename())
         max_video_size_mb = core_services.get_dynamic_setting('MAX_VIDEO_PREVIEW_SIZE_MB')
         max_size_bytes = max_video_size_mb * 1024 * 1024
         is_too_large = file_size > max_size_bytes

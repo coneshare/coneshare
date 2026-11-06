@@ -159,15 +159,20 @@ class DocumentPageSerializer(serializers.ModelSerializer):
 class DocumentVersionSerializer(serializers.ModelSerializer):
     pages = DocumentPageSerializer(many=True, read_only=True)
     cloud_import = serializers.SerializerMethodField()
+    file_name = serializers.SerializerMethodField()
 
     class Meta:
         model = DocumentVersion
         fields = [
-            'id', 'version_number', 'file_size', 'num_pages',
+            'id', 'version_number', 'file_name', 'file_size', 'num_pages',
             'is_primary', 'has_pages', 'render_status', 'render_error',
             'pages', 'cloud_import', 'created_at'
         ]
         read_only_fields = fields
+
+    @extend_schema_field(serializers.CharField())
+    def get_file_name(self, obj) -> str:
+        return obj.get_filename()
 
     @extend_schema_field(serializers.DictField(allow_null=True))
     def get_cloud_import(self, obj) -> dict:
@@ -189,15 +194,20 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
 
 class DocumentVersionListSerializer(serializers.ModelSerializer):
     cloud_import = serializers.SerializerMethodField()
+    file_name = serializers.SerializerMethodField()
 
     class Meta:
         model = DocumentVersion
         fields = [
-            'id', 'version_number', 'file_size', 'num_pages',
+            'id', 'version_number', 'file_name', 'file_size', 'num_pages',
             'is_primary', 'has_pages', 'render_status', 'render_error',
             'cloud_import', 'created_at'
         ]
         read_only_fields = fields
+
+    @extend_schema_field(serializers.CharField())
+    def get_file_name(self, obj) -> str:
+        return obj.get_filename()
 
     @extend_schema_field(serializers.DictField(allow_null=True))
     def get_cloud_import(self, obj) -> dict:

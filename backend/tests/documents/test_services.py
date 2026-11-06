@@ -15,6 +15,8 @@ from documents.services import (
     QuotaExceededError,
     promote_document_version,
     create_new_document_version,
+    process_imported_file,
+    validate_file_content_type_and_extension,
     check_user_quota_on_upload,
     touch_folder_ancestors,
     soft_delete_document,
@@ -573,6 +575,143 @@ class TestCreateNewDocumentVersion:
             version.refresh_from_db()
             assert not version.is_primary
         mock_route.assert_called_once()
+
+    def test_create_new_document_version_with_different_format(self, user):
+        """
+        When uploading a new version with a different file type (e.g. clip.mp4 to report.pdf),
+        the new version's type and filename must be determined by the uploaded file,
+        while the parent document's title remains unchanged (Option B).
+        """
+        doc = Document.objects.create(
+            name="report.pdf",
+            organization=user.organization,
+            created_by=user,
+            file_size=1024,
+            content_type="application/pdf",
+            type="pdf",
+        )
+        DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            is_primary=True,
+            file_size=1024,
+            content_type="application/pdf",
+            storage_key=f"{user.organization.id}/report.pdf",
+            original_storage_key=f"{user.organization.id}/report.pdf",
+            type="pdf",
+        )
+
+        new_version = create_new_document_version(
+            document=doc,
+            requesting_user=user,
+            storage_key=f"{user.organization.id}/uuid.mp4",
+            file_size=5000,
+            content_type="video/mp4",
+            file_name="clip.mp4",
+        )
+
+        assert new_version.type == "video"
+        assert new_version.get_filename() == "clip.mp4"
+        assert doc.name == "report.pdf"
+        assert doc.type == "video"
+
+    def test_create_new_document_version_rejects_extension_mismatch(self, user):
+        """
+        Uploading a version where the client-declared file_name extension does not match
+        the storage_key extension must be rejected with ValidationError.
+        """
+        doc = Document.objects.create(
+            name="report.pdf",
+            organization=user.organization,
+            created_by=user,
+            file_size=1024,
+            content_type="application/pdf",
+            type="pdf",
+        )
+        DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            is_primary=True,
+            file_size=1024,
+            content_type="application/pdf",
+            storage_key=f"{user.organization.id}/report.pdf",
+            original_storage_key=f"{user.organization.id}/report.pdf",
+            type="pdf",
+        )
+
+        with pytest.raises(serializers.ValidationError) as exc:
+            create_new_document_version(
+                document=doc,
+                requesting_user=user,
+                storage_key=f"{user.organization.id}/uuid.bin",
+                file_size=5000,
+                content_type="application/pdf",
+                file_name="fake.pdf",
+            )
+        assert "file_name" in exc.value.detail
+
+    def test_validate_file_content_type_and_extension_normalizes_extensions(self, user):
+        """
+        Filenames with spaces or non-alphanumeric chars in extension (e.g. 'report.p df')
+        must match the cleaned storage key extension produced by generate_storage_key.
+        """
+        org_id = user.organization.id
+        # Slashes/spaces in extension normalize to .pdf matching storage key .pdf
+        validate_file_content_type_and_extension("report.p df", f"{org_id}/uuid.pdf", "application/pdf")
+        validate_file_content_type_and_extension("photo.jpeg", f"{org_id}/uuid.jpg", "image/jpeg")
+
+        # Obfuscated dangerous script extensions are still caught
+        with pytest.raises(serializers.ValidationError):
+            validate_file_content_type_and_extension("exploit.ht ml", f"{org_id}/uuid.html", "application/pdf")
+
+        # Mismatch between distinct extensions is rejected
+        with pytest.raises(serializers.ValidationError):
+            validate_file_content_type_and_extension("doc.pdf", f"{org_id}/uuid.bin", "application/pdf")
+
+    @patch('requests.put')
+    @patch('documents.services.fileserver_client.generate_upload_url', return_value='http://test/upload')
+    @patch('documents.services._route_document_for_processing')
+    def test_process_imported_file_drops_invalid_traversal_filename(self, mock_route, mock_upload_url, mock_put, user):
+        """
+        When cloud file import supplies an invalid or traversal filename (such as '..'),
+        it must not store the raw unsafe string in version metadata, allowing full_clean validation to pass.
+        """
+        import io
+        mock_put.return_value.raise_for_status = MagicMock()
+
+        doc = Document.objects.create(
+            name="imported.pdf",
+            organization=user.organization,
+            created_by=user,
+            file_size=1024,
+            content_type="application/pdf",
+            type="pdf",
+        )
+        DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            is_primary=True,
+            file_size=1024,
+            content_type="application/pdf",
+            storage_key=f"{user.organization.id}/imported.pdf",
+            original_storage_key=f"{user.organization.id}/imported.pdf",
+            type="pdf",
+        )
+
+        file_data = {
+            'name': '..',
+            'content': io.BytesIO(b'dummy content'),
+            'size': 2048,
+            'etag_or_rev': 'rev123',
+        }
+
+        process_imported_file(doc, file_data)
+        version = doc.versions.get(version_number=1)
+        assert version.metadata.get('file_name') is None
+        # Must pass model validation without raising ValidationError for traversal in metadata
+        version.full_clean()
+        assert version.get_filename() == "imported.pdf"
+
 
     def test_create_new_document_version_refreshes_caller_document_instance(self, user):
         """create_new_document_version must refresh the caller's document instance in-place."""

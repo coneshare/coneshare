@@ -34,10 +34,11 @@ class SpreadsheetRenderer(BasePreviewRenderer):
         if version.has_pages:
             return False
 
-        if version.type == 'spreadsheet' or (version.document and version.document.type == 'spreadsheet'):
+        orig_key = version.original_storage_key or ''
+        if orig_key and os.path.splitext(orig_key)[1].lower() in SPREADSHEET_EXTENSIONS:
             return True
 
-        filename = version.document.name if version.document else ''
+        filename = version.get_filename()
         storage_key = version.original_storage_key or version.storage_key or ''
         norm_type = normalize_content_type(version.content_type, filename)
         if norm_type in SPREADSHEET_MIMETYPES:
@@ -46,12 +47,16 @@ class SpreadsheetRenderer(BasePreviewRenderer):
             return True
         if storage_key and os.path.splitext(storage_key)[1].lower() in SPREADSHEET_EXTENSIONS:
             return True
+        if version.type == 'spreadsheet':
+            return True
+        if not version.type and version.document and version.document.type == 'spreadsheet':
+            return True
         return False
 
     def initialize_metadata(
         self, document: Document, version: DocumentVersion, file_size: int, content_type: str
     ):
-        norm_type = normalize_content_type(content_type, document.name)
+        norm_type = normalize_content_type(content_type, version.get_filename())
         max_preview_size_mb = core_services.get_dynamic_setting('MAX_PREVIEW_FILE_SIZE_MB')
         is_too_large = file_size > (max_preview_size_mb * 1024 * 1024)
 

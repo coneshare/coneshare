@@ -1480,6 +1480,112 @@ class TestDocumentVersionUploadViews:
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    @patch('documents.views.fileserver_client.generate_download_url')
+    @patch('documents.views.fileserver_client.get_file_info')
+    def test_upload_finalize_version_with_different_file_type(
+        self, mock_get_file_info, mock_generate_download_url, api_client, user
+    ):
+        """
+        Verify that uploading a video version to an existing PDF document routes
+        cleanly, preserves the original document title, stores the version's filename,
+        and provides the version's filename upon download.
+        """
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="presentation.pdf",
+            type="pdf",
+            status="ready",
+        )
+        DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            is_primary=True,
+            file_size=1000,
+            content_type="application/pdf",
+            original_storage_key=f"{user.organization.id}/orig.pdf",
+            storage_key=f"{user.organization.id}/orig.pdf",
+            type="pdf",
+        )
+
+        mock_get_file_info.return_value = {'exists': True, 'size': 5000}
+        finalize_url = f'/api/v1/uploads/document/{doc.id}/versions/finalize/'
+        res = api_client.post(finalize_url, {
+            'storage_key': f'{user.organization.id}/video_uuid.mp4',
+            'content_type': 'video/mp4',
+            'file_name': 'clip.mp4',
+        }, format='json')
+
+        assert res.status_code == status.HTTP_202_ACCEPTED
+        doc.refresh_from_db()
+        assert doc.name == "presentation.pdf"
+        assert doc.type == "video"
+
+        v2 = doc.versions.get(version_number=2)
+        assert v2.type == "video"
+        assert v2.is_primary is True
+        assert v2.get_filename() == "clip.mp4"
+
+        # Check download endpoint uses version's filename
+        mock_generate_download_url.return_value = "https://mock.fileserver/download/clip.mp4"
+        download_res = api_client.get(f'/api/v1/documents/{doc.id}/download/')
+        assert download_res.status_code == status.HTTP_200_OK
+        mock_generate_download_url.assert_called_once_with(
+            v2.original_storage_key, is_internal=False, filename="clip.mp4"
+        )
+
+    def test_finalize_version_rejects_extension_mismatch(self, api_client, user):
+        """Test that finalize returns 400 when file_name extension does not match storage_key."""
+        api_client.force_authenticate(user=user)
+        doc = Document.objects.create(
+            organization=user.organization, created_by=user, name="report.pdf", status='ready'
+        )
+        DocumentVersion.objects.create(document=doc, version_number=1, is_primary=True)
+
+        finalize_url = f'/api/v1/uploads/document/{doc.id}/versions/finalize/'
+        res = api_client.post(finalize_url, {
+            'storage_key': f"{user.organization.id}/uuid.bin",
+            'file_name': 'sneaky.pdf',
+            'content_type': 'application/pdf',
+        })
+        assert res.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'file_name' in res.json()
+
+    def test_finalize_version_rejects_overlong_file_name(self, api_client, user):
+        """Test that finalize returns 400 when file_name exceeds 255 chars."""
+        api_client.force_authenticate(user=user)
+        doc = Document.objects.create(
+            organization=user.organization, created_by=user, name="report.pdf", status='ready'
+        )
+        DocumentVersion.objects.create(document=doc, version_number=1, is_primary=True)
+
+        finalize_url = f'/api/v1/uploads/document/{doc.id}/versions/finalize/'
+        res = api_client.post(finalize_url, {
+            'storage_key': f"{user.organization.id}/uuid.pdf",
+            'file_name': 'a' * 256 + '.pdf',
+            'content_type': 'application/pdf',
+        })
+        assert res.status_code == status.HTTP_400_BAD_REQUEST
+
+    @patch('documents.views.fileserver_client.get_file_info', return_value={'exists': True, 'size': 123})
+    def test_finalize_version_sanitizes_traversal_in_file_name(self, mock_get_file_info, api_client, user):
+        """Test that directory traversal in file_name is sanitized before storage."""
+        api_client.force_authenticate(user=user)
+        doc = Document.objects.create(
+            organization=user.organization, created_by=user, name="report.pdf", status='ready'
+        )
+        DocumentVersion.objects.create(document=doc, version_number=1, is_primary=True)
+
+        finalize_url = f'/api/v1/uploads/document/{doc.id}/versions/finalize/'
+        res = api_client.post(finalize_url, {
+            'storage_key': f"{user.organization.id}/uuid.pdf",
+            'file_name': '../../safe_version.pdf',
+            'content_type': 'application/pdf',
+        })
+        assert res.status_code == status.HTTP_202_ACCEPTED
+        v2 = doc.versions.get(version_number=2)
+        assert v2.metadata.get('file_name') == 'safe_version.pdf'
+
 
 @pytest.mark.django_db
 class TestDocumentViewSet:
