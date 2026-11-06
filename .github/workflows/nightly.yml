@@ -63,23 +63,38 @@ jobs:
         run: |
           COMPOSE_PROJECT_NAME=coneshare docker-compose --profile malware up -d --build
 
-      - name: Wait for services to become healthy
-        run: |
-          echo "Waiting for Backend (http://localhost:8000/api/v1/public/settings/)..."
-          timeout 120s bash -c 'until [ "$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/v1/public/settings/)" = "200" ]; do sleep 3; done'
-          
-          echo "Waiting for Frontend (http://localhost:5173)..."
-          timeout 60s bash -c 'until [ "$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5173)" = "200" ]; do sleep 2; done'
-          
-          echo "Waiting for Core file server (http://localhost:8080/health)..."
-          timeout 60s bash -c 'until [ "$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health)" = "200" ]; do sleep 2; done'
-
-          echo "All core services are online and responding!"
-
       - name: Initialize Database Migrations & Seed E2E Test Fixtures
         run: |
+          echo "Waiting for backend container to be running..."
+          timeout 60s bash -c 'until COMPOSE_PROJECT_NAME=coneshare docker-compose exec -T backend true 2>/dev/null; do sleep 2; done'
+          
+          echo "Running database migrations..."
           COMPOSE_PROJECT_NAME=coneshare docker-compose exec -T backend python manage.py migrate
+          
+          echo "Seeding E2E test data..."
           COMPOSE_PROJECT_NAME=coneshare docker-compose exec -T backend python manage.py create_test_data
+
+      - name: Wait for services to become healthy
+        run: |
+          echo "Waiting for Backend (http://127.0.0.1:8000/api/v1/public/settings/)..."
+          timeout 60s bash -c 'until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/api/v1/public/settings/)" = "200" ]; do
+            echo "Backend status: $(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/api/v1/public/settings/) (waiting for 200...)"
+            sleep 3
+          done'
+          
+          echo "Waiting for Frontend (http://127.0.0.1:5173)..."
+          timeout 60s bash -c 'until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5173)" = "200" ]; do
+            echo "Frontend status: $(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5173) (waiting for 200...)"
+            sleep 2
+          done'
+          
+          echo "Waiting for Core file server (http://127.0.0.1:8080/health)..."
+          timeout 60s bash -c 'until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/health)" = "200" ]; do
+            echo "Core status: $(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/health) (waiting for 200...)"
+            sleep 2
+          done'
+
+          echo "All core services are online and responding!"
 
       - name: Run Playwright E2E Tests
         id: run-e2e
