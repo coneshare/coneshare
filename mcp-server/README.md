@@ -136,11 +136,12 @@ curl -sSL https://raw.githubusercontent.com/coneshare/coneshare/main/.agent/skil
 
 ---
 
-## 🧰 Available Tools (26 Tools)
+## 🧰 Available Tools (27 Tools)
 
-### 📁 Documents & Folders (10 tools)
+### 📁 Documents & Folders (11 tools)
 * `list_documents`: Paginated list of workspace documents with folder filtering.
 * `get_document`: Retrieve detailed document metadata, versions, and active links.
+* `search_documents`: Search workspace documents by filename or description query with pagination.
 * `update_document`: Rename or update description metadata of an existing document.
 * `delete_document`: `[DESTRUCTIVE]` Soft-delete a document (moves to Trash).
 * `create_folder`: Create a new folder in your workspace documents hierarchy.

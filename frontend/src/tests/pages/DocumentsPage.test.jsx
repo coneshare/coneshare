@@ -43,6 +43,7 @@ describe('DocumentsPage', () => {
     });
     api.getCloudProviders.mockResolvedValue({ data: [] });
     api.getCloudConnections.mockResolvedValue({ data: [] });
+    api.getDocuments.mockResolvedValue({ data: [] });
 
     // Spy on console.error
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -1231,6 +1232,86 @@ describe('DocumentsPage', () => {
       listItems = screen.getAllByText(/Doc/);
       expect(listItems[0]).toHaveTextContent('Large Doc');
       expect(listItems[1]).toHaveTextContent('Small Doc');
+    });
+  });
+
+  describe('Document Search', () => {
+    it('searches documents with debounced input and renders matching results', async () => {
+      const user = userEvent.setup();
+      const mockInitialDocs = [
+        { id: 'd1', name: 'Document A', updated_at: '2023-01-01T12:00:00Z' },
+      ];
+      const mockSearchResults = [
+        { id: 'd2', name: 'Financial Report', updated_at: '2023-01-02T12:00:00Z' },
+      ];
+
+      api.getRootFolderContents.mockResolvedValue({
+        data: { current_folder: null, sub_folders: [], documents: mockInitialDocs },
+      });
+      api.getDocuments.mockResolvedValue({
+        data: mockSearchResults,
+      });
+
+      renderComponent();
+      await screen.findByText('Document A');
+
+      const searchInput = screen.getByPlaceholderText(/search files and folders/i);
+      await user.type(searchInput, 'Financial');
+
+      await waitFor(() => {
+        expect(api.getDocuments).toHaveBeenCalledWith({ search: 'Financial' });
+      });
+
+      expect(await screen.findByText('Financial Report')).toBeInTheDocument();
+      expect(screen.queryByText('Document A')).not.toBeInTheDocument();
+    });
+
+    it('displays empty search state when query yields 0 results', async () => {
+      const user = userEvent.setup();
+      api.getRootFolderContents.mockResolvedValue({
+        data: { current_folder: null, sub_folders: [], documents: [] },
+      });
+      api.getDocuments.mockResolvedValue({
+        data: [],
+      });
+
+      renderComponent();
+      const searchInput = screen.getByPlaceholderText(/search files and folders/i);
+      await user.type(searchInput, 'nonexistent_file');
+
+      await waitFor(() => {
+        expect(api.getDocuments).toHaveBeenCalledWith({ search: 'nonexistent_file' });
+      });
+
+      expect(await screen.findByText(/no documents found matching "nonexistent_file"/i)).toBeInTheDocument();
+    });
+
+    it('clearing search query restores folder view', async () => {
+      const user = userEvent.setup();
+      const mockInitialDocs = [
+        { id: 'd1', name: 'Original Document', updated_at: '2023-01-01T12:00:00Z' },
+      ];
+      api.getRootFolderContents.mockResolvedValue({
+        data: { current_folder: null, sub_folders: [], documents: mockInitialDocs },
+      });
+      api.getDocuments.mockResolvedValue({
+        data: [{ id: 'd2', name: 'Found Document', updated_at: '2023-01-02T12:00:00Z' }],
+      });
+
+      renderComponent();
+      await screen.findByText('Original Document');
+
+      const searchInput = screen.getByPlaceholderText(/search files and folders/i);
+      await user.type(searchInput, 'Found');
+      expect(await screen.findByText('Found Document')).toBeInTheDocument();
+
+      const clearButton = screen.getByRole('button', { name: /clear search/i });
+      await user.click(clearButton);
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText(/search files and folders/i)).toHaveValue('');
+      });
+      expect(await screen.findByText('Original Document')).toBeInTheDocument();
     });
   });
 });

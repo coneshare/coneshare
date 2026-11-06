@@ -737,6 +737,114 @@ def test_list_documents_in_folder(api_client, user, organization):
 
 
 @pytest.mark.django_db
+def test_list_documents_search_by_name(api_client, user, organization):
+    """Test searching documents by filename matches case-insensitively."""
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+    doc1 = Document.objects.create(
+        name="Financial Report 2026.pdf", organization=organization, created_by=user, folder=root_folder
+    )
+    Document.objects.create(
+        name="Marketing Deck.pdf", organization=organization, created_by=user, folder=root_folder
+    )
+
+    response = api_client.get('/api/v1/documents/?search=financial')
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 1
+    assert response.data[0]['id'] == str(doc1.id)
+    assert response.data[0]['name'] == "Financial Report 2026.pdf"
+
+
+@pytest.mark.django_db
+def test_list_documents_search_by_description(api_client, user, organization):
+    """Test searching documents by description matches case-insensitively."""
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+    doc1 = Document.objects.create(
+        name="Tax_Return.pdf",
+        description="Audited annual statements for Q3",
+        organization=organization,
+        created_by=user,
+        folder=root_folder,
+    )
+    Document.objects.create(
+        name="Internal_Memo.pdf",
+        description="General office policy updates",
+        organization=organization,
+        created_by=user,
+        folder=root_folder,
+    )
+
+    response = api_client.get('/api/v1/documents/?search=AUDITED')
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 1
+    assert response.data[0]['id'] == str(doc1.id)
+    assert response.data[0]['name'] == "Tax_Return.pdf"
+
+
+@pytest.mark.django_db
+def test_list_documents_global_search_across_subfolders(api_client, user, organization):
+    """Test searching without a folder param searches across all folders in user's library."""
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+    f1 = Folder.objects.create(name="Folder 1", organization=organization, created_by=user, parent=root_folder)
+    f2 = Folder.objects.create(name="Folder 2", organization=organization, created_by=user, parent=f1)
+
+    doc_root = Document.objects.create(
+        name="Summary_Root.pdf", organization=organization, created_by=user, folder=root_folder
+    )
+    doc_f1 = Document.objects.create(
+        name="Summary_F1.pdf", organization=organization, created_by=user, folder=f1
+    )
+    doc_f2 = Document.objects.create(
+        name="Summary_F2.pdf", organization=organization, created_by=user, folder=f2
+    )
+    Document.objects.create(
+        name="Unrelated.pdf", organization=organization, created_by=user, folder=f2
+    )
+
+    response = api_client.get('/api/v1/documents/?search=summary')
+    assert response.status_code == status.HTTP_200_OK
+    returned_ids = {item['id'] for item in response.data}
+    assert returned_ids == {str(doc_root.id), str(doc_f1.id), str(doc_f2.id)}
+
+
+@pytest.mark.django_db
+def test_list_documents_scoped_search_within_folder(api_client, user, organization):
+    """Test searching with both search and folder params scopes results to that folder."""
+    root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+    target_folder = Folder.objects.create(
+        name="Target Folder", organization=organization, created_by=user, parent=root_folder
+    )
+
+    doc_root = Document.objects.create(
+        name="Budget Summary.pdf", organization=organization, created_by=user, folder=root_folder
+    )
+    doc_target = Document.objects.create(
+        name="Department Budget Summary.pdf", organization=organization, created_by=user, folder=target_folder
+    )
+
+    response = api_client.get(f'/api/v1/documents/?folder={target_folder.id}&search=budget')
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 1
+    assert response.data[0]['id'] == str(doc_target.id)
+
+
+@pytest.mark.django_db
+def test_list_documents_search_does_not_leak_other_users(api_client, user, organization):
+    """Test search does not leak documents owned by other users."""
+    from core.models import User
+    other_user = User.objects.create_user(
+        username="other_user", email="other@test.com", password="password123", organization=organization
+    )
+    root_other = Folder.objects.create(name='__root__', organization=organization, created_by=other_user)
+    Document.objects.create(
+        name="Confidential Plan.pdf", organization=organization, created_by=other_user, folder=root_other
+    )
+
+    response = api_client.get('/api/v1/documents/?search=confidential')
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 0
+
+
+@pytest.mark.django_db
 def test_create_document_is_deprecated(api_client, user, organization):
     """Test creating a document via the old endpoint is disallowed or handled."""
     # This endpoint is effectively deprecated by the async upload view.

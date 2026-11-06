@@ -327,6 +327,8 @@
     "noDocuments": "暂无文档",
     "emptyStateNotice": "将文件或文件夹拖放到此处，或使用上传按钮开始。",
     "noStarredDocuments": "未找到已加星标的文档。",
+    "noSearchResults": "未找到匹配 \"{{query}}\" 的文档",
+    "noSearchResultsDescription": "请检查拼写或尝试使用其他关键词搜索。",
     "versions": "版本历史",
     "download": "下载",
     "allDocuments": "所有文档",

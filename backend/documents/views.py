@@ -967,20 +967,29 @@ class DocumentViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         """
         Returns a list of documents for the currently authenticated user,
-        optionally filtered by a parent folder.
+        optionally filtered by a parent folder or search query.
         """
         queryset = self.get_queryset()
         organization = self.request.user.organization
         folder_id = self.request.query_params.get('folder')
+        search_query = self.request.query_params.get('search', '').strip()
 
-        if folder_id:
-            # Ensure the requested folder belongs to the user's org for security
-            target_folder = get_object_or_404(Folder.objects.active(), id=folder_id, organization=organization)
+        if search_query:
+            queryset = queryset.filter(
+                Q(name__icontains=search_query) | Q(description__icontains=search_query)
+            )
+            if folder_id:
+                target_folder = get_object_or_404(Folder.objects.active(), id=folder_id, organization=organization)
+                queryset = queryset.filter(folder=target_folder)
         else:
-            # Default to listing documents in the root folder
-            target_folder = get_object_or_404(Folder.objects.active(), organization=organization, name='__root__', parent=None)
+            if folder_id:
+                # Ensure the requested folder belongs to the user's org for security
+                target_folder = get_object_or_404(Folder.objects.active(), id=folder_id, organization=organization)
+            else:
+                # Default to listing documents in the root folder
+                target_folder = get_object_or_404(Folder.objects.active(), organization=organization, name='__root__', parent=None)
 
-        queryset = queryset.filter(folder=target_folder)
+            queryset = queryset.filter(folder=target_folder)
 
         page = self.paginate_queryset(queryset)
         if page is not None:
