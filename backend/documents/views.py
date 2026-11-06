@@ -67,6 +67,78 @@ from sharelinks.services import get_pages_map_for_sessions
 logger = logging.getLogger(__name__)
 
 
+def get_document_queryset_for_user(user):
+    """
+    Returns a queryset of active documents accessible to the given user.
+    - An Org Admin has overarching supervisor access to all documents in their organization.
+    - A standard user has access to:
+      1) Documents they created within their organization.
+      2) Documents included in any active Dataroom where they are an Owner or Collaborator.
+    """
+    base_qs = Document.objects.active().filter(organization=user.organization)
+    if getattr(user, 'role', '') == 'admin':
+        return base_qs
+
+    return base_qs.filter(
+        Q(created_by=user) |
+        Q(dataroomdocument__dataroom__organization=user.organization, dataroomdocument__dataroom__collaborators__user=user) |
+        Q(dataroomdocument__dataroom__organization=user.organization, dataroomdocument__dataroom__created_by=user)
+    ).distinct()
+
+
+def _get_accessible_list_folder(organization, user, folder_id) -> Folder:
+    """
+    Resolves a target folder for document/folder listing and search.
+    Permits personal folders owned by `user` or the organization's root folder,
+    while rejecting other users' folders and system Vault folders with 404.
+    """
+    return get_object_or_404(
+        Folder.objects.active().filter(
+            Q(folder_type=Folder.FOLDER_TYPE_PERSONAL, created_by=user)
+            | Q(folder_type=Folder.FOLDER_TYPE_ROOT, name='__root__', parent=None),
+            organization=organization,
+        ),
+        id=folder_id,
+    )
+
+
+def _build_user_folder_parent_map(organization, user) -> dict[str, dict]:
+    """Loads all active folders created by `user` in `organization` for in-memory tree walks."""
+    return {
+        str(row['id']): {
+            'id': row['id'],
+            'name': row['name'],
+            'parent_id': row['parent_id'],
+        }
+        for row in Folder.objects.active().filter(
+            organization=organization,
+            created_by=user,
+        ).values('id', 'name', 'parent_id')
+    }
+
+
+def _collect_subtree_folder_ids(target_folder: Folder, folder_parent_map: dict[str, dict]) -> list[str]:
+    """Returns `target_folder.id` and all active descendant folder IDs via BFS on `folder_parent_map`."""
+    children_by_parent: dict[str, list[str]] = {}
+    for node_id, node in folder_parent_map.items():
+        parent_id = node.get('parent_id')
+        if parent_id is not None:
+            children_by_parent.setdefault(str(parent_id), []).append(node_id)
+
+    root_id = str(target_folder.id)
+    visited = {root_id}
+    queue = [root_id]
+    idx = 0
+    while idx < len(queue):
+        current_id = queue[idx]
+        idx += 1
+        for child_id in children_by_parent.get(current_id, ()):
+            if child_id not in visited:
+                visited.add(child_id)
+                queue.append(child_id)
+    return queue
+
+
 def _get_folder_from_path(requesting_user, folder_path: str) -> Folder | None:
     """
     Finds a folder based on a path string for a specific user, starting from
@@ -877,6 +949,35 @@ class FolderViewSet(viewsets.ModelViewSet):
             created_by=self.request.user
         )
 
+    @action(detail=False, methods=['get'], url_path='search')
+    def search(self, request):
+        """
+        Searches personal folders by name for the authenticated user,
+        optionally scoped to a parent folder.
+        """
+        search_query = (request.query_params.get('search') or '').strip()[:200]
+        if not search_query:
+            return Response([])
+
+        organization = request.user.organization
+        folder_id = request.query_params.get('folder')
+        queryset = self.get_queryset().filter(
+            folder_type=Folder.FOLDER_TYPE_PERSONAL,
+            name__icontains=search_query,
+        ).select_related('created_by', 'parent')
+
+        folder_parent_map = _build_user_folder_parent_map(organization, request.user)
+        if folder_id:
+            target_folder = _get_accessible_list_folder(organization, request.user, folder_id)
+            subtree_ids = _collect_subtree_folder_ids(target_folder, folder_parent_map)
+            queryset = queryset.filter(parent_id__in=subtree_ids)
+        serializer = self.get_serializer(
+            queryset.order_by('name', 'id')[:100],
+            many=True,
+            context={**self.get_serializer_context(), 'folder_parent_map': folder_parent_map},
+        )
+        return Response(serializer.data)
+
     def perform_create(self, serializer):
         parent = serializer.validated_data.get('parent')
         if parent and (parent.created_by != self.request.user or parent.deleted_at is not None):
@@ -938,6 +1039,8 @@ class DocumentViewSet(viewsets.ModelViewSet):
             return self.queryset.filter(
                 organization=self.request.user.organization,
                 created_by=self.request.user
+            ).exclude(
+                folder__folder_type=Folder.FOLDER_TYPE_VAULT
             ).select_related('folder').annotate(
                 share_link_view_count=Count('share_links__view_sessions', distinct=True)
             ).prefetch_related(
@@ -959,27 +1062,52 @@ class DocumentViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         """
         Returns a list of documents for the currently authenticated user,
-        optionally filtered by a parent folder.
+        optionally filtered by a parent folder or search query.
         """
         queryset = self.get_queryset()
         organization = self.request.user.organization
         folder_id = self.request.query_params.get('folder')
+        search_query = self.request.query_params.get('search', '').strip()[:200]
+        serializer_context = self.get_serializer_context()
 
-        if folder_id:
-            # Ensure the requested folder belongs to the user's org for security
-            target_folder = get_object_or_404(Folder.objects.active(), id=folder_id, organization=organization)
+        if search_query:
+            queryset = queryset.filter(
+                Q(name__icontains=search_query) | Q(description__icontains=search_query)
+            )
+            folder_parent_map = _build_user_folder_parent_map(organization, request.user)
+            if folder_id:
+                target_folder = _get_accessible_list_folder(organization, request.user, folder_id)
+                subtree_ids = _collect_subtree_folder_ids(target_folder, folder_parent_map)
+                queryset = queryset.filter(folder_id__in=subtree_ids)
+            serializer_context['folder_parent_map'] = folder_parent_map
         else:
-            # Default to listing documents in the root folder
-            target_folder = get_object_or_404(Folder.objects.active(), organization=organization, name='__root__', parent=None)
+            if folder_id:
+                # Ensure the requested folder is the org root or belongs to the user
+                target_folder = _get_accessible_list_folder(organization, request.user, folder_id)
+            else:
+                # Default to listing documents in the root folder
+                target_folder = get_object_or_404(Folder.objects.active(), organization=organization, name='__root__', parent=None)
 
-        queryset = queryset.filter(folder=target_folder)
+            queryset = queryset.filter(folder=target_folder)
+
+        queryset = queryset.order_by('-created_at', '-id')
+
+        if 'page' in request.query_params or 'page_size' in request.query_params:
+            paginator = StandardResultsSetPagination()
+            page = paginator.paginate_queryset(queryset, request, view=self)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True, context=serializer_context)
+                return paginator.get_paginated_response(serializer.data)
 
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = self.get_serializer(page, many=True)
+            serializer = self.get_serializer(page, many=True, context=serializer_context)
             return self.get_paginated_response(serializer.data)
 
-        serializer = self.get_serializer(queryset, many=True)
+        if search_query:
+            queryset = queryset[:100]
+
+        serializer = self.get_serializer(queryset, many=True, context=serializer_context)
         return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):

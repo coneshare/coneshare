@@ -256,6 +256,10 @@ export const ensureFolderPaths = (paths, parentPath = null) =>
   // `paths` and `parentPath` are root-relative folder paths (no leading '/').
   api.post('/folders/ensure-paths/', { paths, parent_path: parentPath });
 
+export const getDocuments = (params = {}) => api.get('/documents/', { params });
+
+export const searchFolders = (params = {}) => api.get('/folders/search/', { params });
+
 export const deleteDocument = (id) => api.delete(`/documents/${id}/`);
 
 export const copyDocument = (id) => api.post(`/documents/${id}/copy/`);
@@ -615,6 +619,7 @@ export const importCloudVersion = (documentId, { connectionId, fileId, fileName,
 
 // Datarooms
 export const getDatarooms = (params) => api.get('/datarooms/', { params });
+export const searchDataroomContent = (dataroomId, query) => api.get(`/datarooms/${dataroomId}/search/`, { params: { q: query } });
 export const getDataroom = (id, params) => api.get(`/datarooms/${id}/`, { params });
 export const createDataroom = (data) => api.post('/datarooms/', data);
 export const createDataroomFolder = (data) => api.post('/dataroom-folders/', data);

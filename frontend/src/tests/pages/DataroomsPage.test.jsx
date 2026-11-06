@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useSearchParams } from 'react-router-dom';
 import { DataroomsPage } from '../../pages/DataroomsPage';
 import * as api from '../../services/api';
 import '../../i18n';
@@ -57,6 +57,98 @@ describe('DataroomsPage', () => {
         expect(api.getDatarooms).toHaveBeenCalledTimes(1);
         expect(await screen.findByText('Dataroom One')).toBeInTheDocument();
         expect(await screen.findByText('Dataroom Two')).toBeInTheDocument();
+    });
+
+    it('searches datarooms by name', async () => {
+        const user = userEvent.setup();
+        api.getDatarooms.mockImplementation(async (params = {}) => {
+            const query = (params.search || '').toLowerCase();
+            const data = query
+                ? mockDatarooms.filter((room) => room.name.toLowerCase().includes(query))
+                : mockDatarooms;
+            return { data };
+        });
+        renderComponent();
+        expect(await screen.findByText('Dataroom Two')).toBeInTheDocument();
+
+        await user.type(screen.getByRole('textbox', { name: 'Search datarooms' }), 'One');
+
+        await waitFor(() => {
+            expect(api.getDatarooms).toHaveBeenLastCalledWith({ search: 'One' });
+        });
+        expect(screen.getByText('Dataroom One')).toBeInTheDocument();
+        expect(screen.queryByText('Dataroom Two')).not.toBeInTheDocument();
+    });
+
+    it('ignores stale getDatarooms response when newer search completes first', async () => {
+        const user = userEvent.setup();
+        let resolveSlow;
+        const slowPromise = new Promise((resolve) => {
+            resolveSlow = resolve;
+        });
+
+        api.getDatarooms.mockImplementation((params = {}) => {
+            if (params.search === 'One') return slowPromise;
+            if (params.search === 'Two') {
+                return Promise.resolve({ data: [mockDatarooms[1]] });
+            }
+            return Promise.resolve({ data: mockDatarooms });
+        });
+
+        renderComponent();
+        expect(await screen.findByText('Dataroom One')).toBeInTheDocument();
+
+        const searchInput = screen.getByRole('textbox', { name: 'Search datarooms' });
+        await user.type(searchInput, 'One');
+        await waitFor(() => {
+            expect(api.getDatarooms).toHaveBeenCalledWith({ search: 'One' });
+        });
+
+        await user.clear(searchInput);
+        await user.type(searchInput, 'Two');
+        expect(await screen.findByText('Dataroom Two')).toBeInTheDocument();
+        expect(screen.queryByText('Dataroom One')).not.toBeInTheDocument();
+
+        resolveSlow({ data: [mockDatarooms[0]] });
+
+        await waitFor(() => {
+            expect(screen.getByText('Dataroom Two')).toBeInTheDocument();
+        });
+        expect(screen.queryByText('Dataroom One')).not.toBeInTheDocument();
+    });
+
+    it('syncs external URL search param changes into input without overwriting history', async () => {
+        function UrlHistoryControls() {
+            const [, setSearchParams] = useSearchParams();
+            return (
+                <button type="button" onClick={() => setSearchParams({ search: 'One' })}>
+                    Simulate Back Navigation
+                </button>
+            );
+        }
+
+        render(
+            <MemoryRouter initialEntries={['/datarooms']}>
+                <UrlHistoryControls />
+                <Routes>
+                    <Route path="/datarooms" element={<DataroomsPage />} />
+                </Routes>
+            </MemoryRouter>
+        );
+        expect(await screen.findByText('Dataroom One')).toBeInTheDocument();
+
+        const user = userEvent.setup();
+        await user.click(screen.getByRole('button', { name: 'Simulate Back Navigation' }));
+
+        const searchInput = screen.getByRole('textbox', { name: 'Search datarooms' });
+        expect(searchInput).toHaveValue('One');
+
+        await waitFor(() => {
+            expect(api.getDatarooms).toHaveBeenLastCalledWith({ search: 'One' });
+        });
+        // Wait past debounce window to ensure debounced effect does not overwrite back to empty
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        expect(searchInput).toHaveValue('One');
     });
 
     it('should render Owner badge for owned datarooms and Collaborator badge for shared datarooms', async () => {

@@ -129,20 +129,27 @@ export function DraggableItem({
           {itemIndex}
         </div>
       )}
-      <div className="flex w-[34%] items-center gap-2 truncate">
+      <div className="flex w-[34%] min-w-0 items-center gap-2 overflow-hidden">
         <FileTypeIcon
           type={type === "folder" ? "folder" : item.document_type || "document"}
           className="h-5 w-5 shrink-0"
           palette={themed ? "dataroom" : "default"}
         />
-        <button
-          type="button"
-          className="truncate font-medium text-left hover:underline"
-          style={themed ? { color: "var(--dataroom-primary)" } : undefined}
-          onClick={handleNameClick}
-        >
-          {item.name}
-        </button>
+        <div className="min-w-0">
+          <button
+            type="button"
+            className="block max-w-full truncate font-medium text-left hover:underline"
+            style={themed ? { color: "var(--dataroom-primary)" } : undefined}
+            onClick={handleNameClick}
+          >
+            {item.name}
+          </button>
+          {item.location ? (
+            <p className="truncate text-xs text-muted-foreground" title={item.location}>
+              {item.location}
+            </p>
+          ) : null}
+        </div>
         {showActions && !isReadOnly && (
           <button
             data-star-button
