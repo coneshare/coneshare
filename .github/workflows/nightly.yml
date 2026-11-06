@@ -27,6 +27,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Ensure docker-compose CLI compatibility
+        run: |
+          if ! command -v docker-compose &> /dev/null; then
+            echo "Creating docker-compose wrapper for docker compose v2..."
+            sudo bash -c 'printf "#!/usr/bin/env bash\nexec docker compose \"\$@\"\n" > /usr/local/bin/docker-compose'
+            sudo chmod +x /usr/local/bin/docker-compose
+          fi
+          docker compose version
+          docker-compose version
+
       - name: Setup environment file (.env)
         run: |
           cp .env.template .env
