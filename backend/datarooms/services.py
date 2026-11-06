@@ -18,10 +18,22 @@ from .utils import get_dataroom_storage_folder_name
 logger = logging.getLogger(__name__)
 
 
-def touch_dataroom_folder_ancestors(folder: DataroomFolder | None):
+def touch_dataroom(dataroom_or_id: Dataroom | str | None, now=None):
     """
-    Updates the modification timestamp (updated_at) for the given DataroomFolder
-    and all its ancestor folders up to the root in a single batch UPDATE query.
+    Updates the modification timestamp (updated_at) for the given Dataroom.
+    Uses a direct update query to avoid signal cascades or overhead.
+    """
+    if not dataroom_or_id:
+        return
+    now = now or timezone.now()
+    dataroom_id = getattr(dataroom_or_id, 'id', dataroom_or_id)
+    Dataroom.objects.filter(id=dataroom_id).update(updated_at=now)
+
+
+def touch_dataroom_folder_ancestors(folder: DataroomFolder | None, touch_room: bool = True):
+    """
+    Updates the modification timestamp (updated_at) for the given DataroomFolder,
+    all its ancestor folders up to the root, and the parent Dataroom in a single batch UPDATE query.
     """
     if not folder:
         return
@@ -29,12 +41,17 @@ def touch_dataroom_folder_ancestors(folder: DataroomFolder | None):
     ancestor_ids = []
     visited = set()
     current = folder
+    dataroom_id = getattr(folder, 'dataroom_id', None)
     while current and current.id not in visited:
         visited.add(current.id)
         ancestor_ids.append(current.id)
+        if not dataroom_id and hasattr(current, 'dataroom_id'):
+            dataroom_id = current.dataroom_id
         current = current.parent
     if ancestor_ids:
         DataroomFolder.objects.filter(id__in=ancestor_ids).update(updated_at=now)
+    if touch_room and dataroom_id:
+        touch_dataroom(dataroom_id, now=now)
 
 
 def get_or_create_dataroom_storage_folder(dataroom: Dataroom, requesting_user=None, relative_path=None) -> Folder:
@@ -401,7 +418,8 @@ def remove_dataroom_content(dataroom: Dataroom, dataroom_doc_ids: list = None, d
         if dataroom_folder_ids:
             DataroomFolder.objects.filter(id__in=dataroom_folder_ids, dataroom=dataroom).delete()
         for parent_folder in parent_folders_to_touch:
-            touch_dataroom_folder_ancestors(parent_folder)
+            touch_dataroom_folder_ancestors(parent_folder, touch_room=False)
+        touch_dataroom(dataroom)
 
     # Delete backing documents and storage files for direct uploads with no other references (non-blocking)
     is_vault = (dataroom.storage_version >= 2)

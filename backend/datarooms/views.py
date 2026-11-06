@@ -41,6 +41,7 @@ from .models import (
 from .services import (
     delete_dataroom,
     remove_dataroom_content,
+    touch_dataroom,
     touch_dataroom_folder_ancestors,
     get_or_create_dataroom_storage_folder,
     upgrade_dataroom_to_v2,
@@ -289,6 +290,8 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
                 if destination_folder:
                     touch_dataroom_folder_ancestors(destination_folder)
+                else:
+                    touch_dataroom(dataroom)
 
             return Response({"detail": "Content added successfully."}, status=status.HTTP_200_OK)
         except PermissionDenied as e:
@@ -391,6 +394,10 @@ class DataroomViewSet(viewsets.ModelViewSet):
                         )
                     )
             DataroomItemOrder.objects.bulk_create(orders_to_create)
+            if parent:
+                touch_dataroom_folder_ancestors(parent)
+            else:
+                touch_dataroom(locked_dataroom)
 
         return Response({"detail": "Items reordered successfully."}, status=status.HTTP_200_OK)
 
@@ -444,9 +451,10 @@ class DataroomViewSet(viewsets.ModelViewSet):
                         folder.save()
 
                 for src_folder in source_folders:
-                    touch_dataroom_folder_ancestors(src_folder)
+                    touch_dataroom_folder_ancestors(src_folder, touch_room=False)
                 if destination_folder and (docs_changed_parent or folders_changed_parent):
-                    touch_dataroom_folder_ancestors(destination_folder)
+                    touch_dataroom_folder_ancestors(destination_folder, touch_room=False)
+                touch_dataroom(dataroom)
 
                 # Clear old order rows for items that actually changed parent folders
                 if folders_changed_parent:
@@ -620,8 +628,11 @@ class DataroomViewSet(viewsets.ModelViewSet):
                             folder=folder,
                         )
 
-                if any_created and parent_folder:
-                    touch_dataroom_folder_ancestors(parent_folder)
+                if any_created:
+                    if parent_folder:
+                        touch_dataroom_folder_ancestors(parent_folder)
+                    else:
+                        touch_dataroom(dataroom)
 
             return Response(
                 {
@@ -835,6 +846,8 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
                 if destination_folder:
                     touch_dataroom_folder_ancestors(destination_folder)
+                else:
+                    touch_dataroom(dataroom)
         except serializers.ValidationError as e:
             return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
@@ -1248,9 +1261,10 @@ class DataroomDocumentViewSet(mixins.RetrieveModelMixin,
 
         saved_doc = serializer.save()
         if saved_doc.folder:
-            touch_dataroom_folder_ancestors(saved_doc.folder)
+            touch_dataroom_folder_ancestors(saved_doc.folder, touch_room=False)
         if old_folder and old_folder != saved_doc.folder:
-            touch_dataroom_folder_ancestors(old_folder)
+            touch_dataroom_folder_ancestors(old_folder, touch_room=False)
+        touch_dataroom(saved_doc.dataroom)
 
         if new_name and new_name != old_name:
             sync_dataroom_document_rename(instance, new_name)
@@ -1310,6 +1324,8 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
         saved_folder = serializer.save(created_by=self.request.user)
         if saved_folder.parent:
             touch_dataroom_folder_ancestors(saved_folder.parent)
+        else:
+            touch_dataroom(dataroom)
         if dataroom.show_file_index and self._scope_has_item_order_rows(dataroom, parent):
             self._append_item_order(
                 dataroom=dataroom,
@@ -1356,9 +1372,10 @@ class DataroomFolderViewSet(viewsets.ModelViewSet):
 
         saved_folder = serializer.save()
         if saved_folder.parent:
-            touch_dataroom_folder_ancestors(saved_folder.parent)
+            touch_dataroom_folder_ancestors(saved_folder.parent, touch_room=False)
         if old_parent and old_parent != saved_folder.parent:
-            touch_dataroom_folder_ancestors(old_parent)
+            touch_dataroom_folder_ancestors(old_parent, touch_room=False)
+        touch_dataroom(instance.dataroom)
 
         if new_name and new_name != old_name:
             sync_dataroom_folder_rename(instance, old_name, new_name)

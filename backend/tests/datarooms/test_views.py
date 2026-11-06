@@ -9,7 +9,7 @@ from rest_framework import status
 from rest_framework.exceptions import APIException
 
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
-from datarooms.services import touch_dataroom_folder_ancestors, get_dataroom_storage_used_bytes
+from datarooms.services import touch_dataroom_folder_ancestors, touch_dataroom, get_dataroom_storage_used_bytes
 from datarooms.utils import get_dataroom_storage_folder_name
 from documents.models import Document, Folder
 from documents.services import recalculate_user_document_size, is_dataroom_vault_document
@@ -2276,6 +2276,217 @@ class TestDataroomFolderMtimeUpdates:
 
         dest_folder.refresh_from_db()
         assert dest_folder.updated_at > past_time
+
+    def test_touch_dataroom_directly(self, dataroom):
+        """Test touch_dataroom updates dataroom updated_at timestamp."""
+        past_time = timezone.now() - timedelta(days=3)
+        Dataroom.objects.filter(id=dataroom.id).update(updated_at=past_time)
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at == past_time
+
+        touch_dataroom(dataroom)
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at > past_time
+
+    def test_touch_dataroom_folder_ancestors_touches_dataroom(self, dataroom):
+        """Test touch_dataroom_folder_ancestors bubbles up and updates Dataroom updated_at."""
+        past_time = timezone.now() - timedelta(days=3)
+        Dataroom.objects.filter(id=dataroom.id).update(updated_at=past_time)
+        sub_folder = DataroomFolder.objects.create(name="SubFolder", dataroom=dataroom)
+        DataroomFolder.objects.filter(id=sub_folder.id).update(updated_at=past_time)
+        dataroom.refresh_from_db()
+        sub_folder.refresh_from_db()
+        assert dataroom.updated_at == past_time
+        assert sub_folder.updated_at == past_time
+
+        touch_dataroom_folder_ancestors(sub_folder)
+        dataroom.refresh_from_db()
+        sub_folder.refresh_from_db()
+        assert sub_folder.updated_at > past_time
+        assert dataroom.updated_at > past_time
+
+    def test_create_root_folder_touches_dataroom(self, api_client, dataroom):
+        """Test creating a root folder in dataroom touches Dataroom updated_at."""
+        api_client.force_authenticate(user=dataroom.created_by)
+        past_time = timezone.now() - timedelta(days=3)
+        Dataroom.objects.filter(id=dataroom.id).update(updated_at=past_time)
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at == past_time
+
+        res = api_client.post('/api/v1/dataroom-folders/', {
+            'name': 'Root Folder',
+            'dataroom': dataroom.id
+        }, format='json')
+        assert res.status_code == status.HTTP_201_CREATED
+
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at > past_time
+
+    def test_upload_finalize_root_touches_dataroom(self, api_client, dataroom):
+        """Test finalizing an upload in dataroom root touches Dataroom updated_at."""
+        api_client.force_authenticate(user=dataroom.created_by)
+        past_time = timezone.now() - timedelta(days=3)
+        Dataroom.objects.filter(id=dataroom.id).update(updated_at=past_time)
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at == past_time
+
+        url_finalize = f'/api/v1/datarooms/{dataroom.id}/uploads/finalize/'
+        res = api_client.post(url_finalize, {
+            'storage_key': f'{dataroom.organization.id}/uploads/root_file.pdf',
+            'unique_name': 'root_file.pdf',
+            'file_size': 100,
+            'content_type': 'application/pdf',
+        }, format='json')
+        assert res.status_code == status.HTTP_202_ACCEPTED
+
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at > past_time
+
+    def test_add_content_root_touches_dataroom(self, api_client, dataroom, document):
+        """Test adding workspace content to dataroom root touches Dataroom updated_at."""
+        api_client.force_authenticate(user=dataroom.created_by)
+        past_time = timezone.now() - timedelta(days=3)
+        Dataroom.objects.filter(id=dataroom.id).update(updated_at=past_time)
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at == past_time
+
+        res = api_client.post(f'/api/v1/datarooms/{dataroom.id}/add-content/', {
+            'document_ids': [str(document.id)],
+        }, format='json')
+        assert res.status_code == status.HTTP_200_OK
+
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at > past_time
+
+    def test_remove_root_content_touches_dataroom(self, api_client, dataroom, document):
+        """Test removing content from dataroom root touches Dataroom updated_at."""
+        api_client.force_authenticate(user=dataroom.created_by)
+        ddoc = DataroomDocument.objects.create(name="root_doc.pdf", dataroom=dataroom, folder=None, document=document)
+        past_time = timezone.now() - timedelta(days=3)
+        Dataroom.objects.filter(id=dataroom.id).update(updated_at=past_time)
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at == past_time
+
+        res = api_client.post(f'/api/v1/datarooms/{dataroom.id}/remove-content/', {
+            'dataroom_document_ids': [ddoc.id],
+            'dataroom_folder_ids': [],
+        }, format='json')
+        assert res.status_code == status.HTTP_204_NO_CONTENT
+
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at > past_time
+
+    def test_reorder_items_root_touches_dataroom(self, api_client, dataroom, document):
+        """Test reordering items at root touches Dataroom updated_at."""
+        api_client.force_authenticate(user=dataroom.created_by)
+        ddoc1 = DataroomDocument.objects.create(name="doc1.pdf", dataroom=dataroom, folder=None, document=document)
+        f1 = DataroomFolder.objects.create(name="folder1", dataroom=dataroom, parent=None)
+        DataroomItemOrder.objects.create(dataroom=dataroom, parent_folder=None, item_type="document", dataroom_document=ddoc1, position=0)
+        DataroomItemOrder.objects.create(dataroom=dataroom, parent_folder=None, item_type="folder", folder=f1, position=1)
+
+        past_time = timezone.now() - timedelta(days=3)
+        Dataroom.objects.filter(id=dataroom.id).update(updated_at=past_time)
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at == past_time
+
+        res = api_client.post(f'/api/v1/datarooms/{dataroom.id}/reorder-items/', {
+            'parent_id': None,
+            'ordered_items': [
+                {'id': f1.id, 'type': 'folder'},
+                {'id': ddoc1.id, 'type': 'document'},
+            ]
+        }, format='json')
+        assert res.status_code == status.HTTP_200_OK
+
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at > past_time
+
+    def test_rename_dataroom_document_touches_dataroom(self, api_client, dataroom, document):
+        """Test renaming a DataroomDocument touches Dataroom updated_at."""
+        api_client.force_authenticate(user=dataroom.created_by)
+        ddoc = DataroomDocument.objects.create(name="old_name.pdf", dataroom=dataroom, folder=None, document=document)
+        past_time = timezone.now() - timedelta(days=3)
+        Dataroom.objects.filter(id=dataroom.id).update(updated_at=past_time)
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at == past_time
+
+        res = api_client.patch(f'/api/v1/dataroom-documents/{ddoc.id}/', {
+            'name': 'new_name.pdf',
+        }, format='json')
+        assert res.status_code == status.HTTP_200_OK
+
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at > past_time
+
+    def test_move_items_touches_dataroom(self, api_client, dataroom, document):
+        """Test moving items inside a dataroom touches Dataroom updated_at."""
+        api_client.force_authenticate(user=dataroom.created_by)
+        source_folder = DataroomFolder.objects.create(name="Src Folder", dataroom=dataroom)
+        dest_folder = DataroomFolder.objects.create(name="Dst Folder", dataroom=dataroom)
+        ddoc = DataroomDocument.objects.create(name="doc.pdf", dataroom=dataroom, folder=source_folder, document=document)
+
+        past_time = timezone.now() - timedelta(days=3)
+        Dataroom.objects.filter(id=dataroom.id).update(updated_at=past_time)
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at == past_time
+
+        res = api_client.post(f'/api/v1/datarooms/{dataroom.id}/move-content/', {
+            'dataroom_document_ids': [ddoc.id],
+            'dataroom_folder_ids': [],
+            'destination_folder_id': dest_folder.id
+        }, format='json')
+        assert res.status_code == status.HTTP_200_OK
+
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at > past_time
+
+    def test_rename_dataroom_folder_touches_dataroom(self, api_client, dataroom):
+        """Test renaming a DataroomFolder touches Dataroom updated_at."""
+        api_client.force_authenticate(user=dataroom.created_by)
+        folder = DataroomFolder.objects.create(name="Original Name", dataroom=dataroom)
+        past_time = timezone.now() - timedelta(days=3)
+        Dataroom.objects.filter(id=dataroom.id).update(updated_at=past_time)
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at == past_time
+
+        res = api_client.patch(f'/api/v1/dataroom-folders/{folder.id}/', {
+            'name': 'Renamed Folder',
+        }, format='json')
+        assert res.status_code == status.HTTP_200_OK
+
+        dataroom.refresh_from_db()
+        assert dataroom.updated_at > past_time
+
+    def test_reorder_items_nested_folder_touches_dataroom_and_parent_folder(self, api_client, dataroom, document):
+        """Test reordering items within a nested folder touches both the parent folder and Dataroom updated_at."""
+        api_client.force_authenticate(user=dataroom.created_by)
+        parent_folder = DataroomFolder.objects.create(name="Nested Scope", dataroom=dataroom)
+        ddoc1 = DataroomDocument.objects.create(name="doc1.pdf", dataroom=dataroom, folder=parent_folder, document=document)
+        f1 = DataroomFolder.objects.create(name="child1", dataroom=dataroom, parent=parent_folder)
+        DataroomItemOrder.objects.create(dataroom=dataroom, parent_folder=parent_folder, item_type="document", dataroom_document=ddoc1, position=0)
+        DataroomItemOrder.objects.create(dataroom=dataroom, parent_folder=parent_folder, item_type="folder", folder=f1, position=1)
+
+        past_time = timezone.now() - timedelta(days=3)
+        Dataroom.objects.filter(id=dataroom.id).update(updated_at=past_time)
+        DataroomFolder.objects.filter(id=parent_folder.id).update(updated_at=past_time)
+        dataroom.refresh_from_db()
+        parent_folder.refresh_from_db()
+        assert dataroom.updated_at == past_time
+        assert parent_folder.updated_at == past_time
+
+        res = api_client.post(f'/api/v1/datarooms/{dataroom.id}/reorder-items/', {
+            'parent_id': parent_folder.id,
+            'ordered_items': [
+                {'id': f1.id, 'type': 'folder'},
+                {'id': ddoc1.id, 'type': 'document'},
+            ]
+        }, format='json')
+        assert res.status_code == status.HTTP_200_OK
+
+        dataroom.refresh_from_db()
+        parent_folder.refresh_from_db()
+        assert parent_folder.updated_at > past_time
+        assert dataroom.updated_at > past_time
 
     def test_dataroom_storage_quota_settings_and_enforcement(self, api_client, dataroom, user, user2):
         """Test setting storage quota and enforcing it on uploads."""
