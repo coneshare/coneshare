@@ -1,21 +1,21 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useDebounce } from '../hooks/useDebounce';
 import { useSortedList } from '../hooks/useSortedList';
 import { useItemSelection } from '../hooks/useItemSelection';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Star, Cloud } from 'lucide-react';
+import { Star, Cloud, Search } from 'lucide-react';
 import { DocumentsList } from "../components/documents/DocumentsList";
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { Button } from '../components/ui/Button';
 import { Separator } from '../components/ui/Separator';
 import { SearchBox } from '../components/SearchBox';
-import { SortButton } from '../components/documents/filters/SortButton';
 import { Toaster, toast } from 'sonner';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
-import { uploadDocument, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl, getDocumentDownloadUrl, copyDocument } from '../services/api';
+import { uploadDocument, getDocuments, searchFolders, getFolderContents, getRootFolderContents, createFolder, ensureFolderPaths, deleteMultipleDocuments, deleteMultipleFolders, updateDocument, updateFolder, moveItems, getCloudProviders, getCloudConnections, getDropboxConnectUrl, getGoogleDriveConnectUrl, getNextcloudConnectUrl, getDocumentDownloadUrl, copyDocument } from '../services/api';
 import { useUser } from '../contexts/UserProvider';
 import { useUpload } from '../contexts/UploadProvider';
 import { SelectionActionBar } from '../components/documents/SelectionActionBar';
@@ -27,6 +27,26 @@ import { FileRequestSheet } from '../components/filerequests/FileRequestSheet';
 import { TooltipProvider } from '../components/ui/Tooltip';
 
 const ALLOWED_SORT_KEYS = ['name', 'owner', 'updated_at', 'file_size', 'view_count'];
+
+function getFolderSearchLocation(folderItem) {
+  if (folderItem?.location) return folderItem.location;
+  if (Array.isArray(folderItem?.ancestors) && folderItem.ancestors.length > 0) {
+    return folderItem.ancestors.map((a) => a.name).filter(Boolean).join(' / ');
+  }
+  return '';
+}
+
+function getDocumentSearchLocation(docItem) {
+  if (docItem?.location) return docItem.location;
+  const folder = docItem?.folder;
+  if (folder && typeof folder === 'object' && folder.name && folder.name !== '__root__') {
+    const ancestorNames = Array.isArray(folder.ancestors)
+      ? folder.ancestors.map((a) => a.name).filter(Boolean)
+      : [];
+    return [...ancestorNames, folder.name].join(' / ');
+  }
+  return '';
+}
 
 function DocumentsPage() {
   const { t } = useTranslation();
@@ -47,20 +67,36 @@ function DocumentsPage() {
   const [isFileRequestSheetOpen, setIsFileRequestSheetOpen] = useState(false);
   const [selectedFolderForRequest, setSelectedFolderForRequest] = useState(null);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const { user, refreshUser } = useUser();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
+  const prevFolderIdRef = useRef(folderId);
+  const currentFolderRef = useRef(null);
+  currentFolderRef.current = currentFolder;
+
+  const isFolderChanging = prevFolderIdRef.current !== folderId;
+  const effectiveSearch = (!isFolderChanging && searchQuery.trim())
+    ? debouncedSearch.trim()
+    : '';
+  const isSearchActive = Boolean(effectiveSearch);
 
   const combinedItems = useMemo(() => {
     let combined = [
-      ...folders.map((f) => ({ ...f, type: "folder" })),
+      ...folders.map((f) => ({
+        ...f,
+        type: "folder",
+        location: isSearchActive ? getFolderSearchLocation(f) : f.location,
+      })),
       // Preserve original file type for icon rendering while normalizing row type.
       ...documents.map((d) => ({
         ...d,
         type: "document",
         document_type: d.type,
         view_count: d.share_link_view_count ?? 0,
+        location: isSearchActive ? getDocumentSearchLocation(d) : d.location,
       })),
     ];
 
@@ -68,7 +104,7 @@ function DocumentsPage() {
       combined = combined.filter((item) => item.is_starred);
     }
     return combined;
-  }, [folders, documents, showStarredOnly]);
+  }, [folders, documents, showStarredOnly, isSearchActive]);
 
   const { sortedItems: allItems, sortConfig, handleSort } = useSortedList(
     combinedItems,
@@ -115,26 +151,70 @@ function DocumentsPage() {
   const fetchData = useCallback(async () => {
     const seq = ++fetchSeqRef.current;
     const targetFolderId = folderId;
+    const trimmedQuery = effectiveSearch;
     setLoading(true);
-    // Reset state before fetching
-    setCurrentFolder(null);
+    // Reset state before fetching; preserve currentFolder when searching inside the active subfolder
+    if (!targetFolderId || !trimmedQuery) {
+      setCurrentFolder(null);
+    } else if (!currentFolderRef.current || String(currentFolderRef.current.id) !== String(targetFolderId)) {
+      setCurrentFolder(null);
+    }
     setDocuments([]);
     setFolders([]);
 
     try {
-      const response = targetFolderId
-        ? await getFolderContents(targetFolderId)
-        : await getRootFolderContents();
+      if (trimmedQuery) {
+        const params = { search: trimmedQuery };
+        if (targetFolderId) {
+          params.folder = targetFolderId;
+        }
+        const needFolderInfo = Boolean(
+          targetFolderId &&
+          (!currentFolderRef.current || String(currentFolderRef.current.id) !== String(targetFolderId))
+        );
+        const [response, foldersResponse, folderInfoResponse] = await Promise.all([
+          getDocuments(params),
+          typeof searchFolders === 'function'
+            ? Promise.resolve(searchFolders(params)).catch(() => null)
+            : Promise.resolve(null),
+          needFolderInfo
+            ? Promise.resolve(getFolderContents(targetFolderId)).catch(() => null)
+            : Promise.resolve(null),
+        ]);
 
-      if (seq !== fetchSeqRef.current || targetFolderId !== activeFolderIdRef.current) {
-        return; // Discard stale response
+        if (seq !== fetchSeqRef.current || targetFolderId !== activeFolderIdRef.current) {
+          return; // Discard stale response
+        }
+
+        const docs = Array.isArray(response?.data) ? response.data : (response?.data?.results || []);
+        const matchedFolders = Array.isArray(foldersResponse?.data)
+          ? foldersResponse.data
+          : (foldersResponse?.data?.results || []);
+        setFolders(matchedFolders);
+        setDocuments(docs);
+        if (!targetFolderId) {
+          setBreadcrumbData(null);
+        } else if (folderInfoResponse?.data?.current_folder) {
+          setCurrentFolder(folderInfoResponse.data.current_folder);
+          setBreadcrumbData(folderInfoResponse.data.current_folder);
+        } else if (currentFolderRef.current && String(currentFolderRef.current.id) === String(targetFolderId)) {
+          setBreadcrumbData(currentFolderRef.current);
+        }
+      } else {
+        const response = targetFolderId
+          ? await getFolderContents(targetFolderId)
+          : await getRootFolderContents();
+
+        if (seq !== fetchSeqRef.current || targetFolderId !== activeFolderIdRef.current) {
+          return; // Discard stale response
+        }
+
+        const { current_folder, sub_folders, documents } = response.data;
+        setCurrentFolder(current_folder);
+        setFolders(sub_folders);
+        setDocuments(documents);
+        setBreadcrumbData(current_folder);
       }
-
-      const { current_folder, sub_folders, documents } = response.data;
-      setCurrentFolder(current_folder);
-      setFolders(sub_folders);
-      setDocuments(documents);
-      setBreadcrumbData(current_folder);
     } catch (error) {
       if (seq !== fetchSeqRef.current || targetFolderId !== activeFolderIdRef.current) {
         return;
@@ -146,7 +226,7 @@ function DocumentsPage() {
         setLoading(false);
       }
     }
-  }, [folderId, setBreadcrumbData]);
+  }, [folderId, effectiveSearch, setBreadcrumbData]);
 
   const handleCopy = useCallback(async (item) => {
     const toastId = toast.loading(t('documents.copyingItem', { name: item.name }));
@@ -160,6 +240,11 @@ function DocumentsPage() {
       toast.dismiss(toastId);
     }
   }, [fetchData, refreshUser, t]);
+
+  useEffect(() => {
+    prevFolderIdRef.current = folderId;
+    setSearchQuery('');
+  }, [folderId]);
 
   useEffect(() => {
     setSelection({ documents: [], folders: [] });
@@ -557,41 +642,58 @@ function DocumentsPage() {
         </div>
       </section>
 
-      {/* <div className="mb-2 flex justify-end gap-x-2"> */}
-      {/*   <div className="relative w-full sm:max-w-xs"> */}
-      {/*     <SearchBox loading={loading} inputClassName="h-10" /> */}
-      {/*   </div> */}
-      {/*   <SortButton onSort={handleSort} sortConfig={sortConfig} /> */}
-      {/* </div> */}
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          {selection.documents.length > 0 || selection.folders.length > 0 ? (
+            <SelectionActionBar
+              selectedDocumentsCount={selection.documents.length}
+              selectedFoldersCount={selection.folders.length}
+              onClearSelection={handleClearSelection}
+              onDelete={() => setIsBulkDeleteConfirmOpen(true)}
+              onMove={() => setIsMoveItemsOpen(true)}
+            />
+          ) : (
+            <div className="flex min-h-[48px] items-center">
+              <Button
+                variant={showStarredOnly ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setShowStarredOnly(prev => !prev)}
+              >
+                <Star className="mr-2 h-4 w-4" />
+                {t('documents.starred')}
+              </Button>
+            </div>
+          )}
+        </div>
 
-      <div className="mb-4">
-        {selection.documents.length > 0 || selection.folders.length > 0 ? (
-          <SelectionActionBar
-            selectedDocumentsCount={selection.documents.length}
-            selectedFoldersCount={selection.folders.length}
-            onClearSelection={handleClearSelection}
-            onDelete={() => setIsBulkDeleteConfirmOpen(true)}
-            onMove={() => setIsMoveItemsOpen(true)}
+        <div className="relative w-full sm:max-w-xs">
+          <SearchBox
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onClear={() => setSearchQuery('')}
+            loading={loading || (Boolean(searchQuery.trim()) && searchQuery !== debouncedSearch)}
+            inputClassName="h-10"
+            placeholder={t('documents.searchPlaceholder')}
           />
-        ) : (
-          <div className="flex min-h-[48px] items-center">
-            <Button
-              variant={showStarredOnly ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setShowStarredOnly(prev => !prev)}
-            >
-              <Star className="mr-2 h-4 w-4" />
-              {t('documents.starred')}
-            </Button>
-          </div>
-        )}
+        </div>
       </div>
-
-      {/* <Separator className="mb-5 bg-gray-200 dark:bg-gray-800" /> */}
 
       <DocumentsList
         allItems={allItems}
         loading={loading}
+        emptyState={
+          effectiveSearch ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <Search className="h-10 w-10 text-muted-foreground mb-3" />
+              <p className="text-base font-medium text-foreground">
+                {t('documents.noSearchResults', { query: effectiveSearch })}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t('documents.noSearchResultsDescription')}
+              </p>
+            </div>
+          ) : null
+        }
         onDataRefresh={() => {
           fetchData();
           refreshUser();

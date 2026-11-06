@@ -2,17 +2,19 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useSortedList } from '../hooks/useSortedList';
+import { useDebounce } from '../hooks/useDebounce';
 import { useItemSelection } from '../hooks/useItemSelection';
-import { ShareIcon, Star, ArrowLeft, ChevronDown, FolderUp, Plus, Loader2, AlertTriangle, Crown, Users, Sparkles } from 'lucide-react';
+import { ShareIcon, Star, ArrowLeft, ChevronDown, FolderUp, Plus, Loader2, AlertTriangle, Crown, Users, Sparkles, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatBytes } from '../lib/formatters';
 import { isDataroomOwner, isDataroomCollaborator } from '../utils/formatters';
-import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, getDataroomStats, removeContentFromDataroom, updateDataroomFolder, updateDataroomDocument, updateDataroomBranding, reorderDataroomItems, deleteDataroom, ensureDataroomFolderPaths, uploadDataroomDocument, upgradeDataroomStorage, getDataroomBannerImages } from '../services/api';
+import { getDataroom, addContentToDataroom, createDataroomFolder, moveDataroomContent, getDataroomFolderContents, getShareLinksForDataroom, deleteShareLink, getDataroomViewSessions, getDataroomStats, removeContentFromDataroom, updateDataroomFolder, updateDataroomDocument, updateDataroomBranding, reorderDataroomItems, deleteDataroom, ensureDataroomFolderPaths, uploadDataroomDocument, upgradeDataroomStorage, getDataroomBannerImages, searchDataroomContent } from '../services/api';
 import { useBreadcrumb } from '../components/layout/BreadcrumbProvider';
 import { useUpload } from '../contexts/UploadProvider';
 import { useUser } from '../contexts/UserProvider';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Button } from '../components/ui/Button';
+import { SearchBox } from '../components/SearchBox';
 import { DocumentPlusIcon } from '../components/icons/DocumentPlusIcon';
 import { FolderPlusIcon } from '../components/icons/FolderPlusIcon';
 import { AddContentDialog } from '../components/dialogs/AddContentDialog';
@@ -84,6 +86,10 @@ export function DataroomPage() {
   const [currentFolderId, setCurrentFolderId] = useState(() => searchParams.get('folder'));
   const [currentDataroomFolder, setCurrentDataroomFolder] = useState(null);
   const [items, setItems] = useState([]);
+  const [contentSearch, setContentSearch] = useState('');
+  const debouncedContentSearch = useDebounce(contentSearch, 300);
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearchingContent, setIsSearchingContent] = useState(false);
   const [links, setLinks] = useState([]);
   const [isLinkSheetOpen, setIsLinkSheetOpen] = useState(false);
   const [editingLink, setEditingLink] = useState(null);
@@ -251,25 +257,48 @@ export function DataroomPage() {
     e.target.value = null;
   };
     
+  const prevFolderIdRef = useRef(currentFolderId);
+  const isFolderChanging = prevFolderIdRef.current !== currentFolderId;
+  const contentQuery = (!isFolderChanging && contentSearch.trim())
+    ? debouncedContentSearch.trim()
+    : '';
+  const contentQueryRef = useRef(contentQuery);
+  contentQueryRef.current = contentQuery;
+
   const fetchContent = useCallback(async () => {
     setIsLoading(true);
     try {
+      const activeQuery = contentQueryRef.current;
+      const searchPromise = activeQuery && typeof searchDataroomContent === 'function'
+        ? Promise.resolve(searchDataroomContent(dataroomId, activeQuery)).catch(() => null)
+        : Promise.resolve(null);
+
       if (currentFolderId) {
         // When viewing a subfolder, we need to fetch both the main dataroom
         // details (for name, etc.) and the specific folder's content.
-        const [dataroomResponse, folderResponse] = await Promise.all([
+        const [dataroomResponse, folderResponse, searchResponse] = await Promise.all([
           getDataroom(dataroomId),
           getDataroomFolderContents(currentFolderId),
+          searchPromise,
         ]);
         setDataroom(dataroomResponse.data);
         setCurrentDataroomFolder(folderResponse.data);
         setItems(folderResponse.data.items || []);
+        if (activeQuery && searchResponse) {
+          setSearchResults(searchResponse?.data?.items || []);
+        }
       } else {
         // When viewing the dataroom root, we just need the main dataroom data.
-        const response = await getDataroom(dataroomId);
+        const [response, searchResponse] = await Promise.all([
+          getDataroom(dataroomId),
+          searchPromise,
+        ]);
         setDataroom(response.data);
         setCurrentDataroomFolder(null);
         setItems(response.data.items || []);
+        if (activeQuery && searchResponse) {
+          setSearchResults(searchResponse?.data?.items || []);
+        }
       }
     } catch (error) {
       // Error toast is handled by api interceptor, but might want to redirect on 404
@@ -277,6 +306,34 @@ export function DataroomPage() {
       setIsLoading(false);
     }
   }, [dataroomId, currentFolderId]);
+
+  useEffect(() => {
+    prevFolderIdRef.current = currentFolderId;
+    setContentSearch('');
+  }, [currentFolderId]);
+
+  useEffect(() => {
+    if (!contentQuery || !dataroomId) {
+      setSearchResults([]);
+      setIsSearchingContent(false);
+      return undefined;
+    }
+    let cancelled = false;
+    setIsSearchingContent(true);
+    Promise.resolve(searchDataroomContent?.(dataroomId, contentQuery))
+      .then((response) => {
+        if (!cancelled) setSearchResults(response?.data?.items || []);
+      })
+      .catch(() => {
+        if (!cancelled) setSearchResults([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsSearchingContent(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dataroomId, contentQuery]);
     
   const fetchLinks = useCallback(async (_options = {}) => {
     try {
@@ -311,12 +368,13 @@ export function DataroomPage() {
     }
   }, [dataroomId, viewsCurrentPage]);
     
-  const folders = useMemo(() => items.filter((item) => item.type === 'folder'), [items]);
-  const documents = useMemo(() => items.filter((item) => item.type === 'document'), [items]);
+  const listedItems = contentQuery ? searchResults : items;
+  const folders = useMemo(() => listedItems.filter((item) => item.type === 'folder'), [listedItems]);
+  const documents = useMemo(() => listedItems.filter((item) => item.type === 'document'), [listedItems]);
 
   const unsortedItems = useMemo(() => {
     if (!dataroom) return [];
-    const normalized = items.map((item) => ({
+    const normalized = listedItems.map((item) => ({
       ...item,
       id: item.id,
       document_id: item.document_id,
@@ -329,7 +387,7 @@ export function DataroomPage() {
       return normalized.filter((item) => item.is_starred);
     }
     return normalized;
-  }, [dataroom, items, showStarredOnly]);
+  }, [dataroom, listedItems, showStarredOnly]);
 
   const reorderableItems = useMemo(() => {
     return (items || []).map((item) => ({
@@ -389,6 +447,11 @@ export function DataroomPage() {
       setBreadcrumbData(null);
     };
   }, [fetchContent, setBreadcrumbData]);
+
+  useEffect(() => {
+    setSelection({ documents: [], folders: [] });
+    setLastSelectedItem(null);
+  }, [contentQuery, setSelection, setLastSelectedItem]);
 
   const handleBreadcrumbNavigate = useCallback((folderId) => {
     setSearchParams(prev => {
@@ -530,6 +593,7 @@ export function DataroomPage() {
 
   const handleItemClick = (item, type) => {
     if (type === 'folder') {
+      setContentSearch('');
       setSearchParams(prev => {
         prev.set('folder', item.id);
         return prev;
@@ -537,7 +601,7 @@ export function DataroomPage() {
     } else {
       // For documents, we pass along the dataroom context via query params
       // so the document page can render the correct breadcrumbs.
-      const fromFolder = currentFolderId || '';
+      const fromFolder = item.folder || currentFolderId || '';
       navigate(`/documents/${item.document_id}?from_dataroom=${dataroomId}&from_folder=${fromFolder}`);
     }
   };
@@ -662,21 +726,23 @@ export function DataroomPage() {
     }
 
     const newIsStarred = !originalItem.is_starred;
-
-    setItems(prevItems =>
-      prevItems.map(item =>
+    const applyStarState = (prevList) =>
+      prevList.map(item =>
         item.id === id ? { ...item, is_starred: newIsStarred } : item
-      )
-    );
+      );
+
+    setItems(applyStarState);
+    setSearchResults(applyStarState);
 
     try {
       await updateApiCall(id, { is_starred: newIsStarred });
     } catch (error) {
-      setItems(prevItems =>
-        prevItems.map(item =>
+      const revertStarState = (prevList) =>
+        prevList.map(item =>
           item.id === id ? originalItem : item
-        )
-      );
+        );
+      setItems(revertStarState);
+      setSearchResults(revertStarState);
       toast.error(`Failed to update star for "${originalItem.name}".`);
     }
   }, [documents, folders]);
@@ -1129,40 +1195,56 @@ export function DataroomPage() {
                 )}
               </div>
             </div>
-            {selection.documents.length > 0 || selection.folders.length > 0 ? (
-              <SelectionActionBar
-                selectedDocumentsCount={selection.documents.length}
-                selectedFoldersCount={selection.folders.length}
-                onClearSelection={handleClearSelection}
-                onMove={() => setIsMoveItemsOpen(true)}
-                onDelete={handleRemoveContent}
-                deleteText={t('common.remove')}
-              />
-            ) : (
-              <div className="flex min-h-[48px] items-center">
-              <Button
-                variant={showStarredOnly ? "secondary" : "ghost"}
-                  size="sm"
-                  onClick={() => setShowStarredOnly(prev => !prev)}
-                >
-                  <Star className="mr-2 h-4 w-4" />
-                  {t('documents.starred')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="ml-2"
-                  onClick={() => setIsReorderDialogOpen(true)}
-                  disabled={!hasContent}
-                >
-                  {t('datarooms.reorderItems')}
-                </Button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                {selection.documents.length > 0 || selection.folders.length > 0 ? (
+                  <SelectionActionBar
+                    selectedDocumentsCount={selection.documents.length}
+                    selectedFoldersCount={selection.folders.length}
+                    onClearSelection={handleClearSelection}
+                    onMove={() => setIsMoveItemsOpen(true)}
+                    onDelete={handleRemoveContent}
+                    deleteText={t('common.remove')}
+                  />
+                ) : (
+                  <div className="flex min-h-[48px] items-center">
+                    <Button
+                      variant={showStarredOnly ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={() => setShowStarredOnly(prev => !prev)}
+                    >
+                      <Star className="mr-2 h-4 w-4" />
+                      {t('documents.starred')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-2"
+                      onClick={() => setIsReorderDialogOpen(true)}
+                      disabled={!hasContent || Boolean(contentQuery)}
+                    >
+                      {t('datarooms.reorderItems')}
+                    </Button>
+                  </div>
+                )}
               </div>
-            )}
+
+              <div className="relative w-full sm:max-w-xs">
+                <SearchBox
+                  value={contentSearch}
+                  onChange={(e) => setContentSearch(e.target.value)}
+                  onClear={() => setContentSearch('')}
+                  loading={Boolean(contentSearch.trim()) && (isSearchingContent || contentSearch !== debouncedContentSearch)}
+                  inputClassName="h-10"
+                  placeholder={t('datarooms.searchContent')}
+                  aria-label={t('datarooms.searchContent')}
+                />
+              </div>
+            </div>
           </div>
             <DocumentsList
               allItems={allItems}
-              loading={isLoading}
+              loading={isLoading || (Boolean(contentQuery) && isSearchingContent)}
               isReadOnly={false}
               showActions={true}
               themed={true}
@@ -1182,15 +1264,21 @@ export function DataroomPage() {
               emptyState={
                 <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted bg-muted/20 p-12 text-center my-4">
                   <h3 className="text-xl font-semibold tracking-tight">
-                    {currentDataroomFolder ? t('datarooms.folderEmpty') : t('datarooms.dataroomEmpty')}
+                    {contentQuery
+                      ? t('datarooms.noContentMatches')
+                      : currentDataroomFolder ? t('datarooms.folderEmpty') : t('datarooms.dataroomEmpty')}
                   </h3>
-                  <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
-                    {t('datarooms.emptyStateNotice')}
-                  </p>
-                  <Button className="mt-4" variant="outline" onClick={() => setIsAddContentOpen(true)}>
-                    <DocumentPlusIcon className="mr-2 h-4 w-4" />
-                    {t('datarooms.addContent')}
-                  </Button>
+                  {!contentQuery && (
+                    <>
+                      <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
+                        {t('datarooms.emptyStateNotice')}
+                      </p>
+                      <Button className="mt-4" variant="outline" onClick={() => setIsAddContentOpen(true)}>
+                        <DocumentPlusIcon className="mr-2 h-4 w-4" />
+                        {t('datarooms.addContent')}
+                      </Button>
+                    </>
+                  )}
                 </div>
               }
             />

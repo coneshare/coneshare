@@ -157,6 +157,86 @@ describe('DataroomPage', () => {
         expect(await screen.findByText('Sub Folder')).toBeInTheDocument();
     });
 
+    it('searches files and folders across dataroom, shows location, and preserves folder context on click', async () => {
+        const user = userEvent.setup();
+        api.searchDataroomContent.mockResolvedValue({
+            data: {
+                items: [
+                    {
+                        id: 'ddoc2',
+                        type: 'document',
+                        document_id: 'doc2',
+                        name: 'Nested Document',
+                        location: 'Contracts / Sub Folder',
+                        folder: 'folder1',
+                        updated_at: '2023-01-02T12:00:00Z',
+                    },
+                ],
+            },
+        });
+        renderComponent();
+        expect(await screen.findByText('Root Document')).toBeInTheDocument();
+
+        const searchInput = screen.getByRole('textbox', { name: 'Search files and folders' });
+        await user.type(searchInput, 'Nested');
+
+        await waitFor(() => {
+            expect(api.searchDataroomContent).toHaveBeenCalledWith('dr123', 'Nested');
+        });
+        expect(await screen.findByText('Nested Document')).toBeInTheDocument();
+        expect(screen.getByText('Contracts / Sub Folder')).toBeInTheDocument();
+        expect(screen.queryByText('Root Document')).not.toBeInTheDocument();
+
+        // Reorder Items should be disabled while search filter is active
+        expect(screen.getByRole('button', { name: /reorder items/i })).toBeDisabled();
+
+        // Clicking nested search result should pass item.folder as from_folder
+        await user.click(screen.getByText('Nested Document'));
+        expect(mockedNavigate).toHaveBeenCalledWith('/documents/doc2?from_dataroom=dr123&from_folder=folder1');
+    });
+
+    it('clears prior selection on search and updates searchResults on star toggle', async () => {
+        const user = userEvent.setup();
+        api.searchDataroomContent.mockResolvedValue({
+            data: {
+                items: [
+                    {
+                        id: 'ddoc2',
+                        type: 'document',
+                        document_id: 'doc2',
+                        name: 'Nested Document',
+                        location: 'Sub Folder',
+                        folder: 'folder1',
+                        is_starred: false,
+                        updated_at: '2023-01-02T12:00:00Z',
+                    },
+                ],
+            },
+        });
+        renderComponent();
+        expect(await screen.findByText('Root Document')).toBeInTheDocument();
+
+        // Select an item before searching
+        const docRow = screen.getByText('Root Document').closest('[data-testid^="draggable-item-"]');
+        await user.click(docRow);
+        expect(await screen.findByText(/1 selected/i)).toBeInTheDocument();
+
+        // Entering search should reset selection
+        const searchInput = screen.getByRole('textbox', { name: 'Search files and folders' });
+        await user.type(searchInput, 'Nested');
+        expect(await screen.findByText('Nested Document')).toBeInTheDocument();
+        expect(screen.queryByText(/1 selected/i)).not.toBeInTheDocument();
+
+        // Toggling star in search results should update searchResults state and call API
+        const starButton = screen.getByRole('button', { name: 'Star Nested Document' });
+        await user.click(starButton);
+        expect(api.updateDataroomDocument).toHaveBeenCalledWith('ddoc2', { is_starred: true });
+
+        // Filtering by Starred while in search results should keep the newly starred item visible
+        await user.click(screen.getByRole('button', { name: 'Starred', exact: true }));
+        expect(screen.getByText('Nested Document')).toBeInTheDocument();
+    });
+
     describe('Error and Empty States', () => {
         it('should display not found message if dataroom fails to load', async () => {
             api.getDataroom.mockRejectedValue({ response: { status: 404 } });
