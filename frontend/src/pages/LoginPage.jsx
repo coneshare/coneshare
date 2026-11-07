@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router'
-import { Link } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { authService } from '../services/authService'
 import { APP_DISPLAY_VERSION } from '../lib/constants'

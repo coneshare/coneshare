@@ -631,6 +631,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
   // Document inline viewing logic
   // activeDocIdRef must always be cleared with documentViewData, or the guard below blocks refetches.
   const clearDocumentView = useCallback(() => {
+    docRequestRef.current += 1;
     activeDocIdRef.current = null;
     setDocumentViewData(null);
   }, []);
@@ -787,8 +788,6 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
         nextParams.set('view_session_id', viewId);
       }
       setSearchParams(nextParams);
-
-      clearDocumentView();
     } else {
       if (typeof window !== 'undefined' && window.innerWidth < 768) {
         setIsSidebarCollapsed(true);
@@ -1088,7 +1087,6 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
                       nextParams.set('view_session_id', viewId);
                     }
                     setSearchParams(nextParams);
-                    clearDocumentView();
                   }}
                   className="flex items-center gap-2"
                   style={{ color: 'var(--viewer-secondary)' }}
@@ -1109,7 +1107,6 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
                         nextParams.set('view_session_id', viewId);
                       }
                       setSearchParams(nextParams);
-                      clearDocumentView();
                     }}
                     className="ml-2"
                     style={{ color: 'var(--viewer-secondary)' }}
@@ -1396,7 +1393,6 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
                       nextParams.set('view_session_id', viewId);
                     }
                     setSearchParams(nextParams);
-                    clearDocumentView();
                   }}
                   className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
                 >
@@ -1416,7 +1412,6 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
                           nextParams.set('view_session_id', viewId);
                         }
                         setSearchParams(nextParams);
-                        clearDocumentView();
                       }}
                       className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
                     >
