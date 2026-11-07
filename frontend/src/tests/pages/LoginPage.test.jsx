@@ -8,10 +8,10 @@ import "../../i18n";
 // Mock the authService
 vi.mock("../../services/authService");
 
-// Mock useNavigate from react-router
+// Mock useNavigate from react-router-dom
 const mockedNavigate = vi.fn();
-vi.mock("react-router", async () => {
-  const actual = await vi.importActual("react-router");
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
   return {
     ...actual,
     useNavigate: () => mockedNavigate,

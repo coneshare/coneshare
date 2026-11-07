@@ -1073,6 +1073,9 @@ describe('DataroomViewer', () => {
     await waitFor(() => {
       expect(docFetchCount('doc2')).toBe(1);
     });
+    await waitFor(() => {
+      expect(screen.queryByText('Loading document...')).not.toBeInTheDocument();
+    });
 
     // Navigate back out to the home/root list, then into the subfolder again.
     fireEvent.click(screen.getByRole('button', { name: /^(home|root)$/i }));
