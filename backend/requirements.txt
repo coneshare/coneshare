@@ -4,7 +4,7 @@ sqlparse==0.6.0
 djangorestframework==3.18.2
 drf-spectacular==0.28.0
 python-ulid==3.0.0
-pytest==8.2.2
+pytest==9.0.3
 pytest-django==4.8.0
 pytest-bdd==8.1.0
 celery[redis]==5.4.0
