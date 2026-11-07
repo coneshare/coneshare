@@ -1,6 +1,31 @@
 # Changelog
 
 
+## [1.12.0](https://github.com/coneshare/coneshare/compare/v1.11.0...v1.12.0) (2026-11-07)
+
+
+### Features
+
+* **documents:** add inline editable document description in document header ([cbb79d4](https://github.com/coneshare/coneshare/commit/cbb79d4d26de5370059e5d5096eb2e6859481c4c))
+
+
+### Bug Fixes
+
+* **backend:** pin kombu 5.6.2 to resolve redis transport version mismatch ([c9ce539](https://github.com/coneshare/coneshare/commit/c9ce539dfe4006a5ba9d37cea15820438cdb47ef))
+* **ci:** add docker-compose compatibility wrapper for docker compose v2 on ubuntu-24.04 ([386e7ba](https://github.com/coneshare/coneshare/commit/386e7ba85766f450490e1a24db31535ca3160328))
+* **ci:** pin ubuntu-24.04 runner for Playwright E2E compatibility in nightly workflow ([30be0c3](https://github.com/coneshare/coneshare/commit/30be0c382005dec66be7146dece3d3e23ebf72e6))
+* **ci:** run database migrations before service health check in nightly workflow ([c1c34ee](https://github.com/coneshare/coneshare/commit/c1c34eedf72d0f1e2624513580bd6365242ac27a))
+* **config:** remove legacy start-beat script, cleanup MinIO storage, and align video presets ([#400](https://github.com/coneshare/coneshare/issues/400)) ([112e04b](https://github.com/coneshare/coneshare/commit/112e04b5ffb82c2be84d533b5f051e78f9387f0c))
+* **core,backend:** support HEAD requests, atomic copy, and enable same-origin iframe printing ([#400](https://github.com/coneshare/coneshare/issues/400)) ([baf053c](https://github.com/coneshare/coneshare/commit/baf053cf7489dd83e0ed4819313e608dc48e1896))
+* **datarooms:** touch dataroom updated_at on content additions, removals, and modifications ([e57200a](https://github.com/coneshare/coneshare/commit/e57200a1202ce42f604b026bc4e830f1df604f39))
+* **documents:** route new versions by file identity, and sanitize version filename ([#394](https://github.com/coneshare/coneshare/issues/394)) ([7b64a14](https://github.com/coneshare/coneshare/commit/7b64a14655e7d11b979f15e859de8cbff67244c9))
+* **e2e:** establish Playwright E2E strategy, multi-context suites, and nightly CI ([0881013](https://github.com/coneshare/coneshare/commit/08810139995c32a909a48015b917e20d29cef4ad))
+* **e2e:** update the dataroom test spec ([371a392](https://github.com/coneshare/coneshare/commit/371a392729c5099da8d964f07eab60ab22231306))
+* **frontend:** adapt router imports and navigation state handling for react-router v7 ([94ea058](https://github.com/coneshare/coneshare/commit/94ea058d71d1d105a2edb3c5106487d4687bd174))
+* **frontend:** fix test cases when update vitest to v5 ([185a88e](https://github.com/coneshare/coneshare/commit/185a88e5934c6c2218803e774a778d99e366c693))
+* **schema:** resolve drf-spectacular OpenAPI generation warnings ([e29b9e9](https://github.com/coneshare/coneshare/commit/e29b9e9fe422f1a833277edb40480f5ce128d59e))
+* **tooling:** align Go version in CI, pass MCP_PORT, and migrate portal to ESLint flat config ([#400](https://github.com/coneshare/coneshare/issues/400)) ([6c65140](https://github.com/coneshare/coneshare/commit/6c65140f8ca9102a0c69596989198625e84686c5))
+
 ## [1.11.0](https://github.com/coneshare/coneshare/compare/v1.10.1...v1.11.0) (2026-11-02)
 
 
