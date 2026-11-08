@@ -80,7 +80,7 @@ describe('Header & Footer Localization', () => {
       render(<Footer />);
 
       expect(screen.getByText('产品')).toBeInTheDocument();
-      expect(screen.getByText('虚拟资料室 (VDR)')).toBeInTheDocument();
+      expect(screen.getAllByText('虚拟资料室 (VDR)').length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText('公司')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: '关于我们' })).toHaveAttribute('href', '/zh/about');
 

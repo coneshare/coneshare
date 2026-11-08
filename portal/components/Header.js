@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import { features, solutions, integrations } from '../lib/content';
 import { ChevronDown, Menu, X } from 'lucide-react';
 
-function NavDropdown({ title, href, items }) {
+function NavDropdown({ title, href, items, isZh }) {
   const [isOpen, setIsOpen] = useState(false);
   const node = useRef();
 
@@ -69,7 +69,7 @@ function NavDropdown({ title, href, items }) {
                 onClick={() => setIsOpen(false)}
                 className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
-                {item.menuName}
+                {(isZh && item.menuNameZh) ? item.menuNameZh : item.menuName}
               </Link>
             )
           ))}
@@ -220,10 +220,10 @@ export function Header({ locale }) {
               {isZh ? '虚拟资料室' : 'Virtual Dataroom'}
             </Link>
             <Link href="/agents" className="text-sm font-medium text-gray-500 hover:text-gray-900">
-              {isZh ? '智能体' : 'Agents'}
+              {isZh ? 'AI 与自动化' : 'Agents'}
             </Link>
-            <NavDropdown title={isZh ? '存储生态' : 'Works with'} href="/integrations" items={integrationMenuItems} />
-            <NavDropdown title={isZh ? '功能特性' : 'Features'} href="/features" items={features} />
+            <NavDropdown title={isZh ? '网盘集成' : 'Works with'} href="/integrations" items={integrationMenuItems} isZh={isZh} />
+            <NavDropdown title={isZh ? '功能特性' : 'Features'} href="/features" items={features} isZh={isZh} />
             <Link href="/blog" className="text-sm font-medium text-gray-500 hover:text-gray-900">
               {isZh ? '博客' : 'Blog'}
             </Link>
@@ -281,12 +281,12 @@ export function Header({ locale }) {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
               >
-                {isZh ? '智能体' : 'Agents'}
+                {isZh ? 'AI 与自动化' : 'Agents'}
               </Link>
             </div>
             <div className="border-t border-gray-200 pt-4">
               <h3 className="px-3 text-xs font-semibold uppercase text-gray-500 tracking-wider">
-                {isZh ? '存储生态' : 'Works with'}
+                {isZh ? '网盘集成' : 'Works with'}
               </h3>
               <div className="mt-2 space-y-1">
                 {integrations
@@ -334,7 +334,7 @@ export function Header({ locale }) {
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                   >
-                    {item.menuName}
+                    {(isZh && item.menuNameZh) ? item.menuNameZh : item.menuName}
                   </Link>
                 ))}
               </div>

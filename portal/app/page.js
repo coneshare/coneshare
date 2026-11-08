@@ -3,11 +3,41 @@ import { features, solutions } from '../lib/content';
 import { HomepageMockupCarousel } from '../components/HomepageMockupCarousel';
 import { MultiFormatPreviewMockup } from '../components/MultiFormatPreviewMockup';
 
+export const metadata = {
+  title: 'Open-Source Self-Hosted Virtual Data Room (VDR) & Document Tracking - ConeShare',
+  description:
+    'Stop paying expensive per-seat SaaS subscriptions. Connect directly to your existing storage to add access gates, leak-proof dynamic watermarks, and page-by-page engagement tracking.',
+};
+
 export default function HomePage() {
   const featuredUseCaseSlugs = ['secure-fundraising', 'engagement-visibility', 'timely-follow-ups'];
   const primaryUseCases = featuredUseCaseSlugs
     .map((slug) => solutions.find((solution) => solution.slug === slug))
     .filter(Boolean);
+
+  const enUseCases = [
+    {
+      slug: 'secure-fundraising',
+      name: 'Seed & Venture Fundraising',
+      description:
+        'Track investor dwell time slide by slide. Discover forwarded pitch decks and uncover the decision-making partners who actually write the checks.',
+      icon: primaryUseCases[0]?.icon,
+    },
+    {
+      slug: 'engagement-visibility',
+      name: 'Enterprise B2B Sales',
+      description:
+        'Enforce NDA agreements before prospects review custom pricing. Full-screen dynamic watermarks prevent competitor price shopping and photo leaks.',
+      icon: primaryUseCases[1]?.icon,
+    },
+    {
+      slug: 'timely-follow-ups',
+      name: 'M&A Diligence & Legal Audits',
+      description:
+        'Multi-link dataroom partitioning keeps buyer groups and Q&A threads strictly isolated. Deploy on-premise to comply with stringent audit mandates.',
+      icon: primaryUseCases[2]?.icon,
+    },
+  ];
 
   return (
     <>
@@ -33,16 +63,15 @@ export default function HomePage() {
                   className="inline-flex items-center gap-x-2 rounded-full border border-gray-200 bg-white/80 px-4 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 hover:border-gray-300"
                 >
                   <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Coneshare v1.11 is out: Redesigned dataroom viewer & whole-room downloads</span>
-                  <span className="text-gray-400">→</span>
+                  <span>ConeShare v1.11 is live: Redesigned dataroom visitor UI with whole-room batch downloads &rarr;</span>
                 </Link>
               </div>
 
               <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
-                The Self-Hosted Data Room for Teams That Own Their Data
+                The Self-Hosted Virtual Data Room for Teams That Own Their Data
               </h1>
               <p className="mt-6 text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
-                Control document distribution, apply dynamic watermarks, and inspect viewer engagement on top of your existing storage without moving your files to third-party servers.
+                Stop paying expensive per-seat SaaS subscriptions. Add access controls, dynamic anti-leak watermarks, and page-by-page engagement tracking on top of your existing storage—no file migration required.
               </p>
               <div className="mt-10 flex items-center justify-center gap-x-6">
                 <Link
@@ -52,15 +81,15 @@ export default function HomePage() {
                   Explore Virtual Datarooms
                 </Link>
                 <Link href="/demo" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
-                  View Live Demo <span aria-hidden="true">→</span>
+                  View Live Demo <span aria-hidden="true">&rarr;</span>
                 </Link>
               </div>
               <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-gray-500">
-                <span>Open-source &amp; self-hostable</span>
+                <span>✓ Direct sync with Nextcloud &amp; private storage—zero migration</span>
                 <span className="hidden sm:inline">•</span>
-                <span>Keep files in your own storage</span>
+                <span>✓ Page-by-page dwell time &amp; forwarded recipient discovery</span>
                 <span className="hidden sm:inline">•</span>
-                <span>Docker-ready deployment</span>
+                <span>✓ 100% self-hosted with air-gapped on-premise support</span>
               </div>
             </div>
             <div className="mt-16 sm:mt-20 mx-auto max-w-5xl px-6 lg:px-8">
@@ -75,29 +104,30 @@ export default function HomePage() {
         <div className="mx-auto max-w-5xl px-6 lg:px-8">
           <div className="grid gap-10 lg:grid-cols-12 lg:items-start">
             <div className="lg:col-span-5">
-              <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">Why Coneshare</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">Why ConeShare</p>
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-                Internal storage was not built for external sharing
+                Internal storage was built for collaboration, not secure external distribution
               </h2>
               <p className="mt-4 text-base leading-7 text-gray-600">
-                Cloud drives work well for internal teams, but standard links give you no visibility once files leave your organization. You cannot see who opened the document, which pages they read, or whether they forwarded it.
+                Cloud drives work well inside teams, but standard shared links lose all control once sent. You cannot see who opened the file, how long they lingered on each page, or stop them from forwarding confidential proposals.
               </p>
 
               {/* Founder's Note Card */}
               <div className="mt-6 rounded-xl border border-gray-200/90 bg-gray-50/70 p-5 text-sm text-gray-700 shadow-sm">
                 <div className="flex items-center gap-2 font-semibold text-gray-900 mb-2">
-                  <span>Why we built Coneshare</span>
+                  <span className="text-base">💡</span>
+                  <span>Why we built ConeShare</span>
                 </div>
                 <p className="italic text-gray-600 leading-relaxed text-[13.5px]">
-                  &ldquo;DocSend charges $100 a month per user just to see who opened a file. We built Coneshare so teams can keep their own storage, protect sensitive documents with dynamic watermarks, and get full viewer tracking at a tenth of the price.&rdquo;
+                  &ldquo;Tools like DocSend charge over $100 per user every month just to see who opened a document. We built ConeShare so teams can keep their own storage, enforce leak-proof dynamic watermarks, and track reading engagement at a fraction of the cost.&rdquo;
                 </p>
                 <div className="mt-3.5 flex flex-wrap items-center gap-3 pt-2.5 border-t border-gray-200/70 text-xs text-gray-500">
                   <Link href="/about" className="font-medium text-gray-900 hover:underline">
-                    Read our story & principles →
+                    Read our story &amp; principles &rarr;
                   </Link>
                   <span>•</span>
                   <Link href="/alternatives/docsend" className="font-medium text-gray-900 hover:underline">
-                    Compare with DocSend →
+                    Compare with DocSend &rarr;
                   </Link>
                 </div>
               </div>
@@ -107,36 +137,36 @@ export default function HomePage() {
               <div className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-700">1</span>
-                  Access rules
+                  Direct Storage Connection, Zero Migration
                 </h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  Control entry with passwords, verified email gates, one-click NDA acceptance, and link expiration dates.
+                  Connect directly to Nextcloud, local storage, or S3 buckets. Updates automatically stay in sync without moving your files or changing team habits.
                 </p>
               </div>
 
               <div className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-700">2</span>
-                  Dynamic watermarks
+                  Full Control After Sending
                 </h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  Stamp the recipient&apos;s email address and access time across every page of in-browser previews and downloaded files to prevent leaks.
+                  Revoke links, change passwords, or restrict downloads at any time. Enforce NDA gates and dynamic watermarks to end &ldquo;sent and lost.&rdquo;
                 </p>
               </div>
 
               <div className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-700">3</span>
-                  Page-level tracking
+                  Predictable Flat Cost, Zero Per-Seat Tax
                 </h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  See exact reading time per slide, identify which pages were skipped, and receive instant alerts when a link gets shared with others.
+                  Break free from exorbitant per-user monthly SaaS fees. Self-host with predictable costs and no artificial limits on team seats.
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-4 pt-2">
                 <Link href="/demo" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
-                  Try the live demo yourself <span aria-hidden="true">→</span>
+                  Try the live demo yourself <span aria-hidden="true">&rarr;</span>
                 </Link>
               </div>
             </div>
@@ -144,56 +174,58 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Honest Fit Section: When to use (and when not to) */}
+      {/* Honest Fit Section */}
       <div className="border-y border-gray-200/80 bg-gray-50/60 py-16 sm:py-20">
         <div className="mx-auto max-w-5xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-              Is Coneshare right for you?
+              Is ConeShare right for your team?
             </h2>
           </div>
           <div className="mx-auto mt-10 grid max-w-4xl grid-cols-1 gap-8 md:grid-cols-2">
             <div className="rounded-xl border border-emerald-200/80 bg-white p-6 shadow-sm">
               <h3 className="flex items-center gap-2 text-base font-semibold text-emerald-900">
-                <span className="font-mono text-xs font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">YES</span>
-                <span>Built for teams that:</span>
+                <span className="text-emerald-600 font-bold">✓</span> Built for teams that:
               </h3>
               <ul className="mt-4 space-y-2.5 text-sm text-gray-600">
                 <li className="flex items-start gap-2">
                   <span className="text-emerald-500 font-bold">•</span>
-                  <span>Share confidential decks, proposals, or M&amp;A datarooms and need page-level viewing data.</span>
+                  <span>Frequently share pitch decks, enterprise proposals, or diligence packages and need exact viewer engagement down to the second.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-emerald-500 font-bold">•</span>
-                  <span>Keep files in existing storage without migrating to a public SaaS vendor.</span>
+                  <span>Insist on keeping files in existing storage without migrating sensitive data to proprietary cloud SaaS vendors.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-emerald-500 font-bold">•</span>
-                  <span>Require viewer-specific watermarks, NDA gates, and instant link revocation.</span>
+                  <span>Require viewer-specific dynamic watermarks, mandatory NDA gates, and instant link revocation.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-emerald-500 font-bold">•</span>
-                  <span>Prioritize data sovereignty and prefer self-hosting with Docker.</span>
+                  <span>Must comply with strict data residency mandates (GDPR, HIPAA) requiring 100% self-hosted or air-gapped deployment.</span>
                 </li>
               </ul>
             </div>
             <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
               <h3 className="flex items-center gap-2 text-base font-semibold text-gray-900">
-                <span className="font-mono text-xs font-bold bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">NO</span>
-                <span>Not a good fit if you:</span>
+                <span className="text-gray-400 font-bold">✕</span> Not a good fit if you:
               </h3>
               <ul className="mt-4 space-y-2.5 text-sm text-gray-600">
                 <li className="flex items-start gap-2">
                   <span className="text-gray-400 font-bold">•</span>
-                  <span>Share everyday files where standard cloud links are already plenty.</span>
+                  <span>Only do casual everyday file sharing where standard cloud links already suffice.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-gray-400 font-bold">•</span>
-                  <span>Need live co-editing instead of secure external document distribution.</span>
+                  <span>Are searching for a raw bulk object storage replacement for primary archival.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-gray-400 font-bold">•</span>
-                  <span>Have no requirement for watermarking, NDA gates, or viewer tracking.</span>
+                  <span>Only need real-time multi-cursor document co-editing with no external sharing or tracking needs.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-gray-400 font-bold">•</span>
+                  <span>Have zero requirement for watermarks, confidentiality gates, or viewer telemetry.</span>
                 </li>
               </ul>
             </div>
@@ -205,26 +237,26 @@ export default function HomePage() {
       <div id="features" className="bg-white py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">Core Features</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">Core Capabilities</p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Complete visibility and protection for shared files
+              Enterprise-grade security and document tracking without changing your storage habits
             </h2>
             <p className="mt-4 text-lg leading-8 text-gray-600">
-              Data rooms, dynamic watermarks, zero-install file previews, and page-level analytics in one place.
+              Virtual data rooms, dynamic watermarks, zero-install file previews, and page-level analytics in one unified platform.
             </p>
           </div>
 
           {/* Two Hero Feature Showcase Cards */}
           <div className="mt-14 grid grid-cols-1 gap-8 lg:grid-cols-2">
             
-            {/* Feature Card 1: Virtual Data Rooms */}
+            {/* Killer Card 1: Virtual Data Rooms */}
             <div className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-gray-50/40 p-6 sm:p-8 shadow-sm hover:border-gray-300 transition">
               <div>
                 <h3 className="text-2xl font-bold tracking-tight text-gray-900">
                   Virtual Data Rooms
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-gray-600">
-                  Structure and share commercial proposals and diligence materials in minutes. Set independent folder-level access, enforce NDA gates, and provision granular permission links for every client or partner.
+                  Structured data rooms built for diligence, audits, and commercial proposals. Support multi-link scoping to isolate visible directories and download permissions independently per buyer group.
                 </p>
               </div>
 
@@ -243,7 +275,7 @@ export default function HomePage() {
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-semibold text-indigo-950">Procurement &amp; Legal Link</span>
                       <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
-                        NDA Signed
+                        NDA Signed ✓
                       </span>
                     </div>
                     <div className="mt-2 flex items-center justify-between text-[11px] text-gray-600">
@@ -255,14 +287,14 @@ export default function HomePage() {
                   {/* Scope 2: Evaluation Link */}
                   <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-3">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium text-gray-700">Evaluation Link</span>
+                      <span className="font-medium text-gray-700">Technical Evaluation Link</span>
                       <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
                         Password Only
                       </span>
                     </div>
                     <div className="mt-2 flex items-center justify-between text-[11px] text-gray-500">
-                      <span>Technical Architecture Deck</span>
-                      <span className="font-mono text-[10px] text-amber-700 font-medium">Pricing Locked</span>
+                      <span>Architecture Whitepaper</span>
+                      <span className="font-mono text-[10px] text-amber-700 font-medium">🔒 Commercials Locked</span>
                     </div>
                   </div>
                 </div>
@@ -270,22 +302,22 @@ export default function HomePage() {
 
               <div className="mt-6 pt-2">
                 <Link
-                  href="/features/virtual-data-rooms"
+                  href="/virtual-dataroom"
                   className="inline-flex items-center text-sm font-semibold text-gray-900 hover:text-indigo-600 transition"
                 >
-                  Explore virtual data rooms <span className="ml-1" aria-hidden="true">→</span>
+                  Explore virtual data rooms <span className="ml-1" aria-hidden="true">&rarr;</span>
                 </Link>
               </div>
             </div>
 
-            {/* Feature Card 2: Dynamic Watermarking */}
+            {/* Killer Card 2: Dynamic Watermarking */}
             <div className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-gray-50/40 p-6 sm:p-8 shadow-sm hover:border-gray-300 transition">
               <div>
                 <h3 className="text-2xl font-bold tracking-tight text-gray-900">
-                  Dynamic Watermarking
+                  Dynamic Anti-Leak Watermarking
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-gray-600">
-                  Deter leaks before they occur. Tiled watermarks dynamically burn the recipient&apos;s verified email, timestamp, and IP across previews and PDF downloads.
+                  Tile the viewer&apos;s verified email, IP address, and timestamp across the entire document. Balances crisp reading comfort with undeniable leak deterrents to stop phone cameras and screenshots at the source.
                 </p>
               </div>
 
@@ -323,8 +355,8 @@ export default function HomePage() {
 
                     <div className="relative z-0">
                       <div className="flex items-center justify-between text-emerald-950 pb-1.5 border-b border-emerald-200/60 font-medium">
-                        <span>Coneshare Link</span>
-                        <span className="text-emerald-600 font-mono text-[9px] font-bold">PROTECTED</span>
+                        <span>ConeShare Protected</span>
+                        <span className="text-emerald-600 font-mono text-[9px] font-bold">✓ PROTECTED</span>
                       </div>
                       <div className="mt-2 space-y-1 text-gray-700">
                         <p className="font-medium text-gray-900">Pricing Schedule</p>
@@ -341,23 +373,22 @@ export default function HomePage() {
                   href="/features/dynamic-watermarking"
                   className="inline-flex items-center text-sm font-semibold text-gray-900 hover:text-emerald-600 transition"
                 >
-                  Explore dynamic watermarks <span className="ml-1" aria-hidden="true">→</span>
+                  Explore dynamic watermarks <span className="ml-1" aria-hidden="true">&rarr;</span>
                 </Link>
               </div>
             </div>
 
-            {/* Feature Card 3: Multi-Format Online Preview */}
+            {/* Killer Card 3: Multi-Format Online Preview */}
             <div className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-gray-50/40 p-6 sm:p-8 shadow-sm hover:border-gray-300 transition">
               <div>
                 <h3 className="text-2xl font-bold tracking-tight text-gray-900">
                   Multi-Format Online Preview
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-gray-600">
-                  Preview PDFs, Office documents, multi-sheet spreadsheets, Apple HEIC photos, and video directly in any browser with zero client installs.
+                  Preview PDFs, Office documents, multi-sheet spreadsheets, Apple HEIC photos, and videos directly in any modern browser with zero client installs.
                 </p>
               </div>
 
-              {/* Interactive Tabbed Mock Viewer */}
               <MultiFormatPreviewMockup />
 
               <div className="mt-6 pt-2">
@@ -365,19 +396,19 @@ export default function HomePage() {
                   href="/features/online-document-preview"
                   className="inline-flex items-center text-sm font-semibold text-gray-900 hover:text-emerald-600 transition"
                 >
-                  Explore online preview <span className="ml-1" aria-hidden="true">→</span>
+                  Explore online preview <span className="ml-1" aria-hidden="true">&rarr;</span>
                 </Link>
               </div>
             </div>
 
-            {/* Feature Card 4: Page-by-Page Analytics */}
+            {/* Killer Card 4: Page-by-Page Analytics */}
             <div className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-gray-50/40 p-6 sm:p-8 shadow-sm hover:border-gray-300 transition">
               <div>
                 <h3 className="text-2xl font-bold tracking-tight text-gray-900">
-                  Page-by-Page Analytics
+                  Page-by-Page Reading Analytics
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-gray-600">
-                  Know which prospect is genuinely interested before your next call. Inspect exact reading time per slide and get alerted when proposals get forwarded.
+                  Track exact reading seconds per slide, completion rates, and video scrubbing intervals. Uncover internal forwarding trails and identify high-intent decision-makers before your next follow-up.
                 </p>
               </div>
 
@@ -432,7 +463,7 @@ export default function HomePage() {
                   href="/features/advanced-analytics"
                   className="inline-flex items-center text-sm font-semibold text-gray-900 hover:text-emerald-600 transition"
                 >
-                  Explore engagement analytics <span className="ml-1" aria-hidden="true">→</span>
+                  Explore engagement analytics <span className="ml-1" aria-hidden="true">&rarr;</span>
                 </Link>
               </div>
             </div>
@@ -445,7 +476,7 @@ export default function HomePage() {
               href="/features"
               className="inline-flex items-center text-sm font-semibold text-gray-900 hover:text-emerald-600 transition"
             >
-              See full features <span className="ml-1" aria-hidden="true">→</span>
+              See full features <span className="ml-1" aria-hidden="true">&rarr;</span>
             </Link>
           </div>
 
@@ -458,22 +489,22 @@ export default function HomePage() {
           <div className="mx-auto max-w-2xl lg:text-center">
             <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">Use Cases</p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Share proposals and client materials with real access controls
+              Purpose-built compliance and security for high-stakes external sharing
             </h2>
           </div>
           <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-5xl">
             <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-16 lg:max-w-none lg:grid-cols-3">
-              {primaryUseCases.map((solution) => (
+              {enUseCases.map((solution) => (
                 <div key={solution.slug} className="flex flex-col">
                   <dt className="flex items-center gap-x-3 text-base font-semibold leading-7 text-gray-900">
-                    <solution.icon className="h-5 w-5 flex-none text-gray-900" aria-hidden="true" />
+                    {solution.icon && <solution.icon className="h-5 w-5 flex-none text-gray-900" aria-hidden="true" />}
                     {solution.name}
                   </dt>
                   <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-gray-600">
                     <p className="flex-auto">{solution.description}</p>
                     <p className="mt-6">
                       <Link href={`/solutions/${solution.slug}`} className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
-                        Learn more <span aria-hidden="true">→</span>
+                        Learn more <span aria-hidden="true">&rarr;</span>
                       </Link>
                     </p>
                   </dd>
@@ -482,7 +513,7 @@ export default function HomePage() {
             </dl>
             <div className="mt-10 text-center">
               <Link href="/solutions" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
-                See all use cases <span aria-hidden="true">→</span>
+                See all use cases <span aria-hidden="true">&rarr;</span>
               </Link>
             </div>
           </div>

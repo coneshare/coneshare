@@ -2,32 +2,39 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const homepageImages = [
   {
     src: '/screenshots/feat-vdr-viewer.png',
     alt: "Dynamic watermarking displaying the viewer's verified email",
+    altZh: "满屏动态水印：自动平铺访客验证邮箱与 IP",
     url: 'https://app.coneshare.com/view/PpyMwCrvJeQAXlaq1cREAw'
   },
   {
     src: '/screenshots/feat-upload.png',
     alt: 'Upload and catalog your documents securely',
+    altZh: '结构化资料室：安全归档并管理尽调与提案目录',
     url: 'https://app.coneshare.com/documents'
   },
   {
     src: '/screenshots/feat-sharing.png',
     alt: 'Configure secure sharing links with access rules',
+    altZh: '受控外发链接：独立配置密码、NDA 门禁与下载权限',
     url: 'https://app.coneshare.com/links/create'
   },
   {
     src: '/screenshots/feat-analytics.png',
     alt: 'Monitor real-time engagement and page-by-page viewing duration',
+    altZh: '逐页阅读追踪：实时监测停留秒数与内部转发轨迹',
     url: 'https://app.coneshare.com/analytics/sessions/01abc'
   }
 ];
 
-export function HomepageMockupCarousel({ autoPlayInterval = 6000 }) {
+export function HomepageMockupCarousel({ autoPlayInterval = 6000, locale }) {
+  const pathname = usePathname();
+  const isZh = locale === 'zh' || pathname?.startsWith('/zh');
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const goToPrevious = () => {
@@ -80,7 +87,7 @@ export function HomepageMockupCarousel({ autoPlayInterval = 6000 }) {
                 <div key={index} className="w-full flex-shrink-0 relative">
                   <Image
                     src={image.src}
-                    alt={image.alt}
+                    alt={isZh ? image.altZh : image.alt}
                     width={1200}
                     height={750}
                     className="w-full h-auto object-contain"
@@ -127,7 +134,7 @@ export function HomepageMockupCarousel({ autoPlayInterval = 6000 }) {
       
       {/* Caption/Label below the browser */}
       <p className="mt-3 text-center text-xs text-gray-500 italic select-none">
-        {homepageImages[currentIndex].alt}
+        {isZh ? homepageImages[currentIndex].altZh : homepageImages[currentIndex].alt}
       </p>
     </div>
   );

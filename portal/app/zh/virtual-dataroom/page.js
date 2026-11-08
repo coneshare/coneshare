@@ -1,12 +1,12 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Shield, Eye, Zap, Palette, Folder, MessageSquare, CheckCircle, ArrowRight } from 'lucide-react';
+import { Shield, Eye, Zap, Palette, Folder, MessageSquare, CheckCircle, ArrowRight, Link2 } from 'lucide-react';
 import { DataroomMockupCarousel } from '../../../components/DataroomMockupCarousel';
 
 export const metadata = {
   title: '安全私有化虚拟资料室 (VDR) | Coneshare',
   description:
-    '直接在您现有的 Nextcloud、Google Drive、Dropbox 或本地存储之上构建安全的虚拟资料室。细粒度控制访问、追踪访客阅读行为并实现工作流自动化。',
+    '无需迁移现有网盘文件，直接将企业的 Nextcloud 或本地存储升级为合规虚拟资料室。支持多买方一室多链分权、买方隔离尽调 Q&A 与逐页阅读追踪，数据 100% 留在自有服务器。',
   keywords: [
     '虚拟资料室',
     '私有化资料室',
@@ -26,14 +26,14 @@ export default function ZhVirtualDataroomPage() {
       number: '01',
       title: '一键关联与自定义目录整理',
       description:
-        '数秒内连接您信赖的存储服务商。将文件导入 Coneshare 并按需整理进专属资料室。当云端源文件更新时，单击即可即时同步至 Coneshare。',
+        '直接挂载企业现有的 Nextcloud、本地存储或 Google Drive，快速编排资料室目录。当网盘内的源文件更新版本时，后台一键增量同步，已发出的资料室链接自动呈现最新版，无需重新发送。',
       image: '/screenshots/feat-vdr-add-content.png',
     },
     {
       number: '02',
       title: '多维安全管控与动态水印',
       description:
-        '配置访问密码、有效期限制、邮箱验证门禁及禁止下载策略。启用动态水印，在在线预览和 PDF 下载文件中自动烧录访客验证邮箱。',
+        '按链接独立设置访问密码、过期时间、邮箱验证码校验、前置 NDA 签署及禁下载策略。开启满屏防拍照动态水印，在浏览器预览与导出 PDF 中自动平铺访客邮箱、IP 与时间戳。',
       image: '/screenshots/feat-sharing.png',
     },
     {
@@ -47,26 +47,29 @@ export default function ZhVirtualDataroomPage() {
       number: '04',
       title: '即时触发下游协同工作流',
       description:
-        '将外发文件行为转化为团队敏捷响应机制。当投资人进入资料室或重要客户下载合同时，系统即时向企业内部 Slack 发送提醒或向内部系统推送 Webhook。',
+        '不错过任何关键成交信号。当投资人重访资料室或大客户下载合同草案时，系统通过企业微信、飞书、钉钉或 Slack 实时推送消息卡片，并支持通过 Webhook 自动触发 CRM 跟进流程。',
       image: '/screenshots/feat-automations.png',
     },
   ];
 
   const corePillars = [
     {
-      name: '品牌专属定制',
-      description: '为资料室配置独特的企业横幅、品牌 Logo 以及专属的主题色调。',
-      icon: Palette,
+      name: '一室多链，买方独立分权',
+      description:
+        '无需为不同对象重复建库。同一资料室可生成多条专属链接，分别为法务、采购或不同竞标方独立配置可见文件夹、访问密码与下载权限。',
+      icon: Link2,
     },
     {
-      name: '项目尽调问答板 (Q&A)',
-      description: '方便资料室管理员与外部查阅者在文件正文旁直接开启结构化加密问答讨论。',
+      name: '买方隔离尽调问答 (Q&A)',
+      description:
+        '查阅者可在具体文档旁直接发起提问，告别零散的邮件与 Excel 来回传递；不同买方的提问严格隔离、互不可见，完整留存合规问答记录。',
       icon: MessageSquare,
     },
     {
-      name: '虚拟目录树管理',
-      description: '手动自由拖拽调整文件顺序，并为不同分享链接定义独立展示的目录层级。',
-      icon: Folder,
+      name: '专属品牌视觉定制',
+      description:
+        '支持自定义资料室顶部横幅 Banner、企业 Logo、主题配色与专属域名，在每一次对外交付中展现专业统一的品牌形象。',
+      icon: Palette,
     },
   ];
 
@@ -125,7 +128,7 @@ export default function ZhVirtualDataroomPage() {
               数据自主掌控的企业级私有化资料室 (VDR)
             </h1>
             <p className="mt-6 text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
-              在您现有的私有云或本地企业存储之上叠加权限管控、访客阅读分析与跟进自动化。让数据自始至终处于您的绝对控制之下。
+              无需迁移现有网盘文件，直接将企业的 Nextcloud 或本地存储升级为合规虚拟资料室。支持多买方一室多链分权、买方隔离尽调 Q&amp;A 与逐页阅读追踪，数据 100% 留在自有服务器。
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <Link
@@ -147,7 +150,7 @@ export default function ZhVirtualDataroomPage() {
 
           {/* Floating Mockup Browser Window Carousel */}
           <div className="mx-auto max-w-5xl px-6 lg:px-8 pb-16">
-            <DataroomMockupCarousel />
+            <DataroomMockupCarousel locale="zh" />
           </div>
         </div>
 
@@ -176,10 +179,10 @@ export default function ZhVirtualDataroomPage() {
                 什么是虚拟资料室 (VDR)？
               </h2>
               <p className="mt-6 text-base leading-7 text-gray-600">
-                虚拟资料室（Virtual Dataroom，简称 VDR）是一种高安全级别的数字资料保险箱，专门用于向企业外部交易方分发极度敏感的文件（例如财务模型、董事会资料、专利技术文档及并购尽调材料）。
+                虚拟资料室（Virtual Data Room，简称 VDR）是专为投融资尽调、并购重组及大客户招投标打造的高安全级资料库。
               </p>
               <p className="mt-4 text-base leading-7 text-gray-600">
-                与普通网盘共享链接不同，虚拟资料室能够提供细粒度的权限控制、页面级阅读分析、防泄密动态水印与自动化协同流，确保文件被分享后您仍拥有完整的掌控力。
+                相比“发出即失联”的普通网盘链接，VDR 支持为不同交易方按目录精细分权、强制签署前置 NDA、叠加防拍照动态水印，并实时追踪每位访客的逐页阅读时长，让机密资料外发后依然全程受控。
               </p>
             </div>
 
@@ -193,14 +196,14 @@ export default function ZhVirtualDataroomPage() {
                   <CheckCircle className="h-6 w-6 text-gray-950 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="font-semibold text-gray-900">数据主权优先</h4>
-                    <p className="text-sm text-gray-600 mt-1">所有核心文件均由您自有的私有基础设施承载，Coneshare 绝不会将您的资料锁定在任何封闭的公有云孤岛中。</p>
+                    <p className="text-sm text-gray-600 mt-1">所有源文件与浏览记录均保存在企业自有服务器，彻底规避公有云泄密与数据出境风险。</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
                   <CheckCircle className="h-6 w-6 text-gray-950 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="font-semibold text-gray-900">完全免费的开源核心</h4>
-                    <p className="text-sm text-gray-600 mt-1">开源核心版完全免费且无任何用户席位限制。只有在您需要 SSO 单点登录、LDAP 集成或跨部门复杂治理等高级企业能力时才需按需选购商业支持。</p>
+                    <p className="text-sm text-gray-600 mt-1">开源核心版完全免费且无任何用户席位限制。只有在您需要 SSO 单点登录、LDAP 集成或跨部门权限管理与合规审计等企业级功能时才需按需选购商业支持。</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
@@ -222,7 +225,7 @@ export default function ZhVirtualDataroomPage() {
               四步轻松实现对外文档安全管控
             </h2>
             <p className="mt-4 text-base text-gray-600">
-              Coneshare 深度融入现有工作流，按需无缝叠加安全分发与多维追踪保护层。
+              无需改变团队现有的网盘使用习惯，四步完成从资料室搭建到商务跟进的全流程。
             </p>
           </div>
 
@@ -281,7 +284,7 @@ export default function ZhVirtualDataroomPage() {
         <div className="mx-auto max-w-5xl px-6 lg:px-8 py-16 sm:py-24">
           <h2 className="text-3xl font-bold tracking-tight text-gray-900 text-center">Coneshare 与商业 SaaS 方案对比</h2>
           <p className="text-base text-gray-600 text-center mt-4 max-w-2xl mx-auto">
-            对比私有化、存储解耦架构与传统封闭公有云资料室之间的安全性与灵活性差异。
+            对比私有化直连架构与传统公有云 VDR 在数据安全、分权灵活性与长期成本上的差异。
           </p>
 
           <div className="mt-12 overflow-x-auto rounded-xl border border-gray-200">
@@ -306,13 +309,13 @@ export default function ZhVirtualDataroomPage() {
                 </tr>
                 <tr>
                   <td className="px-6 py-4 font-medium">资料室权限管控</td>
-                  <td className="px-6 py-4">是（支持按文件夹与文件细分查看与下载权限）</td>
-                  <td className="px-6 py-4">是</td>
+                  <td className="px-6 py-4">单资料室支持多条独立专属链接，按买方动态隔离可见目录、独立密码与内嵌加密 Q&amp;A</td>
+                  <td className="px-6 py-4">仅支持基础文件夹聚合；不同买方若需不同目录权限需克隆多个空间，且无内嵌尽调 Q&amp;A 板块</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 font-medium">阅读行为深度分析</td>
-                  <td className="px-6 py-4">是（逐页秒级停留时间、视频分段播放进度等）</td>
-                  <td className="px-6 py-4">是</td>
+                  <td className="px-6 py-4">逐页停留秒数与音视频段落追踪，直连企业微信、飞书、钉钉卡片，客户翻看报价即时弹窗预警</td>
+                  <td className="px-6 py-4">具备精细逐页分析，但仅限邮件通知与海外 Zapier，缺乏国内办公 IM 原生集成，提醒容易进垃圾箱</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 font-medium">企业审计合规</td>

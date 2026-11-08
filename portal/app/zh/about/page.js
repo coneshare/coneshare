@@ -1,9 +1,9 @@
 import Link from 'next/link';
 
 export const metadata = {
-  title: '关于 Coneshare | 为什么我们打造私有化文档分享平台',
+  title: '关于 ConeShare | 守住外发文档机密，保留 100% 数据自主权',
   description:
-    '深入了解我们创立 Coneshare 的初衷，以及它如何在您现有存储之上提供虚拟资料室与深度阅读追踪。',
+    '深入了解我们创立 ConeShare 的初衷，以及它如何在您现有存储之上提供虚拟资料室与深度阅读追踪。',
   alternates: {
     canonical: '/zh/about',
   },
@@ -11,19 +11,38 @@ export const metadata = {
 
 const principles = [
   {
-    title: '坚持保留存储归属权',
+    title: '文件不动，能力直连',
     body:
-      '企业早已拥有值得信赖的存储工具。Coneshare 直接在其上叠加权限管控与追踪能力，无需强制数据迁移。',
+      '企业已经在用 Nextcloud、本地存储或各类云盘管理日常文件。ConeShare 直接挂载您现有的存储系统，无需把敏感数据重新上传或迁移到第三方平台。',
   },
   {
-    title: '拥抱开源透明',
+    title: '核心代码 100% 开源透明',
     body:
-      'Coneshare 完全开源。您可以自由审查代码逻辑，验证敏感数据在底层的流转机制，并放心地部署在企业内部服务器上。',
+      '安全产品不能靠“口头承诺”建立信任。ConeShare 核心代码完全开源，您的安全团队可以随时审查每一行代码逻辑，验证数据流向，并放心地部署在企业内网机房。',
   },
   {
-    title: '全面的开放 API 生态',
+    title: 'API 优先与自动化集成',
     body:
-      '每一项分享配置、审计日志与自动化触发器均可通过 API 编程调用，能够轻松与内部运维脚本、自动化管道及 AI 智能体无缝对接。',
+      '从生成受控链接、拉取阅读审计日志到配置 Webhook 通知，所有核心能力均提供标准 API。您可以轻松将其接入企业微信、飞书、内部 CRM 或自动化运维脚本。',
+  },
+];
+
+const trustCommitments = [
+  {
+    title: '代码 100% 开源可审计',
+    body: '前后端核心源码完全公开，没有任何隐藏的“后门”或非对称加密黑盒，通过社区与全球安全专家的共同审阅。',
+  },
+  {
+    title: '支持纯内网物理断网运行',
+    body: '支持离线许可证与气隙隔离（Air-gapped）环境部署，不向任何外部公网服务器反向回传文档内容或分析遥测数据。',
+  },
+  {
+    title: '永不挪动企业核心资产',
+    body: '文档始终保留在企业现有的 Nextcloud 或本地机房 NAS 中，ConeShare 仅在本地生成沙箱渲染缓存与只读水印流。',
+  },
+  {
+    title: '企业级 1v1 交付支持',
+    body: '为中大型企业提供专属部署架构规划、SSO/LDAP 对接、高可用容灾演练与定制化功能支持。',
   },
 ];
 
@@ -34,9 +53,9 @@ export default function ZhAboutPage() {
     <div className="bg-white py-20 sm:py-28">
       <div className="mx-auto max-w-5xl px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">关于 Coneshare</p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">关于 ConeShare</p>
           <h1 className="mt-3 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-            掌控文档安全，无需牺牲基础设施自主权
+            把文件留在自己的服务器上，把安全与洞察握在自己手里
           </h1>
         </div>
 
@@ -44,10 +63,10 @@ export default function ZhAboutPage() {
           <div className="prose prose-lg max-w-none text-gray-700">
             <h2 className="text-gray-900">我们解决的核心痛点</h2>
             <p>
-              商业融资、投融资尽调、法务合规交涉与大客户商务谈判，都离不开机密文件的对外传输。然而一旦文件离开企业内部，您必须清楚知道谁在什么时候打开了文件、在核心条款页上停留了多长时间，以及是否被下载复制。
+              融资路演、并购尽调、法务审阅与大客户招投标，每天都有大量机密文件需要发给外部合作方。文件一旦发出，您最关心的是：对方到底看没看？在报价或核心条款页停了多久？有没有被私自下载或转发给竞争对手？
             </p>
             <p>
-              传统企业网盘非常擅长内部员工协作，但一旦向外部发送链接，就几乎失去了所有掌控力。Coneshare 填补了这一鸿沟：它在您现有存储上原生叠加密码保护、保密协议门禁、动态身份水印、逐页访客分析以及 Webhook 自动化能力。
+              传统企业网盘专为内部协作设计，外发链接一旦发出便失去控制。<strong>ConeShare 正是为了解决这一痛点而生</strong>：无需搬迁现有网盘，直接在您的自有存储之上加上访问门禁、前置 NDA 签署、防拍照动态水印与逐页阅读追踪。
             </p>
           </div>
         </section>
@@ -87,7 +106,7 @@ export default function ZhAboutPage() {
                   <h3 className="text-base font-semibold text-gray-900">借助 AI 提升研发效率，把节省的成本返还给用户</h3>
                 </div>
                 <p className="mt-3 text-sm leading-6 text-gray-600">
-                  我们在日常研发与测试中深度使用 AI 编程工具，让小团队也能以更低的人力负担、远快于传统团队的节奏交付稳定可靠的功能。大幅降低的开发与维护成本，直接反映在我们的定价策略上：开源核心版永久免费，企业级私有部署的费用也仅为传统商业 SaaS 的几分之一。
+                  我们在日常研发与测试中深度使用 AI 编程工具，让精干的工程团队也能以极高效率持续交付稳定、可靠的企业级功能。大幅降低的研发与维护成本，直接转化为更厚道的定价：开源核心版永久免费，企业版私有部署费用也仅为传统商业 SaaS 的几分之一。
                 </p>
               </div>
 
@@ -97,37 +116,27 @@ export default function ZhAboutPage() {
                   <h3 className="text-base font-semibold text-gray-900">将 AI Agent 融入产品，打造更实用的智能文档空间</h3>
                 </div>
                 <p className="mt-3 text-sm leading-6 text-gray-600">
-                  虚拟资料室不应该只是静态存放和查看文件的地方。Coneshare 正通过标准 MCP（Model Context Protocol）协议对接外部 AI Agent 生态，并在产品内逐步内置文档智能问答、尽调查验助手、内容自动摘要与敏感信息审查，让资料室真正具备主动分析与协同能力。
+                  虚拟资料室不应该只是静态存放文件的地方。ConeShare 原生支持标准 MCP 协议对接外部 AI 智能体，并逐步内置文档智能问答、尽调辅助审阅、自动摘要与敏感信息排查能力。所有 AI 能力均支持按需开启并对接本地私有大模型，在严守数据不出内网的前提下，让资料室真正具备主动分析能力。
                 </p>
               </div>
             </div>
           </div>
         </section>
 
+        {/* 为什么企业放心将核心机密交给 ConeShare：开源合规与安全承诺 */}
         <section className="mx-auto mt-16 max-w-4xl border-t border-gray-200 pt-12">
           <div className="grid gap-8 lg:grid-cols-12">
             <div className="lg:col-span-4">
-              <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">适用场景</p>
-              <h2 className="mt-3 text-2xl font-bold tracking-tight text-gray-900">何时选择 Coneshare</h2>
+              <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">安全与信任</p>
+              <h2 className="mt-3 text-2xl font-bold tracking-tight text-gray-900">为什么放心将核心机密交给 ConeShare</h2>
             </div>
-            <div className="space-y-8 lg:col-span-8">
-              <div>
-                <h3 className="text-base font-semibold text-gray-900">特别契合的场景</h3>
-                <ul className="mt-4 space-y-3 text-sm leading-6 text-gray-600">
-                  <li>使用 Nextcloud、Google Drive 或 Dropbox，希望获得更强大的对外分享管控能力。</li>
-                  <li>需要专业虚拟资料室，但拒绝将海量业务资料迁移至第三方商业 SaaS 服务商。</li>
-                  <li>商业融资、并购尽调、法务合规及大客户招投标中，需要高度依赖访客阅读行为数据。</li>
-                  <li>对数据主权和隐私合规有严苛要求的团队，偏好在自有服务器上私有化运行。</li>
-                </ul>
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-gray-900">不适用的场景</h3>
-                <ul className="mt-4 space-y-3 text-sm leading-6 text-gray-600">
-                  <li>普通文件日常传输，标准网盘生成的公共共享链接已完全能满足要求。</li>
-                  <li>寻求全面替换底层企业网络挂载盘或对象存储的底层存储系统。</li>
-                  <li>仅关注内部多人在线协同编辑，而不需要对外访问门禁与追踪。</li>
-                </ul>
-              </div>
+            <div className="grid gap-6 sm:grid-cols-2 lg:col-span-8">
+              {trustCommitments.map((item) => (
+                <div key={item.title} className="rounded-xl border border-gray-200 p-6 shadow-sm">
+                  <h3 className="text-base font-semibold text-gray-900">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-gray-600">{item.body}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -137,7 +146,7 @@ export default function ZhAboutPage() {
             <div className="lg:col-span-8">
               <h2 className="text-2xl font-bold tracking-tight">体验在线演示环境</h2>
               <p className="mt-3 text-sm leading-6 text-gray-300">
-                在将 Coneshare 部署到企业专属服务器之前，您可以在我们的公共演示环境中完整测试文档阅读器、权限管控及分析看板。
+                在将 ConeShare 部署到企业专属服务器之前，您可以在我们的公共演示环境中完整测试文档阅读器、权限管控及分析看板。
               </p>
             </div>
             <div className="flex flex-wrap gap-3 lg:col-span-4 lg:justify-end">

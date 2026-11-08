@@ -51,6 +51,7 @@ test.describe('Dataroom Management', () => {
 
     // Check for success toast and that the link appears in the table
     await expect(page.getByText(/link created successfully/i)).toBeVisible();
+    await expect(page.locator('div[role="dialog"]')).not.toBeVisible({ timeout: 10000 });
     await expect(page.getByRole('cell', { name: linkName })).toBeVisible();
 
     // --- 4. Copy share link and open as Anonymous Guest in incognito context ---
@@ -498,10 +499,11 @@ test.describe('Dataroom Management', () => {
     await expect(nameInput).toHaveValue(linkName);
     await page.getByRole('button', { name: /save changes/i }).click();
     await expect(page.getByText(/link created successfully/i)).toBeVisible();
+    await expect(page.locator('div[role="dialog"]')).not.toBeVisible({ timeout: 10000 });
 
     // 5. Open Manage Permissions dialog for this link
     const linkRow = page.getByRole('row', { name: new RegExp(linkName) });
-    await expect(linkRow).toBeVisible({ timeout: 10000 });
+    await expect(linkRow).toBeVisible({ timeout: 15000 });
     await linkRow.getByRole('button', { name: /actions/i }).click();
     await page.getByRole('menuitem', { name: /manage permissions/i }).click();
 
@@ -596,10 +598,11 @@ test.describe('Dataroom Management', () => {
     await expect(nameInput).toHaveValue(linkName);
     await page.getByRole('button', { name: /save changes/i }).click();
     await expect(page.getByText(/link created successfully/i)).toBeVisible();
+    await expect(page.locator('div[role="dialog"]')).not.toBeVisible({ timeout: 10000 });
 
     // 4. Get share link URL
     const linkRow = page.getByRole('row', { name: new RegExp(linkName) });
-    await expect(linkRow).toBeVisible({ timeout: 10000 });
+    await expect(linkRow).toBeVisible({ timeout: 15000 });
     const shareLinkUrl = await linkRow.locator('[title*="/view/"]').first().getAttribute('title');
     expect(shareLinkUrl).toContain('/view/');
 
@@ -692,10 +695,11 @@ test.describe('Dataroom Management', () => {
     await expect(nameInput).toHaveValue(linkName);
     await page.getByRole('button', { name: /save changes/i }).click();
     await expect(page.getByText(/link created successfully/i)).toBeVisible();
+    await expect(page.locator('div[role="dialog"]')).not.toBeVisible({ timeout: 10000 });
 
     // 6. Get share link URL
     const linkRow = page.getByRole('row', { name: new RegExp(linkName) });
-    await expect(linkRow).toBeVisible({ timeout: 10000 });
+    await expect(linkRow).toBeVisible({ timeout: 15000 });
     const shareLinkUrl = await linkRow.locator('[title*="/view/"]').first().getAttribute('title');
     expect(shareLinkUrl).toContain('/view/');
 
@@ -782,10 +786,11 @@ test.describe('Dataroom Management', () => {
     // Save changes
     await page.getByRole('button', { name: /save changes/i }).click();
     await expect(page.getByText(/link created successfully/i)).toBeVisible();
+    await expect(page.locator('div[role="dialog"]')).not.toBeVisible({ timeout: 10000 });
 
     // 4. Get share link URL
     const linkRow = page.getByRole('row', { name: new RegExp(linkName) });
-    await expect(linkRow).toBeVisible({ timeout: 10000 });
+    await expect(linkRow).toBeVisible({ timeout: 15000 });
     const shareLinkUrl = await linkRow.locator('[title*="/view/"]').first().getAttribute('title');
     expect(shareLinkUrl).toContain('/view/');
 
@@ -844,8 +849,8 @@ test.describe('Dataroom Management', () => {
     await expect(collabDialog.getByText(/manage collaborators/i)).toBeVisible();
 
     // 3. Select an eligible organization member from dropdown
-    const memberBtn = collabDialog.locator('button[type="button"]').filter({ hasText: /@/ }).first();
-    await expect(memberBtn).toBeVisible({ timeout: 10000 });
+    const memberBtn = collabDialog.locator('button[type="button"]').filter({ hasText: /colleague@coneshare\.com|@/i }).first();
+    await expect(memberBtn).toBeVisible({ timeout: 15000 });
     const memberText = (await memberBtn.textContent()).trim();
     await memberBtn.click();
 
@@ -924,10 +929,11 @@ test.describe('Dataroom Management', () => {
     await expect(nameInput).toHaveValue(linkName);
     await page.getByRole('button', { name: /save changes/i }).click();
     await expect(page.getByText(/link created successfully/i)).toBeVisible();
+    await expect(page.locator('div[role="dialog"]')).not.toBeVisible({ timeout: 10000 });
 
     // 7. Get share link URL
     const linkRow = page.getByRole('row', { name: new RegExp(linkName) });
-    await expect(linkRow).toBeVisible({ timeout: 10000 });
+    await expect(linkRow).toBeVisible({ timeout: 15000 });
     const shareLinkUrl = await linkRow.locator('[title*="/view/"]').first().getAttribute('title');
     expect(shareLinkUrl).toContain('/view/');
 

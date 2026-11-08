@@ -28,7 +28,7 @@ export function Footer({ locale }) {
       links: features
         .filter((feature) => feature.slug !== 'self-hosted')
         .map((feature) => ({
-          label: feature.menuName || feature.name,
+          label: (isZh && feature.menuNameZh) ? feature.menuNameZh : (feature.menuName || feature.name),
           href: `/features/${feature.slug}`,
         })),
     },

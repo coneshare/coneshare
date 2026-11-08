@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 
 const tabs = [
   {
@@ -9,6 +10,7 @@ const tabs = [
     label: 'PDF',
     src: '/screenshots/preview-pdf.png',
     alt: 'PDF document viewer with responsive pagination',
+    altZh: 'PDF 格式免安装在线预览与自适应分页',
     width: 1292,
     height: 737,
   },
@@ -17,6 +19,7 @@ const tabs = [
     label: 'DOCX / PPT',
     src: '/screenshots/preview-docx.png',
     alt: 'Word and presentation preview with vector typography',
+    altZh: '文档、表格与演示文稿高清矢量渲染，桌面端与手机微信即点即看',
     width: 1295,
     height: 733,
   },
@@ -25,6 +28,7 @@ const tabs = [
     label: 'XLS / CSV',
     src: '/screenshots/preview-spreadsheet.png',
     alt: 'Spreadsheet viewer with tabular grid and formulas',
+    altZh: '电子表格在线预览与公式支持',
     width: 1296,
     height: 735,
   },
@@ -33,6 +37,7 @@ const tabs = [
     label: 'IMAGE / HEIC',
     src: '/screenshots/preview-image.png',
     alt: 'High-efficiency HEIC and image viewer preview',
+    altZh: '高清大图与 HEIC 格式秒开预览',
     width: 1533,
     height: 819,
   },
@@ -41,12 +46,15 @@ const tabs = [
     label: 'MP4',
     src: '/screenshots/preview-video.png',
     alt: 'Streaming video player preview',
+    altZh: '音视频在线流式播放',
     width: 1376,
     height: 761,
   },
 ];
 
-export function MultiFormatPreviewMockup({ autoRotateInterval = 3200 }) {
+export function MultiFormatPreviewMockup({ autoRotateInterval = 3200, locale }) {
+  const pathname = usePathname();
+  const isZh = locale === 'zh' || pathname?.startsWith('/zh');
   const [activeTab, setActiveTab] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -123,12 +131,17 @@ export function MultiFormatPreviewMockup({ autoRotateInterval = 3200 }) {
         <Image
           key={current.src}
           src={current.src}
-          alt={current.alt}
+          alt={isZh ? current.altZh : current.alt}
           width={current.width}
           height={current.height}
           className="w-full h-auto max-h-[175px] object-cover object-top transition-opacity duration-300"
         />
       </div>
+
+      {/* Caption below preview */}
+      <p className="mt-2.5 text-center text-xs text-gray-500 italic select-none">
+        {isZh ? current.altZh : current.alt}
+      </p>
     </div>
   );
 }

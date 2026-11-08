@@ -4,8 +4,8 @@ import { HomepageMockupCarousel } from '../../components/HomepageMockupCarousel'
 import { MultiFormatPreviewMockup } from '../../components/MultiFormatPreviewMockup';
 
 export const metadata = {
-  title: 'Coneshare: 文档安全管控与洞察层 | 开源私有化资料室',
-  description: '无需迁移现有云存储。Coneshare 将您的 Nextcloud、私有 S3 或 Google Drive 升级为具备动态水印、访客追踪与细粒度权限的虚拟资料室。',
+  title: '开源私有化虚拟资料室 (VDR) 与外发文档追踪系统 - ConeShare',
+  description: '告别昂贵的按人头 SaaS 订阅。无需迁移现有网盘，直接为外发机密文档加上访问门禁、防拍照动态水印与逐页阅读追踪。',
 };
 
 export default function ZhHomePage() {
@@ -17,20 +17,20 @@ export default function ZhHomePage() {
   const zhUseCases = [
     {
       slug: 'secure-fundraising',
-      name: '融资推进与投资人洞察',
-      description: '实时掌握投资人打开商业计划书与资料室的精确时机，将阅读行为即时转化为更有把握的跟进行动。',
+      name: '初创股权融资',
+      description: '实时掌握投资人翻阅 BP 的停留秒数；识别内部转发轨迹，顺藤摸瓜找到幕后真正拍板的合伙人。',
       icon: primaryUseCases[0]?.icon,
     },
     {
       slug: 'engagement-visibility',
-      name: '意向洞察与客户筛选',
-      description: '通过统计文档各页停留时长、下载与反复查看记录，从海量客户中快速甄别出真正具备高意向的商业买家。',
+      name: '大客户商务销售',
+      description: '外发定制方案与报价单前强制签署 NDA；全屏平铺动态水印，彻底杜绝同行套价与拍照泄露。',
       icon: primaryUseCases[1]?.icon,
     },
     {
       slug: 'timely-follow-ups',
-      name: '关键节点即时协同',
-      description: '当核心报价单或合同被查阅或下载时，通过 Webhook 自动触发内部工作流，在买家关注度最高时完成跟进。',
+      name: '并购尽调与法务审计',
+      description: '一室多链按买方严格隔离底稿目录与问答；纯内网离线部署，严守律所与投行合规审计红线。',
       icon: primaryUseCases[2]?.icon,
     },
   ];
@@ -59,8 +59,7 @@ export default function ZhHomePage() {
                   className="inline-flex items-center gap-x-2 rounded-full border border-gray-200 bg-white/80 px-4 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 hover:border-gray-300"
                 >
                   <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Coneshare v1.11 已发布：全新数据室访客端界面与全室打包下载</span>
-                  <span className="text-gray-400">→</span>
+                  <span>ConeShare v1.11 已发布：全新资料室访客界面，支持整库一键打包下载 &rarr;</span>
                 </Link>
               </div>
 
@@ -68,7 +67,7 @@ export default function ZhHomePage() {
                 数据自主掌控的企业级私有化资料室
               </h1>
               <p className="mt-6 text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
-                告别封闭高价的第三方 SaaS。在您现有的存储设施之上，获得精细的文档权限控制、防泄密水印与逐页阅读洞察。
+                告别昂贵的按人头 SaaS 订阅。无需迁移现有网盘，直接为外发机密文档加上访问门禁、防拍照动态水印与逐页阅读追踪。
               </p>
               <div className="mt-10 flex items-center justify-center gap-x-6">
                 <Link
@@ -82,15 +81,15 @@ export default function ZhHomePage() {
                 </Link>
               </div>
               <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-gray-500">
-                <span>✓ 开源且支持完整私有化部署</span>
+                <span>✓ 直连 Nextcloud 与企业私有存储，免数据迁移</span>
                 <span className="hidden sm:inline">•</span>
-                <span>✓ 核心文件始终保存在您自己的存储系统中</span>
+                <span>✓ 逐页停留时长统计与内部转发识别</span>
                 <span className="hidden sm:inline">•</span>
-                <span>✓ 一行 Docker 命令轻松完成安装</span>
+                <span>✓ 100% 私有化部署，支持纯内网物理隔离</span>
               </div>
             </div>
             <div className="mt-16 sm:mt-20 mx-auto max-w-5xl px-6 lg:px-8">
-              <HomepageMockupCarousel />
+              <HomepageMockupCarousel locale="zh" />
             </div>
           </div>
         </div>
@@ -134,30 +133,30 @@ export default function ZhHomePage() {
               <div className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-700">1</span>
-                  访问权限管控
+                  现有网盘直连，零数据迁移
                 </h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  支持访问密码、邮箱验证门禁、一键签署保密协议（NDA）以及链接自动过期机制。
+                  直连 Nextcloud、本地存储或 S3，原网盘文件改动自动同步，无需忍受漫长的数据搬迁。
                 </p>
               </div>
 
               <div className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-700">2</span>
-                  防泄密动态水印
+                  发出后依然全程受控
                 </h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  在线预览与 PDF 下载文件中动态烧录访问者的邮箱、IP 地址与访问时间，从源头杜绝截屏与翻拍泄密。
+                  随时撤回链接、修改密码或关闭下载；强制全屏动态水印与签署 NDA，彻底终结“外发即失控”。
                 </p>
               </div>
 
               <div className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-700">3</span>
-                  页面级行为追踪
+                  固定低成本，拒绝按人头高价订阅
                 </h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  精确测量每页或每张幻灯片的阅读秒数，识别跳过章节，并在链接被转发给新同事时即刻发出提醒。
+                  打破传统 VDR 与海外 SaaS 每人每月数十美元的沉重负担，平价私有化部署，不限制团队成员规模。
                 </p>
               </div>
 
@@ -187,7 +186,7 @@ export default function ZhHomePage() {
               <ul className="mt-4 space-y-2.5 text-sm text-gray-600">
                 <li className="flex items-start gap-2">
                   <span className="text-emerald-500 font-bold">•</span>
-                  <span>分发商业计划书、大客户提案或并购尽调资料，需要精确掌握页面级阅读情况。</span>
+                  <span>高频外发商业计划书 (BP)、大客户提案或并购尽调文件，需要精确获知对方翻阅进度与停留时长。</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-emerald-500 font-bold">•</span>
@@ -199,7 +198,7 @@ export default function ZhHomePage() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-emerald-500 font-bold">•</span>
-                  <span>高度重视数据主权，优先选择使用 Docker 容器私有化部署。</span>
+                  <span>严守企业数据合规红线，要求 100% 私有化部署或在纯内网离线运行。</span>
                 </li>
               </ul>
             </div>
@@ -234,9 +233,9 @@ export default function ZhHomePage() {
       <div id="features" className="bg-white py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">核心功能</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">核心能力</p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              为外发文件提供全方位的可见度与安全保护
+              无需改变存储习惯，外发即享企业级安全与追踪
             </h2>
             <p className="mt-4 text-lg leading-8 text-gray-600">
               虚拟资料室、动态水印、免安装在线预览与页面级分析，一站式交付。
@@ -253,7 +252,7 @@ export default function ZhHomePage() {
                   虚拟资料室 (Virtual Data Rooms)
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-gray-600">
-                  数分钟内完成商业提案与尽调材料的目录搭建。按文件夹独立配置访问权限，强制 NDA 门禁签署，并为不同客户或资方分配独立链接。
+                  专为尽调、审计与商务提案打造的结构化资料室。支持一室多链与分组权限隔离，按买方独立控制可访问目录与下载权限。
                 </p>
               </div>
 
@@ -314,7 +313,7 @@ export default function ZhHomePage() {
                   动态防泄密水印
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-gray-600">
-                  防患于未然。平铺水印动态将访客经过验证的邮箱、访问时间戳及 IP 烧录在全屏在线预览及 PDF 下载文件中。
+                  全屏平铺访客邮箱、IP 与时间戳，兼顾清晰阅读与防翻拍威慑，从源头遏制手机拍照与截图泄密。
                 </p>
               </div>
 
@@ -385,7 +384,7 @@ export default function ZhHomePage() {
                 </p>
               </div>
 
-              <MultiFormatPreviewMockup />
+              <MultiFormatPreviewMockup locale="zh" />
 
               <div className="mt-6 pt-2">
                 <Link
@@ -404,7 +403,7 @@ export default function ZhHomePage() {
                   页面级深度阅读分析
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-gray-600">
-                  在召开下一轮商务跟进前，精确掌握哪位决策者对哪些内容最感兴趣。查看逐页停留时长，并在提案被内部转发时收到警报。
+                  精确记录每页停留秒数、完成率与音视频观看进度。自动识别内部转发轨迹，精准锁定高意向买家与兴趣焦点。
                 </p>
               </div>
 
@@ -484,7 +483,7 @@ export default function ZhHomePage() {
           <div className="mx-auto max-w-2xl lg:text-center">
             <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">应用场景</p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-              为方案与客户关键材料赋予真实的访问控制
+              为高价值机密外发场景，量身打造合规安全屏障
             </h2>
           </div>
           <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-5xl">

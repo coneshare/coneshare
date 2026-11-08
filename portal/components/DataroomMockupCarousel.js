@@ -2,37 +2,45 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const mockImages = [
   {
     src: '/screenshots/feat-vdr-viewer.png',
     alt: 'Preview documents and videos in datarooms',
+    altZh: '在资料室中高清免插件预览文档、表格与音视频',
     url: 'https://app.coneshare.com/view/PpyMwCrvJeQAXlaq1cREAw'
   },
   {
     src: '/screenshots/feat-vdr-add-content.png',
     alt: 'Organize files and folders in custom datarooms',
+    altZh: '自由搭建与调整虚拟资料室的多级目录结构',
     url: 'https://app.coneshare.com/datarooms/01KNEQH639ANTVC0JE8JP37298?tab=documents'
   },
   {
     src: '/screenshots/feat-vdr-manage-perm.png',
     alt: 'Granular per-item visibility and download settings',
+    altZh: '按文件夹或单文件精细控制可见范围与下载权限',
     url: 'https://app.coneshare.com/datarooms/01KNEQH639ANTVC0JE8JP37298'
   },
   {
     src: '/screenshots/feat-sharing.png',
     alt: 'Configure secure links, expiration, and watermarks',
+    altZh: '独立配置外发链接密码、有效期、NDA 门禁与动态水印',
     url: 'https://app.coneshare.com/datarooms/01KNEQH639ANTVC0JE8JP37298'
   },
   {
     src: '/screenshots/feat-analytics.png',
     alt: 'Real-time viewer engagement and page tracking',
+    altZh: '实时追踪各买方访问活跃度与逐页阅读时长',
     url: 'https://app.coneshare.com/datarooms/01KNEQH639ANTVC0JE8JP37298'
   }
 ];
 
-export function DataroomMockupCarousel({ autoPlayInterval = 6000 }) {
+export function DataroomMockupCarousel({ autoPlayInterval = 6000, locale }) {
+  const pathname = usePathname();
+  const isZh = locale === 'zh' || pathname?.startsWith('/zh');
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const goToPrevious = () => {
@@ -85,7 +93,7 @@ export function DataroomMockupCarousel({ autoPlayInterval = 6000 }) {
                 <div key={index} className="w-full flex-shrink-0 relative">
                   <Image
                     src={image.src}
-                    alt={image.alt}
+                    alt={isZh ? image.altZh : image.alt}
                     width={1200}
                     height={750}
                     className="w-full h-auto object-contain"
@@ -132,7 +140,7 @@ export function DataroomMockupCarousel({ autoPlayInterval = 6000 }) {
       
       {/* Caption/Label below the browser */}
       <p className="mt-3 text-center text-xs text-gray-500 italic select-none">
-        {mockImages[currentIndex].alt}
+        {isZh ? mockImages[currentIndex].altZh : mockImages[currentIndex].alt}
       </p>
     </div>
   );

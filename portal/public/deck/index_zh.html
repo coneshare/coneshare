@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ConeShare - 私有化文档受控外发与追踪系统</title>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -22,15 +26,15 @@
             }
           },
           fontFamily: {
-            sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"PingFang SC"', '"Hiragino Sans GB"', '"Microsoft YaHei"', 'sans-serif'],
-            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"PingFang SC"', '"Hiragino Sans GB"', '"Microsoft YaHei"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
           }
         }
       }
     }
   </script>
   <style>
-    /* A4 Landscape Dimensions: 297mm x 210mm (Ratio 1.414 : 1, matching Nextcloud brochure) */
+    /* A4 Landscape Dimensions: 297mm x 210mm */
     :root {
       --slide-width: 297mm;
       --slide-height: 210mm;
@@ -47,13 +51,13 @@
       box-sizing: border-box;
       overflow: hidden;
       background-color: #ffffff;
-      padding: 30px 44px 22px 44px;
+      padding: 26px 40px 18px 40px;
     }
 
     @media screen {
       .slide {
-        box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
-        border: 1px solid #e5e7eb;
+        box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.06), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+        border: 1px solid #E5E7EB;
         border-radius: 8px;
       }
     }
@@ -97,36 +101,31 @@
         min-height: 210mm !important;
         max-width: 297mm !important;
         max-height: 210mm !important;
-        padding: 30px 44px 22px 44px !important;
+        padding: 26px 40px 18px 40px !important;
       }
     }
 
-    /* Watermark simulation for mockup */
-    .watermark-overlay {
-      background-image: repeating-linear-gradient(
-        -20deg,
-        rgba(185, 28, 28, 0.08) 0,
-        rgba(185, 28, 28, 0.08) 1px,
-        transparent 1px,
-        transparent 45px
-      );
+    /* Subtle Architectural Dot Grid */
+    .dot-grid {
+      background-image: radial-gradient(circle at 1px 1px, #d1d5db 1px, transparent 0);
+      background-size: 20px 20px;
     }
   </style>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans antialiased selection:bg-gray-900 selection:text-white">
+<body class="bg-[#F3F4F6] text-[#111827] font-sans antialiased selection:bg-[#111827] selection:text-white">
 
   <!-- Fixed Top Control Bar (Hidden when Printing) -->
-  <header class="no-print fixed top-4 right-6 z-50 flex items-center gap-3 bg-white/95 backdrop-blur-md border border-gray-200/90 px-4 py-2 rounded-full shadow-lg">
-    <div class="flex items-center gap-2 pr-3 border-r border-gray-200 text-xs font-mono text-gray-500">
-      <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-      <span id="slideIndicator" class="font-semibold text-gray-700">1 / 10</span>
+  <header class="no-print fixed top-4 right-6 z-50 flex items-center gap-3 bg-white/95 backdrop-blur-md border border-[#E5E7EB] px-4 py-2 rounded-full shadow-md">
+    <div class="flex items-center gap-2 pr-3 border-r border-[#E5E7EB] text-xs font-mono text-[#6B7280]">
+      <span class="inline-block w-2 h-2 rounded-full bg-[#059669]"></span>
+      <span id="slideIndicator" class="font-semibold text-[#111827]">1 / 10</span>
     </div>
-    <div class="flex items-center gap-1.5 text-xs text-gray-500">
-      <kbd class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 font-mono text-[10px] text-gray-600">←</kbd>
-      <kbd class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200 font-mono text-[10px] text-gray-600">→</kbd>
+    <div class="flex items-center gap-1.5 text-xs text-[#6B7280]">
+      <kbd class="px-1.5 py-0.5 rounded bg-[#F3F4F6] border border-[#E5E7EB] font-mono text-[10px] text-[#4B5563]">←</kbd>
+      <kbd class="px-1.5 py-0.5 rounded bg-[#F3F4F6] border border-[#E5E7EB] font-mono text-[10px] text-[#4B5563]">→</kbd>
       <span class="text-[11px] mr-2">翻页</span>
     </div>
-    <button onclick="window.print()" class="flex items-center gap-1.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold px-4 py-1.5 rounded-full transition shadow-sm">
+    <button onclick="window.print()" class="flex items-center gap-1.5 bg-[#111827] hover:bg-gray-800 text-white text-xs font-medium px-4 py-1.5 rounded-full transition shadow-xs">
       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
       导出为 PDF (Cmd+P)
     </button>
@@ -136,1163 +135,1192 @@
   <main class="slides-wrapper flex flex-col items-center gap-10 py-8 print:p-0 print:gap-0">
 
     <!-- ========================================== -->
-    <!-- SLIDE 1: COVER & SYSTEM ARCHITECTURE -->
-    <!-- ========================================== -->
-    <!-- ========================================== -->
-    <!-- SLIDE 1: COVER & SYSTEM ARCHITECTURE -->
+    <!-- SLIDE 01: COVER -->
     <!-- ========================================== -->
     <section class="slide bg-white flex flex-col justify-between">
       <!-- Top Row -->
-      <div class="flex items-center justify-between z-10 border-b border-gray-150 pb-3">
+      <div class="flex items-center justify-between border-b border-[#E5E7EB] pb-3">
         <div class="flex items-center gap-2.5">
-          <img src="logo-cropped.svg" alt="ConeShare Logo" class="h-6 w-auto shrink-0" style="height: 26px; width: auto;">
-          <span class="text-2xl font-bold tracking-tight text-gray-900">ConeShare</span>
+          <img src="logo-cropped.svg" alt="ConeShare Logo" class="h-6 w-auto shrink-0" style="height: 24px; width: auto;">
+          <span class="text-xl font-bold tracking-tight text-[#111827]">ConeShare</span>
         </div>
+        <span class="font-mono text-xs text-[#6B7280]">coneshare.com</span>
       </div>
 
-      <!-- Center Body (Full Width Editorial Cover) -->
-      <div class="my-auto py-5 space-y-7 z-10">
+      <!-- Center Body -->
+      <div class="my-auto py-3 space-y-5">
         <!-- Main Title & Lead -->
-        <div class="space-y-3">
-          <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded bg-blue-50 text-blue-800 text-xs font-semibold tracking-wider">
-            <span>官方产品白皮书</span>
+        <div class="space-y-2.5">
+          <div class="inline-flex items-center gap-2 px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563] text-[11px] font-mono font-bold">
+            <span>OFFICIAL WHITEPAPER · 官方产品白皮书</span>
           </div>
-          <h1 class="text-[40px] font-extrabold text-gray-900 tracking-tight leading-[1.2]">
+          <h1 class="text-[36px] font-extrabold text-[#111827] tracking-tight leading-[1.18]">
             私有化文档受控外发与追踪系统
           </h1>
-          <p class="text-2xl font-bold text-gray-700">
-            开箱即用的私有化 DocSend 与新一代虚拟资料室 (VDR)
+          <p class="text-xl font-semibold text-[#4B5563] tracking-tight">
+            开箱即用的私有化 DocSend 与轻量级虚拟资料室 (VDR)
           </p>
-          <p class="text-[16px] text-gray-600 leading-relaxed max-w-3xl pt-1">
-            直接在您现有的企业存储（Nextcloud / 本地私有存储 / 对象存储）之上，为机密文件与商业资料提供逐页停留遥测、防拍照动态水印与项目资料室门禁，告别公有云数据主权丧失风险与高昂按人头订阅。
+          <p class="text-[13.5px] text-[#4B5563] leading-relaxed max-w-3xl pt-0.5">
+            直接挂载企业现有存储（Nextcloud / 本地存储 / 对象存储），为外发机密文档加上逐页阅读追踪、防拍照动态水印与访问门禁。文件留在内网，既杜绝公有云泄密，又省去昂贵的按人头订阅费。
           </p>
         </div>
 
-        <!-- 3 Core Strategic Pillars (Clean 3-Column Editorial Grid) -->
-        <div class="grid grid-cols-3 gap-8 pt-6 border-t border-gray-200">
-          <div class="space-y-2 border-r border-gray-150 pr-6">
-            <div class="flex items-baseline gap-2">
-              <span class="text-blue-600 font-mono font-bold text-base">01</span>
-              <h3 class="text-base font-bold text-gray-900">100% 绝对数据主权</h3>
+        <!-- 3 Core Pillars: Layered Cards -->
+        <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-4 shadow-sm">
+          <div class="grid grid-cols-3 gap-3.5">
+            <!-- Card 01 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3.5 shadow-sm space-y-1.5">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">01</span>
+                <h3 class="text-[13.5px] font-bold text-[#111827]">100% 数据自主可控</h3>
+              </div>
+              <p class="text-[12px] text-[#4B5563] leading-relaxed">
+                外发文档与浏览记录全流程保存在企业自有服务器，支持纯内网物理断网与离线授权激活，彻底消除数据出境风险。
+              </p>
             </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed">
-              核心外发文档全流程保存在您自有的服务器与内网机房，支持纯物理断网与离线 License，杜绝公有云泄密与数据出境风险。
-            </p>
-          </div>
 
-          <div class="space-y-2 border-r border-gray-150 pr-6">
-            <div class="flex items-baseline gap-2">
-              <span class="text-blue-600 font-mono font-bold text-base">02</span>
-              <h3 class="text-base font-bold text-gray-900">现有存储解耦零迁移</h3>
+            <!-- Card 02 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3.5 shadow-sm space-y-1.5">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">02</span>
+                <h3 class="text-[13.5px] font-bold text-[#111827]">直连现有网盘，零迁移</h3>
+              </div>
+              <p class="text-[12px] text-[#4B5563] leading-relaxed">
+                无需搬迁原有文件，直接挂载现有 Nextcloud 或本地存储；原文件修改后一键同步，发出去的链接永久有效。
+              </p>
             </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed">
-              轻量安全控制叠加层架构，直连挂载已有 Nextcloud 或本地私有存储；源文件修改后一键增量同步，外发链接永久有效。
-            </p>
-          </div>
 
-          <div class="space-y-2">
-            <div class="flex items-baseline gap-2">
-              <span class="text-blue-600 font-mono font-bold text-base">03</span>
-              <h3 class="text-base font-bold text-gray-900">页面级深度行为洞察</h3>
+            <!-- Card 03 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3.5 shadow-sm space-y-1.5">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">03</span>
+                <h3 class="text-[13.5px] font-bold text-[#111827]">逐页阅读追踪与即时提醒</h3>
+              </div>
+              <p class="text-[12px] text-[#4B5563] leading-relaxed">
+                精确记录每页停留秒数、跳读轨迹与完成率，客户打开瞬间通过企业微信、飞书或钉钉推送卡片提醒。
+              </p>
             </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed">
-              精确测量逐页停留秒数、跳读轨迹与完成率，联动企业微信、飞书与钉钉卡片即时推送预警，抢占商务跟进先机。
-            </p>
           </div>
         </div>
       </div>
 
       <!-- Footer -->
-      <div class="flex items-center justify-between border-t border-gray-200 pt-2.5 text-xs text-gray-400 z-10">
+      <div class="flex items-center justify-between border-t border-[#E5E7EB] pt-2.5 text-xs text-[#6B7280]">
         <div class="flex items-center gap-2">
-          <span class="font-semibold text-gray-700">ConeShare</span>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500">私有化文档受控外发与追踪系统 (DocSend & VDR 替代方案)</span>
+          <span class="font-semibold text-[#111827]">ConeShare</span>
+          <span class="text-[#D1D5DB]">|</span>
+          <span>私有化文档受控外发与追踪系统</span>
         </div>
         <div class="flex items-center gap-4 font-mono text-[11px]">
-          <a href="https://www.coneshare.com" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-gray-600 transition underline-offset-2 hover:underline">www.coneshare.com</a>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500 font-medium">01 / 10</span>
+          <span class="text-[#6B7280]">01 / 10</span>
         </div>
       </div>
     </section>
 
     <!-- ========================================== -->
-    <!-- SLIDE 2: THE PROBLEM & WHY CONESHARE -->
+    <!-- SLIDE 02: WHY CONESHARE -->
     <!-- ========================================== -->
     <section class="slide bg-white flex flex-col justify-between">
       <!-- Header -->
-      <div class="flex items-center justify-between border-b border-gray-200 pb-2.5">
-        <div>
-          <div class="flex items-center gap-2 mb-1">
-            <img src="logo-cropped.svg" alt="ConeShare" class="h-4 w-auto shrink-0" style="height: 16px; width: auto;">
-            <span class="text-xs font-bold text-gray-900">ConeShare</span>
-            <span class="text-gray-300">•</span>
-            <span class="text-xs font-semibold tracking-wider text-gray-500 uppercase">WHY CONESHARE · 商业机密分发痛点</span>
-          </div>
-          <h2 class="text-[28px] font-bold text-gray-900 tracking-tight leading-snug">传统网盘专为内部协作设计，而非对外安全分发</h2>
+      <div class="flex items-center justify-between border-b border-[#E5E7EB] pb-2.5">
+        <div class="flex items-center gap-2.5">
+          <span class="font-mono text-xs font-bold text-[#4B5563] bg-[#F3F4F6] px-2 py-0.5 rounded">02 / WHY CONESHARE</span>
+          <span class="text-xs text-[#6B7280] font-medium">商业机密分发痛点</span>
         </div>
+        <span class="font-mono text-xs text-[#6B7280]">coneshare.com</span>
+      </div>
+
+      <!-- Main Title -->
+      <div class="pt-2">
+        <h2 class="text-[24px] font-bold text-[#111827] tracking-tight">传统网盘专为内部协作设计，而非对外安全分发</h2>
+      </div>
+
+      <!-- Main Body: 5 : 7 Ratio -->
+      <div class="grid grid-cols-12 gap-5 my-auto items-start py-2">
+        <!-- Left Column: col-span-5 -->
+        <div class="col-span-5">
+          <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-3.5 shadow-sm space-y-3">
+            <!-- White Card 1: Core Positioning -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3.5 shadow-sm space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-[#111827] text-[13px]">为什么需要 ConeShare？</span>
+                <span class="bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] font-mono text-[10px] font-bold px-1.5 py-0.5 rounded">SELF-HOSTED VDR</span>
+              </div>
+              <p class="text-[11.5px] text-[#6B7280] leading-normal">
+                专为高频外发商业计划书 (BP)、定制报价或尽调底稿的团队打造：
+              </p>
+              <div class="space-y-1.5 pt-1 border-t border-[#F3F4F6] text-[11.5px]">
+                <div class="flex items-baseline gap-1.5">
+                  <span class="font-bold text-[#111827] shrink-0 font-mono text-[11px]">定位对标：</span>
+                  <span class="text-[#4B5563]">开源、可私有化部署的 DocSend 替代方案</span>
+                </div>
+                <div class="flex items-baseline gap-1.5">
+                  <span class="font-bold text-[#111827] shrink-0 font-mono text-[11px]">核心能力：</span>
+                  <span class="text-[#4B5563]">逐页阅读追踪 · 满屏防拍水印 · 在线签署 NDA</span>
+                </div>
+                <div class="flex items-baseline gap-1.5">
+                  <span class="font-bold text-[#111827] shrink-0 font-mono text-[11px]">根本不同：</span>
+                  <span class="text-[#4B5563]">拒绝按人头高昂月费，文件 100% 留在自有存储</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- White Card 2: Core Targets -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3.5 shadow-sm space-y-2.5">
+              <div class="border-l-2 border-[#111827] pl-2.5 space-y-0.5">
+                <p class="font-bold text-[#111827] text-[12.5px]">初创创始人 / 商务销售</p>
+                <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                  外发融资 BP 与商业报价，实时掌握资方与客户读没读、停在哪页，告别盲目猜测。
+                </p>
+              </div>
+              <div class="border-l-2 border-[#4B5563] pl-2.5 space-y-0.5">
+                <p class="font-bold text-[#111827] text-[12.5px]">投行 / 律所 / 尽调团队</p>
+                <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                  外发涉密尽调与法务底稿，严守“文件禁上公有云”红线，低成本搭建合规虚拟资料室。
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: col-span-7 -->
+        <div class="col-span-7">
+          <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-3.5 shadow-sm space-y-2.5">
+            <!-- Pain 01 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">01</span>
+                  <h3 class="text-[13px] font-bold text-[#111827]">普通网盘与邮件附件</h3>
+                </div>
+                <span class="bg-[#FFFBEB] text-[#B45309] border border-[#FDE68A] font-mono text-[10.5px] font-bold px-2 py-0.5 rounded">发出即失联 · 0 追踪</span>
+              </div>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                文件一旦发出便失去控制，既不知道谁打开过、各页停留多久，也无法阻止被随意转发；角落静态水印一裁就掉，无法防御手机翻拍。
+              </p>
+            </div>
+
+            <!-- Pain 02 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">02</span>
+                  <h3 class="text-[13px] font-bold text-[#111827]">海外公有云 DocSend</h3>
+                </div>
+                <span class="bg-[#FFFBEB] text-[#B45309] border border-[#FDE68A] font-mono text-[10.5px] font-bold px-2 py-0.5 rounded">$65 ~ $150 /人/月</span>
+              </div>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                按人头订阅成本随团队扩大成倍攀升；且机密文件必须上传至境外第三方服务器，面临数据出境与合规风险。
+              </p>
+            </div>
+
+            <!-- Pain 03 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">03</span>
+                  <h3 class="text-[13px] font-bold text-[#111827]">传统老牌 VDR (Intralinks 等)</h3>
+                </div>
+                <span class="bg-[#FFFBEB] text-[#B45309] border border-[#FDE68A] font-mono text-[10.5px] font-bold px-2 py-0.5 rounded">$10,000+ /单项目</span>
+              </div>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                按页计费动辄数万美元，导入与权限配置繁琐沉重，难以适应现代企业高频敏捷的投融资尽调与商务合作节奏。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="flex items-center justify-between border-t border-[#E5E7EB] pt-2.5 text-xs text-[#6B7280]">
+        <div class="flex items-center gap-2">
+          <span class="font-semibold text-[#111827]">ConeShare</span>
+          <span class="text-[#D1D5DB]">|</span>
+          <span>私有化文档受控外发与追踪系统</span>
+        </div>
+        <div class="flex items-center gap-4 font-mono text-[11px]">
+          <span class="text-[#6B7280]">02 / 10</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- SLIDE 03: CORE ARCHITECTURE -->
+    <!-- ========================================== -->
+    <section class="slide bg-white flex flex-col justify-between">
+      <!-- Header -->
+      <div class="flex items-center justify-between border-b border-[#E5E7EB] pb-2.5">
+        <div class="flex items-center gap-2.5">
+          <span class="font-mono text-xs font-bold text-[#4B5563] bg-[#F3F4F6] px-2 py-0.5 rounded">03 / CORE ARCHITECTURE</span>
+          <span class="text-xs text-[#6B7280] font-medium">核心工作流与架构</span>
+        </div>
+        <span class="font-mono text-xs text-[#6B7280]">coneshare.com</span>
+      </div>
+
+      <!-- Main Title -->
+      <div class="pt-2">
+        <h2 class="text-[24px] font-bold text-[#111827] tracking-tight">不搬迁原有文件，串联“安全外发、阅读追踪与即时跟进”闭环</h2>
       </div>
 
       <!-- Main Body -->
-      <div class="grid grid-cols-12 gap-8 my-auto items-start py-3">
-        <!-- Left: Elevator Pitch & Beachhead Fit -->
-        <div class="col-span-5 flex flex-col justify-between space-y-4">
-          <!-- Elevator Pitch Block -->
-          <div class="space-y-2.5">
-            <div class="flex items-center gap-2 text-[13px] font-bold text-gray-900 tracking-wide uppercase">
-              <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-              <span>为什么会有 ConeShare？</span>
-            </div>
-            <p class="text-gray-600 leading-relaxed text-[13px]">
-              对于频繁对外发送商业计划书 (BP)、定制提案或尽调底稿，但担心泄密或被按人头收取高昂费用的团队：
-            </p>
-            <div class="pl-3.5 border-l-2 border-gray-200 space-y-2 text-[12.5px] text-gray-700 leading-relaxed">
-              <p><strong class="text-gray-900">定位对标：</strong>开源、可自托管的文档受控外发与追踪系统 (DocSend 替代方案)。</p>
-              <p><strong class="text-gray-900">核心能力：</strong>类似 DocSend 的逐页停留追踪、动态防拍水印与一键 NDA 签署。</p>
-              <p><strong class="text-gray-900">根本不同：</strong>无需按人头每月被收上百美元，文件留在自有存储，100% 数据自主掌控。</p>
+      <div class="my-auto py-2 space-y-3">
+        <!-- Upper: 3 Step Progressive Flow -->
+        <div class="grid grid-cols-3 gap-3.5 items-stretch">
+          <!-- Step 01 -->
+          <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-4 shadow-sm flex flex-col justify-between space-y-3">
+            <div>
+              <div class="flex items-center justify-between pb-2 border-b border-[#E5E7EB] mb-2.5">
+                <div class="flex items-center gap-2">
+                  <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">01</span>
+                  <h3 class="text-[13px] font-bold text-[#111827]">直连挂载与受控门禁</h3>
+                </div>
+                <span class="text-[#9CA3AF] font-mono text-xs">→</span>
+              </div>
+              <div class="space-y-2 text-[11.5px]">
+                <div class="space-y-0.5">
+                  <p class="font-bold text-[#111827]">免迁移挂载网盘</p>
+                  <p class="text-[#4B5563] leading-relaxed">直接对接 Nextcloud、本地存储或对象存储，原文件修改后一键同步，外发链接永久有效。</p>
+                </div>
+                <div class="space-y-0.5">
+                  <p class="font-bold text-[#111827]">多层访问门禁</p>
+                  <p class="text-[#4B5563] leading-relaxed">支持密码保护、邮箱验证码校验、白名单限制与阅读前强制签署 NDA。</p>
+                </div>
+                <div class="space-y-0.5">
+                  <p class="font-bold text-[#111827]">防拍照动态水印</p>
+                  <p class="text-[#4B5563] leading-relaxed">全屏平铺访客邮箱、IP 与时间戳，支持多格式免插件高清预览。</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- Beachhead Fit (Clean Typographic Accent) -->
-          <div class="border-l-2 border-emerald-600 pl-3.5 py-1 space-y-2">
-            <div class="text-[13px] font-bold text-gray-900">
-              核心服务的两大典型客群：
+          <!-- Step 02 -->
+          <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-4 shadow-sm flex flex-col justify-between space-y-3">
+            <div>
+              <div class="flex items-center justify-between pb-2 border-b border-[#E5E7EB] mb-2.5">
+                <div class="flex items-center gap-2">
+                  <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">02</span>
+                  <h3 class="text-[13px] font-bold text-[#111827]">资料室分权与阅读追踪</h3>
+                </div>
+                <span class="text-[#9CA3AF] font-mono text-xs">→</span>
+              </div>
+              <div class="space-y-2 text-[11.5px]">
+                <div class="space-y-0.5">
+                  <p class="font-bold text-[#111827]">一室多链，独立分权</p>
+                  <p class="text-[#4B5563] leading-relaxed">同一资料室可生成多条专属链接，按买方分别隔离可见目录、密码与下载权限。</p>
+                </div>
+                <div class="space-y-0.5">
+                  <p class="font-bold text-[#111827]">逐页停留与播放统计</p>
+                  <p class="text-[#4B5563] leading-relaxed">精确记录每页阅读秒数、完成率与音视频观看区间，自动识别内部转发新访客。</p>
+                </div>
+                <div class="space-y-0.5">
+                  <p class="font-bold text-[#111827]">买方隔离尽调问答 (Q&A)</p>
+                  <p class="text-[#4B5563] leading-relaxed">文档旁内嵌加密问答板，不同竞标者提问互不可见，完整留存合规问答记录。</p>
+                </div>
+              </div>
             </div>
-            <ul class="text-[12.5px] text-gray-600 space-y-2 leading-relaxed">
-              <li>
-                <strong class="text-gray-900">初创创始人 / 商务销售：</strong>外发融资 BP、商业报价，急需掌握资方与客户是否在读、读到哪页，告别盲目猜测与 DocSend 昂贵订阅。
-              </li>
-              <li>
-                <strong class="text-gray-900">投行 / 律所 / 尽调工作室：</strong>外发尽职调查与法务底稿，客户协议与政策明令禁止上传公有云，急需合规私有化虚拟资料室 (VDR)。
-              </li>
-            </ul>
+          </div>
+
+          <!-- Step 03 -->
+          <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-4 shadow-sm flex flex-col justify-between space-y-3">
+            <div>
+              <div class="flex items-center justify-between pb-2 border-b border-[#E5E7EB] mb-2.5">
+                <div class="flex items-center gap-2">
+                  <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">03</span>
+                  <h3 class="text-[13px] font-bold text-[#111827]">即时预警与业务跟进</h3>
+                </div>
+                <span class="bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] font-mono text-[10px] font-bold px-1.5 py-0.5 rounded">闭环落地</span>
+              </div>
+              <div class="space-y-2 text-[11.5px]">
+                <div class="space-y-0.5">
+                  <p class="font-bold text-[#111827]">企微 / 飞书 / 钉钉推送</p>
+                  <p class="text-[#4B5563] leading-relaxed">客户打开链接、反复翻看报价页或下载合同时，负责人实时收到卡片提醒。</p>
+                </div>
+                <div class="space-y-0.5">
+                  <p class="font-bold text-[#111827]">Webhook 与 CRM 联动</p>
+                  <p class="text-[#4B5563] leading-relaxed">将深度阅读、多次重访等高意向信号实时同步至内部 CRM，自动触发跟进任务。</p>
+                </div>
+                <div class="space-y-0.5">
+                  <p class="font-bold text-[#111827]">把握最佳跟进时机</p>
+                  <p class="text-[#4B5563] leading-relaxed">在客户关注度最高的时刻主动联系，告别盲目追问，显著加速交易推进。</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Right: 3 Critical Failure Modes (Clean Editorial List) -->
-        <div class="col-span-7 flex flex-col justify-between space-y-4">
-          <!-- Pain 1 -->
-          <div class="border-b border-gray-150 pb-3.5 space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">01</span>
-              <h3 class="text-base font-bold text-gray-900">普通网盘链接“发出即失联”</h3>
-              <span class="text-xs text-gray-400 font-mono">/ 缺乏查阅洞察与防翻拍能力</span>
-            </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              传统网盘与邮件附件一旦发出，便失去一切可见度与控制权；无法得知谁查看了文件、各页停留了多久，更无法阻止被随意转发泄密。普通角落静态水印极易被裁剪，对手机翻拍毫无防御力。
-            </p>
+        <!-- Lower: Foundation Banner -->
+        <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-3 shadow-sm flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">BASE</span>
+            <span class="font-bold text-[#111827] text-xs">100% 私有化安全底座</span>
           </div>
-
-          <!-- Pain 2 -->
-          <div class="border-b border-gray-150 pb-3.5 space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">02</span>
-              <h3 class="text-base font-bold text-gray-900">公有云 DocSend 按人头计费昂贵</h3>
-              <span class="text-xs text-gray-400 font-mono">/ 长期订阅昂贵 · 数据主权丧失</span>
-            </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              DocSend 每人每月收取 $65~$150，随团队规模扩大成本持续攀升；且敏感文件需上传至境外服务器，面临数据出境与合规风险，企业无法掌控底层存储。
-            </p>
-          </div>
-
-          <!-- Pain 3 -->
-          <div class="space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">03</span>
-              <h3 class="text-base font-bold text-gray-900">老牌传统 VDR 按页计费，流程繁杂</h3>
-              <span class="text-xs text-gray-400 font-mono">/ 成本居高不下 · 无法敏捷交付</span>
-            </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              传统虚拟数据室（Intralinks/Datasite）按页计费，单个项目收费动辄数万美元；导入配置流程繁琐缓慢，无法适应现代企业高频敏捷的投融资尽调与商业合作节奏。
-            </p>
+          <div class="flex items-center gap-3 text-xs">
+            <span class="bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] px-2 py-0.5 rounded font-mono text-[11px] font-medium">Docker Compose 一键部署</span>
+            <span class="text-[#D1D5DB]">·</span>
+            <span class="bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] px-2 py-0.5 rounded font-mono text-[11px] font-medium">支持纯内网物理断网运行</span>
+            <span class="text-[#D1D5DB]">·</span>
+            <span class="bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] px-2 py-0.5 rounded font-mono text-[11px] font-medium">文档与浏览日志 100% 留存自有服务器</span>
           </div>
         </div>
       </div>
 
       <!-- Footer -->
-      <div class="flex items-center justify-between border-t border-gray-200 pt-2.5 text-xs text-gray-400">
+      <div class="flex items-center justify-between border-t border-[#E5E7EB] pt-2.5 text-xs text-[#6B7280]">
         <div class="flex items-center gap-2">
-          <span class="font-semibold text-gray-700">ConeShare</span>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500">私有化文档受控外发与追踪系统 (DocSend & VDR 替代方案)</span>
+          <span class="font-semibold text-[#111827]">ConeShare</span>
+          <span class="text-[#D1D5DB]">|</span>
+          <span>私有化文档受控外发与追踪系统</span>
         </div>
         <div class="flex items-center gap-4 font-mono text-[11px]">
-          <a href="https://www.coneshare.com" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-gray-600 transition underline-offset-2 hover:underline">www.coneshare.com</a>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500 font-medium">02 / 10</span>
+          <span class="text-[#6B7280]">03 / 10</span>
         </div>
       </div>
     </section>
 
     <!-- ========================================== -->
-    <!-- SLIDE 3: PRODUCT ARCHITECTURE -->
+    <!-- SLIDE 04: CORE FEATURE 01 - VDR -->
     <!-- ========================================== -->
     <section class="slide bg-white flex flex-col justify-between">
       <!-- Header -->
-      <div class="flex items-center justify-between border-b border-gray-200 pb-2.5">
-        <div>
-          <div class="flex items-center gap-2 mb-1">
-            <img src="logo-cropped.svg" alt="ConeShare" class="h-4 w-auto shrink-0" style="height: 16px; width: auto;">
-            <span class="text-xs font-bold text-gray-900">ConeShare</span>
-            <span class="text-gray-300">•</span>
-            <span class="text-xs font-semibold tracking-wider text-gray-500 uppercase">CORE ARCHITECTURE · 产品架构总览</span>
-          </div>
-          <h2 class="text-[28px] font-bold text-gray-900 tracking-tight leading-snug">覆盖访问控制、行为分析与团队协同的全流程体系</h2>
+      <div class="flex items-center justify-between border-b border-[#E5E7EB] pb-2.5">
+        <div class="flex items-center gap-2.5">
+          <span class="font-mono text-xs font-bold text-[#4B5563] bg-[#F3F4F6] px-2 py-0.5 rounded">04 / CORE FEATURE 01</span>
+          <span class="text-xs text-[#6B7280] font-medium">核心功能详解</span>
         </div>
-        <div class="text-right">
-          <a href="https://www.coneshare.com/features" target="_blank" rel="noopener noreferrer" class="inline-flex items-center px-2.5 py-1 rounded-md bg-gray-100 hover:bg-gray-200 text-xs font-mono text-gray-600 hover:text-gray-900 transition">
-            <span>coneshare.com/features ↗</span>
-          </a>
-        </div>
+        <span class="font-mono text-xs text-[#6B7280]">coneshare.com</span>
       </div>
 
-      <!-- 4 Layer Vertical Stack -->
-      <div class="my-auto py-2 divide-y divide-gray-150 border-y border-gray-200">
-        <!-- Layer 1: Control Layer -->
-        <div class="grid grid-cols-12 gap-6 py-3.5 items-center">
-          <div class="col-span-3 flex items-center gap-3">
-            <span class="text-blue-600 font-mono font-bold text-base shrink-0">01</span>
-            <h3 class="text-base font-bold text-gray-900">控制层 (Control Layer)</h3>
-          </div>
-          <div class="col-span-9 grid grid-cols-3 gap-5 text-[12.5px] text-gray-600 leading-relaxed border-l border-gray-150 pl-5">
-            <div>
-              <strong class="text-gray-900 block mb-0.5 font-bold text-[13px]">受控安全外发</strong>
-              <span>密码保护、邮箱验证、前置 NDA 签署与链接热更新。</span>
-            </div>
-            <div>
-              <strong class="text-gray-900 block mb-0.5 font-bold text-[13px]">防拍照动态水印</strong>
-              <span>动态平铺访客邮箱、IP 与时间戳，预览与下载双重防截屏溯源。</span>
-            </div>
-            <div>
-              <strong class="text-gray-900 block mb-0.5 font-bold text-[13px]">免安装多格式预览</strong>
-              <span>原生免插件高保真预览 PDF、Office、多工作表 Excel 与音视频。</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Layer 2: Intelligence Layer -->
-        <div class="grid grid-cols-12 gap-6 py-3.5 items-center">
-          <div class="col-span-3 flex items-center gap-3">
-            <span class="text-blue-600 font-mono font-bold text-base shrink-0">02</span>
-            <h3 class="text-base font-bold text-gray-900">洞察层 (Intelligence Layer)</h3>
-          </div>
-          <div class="col-span-9 grid grid-cols-3 gap-5 text-[12.5px] text-gray-600 leading-relaxed border-l border-gray-150 pl-5">
-            <div>
-              <strong class="text-gray-900 block mb-0.5 font-bold text-[13px]">逐页停留深度遥测</strong>
-              <span>精准测量每页阅读时长、跳读轨迹与完成率，支持链接与音视频遥测。</span>
-            </div>
-            <div>
-              <strong class="text-gray-900 block mb-0.5 font-bold text-[13px]">虚拟资料室多链接分权</strong>
-              <span>单一资料室派生多条独立外发链接，按买方隔离访问密码与目录权限。</span>
-            </div>
-            <div>
-              <strong class="text-gray-900 block mb-0.5 font-bold text-[13px]">买方隔离尽调 Q&A</strong>
-              <span>正文旁内嵌双向加密问答，不同买方提问严格隔离，沉淀合规问答日志。</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Layer 3: Action Layer -->
-        <div class="grid grid-cols-12 gap-6 py-3.5 items-center">
-          <div class="col-span-3 flex items-center gap-3">
-            <span class="text-blue-600 font-mono font-bold text-base shrink-0">03</span>
-            <h3 class="text-base font-bold text-gray-900">行动层 (Action Layer)</h3>
-          </div>
-          <div class="col-span-9 grid grid-cols-3 gap-5 text-[12.5px] text-gray-600 leading-relaxed border-l border-gray-150 pl-5">
-            <div>
-              <strong class="text-gray-900 block mb-0.5 font-bold text-[13px]">全渠道即时卡片预警</strong>
-              <span>客户查阅、重访或下载文件时，企微/飞书/钉钉/Slack 实时推送卡片提醒。</span>
-            </div>
-            <div>
-              <strong class="text-gray-900 block mb-0.5 font-bold text-[13px]">自动化 Webhook & CRM</strong>
-              <span>将深度阅读、多次重访等意向信号实时同步内部 CRM，自动触发跟进任务。</span>
-            </div>
-            <div>
-              <strong class="text-gray-900 block mb-0.5 font-bold text-[13px]">黄金窗口协同介入</strong>
-              <span>告别盲目揣测，在客户关注度最高的时间窗口协同介入，加速交易推进。</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Layer 4: Foundation Layer -->
-        <div class="grid grid-cols-12 gap-6 py-3.5 items-center">
-          <div class="col-span-3 flex items-center gap-3">
-            <span class="text-blue-600 font-mono font-bold text-base shrink-0">04</span>
-            <h3 class="text-base font-bold text-gray-900">底座层 (Foundation Layer)</h3>
-          </div>
-          <div class="col-span-9 grid grid-cols-3 gap-5 text-[12.5px] text-gray-600 leading-relaxed border-l border-gray-150 pl-5">
-            <div>
-              <strong class="text-gray-900 block mb-0.5 font-bold text-[13px]">存储解耦与多源挂载</strong>
-              <span>直连挂载 Nextcloud、Google Drive、Dropbox 等既有存储，增量同步且链接持久有效。</span>
-            </div>
-            <div>
-              <strong class="text-gray-900 block mb-0.5 font-bold text-[13px]">Docker 容器极速交付</strong>
-              <span>Docker Compose 一键生产化部署交付，开箱即用，易于扩展与升级。</span>
-            </div>
-            <div>
-              <strong class="text-gray-900 block mb-0.5 font-bold text-[13px]">100% 数据主权与物理断网</strong>
-              <span>支持离线断网运行，所有文档与遥测日志严格留存私有边界，绝不上云训练。</span>
-            </div>
-          </div>
-        </div>
+      <!-- Main Title -->
+      <div class="pt-2">
+        <h2 class="text-[24px] font-bold text-[#111827] tracking-tight">虚拟资料室 (VDR)：一套底稿，按买方精准隔离权限</h2>
       </div>
 
-      <!-- Footer -->
-      <div class="flex items-center justify-between border-t border-gray-200 pt-2.5 text-xs text-gray-400">
-        <div class="flex items-center gap-2">
-          <span class="font-semibold text-gray-700">ConeShare</span>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500">私有化文档受控外发与追踪系统 (DocSend & VDR 替代方案)</span>
-        </div>
-        <div class="flex items-center gap-4 font-mono text-[11px]">
-          <a href="https://www.coneshare.com" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-gray-600 transition underline-offset-2 hover:underline">www.coneshare.com</a>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500 font-medium">03 / 10</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- ========================================== -->
-    <!-- SLIDE 4: FEATURE DEEP DIVE 1 - VDR -->
-    <!-- ========================================== -->
-    <section class="slide bg-white flex flex-col justify-between">
-      <!-- Header -->
-      <div class="flex items-center justify-between border-b border-gray-200 pb-2.5">
-        <div>
-          <div class="flex items-center gap-2 mb-1">
-            <img src="logo-cropped.svg" alt="ConeShare" class="h-4 w-auto shrink-0" style="height: 16px; width: auto;">
-            <span class="text-xs font-bold text-gray-900">ConeShare</span>
-            <span class="text-gray-300">•</span>
-            <span class="text-xs font-semibold tracking-wider text-gray-500 uppercase">CORE FEATURE 01 · 核心功能深潜</span>
-          </div>
-          <h2 class="text-[28px] font-bold text-gray-900 tracking-tight leading-snug">虚拟资料室 (VDR)：结构化交易材料的专业受控分发</h2>
-        </div>
-      </div>
-
-      <!-- Body -->
-      <div class="grid grid-cols-12 gap-8 my-auto items-start py-3">
-        <!-- Visual Architecture Mockup: Single Workstation Window aligned with Portal Card 1 -->
-        <div class="col-span-5 rounded-xl border border-gray-200/90 bg-white shadow-sm overflow-hidden text-xs">
-          <!-- Window Title Bar -->
-          <div class="flex items-center justify-between bg-gray-50/80 px-4 py-2.5 border-b border-gray-200">
-            <div class="flex items-center gap-1.5">
-              <span class="w-2.5 h-2.5 rounded-full bg-gray-300"></span>
-              <span class="w-2.5 h-2.5 rounded-full bg-gray-300"></span>
-              <span class="w-2.5 h-2.5 rounded-full bg-gray-300"></span>
-              <span class="ml-2 font-mono text-xs text-gray-600 font-medium">资料室分权架构 · 1 Room : N Links</span>
+      <!-- Main Body: 7 : 5 Ratio -->
+      <div class="grid grid-cols-12 gap-5 my-auto items-start py-2">
+        <!-- Left Column: UI Demo (col-span-7) -->
+        <div class="col-span-7">
+          <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-3.5 shadow-sm space-y-3">
+            <!-- Root Folder Card (Surface A style) -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">01</span>
+                <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                  <svg class="w-4 h-4 text-[#111827]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                </div>
+                <span class="font-bold text-[#111827] text-[13px]">Enterprise Proposal (Acme Corp)</span>
+              </div>
+              <span class="bg-[#F3F4F6] text-[#4B5563] font-mono text-[10px] font-bold px-2 py-0.5 rounded">1 Room : N Links</span>
             </div>
-            <span class="text-[10px] font-mono text-indigo-700 font-medium bg-indigo-50 px-2 py-0.5 rounded">独立分权</span>
-          </div>
 
-          <!-- Window Content -->
-          <div class="p-4 space-y-3">
-            <!-- Room Header -->
-            <div class="flex items-center justify-between pb-2.5 border-b border-gray-100 text-xs">
+            <!-- Two Sub-Links Cards -->
+            <div class="grid grid-cols-2 gap-3">
+              <!-- Link A -->
+              <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-2">
+                <div class="flex items-center justify-between pb-1.5 border-b border-[#F3F4F6]">
+                  <span class="font-bold text-[#111827] text-xs">采购与法务专属链接</span>
+                  <span class="bg-[#EEF2FF] text-[#4338CA] border border-[#C7D2FE] font-mono text-[10px] font-bold px-1.5 py-0.5 rounded">NDA Signed</span>
+                </div>
+                <div class="space-y-1.5 text-[11px]">
+                  <div class="flex items-center gap-1.5 text-[#4B5563]">
+                    <span class="bg-rose-50 text-rose-700 border border-rose-200 font-mono text-[9px] font-bold px-1 py-0.5 rounded">PDF</span>
+                    <span>定制报价模型.pdf</span>
+                  </div>
+                  <div class="flex items-center gap-1.5 text-[#4B5563]">
+                    <span class="bg-blue-50 text-blue-700 border border-blue-200 font-mono text-[9px] font-bold px-1 py-0.5 rounded">DOCX</span>
+                    <span>主协议草案.docx</span>
+                  </div>
+                </div>
+                <div class="pt-1.5 border-t border-[#F3F4F6] flex items-center justify-between text-[10.5px]">
+                  <span class="text-[#6B7280]">访问权限</span>
+                  <span class="font-mono text-[#4338CA] font-medium">允许带水印预览</span>
+                </div>
+              </div>
+
+              <!-- Link B -->
+              <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-2">
+                <div class="flex items-center justify-between pb-1.5 border-b border-[#F3F4F6]">
+                  <span class="font-bold text-[#111827] text-xs">技术与商务评估链接</span>
+                  <span class="bg-[#FFFBEB] text-[#B45309] border border-[#FDE68A] font-mono text-[10px] font-bold px-1.5 py-0.5 rounded">Password Only</span>
+                </div>
+                <div class="space-y-1.5 text-[11px]">
+                  <div class="flex items-center gap-1.5 text-[#4B5563]">
+                    <span class="bg-rose-50 text-rose-700 border border-rose-200 font-mono text-[9px] font-bold px-1 py-0.5 rounded">PDF</span>
+                    <span>产品技术架构白皮书.pdf</span>
+                  </div>
+                  <div class="flex items-center gap-1.5 text-[#9CA3AF] italic">
+                    <span class="bg-gray-100 text-gray-400 font-mono text-[9px] font-medium px-1 py-0.5 rounded">HIDDEN</span>
+                    <span>核心报价已锁定隐藏</span>
+                  </div>
+                </div>
+                <div class="pt-1.5 border-t border-[#F3F4F6] flex items-center justify-between text-[10.5px]">
+                  <span class="text-[#6B7280]">访问权限</span>
+                  <span class="font-mono text-[#B45309] font-medium">核心报价文件夹已隐藏</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: 3 Key Points (col-span-5) -->
+        <div class="col-span-5">
+          <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-3.5 shadow-sm space-y-2.5">
+            <!-- Point 01 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
               <div class="flex items-center gap-2">
-                <span class="font-mono text-[11px] font-bold text-gray-500 bg-gray-100 px-1 py-0.5 rounded">DIR</span>
-                <span class="font-bold text-gray-900 text-[13px]">Enterprise Proposal (Acme Corp)</span>
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">01</span>
+                <h3 class="text-[13px] font-bold text-[#111827]">一室多链，权限精准隔离</h3>
               </div>
-              <span class="text-[10.5px] font-mono text-gray-400">项目资料室</span>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                无需重复创建资料室或复制文件。同一资料室可生成多条独立链接，分别设置可见文件夹、密码、邮箱白名单与下载开关。
+              </p>
             </div>
 
-            <!-- 2-Tier Permission Scope: Scope 1 -->
-            <div class="rounded-lg border border-indigo-200 bg-indigo-50/40 p-3 space-y-1.5">
-              <div class="flex items-center justify-between text-xs">
-                <span class="font-bold text-indigo-950 text-[12px]">采购与法务专属链接 (Procurement & Legal)</span>
-                <span class="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
-                  NDA Signed
-                </span>
+            <!-- Point 02 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">02</span>
+                <h3 class="text-[13px] font-bold text-[#111827]">买方隔离的尽调问答板 (Q&A)</h3>
               </div>
-              <div class="flex items-center justify-between text-[11.5px] text-gray-600">
-                <span>定制报价模型 + 主协议草案</span>
-                <span class="font-mono text-[10.5px] text-indigo-700 font-medium bg-white/80 px-1.5 py-0.5 rounded border border-indigo-100">Watermarked Preview</span>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                访客可在文档旁直接提问，告别零散的邮件表格往返；各链接问答严格隔离，不同竞标者互不可见，管理员统一审核归档。
+              </p>
+            </div>
+
+            <!-- Point 03 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">03</span>
+                <h3 class="text-[13px] font-bold text-[#111827]">自动尽调目录编号与品牌定制</h3>
               </div>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                支持一键开启标准层级编号（1.0, 1.1, 2.0），符合投行与律所审计惯例；支持自定义横幅 Banner、企业 Logo、配色与专属域名。
+              </p>
             </div>
-
-            <!-- Scope 2 -->
-            <div class="rounded-lg border border-gray-200 bg-gray-50/60 p-3 space-y-1.5">
-              <div class="flex items-center justify-between text-xs">
-                <span class="font-medium text-gray-800 text-[12px]">技术与商务评估链接 (Evaluation Link)</span>
-                <span class="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
-                  Password Only
-                </span>
-              </div>
-              <div class="flex items-center justify-between text-[11.5px] text-gray-500">
-                <span>产品技术架构白皮书</span>
-                <span class="font-mono text-[10.5px] text-amber-700 font-medium bg-white/80 px-1.5 py-0.5 rounded border border-gray-200">核心报价已锁定</span>
-              </div>
-            </div>
-
-            <!-- Footer summary -->
-            <div class="pt-2 border-t border-gray-150 flex items-center justify-between text-[11px] text-gray-500">
-              <span>单一母资料室派生多条受控外发链接</span>
-              <span class="font-mono text-gray-700 font-medium">买方权限严格隔离</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right 3 Pillars (Clean Editorial List) -->
-        <div class="col-span-7 flex flex-col justify-between space-y-4">
-          <!-- Pillar 1 -->
-          <div class="border-b border-gray-150 pb-3.5 space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">01</span>
-              <h3 class="text-base font-bold text-gray-900">多链接独立分权 (Multiple Links with Independent Scopes)</h3>
-            </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              无需为不同对象重复创建资料室或复制文件。同一个资料室可生成任意数量的独立受控链接；各链接独立配置文件夹展示范围、访问密码、邮箱白名单及下载锁定，确保各方各取所需，严密防范越权。
-            </p>
-          </div>
-
-          <!-- Pillar 2 -->
-          <div class="border-b border-gray-150 pb-3.5 space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">02</span>
-              <h3 class="text-base font-bold text-gray-900">项目尽调加密问答板 (In-Room Encrypted Q&A Panel)</h3>
-            </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              查阅者可在具体文档旁发起结构化提问，无需通过邮件表格来回传递；各链接权限严格隔离，不同竞标者互不可见提问内容，管理员统一审核答复，完整留存问答备忘录。
-            </p>
-          </div>
-
-          <!-- Pillar 3 -->
-          <div class="space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">03</span>
-              <h3 class="text-base font-bold text-gray-900">法律级大纲索引与品牌定制 (Legal Indexing & Custom Branding)</h3>
-            </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              原生支持一键开启层级化大纲文件编号（1.0, 1.1, 2.0），符合投行与律所审计惯例；支持上传交易横幅 Banner、企业 Logo、自定义主题配色与二级域名，全面提升商务交付专业感。
-            </p>
           </div>
         </div>
       </div>
 
       <!-- Footer -->
-      <div class="flex items-center justify-between border-t border-gray-200 pt-2.5 text-xs text-gray-400">
+      <div class="flex items-center justify-between border-t border-[#E5E7EB] pt-2.5 text-xs text-[#6B7280]">
         <div class="flex items-center gap-2">
-          <span class="font-semibold text-gray-700">ConeShare</span>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500">私有化文档受控外发与追踪系统 (DocSend & VDR 替代方案)</span>
+          <span class="font-semibold text-[#111827]">ConeShare</span>
+          <span class="text-[#D1D5DB]">|</span>
+          <span>私有化文档受控外发与追踪系统</span>
         </div>
         <div class="flex items-center gap-4 font-mono text-[11px]">
-          <a href="https://www.coneshare.com" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-gray-600 transition underline-offset-2 hover:underline">www.coneshare.com</a>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500 font-medium">04 / 10</span>
+          <span class="text-[#6B7280]">04 / 10</span>
         </div>
       </div>
     </section>
 
     <!-- ========================================== -->
-    <!-- SLIDE 5: FEATURE DEEP DIVE 2 - WATERMARK -->
+    <!-- SLIDE 05: CORE FEATURE 02 - WATERMARK -->
     <!-- ========================================== -->
     <section class="slide bg-white flex flex-col justify-between">
       <!-- Header -->
-      <div class="flex items-center justify-between border-b border-gray-200 pb-2.5">
-        <div>
-          <div class="flex items-center gap-2 mb-1">
-            <img src="logo-cropped.svg" alt="ConeShare" class="h-4 w-auto shrink-0" style="height: 16px; width: auto;">
-            <span class="text-xs font-bold text-gray-900">ConeShare</span>
-            <span class="text-gray-300">•</span>
-            <span class="text-xs font-semibold tracking-wider text-gray-500 uppercase">CORE FEATURE 02 · 核心功能深潜</span>
-          </div>
-          <h2 class="text-[28px] font-bold text-gray-900 tracking-tight leading-snug">防拍照动态水印与访问门禁：降低截屏与翻拍泄密风险</h2>
+      <div class="flex items-center justify-between border-b border-[#E5E7EB] pb-2.5">
+        <div class="flex items-center gap-2.5">
+          <span class="font-mono text-xs font-bold text-[#4B5563] bg-[#F3F4F6] px-2 py-0.5 rounded">05 / CORE FEATURE 02</span>
+          <span class="text-xs text-[#6B7280] font-medium">核心功能详解</span>
         </div>
+        <span class="font-mono text-xs text-[#6B7280]">coneshare.com</span>
       </div>
 
-      <!-- Body -->
-      <div class="grid grid-cols-12 gap-8 my-auto items-start py-3">
-        <!-- Watermark Visual Comparison Mockup: Single Workstation Window aligned with Portal Card 2 -->
-        <div class="col-span-5 rounded-xl border border-gray-200/90 bg-white shadow-sm overflow-hidden text-xs">
-          <!-- Window Title Bar -->
-          <div class="flex items-center justify-between bg-gray-50/80 px-4 py-2.5 border-b border-gray-200">
-            <div class="flex items-center gap-1.5">
-              <span class="w-2.5 h-2.5 rounded-full bg-gray-300"></span>
-              <span class="w-2.5 h-2.5 rounded-full bg-gray-300"></span>
-              <span class="w-2.5 h-2.5 rounded-full bg-gray-300"></span>
-              <span class="ml-2 font-mono text-xs text-gray-600 font-medium">防翻拍测试 · Leak Deterrence Verification</span>
-            </div>
-            <span class="text-[10px] font-mono text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded">动态溯源</span>
-          </div>
+      <!-- Main Title -->
+      <div class="pt-2">
+        <h2 class="text-[24px] font-bold text-[#111827] tracking-tight">防拍照动态水印与访问门禁：大幅提高截屏与外传成本</h2>
+      </div>
 
-          <!-- Window Content: Dual-State Contrast -->
-          <div class="p-4 space-y-3.5">
+      <!-- Main Body: 7 : 5 Ratio -->
+      <div class="grid grid-cols-12 gap-5 my-auto items-start py-2">
+        <!-- Left Column: UI Demo (col-span-7) -->
+        <div class="col-span-7">
+          <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-3.5 shadow-sm">
             <div class="grid grid-cols-2 gap-3.5">
-              <!-- Left: Raw / Standard Cloud Link -->
-              <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50/70 p-3 text-[11px] space-y-2">
-                <div class="flex items-center justify-between text-gray-500 pb-1.5 border-b border-gray-200 font-medium">
-                  <span>普通网盘外发 (Raw Link)</span>
-                  <span class="text-amber-600 font-mono text-[10px] font-bold">UNPROTECTED</span>
+              <!-- Left Card: Unprotected Raw Link -->
+              <div class="rounded-xl border border-dashed border-[#D1D5DB] bg-white p-3.5 shadow-sm space-y-3">
+                <div class="flex items-center justify-between pb-1.5 border-b border-[#F3F4F6]">
+                  <span class="font-bold text-[#4B5563] text-xs">普通网盘外发</span>
+                  <span class="bg-[#F3F4F6] text-[#6B7280] font-mono text-[10px] font-bold px-1.5 py-0.5 rounded">UNPROTECTED</span>
                 </div>
-                <div class="space-y-0.5 pt-1 text-gray-400">
-                  <p class="font-bold text-gray-700 text-[12px]">商业报价方案 (Pricing)</p>
-                  <p class="font-mono text-gray-500 text-[11px]">$45,000 / year</p>
-                  <p class="text-[10px] text-red-500 font-medium pt-1.5 border-t border-gray-200/70">无溯源痕迹 · 翻拍零成本 (No trail)</p>
+                <div class="space-y-1 text-[#6B7280]">
+                  <p class="font-bold text-[#111827] text-xs">商业报价方案 (Pricing)</p>
+                  <p class="font-mono text-xs text-[#4B5563]">$45,000 / year</p>
+                </div>
+                <div class="pt-2 border-t border-[#F3F4F6] text-[11px] text-[#6B7280]">
+                  无身份痕迹，截图或手机翻拍零成本
                 </div>
               </div>
 
-              <!-- Right: Coneshare Protected Link -->
-              <div class="relative rounded-lg border border-emerald-200 bg-emerald-50/30 p-3 text-[11px] space-y-2 overflow-hidden">
-                <!-- Tiled Watermark Overlay aligned with Portal -->
-                <div class="pointer-events-none absolute inset-0 flex flex-col justify-around -rotate-12 opacity-35 select-none z-10 font-mono text-[8px] font-bold text-red-700">
-                  <span class="whitespace-nowrap">alex@acmecorp.com • 2026-09-28</span>
-                  <span class="whitespace-nowrap pl-4">alex@acmecorp.com • 2026-09-28</span>
+              <!-- Right Card: ConeShare Protected Link -->
+              <div class="relative rounded-xl border border-[#E5E7EB] bg-white p-3.5 shadow-sm space-y-3 overflow-hidden">
+                <!-- Tiled Monospace Watermark Overlay -->
+                <div class="pointer-events-none absolute inset-0 flex flex-col justify-around -rotate-12 opacity-30 select-none z-10 font-mono text-[7.5px] font-semibold text-[#6B7280]">
+                  <span class="whitespace-nowrap">alex@acmecorp.com · 203.0.113.8 · 2026-09-28 14:32:05</span>
+                  <span class="whitespace-nowrap pl-6">alex@acmecorp.com · 203.0.113.8 · 2026-09-28 14:32:05</span>
+                  <span class="whitespace-nowrap">alex@acmecorp.com · 203.0.113.8 · 2026-09-28 14:32:05</span>
                 </div>
 
                 <div class="relative z-0">
-                  <div class="flex items-center justify-between text-emerald-950 pb-1.5 border-b border-emerald-200 font-medium">
-                    <span>ConeShare 受控链接</span>
-                    <span class="text-emerald-600 font-mono text-[10px] font-bold">PROTECTED</span>
+                  <div class="flex items-center justify-between pb-1.5 border-b border-[#F3F4F6]">
+                    <span class="font-bold text-[#111827] text-xs">ConeShare 受控链接</span>
+                    <span class="bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] font-mono text-[10px] font-bold px-1.5 py-0.5 rounded">PROTECTED</span>
                   </div>
-                  <div class="space-y-0.5 pt-1 text-gray-700">
-                    <p class="font-bold text-gray-900 text-[12px]">商业报价方案 (Pricing)</p>
-                    <p class="font-mono text-gray-600 text-[11px]">$45,000 / year</p>
-                    <p class="text-[10px] text-emerald-700 font-semibold pt-1.5 border-t border-emerald-200/70">已绑定访客邮箱与时间戳 (Verified)</p>
+                  <div class="space-y-1 text-[#111827] pt-2">
+                    <p class="font-bold text-xs">商业报价方案 (Pricing)</p>
+                    <p class="font-mono text-xs text-[#4B5563]">$45,000 / year</p>
+                  </div>
+                  <div class="pt-2 border-t border-emerald-100 text-[11px] text-[#065F46] font-medium mt-3">
+                    绑定访客真实身份，预览与导出 PDF 双重合成
                   </div>
                 </div>
               </div>
             </div>
-
-            <!-- Bottom Note -->
-            <div class="pt-2 border-t border-gray-150 flex items-center justify-between text-xs text-gray-500">
-              <span>预览与 PDF 下载双重烧录覆盖</span>
-              <span class="font-mono text-gray-700 font-medium">DevTools 无法提取源文件</span>
-            </div>
           </div>
         </div>
 
-        <!-- Right: 3 Layered Defenses (Clean Editorial List) -->
-        <div class="col-span-7 flex flex-col justify-between space-y-4">
-          <!-- Defense 1 -->
-          <div class="border-b border-gray-150 pb-3.5 space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">01</span>
-              <h3 class="text-base font-bold text-gray-900">全方位“防拍照”明暗平铺动态水印 (Anti-Photo Matrix)</h3>
-            </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              普通角落水印一裁即掉。ConeShare 采用 -12° 倾角平铺矩阵，将访问者的<strong class="text-gray-900">验证邮箱、真实 IP 地址以及精确到秒的访问时间戳</strong>全屏交叉平铺覆盖。字体透明度经过光学微调，兼顾文档可读性与防翻拍溯源威慑，有效提高翻拍溯源难度，增加私自扩散成本。
-            </p>
-          </div>
-
-          <!-- Defense 2 -->
-          <div class="border-b border-gray-150 pb-3.5 space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">02</span>
-              <h3 class="text-base font-bold text-gray-900">在线预览与 PDF 下载双重烧录 (Multi-Surface Burn-In)</h3>
-            </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              浏览器在线预览采用服务端安全渲染合成，前端无法通过 DevTools 审查元素屏蔽水印层；若开启允许下载，系统在生成导出文件时将动态水印永久栅格化烧录至每页 PDF 位图中，即使离线打印或传播，依然带有完整的身份标记。
-            </p>
-          </div>
-
-          <!-- Defense 3 -->
-          <div class="space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">03</span>
-              <h3 class="text-base font-bold text-gray-900">前置保密协议 (NDA) 强制签署与下载锁定</h3>
-            </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              查阅前可强制要求输入邮箱接收验证码，杜绝匿名访问；支持前置弹出保密协议 (NDA)，访客必须在线勾选同意方可开启文件，系统完整留存签署审计日志；结合一键下载锁定，实现纯浏览器预览，源文件始终受控保存在企业存储中。
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Footer -->
-      <div class="flex items-center justify-between border-t border-gray-200 pt-2.5 text-xs text-gray-400">
-        <div class="flex items-center gap-2">
-          <span class="font-semibold text-gray-700">ConeShare</span>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500">私有化文档受控外发与追踪系统 (DocSend & VDR 替代方案)</span>
-        </div>
-        <div class="flex items-center gap-4 font-mono text-[11px]">
-          <a href="https://www.coneshare.com" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-gray-600 transition underline-offset-2 hover:underline">www.coneshare.com</a>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500 font-medium">05 / 10</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- ========================================== -->
-    <!-- SLIDE 6: FEATURE DEEP DIVE 3 - ANALYTICS -->
-    <!-- ========================================== -->
-    <section class="slide bg-white flex flex-col justify-between">
-      <!-- Header -->
-      <div class="flex items-center justify-between border-b border-gray-200 pb-2.5">
-        <div>
-          <div class="flex items-center gap-2 mb-1">
-            <img src="logo-cropped.svg" alt="ConeShare" class="h-4 w-auto shrink-0" style="height: 16px; width: auto;">
-            <span class="text-xs font-bold text-gray-900">ConeShare</span>
-            <span class="text-gray-300">•</span>
-            <span class="text-xs font-semibold tracking-wider text-gray-500 uppercase">CORE FEATURE 03 · 核心功能深潜</span>
-          </div>
-          <h2 class="text-[28px] font-bold text-gray-900 tracking-tight leading-snug">页面级深度阅读分析：读懂客户沉默，锁定成交时机</h2>
-        </div>
-      </div>
-
-      <!-- Body -->
-      <div class="grid grid-cols-12 gap-8 my-auto items-start py-3">
-        <!-- Analytics UI Mockup: Single Workstation Window aligned with Portal Card 4 -->
-        <div class="col-span-5 rounded-xl border border-gray-200/90 bg-white shadow-sm overflow-hidden text-xs">
-          <!-- Window Title Bar -->
-          <div class="flex items-center justify-between bg-gray-50/80 px-4 py-2.5 border-b border-gray-200">
-            <div class="flex items-center gap-1.5">
-              <span class="w-2.5 h-2.5 rounded-full bg-gray-300"></span>
-              <span class="w-2.5 h-2.5 rounded-full bg-gray-300"></span>
-              <span class="w-2.5 h-2.5 rounded-full bg-gray-300"></span>
-              <span class="ml-2 font-mono text-xs text-gray-600 font-medium">行为遥测 · Page-by-Page Analytics</span>
-            </div>
-            <span class="text-[10px] font-mono text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded">实时监测</span>
-          </div>
-
-          <!-- Window Content: Slide-by-slide histogram -->
-          <div class="p-4 space-y-3.5">
-            <!-- Viewer Session Header -->
-            <div class="flex items-center justify-between border-b border-gray-100 pb-2.5 text-xs">
+        <!-- Right Column: 3 Key Points (col-span-5) -->
+        <div class="col-span-5">
+          <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-3.5 shadow-sm space-y-2.5">
+            <!-- Point 01 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
               <div class="flex items-center gap-2">
-                <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span class="font-bold text-gray-900 font-mono text-[12px]">alex@acmecorp.com</span>
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">01</span>
+                <h3 class="text-[13px] font-bold text-[#111827]">全屏防拍照动态平铺水印</h3>
               </div>
-              <span class="text-gray-500 font-mono text-[11px]">4m 32s total</span>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                普通角落水印一裁即掉。系统以 -12° 倾角全屏平铺访客验证邮箱、真实 IP 与精确到秒的时间戳，兼顾清晰阅读与拍照溯源威慑。
+              </p>
             </div>
 
-            <!-- 3-Bar Intent Contrast -->
-            <div class="space-y-3">
-              <div>
-                <div class="flex justify-between text-xs text-gray-500 mb-1">
-                  <span>Slide 1 • 方案概览 (Solution Overview)</span>
-                  <span class="font-mono text-[11px]">12s</span>
-                </div>
-                <div class="h-2 w-full rounded-full bg-gray-100">
-                  <div class="h-full rounded-full bg-gray-300" style="width: 12%"></div>
-                </div>
+            <!-- Point 02 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">02</span>
+                <h3 class="text-[13px] font-bold text-[#111827]">在线预览与导出 PDF 双重防篡改</h3>
               </div>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                网页预览由服务端安全渲染，无法通过浏览器开发者工具（DevTools）屏蔽水印；导出 PDF 时自动将水印合成为底层图像，离线打印依然清晰留痕。
+              </p>
+            </div>
 
-              <!-- High Intent Slide -->
-              <div class="rounded-lg bg-emerald-50/90 p-2.5 border border-emerald-200 space-y-1.5">
-                <div class="flex justify-between text-xs font-bold text-emerald-950">
-                  <span>Slide 2 • 实施周期与定制报价 (Scope & Pricing)</span>
-                  <span class="font-mono text-emerald-700 font-bold text-[11.5px]">2m 14s</span>
-                </div>
-                <div class="h-2 w-full rounded-full bg-emerald-200">
-                  <div class="h-full rounded-full bg-emerald-500" style="width: 85%"></div>
-                </div>
-                <div class="text-[10.5px] font-semibold text-emerald-800 pt-0.5 flex items-center justify-between">
-                  <span>51% of session • High Intent Hook</span>
-                  <span class="text-[10px] font-normal text-emerald-700">高意向关键点</span>
-                </div>
+            <!-- Point 03 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">03</span>
+                <h3 class="text-[13px] font-bold text-[#111827]">阅读前强制签署 NDA 与下载锁定</h3>
               </div>
-
-              <div>
-                <div class="flex justify-between text-xs text-gray-500 mb-1">
-                  <span>Slide 3 • 落地部署与里程碑 (Timeline)</span>
-                  <span class="font-mono text-[11px]">18s</span>
-                </div>
-                <div class="h-2 w-full rounded-full bg-gray-100">
-                  <div class="h-full rounded-full bg-gray-300" style="width: 18%"></div>
-                </div>
-              </div>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                支持强制邮箱验证码登录与阅读前在线勾选保密协议（NDA），完整留存签署审计日志；开启下载锁定后仅限浏览器安全预览。
+              </p>
             </div>
-
-            <!-- Instant Notification simulation -->
-            <div class="pt-2 border-t border-gray-150 flex items-center justify-between text-xs">
-              <div class="flex items-center gap-1.5 text-gray-700">
-                <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                <span>企微/飞书推送：客户反复阅读报价页 3 次</span>
-              </div>
-              <span class="text-[10.5px] font-mono text-emerald-700 font-medium">刚刚</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right: 3 Analytical Capabilities (Clean Editorial List) -->
-        <div class="col-span-7 flex flex-col justify-between space-y-4">
-          <!-- Capability 1 -->
-          <div class="border-b border-gray-150 pb-3.5 space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">01</span>
-              <h3 class="text-base font-bold text-gray-900">毫秒级逐页停留与高意向挂钩 (Second-by-Second Dwell Time)</h3>
-            </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              摆脱链接发出后查阅状态不明的被动局面。系统精确测量访客在各页面上的停留秒数并自动标记高关注页面，便于团队在跟进前掌握对方核心关注点。
-            </p>
-          </div>
-
-          <!-- Capability 2 -->
-          <div class="border-b border-gray-150 pb-3.5 space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">02</span>
-              <h3 class="text-base font-bold text-gray-900">音视频多维遥测与内部转发预警 (Rich Media & Forwarded Alert)</h3>
-            </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              外发演示视频时，系统精确采集<strong class="text-gray-900">观看区间、拖拽快进节点、静音切换与播放倍速</strong>；当分享链接被接收人转发给未经登记的同事查看时，系统自动捕捉新访客会话与来源地域，助您提前看清客户内部采购委员会的决策链条扩展。
-            </p>
-          </div>
-
-          <!-- Capability 3 -->
-          <div class="space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">03</span>
-              <h3 class="text-base font-bold text-gray-900">企业微信 / 飞书 / 钉钉 实时事件报警 (Actionable Triggers)</h3>
-            </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              当关键投资人沉寂数天后重新打开商业计划书，或大客户开始下载主合同草案时，负责人的企业微信/飞书/Slack 瞬间收到消息卡片；业务团队在买方注意力最集中的黄金窗口即刻响应，缩短商务跟进周期，抓住关键决策时机。
-            </p>
           </div>
         </div>
       </div>
 
       <!-- Footer -->
-      <div class="flex items-center justify-between border-t border-gray-200 pt-2.5 text-xs text-gray-400">
+      <div class="flex items-center justify-between border-t border-[#E5E7EB] pt-2.5 text-xs text-[#6B7280]">
         <div class="flex items-center gap-2">
-          <span class="font-semibold text-gray-700">ConeShare</span>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500">私有化文档受控外发与追踪系统 (DocSend & VDR 替代方案)</span>
+          <span class="font-semibold text-[#111827]">ConeShare</span>
+          <span class="text-[#D1D5DB]">|</span>
+          <span>私有化文档受控外发与追踪系统</span>
         </div>
         <div class="flex items-center gap-4 font-mono text-[11px]">
-          <a href="https://www.coneshare.com" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-gray-600 transition underline-offset-2 hover:underline">www.coneshare.com</a>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500 font-medium">06 / 10</span>
+          <span class="text-[#6B7280]">05 / 10</span>
         </div>
       </div>
     </section>
 
     <!-- ========================================== -->
-    <!-- SLIDE 7: FEATURE DEEP DIVE 4 - PREVIEW & STORAGE -->
+    <!-- SLIDE 06: CORE FEATURE 03 - ANALYTICS -->
     <!-- ========================================== -->
     <section class="slide bg-white flex flex-col justify-between">
       <!-- Header -->
-      <div class="flex items-center justify-between border-b border-gray-200 pb-2.5">
-        <div>
-          <div class="flex items-center gap-2 mb-1">
-            <img src="logo-cropped.svg" alt="ConeShare" class="h-4 w-auto shrink-0" style="height: 16px; width: auto;">
-            <span class="text-xs font-bold text-gray-900">ConeShare</span>
-            <span class="text-gray-300">•</span>
-            <span class="text-xs font-semibold tracking-wider text-gray-500 uppercase">CORE FEATURE 04 · 核心功能深潜</span>
-          </div>
-          <h2 class="text-[28px] font-bold text-gray-900 tracking-tight leading-snug">多格式免安装预览与存储解耦集成：极速体验，现有架构零破坏</h2>
+      <div class="flex items-center justify-between border-b border-[#E5E7EB] pb-2.5">
+        <div class="flex items-center gap-2.5">
+          <span class="font-mono text-xs font-bold text-[#4B5563] bg-[#F3F4F6] px-2 py-0.5 rounded">06 / CORE FEATURE 03</span>
+          <span class="text-xs text-[#6B7280] font-medium">核心功能详解</span>
         </div>
+        <span class="font-mono text-xs text-[#6B7280]">coneshare.com</span>
       </div>
 
-      <!-- Body -->
-      <div class="grid grid-cols-12 gap-8 my-auto items-start py-3">
-        <!-- Left: Multi-Format Online Preview 2x2 Gallery Grid -->
-        <div class="col-span-5 rounded-xl border border-gray-200/90 bg-white shadow-sm overflow-hidden text-xs">
-          <!-- Window Title Bar -->
-          <div class="flex items-center justify-between bg-gray-50/80 px-4 py-2.5 border-b border-gray-200">
-            <div class="flex items-center gap-1.5">
-              <span class="w-2.5 h-2.5 rounded-full bg-gray-300"></span>
-              <span class="w-2.5 h-2.5 rounded-full bg-gray-300"></span>
-              <span class="w-2.5 h-2.5 rounded-full bg-gray-300"></span>
-              <span class="ml-2 font-mono text-xs text-gray-600 font-medium">多格式免安装预览矩阵 · 真实效果</span>
+      <!-- Main Title -->
+      <div class="pt-2">
+        <h2 class="text-[24px] font-bold text-[#111827] tracking-tight">页面级深度阅读分析：读懂客户沉默，踩准最佳跟进时机</h2>
+      </div>
+
+      <!-- Main Body: 7 : 5 Ratio -->
+      <div class="grid grid-cols-12 gap-5 my-auto items-start py-2">
+        <!-- Left Column: UI Demo (col-span-7) -->
+        <div class="col-span-7">
+          <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-3.5 shadow-sm space-y-3">
+            <!-- Histogram Card -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3.5 shadow-sm space-y-3">
+              <!-- Visitor info header -->
+              <div class="flex items-center justify-between pb-2 border-b border-[#F3F4F6]">
+                <div class="flex items-center gap-2 font-mono text-xs">
+                  <span class="w-2 h-2 rounded-full bg-[#059669]"></span>
+                  <span class="font-bold text-[#111827]">alex@acmecorp.com</span>
+                </div>
+                <div class="flex items-center gap-2 text-xs font-mono">
+                  <span class="text-[#6B7280]">总停留 04m 32s</span>
+                  <span class="bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] px-1.5 py-0.5 rounded text-[10px] font-bold">完成率 100%</span>
+                </div>
+              </div>
+
+              <!-- Page by page bars -->
+              <div class="space-y-2.5 text-xs">
+                <div>
+                  <div class="flex justify-between text-[#6B7280] mb-1 font-mono text-[11px]">
+                    <span>Page 01 · 方案概览</span>
+                    <span>12s</span>
+                  </div>
+                  <div class="h-2 w-full rounded bg-[#F3F4F6] overflow-hidden">
+                    <div class="h-full bg-gray-300 rounded" style="width: 15%"></div>
+                  </div>
+                </div>
+
+                <!-- High Intent Page -->
+                <div class="rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] p-2 space-y-1.5">
+                  <div class="flex justify-between items-center text-[#111827] font-mono text-[11px] font-semibold">
+                    <span>Page 02 · 实施周期与定制报价</span>
+                    <span class="text-[#111827] font-bold">02m 14s</span>
+                  </div>
+                  <div class="h-2 w-full rounded bg-gray-200 overflow-hidden">
+                    <div class="h-full bg-[#111827] rounded" style="width: 80%"></div>
+                  </div>
+                  <div class="flex justify-end pt-0.5">
+                    <span class="bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] font-mono text-[10px] font-bold px-1.5 py-0.5 rounded">高关注页面 (51% 时长)</span>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="flex justify-between text-[#6B7280] mb-1 font-mono text-[11px]">
+                    <span>Page 03 · 落地部署与里程碑</span>
+                    <span>18s</span>
+                  </div>
+                  <div class="h-2 w-full rounded bg-[#F3F4F6] overflow-hidden">
+                    <div class="h-full bg-gray-300 rounded" style="width: 20%"></div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <span class="text-[10px] font-mono text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded">全格式原生渲染</span>
-          </div>
 
-          <!-- Window Content: 2x2 Gallery -->
-          <div class="p-3.5 space-y-2.5">
-            <!-- 2x2 Gallery Grid -->
-            <div class="grid grid-cols-2 gap-2.5">
-              <!-- Tile 1: PDF -->
-              <div class="relative rounded-lg overflow-hidden border border-gray-200/90 shadow-2xs bg-gray-100 aspect-[16/10]">
-                <img src="../screenshots/preview-pdf.png" alt="PDF Preview" class="w-full h-full object-cover object-top">
-                <div class="absolute top-1.5 left-1.5 pointer-events-none">
-                  <span class="bg-gray-900/85 backdrop-blur-xs text-white text-[9px] font-mono font-bold px-1.5 py-0.5 rounded shadow-xs">
-                    PDF 矢量合同
-                  </span>
-                </div>
+            <!-- Instant Alert simulation -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white px-3.5 py-2 flex items-center justify-between text-xs shadow-sm">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-[#059669]"></span>
+                <span class="text-[#111827] font-medium text-[11.5px]">实时提醒：alex@acmecorp.com 刚刚第 3 次重访了《定制报价》页</span>
               </div>
-
-              <!-- Tile 2: Word / PPT -->
-              <div class="relative rounded-lg overflow-hidden border border-gray-200/90 shadow-2xs bg-gray-100 aspect-[16/10]">
-                <img src="../screenshots/preview-docx.png" alt="DOCX / PPT Preview" class="w-full h-full object-cover object-top">
-                <div class="absolute top-1.5 left-1.5 pointer-events-none">
-                  <span class="bg-blue-800/85 backdrop-blur-xs text-white text-[9px] font-mono font-bold px-1.5 py-0.5 rounded shadow-xs">
-                    OFFICE 演示文稿
-                  </span>
-                </div>
-              </div>
-
-              <!-- Tile 3: Spreadsheet -->
-              <div class="relative rounded-lg overflow-hidden border border-gray-200/90 shadow-2xs bg-gray-100 aspect-[16/10]">
-                <img src="../screenshots/preview-spreadsheet.png" alt="Spreadsheet Preview" class="w-full h-full object-cover object-top">
-                <div class="absolute top-1.5 left-1.5 pointer-events-none">
-                  <span class="bg-emerald-800/85 backdrop-blur-xs text-white text-[9px] font-mono font-bold px-1.5 py-0.5 rounded shadow-xs">
-                    XLSX 财务模型
-                  </span>
-                </div>
-              </div>
-
-              <!-- Tile 4: Video -->
-              <div class="relative rounded-lg overflow-hidden border border-gray-200/90 shadow-2xs bg-gray-100 aspect-[16/10]">
-                <img src="../screenshots/preview-video.png" alt="Video Streaming Preview" class="w-full h-full object-cover object-top">
-                <div class="absolute top-1.5 left-1.5 pointer-events-none">
-                  <span class="bg-violet-800/85 backdrop-blur-xs text-white text-[9px] font-mono font-bold px-1.5 py-0.5 rounded shadow-xs">
-                    MP4 视频流播
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Bottom Note -->
-            <div class="pt-2 border-t border-gray-150 flex items-center justify-between text-xs text-gray-500">
-              <span>桌面端与微信/移动端原生支持</span>
-              <span class="font-mono text-gray-700 font-medium">源文件锁定不落地</span>
+              <span class="font-mono text-[11px] text-[#6B7280]">刚刚</span>
             </div>
           </div>
         </div>
 
-        <!-- Right: Storage Decoupling, File Requests & Safe AI (Clean Editorial List) -->
-        <div class="col-span-7 flex flex-col justify-between space-y-4">
-          <!-- Storage Decoupling -->
-          <div class="border-b border-gray-150 pb-3.5 space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">01</span>
-              <h3 class="text-base font-bold text-gray-900">企业既有存储无缝解耦挂载 (Storage Decoupling)</h3>
+        <!-- Right Column: 3 Key Points (col-span-5) -->
+        <div class="col-span-5">
+          <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-3.5 shadow-sm space-y-2.5">
+            <!-- Point 01 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">01</span>
+                <h3 class="text-[13px] font-bold text-[#111827]">逐页停留统计与高意向标记</h3>
+              </div>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                告别链接发出后石沉大海的被动局面。系统精确记录访客在每一页的停留秒数并自动标记高关注页面，帮团队在沟通前摸清对方核心顾虑。
+              </p>
             </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              ConeShare 无需企业搬迁现有文件，系统直接对接 <strong class="text-gray-900">Nextcloud、本地私有存储、Google Drive、Dropbox</strong>；当源文件在网盘中更新版本时，在 ConeShare 后台一键增量同步，外发链接永久有效，无需重新分发。
-            </p>
-          </div>
 
-          <!-- File Requests -->
-          <div class="border-b border-gray-150 pb-3.5 space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">02</span>
-              <h3 class="text-base font-bold text-gray-900">安全文件征集箱 (File Requests · 双向受控流转)</h3>
+            <!-- Point 02 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">02</span>
+                <h3 class="text-[13px] font-bold text-[#111827]">音视频播放追踪与内部转发识别</h3>
+              </div>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                外发演示视频时，精确记录观看区间、快进节点与完播率；当链接被转发给客户内部其他同事时，自动识别新访客会话，帮您看清对方内部决策链。
+              </p>
             </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              一键生成专属上传链接，外部客户或供应商无需注册账号，即可通过浏览器直接向您上传敏感资料；系统自动记录提交者姓名、邮箱与提交时间戳，归档至指定私有目录，完成外发与征集双向受控管理。
-            </p>
-          </div>
 
-          <!-- Local-First AI & MCP -->
-          <div class="space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">03</span>
-              <h3 class="text-base font-bold text-gray-900">智能行动建议与 MCP 生态扩展</h3>
+            <!-- Point 03 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">03</span>
+                <h3 class="text-[13px] font-bold text-[#111827]">企微 / 飞书 / 钉钉实时消息提醒</h3>
+              </div>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                当投资人沉寂数天后重新打开 BP，或客户开始下载合同草案时，负责人瞬间收到卡片通知，在买方注意力最集中的时刻即时响应。
+              </p>
             </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              基于阅读停留行为智能输出跟进建议；原生支持 MCP 协议无缝对接 Codex/Claude 智能体。<strong class="text-gray-900">安全承诺：AI 处理均可选开启、支持纯本地模型</strong>。
-            </p>
           </div>
         </div>
       </div>
 
       <!-- Footer -->
-      <div class="flex items-center justify-between border-t border-gray-200 pt-2.5 text-xs text-gray-400">
+      <div class="flex items-center justify-between border-t border-[#E5E7EB] pt-2.5 text-xs text-[#6B7280]">
         <div class="flex items-center gap-2">
-          <span class="font-semibold text-gray-700">ConeShare</span>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500">私有化文档受控外发与追踪系统 (DocSend & VDR 替代方案)</span>
+          <span class="font-semibold text-[#111827]">ConeShare</span>
+          <span class="text-[#D1D5DB]">|</span>
+          <span>私有化文档受控外发与追踪系统</span>
         </div>
         <div class="flex items-center gap-4 font-mono text-[11px]">
-          <a href="https://www.coneshare.com" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-gray-600 transition underline-offset-2 hover:underline">www.coneshare.com</a>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500 font-medium">07 / 10</span>
+          <span class="text-[#6B7280]">06 / 10</span>
         </div>
       </div>
     </section>
 
     <!-- ========================================== -->
-    <!-- SLIDE 8: REAL-WORLD USE CASES -->
+    <!-- SLIDE 07: CORE FEATURE 04 - PREVIEW & STORAGE -->
     <!-- ========================================== -->
     <section class="slide bg-white flex flex-col justify-between">
       <!-- Header -->
-      <div class="flex items-center justify-between border-b border-gray-200 pb-2.5">
-        <div>
-          <div class="flex items-center gap-2 mb-1">
-            <img src="logo-cropped.svg" alt="ConeShare" class="h-4 w-auto shrink-0" style="height: 16px; width: auto;">
-            <span class="text-xs font-bold text-gray-900">ConeShare</span>
-            <span class="text-gray-300">•</span>
-            <span class="text-xs font-semibold tracking-wider text-gray-500 uppercase">SOLUTIONS & USE CASES · 典型业务应用场景</span>
-          </div>
-          <h2 class="text-[28px] font-bold text-gray-900 tracking-tight leading-snug">聚焦高价值外发场景，兼顾商业机密安全与业务推进效率</h2>
+      <div class="flex items-center justify-between border-b border-[#E5E7EB] pb-2.5">
+        <div class="flex items-center gap-2.5">
+          <span class="font-mono text-xs font-bold text-[#4B5563] bg-[#F3F4F6] px-2 py-0.5 rounded">07 / CORE FEATURE 04</span>
+          <span class="text-xs text-[#6B7280] font-medium">核心功能详解</span>
         </div>
+        <span class="font-mono text-xs text-[#6B7280]">coneshare.com</span>
       </div>
 
-      <!-- 3 Editorial Columns -->
-      <div class="grid grid-cols-3 gap-8 my-auto items-stretch py-3">
-        <!-- Case 1: Fundraising -->
-        <div class="border-r border-gray-150 pr-7 flex flex-col justify-between space-y-4">
-          <div class="space-y-2.5">
-            <div class="flex items-baseline gap-2">
-              <span class="text-blue-600 font-mono font-bold text-base">01</span>
-              <h3 class="text-[17px] font-bold text-gray-900">初创创始人 / 融资 BP 追踪</h3>
+      <!-- Main Title -->
+      <div class="pt-2">
+        <h2 class="text-[24px] font-bold text-[#111827] tracking-tight">多格式免插件高清预览与现有网盘直连：即点即看，零数据迁移</h2>
+      </div>
+
+      <!-- Main Body: 7 : 5 Ratio -->
+      <div class="grid grid-cols-12 gap-5 my-auto items-start py-2">
+        <!-- Left Column: Documents List Row (col-span-7) -->
+        <div class="col-span-7">
+          <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-3.5 shadow-sm space-y-2.5">
+            <div class="rounded-xl border border-[#E5E7EB] bg-white divide-y divide-[#F3F4F6] shadow-sm overflow-hidden text-xs">
+              <!-- Row 1: PDF -->
+              <div class="px-3.5 py-2.5 flex items-center justify-between hover:bg-[#F9FAFB] transition">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <span class="font-mono text-[10px] font-bold text-[#4B5563]">01</span>
+                  <span class="bg-rose-50 text-rose-700 border border-rose-200 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0">PDF</span>
+                  <span class="font-medium text-[#111827] truncate text-[11.5px]">主服务协议与保密条款_v3.pdf</span>
+                </div>
+                <div class="flex items-center gap-3 shrink-0">
+                  <span class="font-mono text-[11px] text-[#6B7280]">2.4 MB</span>
+                  <span class="bg-[#111827] text-white text-[10px] font-medium px-2 py-0.5 rounded font-mono">预览</span>
+                </div>
+              </div>
+
+              <!-- Row 2: Spreadsheet -->
+              <div class="px-3.5 py-2.5 flex items-center justify-between hover:bg-[#F9FAFB] transition">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <span class="font-mono text-[10px] font-bold text-[#4B5563]">02</span>
+                  <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0">XLSX</span>
+                  <span class="font-medium text-[#111827] truncate text-[11.5px]">2026-2028 财务预测与阶梯报价模型.xlsx</span>
+                </div>
+                <div class="flex items-center gap-3 shrink-0">
+                  <span class="font-mono text-[11px] text-[#6B7280]">1.8 MB</span>
+                  <span class="bg-[#111827] text-white text-[10px] font-medium px-2 py-0.5 rounded font-mono">预览</span>
+                </div>
+              </div>
+
+              <!-- Row 3: PPTX -->
+              <div class="px-3.5 py-2.5 flex items-center justify-between hover:bg-[#F9FAFB] transition">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <span class="font-mono text-[10px] font-bold text-[#4B5563]">03</span>
+                  <span class="bg-blue-50 text-blue-700 border border-blue-200 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0">PPTX</span>
+                  <span class="font-medium text-[#111827] truncate text-[11.5px]">企业级私有化架构方案演示.pptx</span>
+                </div>
+                <div class="flex items-center gap-3 shrink-0">
+                  <span class="font-mono text-[11px] text-[#6B7280]">14.2 MB</span>
+                  <span class="bg-[#111827] text-white text-[10px] font-medium px-2 py-0.5 rounded font-mono">预览</span>
+                </div>
+              </div>
+
+              <!-- Row 4: Video -->
+              <div class="px-3.5 py-2.5 flex items-center justify-between hover:bg-[#F9FAFB] transition">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <span class="font-mono text-[10px] font-bold text-[#4B5563]">04</span>
+                  <span class="bg-violet-50 text-violet-700 border border-violet-200 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0">MP4</span>
+                  <span class="font-medium text-[#111827] truncate text-[11.5px]">核心产品实机操作演示录像.mp4</span>
+                </div>
+                <div class="flex items-center gap-3 shrink-0">
+                  <span class="font-mono text-[11px] text-[#6B7280]">86.0 MB</span>
+                  <span class="bg-[#111827] text-white text-[10px] font-medium px-2 py-0.5 rounded font-mono">预览</span>
+                </div>
+              </div>
             </div>
-            <div class="space-y-2.5 text-[12.5px] text-gray-600 leading-relaxed pt-1">
-              <p>
-                <strong class="text-gray-900">业务痛点：</strong>
-                BP 外发后石沉大海，不知资方读没读、停在哪页；DocSend 按人头订阅成本高，普通网盘缺乏查阅洞察，核心商业信息容易外泄。
-              </p>
-              <p>
-                <strong class="text-gray-900">ConeShare 方案：</strong>
-                低成本获得类似 DocSend 逐页停留洞察与满屏防拍照水印；资方打开瞬间企微收到提醒，看清真实意向。
-              </p>
-            </div>
-          </div>
-          <div class="pt-2.5 border-t border-gray-150 text-xs text-emerald-700 font-semibold flex items-center justify-between">
-            <span>商业成效</span>
-            <span>看清真实关注点，加快沟通节奏</span>
+
+            <!-- Bottom note -->
+            <p class="text-[11px] text-[#6B7280] font-mono text-center pt-1">
+              桌面端与移动端微信浏览器免插件直开 · 源文件锁定在内网不落地
+            </p>
           </div>
         </div>
 
-        <!-- Case 2: Legal & M&A -->
-        <div class="border-r border-gray-150 pr-7 flex flex-col justify-between space-y-4">
-          <div class="space-y-2.5">
-            <div class="flex items-baseline gap-2">
-              <span class="text-blue-600 font-mono font-bold text-base">02</span>
-              <h3 class="text-[17px] font-bold text-gray-900">投行 / 律所 / 并购尽调 (VDR)</h3>
-            </div>
-            <div class="space-y-2.5 text-[12.5px] text-gray-600 leading-relaxed pt-1">
-              <p>
-                <strong class="text-gray-900">业务痛点：</strong>
-                涉密尽调底稿明令禁止上传公有云；老牌 VDR（Intralinks）按页计费动辄数万美元，买方之间信息隔离困难。
-              </p>
-              <p>
-                <strong class="text-gray-900">ConeShare 方案：</strong>
-                基于自有存储直接挂载端到端合规虚拟资料室，多买方独立链接分权，正文旁加密 Q&A，强制签署 NDA。
+        <!-- Right Column: 3 Key Points (col-span-5) -->
+        <div class="col-span-5">
+          <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-3.5 shadow-sm space-y-2.5">
+            <!-- Point 01 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">01</span>
+                <h3 class="text-[13px] font-bold text-[#111827]">直连企业现有网盘，免数据迁移</h3>
+              </div>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                无需搬迁现有文件，直接对接 Nextcloud、本地私有存储、Google Drive 或 Dropbox；网盘中源文件更新后，后台一键同步，原分享链接永久有效。
               </p>
             </div>
-          </div>
-          <div class="pt-2.5 border-t border-gray-150 text-xs text-emerald-700 font-semibold flex items-center justify-between">
-            <span>商业成效</span>
-            <span>满足数据合规要求，大幅降低项目支出</span>
-          </div>
-        </div>
 
-        <!-- Case 3: High-Ticket Sales -->
-        <div class="flex flex-col justify-between space-y-4">
-          <div class="space-y-2.5">
-            <div class="flex items-baseline gap-2">
-              <span class="text-blue-600 font-mono font-bold text-base">03</span>
-              <h3 class="text-[17px] font-bold text-gray-900">B2B 高客单价销售与报价保护</h3>
-            </div>
-            <div class="space-y-2.5 text-[12.5px] text-gray-600 leading-relaxed pt-1">
-              <p>
-                <strong class="text-gray-900">业务痛点：</strong>
-                定制提案与阶梯报价单外发后，被客户转给友商竞对压价；客户对方案的真实异议与关注点全凭推测。
-              </p>
-              <p>
-                <strong class="text-gray-900">ConeShare 方案：</strong>
-                动态平铺水印提高翻拍外传成本；客户反复研读报价页时即时预警，便于抓住关键窗口推进签约。
+            <!-- Point 02 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">02</span>
+                <h3 class="text-[13px] font-bold text-[#111827]">安全文件收集箱 (File Requests)</h3>
+              </div>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                一键生成专属上传链接，外部客户或供应商无需注册账号即可通过浏览器向您提交敏感资料，自动记录提交人信息并归档至指定私有目录。
               </p>
             </div>
-          </div>
-          <div class="pt-2.5 border-t border-gray-150 text-xs text-emerald-700 font-semibold flex items-center justify-between">
-            <span>商业成效</span>
-            <span>锁定真实买家，缩短签单周期</span>
+
+            <!-- Point 03 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">03</span>
+                <h3 class="text-[13px] font-bold text-[#111827]">AI 跟进建议与 MCP 智能体接入</h3>
+              </div>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                根据阅读停留数据自动生成跟进建议，并支持通过 MCP 协议接入 Claude / Codex 等智能体。所有 AI 功能默认关闭且支持纯本地模型，确保数据不出内网。
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- Footer -->
-      <div class="flex items-center justify-between border-t border-gray-200 pt-2.5 text-xs text-gray-400">
+      <div class="flex items-center justify-between border-t border-[#E5E7EB] pt-2.5 text-xs text-[#6B7280]">
         <div class="flex items-center gap-2">
-          <span class="font-semibold text-gray-700">ConeShare</span>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500">私有化文档受控外发与追踪系统 (DocSend & VDR 替代方案)</span>
+          <span class="font-semibold text-[#111827]">ConeShare</span>
+          <span class="text-[#D1D5DB]">|</span>
+          <span>私有化文档受控外发与追踪系统</span>
         </div>
         <div class="flex items-center gap-4 font-mono text-[11px]">
-          <a href="https://www.coneshare.com" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-gray-600 transition underline-offset-2 hover:underline">www.coneshare.com</a>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500 font-medium">08 / 10</span>
+          <span class="text-[#6B7280]">07 / 10</span>
         </div>
       </div>
     </section>
 
     <!-- ========================================== -->
-    <!-- SLIDE 9: COMPETITIVE BENCHMARKING -->
+    <!-- SLIDE 08: REAL-WORLD USE CASES -->
     <!-- ========================================== -->
     <section class="slide bg-white flex flex-col justify-between">
       <!-- Header -->
-      <div class="flex items-center justify-between border-b border-gray-200 pb-2.5">
-        <div>
-          <div class="flex items-center gap-2 mb-1">
-            <img src="logo-cropped.svg" alt="ConeShare" class="h-4 w-auto shrink-0" style="height: 16px; width: auto;">
-            <span class="text-xs font-bold text-gray-900">ConeShare</span>
-            <span class="text-gray-300">•</span>
-            <span class="text-xs font-semibold tracking-wider text-gray-500 uppercase">COMPETITIVE BENCHMARK · 竞品深度对比</span>
-          </div>
-          <h2 class="text-[28px] font-bold text-gray-900 tracking-tight leading-snug">数据自主可控与固定年订阅：更适合企业的受控外发方案</h2>
+      <div class="flex items-center justify-between border-b border-[#E5E7EB] pb-2.5">
+        <div class="flex items-center gap-2.5">
+          <span class="font-mono text-xs font-bold text-[#4B5563] bg-[#F3F4F6] px-2 py-0.5 rounded">08 / SOLUTIONS & USE CASES</span>
+          <span class="text-xs text-[#6B7280] font-medium">典型业务应用场景</span>
         </div>
-        <div class="text-right">
-          <a href="https://www.coneshare.com/alternatives/docsend" target="_blank" rel="noopener noreferrer" class="inline-flex items-center px-2.5 py-1 rounded-md bg-gray-100 hover:bg-gray-200 text-xs font-mono text-gray-600 hover:text-gray-900 transition">
-            <span>coneshare.com/alternatives/docsend ↗</span>
-          </a>
-        </div>
+        <span class="font-mono text-xs text-[#6B7280]">coneshare.com</span>
       </div>
 
-      <!-- Matrix Table (Editorial Table on White) -->
-      <div class="my-auto border-y border-gray-200 py-1">
-        <table class="w-full text-left text-xs text-gray-700">
-          <thead class="border-b border-gray-200 text-gray-900">
-            <tr>
-              <th class="py-2.5 px-4 font-bold text-[13px] w-[20%]">对比维度</th>
-              <th class="py-2.5 px-4 font-semibold text-gray-600 text-[13px] w-[40%] bg-gray-50/60 border-l border-gray-200">DocSend (Dropbox 旗下)</th>
-              <th class="py-2.5 px-4 font-bold text-blue-900 text-[13px] w-[40%] bg-blue-50/50 border-l border-blue-200/70">ConeShare (企业私有化版)</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-150 text-[12px]">
-            <tr class="hover:bg-gray-50/50">
-              <td class="py-2.5 px-4 font-bold text-gray-900">部署模式与数据主权</td>
-              <td class="py-2.5 px-4 text-gray-600 border-l border-gray-200">境外 SaaS 公有云托管，数据脱离企业安全与物理边界</td>
-              <td class="py-2.5 px-4 font-bold text-emerald-700 bg-blue-50/30 border-l border-blue-200/50">100% 本地容器化私有自托管，数据完整保存在企业自有基础设施</td>
-            </tr>
-            <tr class="hover:bg-gray-50/50">
-              <td class="py-2.5 px-4 font-medium text-gray-900">底层存储协作模式</td>
-              <td class="py-2.5 px-4 text-gray-600 border-l border-gray-200">独立 SaaS 存储，须将文件重新上传至平台空间</td>
-              <td class="py-2.5 px-4 font-bold text-emerald-700 bg-blue-50/30 border-l border-blue-200/50">叠加层模式，直连挂载已有 Nextcloud 或本地存储，无需搬迁数据</td>
-            </tr>
-            <tr class="hover:bg-gray-50/50">
-              <td class="py-2.5 px-4 font-bold text-gray-900">商业成本模式</td>
-              <td class="py-2.5 px-4 text-gray-600 border-l border-gray-200">按人头按月计费 ($65~$150/用户/月)，随团队规模增长线性增加</td>
-              <td class="py-2.5 px-4 font-bold text-emerald-700 bg-blue-50/30 border-l border-blue-200/50">核心开源自托管免费；企业版固定年订阅，综合拥有成本 (TCO) 不足前者 1/10</td>
-            </tr>
-            <tr class="hover:bg-gray-50/50">
-              <td class="py-2.5 px-4 font-medium text-gray-900">协同预警与生态打通</td>
-              <td class="py-2.5 px-4 text-gray-600 border-l border-gray-200">仅依赖邮件通知，生态相对封闭，无国内协同工具集成</td>
-              <td class="py-2.5 px-4 font-bold text-emerald-700 bg-blue-50/30 border-l border-blue-200/50">企业微信 / 飞书 / 钉钉卡片即时推送预警，Webhook 实时联动 CRM/OA</td>
-            </tr>
-            <tr class="hover:bg-gray-50/50">
-              <td class="py-2.5 px-4 font-medium text-gray-900">虚拟资料室与分权</td>
-              <td class="py-2.5 px-4 text-gray-600 border-l border-gray-200">仅高配版支持基础 Spaces，难以为不同买家按目录精细分权</td>
-              <td class="py-2.5 px-4 font-bold text-emerald-700 bg-blue-50/30 border-l border-blue-200/50">1 Room : N Links 架构，一套母文件派生多链接分权，内嵌隔离 Q&A</td>
-            </tr>
-            <tr class="hover:bg-gray-50/50">
-              <td class="py-2.5 px-4 font-medium text-gray-900">多格式免安装预览</td>
-              <td class="py-2.5 px-4 text-gray-600 border-l border-gray-200">仅支持基础文档与静态 PDF，复杂表格跨页交互能力弱</td>
-              <td class="py-2.5 px-4 font-bold text-emerald-700 bg-blue-50/30 border-l border-blue-200/50">原生高保真渲染 PDF、Word/PPT、交互式多表 Excel、HEIC 与音视频流</td>
-            </tr>
-            <tr class="hover:bg-gray-50/50">
-              <td class="py-2.5 px-4 font-medium text-gray-900">核心定位与适用团队</td>
-              <td class="py-2.5 px-4 text-gray-600 border-l border-gray-200">适合便捷优先的轻量公有云团队，对数据物理出境不敏感</td>
-              <td class="py-2.5 px-4 font-bold text-emerald-700 bg-blue-50/30 border-l border-blue-200/50">适合合规严苛、追求 100% 数据掌控权与高投资回报率的安全型企业</td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Main Title -->
+      <div class="pt-2">
+        <h2 class="text-[24px] font-bold text-[#111827] tracking-tight">聚焦高价值外发场景，兼顾商业机密安全与成交效率</h2>
+      </div>
+
+      <!-- Main Body: 3 Columns -->
+      <div class="grid grid-cols-3 gap-4 my-auto items-stretch py-2">
+        <!-- Case 01 -->
+        <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-3.5 shadow-sm flex flex-col justify-between space-y-3">
+          <div class="rounded-xl border border-[#E5E7EB] bg-white p-3.5 shadow-sm flex-1 flex flex-col justify-between space-y-2.5">
+            <div>
+              <div class="flex items-center gap-2 pb-2 border-b border-[#F3F4F6]">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">01</span>
+                <h3 class="text-[13.5px] font-bold text-[#111827]">初创创始人 / 融资 BP 追踪</h3>
+              </div>
+              <div class="space-y-2 text-[11.5px] text-[#4B5563] pt-2">
+                <div>
+                  <strong class="text-[#111827] block mb-0.5 font-semibold">业务痛点：</strong>
+                  <span>BP 发出去石沉大海，不知道投资人读没读、停在哪页；DocSend 按人头收费太贵，普通网盘又毫无保密与统计能力。</span>
+                </div>
+                <div>
+                  <strong class="text-[#111827] block mb-0.5 font-semibold">解决方案：</strong>
+                  <span>低成本拥有逐页停留追踪与满屏防拍水印；投资人打开瞬间企微收到提醒，一眼看清对方真实意向。</span>
+                </div>
+              </div>
+            </div>
+            <div class="bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] px-2.5 py-1 rounded font-mono text-[10.5px] font-medium text-center">
+              看清真实关注点，加快融资节奏
+            </div>
+          </div>
+        </div>
+
+        <!-- Case 02 -->
+        <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-3.5 shadow-sm flex flex-col justify-between space-y-3">
+          <div class="rounded-xl border border-[#E5E7EB] bg-white p-3.5 shadow-sm flex-1 flex flex-col justify-between space-y-2.5">
+            <div>
+              <div class="flex items-center gap-2 pb-2 border-b border-[#F3F4F6]">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">02</span>
+                <h3 class="text-[13.5px] font-bold text-[#111827]">投行 / 律所 / 并购尽调 (VDR)</h3>
+              </div>
+              <div class="space-y-2 text-[11.5px] text-[#4B5563] pt-2">
+                <div>
+                  <strong class="text-[#111827] block mb-0.5 font-semibold">业务痛点：</strong>
+                  <span>涉密尽调底稿明令禁止上传公有云；传统 VDR 按页收费动辄数万美元，且多买方之间权限与问答隔离繁琐。</span>
+                </div>
+                <div>
+                  <strong class="text-[#111827] block mb-0.5 font-semibold">解决方案：</strong>
+                  <span>直接基于自有存储搭建合规虚拟资料室，支持一室多链分权、买方隔离加密问答 (Q&A) 与强制签署 NDA。</span>
+                </div>
+              </div>
+            </div>
+            <div class="bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] px-2.5 py-1 rounded font-mono text-[10.5px] font-medium text-center">
+              100% 满足数据合规，大幅节省项目开支
+            </div>
+          </div>
+        </div>
+
+        <!-- Case 03 -->
+        <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-3.5 shadow-sm flex flex-col justify-between space-y-3">
+          <div class="rounded-xl border border-[#E5E7EB] bg-white p-3.5 shadow-sm flex-1 flex flex-col justify-between space-y-2.5">
+            <div>
+              <div class="flex items-center gap-2 pb-2 border-b border-[#F3F4F6]">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">03</span>
+                <h3 class="text-[13.5px] font-bold text-[#111827]">大客户销售 / 定制报价保护</h3>
+              </div>
+              <div class="space-y-2 text-[11.5px] text-[#4B5563] pt-2">
+                <div>
+                  <strong class="text-[#111827] block mb-0.5 font-semibold">业务痛点：</strong>
+                  <span>定制方案与阶梯报价单发出后，容易被客户转给友商竞对压价；客户对方案的真实顾虑全靠销售盲目猜测。</span>
+                </div>
+                <div>
+                  <strong class="text-[#111827] block mb-0.5 font-semibold">解决方案：</strong>
+                  <span>全屏防拍照动态水印大幅提高外传成本；当客户反复翻看报价页或转发给内部决策人时实时预警，踩准时机跟进促单。</span>
+                </div>
+              </div>
+            </div>
+            <div class="bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] px-2.5 py-1 rounded font-mono text-[10.5px] font-medium text-center">
+              锁定真实决策人，缩短签单周期
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Footer -->
-      <div class="flex items-center justify-between border-t border-gray-200 pt-2.5 text-xs text-gray-400">
+      <div class="flex items-center justify-between border-t border-[#E5E7EB] pt-2.5 text-xs text-[#6B7280]">
         <div class="flex items-center gap-2">
-          <span class="font-semibold text-gray-700">ConeShare</span>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500">私有化文档受控外发与追踪系统 (DocSend & VDR 替代方案)</span>
+          <span class="font-semibold text-[#111827]">ConeShare</span>
+          <span class="text-[#D1D5DB]">|</span>
+          <span>私有化文档受控外发与追踪系统</span>
         </div>
         <div class="flex items-center gap-4 font-mono text-[11px]">
-          <a href="https://www.coneshare.com" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-gray-600 transition underline-offset-2 hover:underline">www.coneshare.com</a>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500 font-medium">09 / 10</span>
+          <span class="text-[#6B7280]">08 / 10</span>
         </div>
       </div>
     </section>
 
     <!-- ========================================== -->
-    <!-- SLIDE 10: DEPLOYMENT & ENTERPRISE READINESS -->
+    <!-- SLIDE 09: COMPETITIVE BENCHMARKING -->
     <!-- ========================================== -->
     <section class="slide bg-white flex flex-col justify-between">
       <!-- Header -->
-      <div class="flex items-center justify-between border-b border-gray-200 pb-2.5">
-        <div>
-          <div class="flex items-center gap-2 mb-1">
-            <img src="logo-cropped.svg" alt="ConeShare" class="h-4 w-auto shrink-0" style="height: 16px; width: auto;">
-            <span class="text-xs font-bold text-gray-900">ConeShare</span>
-            <span class="text-gray-300">•</span>
-            <span class="text-xs font-semibold tracking-wider text-gray-500 uppercase">DEPLOYMENT & SUPPORT · 交付与技术支持</span>
-          </div>
-          <h2 class="text-[28px] font-bold text-gray-900 tracking-tight leading-snug">极简私有化部署体系与官方专家 1v1 交付支持</h2>
+      <div class="flex items-center justify-between border-b border-[#E5E7EB] pb-2.5">
+        <div class="flex items-center gap-2.5">
+          <span class="font-mono text-xs font-bold text-[#4B5563] bg-[#F3F4F6] px-2 py-0.5 rounded">09 / COMPETITIVE BENCHMARK</span>
+          <span class="text-xs text-[#6B7280] font-medium">竞品对比</span>
+        </div>
+        <span class="font-mono text-xs text-[#6B7280]">coneshare.com</span>
+      </div>
+
+      <!-- Main Title -->
+      <div class="pt-2">
+        <h2 class="text-[24px] font-bold text-[#111827] tracking-tight">数据自主可控与固定年费：更适合企业的受控外发方案</h2>
+      </div>
+
+      <!-- Matrix Table -->
+      <div class="my-auto py-1">
+        <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-3 shadow-sm">
+          <table class="w-full text-left text-xs text-[#4B5563] bg-white rounded-xl border border-[#E5E7EB] overflow-hidden">
+            <thead class="border-b border-[#E5E7EB] text-[#111827] bg-[#F9FAFB]">
+              <tr>
+                <th class="py-2 px-3.5 font-bold text-[12px] w-[20%]">对比维度</th>
+                <th class="py-2 px-3.5 font-semibold text-[#6B7280] text-[12px] w-[38%] border-l border-[#E5E7EB]">DocSend (Dropbox 旗下)</th>
+                <th class="py-2 px-3.5 font-bold text-[#111827] text-[12px] w-[42%] border-l border-[#E5E7EB] bg-[#F3F4F6]/50">ConeShare (企业私有化版)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-[#F3F4F6] text-[11.5px]">
+              <tr class="hover:bg-[#F9FAFB]/50">
+                <td class="py-2 px-3.5 font-semibold text-[#111827]">部署模式与数据主权</td>
+                <td class="py-2 px-3.5 text-[#6B7280] border-l border-[#E5E7EB]">境外公有云托管，文件被迫脱离企业内网边界</td>
+                <td class="py-2 px-3.5 font-medium text-[#111827] border-l border-[#E5E7EB]">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#059669] inline-block mr-1.5"></span>100% 本地私有化部署，数据完整留在企业自有服务器
+                </td>
+              </tr>
+              <tr class="hover:bg-[#F9FAFB]/50">
+                <td class="py-2 px-3.5 font-semibold text-[#111827]">底层存储衔接方式</td>
+                <td class="py-2 px-3.5 text-[#6B7280] border-l border-[#E5E7EB]">独立云空间，必须将文件重新上传至第三方平台</td>
+                <td class="py-2 px-3.5 font-medium text-[#111827] border-l border-[#E5E7EB]">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#059669] inline-block mr-1.5"></span>直连挂载现有 Nextcloud 或本地存储，无需搬迁数据
+                </td>
+              </tr>
+              <tr class="hover:bg-[#F9FAFB]/50">
+                <td class="py-2 px-3.5 font-semibold text-[#111827]">商业计费模式</td>
+                <td class="py-2 px-3.5 text-[#6B7280] border-l border-[#E5E7EB]">按人头按月收费 ($65~$150/人/月)，团队越大越贵</td>
+                <td class="py-2 px-3.5 font-medium text-[#111827] border-l border-[#E5E7EB]">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#059669] inline-block mr-1.5"></span>核心开源免费；企业版固定年费，综合成本不足前者 1/10
+                </td>
+              </tr>
+              <tr class="hover:bg-[#F9FAFB]/50">
+                <td class="py-2 px-3.5 font-semibold text-[#111827]">消息提醒与本土生态</td>
+                <td class="py-2 px-3.5 text-[#6B7280] border-l border-[#E5E7EB]">仅靠邮件通知，缺乏国内办公协同工具集成</td>
+                <td class="py-2 px-3.5 font-medium text-[#111827] border-l border-[#E5E7EB]">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#059669] inline-block mr-1.5"></span>企微 / 飞书 / 钉钉卡片实时推送，Webhook 联动 CRM
+                </td>
+              </tr>
+              <tr class="hover:bg-[#F9FAFB]/50">
+                <td class="py-2 px-3.5 font-semibold text-[#111827]">虚拟资料室与分权</td>
+                <td class="py-2 px-3.5 text-[#6B7280] border-l border-[#E5E7EB]">仅高配版支持基础目录，难以按不同买方精细分权</td>
+                <td class="py-2 px-3.5 font-medium text-[#111827] border-l border-[#E5E7EB]">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#059669] inline-block mr-1.5"></span>一室多链架构，同一资料室生成多条分权链接，内嵌隔离 Q&A
+                </td>
+              </tr>
+              <tr class="hover:bg-[#F9FAFB]/50">
+                <td class="py-2 px-3.5 font-semibold text-[#111827]">多格式免插件预览</td>
+                <td class="py-2 px-3.5 text-[#6B7280] border-l border-[#E5E7EB]">仅支持基础文档与静态 PDF，复杂多表 Excel 体验弱</td>
+                <td class="py-2 px-3.5 font-medium text-[#111827] border-l border-[#E5E7EB]">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#059669] inline-block mr-1.5"></span>原生高清预览 PDF、Word/PPT、多工作表 Excel 与音视频流
+                </td>
+              </tr>
+              <tr class="hover:bg-[#F9FAFB]/50">
+                <td class="py-2 px-3.5 font-semibold text-[#111827]">适用团队画像</td>
+                <td class="py-2 px-3.5 text-[#6B7280] border-l border-[#E5E7EB]">对价格与数据出境不敏感的海外轻量小团队</td>
+                <td class="py-2 px-3.5 font-medium text-[#111827] border-l border-[#E5E7EB]">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#059669] inline-block mr-1.5"></span>注重数据合规、追求 100% 掌控权与高性价比的企业团队
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <!-- Body -->
-      <div class="grid grid-cols-12 gap-10 my-auto items-start py-3">
-        <!-- Left: 3 Technical Architecture Pillars -->
-        <div class="col-span-6 flex flex-col justify-between space-y-4">
-          <!-- Item 1 -->
-          <div class="border-b border-gray-150 pb-3.5 space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">01</span>
-              <h3 class="text-base font-bold text-gray-900">一键容器化极速部署 (Docker Compose Ready)</h3>
+      <!-- Footer -->
+      <div class="flex items-center justify-between border-t border-[#E5E7EB] pt-2.5 text-xs text-[#6B7280]">
+        <div class="flex items-center gap-2">
+          <span class="font-semibold text-[#111827]">ConeShare</span>
+          <span class="text-[#D1D5DB]">|</span>
+          <span>私有化文档受控外发与追踪系统</span>
+        </div>
+        <div class="flex items-center gap-4 font-mono text-[11px]">
+          <span class="text-[#6B7280]">09 / 10</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- SLIDE 10: DEPLOYMENT & SUPPORT -->
+    <!-- ========================================== -->
+    <section class="slide bg-white flex flex-col justify-between">
+      <!-- Header -->
+      <div class="flex items-center justify-between border-b border-[#E5E7EB] pb-2.5">
+        <div class="flex items-center gap-2.5">
+          <span class="font-mono text-xs font-bold text-[#4B5563] bg-[#F3F4F6] px-2 py-0.5 rounded">10 / DEPLOYMENT & SUPPORT</span>
+          <span class="text-xs text-[#6B7280] font-medium">交付与技术支持</span>
+        </div>
+        <span class="font-mono text-xs text-[#6B7280]">coneshare.com</span>
+      </div>
+
+      <!-- Main Title -->
+      <div class="pt-2">
+        <h2 class="text-[24px] font-bold text-[#111827] tracking-tight">分钟级私有化容器部署，官方工程师 1v1 协助上线</h2>
+      </div>
+
+      <!-- Main Body: 3 + 2 Grid + Bottom CTA -->
+      <div class="my-auto py-2 space-y-3">
+        <!-- Upper Grid: 3 + 2 Cards -->
+        <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB]/60 p-3.5 shadow-sm space-y-2.5">
+          <!-- Row 1: 3 Cards -->
+          <div class="grid grid-cols-3 gap-3">
+            <!-- 01 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">01</span>
+                <h3 class="text-[13px] font-bold text-[#111827]">Docker 容器极速部署</h3>
+              </div>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                提供标准 Docker Compose 编排脚本，几分钟内即可在阿里云、腾讯云、华为云、AWS 或本地物理服务器上启动运行，资源占用极低。
+              </p>
             </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              提供工业级标准编排脚本，几分钟内即可在企业自有的阿里云、腾讯云、华为云、AWS 或本地物理服务器启动运行；底层采用轻量高性能微服务架构，资源消耗低，日常运行稳定可靠。
-            </p>
+
+            <!-- 02 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">02</span>
+                <h3 class="text-[13px] font-bold text-[#111827]">纯内网物理断网运行</h3>
+              </div>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                支持 100% 物理隔离的纯内网环境运行；支持离线授权文件（Offline License）本地激活，不向外网发送任何数据，满足涉密与金融机构要求。
+              </p>
+            </div>
+
+            <!-- 03 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">03</span>
+                <h3 class="text-[13px] font-bold text-[#111827]">企业统一认证与日志审计</h3>
+              </div>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                原生支持 SAML 2.0 / LDAP 单点登录（SSO）；全量操作与访问日志支持标准 Syslog 格式，可无缝接入企业内部安全审计系统（SIEM）。
+              </p>
+            </div>
           </div>
 
-          <!-- Item 2 -->
-          <div class="border-b border-gray-150 pb-3.5 space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">02</span>
-              <h3 class="text-base font-bold text-gray-900">纯物理隔离断网支持 (Air-Gapped & Offline License)</h3>
+          <!-- Row 2: 2 Cards -->
+          <div class="grid grid-cols-2 gap-3">
+            <!-- 04 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">04</span>
+                <h3 class="text-[13px] font-bold text-[#111827]">官方工程师 1v1 协助交付</h3>
+              </div>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                为企业客户提供专属工程师远程 1 对 1 协助部署，配合完成环境检查、存储挂载、反向代理配置与生产调优，确保平稳上线。
+              </p>
             </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              支持 100% 物理断网的纯内网机房运行；提供非对称加密离线 License 机制，无需向外网回传任何用户数据与元数据，满足涉密单位与金融机构的极端安全需求。
-            </p>
-          </div>
 
-          <!-- Item 3 -->
-          <div class="space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">03</span>
-              <h3 class="text-base font-bold text-gray-900">企业级身份治理与合规审计对接 (SSO & SIEM)</h3>
+            <!-- 05 -->
+            <div class="rounded-xl border border-[#E5E7EB] bg-white p-3 shadow-sm space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">05</span>
+                <h3 class="text-[13px] font-bold text-[#111827]">长期维保与平滑升级保障</h3>
+              </div>
+              <p class="text-[11.5px] text-[#4B5563] leading-relaxed">
+                提供企业专属技术支持群、故障快速响应、安全补丁优先推送与版本无缝升级指导，保障关键业务常年稳定运行。
+              </p>
             </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              原生支持 SAML 2.0 / LDAP 企业统一单点登录；系统审计日志原生支持标准 Syslog 格式，可无缝对接企业内部安全分析系统 (SIEM) 进行实时风控分析。
-            </p>
           </div>
         </div>
 
-        <!-- Right: Delivery & Enterprise Support Assurance -->
-        <div class="col-span-6 flex flex-col justify-between space-y-4">
-          <!-- Item 4 -->
-          <div class="border-b border-gray-150 pb-3.5 space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">04</span>
-              <h3 class="text-base font-bold text-gray-900">官方专家 1v1 协助交付 (1-on-1 Expert Onboarding)</h3>
-            </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              针对企业客户，官方提供专属工程师远程 1 对 1 协同交付，<strong class="text-gray-900">协助完成环境巡检、存储挂载、反向代理与生产调优</strong>，确保系统快速平稳上线。
-            </p>
+        <!-- Lower: Bottom CTA Card -->
+        <div class="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5 flex justify-between items-center shadow-xs">
+          <div class="flex items-center gap-2.5">
+            <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#F3F4F6] text-[#4B5563]">CONNECT</span>
+            <span class="font-bold text-[#111827] text-xs">立即体验开源版本或预约企业版演示</span>
           </div>
-
-          <!-- Item 5 -->
-          <div class="border-b border-gray-150 pb-3.5 space-y-1.5">
-            <div class="flex items-baseline gap-2.5">
-              <span class="text-blue-600 font-mono font-bold text-base">05</span>
-              <h3 class="text-base font-bold text-gray-900">长期高可用保障与平滑升级 (Enterprise SLA)</h3>
-            </div>
-            <p class="text-[13px] text-gray-600 leading-relaxed pl-7">
-              提供企业专属技术支持通道、核心故障快速响应、安全加固补丁优先推送及版本无缝平滑迁移指导，确保关键外发与资料室业务常年平稳运行。
-            </p>
-          </div>
-
-          <!-- Resources & Contact Box -->
-          <div class="border border-gray-200 rounded-lg p-3.5 bg-gray-50/70 space-y-2 text-xs">
-            <div class="flex justify-between items-center text-gray-600">
-              <span class="font-medium text-gray-700">官方开源代码仓库：</span>
-              <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" class="font-mono text-gray-900 hover:text-blue-600 font-medium hover:underline">github.com/coneshare/coneshare ↗</a>
-            </div>
-            <div class="flex justify-between items-center text-gray-600">
-              <span class="font-medium text-gray-700">商务咨询 / 技术顾问：</span>
-              <a href="mailto:dev@coneshare.com" class="font-mono text-gray-900 hover:text-blue-600 font-medium hover:underline">dev@coneshare.com</a>
-            </div>
+          <div class="flex items-center gap-2.5">
+            <a href="https://github.com/coneshare/coneshare" target="_blank" rel="noopener noreferrer" class="bg-white border border-[#E5E7EB] text-[#111827] hover:bg-gray-50 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition shadow-2xs">
+              GitHub: github.com/coneshare/coneshare ↗
+            </a>
+            <a href="mailto:dev@coneshare.com" class="bg-[#111827] hover:bg-gray-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium transition shadow-2xs">
+              商务与技术咨询: dev@coneshare.com
+            </a>
           </div>
         </div>
       </div>
 
       <!-- Footer -->
-      <div class="flex items-center justify-between border-t border-gray-200 pt-2.5 text-xs text-gray-400">
+      <div class="flex items-center justify-between border-t border-[#E5E7EB] pt-2.5 text-xs text-[#6B7280]">
         <div class="flex items-center gap-2">
-          <span class="font-semibold text-gray-700">ConeShare</span>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500">私有化文档受控外发与追踪系统 (DocSend & VDR 替代方案)</span>
+          <span class="font-semibold text-[#111827]">ConeShare</span>
+          <span class="text-[#D1D5DB]">|</span>
+          <span>私有化文档受控外发与追踪系统</span>
         </div>
         <div class="flex items-center gap-4 font-mono text-[11px]">
-          <a href="https://www.coneshare.com" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-gray-600 transition underline-offset-2 hover:underline">www.coneshare.com</a>
-          <span class="text-gray-300">|</span>
-          <span class="text-gray-500 font-medium">10 / 10</span>
+          <span class="text-[#6B7280]">10 / 10</span>
         </div>
       </div>
     </section>

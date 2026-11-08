@@ -29,6 +29,22 @@ class Command(BaseCommand):
         else:
             self.stdout.write(f'User {user.email} already exists.')
 
+        # Create colleague user for collaboration tests
+        colleague, colleague_created = User.objects.get_or_create(
+            email='colleague@coneshare.com',
+            defaults={
+                'username': 'colleague@coneshare.com',
+                'organization': org,
+                'name': 'Colleague User',
+            }
+        )
+        if colleague_created:
+            colleague.set_password('password123')
+            colleague.save()
+            self.stdout.write(self.style.SUCCESS(f'Created user: {colleague.email}'))
+        else:
+            self.stdout.write(f'User {colleague.email} already exists.')
+
         # Get root folder
         root_folder = Folder.objects.get_root_for_org(org)
 

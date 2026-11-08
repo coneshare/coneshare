@@ -1,12 +1,12 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Shield, Eye, Zap, Palette, Folder, MessageSquare, CheckCircle, ArrowRight } from 'lucide-react';
+import { Shield, Eye, Zap, Palette, Folder, MessageSquare, CheckCircle, ArrowRight, Link2 } from 'lucide-react';
 import { DataroomMockupCarousel } from '../../components/DataroomMockupCarousel';
 
 export const metadata = {
-  title: 'Secure Self-Hosted Virtual Dataroom (VDR) | Coneshare',
+  title: 'Secure Self-Hosted Virtual Dataroom (VDR) | ConeShare',
   description:
-    'Build a secure virtual dataroom on top of your existing Nextcloud, Google Drive, Dropbox, or local storage. Control access, track viewer engagement, and automate workflows.',
+    'Turn your existing Nextcloud, Google Drive, Dropbox, or local storage into a secure virtual dataroom. Granular folder permissions, dynamic watermarking, diligence Q&A, and page-by-page analytics.',
   keywords: [
     'virtual dataroom',
     'self hosted vdr',
@@ -14,6 +14,8 @@ export const metadata = {
     'secure document sharing',
     'docsend alternative',
     'dataroom tracking',
+    'deal room',
+    'due diligence dataroom',
   ],
   alternates: {
     canonical: '/virtual-dataroom',
@@ -24,68 +26,68 @@ export default function VirtualDataroomPage() {
   const steps = [
     {
       number: '01',
-      title: 'Connect & Organize Custom Folders',
+      title: 'Direct Storage Mount & Folder Curation',
       description:
-        'Connect your trusted storage provider in seconds. Import files into Coneshare and organize them into custom datarooms. When files are updated in your cloud storage, sync them instantly to Coneshare with a single click.',
+        'Mount your existing storage (Nextcloud, local NFS, S3-compatible, Google Drive, Dropbox) directly without migrating files. Build custom multi-tier folder hierarchies and keep content continuously in sync with one click.',
       image: '/screenshots/feat-vdr-add-content.png',
     },
     {
       number: '02',
-      title: 'Enforce Secure Sharing & Watermarking',
+      title: 'Multi-Barrier Access Gates & Dynamic Watermarking',
       description:
-        'Set custom passwords, expiration limits, email verification checkpoints, and download restrictions. Enable dynamic watermarks that automatically embed the recipient\'s verified email address onto previews and downloads.',
+        'Protect sensitive files with passwords, email OTP verification, domain whitelists, and click-through NDAs before granting viewing access. Full-screen dynamic watermarks burn recipient emails, IPs, and timestamps across document previews.',
       image: '/screenshots/feat-sharing.png',
     },
     {
       number: '03',
-      title: 'Analyze Page-by-Page Engagement',
+      title: 'Page-Level Analytics & Buyer Engagement',
       description:
-        'Stop guessing if your pitch deck or deal files were read. Monitor views, revisits, downloads, page-level viewing times, and video playback segments (including muted/unmuted states and playback speeds) in real time.',
+        'Gain complete visibility into deal dynamics. Track exact seconds spent per slide, completion rates, video playback segments, and auto-detect when links are forwarded internally to new stakeholders.',
       image: '/screenshots/feat-analytics.png',
     },
     {
       number: '04',
-      title: 'Trigger Real-time Downstream Workflows',
+      title: 'Instant Deal Alerts & CRM Sync',
       description:
-        'Link document activity to action workflows. Instantly send Slack notifications or route JSON webhook payloads to your internal CRM when an investor enters a dataroom or a client downloads a contract.',
+        'Trigger instant notifications via Slack, Microsoft Teams, email, or outbound Webhooks whenever a prospective investor accesses the dataroom, re-reads pricing pages, or downloads contracts.',
       image: '/screenshots/feat-automations.png',
     },
   ];
 
   const corePillars = [
     {
-      name: 'Custom Brand Identity',
-      description: 'Personalize datarooms with unique company banners, logos, and custom primary/secondary color schemes.',
-      icon: Palette,
+      name: 'Granular Multi-Buyer Scoping',
+      description: 'Generate multiple isolated links for a single room. Customize folder visibility, download permissions, and passwords independently per buyer.',
+      icon: Link2,
     },
     {
-      name: 'Diligence Q&A Threads',
-      description: 'Facilitate secure discussions between dataroom owners and external viewers directly on shared documents.',
+      name: 'Confidential Diligence Q&A',
+      description: 'Encrypted document-adjacent Q&A threads where bidders submit diligence queries isolated from competing parties, preserving full audit integrity.',
       icon: MessageSquare,
     },
     {
-      name: 'Virtual Folder Trees',
-      description: 'Reorder sibling items manually and build custom hierarchies scoped exclusively to specific share links.',
-      icon: Folder,
+      name: 'White-Label Deal Room Branding',
+      description: 'Custom banners, logos, and firm color schemes to present a polished, institutional diligence portal to counterparties.',
+      icon: Palette,
     },
   ];
 
   const faqs = [
     {
-      q: 'How does Coneshare secure files compared to public SaaS datarooms?',
-      a: 'Public SaaS platforms copy and store your sensitive corporate files on third-party servers outside your security perimeter. Coneshare connects directly to your storage (Nextcloud, Google Drive, Dropbox, local storage) to import files into your own self-hosted infrastructure. Previews and watermarked downloads are generated locally, ensuring your files never leave your infrastructure boundary.',
+      q: 'How does ConeShare protect sensitive files compared to public SaaS datarooms?',
+      a: 'Conventional SaaS VDRs copy and host your confidential deal files on third-party multi-tenant servers. ConeShare operates on a self-hosted architecture that connects directly to your existing storage (Nextcloud, local filesystems, S3, Google Drive, Dropbox). High-definition previews, watermarking, and visitor analytics execute within your private infrastructure perimeter, ensuring files never leak to external vendors.',
     },
     {
-      q: 'Does it support dynamic PDF watermarking?',
-      a: 'Yes. If watermarking is enabled for a share link or a specific document, Coneshare renders PDF pages with a dynamic watermark overlay displaying the viewer\'s verified email address, preventing leaks and unauthorized distribution.',
+      q: 'Does it support dynamic PDF, Office, and video watermarking?',
+      a: 'Yes. ConeShare dynamically overlays full-screen watermarks with recipient email addresses, access IPs, and timestamps across PDFs, Office documents, multi-sheet spreadsheets, and video previews, creating strong attribution and deterring screen capture or camera photos.',
     },
     {
-      q: 'How does the VDR Q&A collaboration work?',
-      a: 'Coneshare allows VDR owners to enable a secure Q&A tab on shared links. Viewers can submit questions directly on files, and owners can review, assign, and answer them within Coneshare\'s dashboard, eliminating scattered email threads.',
+      q: 'How does the buyer-isolated Diligence Q&A work?',
+      a: 'ConeShare lets deal administrators enable a dedicated Q&A module on any dataroom link. Counterparties can post questions directly against specific files or folders. Each buyer cohort communicates in full isolation—competing bidders cannot see each other\'s queries, while your deal team manages responses from a centralized dashboard.',
     },
     {
-      q: 'Is it easy to self-host Coneshare?',
-      a: 'Absolutely. Coneshare is designed with self-hosting in mind. You can deploy it on your own server or private cloud using Docker Compose in just a few minutes, giving you full ownership over your database logs, metadata, and visitor analytics.',
+      q: 'Can I self-host ConeShare in air-gapped or restricted networks?',
+      a: 'Yes. ConeShare ships with Docker Compose recipes engineered for rapid on-premise or VPC deployments. It can operate in private subnets, hybrid clouds, or fully air-gapped internal environments without external phone-home dependencies.',
     },
   ];
 
@@ -122,10 +124,10 @@ export default function VirtualDataroomPage() {
         />
         <div className="mx-auto max-w-4xl py-20 sm:py-28 text-center">
           <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
-            Secure, Self-Hosted Virtual Dataroom (VDR)
+            Sovereign Virtual Dataroom (VDR) on Your Own Storage
           </h1>
           <p className="mt-6 text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
-            Overlay controlled sharing, viewer analytics, and follow-up workflows on top of your existing cloud or on-premise storage. Keep your data under your complete sovereignty.
+            Mount your Nextcloud, local NFS, or cloud storage into an institutional-grade virtual dataroom. Enforce multi-buyer link isolation, confidential diligence Q&amp;A, and page-by-page engagement telemetry without moving a single file.
           </p>
           <div className="mt-10 flex items-center justify-center gap-x-6">
             <Link
@@ -176,38 +178,38 @@ export default function VirtualDataroomPage() {
               What is a Virtual Dataroom (VDR)?
             </h2>
             <p className="mt-6 text-base leading-7 text-gray-600">
-              A Virtual Dataroom (VDR) is a secure, controlled digital vault designed for distributing highly sensitive files (e.g. corporate financials, board materials, intellectual property, M&amp;A due diligence) to external counterparts. 
+              A Virtual Dataroom (VDR) is an institutional-grade, highly controlled document repository engineered for distributing high-stakes corporate files—including fundraising pitch decks, financial audits, IP assets, and M&amp;A due diligence.
             </p>
             <p className="mt-4 text-base leading-7 text-gray-600">
-              Unlike standard storage links, a VDR adds advanced access controls, page-level tracking metrics, dynamic watermarking, and workflow automations, ensuring that you retain complete oversight after a document is shared.
+              Unlike generic public cloud links, a true VDR provides multi-tier access gates, dynamic anti-leak watermarking, page-by-page engagement telemetry, and buyer-isolated Q&amp;A threads—giving dealmakers complete oversight after files leave their perimeter.
             </p>
           </div>
 
           {/* Right Column: Why choose Coneshare */}
           <div>
             <h2 className="text-3xl font-bold tracking-tight text-gray-900">
-              Why Choose Coneshare?
+              Why Choose ConeShare?
             </h2>
             <ul className="mt-6 space-y-5">
               <li className="flex items-start gap-3">
                 <CheckCircle className="h-6 w-6 text-gray-950 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-semibold text-gray-900">Data Sovereignty First</h4>
-                  <p className="text-sm text-gray-600 mt-1">Files are hosted on your own self-hosted infrastructure. Coneshare never locks you into a proprietary cloud vault.</p>
+                  <h4 className="font-semibold text-gray-900">Zero-Migration Storage Mounting</h4>
+                  <p className="text-sm text-gray-600 mt-1">Directly mount Nextcloud, local NFS, S3, or existing cloud buckets. When files update at the source, your datarooms sync immediately without broken links.</p>
                 </div>
               </li>
               <li className="flex items-start gap-3">
                 <CheckCircle className="h-6 w-6 text-gray-950 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-semibold text-gray-900">Free Open-Source Core</h4>
-                  <p className="text-sm text-gray-600 mt-1">Our open-source version is completely free with no user limits. Scale to Enterprise (charged per user) only when you need advanced governance like SSO, LDAP, departments, or file search.</p>
+                  <h4 className="font-semibold text-gray-900">100% Data Sovereignty</h4>
+                  <p className="text-sm text-gray-600 mt-1">Host on your own VPC or bare metal. Keep corporate files and audit logs strictly within your enterprise compliance boundary.</p>
                 </div>
               </li>
               <li className="flex items-start gap-3">
                 <CheckCircle className="h-6 w-6 text-gray-950 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-semibold text-gray-900">One-click cloud syncing</h4>
-                  <p className="text-sm text-gray-600 mt-1">Connect Nextcloud or Google Drive to import files. Sync updates instantly with a single click whenever cloud files change.</p>
+                  <h4 className="font-semibold text-gray-900">Fair Open-Source Model</h4>
+                  <p className="text-sm text-gray-600 mt-1">Core VDR capabilities are fully open-source with no seat limits. Pay only when you scale into enterprise governance (SSO, SCIM, team workspaces).</p>
                 </div>
               </li>
             </ul>
@@ -257,10 +259,10 @@ export default function VirtualDataroomPage() {
         <div className="mx-auto max-w-5xl px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center mb-16">
             <h2 className="text-3xl font-bold tracking-tight text-gray-900">
-              Built for high-stakes external collaboration
+              Built for high-stakes dealmaking and due diligence
             </h2>
             <p className="mt-4 text-base text-gray-600">
-              In addition to basic links, Coneshare provides professional virtual dataroom capabilities for teams.
+              Move beyond basic file shares with purpose-built virtual dataroom infrastructure.
             </p>
           </div>
           <div className="grid max-w-md grid-cols-1 gap-8 sm:max-w-none sm:grid-cols-3">
@@ -279,9 +281,9 @@ export default function VirtualDataroomPage() {
 
       {/* Comparison Section */}
       <div className="mx-auto max-w-5xl px-6 lg:px-8 py-16 sm:py-24">
-        <h2 className="text-3xl font-bold tracking-tight text-gray-900 text-center">Coneshare vs SaaS Alternatives</h2>
+        <h2 className="text-3xl font-bold tracking-tight text-gray-900 text-center">ConeShare vs Legacy SaaS Providers</h2>
         <p className="text-base text-gray-600 text-center mt-4 max-w-2xl mx-auto">
-          Compare the security of self-hosted, storage-agnostic infrastructure against public cloud-hosted VDR providers.
+          Compare self-hosted, direct storage infrastructure against multi-tenant public cloud VDR platforms on privacy, scoping flexibility, and economics.
         </p>
 
         <div className="mt-12 overflow-x-auto rounded-xl border border-gray-200">
@@ -289,40 +291,40 @@ export default function VirtualDataroomPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-4 font-semibold text-gray-900">Feature</th>
-                <th className="px-6 py-4 font-semibold text-gray-900">Coneshare (Self-Hosted)</th>
-                <th className="px-6 py-4 font-semibold text-gray-900">DocSend / Public SaaS VDR</th>
+                <th className="px-6 py-4 font-semibold text-gray-900">ConeShare (Self-Hosted)</th>
+                <th className="px-6 py-4 font-semibold text-gray-900">DocSend / Legacy SaaS VDRs</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white text-gray-700">
               <tr>
                 <td className="px-6 py-4 font-medium">Data Sovereignty</td>
-                <td className="px-6 py-4">Total control (Files remain on your infrastructure)</td>
-                <td className="px-6 py-4">No (Files are copied to third-party databases)</td>
+                <td className="px-6 py-4">Total control (Source files and render caches reside permanently inside your private infrastructure)</td>
+                <td className="px-6 py-4">No (Files are duplicated into third-party multi-tenant cloud databases)</td>
               </tr>
               <tr>
-                <td className="px-6 py-4 font-medium">Storage Integration</td>
-                <td className="px-6 py-4">Public cloud (Dropbox, Google Drive) &amp; private/self-hosted storage (Nextcloud, Internal Storage)</td>
-                <td className="px-6 py-4">Public cloud only (Google Drive, Dropbox). No support for private/self-hosted storage (Nextcloud)</td>
+                <td className="px-6 py-4 font-medium">Storage Architecture</td>
+                <td className="px-6 py-4">Zero migration; direct mount for Nextcloud, local NFS, S3 buckets, Google Drive, and Dropbox</td>
+                <td className="px-6 py-4">Public cloud sync only (Google Drive, Dropbox); cannot mount private or on-premise storage (Nextcloud/NFS)</td>
               </tr>
               <tr>
-                <td className="px-6 py-4 font-medium">Granular VDR Access</td>
-                <td className="px-6 py-4">Yes (Per-item visibility &amp; download limits)</td>
-                <td className="px-6 py-4">Yes</td>
+                <td className="px-6 py-4 font-medium">Multi-Buyer Dataroom Scoping</td>
+                <td className="px-6 py-4">Single room supports multiple independent links with dynamic per-buyer folder visibility and embedded Q&amp;A</td>
+                <td className="px-6 py-4">Basic Spaces grouping only; requires cloning duplicate spaces to adjust folder permissions per buyer, with no native diligence Q&amp;A</td>
               </tr>
               <tr>
-                <td className="px-6 py-4 font-medium">Behavioral Telemetry</td>
-                <td className="px-6 py-4">Yes (Page tracking, video HLS play logs)</td>
-                <td className="px-6 py-4">Yes</td>
+                <td className="px-6 py-4 font-medium">Engagement Telemetry &amp; Alerts</td>
+                <td className="px-6 py-4">Page-by-page duration and video playback heatmaps; instant alerts via Slack, Microsoft Teams, and Webhooks</td>
+                <td className="px-6 py-4">High-resolution slide tracking, but primarily restricted to email alerts and third-party Zapier connections</td>
               </tr>
               <tr>
-                <td className="px-6 py-4 font-medium">Auditability</td>
-                <td className="px-6 py-4">All audit logs are stored in your own infrastructure and can be consumed directly by internal systems (e.g. SIEM)</td>
-                <td className="px-6 py-4">Limited to SaaS dashboard views and CSV exports; logs cannot be directly ingested into internal systems</td>
+                <td className="px-6 py-4 font-medium">Auditability &amp; SIEM</td>
+                <td className="px-6 py-4">Complete immutable event logs stored in your SQL database; ready for direct streaming into internal SIEM / SOC tools</td>
+                <td className="px-6 py-4">Constrained to vendor dashboard views or manual CSV exports; difficult to stream directly into enterprise SIEM pipelines</td>
               </tr>
               <tr>
-                <td className="px-6 py-4 font-medium">Pricing Model</td>
-                <td className="px-6 py-4 font-semibold text-green-700">Free Open Source Core (no user limit); Paid Enterprise plan (charged by users) for advanced features (SSO/LDAP)</td>
-                <td className="px-6 py-4">Per-user seats + scaling costs from Day 1 (highly expensive)</td>
+                <td className="px-6 py-4 font-medium">Licensing &amp; Pricing Model</td>
+                <td className="px-6 py-4 font-semibold text-green-700">Free open-source core with unlimited viewers and seats; upgrade to Enterprise only for SSO/SCIM governance</td>
+                <td className="px-6 py-4">Steep per-user seat pricing starting from Day 1 ($65–$150+/seat/mo), escalating dramatically with team size</td>
               </tr>
             </tbody>
           </table>
