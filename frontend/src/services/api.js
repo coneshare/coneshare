@@ -835,6 +835,10 @@ export const getAdminDatarooms = (params = {}) => api.get('/admin/datarooms/', {
 export const getAdminDataroom = (id) => api.get(`/admin/datarooms/${id}/`);
 export const updateAdminDataroom = (id, data) => api.patch(`/admin/datarooms/${id}/`, data);
 export const deleteAdminDataroom = (id) => api.delete(`/admin/datarooms/${id}/`);
+export const getAdminLinks = (params = {}) => api.get('/admin/links/', { params });
+export const getAdminLink = (id) => api.get(`/admin/links/${id}/`);
+export const updateAdminLink = (id, data) => api.patch(`/admin/links/${id}/`, data);
+export const deleteAdminLink = (id) => api.delete(`/admin/links/${id}/`);
 export const transferAdminDataroomOwnership = (id, newOwnerId) =>
   api.post(`/admin/datarooms/${id}/transfer-ownership/`, { new_owner_id: newOwnerId });
 export const upgradeAdminDataroomStorage = (id) =>

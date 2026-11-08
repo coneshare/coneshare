@@ -4,6 +4,7 @@ from datetime import timedelta
 from rest_framework import status
 
 from core.models import Organization, User
+from datarooms.models import Dataroom
 from documents.models import Document
 from sharelinks.models import ShareLink, ViewSession
 
@@ -65,6 +66,39 @@ class TestDashboardAnalyticsViews:
         assert data['recent_views'][0]['share_link_name'] == "Link 1"
         assert data['recent_links'][0]['name'] == "Link 1"  # most recent view
         assert data['recent_links'][1]['name'] == "Link 2"
+
+    def test_dashboard_summary_view_scoped_for_admin_user(self, api_client, user, user2, document):
+        """
+        Verify that even for an organization admin, the personal dashboard summary
+        is strictly scoped to their own links, not colleagues' document or dataroom links in the same org.
+        """
+        user.role = 'admin'
+        user.save()
+
+        # user (admin) creates link1
+        link1 = ShareLink.objects.create(document=document, created_by=user, name="Admin Link")
+        ViewSession.objects.create(share_link=link1)
+
+        # user2 (colleague in same org) creates document link2
+        doc2 = Document.objects.create(name="Colleague Doc", organization=user.organization, created_by=user2)
+        link2 = ShareLink.objects.create(document=doc2, created_by=user2, name="Colleague Link")
+        ViewSession.objects.create(share_link=link2)
+
+        # user2 creates a dataroom and dataroom link3 (admin is NOT an owner or collaborator)
+        dr = Dataroom.objects.create(name="Colleague Room", organization=user.organization, created_by=user2)
+        link3 = ShareLink.objects.create(dataroom=dr, created_by=user2, name="Colleague Room Link")
+        ViewSession.objects.create(share_link=link3)
+
+        api_client.force_authenticate(user=user)
+        response = api_client.get('/api/v1/analytics/dashboard/')
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+
+        # Admin only sees their own link and view
+        assert len(data['recent_links']) == 1
+        assert data['recent_links'][0]['name'] == "Admin Link"
+        assert len(data['recent_views']) == 1
+        assert data['recent_views'][0]['share_link_name'] == "Admin Link"
 
     def test_dashboard_summary_does_not_expose_link_password(self, api_client, user, document):
         """
@@ -298,4 +332,47 @@ class TestDashboardAnalyticsViews:
         assert data['viewer_email'] == "viewer@example.com"
         assert data['country'] == "US"
         assert data['duration_seconds'] == 120
+
+    def test_admin_can_retrieve_view_session_detail_on_colleague_link(self, api_client, admin_user, user, document):
+        """
+        Verify that an organization admin can retrieve session details for a colleague's
+        link within their organization, even if the admin did not create the link.
+        """
+        colleague_link = ShareLink.objects.create(document=document, created_by=user, name="Colleague Link")
+        session = ViewSession.objects.create(
+            share_link=colleague_link,
+            viewer_email="investor@fund.com",
+            duration_seconds=90
+        )
+
+        api_client.force_authenticate(user=admin_user)
+        response = api_client.get(f'/api/v1/analytics/view-sessions/{session.id}/')
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()['id'] == str(session.id)
+
+    def test_admin_cannot_retrieve_view_session_of_other_org(self, api_client, admin_user):
+        """
+        Verify that an organization admin cannot access session details for documents
+        or datarooms belonging to another organization.
+        """
+        other_org = Organization.objects.create(name="Foreign Org Corp")
+        other_user = User.objects.create_user(username="foreignadmin@example.com", organization=other_org)
+
+        # Foreign document link & session
+        foreign_doc = Document.objects.create(name="Foreign Doc", organization=other_org, created_by=other_user)
+        doc_link = ShareLink.objects.create(document=foreign_doc, created_by=other_user, name="Foreign Doc Link")
+        doc_session = ViewSession.objects.create(share_link=doc_link, viewer_email="foreign_viewer@example.com")
+
+        # Foreign dataroom link & session
+        foreign_room = Dataroom.objects.create(name="Foreign Room", organization=other_org, created_by=other_user)
+        room_link = ShareLink.objects.create(dataroom=foreign_room, created_by=other_user, name="Foreign Room Link")
+        room_session = ViewSession.objects.create(share_link=room_link, viewer_email="foreign_room_viewer@example.com")
+
+        api_client.force_authenticate(user=admin_user)
+
+        res_doc = api_client.get(f'/api/v1/analytics/view-sessions/{doc_session.id}/')
+        assert res_doc.status_code == status.HTTP_404_NOT_FOUND
+
+        res_room = api_client.get(f'/api/v1/analytics/view-sessions/{room_session.id}/')
+        assert res_room.status_code == status.HTTP_404_NOT_FOUND
 

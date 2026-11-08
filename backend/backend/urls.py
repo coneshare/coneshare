@@ -50,6 +50,7 @@ urlpatterns = [
     path('api/v1/', include('filerequests.urls')),
     path('api/v1/admin/', include('core.admin_urls')),
     path('api/v1/admin/datarooms/', include('datarooms.admin_urls')),
+    path('api/v1/admin/links/', include('sharelinks.admin_urls')),
 ]
 
 if settings.DEBUG:

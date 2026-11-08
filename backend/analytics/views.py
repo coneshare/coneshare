@@ -1,7 +1,7 @@
 import logging
 from datetime import timedelta
 
-from django.db.models import Count, OuterRef, Prefetch, Subquery
+from django.db.models import Count, OuterRef, Prefetch, Q, Subquery
 from django.utils import timezone
 from rest_framework import generics, permissions, serializers
 from rest_framework.response import Response
@@ -188,7 +188,17 @@ class ViewSessionDetailView(generics.RetrieveAPIView):
     lookup_field = 'pk'
 
     def get_queryset(self):
-        accessible_links = ShareLink.objects.filter(get_accessible_share_links_q(self.request.user))
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return ViewSession.objects.none()
+
+        if getattr(user, 'role', '') == 'admin' and getattr(user, 'organization_id', None):
+            return ViewSession.objects.filter(
+                Q(share_link__document__organization=user.organization) |
+                Q(share_link__dataroom__organization=user.organization)
+            ).select_related('share_link', 'share_link__document', 'share_link__dataroom')
+
+        accessible_links = ShareLink.objects.filter(get_accessible_share_links_q(user))
         return ViewSession.objects.filter(
             share_link__in=accessible_links
         ).select_related('share_link', 'share_link__document', 'share_link__dataroom')
