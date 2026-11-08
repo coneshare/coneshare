@@ -578,7 +578,7 @@ export function AdminDataroomsPage() {
           {/* Table Pagination */}
           {!isLoading && totalPages > 1 && (
             <div className="p-4 border-t bg-muted/10 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
                 {t('admin.paginationShowing', {
                   start: (currentPage - 1) * pageSize + 1,
                   end: Math.min(currentPage * pageSize, totalCount),

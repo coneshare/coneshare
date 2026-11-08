@@ -133,16 +133,14 @@ def can_user_edit_share_link(user: Optional[User], share_link: ShareLink) -> boo
 
 def get_accessible_share_links_q(user: User) -> Q:
     """
-    Returns a Q object matching all ShareLinks manageable by the user:
-    - Direct document links created by the user (or all document links in org for org admins).
-    - Dataroom links belonging to datarooms accessible to the user (owner, active collaborator, or org admin).
+    Returns a Q object matching all ShareLinks belonging to or manageable by the user
+    in their personal context (home dashboard, personal links list, personal analytics):
+    - Direct document links created by the user.
+    - Dataroom links belonging to datarooms where the user is an owner or active collaborator.
     """
-    # Deferred import to prevent circular dependency:
-    # sharelinks.services -> datarooms.views -> sharelinks.serializers -> sharelinks.services
-    from datarooms.views import get_dataroom_queryset_for_user
-    accessible_datarooms = get_dataroom_queryset_for_user(user)
-    base_q = Q(document__isnull=False, created_by=user) | Q(dataroom__in=accessible_datarooms)
-    if getattr(user, 'role', '') == 'admin' and getattr(user, 'organization_id', None):
-        base_q |= Q(document__organization_id=user.organization_id)
-    return base_q
+    user_datarooms = Dataroom.objects.filter(
+        Q(created_by=user) | Q(collaborators__user=user),
+        organization=user.organization
+    ).distinct()
+    return Q(document__isnull=False, created_by=user) | Q(dataroom__in=user_datarooms)
 

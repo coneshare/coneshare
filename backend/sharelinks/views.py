@@ -710,6 +710,13 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
             dataroom = get_object_or_404(accessible_datarooms, id=dataroom_id)
             return ShareLink.objects.filter(dataroom=dataroom).prefetch_related('dataroom_settings').order_by('-created_at')
 
+        if self.action != 'list':
+            if getattr(user, 'role', '') == 'admin' and getattr(user, 'organization_id', None):
+                return ShareLink.objects.filter(
+                    Q(document__organization_id=user.organization_id) |
+                    Q(dataroom__organization_id=user.organization_id)
+                ).distinct().prefetch_related('dataroom_settings').order_by('-created_at')
+
         return ShareLink.objects.filter(get_accessible_share_links_q(user)).distinct().prefetch_related('dataroom_settings').order_by('-created_at')
 
     def perform_update(self, serializer):
@@ -3373,17 +3380,21 @@ class ViewSessionViewSet(
         if not user or not user.is_authenticated:
             return ViewSession.objects.none()
 
-        accessible_datarooms = get_dataroom_queryset_for_user(user)
-        base_filter = Q(share_link__document__isnull=False, share_link__created_by=user) | Q(share_link__dataroom__in=accessible_datarooms)
-        if getattr(user, 'role', '') == 'admin' and getattr(user, 'organization_id', None):
-            base_filter |= Q(share_link__document__organization_id=user.organization_id)
-
-        return ViewSession.objects.filter(base_filter).distinct().prefetch_related(
+        qs = ViewSession.objects.all().prefetch_related(
             'page_views',
             'link_clicks',
             'dataroom_visits__page_views',
             'dataroom_visits__link_clicks'
         )
+
+        if self.action != 'list' and getattr(user, 'role', '') == 'admin' and getattr(user, 'organization_id', None):
+            return qs.filter(
+                Q(share_link__document__organization=user.organization) |
+                Q(share_link__dataroom__organization=user.organization)
+            ).distinct()
+
+        accessible_links = ShareLink.objects.filter(get_accessible_share_links_q(user))
+        return qs.filter(share_link__in=accessible_links).distinct()
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

@@ -46,6 +46,7 @@ const AdminLoginActivityPage = lazyNamed(() => import('./pages/AdminLoginActivit
 const AdminUsersPage = lazyNamed(() => import('./pages/AdminUsersPage'), 'AdminUsersPage');
 const AdminUserDetailPage = lazyNamed(() => import('./pages/AdminUserDetailPage'), 'AdminUserDetailPage');
 const AdminDataroomsPage = lazyNamed(() => import('./pages/AdminDataroomsPage'), 'AdminDataroomsPage');
+const AdminLinksPage = lazyNamed(() => import('./pages/AdminLinksPage'), 'AdminLinksPage');
 const AdminSecurityAlertsPage = lazyNamed(() => import('./pages/AdminSecurityAlertsPage'), 'AdminSecurityAlertsPage');
 
 function RouteLoadingFallback() {
@@ -97,6 +98,7 @@ function App() {
                     <Route path="/admin/users" element={<AdminUsersPage />} />
                     <Route path="/admin/users/:userId" element={<AdminUserDetailPage />} />
                     <Route path="/admin/datarooms" element={<AdminDataroomsPage />} />
+                    <Route path="/admin/links" element={<AdminLinksPage />} />
                     <Route path="/admin/login-activity" element={<AdminLoginActivityPage />} />
                     <Route path="/admin/security-alerts" element={<AdminSecurityAlertsPage />} />
                     <Route path="*" element={<NotFoundPage />} />
