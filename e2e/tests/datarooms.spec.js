@@ -423,17 +423,16 @@ test.describe('Dataroom Management', () => {
     await expect(page.getByRole('heading', { name: /add content/i })).toBeVisible();
 
     const dialog = page.locator('div[role="dialog"]');
-    const filterInput = dialog.getByPlaceholder(/filter current list/i);
-    await filterInput.fill('Smoke-Doc');
-
-    const docCheckbox = dialog.getByRole('checkbox', { name: /Smoke-Doc/i }).first();
+    const docCheckbox = dialog.locator('button[role="checkbox"][id^="doc-"]').first();
     await expect(docCheckbox).toBeVisible();
+    const docName = (await docCheckbox.getAttribute('aria-label')).trim();
+
     await docCheckbox.click();
     await page.getByRole('button', { name: /add \d+ item/i }).click();
     await expect(page.getByText(/content added to dataroom successfully/i)).toBeVisible();
 
     // Verify document appears in Dataroom
-    const dataroomDoc = page.locator(`[data-testid^="draggable-item-"]`).filter({ hasText: /Smoke-Doc/i }).first();
+    const dataroomDoc = page.locator(`[data-testid^="draggable-item-"]`).filter({ hasText: docName }).first();
     await expect(dataroomDoc).toBeVisible();
 
     // 3. Select the document and remove it via SelectionActionBar
@@ -448,12 +447,12 @@ test.describe('Dataroom Management', () => {
     await confirmDialog.getByRole('button', { name: 'Remove', exact: true }).click();
 
     // 4. Verify the document is removed from Dataroom
-    await expect(page.locator(`[data-testid^="draggable-item-"]`).filter({ hasText: /Smoke-Doc/i })).not.toBeVisible();
+    await expect(page.locator(`[data-testid^="draggable-item-"]`).filter({ hasText: docName })).not.toBeVisible();
 
     // 5. Navigate back to /documents and verify the original file still exists in the library
     await page.goto('/documents');
     await expect(page.getByRole('heading', { level: 1, name: /documents/i })).toBeVisible();
-    await expect(page.getByText(/Smoke-Doc/i).first()).toBeVisible();
+    await expect(page.getByText(docName).first()).toBeVisible();
   });
 
   test('should enforce granular visibility and download settings on share link', async ({ page, browser }) => {
@@ -571,23 +570,21 @@ test.describe('Dataroom Management', () => {
     await expect(page.getByRole('heading', { name: /add content/i })).toBeVisible();
 
     const addDialog = page.locator('div[role="dialog"]');
-    const filterInput = addDialog.getByPlaceholder(/filter current list/i);
-    await filterInput.fill('Smoke-Doc');
+    const docCheckboxes = addDialog.locator('button[role="checkbox"][id^="doc-"]');
+    await expect(docCheckboxes.nth(0)).toBeVisible();
+    await expect(docCheckboxes.nth(1)).toBeVisible();
+    const docOneName = (await docCheckboxes.nth(0).getAttribute('aria-label')).trim();
+    const docTwoName = (await docCheckboxes.nth(1).getAttribute('aria-label')).trim();
 
-    const checkboxes = addDialog.getByRole('checkbox', { name: /Smoke-Doc/i });
-    await expect(checkboxes.nth(0)).toBeVisible();
-    await expect(checkboxes.nth(1)).toBeVisible();
-    await checkboxes.nth(0).click();
-    await checkboxes.nth(1).click();
+    await docCheckboxes.nth(0).click();
+    await docCheckboxes.nth(1).click();
     await page.getByRole('button', { name: /add \d+ items/i }).click();
     await expect(page.getByText(/content added to dataroom successfully/i)).toBeVisible();
 
-    // Retrieve the names of the two added documents
-    const dataroomDocs = page.locator('[data-testid^="draggable-item-"]').filter({ hasText: /Smoke-Doc/i });
-    await expect(dataroomDocs.nth(0)).toBeVisible();
-    await expect(dataroomDocs.nth(1)).toBeVisible();
-    const docOneName = (await dataroomDocs.nth(0).locator('button').first().textContent()).trim();
-    const docTwoName = (await dataroomDocs.nth(1).locator('button').first().textContent()).trim();
+    // Verify both documents appear in Dataroom
+    const dataroomDocs = page.locator('[data-testid^="draggable-item-"]');
+    await expect(dataroomDocs.filter({ hasText: docOneName }).first()).toBeVisible();
+    await expect(dataroomDocs.filter({ hasText: docTwoName }).first()).toBeVisible();
 
     // 3. Create Share Link
     await page.getByRole('tab', { name: /share links/i }).click();
