@@ -1,11 +1,16 @@
 import Link from 'next/link';
 import { getAllBlogPosts, getAllCategories, getAllTags, getEffectiveCategory, slugifyTerm } from '../../lib/blog';
 
+const SITE_URL = 'https://www.coneshare.com';
+
 export const metadata = {
   title: 'Blog | Coneshare',
   description: 'Product updates and release notes from Coneshare, including document and dataroom activity automation updates.',
   alternates: {
-    canonical: '/blog',
+    canonical: `${SITE_URL}/blog`,
+    types: {
+      'application/rss+xml': `${SITE_URL}/blog/rss.xml`,
+    },
   },
 };
 

@@ -33,7 +33,7 @@ export async function generateMetadata({ params }) {
     title: `${category.name} | Coneshare Blog`,
     description: `Browse Coneshare blog posts in the ${category.name} category.`,
     alternates: {
-      canonical: `/blog/category/${category.slug}`,
+      canonical: `${SITE_URL}/blog/category/${category.slug}`,
     },
   };
 }
