@@ -7,8 +7,14 @@ import { Footer } from '../components/Footer';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
+  metadataBase: new URL('https://www.coneshare.com'),
   title: 'Coneshare: Document Control and Intelligence Layer',
   description: 'Keep your storage workflow and add secure, trackable data rooms with controlled sharing, engagement visibility, and workflow automation.',
+  alternates: {
+    types: {
+      'application/rss+xml': '/blog/rss.xml',
+    },
+  },
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },
