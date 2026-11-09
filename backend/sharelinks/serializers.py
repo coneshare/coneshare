@@ -513,6 +513,8 @@ class ShareLinkSerializer(serializers.ModelSerializer):
     def get_view_count(self, obj) -> int:
         """Returns the number of view sessions for the link."""
         # This is efficient because of the prefetch_related in the view.
+        if hasattr(obj, 'annotated_view_count'):
+            return obj.annotated_view_count
         if hasattr(obj, '_prefetched_objects_cache') and 'view_sessions' in obj._prefetched_objects_cache:
             return len(obj._prefetched_objects_cache['view_sessions'])
         return obj.view_sessions.count()

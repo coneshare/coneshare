@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUser } from '../contexts/UserProvider';
 import { toast } from 'sonner';
@@ -22,11 +22,13 @@ export function DocumentPage() {
   const { t } = useTranslation();
   const { documentId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const { setBreadcrumbData } = useBreadcrumb();
   const userContext = useUser();
   const user = userContext?.user;
   const refreshUser = userContext?.refreshUser;
   const navigate = useNavigate();
+  const qnaSectionRef = useRef(null);
   const [document, setDocument] = useState(null);
   const [stats, setStats] = useState(null);
   const [viewsData, setViewsData] = useState(null);
@@ -197,6 +199,17 @@ export function DocumentPage() {
       clearTimeout(timerId);
     };
   }, [document?.status, documentId, fetchDocumentAndStats]);
+
+  useEffect(() => {
+    if (!loading && location.hash === '#qna') {
+      const scrollTimer = setTimeout(() => {
+        if (qnaSectionRef.current) {
+          qnaSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [loading, location.hash]);
 
   const handleCreateLink = () => {
     setEditingLink(null);
@@ -519,7 +532,9 @@ export function DocumentPage() {
               onPageChange={setCurrentPage}
               pageSize={10}
             />
-            <OwnerQnAManager documentId={documentId} shareLinks={document.share_links || []} />
+            <div id="qna" ref={qnaSectionRef} tabIndex={-1} className="outline-none scroll-mt-6">
+              <OwnerQnAManager documentId={documentId} shareLinks={document.share_links || []} />
+            </div>
           </>
         ) : (
           <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-6 dark:border-blue-900/50 dark:bg-blue-950/20">

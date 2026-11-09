@@ -95,7 +95,13 @@
     "userAgent": "User-agent",
     "settings": "Instellingen",
     "noLinksDataroom": "Er zijn nog geen deellinks aangemaakt voor deze dataroom.",
-    "noLinksDocument": "Er zijn nog geen deellinks aangemaakt voor dit document."
+    "noLinksDocument": "Er zijn nog geen deellinks aangemaakt voor dit document.",
+    "qna": "V&A",
+    "qnaOpenRatio": "{{open}} open / {{total}}",
+    "qnaAllResolved": "0 open / {{total}}",
+    "qnaDisabled": "Uitgeschakeld",
+    "qnaDisabledTooltip": "V&A is uitgeschakeld voor deze link",
+    "viewQnaThreads": "V&A-threads bekijken"
   },
   "links": {
     "copyLink": "Link kopiëren",

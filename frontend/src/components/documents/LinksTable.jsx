@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Eye, Pencil, Trash2, ChevronRight, ChevronDown, FolderIcon } from 'lucide-react';
+import { Eye, Pencil, Trash2, ChevronRight, ChevronDown, FolderIcon, MessageSquare } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import { FileTypeIcon } from './FileTypeIcon';
 import { toast } from 'sonner';
@@ -10,6 +10,7 @@ import { LinkSettingsSummary } from './LinkSettingsSummary';
 import { LinkActionsDropdown } from './LinkActionsDropdown';
 import { Button } from '../ui/Button';
 import { Switch } from '../ui/Switch';
+import { Badge } from '../ui/Badge';
 import {
   Table,
   TableBody,
@@ -88,6 +89,73 @@ function CopyableLink({ slug, isExpired, expires_at }) {
   );
 }
 
+function LinkQnABadge({ link }) {
+  const { t } = useTranslation();
+  const isQnaEnabled = link.qna_enabled !== false;
+  const total = link.qna_total_threads ?? 0;
+  const unresolved = link.qna_unresolved_threads ?? 0;
+
+  if (!isQnaEnabled) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="text-xs text-muted-foreground cursor-default">
+            {t('analytics.qnaDisabled')}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{t('analytics.qnaDisabledTooltip')}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  if (total === 0) {
+    return <span className="text-sm text-muted-foreground">—</span>;
+  }
+
+  const docId = typeof link.document === 'object' ? link.document?.id : link.document;
+  const roomId = typeof link.dataroom === 'object' ? link.dataroom?.id : link.dataroom;
+
+  const qnaTargetUrl = roomId
+    ? `/datarooms/${roomId}?tab=qna`
+    : docId
+    ? `/documents/${docId}#qna`
+    : null;
+
+  const badgeContent = (
+    <Badge
+      variant="outline"
+      className={`whitespace-nowrap inline-flex items-center gap-1.5 transition-colors ${
+        unresolved > 0
+          ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800'
+          : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
+      } ${qnaTargetUrl ? 'cursor-pointer' : ''}`}
+    >
+      <MessageSquare className="h-3 w-3 shrink-0" />
+      <span>
+        {unresolved > 0
+          ? t('analytics.qnaOpenRatio', { open: unresolved, total })
+          : t('analytics.qnaAllResolved', { total })}
+      </span>
+    </Badge>
+  );
+
+  if (!qnaTargetUrl) {
+    return badgeContent;
+  }
+
+  return (
+    <Link
+      to={qnaTargetUrl}
+      title={t('analytics.viewQnaThreads')}
+      className="inline-block rounded focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      {badgeContent}
+    </Link>
+  );
+}
+
 export function LinksTable({
   links,
   onEditLink,
@@ -142,7 +210,7 @@ export function LinksTable({
       <div>
         {!isDashboardWidget && <h2 className="text-xl font-semibold">{t('analytics.shareLinks')}</h2>}
       <div className="mt-4 overflow-hidden rounded-lg border">
-        <Table className={isDashboardWidget ? 'min-w-[900px]' : 'min-w-[750px]'}>
+        <Table className={isDashboardWidget ? 'min-w-[980px]' : 'min-w-[750px]'}>
           <TableHeader>
             <TableRow>
               <TableHead className="w-8 px-2" />
@@ -150,6 +218,7 @@ export function LinksTable({
               <TableHead className="min-w-[160px] max-w-[220px] whitespace-nowrap">{t('analytics.link')}</TableHead>
               {isDashboardWidget && <TableHead className="min-w-[160px] max-w-[240px] whitespace-nowrap">{t('analytics.document')}</TableHead>}
               <TableHead className="w-20 whitespace-nowrap">{t('analytics.visits')}</TableHead>
+              {isDashboardWidget && <TableHead className="w-28 whitespace-nowrap">{t('analytics.qna')}</TableHead>}
               <TableHead className="w-28 whitespace-nowrap">{t('analytics.created')}</TableHead>
               <TableHead className="w-28 whitespace-nowrap">{t('analytics.viewedAt')}</TableHead>
               <TableHead className="w-28 whitespace-nowrap">{t('analytics.settings')}</TableHead>
@@ -230,6 +299,11 @@ export function LinksTable({
                       </TableCell>
                     )}
                     <TableCell className="w-20 whitespace-nowrap">{link.view_count}</TableCell>
+                    {isDashboardWidget && (
+                      <TableCell className="w-28 whitespace-nowrap">
+                        <LinkQnABadge link={link} />
+                      </TableCell>
+                    )}
                     <TableCell className="w-28 whitespace-nowrap text-muted-foreground">{formatDate(link.created_at, 'PP')}</TableCell>
                     <TableCell className="w-28 whitespace-nowrap text-muted-foreground">
                       {link.last_viewed_at
@@ -273,7 +347,7 @@ export function LinksTable({
                   </TableRow>
                   {isExpanded && hasViews && (
                     <TableRow className="bg-gray-50 hover:bg-gray-50">
-                      <TableCell colSpan={isDashboardWidget ? 8 : 9} className="p-4">
+                      <TableCell colSpan={9} className="p-4">
                         <div className="p-2">
                           <Table>
                             <TableHeader>

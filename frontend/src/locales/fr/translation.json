@@ -95,7 +95,13 @@
     "userAgent": "Agent utilisateur",
     "settings": "Paramètres",
     "noLinksDataroom": "Aucun lien de partage n'a encore été créé pour cette dataroom.",
-    "noLinksDocument": "Aucun lien de partage n'a encore été créé pour ce document."
+    "noLinksDocument": "Aucun lien de partage n'a encore été créé pour ce document.",
+    "qna": "Q&R",
+    "qnaOpenRatio": "{{open}} ouverte(s) / {{total}}",
+    "qnaAllResolved": "0 ouverte / {{total}}",
+    "qnaDisabled": "Désactivé",
+    "qnaDisabledTooltip": "Q&R est désactivé pour ce lien",
+    "viewQnaThreads": "Voir les fils de discussion Q&R"
   },
   "links": {
     "copyLink": "Copier le lien",

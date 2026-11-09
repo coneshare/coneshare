@@ -84,9 +84,9 @@ describe('DocumentPage', () => {
     })),
   };
 
-  const renderComponent = () => {
+  const renderComponent = (initialEntries = ['/documents/doc123']) => {
     return render(
-      <MemoryRouter initialEntries={['/documents/doc123']}>
+      <MemoryRouter initialEntries={initialEntries}>
         <BreadcrumbProvider>
           <Routes>
             <Route path="/documents/:documentId" element={<DocumentPage />} />
@@ -96,6 +96,25 @@ describe('DocumentPage', () => {
       </MemoryRouter>
     );
   };
+
+  it('scrolls to Q&A section when URL hash is #qna after document loads', async () => {
+    const scrollIntoViewMock = vi.fn();
+    window.HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
+
+    api.getDocumentDetails.mockResolvedValue({ data: mockDocument });
+    api.getDocumentStats.mockResolvedValue({ data: mockStats });
+    api.getDocumentViews.mockResolvedValue({ data: { count: 0, next: null, previous: null, results: [] } });
+
+    renderComponent(['/documents/doc123#qna']);
+
+    await waitFor(() => {
+      expect(screen.getByText('Owner Q&A Manager')).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    });
+  });
 
   it('handles pagination for view sessions table', async () => {
     api.getDocumentDetails.mockResolvedValue({ data: mockDocument });
