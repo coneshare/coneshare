@@ -95,7 +95,13 @@
     "userAgent": "User-Agent",
     "settings": "Einstellungen",
     "noLinksDataroom": "Für diesen Datenraum wurden noch keine Freigabelinks erstellt.",
-    "noLinksDocument": "Für dieses Dokument wurden noch keine Freigabelinks erstellt."
+    "noLinksDocument": "Für dieses Dokument wurden noch keine Freigabelinks erstellt.",
+    "qna": "F&A",
+    "qnaOpenRatio": "{{open}} offen / {{total}}",
+    "qnaAllResolved": "0 offen / {{total}}",
+    "qnaDisabled": "Deaktiviert",
+    "qnaDisabledTooltip": "F&A ist für diesen Link deaktiviert",
+    "viewQnaThreads": "F&A-Threads anzeigen"
   },
   "links": {
     "copyLink": "Link kopieren",

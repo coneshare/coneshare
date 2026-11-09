@@ -95,7 +95,13 @@
     "userAgent": "User Agent",
     "settings": "Settings",
     "noLinksDataroom": "No share links have been created for this dataroom yet.",
-    "noLinksDocument": "No share links have been created for this document yet."
+    "noLinksDocument": "No share links have been created for this document yet.",
+    "qna": "Q&A",
+    "qnaOpenRatio": "{{open}} open / {{total}}",
+    "qnaAllResolved": "0 open / {{total}}",
+    "qnaDisabled": "Disabled",
+    "qnaDisabledTooltip": "Q&A is disabled for this link",
+    "viewQnaThreads": "View Q&A threads"
   },
   "links": {
     "copyLink": "Copy Link",

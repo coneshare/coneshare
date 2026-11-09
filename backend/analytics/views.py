@@ -1,7 +1,8 @@
 import logging
 from datetime import timedelta
 
-from django.db.models import Count, OuterRef, Prefetch, Q, Subquery
+from django.db.models import Count, IntegerField, OuterRef, Prefetch, Q, Subquery
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework import generics, permissions, serializers
 from rest_framework.response import Response
@@ -9,8 +10,8 @@ from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
 
 from core.pagination import StandardResultsSetPagination
-from sharelinks.models import ShareLink, ViewSession
-from sharelinks.serializers import ShareLinkSerializer, ViewSessionSerializer
+from sharelinks.models import QnAThread, ShareLink, ViewSession
+from sharelinks.serializers import ViewSessionSerializer
 from sharelinks.services import get_accessible_share_links_q
 from .serializers import (DashboardRecentLinkSerializer,
                           DashboardRecentViewSessionSerializer)
@@ -49,6 +50,19 @@ class DashboardSummaryView(APIView):
             share_link=OuterRef('pk')
         ).order_by('-viewed_at').values('viewed_at')[:1]
 
+        qna_total_subquery = QnAThread.objects.filter(
+            share_link=OuterRef('pk')
+        ).order_by().values('share_link').annotate(
+            cnt=Count('id')
+        ).values('cnt')[:1]
+
+        qna_unresolved_subquery = QnAThread.objects.filter(
+            share_link=OuterRef('pk'),
+            status=QnAThread.STATUS_OPEN
+        ).order_by().values('share_link').annotate(
+            cnt=Count('id')
+        ).values('cnt')[:1]
+
         compact_view_qs = ViewSession.objects.select_related(
             'viewer', 'share_link', 'share_link__document', 'share_link__dataroom'
         ).order_by('-viewed_at')
@@ -64,7 +78,9 @@ class DashboardSummaryView(APIView):
             'document', 'dataroom', 'created_by'
         ).annotate(
             last_viewed_at=Subquery(latest_view_subquery),
-            annotated_view_count=Count('view_sessions')
+            annotated_view_count=Count('view_sessions'),
+            qna_total_threads=Coalesce(Subquery(qna_total_subquery, output_field=IntegerField()), 0),
+            qna_unresolved_threads=Coalesce(Subquery(qna_unresolved_subquery, output_field=IntegerField()), 0),
         ).filter(
             last_viewed_at__isnull=False
         ).prefetch_related(
@@ -127,7 +143,7 @@ class AllLinksView(generics.ListAPIView):
     Provides a paginated list of all share links for the organization,
     ordered by the most recently active.
     """
-    serializer_class = ShareLinkSerializer
+    serializer_class = DashboardRecentLinkSerializer
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
@@ -135,12 +151,37 @@ class AllLinksView(generics.ListAPIView):
             share_link=OuterRef('pk')
         ).order_by('-viewed_at').values('viewed_at')[:1]
 
+        qna_total_subquery = QnAThread.objects.filter(
+            share_link=OuterRef('pk')
+        ).order_by().values('share_link').annotate(
+            cnt=Count('id')
+        ).values('cnt')[:1]
+
+        qna_unresolved_subquery = QnAThread.objects.filter(
+            share_link=OuterRef('pk'),
+            status=QnAThread.STATUS_OPEN
+        ).order_by().values('share_link').annotate(
+            cnt=Count('id')
+        ).values('cnt')[:1]
+
+        compact_view_qs = ViewSession.objects.select_related(
+            'viewer', 'share_link', 'share_link__document', 'share_link__dataroom'
+        ).order_by('-viewed_at')
+
         return ShareLink.objects.filter(
             get_accessible_share_links_q(self.request.user)
+        ).select_related(
+            'document', 'dataroom', 'created_by'
         ).annotate(
-            last_viewed_at=Subquery(latest_view_subquery)
+            last_viewed_at=Subquery(latest_view_subquery),
+            annotated_view_count=Count('view_sessions'),
+            qna_total_threads=Coalesce(Subquery(qna_total_subquery, output_field=IntegerField()), 0),
+            qna_unresolved_threads=Coalesce(Subquery(qna_unresolved_subquery, output_field=IntegerField()), 0),
         ).filter(
             last_viewed_at__isnull=False
+        ).prefetch_related(
+            'dataroom_settings',
+            Prefetch('view_sessions', queryset=compact_view_qs)
         ).order_by('-last_viewed_at')
 
 

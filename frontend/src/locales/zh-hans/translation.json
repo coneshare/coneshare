@@ -95,7 +95,13 @@
     "userAgent": "浏览器/设备",
     "settings": "设置",
     "noLinksDataroom": "尚未为此资料室创建任何分享链接。",
-    "noLinksDocument": "尚未为此文档创建任何分享链接。"
+    "noLinksDocument": "尚未为此文档创建任何分享链接。",
+    "qna": "问答",
+    "qnaOpenRatio": "{{open}} 待处理 / {{total}}",
+    "qnaAllResolved": "0 待处理 / {{total}}",
+    "qnaDisabled": "已禁用",
+    "qnaDisabledTooltip": "此链接已禁用问答功能",
+    "viewQnaThreads": "查看问答列表"
   },
   "links": {
     "copyLink": "复制链接",

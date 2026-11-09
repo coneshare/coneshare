@@ -6,7 +6,7 @@ from rest_framework import status
 from core.models import Organization, User
 from datarooms.models import Dataroom
 from documents.models import Document
-from sharelinks.models import ShareLink, ViewSession
+from sharelinks.models import QnAThread, ShareLink, ViewSession
 
 
 @pytest.mark.django_db
@@ -375,4 +375,48 @@ class TestDashboardAnalyticsViews:
 
         res_room = api_client.get(f'/api/v1/analytics/view-sessions/{room_session.id}/')
         assert res_room.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_dashboard_summary_and_all_links_include_qna_thread_counts(self, api_client, user, document):
+        """
+        Verify that recent_links in dashboard summary and all-links endpoint return
+        qna_enabled, qna_total_threads, and qna_unresolved_threads.
+        """
+        link = ShareLink.objects.create(document=document, created_by=user, name="QnA Link", enable_qna=True)
+        ViewSession.objects.create(share_link=link, viewed_at=timezone.now())
+
+        # Create 1 open thread and 1 closed thread
+        QnAThread.objects.create(
+            organization=user.organization,
+            share_link=link,
+            document=document,
+            subject="Question 1 (Open)",
+            status=QnAThread.STATUS_OPEN,
+            created_by_user=user,
+        )
+        QnAThread.objects.create(
+            organization=user.organization,
+            share_link=link,
+            document=document,
+            subject="Question 2 (Closed)",
+            status=QnAThread.STATUS_CLOSED,
+            created_by_user=user,
+        )
+
+        # 1. Test Dashboard Summary
+        res_dash = api_client.get('/api/v1/analytics/dashboard/')
+        assert res_dash.status_code == status.HTTP_200_OK
+        dash_link = res_dash.json()['recent_links'][0]
+        assert dash_link['id'] == str(link.id)
+        assert dash_link['qna_enabled'] is True
+        assert dash_link['qna_total_threads'] == 2
+        assert dash_link['qna_unresolved_threads'] == 1
+
+        # 2. Test All Links
+        res_all = api_client.get('/api/v1/analytics/links/')
+        assert res_all.status_code == status.HTTP_200_OK
+        all_link = res_all.json()['results'][0]
+        assert all_link['id'] == str(link.id)
+        assert all_link['qna_enabled'] is True
+        assert all_link['qna_total_threads'] == 2
+        assert all_link['qna_unresolved_threads'] == 1
 

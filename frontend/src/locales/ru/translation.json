@@ -99,7 +99,13 @@
     "userAgent": "User Agent",
     "settings": "Настройки",
     "noLinksDataroom": "Для этого датарума еще не создано ни одной ссылки.",
-    "noLinksDocument": "Для этого документа еще не создано ни одной ссылки."
+    "noLinksDocument": "Для этого документа еще не создано ни одной ссылки.",
+    "qna": "Вопросы и ответы",
+    "qnaOpenRatio": "{{open}} открыто / {{total}}",
+    "qnaAllResolved": "0 открыто / {{total}}",
+    "qnaDisabled": "Отключено",
+    "qnaDisabledTooltip": "Вопросы и ответы отключены для этой ссылки",
+    "viewQnaThreads": "Просмотреть ветки вопросов"
   },
   "links": {
     "copyLink": "Копировать ссылку",

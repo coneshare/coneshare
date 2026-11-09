@@ -59,6 +59,9 @@ class DashboardRecentLinkSerializer(serializers.ModelSerializer):
     last_viewed_at = serializers.DateTimeField(read_only=True)
     url = serializers.SerializerMethodField()
     created_by_user = serializers.SerializerMethodField()
+    qna_enabled = serializers.BooleanField(read_only=True)
+    qna_total_threads = serializers.SerializerMethodField()
+    qna_unresolved_threads = serializers.SerializerMethodField()
 
     class Meta:
         model = ShareLink
@@ -66,7 +69,8 @@ class DashboardRecentLinkSerializer(serializers.ModelSerializer):
             'id', 'document', 'dataroom', 'document_name', 'document_type', 'dataroom_name',
             'dataroom_settings', 'created_by', 'created_by_user', 'name', 'slug', 'url',
             'expires_at', 'has_password', 'requires_email', 'requires_email_verification',
-            'allow_download', 'enable_qna', 'enable_watermark', 'watermark_text',
+            'allow_download', 'enable_qna', 'qna_enabled', 'qna_total_threads', 'qna_unresolved_threads',
+            'enable_watermark', 'watermark_text',
             'receive_email_notification', 'is_active', 'created_at', 'updated_at',
             'view_count', 'recent_view_sessions', 'last_viewed_at', 'require_nda',
             'nda_text', 'nda_version'
@@ -100,6 +104,18 @@ class DashboardRecentLinkSerializer(serializers.ModelSerializer):
         if hasattr(obj, '_prefetched_objects_cache') and 'view_sessions' in obj._prefetched_objects_cache:
             return len(obj._prefetched_objects_cache['view_sessions'])
         return obj.view_sessions.count()
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_qna_total_threads(self, obj) -> int:
+        if hasattr(obj, 'qna_total_threads'):
+            return obj.qna_total_threads
+        return obj.qna_threads.count()
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_qna_unresolved_threads(self, obj) -> int:
+        if hasattr(obj, 'qna_unresolved_threads'):
+            return obj.qna_unresolved_threads
+        return obj.qna_threads.filter(status='open').count()
 
     def get_recent_view_sessions(self, obj) -> list[dict]:
         if hasattr(obj, '_prefetched_objects_cache') and 'view_sessions' in obj._prefetched_objects_cache:
