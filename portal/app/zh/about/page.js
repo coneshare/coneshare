@@ -93,6 +93,24 @@ export default function ZhAboutPage() {
           </div>
         </section>
 
+        {/* 为什么企业放心将核心机密交给 ConeShare：开源合规与安全承诺 */}
+        <section className="mx-auto mt-16 max-w-4xl border-t border-gray-200 pt-12">
+          <div className="grid gap-8 lg:grid-cols-12">
+            <div className="lg:col-span-4">
+              <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">安全与信任</p>
+              <h2 className="mt-3 text-2xl font-bold tracking-tight text-gray-900">为什么放心将核心机密交给 ConeShare</h2>
+            </div>
+            <div className="grid gap-6 sm:grid-cols-2 lg:col-span-8">
+              {trustCommitments.map((item) => (
+                <div key={item.title} className="rounded-xl border border-gray-200 p-6 shadow-sm">
+                  <h3 className="text-base font-semibold text-gray-900">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-gray-600">{item.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="mx-auto mt-16 max-w-4xl border-t border-gray-200 pt-12">
           <div className="grid gap-8 lg:grid-cols-12">
             <div className="lg:col-span-4">
@@ -119,24 +137,6 @@ export default function ZhAboutPage() {
                   虚拟资料室不应该只是静态存放文件的地方。ConeShare 原生支持标准 MCP 协议对接外部 AI 智能体，并逐步内置文档智能问答、尽调辅助审阅、自动摘要与敏感信息排查能力。所有 AI 能力均支持按需开启并对接本地私有大模型，在严守数据不出内网的前提下，让资料室真正具备主动分析能力。
                 </p>
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 为什么企业放心将核心机密交给 ConeShare：开源合规与安全承诺 */}
-        <section className="mx-auto mt-16 max-w-4xl border-t border-gray-200 pt-12">
-          <div className="grid gap-8 lg:grid-cols-12">
-            <div className="lg:col-span-4">
-              <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">安全与信任</p>
-              <h2 className="mt-3 text-2xl font-bold tracking-tight text-gray-900">为什么放心将核心机密交给 ConeShare</h2>
-            </div>
-            <div className="grid gap-6 sm:grid-cols-2 lg:col-span-8">
-              {trustCommitments.map((item) => (
-                <div key={item.title} className="rounded-xl border border-gray-200 p-6 shadow-sm">
-                  <h3 className="text-base font-semibold text-gray-900">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-gray-600">{item.body}</p>
-                </div>
-              ))}
             </div>
           </div>
         </section>

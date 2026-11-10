@@ -93,6 +93,24 @@ export default function AboutPage() {
           </div>
         </section>
 
+        {/* Why Enterprises Trust ConeShare: Security Commitments */}
+        <section className="mx-auto mt-16 max-w-4xl border-t border-gray-200 pt-12">
+          <div className="grid gap-8 lg:grid-cols-12">
+            <div className="lg:col-span-4">
+              <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">Security &amp; Trust</p>
+              <h2 className="mt-3 text-2xl font-bold tracking-tight text-gray-900">Why Enterprises Trust ConeShare with Critical Assets</h2>
+            </div>
+            <div className="grid gap-6 sm:grid-cols-2 lg:col-span-8">
+              {trustCommitments.map((item) => (
+                <div key={item.title} className="rounded-xl border border-gray-200 p-6 shadow-sm">
+                  <h3 className="text-base font-semibold text-gray-900">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-gray-600">{item.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="mx-auto mt-16 max-w-4xl border-t border-gray-200 pt-12">
           <div className="grid gap-8 lg:grid-cols-12">
             <div className="lg:col-span-4">
@@ -119,24 +137,6 @@ export default function AboutPage() {
                   A virtual dataroom shouldn’t just be a passive file repository. ConeShare connects natively to external AI agent ecosystems via the open Model Context Protocol (MCP), and integrates on-demand document Q&amp;A, diligence review assistants, automatic summaries, and redaction. Every AI capability can be hooked into local or private LLMs, guaranteeing that sensitive business intelligence never leaves your enterprise boundary.
                 </p>
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Why Enterprises Trust ConeShare: Security Commitments */}
-        <section className="mx-auto mt-16 max-w-4xl border-t border-gray-200 pt-12">
-          <div className="grid gap-8 lg:grid-cols-12">
-            <div className="lg:col-span-4">
-              <p className="text-sm font-semibold uppercase tracking-wide text-gray-600">Security &amp; Trust</p>
-              <h2 className="mt-3 text-2xl font-bold tracking-tight text-gray-900">Why Enterprises Trust ConeShare with Critical Assets</h2>
-            </div>
-            <div className="grid gap-6 sm:grid-cols-2 lg:col-span-8">
-              {trustCommitments.map((item) => (
-                <div key={item.title} className="rounded-xl border border-gray-200 p-6 shadow-sm">
-                  <h3 className="text-base font-semibold text-gray-900">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-gray-600">{item.body}</p>
-                </div>
-              ))}
             </div>
           </div>
         </section>

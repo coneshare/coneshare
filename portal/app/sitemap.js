@@ -65,6 +65,7 @@ export default async function sitemap() {
     '/solutions',
     '/blog',
     '/about',
+    '/pricing',
     '/privacy-policy',
     '/terms',
     '/demo',

@@ -7,6 +7,7 @@
 export const ZH_SUPPORTED_SUBPATHS = [
   '/about',
   '/virtual-dataroom',
+  '/pricing',
 ];
 
 // All Chinese routes including root /zh
