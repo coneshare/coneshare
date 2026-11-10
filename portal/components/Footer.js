@@ -17,6 +17,7 @@ export function Footer({ locale }) {
         { label: isZh ? '虚拟资料室 (VDR)' : 'Virtual Dataroom', href: isZh ? '/zh/virtual-dataroom' : '/virtual-dataroom' },
         { label: isZh ? '智能体与 MCP' : 'Agents & MCP', href: '/agents' },
         { label: isZh ? '方案定价' : 'Pricing', href: isZh ? '/zh/pricing' : '/pricing' },
+        { label: isZh ? 'DocSend 替代方案' : 'DocSend Alternative', href: '/alternatives/docsend' },
         { label: isZh ? 'Nextcloud 集成' : 'Nextcloud Integration', href: '/integrations/nextcloud' },
         { label: isZh ? 'Google Drive 集成' : 'Google Drive Integration', href: '/integrations/google-drive' },
         { label: isZh ? 'Dropbox 集成' : 'Dropbox Integration', href: '/integrations/dropbox' },

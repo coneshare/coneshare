@@ -144,12 +144,6 @@ export default function AgentsPage() {
         />
 
         <div className="mx-auto max-w-5xl text-center pt-8 sm:pt-14">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white/90 px-3.5 py-1 text-xs font-semibold text-gray-800 shadow-sm mb-6">
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Official Remote MCP Server · Virtual Data Rooms for AI Agents</span>
-          </div>
-
           <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-6xl max-w-3xl mx-auto leading-tight">
             Let Any AI Agent Operate Your Data Rooms via MCP.
           </h1>
