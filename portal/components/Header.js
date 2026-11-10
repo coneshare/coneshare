@@ -222,6 +222,12 @@ export function Header({ locale }) {
             <Link href="/agents" className="text-sm font-medium text-gray-500 hover:text-gray-900">
               {isZh ? 'AI 与自动化' : 'Agents'}
             </Link>
+            <Link
+              href={isZh ? '/zh/pricing' : '/pricing'}
+              className="text-sm font-medium text-gray-500 hover:text-gray-900"
+            >
+              {isZh ? '方案定价' : 'Pricing'}
+            </Link>
             <NavDropdown title={isZh ? '网盘集成' : 'Works with'} href="/integrations" items={integrationMenuItems} isZh={isZh} />
             <NavDropdown title={isZh ? '功能特性' : 'Features'} href="/features" items={features} isZh={isZh} />
             <Link href="/blog" className="text-sm font-medium text-gray-500 hover:text-gray-900">
@@ -282,6 +288,13 @@ export function Header({ locale }) {
                 className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
               >
                 {isZh ? 'AI 与自动化' : 'Agents'}
+              </Link>
+              <Link
+                href={isZh ? '/zh/pricing' : '/pricing'}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+              >
+                {isZh ? '方案定价' : 'Pricing'}
               </Link>
             </div>
             <div className="border-t border-gray-200 pt-4">
