@@ -11,9 +11,9 @@ from rest_framework.exceptions import APIException
 from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
 from datarooms.services import touch_dataroom_folder_ancestors, touch_dataroom, get_dataroom_storage_used_bytes
 from datarooms.utils import get_dataroom_storage_folder_name
-from documents.models import Document, Folder
+from documents.models import Document, Folder, DocumentPage
 from documents.services import recalculate_user_document_size, is_dataroom_vault_document
-from sharelinks.models import DataroomVisit, ShareLink, ViewSession
+from sharelinks.models import DataroomVisit, ShareLink, ViewSession, PageView
 
 pytestmark = pytest.mark.django_db
 
@@ -1209,7 +1209,55 @@ class TestDataroomViewSet:
 
         assert data['count'] == 1
         assert len(data['results']) == 1
-        assert data['results'][0]['viewer_email'] == 'viewer1@test.com'
+        res = data['results'][0]
+        assert res['viewer_email'] == 'viewer1@test.com'
+        assert 'dataroom_visits' in res
+        assert 'page_views' not in res
+
+    def test_view_sessions_dataroom_nested_page_views_thumbnail_url(self, api_client, user, dataroom, document, monkeypatch):
+        """
+        Test that Dataroom view-sessions endpoint generates thumbnail URLs in pages_map
+        for nested page_views inside dataroom_visits.
+        """
+        # Ensure document has primary version and page
+        primary_version = document.versions.filter(is_primary=True).first()
+        DocumentPage.objects.create(
+            document_version=primary_version,
+            page_number=1,
+            storage_key="test/pages/page_1.png"
+        )
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        link = ShareLink.objects.create(dataroom=dataroom, created_by=user)
+        session = ViewSession.objects.create(share_link=link, viewer_email="investor@example.com")
+        visit = DataroomVisit.objects.create(
+            view_session=session,
+            dataroom_document=ddoc,
+            item_type='document',
+            item_name=document.name
+        )
+        PageView.objects.create(
+            view_session=session,
+            dataroom_visit=visit,
+            page_number=1,
+            duration_seconds=42
+        )
+
+        url = f'/api/v1/datarooms/{dataroom.id}/view-sessions/'
+        response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data['count'] == 1
+        session_data = data['results'][0]
+        assert len(session_data['dataroom_visits']) == 1
+        visit_data = session_data['dataroom_visits'][0]
+        assert len(visit_data['page_views']) == 1
+        pv = visit_data['page_views'][0]
+        assert pv['page_number'] == 1
+        assert pv['duration_seconds'] == 42
+        assert pv['url'] is not None
+        assert pv['url'].startswith("http")
+        assert "/files/download/" in pv['url']
 
     def test_updating_link_to_disallow_downloads_does_not_cascade(self, dataroom, document, user):
         """

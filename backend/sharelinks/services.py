@@ -1,13 +1,17 @@
-from typing import Optional
+from typing import Dict, Iterable, Optional, Set
 
 from django.db.models import Q
 
 from backend.utils import get_unique_name
 from core.models import User
-from datarooms.models import Dataroom
+from datarooms.models import Dataroom, DataroomDocument
+from documents.fileserver import fileserver_client
 from documents.models import Document
 
-from .models import ShareLink
+from .models import ShareLink, ViewSession
+
+DocPagesMap = Dict[int, str]
+PagesMap = Dict[str, DocPagesMap]
 
 
 def _get_unique_share_link_name(document: Document, original_name: str) -> str:
@@ -143,4 +147,76 @@ def get_accessible_share_links_q(user: User) -> Q:
         organization=user.organization
     ).distinct()
     return Q(document__isnull=False, created_by=user) | Q(dataroom__in=user_datarooms)
+
+
+def _get_document_page_urls(doc: Document) -> DocPagesMap:
+    """Generates signed preview thumbnail URLs for a document's primary version."""
+    if not doc:
+        return {}
+
+    prefetched = getattr(doc, '_prefetched_objects_cache', {}).get('versions')
+    primary_version = (
+        next((v for v in prefetched if v.is_primary), None)
+        if prefetched is not None
+        else doc.versions.filter(is_primary=True).first()
+    )
+    if not primary_version:
+        return {}
+
+    if doc.type == 'image':
+        return {1: fileserver_client.generate_download_url(primary_version.original_storage_key, is_internal=False)}
+
+    return {
+        page.page_number: fileserver_client.generate_download_url(page.storage_key, is_internal=False)
+        for page in primary_version.pages.all()
+    }
+
+
+def get_pages_map_for_sessions(sessions: Iterable[ViewSession]) -> PagesMap:
+    """
+    Unified helper to generate page preview URLs for a collection of ViewSession instances.
+    Extracts pages for both direct document sessions and nested dataroom visits in a single pass.
+    """
+    if sessions is None:
+        return {}
+
+    pages_map: PagesMap = {}
+    direct_doc_ids: Set[str] = set()
+    ddoc_ids: Set[str] = set()
+
+    for s in sessions:
+        link = getattr(s, 'share_link', None)
+        doc_id = getattr(link, 'document_id', None)
+        if doc_id:
+            direct_doc_ids.add(str(doc_id))
+
+        visits = None if doc_id else getattr(s, 'dataroom_visits', None)
+        if visits is not None:
+            items = visits.all() if hasattr(visits, 'all') else visits
+            for v in items:
+                if getattr(v, 'dataroom_document_id', None):
+                    ddoc_ids.add(str(v.dataroom_document_id))
+
+    # 1. Direct document sessions
+    if direct_doc_ids:
+        docs = Document.objects.filter(
+            id__in=direct_doc_ids
+        ).prefetch_related('versions__pages')
+        for doc in docs:
+            urls = _get_document_page_urls(doc)
+            if urls:
+                pages_map[str(doc.id)] = urls
+
+    # 2. Dataroom visit documents
+    if ddoc_ids:
+        ddocs = DataroomDocument.objects.filter(
+            id__in=ddoc_ids
+        ).select_related('document').prefetch_related('document__versions__pages')
+        for ddoc in ddocs:
+            urls = _get_document_page_urls(ddoc.document) if ddoc.document else None
+            if urls:
+                pages_map[str(ddoc.id)] = urls
+                pages_map[str(ddoc.document_id)] = urls
+
+    return pages_map
 

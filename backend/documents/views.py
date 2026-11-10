@@ -57,6 +57,9 @@ from .services import (
 )
 
 from .renderers import get_renderer
+from sharelinks.models import ViewSession
+from sharelinks.serializers import DocumentViewSessionSerializer
+from sharelinks.services import get_pages_map_for_sessions
 
 
 logger = logging.getLogger(__name__)
@@ -1034,45 +1037,32 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='view-sessions')
     def view_sessions(self, request, pk=None):
-        from sharelinks.models import ViewSession
-        from sharelinks.serializers import ViewSessionSerializer
-
         document = self.get_object()
         if document.created_by != request.user and getattr(request.user, 'role', '') != 'admin':
             raise PermissionDenied("Only the document owner or an organization admin can view access sessions.")
 
         view_queryset = ViewSession.objects.filter(
             share_link__document=document
-        ).order_by('-viewed_at').select_related('share_link').prefetch_related('page_views')
-
-        # Optimization: pre-fetch all page image URLs for this document
-        primary_version = document.versions.filter(is_primary=True).first()
-        pages_map = {}
-        if primary_version:
-            if document.type == 'image':
-                image_url = fileserver_client.generate_download_url(primary_version.original_storage_key, is_internal=False)
-                pages_map[1] = image_url
-            elif primary_version.has_pages:
-                for page in primary_version.pages.values('page_number', 'storage_key').order_by('page_number'):
-                    page_url = fileserver_client.generate_download_url(page['storage_key'], is_internal=False)
-                    pages_map[page['page_number']] = page_url
-
-        serializer_context = self.get_serializer_context()
-        serializer_context['pages_map'] = pages_map
+        ).order_by('-viewed_at').select_related(
+            'share_link', 'share_link__document', 'viewer'
+        ).prefetch_related('page_views', 'link_clicks')
 
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(view_queryset, request, view=self)
+        sessions_to_serialize = page if page is not None else view_queryset
+
+        serializer_context = self.get_serializer_context()
+        serializer_context['pages_map'] = get_pages_map_for_sessions(sessions_to_serialize)
+
         if page is not None:
-            serializer = ViewSessionSerializer(page, many=True, context=serializer_context)
+            serializer = DocumentViewSessionSerializer(page, many=True, context=serializer_context)
             return paginator.get_paginated_response(serializer.data)
 
-        serializer = ViewSessionSerializer(view_queryset, many=True, context=serializer_context)
+        serializer = DocumentViewSessionSerializer(view_queryset, many=True, context=serializer_context)
         return Response(serializer.data)
 
     @action(detail=True, methods=['get'])
     def stats(self, request, pk=None):
-        from sharelinks.models import ViewSession
-
         document = self.get_object()
         # Calculate high-level engagement metrics for the document.
         # Note: total_views includes ALL sessions (including 0-second bounces) so owners know

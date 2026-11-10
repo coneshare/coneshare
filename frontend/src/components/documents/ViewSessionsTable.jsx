@@ -6,6 +6,7 @@ import { FileTypeIcon } from './FileTypeIcon';
 import { PageViewsChart } from './PageViewsChart';
 import { Pagination } from '../ui/Pagination';
 import { Skeleton } from '../ui/Skeleton';
+import { getViewSessionDetail } from '../../services/api';
 import {
   Table,
   TableBody,
@@ -217,6 +218,29 @@ function formatDuration(seconds) {
 export function ViewSessionsTable({ views, totalCount, loading, currentPage, onPageChange, pageSize, isDashboardWidget, contextType = 'document' }) {
   const { t } = useTranslation();
   const [expandedRowId, setExpandedRowId] = useState(null);
+  const [detailsCache, setDetailsCache] = useState({});
+  const [loadingDetails, setLoadingDetails] = useState({});
+
+  const handleToggleExpand = async (view) => {
+    if (expandedRowId === view.id) {
+      setExpandedRowId(null);
+      return;
+    }
+    setExpandedRowId(view.id);
+
+    const alreadyHasData = view.page_views !== undefined || view.dataroom_visits !== undefined;
+    if (!alreadyHasData && !detailsCache[view.id] && !loadingDetails[view.id]) {
+      setLoadingDetails((prev) => ({ ...prev, [view.id]: true }));
+      try {
+        const res = await getViewSessionDetail(view.id);
+        setDetailsCache((prev) => ({ ...prev, [view.id]: res.data }));
+      } catch (err) {
+        console.error('Failed to load session details:', err);
+      } finally {
+        setLoadingDetails((prev) => ({ ...prev, [view.id]: false }));
+      }
+    }
+  };
 
   const totalPages = pageSize > 0 ? Math.ceil(totalCount / pageSize) : 0;
 
@@ -273,10 +297,16 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                 const locationParts = [view.city, view.country].filter(Boolean);
                 const hasLocation = locationParts.length > 0;
                 const isExpanded = expandedRowId === view.id;
-                const hasPageViews = view.page_views && view.page_views.length > 0;
-                const hasDataroomVisits = view.dataroom_visits && view.dataroom_visits.length > 0;
-                const hasLinkClicks = view.link_clicks && view.link_clicks.length > 0;
-                const isExpandable = hasPageViews || hasDataroomVisits || hasLinkClicks;
+                const isDetailLoading = !!loadingDetails[view.id];
+                const activeView = detailsCache[view.id] || view;
+
+                const hasLocalDetails = view.page_views !== undefined || view.dataroom_visits !== undefined;
+                const hasPageViews = activeView.page_views && activeView.page_views.length > 0;
+                const hasDataroomVisits = activeView.dataroom_visits && activeView.dataroom_visits.length > 0;
+                const hasLinkClicks = activeView.link_clicks && activeView.link_clicks.length > 0;
+                const isExpandable = hasLocalDetails
+                  ? (hasPageViews || hasDataroomVisits || hasLinkClicks)
+                  : (view.duration_seconds > 0 || view.completion_rate > 0);
 
                 return (
                   <Fragment key={view.id}>
@@ -284,7 +314,7 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                       <TableCell className="w-8 px-2">
                         {isExpandable && (
                           <button
-                            onClick={() => setExpandedRowId(isExpanded ? null : view.id)}
+                            onClick={() => handleToggleExpand(view)}
                             className="flex items-center justify-center rounded-full p-1 hover:bg-gray-100"
                             aria-expanded={isExpanded}
                             aria-label={isExpanded ? 'Collapse row' : 'Expand row'}
@@ -367,17 +397,25 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                         {formatDuration(view.duration_seconds)}
                       </TableCell>
                       <TableCell className="w-24 text-right whitespace-nowrap">
-                        {hasDataroomVisits ? '—' : `${(view.completion_rate * 100).toFixed(0)}%`}
+                        {(hasDataroomVisits || view.completion_rate == null)
+                          ? '—'
+                          : `${(view.completion_rate * 100).toFixed(0)}%`}
                       </TableCell>
                     </TableRow>
                     {isExpanded && isExpandable && (
                       <TableRow className="bg-gray-50 hover:bg-gray-50">
                         <TableCell colSpan={isDashboardWidget ? 8 : 7}>
-                          {hasDataroomVisits ? (
+                          {isDetailLoading ? (
+                            <div className="p-4 space-y-2">
+                              <Skeleton className="h-4 w-48" />
+                              <Skeleton className="h-8 w-full" />
+                              <Skeleton className="h-8 w-full" />
+                            </div>
+                          ) : hasDataroomVisits ? (
                             <div className="p-4">
                               <h4 className="mb-2 text-sm font-semibold">{t('viewSessions.activityLog')}</h4>
                               <ul className="space-y-3">
-                                {view.dataroom_visits.map((visit) => (
+                                {activeView.dataroom_visits.map((visit) => (
                                   <DataroomVisitRow key={visit.id} visit={visit} />
                                 ))}
                               </ul>
@@ -385,13 +423,13 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                           ) : (hasPageViews || hasLinkClicks) ? (
                             <div className="p-4 space-y-4">
                               {hasPageViews && (
-                                <PageViewsChart pageViews={view.page_views} documentType={view.document_type} />
+                                <PageViewsChart pageViews={activeView.page_views} documentType={activeView.document_type || view.document_type} />
                               )}
                               {hasLinkClicks && (
                                 <div className={`${hasPageViews ? 'border-t pt-3' : ''}`}>
                                   <h4 className="text-sm font-semibold mb-2">{t('viewSessions.clickedLinks')}</h4>
                                   <ul className="space-y-2 text-xs">
-                                    {view.link_clicks.map((click) => (
+                                    {activeView.link_clicks.map((click) => (
                                       <li key={click.id} className="flex items-center gap-1">
                                         <span className="text-muted-foreground">{t('viewSessions.pageNumber', { number: click.page_number })}:</span>
                                         {click.url && isSafeUrl(click.url) ? (
@@ -418,7 +456,11 @@ export function ViewSessionsTable({ views, totalCount, loading, currentPage, onP
                                 </div>
                               )}
                             </div>
-                          ) : null}
+                          ) : (
+                            <div className="p-4 text-sm text-gray-500">
+                              {t('viewSessions.noPageViewData')}
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     )}

@@ -44,8 +44,26 @@ class PageViewSerializer(serializers.ModelSerializer):
         ]
 
     def get_url(self, obj) -> str | None:
-        pages_map = self.context.get('pages_map', {})
-        return pages_map.get(obj.page_number)
+        pages_map = self.context.get('pages_map')
+        if not pages_map:
+            return None
+
+        # Resolve target document id:
+        # 1. Check Dataroom visit document id
+        visit = getattr(obj, 'dataroom_visit', None)
+        doc_id = getattr(visit, 'dataroom_document_id', None)
+
+        # 2. Fall back to direct ViewSession share link document id
+        if not doc_id:
+            session = getattr(obj, 'view_session', None)
+            link = getattr(session, 'share_link', None)
+            doc_id = getattr(link, 'document_id', None)
+
+        if not doc_id:
+            return None
+
+        doc_pages = pages_map.get(str(doc_id))
+        return doc_pages.get(obj.page_number) if doc_pages else None
 
 
 class LinkClickSerializer(serializers.ModelSerializer):
@@ -163,32 +181,25 @@ class ShareLinkDataroomSettingUpdateSerializer(serializers.Serializer):
         return data
 
 
-class ViewSessionSerializer(serializers.ModelSerializer):
+class BaseViewSessionSerializer(serializers.ModelSerializer):
+    """
+    Base serializer for ViewSession models.
+    Encapsulates common session metadata (viewer, IP geo-location, duration, completion rate,
+    timestamps, is_owner_view flag) and viewer binding logic across all session contexts.
+    """
     share_link_name = serializers.CharField(source='share_link.name', read_only=True)
-    page_views = PageViewSerializer(many=True, read_only=True)
-    dataroom_visits = DataroomVisitSerializer(many=True, read_only=True)
-    link_clicks = LinkClickSerializer(many=True, read_only=True)
     is_owner_view = serializers.SerializerMethodField()
-    document_id = serializers.CharField(source='share_link.document.id', read_only=True)
-    document_name = serializers.CharField(source='share_link.document.name', read_only=True)
-    document_type = serializers.CharField(source='share_link.document.type', read_only=True, default=None)
-    dataroom_id = serializers.CharField(source='share_link.dataroom.id', read_only=True, default=None)
-    dataroom_name = serializers.CharField(source='share_link.dataroom.name', read_only=True, default=None)
 
     class Meta:
         model = ViewSession
         fields = [
-            'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name', 'document_id', 'document_name', 'document_type',
-            'dataroom_id', 'dataroom_name', 'ip_address', 'user_agent', 'country', 'city', 'latitude', 'longitude', 'duration_seconds',
-            'completion_rate', 'viewed_at', 'page_views', 'dataroom_visits', 'link_clicks', 'is_owner_view', 'downloaded_at', 'email_verification_method'
+            'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name',
+            'ip_address', 'user_agent', 'country', 'city', 'latitude', 'longitude',
+            'duration_seconds', 'completion_rate', 'viewed_at', 'downloaded_at',
+            'is_owner_view', 'email_verification_method'
         ]
-        read_only_fields = [
-            'id', 'viewer', 'duration_seconds', 'completion_rate', 'viewed_at', 'ip_address', 'user_agent',
-            'share_link_name', 'document_id', 'document_name', 'document_type', 'dataroom_id', 'dataroom_name',
-            'country', 'city', 'latitude', 'longitude', 'page_views', 'dataroom_visits', 'link_clicks',
-            'is_owner_view', 'downloaded_at', 'email_verification_method'
-        ]
-    
+        read_only_fields = fields
+
     def get_is_owner_view(self, obj) -> bool:
         request = self.context.get('request')
         if request and hasattr(request, 'user') and request.user.is_authenticated:
@@ -218,6 +229,83 @@ class ViewSessionSerializer(serializers.ModelSerializer):
             validated_data['viewer'] = viewer
 
         return super().create(validated_data)
+
+
+class DocumentViewSessionSerializer(BaseViewSessionSerializer):
+    """
+    Specialized serializer for direct Document view sessions.
+    Used by:
+      - GET /api/v1/documents/{id}/view_sessions/
+      - GET /api/v1/sharelinks/{id}/view_sessions/ (when target is a Document)
+
+    Includes single-document metrics: flat page_views (with preview thumbnails)
+    and link_clicks, while omitting dataroom-specific fields (e.g., dataroom_visits).
+    """
+    document_id = serializers.CharField(source='share_link.document.id', read_only=True)
+    document_name = serializers.CharField(source='share_link.document.name', read_only=True)
+    document_type = serializers.CharField(source='share_link.document.type', read_only=True, default=None)
+    page_views = PageViewSerializer(many=True, read_only=True)
+    link_clicks = LinkClickSerializer(many=True, read_only=True)
+
+    class Meta(BaseViewSessionSerializer.Meta):
+        fields = BaseViewSessionSerializer.Meta.fields + [
+            'document_id', 'document_name', 'document_type',
+            'page_views', 'link_clicks'
+        ]
+        read_only_fields = fields
+
+
+class DataroomViewSessionSerializer(BaseViewSessionSerializer):
+    """
+    Specialized serializer for Dataroom activity log sessions.
+    Used by:
+      - GET /api/v1/datarooms/{id}/view_sessions/
+      - GET /api/v1/sharelinks/{id}/view_sessions/ (when target is a Dataroom)
+
+    Focuses on hierarchical folder and document navigation (dataroom_visits), where each visit
+    contains its own scoped page_views, while preserving session-level link_clicks and completion_rate.
+    """
+    dataroom_id = serializers.CharField(source='share_link.dataroom.id', read_only=True, default=None)
+    dataroom_name = serializers.CharField(source='share_link.dataroom.name', read_only=True, default=None)
+    dataroom_visits = DataroomVisitSerializer(many=True, read_only=True)
+    link_clicks = LinkClickSerializer(many=True, read_only=True)
+
+    class Meta(BaseViewSessionSerializer.Meta):
+        fields = BaseViewSessionSerializer.Meta.fields + [
+            'dataroom_id', 'dataroom_name', 'dataroom_visits', 'link_clicks'
+        ]
+        read_only_fields = fields
+
+
+class ViewSessionSerializer(BaseViewSessionSerializer):
+    """
+    Universal / polymorphic ViewSession serializer (superset of all fields).
+    Used by:
+      - POST /api/v1/view-sessions/ (polymorphic session creation write endpoint)
+      - GET /api/v1/analytics/view-sessions/ (global analytics where sessions mix docs and datarooms)
+      - Detail and legacy endpoints requiring full schema backward compatibility.
+    """
+    page_views = PageViewSerializer(many=True, read_only=True)
+    dataroom_visits = DataroomVisitSerializer(many=True, read_only=True)
+    link_clicks = LinkClickSerializer(many=True, read_only=True)
+    document_id = serializers.CharField(source='share_link.document.id', read_only=True)
+    document_name = serializers.CharField(source='share_link.document.name', read_only=True)
+    document_type = serializers.CharField(source='share_link.document.type', read_only=True, default=None)
+    dataroom_id = serializers.CharField(source='share_link.dataroom.id', read_only=True, default=None)
+    dataroom_name = serializers.CharField(source='share_link.dataroom.name', read_only=True, default=None)
+
+    class Meta(BaseViewSessionSerializer.Meta):
+        fields = [
+            'id', 'share_link', 'viewer', 'viewer_email', 'share_link_name', 'document_id', 'document_name', 'document_type',
+            'dataroom_id', 'dataroom_name', 'ip_address', 'user_agent', 'country', 'city', 'latitude', 'longitude', 'duration_seconds',
+            'completion_rate', 'viewed_at', 'page_views', 'dataroom_visits', 'link_clicks', 'is_owner_view', 'downloaded_at', 'email_verification_method'
+        ]
+        read_only_fields = [
+            'id', 'viewer', 'duration_seconds', 'completion_rate', 'viewed_at', 'ip_address', 'user_agent',
+            'share_link_name', 'document_id', 'document_name', 'document_type', 'dataroom_id', 'dataroom_name',
+            'country', 'city', 'latitude', 'longitude', 'page_views', 'dataroom_visits', 'link_clicks',
+            'is_owner_view', 'downloaded_at', 'email_verification_method'
+        ]
 
 
 class ViewerSerializer(serializers.ModelSerializer):

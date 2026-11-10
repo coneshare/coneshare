@@ -5,7 +5,9 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 from rest_framework import status
 from rest_framework.exceptions import APIException
 
@@ -13,7 +15,7 @@ from core.models import Organization
 from documents.models import (Document, DocumentPage, DocumentVersion, Folder)
 from documents.renderers.pdf import PDFRenderer
 from documents.services import QuotaExceededError
-from sharelinks.models import (ShareLink, ViewSession)
+from sharelinks.models import (PageView, ShareLink, ViewSession)
 
 User = get_user_model()
 
@@ -1638,6 +1640,41 @@ class TestDocumentViewSet:
         assert len(data_page_2['results']) == 5
         assert data_page_2['next'] is None
         assert data_page_2['previous'] is not None
+
+    def test_document_views_bounded_queries_no_n_plus_one(self, api_client, document, share_link, django_assert_num_queries):
+        """
+        Verify that fetching document view sessions executes a bounded constant number of queries
+        regardless of the number of sessions on the page (no N+1 on link.document or versions/pages).
+        """
+        primary_version = document.versions.filter(is_primary=True).first()
+        DocumentPage.objects.create(
+            document_version=primary_version,
+            page_number=1,
+            storage_key="test/pages/page_1.png"
+        )
+
+        # Baseline with 1 session
+        s1 = ViewSession.objects.create(share_link=share_link, viewer_email="v0@example.com", duration_seconds=60)
+        PageView.objects.create(view_session=s1, page_number=1, duration_seconds=30)
+
+        with CaptureQueriesContext(connection) as ctx_1:
+            resp1 = api_client.get(f'/api/v1/documents/{document.id}/view-sessions/')
+        assert resp1.status_code == status.HTTP_200_OK
+        q_count_1 = len(ctx_1)
+
+        # Add 9 more sessions (10 total sessions)
+        for i in range(1, 10):
+            session = ViewSession.objects.create(share_link=share_link, viewer_email=f"v{i}@example.com", duration_seconds=60)
+            PageView.objects.create(view_session=session, page_number=1, duration_seconds=30)
+
+        with django_assert_num_queries(q_count_1):
+            response = api_client.get(f'/api/v1/documents/{document.id}/view-sessions/')
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data['count'] == 10
+        assert len(data['results']) == 10
+        assert data['results'][0]['completion_rate'] is not None
+        assert 'page_views' in data['results'][0]
 
     def test_document_views_forbidden_for_non_owner_dataroom_collaborator(
         self, api_client, document, dataroom, user, user2, admin_user

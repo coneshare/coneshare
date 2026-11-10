@@ -1,12 +1,14 @@
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework import status
 
 from core.models import Organization, User
-from datarooms.models import Dataroom
-from documents.models import Document
-from sharelinks.models import QnAThread, ShareLink, ViewSession
+from datarooms.models import Dataroom, DataroomDocument
+from documents.models import Document, DocumentPage
+from sharelinks.models import DataroomVisit, PageView, QnAThread, ShareLink, ViewSession
 
 
 @pytest.mark.django_db
@@ -375,6 +377,68 @@ class TestDashboardAnalyticsViews:
 
         res_room = api_client.get(f'/api/v1/analytics/view-sessions/{room_session.id}/')
         assert res_room.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_view_sessions_dataroom_page_views_bounded_queries_no_n_plus_one(
+        self, api_client, user, dataroom, document, django_assert_num_queries
+    ):
+        """
+        Verify that analytics view sessions list and detail endpoints execute bounded queries
+        when serializing dataroom sessions with multiple page views (no N+1 per page view on dataroom_visit).
+        """
+        primary_version = document.versions.filter(is_primary=True).first()
+        for p in range(1, 10):
+            DocumentPage.objects.create(
+                document_version=primary_version,
+                page_number=p,
+                storage_key=f"test/pages/page_{p}.png"
+            )
+
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=document)
+        room_link = ShareLink.objects.create(dataroom=dataroom, created_by=user, name="Dataroom Link")
+        session = ViewSession.objects.create(share_link=room_link, viewer_email="investor@example.com")
+        visit = DataroomVisit.objects.create(
+            view_session=session,
+            dataroom_document=ddoc,
+            item_type='document',
+            item_name=document.name
+        )
+
+        # Baseline: 1 page view
+        pv1 = PageView.objects.create(
+            view_session=session,
+            dataroom_visit=visit,
+            page_number=1,
+            duration_seconds=30
+        )
+
+        # Measure query counts with 1 page view
+        with CaptureQueriesContext(connection) as ctx_list_1:
+            resp_list_1 = api_client.get('/api/v1/analytics/view-sessions/')
+        assert resp_list_1.status_code == status.HTTP_200_OK
+        q_count_list_1 = len(ctx_list_1)
+
+        with CaptureQueriesContext(connection) as ctx_detail_1:
+            resp_detail_1 = api_client.get(f'/api/v1/analytics/view-sessions/{session.id}/')
+        assert resp_detail_1.status_code == status.HTTP_200_OK
+        q_count_detail_1 = len(ctx_detail_1)
+
+        # Add 5 more page views (6 total)
+        for p in range(2, 7):
+            PageView.objects.create(
+                view_session=session,
+                dataroom_visit=visit,
+                page_number=p,
+                duration_seconds=15
+            )
+
+        # Assert query counts remain identical (bounded, no N+1 on visit per page view)
+        with django_assert_num_queries(q_count_list_1):
+            resp_list_6 = api_client.get('/api/v1/analytics/view-sessions/')
+        assert resp_list_6.status_code == status.HTTP_200_OK
+
+        with django_assert_num_queries(q_count_detail_1):
+            resp_detail_6 = api_client.get(f'/api/v1/analytics/view-sessions/{session.id}/')
+        assert resp_detail_6.status_code == status.HTTP_200_OK
 
     def test_dashboard_summary_and_all_links_include_qna_thread_counts(self, api_client, user, document):
         """

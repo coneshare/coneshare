@@ -4,17 +4,22 @@ from datetime import timedelta
 from django.db.models import Count, IntegerField, OuterRef, Prefetch, Q, Subquery
 from django.db.models.functions import Coalesce
 from django.utils import timezone
-from rest_framework import generics, permissions, serializers
+from rest_framework import generics, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
 
 from core.pagination import StandardResultsSetPagination
-from sharelinks.models import QnAThread, ShareLink, ViewSession
+from sharelinks.models import PageView, QnAThread, ShareLink, ViewSession
 from sharelinks.serializers import ViewSessionSerializer
-from sharelinks.services import get_accessible_share_links_q
-from .serializers import (DashboardRecentLinkSerializer,
-                          DashboardRecentViewSessionSerializer)
+from sharelinks.services import (
+    get_accessible_share_links_q,
+    get_pages_map_for_sessions,
+)
+from .serializers import (
+    DashboardRecentLinkSerializer,
+    DashboardRecentViewSessionSerializer,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -185,6 +190,30 @@ class AllLinksView(generics.ListAPIView):
         ).order_by('-last_viewed_at')
 
 
+# Optimized prefetch configuration for endpoints using ViewSessionSerializer
+# (AllViewSessionsView and ViewSessionDetailView) to prevent N+1 query cascades:
+#
+# 1. Prefetch('page_views', queryset=PageView.objects.select_related('dataroom_visit')):
+#    Top-level page views are serialized by ViewSessionSerializer. For dataroom sessions,
+#    individual page views reference a DataroomVisit (dataroom_visit_id). When resolving thumbnail
+#    URLs, PageViewSerializer.get_url() accesses `obj.dataroom_visit.dataroom_document_id`.
+#    Without select_related('dataroom_visit'), accessing that foreign key issues an uncached
+#    SQL query per page view (N+1 query per page view on the session).
+#
+# 2. 'link_clicks':
+#    Bulk loads direct session-level link click interactions into memory for LinkClickSerializer.
+#
+# 3. 'dataroom_visits__page_views' & 'dataroom_visits__link_clicks':
+#    Bulk loads nested page views and link clicks under each DataroomVisit (used by DataroomVisitSerializer).
+#    The nested prefetch also binds each child page view's parent visit instance in memory.
+VIEW_SESSION_PREFETCH_OPS = (
+    Prefetch('page_views', queryset=PageView.objects.select_related('dataroom_visit')),
+    'link_clicks',
+    'dataroom_visits__page_views',
+    'dataroom_visits__link_clicks',
+)
+
+
 @extend_schema(tags=['analytics'])
 class AllViewSessionsView(generics.ListAPIView):
     """
@@ -198,7 +227,9 @@ class AllViewSessionsView(generics.ListAPIView):
         accessible_links = ShareLink.objects.filter(get_accessible_share_links_q(self.request.user))
         qs = ViewSession.objects.filter(
             share_link__in=accessible_links
-        ).select_related('share_link', 'share_link__document', 'share_link__dataroom')
+        ).select_related(
+            'share_link', 'share_link__document', 'share_link__dataroom'
+        ).prefetch_related(*VIEW_SESSION_PREFETCH_OPS)
 
         document_id = self.request.query_params.get('document_id') or self.request.query_params.get('document')
         if document_id:
@@ -217,6 +248,22 @@ class AllViewSessionsView(generics.ListAPIView):
             qs = qs.filter(viewer_email__icontains=viewer_email)
 
         return qs.order_by('-viewed_at')
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        page = self.paginate_queryset(queryset)
+        sessions_to_serialize = page if page is not None else queryset
+
+        context = self.get_serializer_context()
+        context['pages_map'] = get_pages_map_for_sessions(sessions_to_serialize)
+
+        if page is not None:
+            serializer = self.get_serializer(page, many=True, context=context)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True, context=context)
+        return Response(serializer.data)
 
 
 @extend_schema(tags=['analytics'])
@@ -237,10 +284,21 @@ class ViewSessionDetailView(generics.RetrieveAPIView):
             return ViewSession.objects.filter(
                 Q(share_link__document__organization=user.organization) |
                 Q(share_link__dataroom__organization=user.organization)
-            ).select_related('share_link', 'share_link__document', 'share_link__dataroom')
+            ).select_related(
+                'share_link', 'share_link__document', 'share_link__dataroom'
+            ).prefetch_related(*VIEW_SESSION_PREFETCH_OPS)
 
         accessible_links = ShareLink.objects.filter(get_accessible_share_links_q(user))
         return ViewSession.objects.filter(
             share_link__in=accessible_links
-        ).select_related('share_link', 'share_link__document', 'share_link__dataroom')
+        ).select_related(
+            'share_link', 'share_link__document', 'share_link__dataroom'
+        ).prefetch_related(*VIEW_SESSION_PREFETCH_OPS)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        context = self.get_serializer_context()
+        context['pages_map'] = get_pages_map_for_sessions([instance])
+        serializer = self.get_serializer(instance, context=context)
+        return Response(serializer.data)
 

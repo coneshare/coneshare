@@ -438,3 +438,12 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Gotcha / Tooling Update
 - **Context/Implication:** Running Playwright E2E tests in background tasks or non-interactive shells hangs indefinitely on failure because the default HTML reporter launches a local web server and waits for interactive Ctrl+C.
 - **Resolution/Action:** Configure `reporter: [['html', { open: 'never' }], ['list']]` in `e2e/playwright.config.js` to ensure the process exits cleanly with code 1 upon test failure.
+
+
+### 2026-11-10 Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** The home dashboard's Latest View Sessions needed to display page-by-page duration charts and preview thumbnails, but `GET /api/v1/analytics/dashboard/` must strictly maintain its 4-query performance baseline without eager-loading nested page views.
+- **Resolution/Action:** Adopted a progressive implementation:
+  1. Scope: Preserved existing backend endpoints and contracts for `document`, `dataroom`, and `all-view-sessions` unchanged.
+  2. Implementation: Updated the frontend `ViewSessionsTable` component so that when a session row lacks upfront `page_views` (e.g. on the homepage), clicking the expand button asynchronously fetches session details on-demand via `GET /api/v1/analytics/view-sessions/{id}/` and caches the result locally.
+  3. Outcome: The home dashboard immediately supports expanding rows to view page duration charts and preview thumbnails without impacting backend query budgets or existing tests.

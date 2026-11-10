@@ -19,6 +19,11 @@ from documents.renderers.base import BasePreviewRenderer
 from sharelinks.models import (DataroomVisit, EmailVerificationToken, PageView,
                                PreviewSession, ShareLink,
                                ShareLinkDataroomSetting, ViewSession, LinkClick)
+from sharelinks.serializers import (DocumentViewSessionSerializer,
+                                   DataroomViewSessionSerializer,
+                                   ViewSessionSerializer,
+                                   PageViewSerializer)
+from sharelinks.services import get_pages_map_for_sessions
 from sharelinks.views import (DATAROOM_VIEWDATA_DEFAULT_LIMIT, _is_dataroom_folder_path_visible,
                               _build_dataroom_breadcrumbs, _resolve_dataroom_document_setting)
 import zipfile
@@ -6220,5 +6225,100 @@ class TestWatermarkErrorLoggingAndSizeLimit:
 
             with pytest.raises(WatermarkingError, match="exceeds the maximum limit"):
                 _generate_watermarked_pdf(doc, version, "Watermark", None, "viewer@test.com")
+
+    def test_view_session_serializer_specialization(self, user, document_factory):
+        doc = document_factory(created_by=user, name="Doc1.pdf")
+        DocumentPage.objects.create(
+            document_version=doc.versions.first(),
+            page_number=1,
+            storage_key="pages/p1.png"
+        )
+        link_doc = ShareLink.objects.create(document=doc, created_by=user, name="Doc Link")
+        session_doc = ViewSession.objects.create(share_link=link_doc, viewer_email="doc_viewer@test.com", duration_seconds=120)
+        pv = PageView.objects.create(view_session=session_doc, page_number=1, duration_seconds=60)
+
+        # 1. DocumentViewSessionSerializer
+        doc_ser = DocumentViewSessionSerializer(session_doc, context={'pages_map': {str(doc.id): {1: 'http://test/p1.png'}}})
+        doc_data = doc_ser.data
+        assert doc_data['document_id'] == str(doc.id)
+        assert doc_data['document_name'] == "Doc1.pdf"
+        assert 'completion_rate' in doc_data
+        assert 'page_views' in doc_data
+        assert doc_data['page_views'][0]['url'] == 'http://test/p1.png'
+        assert 'dataroom_visits' not in doc_data
+        assert 'dataroom_id' not in doc_data
+
+        # 2. DataroomViewSessionSerializer
+        room = Dataroom.objects.create(name="Room 1", organization=user.organization, created_by=user)
+        ddoc = DataroomDocument.objects.create(dataroom=room, document=doc)
+        link_room = ShareLink.objects.create(dataroom=room, created_by=user, name="Room Link")
+        session_room = ViewSession.objects.create(share_link=link_room, viewer_email="room_viewer@test.com", duration_seconds=300)
+        visit = DataroomVisit.objects.create(view_session=session_room, dataroom_document=ddoc, item_type='document', item_name=doc.name)
+        pv_room = PageView.objects.create(view_session=session_room, dataroom_visit=visit, page_number=1, duration_seconds=90)
+
+        room_ser = DataroomViewSessionSerializer(session_room, context={
+            'pages_map': {str(ddoc.id): {1: 'http://test/room_p1.png'}}
+        })
+        room_data = room_ser.data
+        assert room_data['dataroom_id'] == str(room.id)
+        assert room_data['dataroom_name'] == "Room 1"
+        assert 'dataroom_visits' in room_data
+        assert len(room_data['dataroom_visits']) == 1
+        assert room_data['dataroom_visits'][0]['page_views'][0]['url'] == 'http://test/room_p1.png'
+        assert 'document_id' not in room_data
+        assert 'completion_rate' in room_data
+        assert 'link_clicks' in room_data
+        assert 'page_views' not in room_data  # top-level page_views is omitted to avoid redundancy
+
+        # 3. ViewSessionSerializer (Unified full serializer)
+        full_ser_doc = ViewSessionSerializer(session_doc)
+        full_data_doc = full_ser_doc.data
+        assert full_data_doc['document_id'] == str(doc.id)
+        assert 'page_views' in full_data_doc
+        assert 'dataroom_visits' in full_data_doc
+
+        full_ser_room = ViewSessionSerializer(session_room)
+        full_data_room = full_ser_room.data
+        assert full_data_room['dataroom_id'] == str(room.id)
+        assert 'page_views' in full_data_room
+        assert 'dataroom_visits' in full_data_room
+
+        # 4. get_pages_map_for_sessions helper
+        unified_map = get_pages_map_for_sessions([session_doc, session_room])
+        assert str(doc.id) in unified_map
+        assert str(ddoc.id) in unified_map
+        assert str(ddoc.document_id) in unified_map
+
+    def test_page_view_serializer_no_cross_contamination_when_one_doc_has_no_pages(self, user, document_factory):
+        """
+        Regression test: Verify PageViewSerializer does NOT falsely assign Doc A's preview
+        URL to Doc B's page views when len(pages_map) == 1 (e.g. Doc B is a non-paged media or failed render).
+        """
+        doc_a = document_factory(created_by=user, name="DocA_with_pages.pdf")
+        doc_b = document_factory(created_by=user, name="DocB_without_pages.pdf")
+
+        link_a = ShareLink.objects.create(document=doc_a, created_by=user, name="Link A")
+        link_b = ShareLink.objects.create(document=doc_b, created_by=user, name="Link B")
+
+        session_a = ViewSession.objects.create(share_link=link_a)
+        session_b = ViewSession.objects.create(share_link=link_b)
+
+        pv_a = PageView.objects.create(view_session=session_a, page_number=1, duration_seconds=30)
+        pv_b = PageView.objects.create(view_session=session_b, page_number=1, duration_seconds=45)
+
+        # pages_map only contains Doc A because Doc B has no pages
+        pages_map = {
+            str(doc_a.id): {1: 'https://test/doc_a_page1.png'}
+        }
+        assert len(pages_map) == 1
+
+        ser_a = PageViewSerializer(pv_a, context={'pages_map': pages_map})
+        ser_b = PageViewSerializer(pv_b, context={'pages_map': pages_map})
+
+        # Doc A must get its thumbnail
+        assert ser_a.data['url'] == 'https://test/doc_a_page1.png'
+        # Doc B must NOT receive Doc A's thumbnail!
+        assert ser_b.data['url'] is None
+
 
 
