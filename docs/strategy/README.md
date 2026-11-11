@@ -13,3 +13,4 @@ Feature docs in `docs/features/` should link to at least one file in this direct
 - [Internationalization (i18n) Strategy & Architecture](./i18n-strategy-and-architecture.md)
 - [Frontend Bundle Optimization & Code-Splitting Strategy](./frontend-bundle-optimization-strategy.md)
 - [Logging Strategy & Architecture](./logging-strategy-and-architecture.md)
+- [Python Static Typing & Mypy Strategy](./python-static-typing-and-mypy-strategy.md)

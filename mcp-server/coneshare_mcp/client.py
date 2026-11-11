@@ -175,7 +175,7 @@ class ConeshareClient:
         page_size: int = 20,
         folder_id: Optional[str] = None,
     ) -> dict[str, Any]:
-        params = {"page": page, "page_size": page_size}
+        params: dict[str, Any] = {"page": page, "page_size": page_size}
         if folder_id:
             params["folder"] = _validate_resource_id(folder_id, "folder_id")
         res = await self._request("GET", "/documents/", params=params)

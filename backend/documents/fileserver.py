@@ -1,4 +1,5 @@
 import os
+from typing import Any
 import requests
 from urllib.parse import urljoin
 from django.conf import settings
@@ -9,20 +10,25 @@ class FileServerClient:
     """
     A client for communicating with the internal API of the Go file server.
     """
-    def __init__(self):
-        self.base_url = getattr(settings, 'CORE_API_URL', None)
-        self.token = getattr(settings, 'INTERNAL_API_TOKEN', None)
-        if not self.base_url or not self.token:
+    base_url: str
+    token: str
+
+    def __init__(self) -> None:
+        base_url = getattr(settings, 'CORE_API_URL', None)
+        token = getattr(settings, 'INTERNAL_API_TOKEN', None)
+        if not base_url or not token:
             # This will cause Django to fail at startup if the settings are missing,
             # which is a good way to enforce configuration.
             raise RuntimeError("CORE_API_URL and INTERNAL_API_TOKEN must be set.")
 
+        self.base_url = str(base_url)
+        self.token = str(token)
         self.headers = {
             'Authorization': f'Bearer {self.token}',
             'Content-Type': 'application/json',
         }
 
-    def _post(self, endpoint, data, expect_json=True, timeout=5):
+    def _post(self, endpoint: str, data: dict[str, Any], expect_json: bool = True, timeout: int = 5) -> Any:
         url = urljoin(self.base_url, endpoint)
         try:
             response = requests.post(url, json=data, headers=self.headers, timeout=timeout)
@@ -38,46 +44,52 @@ class FileServerClient:
 
     def generate_upload_url(self, storage_key: str, is_internal: bool = True) -> str:
         """Requests a temporary URL for uploading a file."""
-        data = {'storage_key': storage_key}
+        data: dict[str, Any] = {'storage_key': storage_key}
         response_data = self._post('/internal/v1/generate-upload-url', data)
-        relative_url = response_data.get('url')
+        relative_url = str(response_data.get('url') or '')
         if is_internal:
             return urljoin(self.base_url, relative_url)
-        return urljoin(settings.SITE_DOMAIN, relative_url)
+        site_domain = settings.SITE_DOMAIN
+        assert isinstance(site_domain, str) and site_domain, "SITE_DOMAIN setting must be a non-empty string"
+        return urljoin(site_domain, relative_url)
 
-    def generate_download_url(self, storage_key: str, is_internal: bool = True, filename: str = None) -> str:
+    def generate_download_url(self, storage_key: str, is_internal: bool = True, filename: str | None = None) -> str:
         """Requests a temporary URL for downloading a file."""
-        data = {'storage_key': storage_key}
+        data: dict[str, Any] = {'storage_key': storage_key}
         if filename:
             data['filename'] = filename
         response_data = self._post('/internal/v1/generate-download-url', data)
-        relative_url = response_data.get('url')
+        relative_url = str(response_data.get('url') or '')
         if is_internal:
             return urljoin(self.base_url, relative_url)
-        return urljoin(settings.SITE_DOMAIN, relative_url)
+        site_domain = settings.SITE_DOMAIN
+        assert isinstance(site_domain, str) and site_domain, "SITE_DOMAIN setting must be a non-empty string"
+        return urljoin(site_domain, relative_url)
 
-    def generate_preview_url(self, storage_key: str, is_internal: bool = True, expiry_seconds: int = None) -> str:
+    def generate_preview_url(self, storage_key: str, is_internal: bool = True, expiry_seconds: int | None = None) -> str:
         """Requests a temporary URL for inline previewing a file."""
-        data = {'storage_key': storage_key}
+        data: dict[str, Any] = {'storage_key': storage_key}
         if expiry_seconds and expiry_seconds > 0:
             data['expiry_seconds'] = expiry_seconds
         response_data = self._post('/internal/v1/generate-preview-url', data)
-        relative_url = response_data.get('url')
+        relative_url = str(response_data.get('url') or '')
         if is_internal:
             return urljoin(self.base_url, relative_url)
-        return urljoin(settings.SITE_DOMAIN, relative_url)
+        site_domain = settings.SITE_DOMAIN
+        assert isinstance(site_domain, str) and site_domain, "SITE_DOMAIN setting must be a non-empty string"
+        return urljoin(site_domain, relative_url)
 
     def delete_file(self, storage_key: str):
         """Requests deletion of a file from the file server."""
-        data = {'storage_key': storage_key}
+        data: dict[str, Any] = {'storage_key': storage_key}
         self._post('/internal/v1/delete-file', data, expect_json=False)
 
     def get_file_info(self, storage_key: str) -> dict:
         """Retrieves physical file metadata (exists, size) from the file server."""
-        data = {'storage_key': storage_key}
+        data: dict[str, Any] = {'storage_key': storage_key}
         return self._post('/internal/v1/file-info', data, expect_json=True)
 
-    def copy_file(self, source_storage_key: str, destination_storage_key: str, file_size: int = None):
+    def copy_file(self, source_storage_key: str, destination_storage_key: str, file_size: int | None = None) -> None:
         """Requests copying of a file on the file server."""
         data = {
             'source_storage_key': source_storage_key,
@@ -91,7 +103,7 @@ class FileServerClient:
             timeout = min(timeout, 120)
         self._post('/internal/v1/copy-file', data, expect_json=False, timeout=timeout)
 
-    def upload_file(self, storage_key: str, data, content_type: str = None, timeout: tuple = (10, 60)):
+    def upload_file(self, storage_key: str, data: Any, content_type: str | None = None, timeout: tuple[int, int] = (10, 60)) -> Any:
         """Uploads file content directly using a generated internal upload URL."""
         upload_url = self.generate_upload_url(storage_key, is_internal=True)
         headers = {}

@@ -447,3 +447,9 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
   1. Scope: Preserved existing backend endpoints and contracts for `document`, `dataroom`, and `all-view-sessions` unchanged.
   2. Implementation: Updated the frontend `ViewSessionsTable` component so that when a session row lacks upfront `page_views` (e.g. on the homepage), clicking the expand button asynchronously fetches session details on-demand via `GET /api/v1/analytics/view-sessions/{id}/` and caches the result locally.
   3. Outcome: The home dashboard immediately supports expanding rows to view page duration charts and preview thumbnails without impacting backend query budgets or existing tests.
+
+
+### [2026-11-11] Session Entry
+- **Category:** Tooling Update
+- **Context/Implication:** Introduced Python static type checking with mypy targeting services, utils, tasks, renderers, fileserver, and archive modules.
+- **Resolution/Action:** Configured `backend/mypy.ini` with `django-stubs` and added `make lint.type` (optional: `TARGET=<path>`) in `Makefile` to enforce type safety across 29 core backend logic files.

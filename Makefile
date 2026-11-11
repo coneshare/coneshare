@@ -31,9 +31,11 @@ help:
 	@echo "  lint.front      - Run frontend linter with eslint"
 	@echo "  test.core       - Run core service tests with go test"
 	@echo "  test.mcp        - Run mcp server tests with unittest"
+	@echo "  lint.mcp        - Run mcp server static type checks with mypy"
 	@echo "  test.portal     - Run portal unit tests with vitest"
 	@echo "  test.e2e        - Run Playwright end-to-end tests"
 	@echo "  lint.portal     - Run portal linter with eslint"
+	@echo "  lint.type       - Run Python static type checks with mypy (optional: TARGET=...)"
 	@echo "  lint.docs       - Validate feature docs template sections"
 	@echo "  migrate         - Run database migrations"
 	@echo "  superuser       - Create a superuser"
@@ -126,6 +128,8 @@ clean:
 
 .PHONY: test
 test:
+	@echo "Running Python static type checks with mypy..."
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend mypy
 	@echo "Running backend tests..."
 	COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend pytest
 
@@ -153,8 +157,15 @@ test.core:
 
 .PHONY: test.mcp
 test.mcp:
+	@echo "Running MCP server static type checks with mypy..."
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec -T mcp_server mypy
 	@echo "Running MCP server tests..."
 	COMPOSE_PROJECT_NAME=coneshare docker-compose exec -T mcp_server python -m unittest discover -s tests
+
+.PHONY: lint.mcp
+lint.mcp:
+	@echo "Running MCP server static type checks with mypy..."
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec -T mcp_server mypy
 
 .PHONY: test.portal
 test.portal:
@@ -175,6 +186,11 @@ lint.portal:
 lint.docs:
 	@echo "Running feature docs checks..."
 	./scripts/check-feature-docs.sh
+
+.PHONY: lint.type
+lint.type:
+	@echo "Running Python static type checks with mypy..."
+	COMPOSE_PROJECT_NAME=coneshare docker-compose exec backend mypy $${TARGET:-$${MODULE:-}}
 
 .PHONY: portal
 portal:

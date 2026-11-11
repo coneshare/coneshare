@@ -16,7 +16,7 @@ import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING, Dict
 
 if TYPE_CHECKING:
-    from documents.models import PageTextContentDict
+    from documents.models import PageTextContentDict, PageTextLineDict
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ def extract_text_layout_for_pdf(pdf_bytes: bytes) -> Dict[int, PageTextContentDi
       - bbox: {"left": %, "top": %, "width": %, "height": %} normalized to page dimensions
       - font_size_pt: approximate font size in points
     """
-    pages_text_by_num = {}
+    pages_text_by_num: dict[int, PageTextContentDict] = {}
     if not pdf_bytes:
         return pages_text_by_num
 
@@ -108,7 +108,7 @@ def extract_text_layout_for_pdf(pdf_bytes: bytes) -> Dict[int, PageTextContentDi
                 if page_w <= 0 or page_h <= 0:
                     continue
 
-                lines_data = []
+                lines_data: list[PageTextLineDict] = []
                 xml_lines = page.findall(f".//{ns}line")
 
                 for line in xml_lines:

@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Literal, cast
 from fastmcp import FastMCP
 
 from coneshare_mcp.tools.documents import register_document_tools
@@ -31,7 +32,12 @@ def main() -> None:
     path = os.getenv("MCP_PATH", "/mcp/sse")
 
     if transport in ("http", "streamable-http", "sse"):
-        mcp.run(transport=transport, host=host, port=port, path=path)
+        mcp.run(
+            transport=cast(Literal["http", "streamable-http", "sse"], transport),
+            host=host,
+            port=port,
+            path=path,
+        )
     elif transport == "stdio":
         mcp.run(transport="stdio")
     else:

@@ -213,7 +213,7 @@ def get_pages_map_for_sessions(sessions: Iterable[ViewSession]) -> PagesMap:
             id__in=ddoc_ids
         ).select_related('document').prefetch_related('document__versions__pages')
         for ddoc in ddocs:
-            urls = _get_document_page_urls(ddoc.document) if ddoc.document else None
+            urls = _get_document_page_urls(ddoc.document) if ddoc.document else {}
             if urls:
                 pages_map[str(ddoc.id)] = urls
                 pages_map[str(ddoc.document_id)] = urls

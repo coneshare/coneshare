@@ -98,6 +98,13 @@ jobs:
         INTERNAL_API_TOKEN: "dummy-internal-api-token-for-ci"
         STORAGE_PATH: "/tmp/storage"      
 
+    - name: Run Python static type checks
+      working-directory: ./backend
+      env:
+        SECRET_KEY: "dummy-secret-key-for-ci-tests"
+        FIELD_ENCRYPTION_KEY: "S-c9WBE3DEJE2R7i-b-sOmegRChW2McTDIOWcrG0-C8="
+      run: mypy
+
     - name: Run tests
       run: pytest backend --maxfail=2
       env:
@@ -162,7 +169,11 @@ jobs:
 
     - name: Install dependencies
       working-directory: ./mcp-server
-      run: pip install -e .
+      run: pip install -e ".[dev]"
+
+    - name: Run MCP static type checks
+      working-directory: ./mcp-server
+      run: mypy
 
     - name: Run MCP server unit tests
       working-directory: ./mcp-server

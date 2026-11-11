@@ -433,6 +433,10 @@ def deliver_automation_delivery_task(delivery_id: str):
         handle_email_delivery(delivery)
         return
 
+    if not delivery.destination.endpoint_url:
+        _mark_non_retryable_failure(delivery, 'Missing destination endpoint URL.')
+        return
+
     try:
         validated_url = validate_outbound_url(delivery.destination.endpoint_url)
     except (DestinationResolutionError, socket.gaierror) as exc:
