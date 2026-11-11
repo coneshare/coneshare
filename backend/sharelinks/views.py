@@ -59,11 +59,13 @@ from .serializers import (DataroomVisitSerializer, PageViewRecordSerializer,
                           ShareLinkDataroomSettingUpdateSerializer,
                           ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
                           ShareLinkTemplateSerializer, ShareLinkSerializer,
-                          ViewerSerializer, ViewSessionSerializer)
+                          ViewerSerializer, ViewSessionSerializer,
+                          DocumentViewSessionSerializer, DataroomViewSessionSerializer)
 from .services import (
     can_user_edit_share_link,
     can_user_manage_share_link,
     get_accessible_share_links_q,
+    get_pages_map_for_sessions,
     resolve_notification_recipient,
 )
 from .archive import generate_dataroom_archive_stream, sanitize_zip_entry_name
@@ -734,7 +736,12 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'], url_path='view-sessions')
     def view_sessions(self, request, pk=None):
         share_link = self.get_object()
-        view_queryset = share_link.view_sessions.prefetch_related(
+        is_dataroom = bool(share_link.dataroom_id)
+        serializer_class = DataroomViewSessionSerializer if is_dataroom else DocumentViewSessionSerializer
+
+        view_queryset = share_link.view_sessions.select_related(
+            'share_link', 'share_link__document', 'share_link__dataroom', 'viewer'
+        ).prefetch_related(
             'page_views',
             'link_clicks',
             'dataroom_visits__page_views',
@@ -743,11 +750,16 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
 
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(view_queryset, request, view=self)
+        sessions_to_serialize = page if page is not None else view_queryset
+
+        serializer_context = self.get_serializer_context()
+        serializer_context['pages_map'] = get_pages_map_for_sessions(sessions_to_serialize)
+
         if page is not None:
-            serializer = ViewSessionSerializer(page, many=True, context=self.get_serializer_context())
+            serializer = serializer_class(page, many=True, context=serializer_context)
             return paginator.get_paginated_response(serializer.data)
 
-        serializer = ViewSessionSerializer(view_queryset, many=True, context=self.get_serializer_context())
+        serializer = serializer_class(view_queryset, many=True, context=serializer_context)
         return Response(serializer.data)
 
     @action(detail=True, methods=['post'], url_path='preview')

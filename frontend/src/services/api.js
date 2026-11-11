@@ -544,6 +544,7 @@ export const getDashboardSummary = () => api.get('/analytics/dashboard/');
 export const getDailyVisits = () => api.get('/analytics/daily-visits/');
 export const getAllActiveLinks = (page = 1) => api.get(`/analytics/links/?page=${page}`);
 export const getAllViewSessions = (page = 1) => api.get(`/analytics/view-sessions/?page=${page}`);
+export const getViewSessionDetail = (id) => api.get(`/analytics/view-sessions/${id}/`);
 
 // Automations
 export const getAutomations = () => api.get('/automations/');

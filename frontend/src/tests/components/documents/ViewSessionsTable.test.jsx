@@ -1,7 +1,12 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { ViewSessionsTable } from '../../../components/documents/ViewSessionsTable';
+import { getViewSessionDetail } from '../../../services/api';
+
+vi.mock('../../../services/api', () => ({
+  getViewSessionDetail: vi.fn(),
+}));
 
 const renderWithRouter = (ui) => {
   return render(ui, { wrapper: MemoryRouter });
@@ -362,6 +367,57 @@ describe('ViewSessionsTable - Audit Trail & Status Preservation', () => {
 
       expect(screen.getByText('me@example.com')).toBeInTheDocument();
       expect(screen.getByText(/You/i)).toBeInTheDocument();
+    });
+
+    it('lazy-loads session details asynchronously when expanding a lightweight row without upfront page_views', async () => {
+      getViewSessionDetail.mockResolvedValueOnce({
+        data: {
+          id: 'session_lightweight',
+          page_views: [
+            { page_number: 1, duration_seconds: 40, url: 'http://test/p1.png' },
+            { page_number: 2, duration_seconds: 60, url: 'http://test/p2.png' },
+          ],
+        },
+      });
+
+      // A lightweight session without page_views or dataroom_visits provided upfront
+      const views = [
+        {
+          id: 'session_lightweight',
+          viewer_email: 'reader@example.com',
+          share_link_name: 'Lightweight Link',
+          user_agent: 'Mozilla/5.0',
+          duration_seconds: 100,
+          completion_rate: 0.8,
+          viewed_at: new Date().toISOString(),
+          // page_views and dataroom_visits are undefined
+        },
+      ];
+
+      renderWithRouter(
+        <ViewSessionsTable
+          views={views}
+          totalCount={1}
+          loading={false}
+          currentPage={1}
+          pageSize={10}
+          onPageChange={vi.fn()}
+        />
+      );
+
+      // Expand button is rendered because duration_seconds > 0
+      const expandButton = screen.getByRole('button', { name: 'Expand row' });
+      expect(expandButton).toBeInTheDocument();
+
+      fireEvent.click(expandButton);
+
+      // Should call API to fetch details
+      expect(getViewSessionDetail).toHaveBeenCalledWith('session_lightweight');
+
+      // Once loaded, page views chart is rendered
+      await waitFor(() => {
+        expect(screen.getByText(/1m 40s/i)).toBeInTheDocument(); // total duration 100s
+      });
     });
   });
 });

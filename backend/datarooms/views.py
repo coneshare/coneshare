@@ -29,7 +29,8 @@ from documents.services import (
 
 from documents.fileserver import fileserver_client
 from sharelinks.models import DataroomVisit, ViewSession
-from sharelinks.serializers import ViewSessionSerializer
+from sharelinks.serializers import DataroomViewSessionSerializer, ViewSessionSerializer
+from sharelinks.services import get_pages_map_for_sessions
 from .models import (
     Dataroom,
     DataroomBannerImage,
@@ -484,19 +485,29 @@ class DataroomViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='view-sessions')
     def view_sessions(self, request, pk=None):
-
         dataroom = self.get_object()
         view_queryset = ViewSession.objects.filter(
             share_link__dataroom=dataroom
-        ).order_by('-viewed_at').select_related('share_link').prefetch_related('dataroom_visits__page_views')
+        ).order_by('-viewed_at').select_related(
+            'share_link', 'share_link__dataroom', 'viewer'
+        ).prefetch_related(
+            'link_clicks',
+            'dataroom_visits__page_views',
+            'dataroom_visits__link_clicks'
+        )
 
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(view_queryset, request, view=self)
+        sessions_to_serialize = page if page is not None else view_queryset
+
+        serializer_context = self.get_serializer_context()
+        serializer_context['pages_map'] = get_pages_map_for_sessions(sessions_to_serialize)
+
         if page is not None:
-            serializer = ViewSessionSerializer(page, many=True, context=self.get_serializer_context())
+            serializer = DataroomViewSessionSerializer(page, many=True, context=serializer_context)
             return paginator.get_paginated_response(serializer.data)
 
-        serializer = ViewSessionSerializer(view_queryset, many=True, context=self.get_serializer_context())
+        serializer = DataroomViewSessionSerializer(view_queryset, many=True, context=serializer_context)
         return Response(serializer.data)
 
     @action(detail=True, methods=['get'])
