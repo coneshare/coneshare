@@ -1328,5 +1328,17 @@
     "parseFailed": "Fehler beim Parsen des Markdown-Inhalts.",
     "unsupportedFormat": "Das Dokument ist keine Markdown-Datei.",
     "notFound": "Markdown-Vorschau-URL nicht gefunden."
+  },
+  "errorBoundary": {
+    "title": "Etwas ist schiefgelaufen",
+    "description": "Beim Rendern dieser Seite ist ein unerwarteter Fehler aufgetreten.",
+    "reloadPage": "Seite neu laden",
+    "copyDiagnosticInfo": "Diagnosedaten kopieren",
+    "reportCopied": "Bericht kopiert!",
+    "technicalDetails": "Technische Details",
+    "url": "URL",
+    "browser": "Browser",
+    "stackTrace": "Aufrufstapel",
+    "componentStack": "Komponentenstapel"
   }
 }

@@ -1328,5 +1328,17 @@
     "parseFailed": "Не удалось разобрать содержимое Markdown.",
     "unsupportedFormat": "Документ не является файлом Markdown.",
     "notFound": "URL предпросмотра Markdown не найден."
+  },
+  "errorBoundary": {
+    "title": "Что-то пошло не так",
+    "description": "Произошла непредвиденная ошибка при отображении этой страницы.",
+    "reloadPage": "Перезагрузить страницу",
+    "copyDiagnosticInfo": "Скопировать диагностику",
+    "reportCopied": "Отчет скопирован!",
+    "technicalDetails": "Технические детали",
+    "url": "URL",
+    "browser": "Браузер",
+    "stackTrace": "Стек вызовов",
+    "componentStack": "Стек компонентов"
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react';
 import { getDocumentPreviewData, rebuildDocumentPreview } from '../../services/api';
 import {
   Dialog,
@@ -14,12 +14,13 @@ import {
   isPreviewPending,
   isPreviewFailed,
 } from '../../utils/previewState';
-import { PdfJsViewer } from './PdfJsViewer';
 import { VideoViewer } from './VideoViewer';
 import { SpreadsheetViewer } from './SpreadsheetViewer';
 import { MarkdownViewer } from './MarkdownViewer';
 import { ViewerToolbar } from '../viewer/ViewerToolbar';
 import { printPdf, printImages } from '../../lib/print';
+
+const PdfJsViewer = lazy(() => import('./PdfJsViewer').then(m => ({ default: m.PdfJsViewer })));
 
 const PREVIEW_POLL_INTERVAL_MS = 3000;
 
@@ -253,14 +254,22 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
             />
           )}
           {documentData && documentData.preview_mode === 'client_pdf' && (
-            <PdfJsViewer
-              ref={viewerComponentRef}
-              pdfUrl={documentData.pdf_preview_url}
-              zoomLevel={zoomLevel}
-              onPageChange={setCurrentPage}
-              onDocumentLoad={handleDocumentLoad}
-              documentData={documentData}
-            />
+            <Suspense
+              fallback={
+                <div className="flex h-full w-full items-center justify-center p-8">
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+                </div>
+              }
+            >
+              <PdfJsViewer
+                ref={viewerComponentRef}
+                pdfUrl={documentData.pdf_preview_url}
+                zoomLevel={zoomLevel}
+                onPageChange={setCurrentPage}
+                onDocumentLoad={handleDocumentLoad}
+                documentData={documentData}
+              />
+            </Suspense>
           )}
           {documentData && documentData.preview_mode === 'video' && (
             <div className="flex h-full w-full items-center justify-center p-4 bg-zinc-900 rounded-xl">

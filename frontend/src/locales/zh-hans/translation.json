@@ -1303,5 +1303,17 @@
     "parseFailed": "解析 Markdown 内容失败。",
     "unsupportedFormat": "文档不是 Markdown 文件。",
     "notFound": "未找到 Markdown 预览链接。"
+  },
+  "errorBoundary": {
+    "title": "页面出现异常",
+    "description": "渲染此页面时发生了未预期的错误。",
+    "reloadPage": "刷新页面",
+    "copyDiagnosticInfo": "复制排查报告",
+    "reportCopied": "报告已复制！",
+    "technicalDetails": "技术详情",
+    "url": "网址",
+    "browser": "浏览器",
+    "stackTrace": "调用栈",
+    "componentStack": "组件栈"
   }
 }

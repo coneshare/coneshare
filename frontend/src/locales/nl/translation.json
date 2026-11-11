@@ -1302,5 +1302,17 @@
     "parseFailed": "Markdown-content verwerken mislukt.",
     "unsupportedFormat": "Het document is geen markdownbestand.",
     "notFound": "Markdown-voorbeeld-URL niet gevonden."
+  },
+  "errorBoundary": {
+    "title": "Er is iets misgegaan",
+    "description": "Er is een onverwachte fout opgetreden bij het weergeven van deze pagina.",
+    "reloadPage": "Pagina opnieuw laden",
+    "copyDiagnosticInfo": "Diagnostische gegevens kopiëren",
+    "reportCopied": "Rapport gekopieerd!",
+    "technicalDetails": "Technische details",
+    "url": "URL",
+    "browser": "Browser",
+    "stackTrace": "Stacktrace",
+    "componentStack": "Componentenstack"
   }
 }
