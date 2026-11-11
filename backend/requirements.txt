@@ -31,3 +31,6 @@ gunicorn==23.0.0
 sentry-sdk==2.60.0
 openpyxl==3.1.5
 zipstream-ng==1.8.0
+mypy==1.15.0
+django-stubs==6.1.2
+django-stubs-ext==6.1.2

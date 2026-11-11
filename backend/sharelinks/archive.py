@@ -276,7 +276,7 @@ def generate_dataroom_archive_stream(
         docs_by_folder[d.folder_id].append(d)
 
     zs = ZipStream()
-    seen_paths = set()
+    seen_paths: set[str] = set()
     visited_folder_ids = set()
     downloadable_count = 0
     effective_watermark_text = get_effective_watermark_text(link)

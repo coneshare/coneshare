@@ -40,7 +40,7 @@ def touch_dataroom_folder_ancestors(folder: DataroomFolder | None, touch_room: b
     now = timezone.now()
     ancestor_ids = []
     visited = set()
-    current = folder
+    current: DataroomFolder | None = folder
     dataroom_id = getattr(folder, 'dataroom_id', None)
     while current and current.id not in visited:
         visited.add(current.id)
@@ -380,7 +380,7 @@ def remove_dataroom_content(dataroom: Dataroom, dataroom_doc_ids: list = None, d
     # and ensures physical storage files are reliably reclaimed whenever all references to a direct
     # upload are removed.
     backing_docs_to_delete = []
-    docs_to_ddocs = {}
+    docs_to_ddocs: dict[Document, list[DataroomDocument]] = {}
     for ddoc in ddocs_to_remove:
         if ddoc.document:
             docs_to_ddocs.setdefault(ddoc.document, []).append(ddoc)
@@ -520,7 +520,7 @@ def sync_dataroom_folder_rename(dfolder: DataroomFolder, old_name: str, new_name
         return
 
     # Traverse up visual parent hierarchy
-    names = []
+    names: list[str] = []
     curr = dfolder.parent
     while curr:
         names.insert(0, curr.name)

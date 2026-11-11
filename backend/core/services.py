@@ -44,7 +44,8 @@ def get_dynamic_setting(key: str):
 
     # At this point, value_str is from the DB (via cache or direct query)
     default_value = getattr(settings, key)
-    setting_type = DEFAULT_SETTINGS.get(key, {}).get('type') or infer_setting_type(default_value)
+    setting_def = DEFAULT_SETTINGS.get(key)
+    setting_type = (setting_def.get('type') if isinstance(setting_def, dict) else None) or infer_setting_type(default_value)
     return deserialize_db_value(setting_type, value_str, default_value)
 
 

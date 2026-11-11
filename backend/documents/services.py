@@ -66,7 +66,7 @@ def touch_folder_ancestors(folder: Folder | None):
     now = timezone.now()
     ancestor_ids = []
     visited = set()
-    current = folder
+    current: Folder | None = folder
     while current and current.id not in visited:
         visited.add(current.id)
         ancestor_ids.append(current.id)
@@ -534,6 +534,7 @@ def create_document_from_upload(
             if attempt == max_retries - 1:
                 raise
 
+    assert document is not None
     version = DocumentVersion.objects.create(
         document=document,
         version_number=1,

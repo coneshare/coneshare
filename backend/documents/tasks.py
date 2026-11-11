@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Any
 import os
 import tempfile
 import subprocess
@@ -132,7 +133,7 @@ def _extract_links_for_page(pdf_page, page_num):
     page_w = float(media_box.width) if media_box.width else 0.0
     page_h = float(media_box.height) if media_box.height else 0.0
 
-    links = []
+    links: list[dict[str, Any]] = []
     if page_w <= 0 or page_h <= 0:
         return links
 

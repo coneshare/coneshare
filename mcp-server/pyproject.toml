@@ -20,9 +20,22 @@ dependencies = [
 [project.scripts]
 coneshare-mcp = "coneshare_mcp.server:main"
 
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.15.0",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["coneshare_mcp"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.mypy]
+files = ["coneshare_mcp"]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true

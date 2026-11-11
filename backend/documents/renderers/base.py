@@ -244,7 +244,13 @@ class BasePreviewRenderer(ABC):
             if share_link.dataroom and dataroom_document_id:
                 page_url += f"?dataroom_document_id={dataroom_document_id}"
             return urljoin(settings.SITE_DOMAIN, page_url)
-        kwargs = {'is_internal': False}
-        if filename is not None:
-            kwargs['filename'] = filename
-        return fileserver.fileserver_client.generate_download_url(storage_key, **kwargs)
+        if filename:
+            return fileserver.fileserver_client.generate_download_url(
+                storage_key,
+                filename=filename,
+                is_internal=False,
+            )
+        return fileserver.fileserver_client.generate_download_url(
+            storage_key,
+            is_internal=False,
+        )
