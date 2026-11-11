@@ -1,6 +1,30 @@
 # Changelog
 
 
+## [1.11.1](https://github.com/coneshare/coneshare/compare/v1.11.0...v1.11.1) (2026-11-11)
+
+
+### Improvements
+
+* **admin:** add organization share links management and audit page ([87e027e](https://github.com/coneshare/coneshare/commit/87e027e2a137b055f332eda6d6ce164bd54dbe24))
+* **analytics:** display Q&A threads and unresolved count in active links table ([aba125e](https://github.com/coneshare/coneshare/commit/aba125eedd00b11f4b5f2233c1e037d40ce67848))
+* **documents:** add inline editable document description in document header ([cbb79d4](https://github.com/coneshare/coneshare/commit/cbb79d4d26de5370059e5d5096eb2e6859481c4c))
+* **frontend:** add global error boundary and lazy load pdf previewer ([cad2ecb](https://github.com/coneshare/coneshare/commit/cad2ecb38a5cfd3dcc04a6f9cf7f9615dd27f705))
+* **tooling:** add python static typing with mypy and dry configuration ([e44af38](https://github.com/coneshare/coneshare/commit/e44af382c22c94b5911688b3a1cbd98d4621d53e))
+
+
+### Bug Fixes
+
+* **analytics:** optimize view session queries, fix thumbnail mapping, and add progressive lazy loading ([58d7424](https://github.com/coneshare/coneshare/commit/58d742480467ad8ed50698e352a0e7e7d170559b))
+* **backend:** pin kombu 5.6.2 to resolve redis transport version mismatch ([c9ce539](https://github.com/coneshare/coneshare/commit/c9ce539dfe4006a5ba9d37cea15820438cdb47ef))
+* **config:** remove legacy start-beat script, cleanup MinIO storage, and align video presets ([#400](https://github.com/coneshare/coneshare/issues/400)) ([112e04b](https://github.com/coneshare/coneshare/commit/112e04b5ffb82c2be84d533b5f051e78f9387f0c))
+* **core,backend:** support HEAD requests, atomic copy, and enable same-origin iframe printing ([#400](https://github.com/coneshare/coneshare/issues/400)) ([baf053c](https://github.com/coneshare/coneshare/commit/baf053cf7489dd83e0ed4819313e608dc48e1896))
+* **datarooms:** touch dataroom updated_at on content additions, removals, and modifications ([e57200a](https://github.com/coneshare/coneshare/commit/e57200a1202ce42f604b026bc4e830f1df604f39))
+* **documents:** route new versions by file identity, and sanitize version filename ([#394](https://github.com/coneshare/coneshare/issues/394)) ([7b64a14](https://github.com/coneshare/coneshare/commit/7b64a14655e7d11b979f15e859de8cbff67244c9))
+* **frontend:** adapt router imports and navigation state handling for react-router v7 ([94ea058](https://github.com/coneshare/coneshare/commit/94ea058d71d1d105a2edb3c5106487d4687bd174))
+* **frontend:** fix test cases when update vitest to v5 ([185a88e](https://github.com/coneshare/coneshare/commit/185a88e5934c6c2218803e774a778d99e366c693))
+* **tooling:** align Go version in CI, pass MCP_PORT, and migrate portal to ESLint flat config ([#400](https://github.com/coneshare/coneshare/issues/400)) ([6c65140](https://github.com/coneshare/coneshare/commit/6c65140f8ca9102a0c69596989198625e84686c5))
+
 ## [1.11.0](https://github.com/coneshare/coneshare/compare/v1.10.1...v1.11.0) (2026-11-02)
 
 
