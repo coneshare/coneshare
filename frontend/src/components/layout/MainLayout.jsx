@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import { BreadcrumbProvider } from "./BreadcrumbProvider";
@@ -7,10 +7,13 @@ import { cn } from "../../lib/utils";
 import { UserProvider } from "../../contexts/UserProvider";
 import { UploadProgressIndicator } from "../documents/UploadProgressIndicator";
 import { useLanguageSync } from "../../hooks/useLanguageSync";
+import { GlobalErrorBoundary } from "../common/GlobalErrorBoundary";
 
 function Layout() {
   useLanguageSync();
   const { isCollapsed } = useSidebar();
+  const location = useLocation();
+
   return (
     <div
       className={cn(
@@ -24,7 +27,9 @@ function Layout() {
       <div className="grid grid-rows-[auto_1fr] overflow-hidden">
         <Header />
         <main className="overflow-auto p-4 md:p-6">
-          <Outlet />
+          <GlobalErrorBoundary inline key={location.pathname}>
+            <Outlet />
+          </GlobalErrorBoundary>
         </main>
       </div>
       <UploadProgressIndicator />

@@ -1302,5 +1302,17 @@
     "parseFailed": "Failed to parse markdown content.",
     "unsupportedFormat": "Document is not a markdown file.",
     "notFound": "Markdown preview URL not found."
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred while rendering this page.",
+    "reloadPage": "Reload Page",
+    "copyDiagnosticInfo": "Copy Diagnostic Info",
+    "reportCopied": "Report Copied!",
+    "technicalDetails": "Technical Details",
+    "url": "URL",
+    "browser": "Browser",
+    "stackTrace": "Stack Trace",
+    "componentStack": "Component Stack"
   }
 }

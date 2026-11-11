@@ -1452,5 +1452,17 @@
     "parseFailed": "Échec de l'analyse du contenu Markdown.",
     "unsupportedFormat": "Le document n'est pas un fichier Markdown.",
     "notFound": "URL d'aperçu Markdown introuvable."
+  },
+  "errorBoundary": {
+    "title": "Une erreur est survenue",
+    "description": "Une erreur inattendue s'est produite lors du rendu de cette page.",
+    "reloadPage": "Recharger la page",
+    "copyDiagnosticInfo": "Copier les informations de diagnostic",
+    "reportCopied": "Rapport copié !",
+    "technicalDetails": "Détails techniques",
+    "url": "URL",
+    "browser": "Navigateur",
+    "stackTrace": "Trace de la pile",
+    "componentStack": "Pile de composants"
   }
 }
