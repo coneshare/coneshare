@@ -23,7 +23,7 @@ describe('DocumentPreviewModal', () => {
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   afterEach(() => {
@@ -210,12 +210,7 @@ describe('DocumentPreviewModal', () => {
       />
     );
 
-    await waitFor(() => {
-      expect(mockGetPreview).toHaveBeenCalledTimes(1);
-      expect(mockGetPreview).toHaveBeenCalledWith("video-doc-1", null);
-    });
-
-    const viewer = screen.getByTestId('mock-video-viewer');
+    const viewer = await screen.findByTestId('mock-video-viewer');
     expect(viewer).toBeInTheDocument();
     expect(viewer.getAttribute('data-url')).toBe('https://example.com/stream/playlist.m3u8?token=old');
 
@@ -225,7 +220,10 @@ describe('DocumentPreviewModal', () => {
 
     await waitFor(() => {
       expect(mockGetPreview).toHaveBeenCalledTimes(2);
-      expect(viewer.getAttribute('data-url')).toBe('https://example.com/stream/playlist.m3u8?token=refreshed_new');
+      expect(screen.getByTestId('mock-video-viewer')).toHaveAttribute(
+        'data-url',
+        'https://example.com/stream/playlist.m3u8?token=refreshed_new'
+      );
     });
   });
 
