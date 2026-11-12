@@ -17,7 +17,11 @@ Coneshare 是 DocSend 的开源自托管替代方案，直接运行在您现有�
 
 如果这个项目对您有帮助，欢迎给仓库点个 Star。
 
-![Coneshare 30s product walkthrough](https://github.com/coneshare/coneshare/releases/download/v1.2.0/overview-30s.gif)
+[![观看 2 分钟产品功能演示视频](https://cdn.coneshare.com/coneshare.jpg)](https://cdn.coneshare.com/coneshare-walkthrough-v1.mp4)
+
+<p align="center">
+  <em>▶ <a href="https://cdn.coneshare.com/coneshare-walkthrough-v1.mp4"><strong>点击此处观看 2 分钟产品功能完整演示视频</strong></a></em>
+</p>
 
 ---
 
@@ -73,30 +77,6 @@ Coneshare 可连接：
 - Dropbox
 
 更多存储连接器正在开发中。
-
----
-
-## 常见用例
-
-### 销售与融资
-向潜在客户展示融资商业计划书与交易资料室，清晰掌握哪些页面最受关注。
-
-### 安全的外部共享
-向组织外部发送敏感文档，支持到期自动失效、下载限制和查看者水印。
-
-### 受监管环境
-在保持文件存储合规边界与数据自主可控的前提下，部署资料室与外部分享工作流。
-
----
-
-## Coneshare 适合谁？
-
-Coneshare 专为满足以下需求的团队打造：
-
-- 将文件存放在云存储或自托管存储中（Nextcloud、Google Drive、Dropbox）
-- 需要向外部合作伙伴分享敏感文件
-- 需要详细的文档数据洞察与阅读凭证
-- 要求自托管或私有基础设施
 
 ---
 

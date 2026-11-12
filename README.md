@@ -17,7 +17,11 @@ Use Coneshare to share documents and videos securely: apply dynamic watermarks, 
 
 If you find this project useful, please consider starring the repository.
 
-![Coneshare 30s product walkthrough](https://github.com/coneshare/coneshare/releases/download/v1.2.0/overview-30s.gif)
+[![Watch the 2-Minute Product Walkthrough](https://cdn.coneshare.com/coneshare.jpg)](https://cdn.coneshare.com/coneshare-walkthrough-v1.mp4)
+
+<p align="center">
+  <em>▶ <a href="https://cdn.coneshare.com/coneshare-walkthrough-v1.mp4"><strong>Click here to watch the 2-minute product walkthrough video</strong></a></em>
+</p>
 
 ---
 
@@ -73,30 +77,6 @@ Coneshare connects with:
 - Dropbox
 
 More storage connectors are in development.
-
----
-
-## Common use cases
-
-### Sales and fundraising
-Share pitch decks and deal rooms with prospects, tracking which pages receive the most attention.
-
-### Secure external sharing
-Send sensitive documents outside your company with access expiration, download controls, and viewer watermarking.
-
-### Regulated environments
-Deploy dataroom workflows and external sharing while maintaining full control over file storage and compliance boundaries.
-
----
-
-## Who is Coneshare for?
-
-Coneshare is designed for teams that:
-
-- Store files in cloud or self-hosted storage (Nextcloud, Google Drive, Dropbox)
-- Share sensitive files with external parties
-- Need detailed document analytics and read receipts
-- Require self-hosted or private infrastructure
 
 ---
 

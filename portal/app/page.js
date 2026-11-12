@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { features, solutions } from '../lib/content';
 import { HomepageMockupCarousel } from '../components/HomepageMockupCarousel';
 import { MultiFormatPreviewMockup } from '../components/MultiFormatPreviewMockup';
+import { VideoWalkthroughModal } from '../components/VideoWalkthroughModal';
 
 export const metadata = {
   title: 'Open-Source Self-Hosted Virtual Data Room (VDR) & Document Tracking - ConeShare',
@@ -80,16 +81,11 @@ export default function HomePage() {
                 >
                   Explore Virtual Datarooms
                 </Link>
-                <Link href="/demo" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
-                  View Live Demo <span aria-hidden="true">&rarr;</span>
-                </Link>
-              </div>
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-gray-500">
-                <span>✓ Direct sync with Nextcloud &amp; private storage—zero migration</span>
-                <span className="hidden sm:inline">•</span>
-                <span>✓ Page-by-page dwell time &amp; forwarded recipient discovery</span>
-                <span className="hidden sm:inline">•</span>
-                <span>✓ 100% self-hosted with air-gapped on-premise support</span>
+                <VideoWalkthroughModal
+                  buttonLabel="Watch Walkthrough (2 mins)"
+                  videoUrl="https://cdn.coneshare.com/coneshare-walkthrough-v1.mp4"
+                  posterUrl="https://cdn.coneshare.com/coneshare.jpg"
+                />
               </div>
             </div>
             <div className="mt-16 sm:mt-20 mx-auto max-w-5xl px-6 lg:px-8">

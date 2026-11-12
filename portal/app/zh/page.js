@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { features, solutions } from '../../lib/content';
 import { HomepageMockupCarousel } from '../../components/HomepageMockupCarousel';
 import { MultiFormatPreviewMockup } from '../../components/MultiFormatPreviewMockup';
+import { VideoWalkthroughModal } from '../../components/VideoWalkthroughModal';
 
 export const metadata = {
   title: '开源私有化虚拟资料室 (VDR) 与外发文档追踪系统 - ConeShare',
@@ -76,16 +77,11 @@ export default function ZhHomePage() {
                 >
                   了解虚拟资料室
                 </Link>
-                <Link href="/demo" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
-                  查看在线演示 <span aria-hidden="true">→</span>
-                </Link>
-              </div>
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-gray-500">
-                <span>✓ 直连 Nextcloud 与企业私有存储，免数据迁移</span>
-                <span className="hidden sm:inline">•</span>
-                <span>✓ 逐页停留时长统计与内部转发识别</span>
-                <span className="hidden sm:inline">•</span>
-                <span>✓ 100% 私有化部署，支持纯内网物理隔离</span>
+                <VideoWalkthroughModal
+                  buttonLabel="观看 2 分钟演示视频"
+                  videoUrl="https://cdn.coneshare.com/coneshare-walkthrough-v1.mp4"
+                  posterUrl="https://cdn.coneshare.com/coneshare.jpg"
+                />
               </div>
             </div>
             <div className="mt-16 sm:mt-20 mx-auto max-w-5xl px-6 lg:px-8">

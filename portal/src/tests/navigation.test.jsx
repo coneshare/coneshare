@@ -113,8 +113,8 @@ describe('Header & Footer Localization', () => {
 
   describe('portal/lib/i18n Module', () => {
     it('defines supported subpaths and all routes correctly', () => {
-      expect(ZH_SUPPORTED_SUBPATHS).toEqual(['/about', '/virtual-dataroom']);
-      expect(ZH_ALL_ROUTES).toEqual(['/zh', '/zh/about', '/zh/virtual-dataroom']);
+      expect(ZH_SUPPORTED_SUBPATHS).toEqual(['/about', '/virtual-dataroom', '/pricing']);
+      expect(ZH_ALL_ROUTES).toEqual(['/zh', '/zh/about', '/zh/virtual-dataroom', '/zh/pricing']);
     });
 
     it('correctly maps alternate paths with getAlternateLocalePath', () => {
