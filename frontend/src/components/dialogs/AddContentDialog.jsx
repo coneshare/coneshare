@@ -118,7 +118,13 @@ export function AddContentDialog({ isOpen, onOpenChange, onConfirm }) {
   }, [isOpen, fetchData]);
 
   const handleNavigate = (folderId) => {
+    const targetId = folderId ?? null;
+    const activeTargetId = lastRequestedFolderIdRef.current ?? null;
+    if (targetId === activeTargetId && !fetchError) {
+      return;
+    }
     setSearchQuery('');
+    setSelection({ documents: [], folders: [] });
     fetchData(folderId);
   };
 
