@@ -269,4 +269,57 @@ describe('AddContentDialog', () => {
     expect(screen.getByText('videos')).toBeInTheDocument();
     expect(screen.queryByText('Financial Models')).not.toBeInTheDocument();
   });
+
+  it('clears selection when navigating into a selected folder or returning via breadcrumbs', async () => {
+    const user = userEvent.setup();
+    renderComponent();
+
+    await screen.findByText('spreadsheets');
+
+    // Select the 'spreadsheets' folder and a root document
+    await user.click(screen.getByRole('checkbox', { name: 'spreadsheets' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Q3 Report.pdf' }));
+    expect(screen.getByText('2 selected')).toBeInTheDocument();
+
+    // Navigate into 'spreadsheets' via chevron button
+    await user.click(screen.getByRole('button', { name: 'Open spreadsheets' }));
+    expect(await screen.findByText('Budget 2026.xlsx')).toBeInTheDocument();
+
+    // Previous selection must be cleared
+    expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add.*item/i })).toBeDisabled();
+
+    // Select a document inside the subfolder and confirm only that document is submitted
+    await user.click(screen.getByRole('checkbox', { name: 'Budget 2026.xlsx' }));
+    expect(screen.getByText('1 selected')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Add 1 item' }));
+    expect(mockOnConfirm).toHaveBeenCalledWith({
+      document_ids: ['doc_sub_1'],
+      folder_ids: [],
+    });
+
+    // Navigating back to Home via breadcrumb also clears current selection
+    await user.click(screen.getByRole('button', { name: 'Home' }));
+    expect(await screen.findByText('videos')).toBeInTheDocument();
+    expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add.*item/i })).toBeDisabled();
+  });
+
+  it('clears selection when entering an already-selected folder via double click', async () => {
+    const user = userEvent.setup();
+    renderComponent();
+
+    await screen.findByText('spreadsheets');
+
+    await user.click(screen.getByRole('checkbox', { name: 'spreadsheets' }));
+    expect(screen.getByText('1 selected')).toBeInTheDocument();
+
+    const folderRow = screen.getByText('spreadsheets').closest('.group');
+    await user.dblClick(folderRow);
+
+    expect(await screen.findByText('Budget 2026.xlsx')).toBeInTheDocument();
+    expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add.*item/i })).toBeDisabled();
+  });
 });
