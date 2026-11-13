@@ -149,8 +149,9 @@ def _make_watermarked_file_generator(doc, primary_version, watermark_text, reque
                 image_buffer.close()
         else:
             flatten_active = get_dynamic_setting('FLATTEN_WATERMARKED_DOWNLOADS')
-            max_pages = get_dynamic_setting('MAX_PREVIEW_PAGES') or 50
-            if flatten_active and getattr(doc, 'num_pages', 0) and doc.num_pages > max_pages:
+            max_pages = get_dynamic_setting('MAX_PREVIEW_PAGES')
+            known_pages = getattr(primary_version, 'num_pages', None) or getattr(doc, 'num_pages', None)
+            if flatten_active and known_pages and max_pages is not None and known_pages > max_pages:
                 flatten_active = False
 
             if flatten_active:
