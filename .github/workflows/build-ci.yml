@@ -71,6 +71,11 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
 
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends poppler-utils
+
     - name: Install dependencies
       run: pip install -r backend/requirements.txt
 
