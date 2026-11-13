@@ -85,6 +85,7 @@ export function DataroomPage() {
   const [currentDataroomFolder, setCurrentDataroomFolder] = useState(null);
   const [items, setItems] = useState([]);
   const [links, setLinks] = useState([]);
+  const linksRequestIdRef = useRef(0);
   const [isLinkSheetOpen, setIsLinkSheetOpen] = useState(false);
   const [editingLink, setEditingLink] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -279,11 +280,16 @@ export function DataroomPage() {
   }, [dataroomId, currentFolderId]);
     
   const fetchLinks = useCallback(async (_options = {}) => {
+    const currentRequestId = ++linksRequestIdRef.current;
     try {
       const response = await getShareLinksForDataroom(dataroomId);
-      setLinks(response.data);
+      if (currentRequestId === linksRequestIdRef.current) {
+        setLinks(response.data);
+      }
     } catch (error) {
-      console.error('Failed to fetch links', error);
+      if (currentRequestId === linksRequestIdRef.current) {
+        console.error('Failed to fetch links', error);
+      }
     }
   }, [dataroomId]);
     
