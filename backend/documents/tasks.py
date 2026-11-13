@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any
+from typing import Any, cast
 import os
 import tempfile
 import subprocess
@@ -195,18 +195,29 @@ def _extract_links_for_page(pdf_page, page_num):
 
 def _iter_pdf_page_images(pdf_bytes, page_count):
     """
-    Yield (page_number, PIL image) for each page, rendering a single page per
-    pdftoppm call. The PDF is written to a temporary file once and reused for
-    every page.
+    Yield (page_number, Path) for each page, rendering a single page per
+    pdftoppm call as a JPEG inside a managed temporary directory.
     """
-    with tempfile.NamedTemporaryFile(suffix='.pdf') as pdf_file:
-        pdf_file.write(pdf_bytes)
-        pdf_file.flush()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        pdf_path = Path(temp_dir) / 'input.pdf'
+        pdf_path.write_bytes(pdf_bytes)
         for page_num in range(1, page_count + 1):
-            images = convert_from_path(pdf_file.name, fmt='jpeg', first_page=page_num, last_page=page_num)
-            if not images:
+            image_paths = convert_from_path(
+                str(pdf_path),
+                fmt='jpeg',
+                first_page=page_num,
+                last_page=page_num,
+                output_folder=temp_dir,
+                paths_only=True,
+            )
+            if not image_paths:
                 raise ValueError(f"Rendering returned no image for page {page_num} of {page_count}.")
-            yield page_num, images[0]
+            # pdf2image lacks a @overload for paths_only=True and types the list elements as PIL Image.
+            page_path = Path(cast(Any, image_paths[0]))
+            try:
+                yield page_num, page_path
+            finally:
+                page_path.unlink(missing_ok=True)
 
 
 def _discard_partial_pages(version, storage_keys):
@@ -244,7 +255,7 @@ def generate_pdf_pages_task(version_id):
 
         # 1. Fetch PDF from storage
         download_url = fileserver_client.generate_download_url(version.storage_key)
-        response = requests.get(download_url)
+        response = requests.get(download_url, timeout=(5, 60))
         response.raise_for_status()
         pdf_bytes = response.content
 
@@ -292,26 +303,20 @@ def generate_pdf_pages_task(version_id):
         # Extract text layout using pdftotext (best-effort)
         page_text_by_num = extract_text_layout_for_pdf(pdf_bytes)
 
-        # 2. Render each page to PNG, upload it and create its DB record.
-        # Pages are rendered one at a time so that memory stays at a single page image
-        # instead of growing with the page count (~16 MB per A4 page at 200 dpi).
+        # 2. Render each page to JPEG, upload it and create its DB record.
+        # Pages are rendered one at a time via paths_only=True so that Poppler
+        # writes compressed JPEGs directly to disk without decoding into Pillow bitmaps.
         base_path, _ = os.path.splitext(version.original_storage_key)
         version.pages.all().delete()
         uploaded_keys = []
         try:
-            for page_num, image in _iter_pdf_page_images(pdf_bytes, page_count):
+            for page_num, image_path in _iter_pdf_page_images(pdf_bytes, page_count):
                 page_storage_key = f"{base_path}_page_{page_num}.jpg"
+                image_bytes = Path(image_path).read_bytes()
 
-                if getattr(image, 'mode', None) in ('RGBA', 'LA', 'P'):
-                    image = image.convert('RGB')
-
-                buffer = BytesIO()
-                image.save(buffer, 'JPEG')
-                image.close()
-
-                # TODO(refactor): Migrate to fileserver_client.upload_file(page_storage_key, buffer.getvalue()) in a separate chore PR
+                # TODO(refactor): Migrate to fileserver_client.upload_file(page_storage_key, image_bytes) in a separate chore PR
                 upload_url = fileserver_client.generate_upload_url(page_storage_key)
-                upload_response = requests.put(upload_url, data=buffer.getvalue())
+                upload_response = requests.put(upload_url, data=image_bytes, timeout=(5, 60))
                 upload_response.raise_for_status()
                 uploaded_keys.append(page_storage_key)
 

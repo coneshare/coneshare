@@ -1,3 +1,4 @@
+from pathlib import Path
 import pytest
 from unittest.mock import patch, MagicMock
 from io import BytesIO
@@ -260,9 +261,11 @@ def upload_local_version(user_context, document, filename):
         mock_task_get.return_value = mock_get_response
 
         mock_pdfinfo.return_value = {'Pages': 1}
-        mock_image = MagicMock()
-        mock_image.save.side_effect = lambda buf, format: buf.write(b'fake-image-bytes')
-        mock_convert.return_value = [mock_image]
+        def render_page(pdf_path, fmt, first_page, last_page, output_folder, paths_only):
+            img_path = Path(output_folder) / f"page_{first_page}.jpg"
+            img_path.write_bytes(b'fake-image-bytes')
+            return [str(img_path)]
+        mock_convert.side_effect = render_page
         mock_put_response = MagicMock()
         mock_put_response.raise_for_status.return_value = None
         mock_task_put.return_value = mock_put_response

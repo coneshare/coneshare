@@ -77,3 +77,10 @@
 
 
 
+---
+
+### [2026-11-13] Review of staged `generate_pdf_pages_task` — Poppler JPEG Streaming (#440)
+
+#### Rule 13: Stream Poppler JPEG output directly instead of re-encoding through Pillow
+- **Issue:** Calling `pdf2image.convert_from_path` without `paths_only` decodes each page into a Pillow bitmap (~25 MB for a 3823×2134 slide) and the task then re-compresses it with `image.save(...)`, causing Celery worker memory bloat and redundant CPU work.
+- **Prevention Rule:** For page-image pipelines, use `convert_from_path(..., output_folder=<managed temp dir>, paths_only=True)` and upload the file bytes directly. Render one page at a time and delete each file after upload. Never open the page with Pillow unless a transform is actually required.

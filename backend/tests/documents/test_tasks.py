@@ -1,3 +1,4 @@
+from io import BytesIO
 import json
 import tempfile as real_tempfile
 import shutil
@@ -5,6 +6,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
+from pypdf import PdfWriter
 from django.conf import settings
 from django.test import override_settings
 
@@ -17,6 +19,7 @@ from documents.tasks import (
     convert_office_to_pdf_task,
     generate_pdf_pages_task,
     generate_video_stream_task,
+    _iter_pdf_page_images,
     _resolve_pdf_object,
 )
 from documents.views import prepare_pages_data
@@ -24,6 +27,27 @@ from documents.views import prepare_pages_data
 
 @pytest.mark.django_db
 class TestGeneratePdfPagesTask:
+    @staticmethod
+    def _mock_render_page(content_by_page=None, empty_pages=None):
+        """Return a convert_from_path side_effect writing JPEG bytes into output_folder."""
+        empty_pages = set(empty_pages or ())
+
+        def _render(pdf_path, fmt, first_page, last_page, output_folder, paths_only):
+            assert fmt == 'jpeg'
+            assert paths_only is True
+            if first_page in empty_pages:
+                return []
+            data = (
+                content_by_page[first_page]
+                if content_by_page is not None
+                else f"img{first_page}".encode()
+            )
+            img_path = Path(output_folder) / f"page_{first_page}.jpg"
+            img_path.write_bytes(data)
+            return [str(img_path)]
+
+        return _render
+
     @patch('documents.tasks.pdfinfo_from_bytes')
     @patch('documents.tasks.requests.put')
     @patch('documents.tasks.fileserver_client.generate_upload_url')
@@ -46,9 +70,6 @@ class TestGeneratePdfPagesTask:
             is_primary=True,
         )
         sample_pdf_bytes = b"dummy-pdf-content"
-        mock_images = [MagicMock(), MagicMock()]
-        mock_images[0].save.side_effect = lambda buf, format: buf.write(b'img1')
-        mock_images[1].save.side_effect = lambda buf, format: buf.write(b'img2')
 
         # Configure mocks
         mock_fs_download_url.return_value = "/files/download/token"
@@ -56,7 +77,7 @@ class TestGeneratePdfPagesTask:
         mock_get_response.raise_for_status.return_value = None
         mock_get_response.content = sample_pdf_bytes
         mock_requests_get.return_value = mock_get_response
-        mock_convert.side_effect = [[image] for image in mock_images]
+        mock_convert.side_effect = self._mock_render_page()
         mock_pdfinfo.return_value = {'Pages': 2}
         mock_fs_upload_url.side_effect = ["/upload/page1", "/upload/page2"]
         mock_put_response = MagicMock()
@@ -70,14 +91,23 @@ class TestGeneratePdfPagesTask:
         mock_fs_download_url.assert_called_once_with(version.storage_key)
         mock_requests_get.assert_called_once()
 
-        # 2. Assert that each page was rendered on its own
+        # 2. Assert that each page was rendered on its own with paths_only=True
         assert mock_convert.call_count == 2
+        temp_folders = set()
         for page_num, call in enumerate(mock_convert.call_args_list, start=1):
-            assert call.kwargs == {'fmt': 'jpeg', 'first_page': page_num, 'last_page': page_num}
+            temp_folders.add(call.kwargs['output_folder'])
+            assert call.kwargs['fmt'] == 'jpeg'
+            assert call.kwargs['first_page'] == page_num
+            assert call.kwargs['last_page'] == page_num
+            assert call.kwargs['paths_only'] is True
+        assert len(temp_folders) == 1
+        assert not Path(next(iter(temp_folders))).exists()
 
-        # 3. Assert that file server upload was called for each page
+        # 3. Assert that file server upload was called with raw JPEG bytes for each page
         assert mock_fs_upload_url.call_count == 2
         assert mock_requests_put.call_count == 2
+        assert mock_requests_put.call_args_list[0].kwargs['data'] == b'img1'
+        assert mock_requests_put.call_args_list[1].kwargs['data'] == b'img2'
 
         # 4. Assert that two DocumentPage objects were created
         assert DocumentPage.objects.count() == 2
@@ -142,9 +172,7 @@ class TestGeneratePdfPagesTask:
         )
 
         sample_pdf_bytes = b"dummy-pdf-content"
-        mock_image = MagicMock()
-        mock_image.save.side_effect = lambda buf, format: buf.write(b'img1')
-        mock_convert.return_value = [mock_image]
+        mock_convert.side_effect = self._mock_render_page()
         mock_pdfinfo.return_value = {'Pages': 1}
         mock_fs_download_url.return_value = "/files/download/token"
         mock_get_response = MagicMock()
@@ -314,9 +342,7 @@ class TestGeneratePdfPagesTask:
         )
 
         # 1. Mock Poppler conversion (1 page)
-        mock_images = [MagicMock()]
-        mock_images[0].save.side_effect = lambda buf, format: buf.write(b'img1')
-        mock_convert.return_value = mock_images
+        mock_convert.side_effect = self._mock_render_page()
         mock_pdfinfo.return_value = {'Pages': 1}
 
         # 2. Mock pypdf PdfReader
@@ -419,9 +445,7 @@ class TestGeneratePdfPagesTask:
             is_primary=True,
         )
 
-        mock_images = [MagicMock()]
-        mock_images[0].save.side_effect = lambda buf, format: buf.write(b'img1')
-        mock_convert.return_value = mock_images
+        mock_convert.side_effect = self._mock_render_page()
         mock_pdfinfo.return_value = {'Pages': 1}
 
         mock_reader = MagicMock()
@@ -529,12 +553,17 @@ class TestGeneratePdfPagesTask:
         sample_pdf_bytes = b"dummy-pdf-content"
         events = []
 
-        def render_page(pdf_path, fmt, first_page, last_page):
+        def render_page(pdf_path, fmt, first_page, last_page, output_folder, paths_only):
+            assert fmt == 'jpeg'
+            assert paths_only is True
             assert Path(pdf_path).read_bytes() == sample_pdf_bytes
+            if first_page > 1:
+                # Previous page file must already be deleted after upload
+                assert not (Path(output_folder) / f"page_{first_page - 1}.jpg").exists()
             events.append(('render', first_page))
-            image = MagicMock()
-            image.save.side_effect = lambda buf, format: buf.write(f'img{first_page}'.encode())
-            return [image]
+            img_path = Path(output_folder) / f"page_{first_page}.jpg"
+            img_path.write_bytes(f'img{first_page}'.encode())
+            return [str(img_path)]
 
         mock_fs_download_url.return_value = "/files/download/token"
         mock_get_response = MagicMock()
@@ -543,7 +572,7 @@ class TestGeneratePdfPagesTask:
         mock_pdfinfo.return_value = {'Pages': 3}
         mock_convert.side_effect = render_page
         mock_fs_upload_url.side_effect = lambda key: f"/upload/{key}"
-        mock_requests_put.side_effect = lambda url, data: events.append(('upload', data)) or MagicMock()
+        mock_requests_put.side_effect = lambda url, data, **kwargs: events.append(('upload', data)) or MagicMock()
 
         generate_pdf_pages_task(version.id)
 
@@ -585,9 +614,7 @@ class TestGeneratePdfPagesTask:
         mock_get_response.content = b"dummy-pdf-content"
         mock_requests_get.return_value = mock_get_response
         mock_pdfinfo.return_value = {'Pages': 2}
-        page_one = MagicMock()
-        page_one.save.side_effect = lambda buf, format: buf.write(b'img1')
-        mock_convert.side_effect = [[page_one], []]
+        mock_convert.side_effect = self._mock_render_page(empty_pages={2})
         mock_fs_upload_url.return_value = "/upload/page"
         mock_requests_put.return_value = MagicMock()
 
@@ -600,6 +627,28 @@ class TestGeneratePdfPagesTask:
         # Pages from the failed attempt must not be left behind
         assert not DocumentPage.objects.filter(document_version=version).exists()
         mock_delete_file.assert_called_once_with("path/to/broken_page_1.jpg")
+
+    def test_iter_pdf_page_images_streams_real_poppler_jpeg(self):
+        """Smoke test verifying real pdftoppm + paths_only produces readable JPEG files and cleans them up."""
+        writer = PdfWriter()
+        writer.add_blank_page(width=72, height=72)
+        pdf_buf = BytesIO()
+        writer.write(pdf_buf)
+
+        yielded = []
+        for page_num, image_path in _iter_pdf_page_images(pdf_buf.getvalue(), 1):
+            assert page_num == 1
+            assert isinstance(image_path, Path)
+            assert image_path.suffix == ".jpg"
+            assert image_path.exists()
+            jpeg_bytes = image_path.read_bytes()
+            # Valid JPEG SOI header (FF D8 FF)
+            assert jpeg_bytes.startswith(b"\xff\xd8\xff")
+            yielded.append(image_path)
+
+        assert len(yielded) == 1
+        assert not yielded[0].exists()
+        assert not yielded[0].parent.exists()
 
 
 @pytest.mark.django_db
