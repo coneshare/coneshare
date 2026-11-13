@@ -48,8 +48,32 @@ class ShareLink(BaseModel):
     watermark_text = models.CharField(max_length=255, blank=True)
     receive_email_notification = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    NDA_TYPE_TEXT = 'text'
+    NDA_TYPE_PDF = 'pdf'
+    NDA_TYPE_CHOICES = [
+        (NDA_TYPE_TEXT, 'Plain Text / Markdown'),
+        (NDA_TYPE_PDF, 'PDF Document'),
+    ]
+
     require_nda = models.BooleanField(default=False)
+    nda_type = models.CharField(max_length=10, choices=NDA_TYPE_CHOICES, default=NDA_TYPE_TEXT)
     nda_text = models.TextField(blank=True, default='')
+    nda_document = models.ForeignKey(
+        'documents.Document',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='nda_share_links',
+    )
+    nda_document_version = models.ForeignKey(
+        'documents.DocumentVersion',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='nda_version_share_links',
+    )
+    nda_source_sha256 = models.CharField(max_length=64, blank=True, default='')
+    nda_pdf_storage_key = models.CharField(max_length=512, blank=True, default='')
     nda_version = models.IntegerField(default=1)
 
     class Meta:
@@ -102,16 +126,22 @@ class ShareLink(BaseModel):
             self.slug = secrets.token_urlsafe(16)
         if self.pk:
             update_fields = kwargs.get('update_fields')
-            if update_fields is None or 'nda_text' in update_fields:
-                old_data = ShareLink.objects.filter(pk=self.pk).values_list('nda_text', 'nda_version').first()
-                if old_data and old_data[0] != self.nda_text:
-                    self.nda_version = old_data[1] + 1
-                    # Ensure nda_version is persisted during partial updates (e.g. PATCH)
-                    # if nda_text is being explicitly saved via update_fields.
-                    if update_fields is not None:
-                        fields = set(update_fields)
-                        fields.add('nda_version')
-                        kwargs['update_fields'] = list(fields)
+            nda_fields = {'nda_text', 'nda_document_version', 'nda_document_version_id', 'nda_source_sha256'}
+            if update_fields is None or bool(set(update_fields) & nda_fields):
+                old_data = ShareLink.objects.filter(pk=self.pk).values_list(
+                    'nda_text', 'nda_version', 'nda_document_version_id', 'nda_source_sha256'
+                ).first()
+                if old_data:
+                    text_changed = (old_data[0] != self.nda_text)
+                    version_changed = (old_data[2] != self.nda_document_version_id)
+                    hash_changed = (old_data[3] != self.nda_source_sha256)
+                    if text_changed or version_changed or hash_changed:
+                        self.nda_version = old_data[1] + 1
+                        # Ensure nda_version is persisted during partial updates (e.g. PATCH).
+                        if update_fields is not None:
+                            fields = set(update_fields)
+                            fields.add('nda_version')
+                            kwargs['update_fields'] = list(fields)
         super().save(*args, **kwargs)
         if self.receive_email_notification:
             ensure_default_email_automation(self.created_by, self.created_by.organization)
@@ -495,6 +525,31 @@ class NDAAcceptance(models.Model):
     accepted_at = models.DateTimeField(auto_now_add=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.CharField(max_length=255, blank=True)
+    signer_name = models.CharField(max_length=255, blank=True, default='')
+    signer_title = models.CharField(max_length=255, blank=True, default='')
+    signer_company = models.CharField(max_length=255, blank=True, default='')
+    signer_email = models.EmailField(blank=True, default='')
+    signature_type = models.CharField(
+        max_length=10,
+        choices=[('draw', 'Drawn Canvas'), ('type', 'Typed Font')],
+        default='draw',
+    )
+    signature_image_storage_key = models.CharField(max_length=512, blank=True, default='')
+    executed_pdf_storage_key = models.CharField(max_length=512, blank=True, default='')
+    original_doc_sha256 = models.CharField(max_length=64, blank=True, default='')
+    signed_doc_sha256 = models.CharField(max_length=64, blank=True, default='')
+    seal_method = models.CharField(
+        max_length=24,
+        choices=[('visual_hash', 'Visual + Hash'), ('pades_x509', 'PAdES X.509 Seal')],
+        default='visual_hash',
+    )
+    vault_dataroom_document = models.ForeignKey(
+        'datarooms.DataroomDocument',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='executed_nda_acceptances',
+    )
 
     class Meta:
         constraints = [

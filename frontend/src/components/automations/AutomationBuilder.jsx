@@ -9,6 +9,7 @@ const getEventOptions = (t) => [
   { value: 'dataroom_opened', label: t('automations.eventDataroomOpened') },
   { value: 'document_viewed', label: t('automations.eventDocumentViewed') },
   { value: 'document_downloaded', label: t('automations.eventDocumentDownloaded') },
+  { value: 'document_signed', label: 'Document Signed' },
   { value: 'email_identified', label: t('automations.eventEmailIdentified') },
   { value: 'file_request_uploaded', label: t('automations.eventFileRequestUploaded') },
 ];

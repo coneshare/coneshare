@@ -236,6 +236,7 @@ INSTALLED_APPS = [
     'cloudfiles',
     'filerequests',
     'automations',
+    'esign',
 ]
 
 MIDDLEWARE = [

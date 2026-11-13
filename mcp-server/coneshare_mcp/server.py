@@ -8,6 +8,7 @@ from coneshare_mcp.tools.datarooms import register_dataroom_tools
 from coneshare_mcp.tools.share_links import register_share_link_tools
 from coneshare_mcp.tools.analytics import register_analytics_tools
 from coneshare_mcp.tools.admin import register_admin_tools
+from coneshare_mcp.tools.esign import register_esign_tools
 
 log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
 log_level = getattr(logging, log_level_str, logging.INFO)
@@ -23,6 +24,7 @@ register_dataroom_tools(mcp)
 register_share_link_tools(mcp)
 register_analytics_tools(mcp)
 register_admin_tools(mcp)
+register_esign_tools(mcp)
 
 
 def main() -> None:

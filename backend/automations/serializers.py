@@ -17,6 +17,7 @@ ALLOWED_AUTOMATION_EVENTS = {
     'file_request_uploaded',
     'file_request_malware_detected',
     'file_request_scan_failed',
+    'document_signed',
 }
 
 

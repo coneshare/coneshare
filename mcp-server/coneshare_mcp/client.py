@@ -478,3 +478,43 @@ class ConeshareClient:
         if isinstance(res, dict) and res.get("error"):
             return res
         return self._paginate(res, page, page_size)
+
+    # --- eSignature API ---
+
+    async def list_signature_requests(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        status: Optional[str] = None,
+        document_id: Optional[str] = None,
+        dataroom_id: Optional[str] = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"page": page, "page_size": page_size}
+        if status:
+            params["status"] = status
+        if document_id:
+            params["document_id"] = _validate_resource_id(document_id, "document_id")
+        if dataroom_id:
+            params["dataroom_id"] = _validate_resource_id(dataroom_id, "dataroom_id")
+        res = await self._request("GET", "/esign/requests/", params=params)
+        if isinstance(res, dict) and res.get("error"):
+            return res
+        return self._paginate(res, page, page_size)
+
+    async def get_signature_request(self, request_id: str) -> dict[str, Any]:
+        req_id = _validate_resource_id(request_id, "request_id")
+        return await self._request("GET", f"/esign/requests/{req_id}/")
+
+    async def create_signature_request(self, data: dict[str, Any]) -> dict[str, Any]:
+        return await self._request("POST", "/esign/requests/", json_data=data)
+
+    async def void_signature_request(
+        self,
+        request_id: str,
+        reason: Optional[str] = None,
+    ) -> dict[str, Any]:
+        req_id = _validate_resource_id(request_id, "request_id")
+        payload: dict[str, Any] = {}
+        if reason:
+            payload["reason"] = reason
+        return await self._request("POST", f"/esign/requests/{req_id}/void/", json_data=payload)

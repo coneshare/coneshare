@@ -250,6 +250,8 @@ export const getRootFolderContents = () => api.get('/folders/');
 
 export const getRootFolderId = () => api.get('/folders/root/');
 
+export const getDocuments = (params = {}) => api.get('/documents/', { params });
+
 export const createFolder = (name, parentId = null) => api.post('/folders/', { name, parent: parentId });
 
 export const ensureFolderPaths = (paths, parentPath = null) =>
@@ -364,6 +366,17 @@ export const verifyShareLinkPassword = (slug, password) =>
 
 export const acceptShareLinkNda = (slug, data) =>
   api.post(`/links/${slug}/accept-nda/`, data);
+
+export const getShareLinkNdaAcceptances = (linkId) =>
+  api.get(`/share-links/${linkId}/nda-acceptances/`);
+
+export const getShareLinkNdaPreviewUrl = (slug) =>
+  `/api/v1/links/${slug}/nda-preview/`;
+
+export const getShareLinkNdaDownloadUrl = (slug, acceptanceId = null) =>
+  acceptanceId
+    ? `/api/v1/links/${slug}/nda-download/?acceptance_id=${encodeURIComponent(acceptanceId)}`
+    : `/api/v1/links/${slug}/nda-download/`;
 
 export const requestShareLinkAccess = (slug, email) =>
   api.post(`/links/${slug}/request-access/`, { email });
@@ -864,5 +877,34 @@ export const emptyTrash = () => api.delete('/trash/empty/');
 export const getApiKeys = () => api.get('/api-keys/');
 export const createApiKey = (data) => api.post('/api-keys/', data);
 export const deleteApiKey = (id) => api.delete(`/api-keys/${id}/`);
+
+// eSignature Requests (Authenticated Owner / Admin)
+export const listSignatureRequests = (params = {}) => api.get('/esign/requests/', { params });
+export const getSignatureRequest = (id) => api.get(`/esign/requests/${id}/`);
+export const createSignatureRequest = (data) => api.post('/esign/requests/', data);
+export const deleteSignatureRequest = (id) => api.delete(`/esign/requests/${id}/`);
+export const sendSignatureRequest = (id) => api.post(`/esign/requests/${id}/send/`);
+export const voidSignatureRequest = (id, reason = '') => api.post(`/esign/requests/${id}/void/`, { reason });
+export const getSignatureSigningLinks = (id) => api.get(`/esign/requests/${id}/signing-links/`);
+export const getSignaturePageViews = (id) => api.get(`/esign/requests/${id}/page-views/`);
+export const getSignatureRequestDownloadUrl = (id) => `/api/v1/esign/requests/${id}/download/`;
+
+// eSignature Public Signer Ceremony (Cookie Session)
+export const exchangeSignerToken = (requestId, token) =>
+  api.post(`/esign/sign/${requestId}/exchange-token/`, { token }, { withCredentials: true });
+export const getSignerSession = (requestId) =>
+  api.get(`/esign/sign/${requestId}/`, { withCredentials: true });
+export const submitSignerFields = (requestId, fields) =>
+  api.post(`/esign/sign/${requestId}/submit/`, { fields }, { withCredentials: true });
+export const declineSignerRequest = (requestId, reason = '') =>
+  api.post(`/esign/sign/${requestId}/decline/`, { reason }, { withCredentials: true });
+export const recordSignerPageView = (requestId, pageNumber, durationSeconds) =>
+  api.post(
+    `/esign/sign/${requestId}/page-views/`,
+    { page_number: pageNumber, duration_seconds: durationSeconds },
+    { withCredentials: true }
+  );
+export const getSignerPdfUrl = (requestId) => `/api/v1/esign/sign/${requestId}/pdf/`;
+export const getSignerExecutedDownloadUrl = (requestId) => `/api/v1/esign/sign/${requestId}/download/`;
 
 export default api;
