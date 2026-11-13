@@ -3,12 +3,14 @@ import logging
 import math
 import os
 import secrets
+import tempfile
 from datetime import timedelta
 from io import BytesIO
+from pathlib import Path
 from urllib.parse import quote, urljoin
 
 import requests
-from pdf2image import convert_from_bytes
+from pdf2image import convert_from_path
 from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -227,6 +229,8 @@ WATERMARK_ROTATION_ANGLE = 45
 WATERMARK_JPEG_QUALITY = 90
 # WATERMARK_PDF_FONT = "Helvetica" # This is replaced by settings.WATERMARK_FONT_PATH
 WATERMARK_PDF_ALPHA = 0.1
+FLATTEN_PDF_DPI = 150
+FLATTEN_PDF_BATCH_SIZE = 5
 # --- End Watermarking Constants ---
 
 
@@ -2660,56 +2664,117 @@ def _generate_watermarked_pdf(document, primary_version, watermark_text, request
         raise WatermarkingError("An error occurred while generating the watermarked file.") from e
 
 
+def _append_image_file_as_pdf_page(writer: "PdfWriter", page_path: Path, dpi: int) -> None:
+    """
+    Encodes a single JPEG page image into a 1-page PDF and appends it to `writer`,
+    closing intermediate Pillow/BytesIO resources and deleting the source image immediately.
+    """
+    img = None
+    rgb_img = None
+    page_pdf_buf = None
+    try:
+        try:
+            img = Image.open(page_path)
+            target_img = img if img.mode == 'RGB' else img.convert('RGB')
+            if target_img is not img:
+                rgb_img = target_img
+            page_pdf_buf = BytesIO()
+            target_img.save(page_pdf_buf, format="PDF", resolution=float(dpi))
+            page_pdf_buf.seek(0)
+            writer.append(page_pdf_buf)
+        finally:
+            if page_pdf_buf is not None:
+                page_pdf_buf.close()
+            if rgb_img is not None:
+                rgb_img.close()
+            if img is not None:
+                img.close()
+    finally:
+        page_path.unlink(missing_ok=True)
+
+
 def _generate_flattened_watermarked_pdf(document, primary_version, watermark_text, request, viewer_email):
     """
-    Generates a flattened, watermarked PDF (rasterized to JPEGs and recompiled to PDF).
+    Generates a flattened, watermarked PDF by rendering batches of pages to temporary
+    JPEG files via Poppler and assembling them incrementally so only one page image is
+    decoded in memory at a time.
     """
-    # Enforce page count limit to prevent OOM/timeouts on large files
+    if not Image or not PdfReader or not PdfWriter:
+        logger.error("Pillow or pypdf is not installed. Flattened PDF watermarking is not available.")
+        raise WatermarkingDependenciesMissingError("PDF watermarking service is currently unavailable.")
+
+    # Enforce page count limit to prevent OOM/timeouts on large files (fast path when metadata exists)
     max_pages = get_dynamic_setting('MAX_PREVIEW_PAGES')
-    if primary_version.num_pages and primary_version.num_pages > max_pages:
+    known_pages = primary_version.num_pages or getattr(document, 'num_pages', None)
+    if known_pages and max_pages is not None and known_pages > max_pages:
         logger.warning(
-            f"Document {document.id} has {primary_version.num_pages} pages, "
+            f"Document {document.id} has {known_pages} pages, "
             f"exceeding MAX_PREVIEW_PAGES ({max_pages}). Falling back to vector watermarking."
         )
         return _generate_watermarked_pdf(document, primary_version, watermark_text, request, viewer_email)
 
     # 1. Generate standard vector watermarked PDF
     vector_pdf_buffer = _generate_watermarked_pdf(document, primary_version, watermark_text, request, viewer_email)
-    
-    # 2. Rasterize pages to JPEGs using poppler
-    pages = []
-    converted_images = []
+
     try:
-        pages = convert_from_bytes(vector_pdf_buffer.getvalue(), dpi=150, fmt="jpeg")
-        
-        if not pages:
+        try:
+            page_count = len(PdfReader(vector_pdf_buffer).pages)
+            vector_pdf_buffer.seek(0)
+        except Exception as e:
+            logger.error("Failed to inspect watermarked PDF page count: %s", type(e).__name__)
+            raise WatermarkingError("An error occurred while generating the flattened watermarked file.") from e
+
+        if not page_count:
             raise WatermarkingError("Failed to rasterize watermarked PDF pages.")
-            
-        # 3. Convert pages to RGB and save to a single PDF buffer using Pillow.
-        # We append images to converted_images one-by-one in a standard loop. This ensures that
-        # if an exception occurs mid-conversion, the already converted images are closed in the finally block.
-        for img in pages:
-            converted_images.append(img.convert('RGB'))
+
+        # Enforce page count limit using actual PDF pages when version.num_pages was not yet populated
+        if max_pages is not None and page_count > max_pages:
+            logger.warning(
+                f"Document {document.id} has {page_count} pages, "
+                f"exceeding MAX_PREVIEW_PAGES ({max_pages}). Falling back to vector watermarking."
+            )
+            result_buffer = vector_pdf_buffer
+            vector_pdf_buffer = None
+            return result_buffer
+
+        # 2. Write vector PDF to disk and release its memory buffer before batch rasterization
+        writer = PdfWriter()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            pdf_path = Path(temp_dir) / 'watermarked.pdf'
+            pdf_path.write_bytes(vector_pdf_buffer.getvalue())
+            vector_pdf_buffer.close()
+            vector_pdf_buffer = None
+
+            for batch_start in range(1, page_count + 1, FLATTEN_PDF_BATCH_SIZE):
+                batch_end = min(batch_start + FLATTEN_PDF_BATCH_SIZE - 1, page_count)
+                image_paths = convert_from_path(
+                    str(pdf_path),
+                    dpi=FLATTEN_PDF_DPI,
+                    fmt='jpeg',
+                    first_page=batch_start,
+                    last_page=batch_end,
+                    output_folder=temp_dir,
+                    paths_only=True,
+                )
+                expected_count = batch_end - batch_start + 1
+                if not image_paths or len(image_paths) != expected_count:
+                    raise WatermarkingError("Failed to rasterize watermarked PDF pages.")
+
+                for raw_path in image_paths:
+                    _append_image_file_as_pdf_page(writer, Path(raw_path), FLATTEN_PDF_DPI)
 
         flattened_buffer = BytesIO()
-        converted_images[0].save(flattened_buffer, format="PDF", save_all=True, append_images=converted_images[1:])
+        writer.write(flattened_buffer)
         flattened_buffer.seek(0)
         return flattened_buffer
+    except WatermarkingError:
+        raise
     except Exception as e:
         logger.error("Failed to flatten watermarked PDF: %s", type(e).__name__)
         raise WatermarkingError("An error occurred while generating the flattened watermarked file.") from e
     finally:
-        # Explicitly close all PIL images to prevent memory leaks
-        for img in pages:
-            try:
-                img.close()
-            except Exception:
-                pass
-        for img in converted_images:
-            try:
-                img.close()
-            except Exception:
-                pass
+        if vector_pdf_buffer is not None:
+            vector_pdf_buffer.close()
 
 
 @extend_schema(tags=['sharelinks'])

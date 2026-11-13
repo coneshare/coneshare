@@ -26,8 +26,10 @@ from sharelinks.serializers import (DocumentViewSessionSerializer,
 from sharelinks.services import get_pages_map_for_sessions
 from sharelinks.views import (DATAROOM_VIEWDATA_DEFAULT_LIMIT, _is_dataroom_folder_path_visible,
                               _build_dataroom_breadcrumbs, _resolve_dataroom_document_setting)
+from pathlib import Path
 import zipfile
 from io import BytesIO
+from pypdf import PdfReader, PdfWriter
 try:
     from PIL import Image
 except ImportError:
@@ -3627,12 +3629,30 @@ class TestWatermarkingViews:
         assert response.get('Content-Type') == 'application/pdf'
         assert 'inline; filename="Test_Document.pdf"' in response.get('Content-Disposition')
 
+    @staticmethod
+    def _mock_render_pdf_pages(recorded_calls=None, existing_jpegs_on_next_batch=None):
+        """Return a convert_from_path side_effect writing real JPEG files into output_folder."""
+        def _render(pdf_path, dpi, fmt, first_page, last_page, output_folder, paths_only):
+            assert fmt == 'jpeg'
+            assert paths_only is True
+            assert Path(pdf_path).exists()
+            if existing_jpegs_on_next_batch is not None:
+                existing_jpegs_on_next_batch.append(len(list(Path(output_folder).glob('*.jpg'))))
+            if recorded_calls is not None:
+                recorded_calls.append((first_page, last_page, dpi))
+            paths = []
+            for page_num in range(first_page, last_page + 1):
+                img_path = Path(output_folder) / f"page_{page_num}.jpg"
+                Image.new('RGB', (100, 100), color='white').save(img_path, format='JPEG')
+                paths.append(str(img_path))
+            return paths
+        return _render
+
     @patch('sharelinks.views.requests.get')
     @patch('sharelinks.views.fileserver_client.generate_download_url')
-    @patch('sharelinks.views.convert_from_bytes')
+    @patch('sharelinks.views.convert_from_path')
     def test_download_watermarked_pdf_file_flattened_success(self, mock_convert, mock_fs_download_url, mock_requests_get, public_client, watermarked_link):
         """Test that a watermarked PDF file is generated, flattened, and served for download."""
-        from django.test import override_settings
         with override_settings(FLATTEN_WATERMARKED_DOWNLOADS=True):
             mock_fs_download_url.return_value = "/files/download/token"
             pdf_content = b'%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000010 00000 n \n0000000059 00000 n \n0000000112 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF'
@@ -3641,9 +3661,7 @@ class TestWatermarkingViews:
             mock_response.content = pdf_content
             mock_requests_get.return_value = mock_response
 
-            # Mock poppler conversion to return a sample Pillow Image
-            mock_img = Image.new('RGB', (100, 100), color='white')
-            mock_convert.return_value = [mock_img]
+            mock_convert.side_effect = self._mock_render_pdf_pages()
 
             url = f'/api/v1/links/{watermarked_link.slug}/download-file/'
             response = public_client.get(url, REMOTE_ADDR='192.168.1.1')
@@ -3656,10 +3674,81 @@ class TestWatermarkingViews:
 
     @patch('sharelinks.views.requests.get')
     @patch('sharelinks.views.fileserver_client.generate_download_url')
-    @patch('sharelinks.views.convert_from_bytes')
+    @patch('sharelinks.views.convert_from_path')
+    def test_download_watermarked_pdf_file_flattened_batched_rendering_and_cleanup(
+        self, mock_convert, mock_fs_download_url, mock_requests_get, public_client, watermarked_link
+    ):
+        """Test that multi-page PDFs are rasterized in bounded batches with immediate temp file cleanup."""
+        with override_settings(FLATTEN_WATERMARKED_DOWNLOADS=True, MAX_PREVIEW_PAGES=10):
+            mock_fs_download_url.return_value = "/files/download/token"
+            pdf_writer = PdfWriter()
+            for _ in range(7):
+                pdf_writer.add_blank_page(width=200, height=200)
+            src_buf = BytesIO()
+            pdf_writer.write(src_buf)
+
+            mock_response = MagicMock()
+            mock_response.raise_for_status.return_value = None
+            mock_response.content = src_buf.getvalue()
+            mock_requests_get.return_value = mock_response
+
+            recorded_calls = []
+            leftover_jpegs_at_batch_start = []
+            mock_convert.side_effect = self._mock_render_pdf_pages(
+                recorded_calls=recorded_calls,
+                existing_jpegs_on_next_batch=leftover_jpegs_at_batch_start,
+            )
+
+            url = f'/api/v1/links/{watermarked_link.slug}/download-file/'
+            response = public_client.get(url, REMOTE_ADDR='192.168.1.1')
+
+            assert response.status_code == status.HTTP_200_OK
+            assert response.get('Content-Type') == 'application/pdf'
+            assert recorded_calls == [(1, 5, 150), (6, 7, 150)]
+            assert leftover_jpegs_at_batch_start == [0, 0]
+            output_reader = PdfReader(BytesIO(response.content))
+            assert len(output_reader.pages) == 7
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    @patch('sharelinks.views.convert_from_path')
+    def test_download_watermarked_pdf_file_flattened_rejects_partial_batch(
+        self, mock_convert, mock_fs_download_url, mock_requests_get, public_client, watermarked_link
+    ):
+        """Test that PDF flattening raises WatermarkingError (500) if a batch returns fewer pages than requested."""
+        with override_settings(FLATTEN_WATERMARKED_DOWNLOADS=True, MAX_PREVIEW_PAGES=10):
+            mock_fs_download_url.return_value = "/files/download/token"
+            pdf_writer = PdfWriter()
+            for _ in range(7):
+                pdf_writer.add_blank_page(width=200, height=200)
+            src_buf = BytesIO()
+            pdf_writer.write(src_buf)
+
+            mock_response = MagicMock()
+            mock_response.raise_for_status.return_value = None
+            mock_response.content = src_buf.getvalue()
+            mock_requests_get.return_value = mock_response
+
+            full_render = self._mock_render_pdf_pages()
+
+            def _partial_render(pdf_path, dpi, fmt, first_page, last_page, output_folder, paths_only):
+                paths = full_render(pdf_path, dpi, fmt, first_page, last_page, output_folder, paths_only)
+                # Simulate Poppler failing partway through the first batch (3 of 5 pages written)
+                return paths[:3] if first_page == 1 else paths
+
+            mock_convert.side_effect = _partial_render
+
+            url = f'/api/v1/links/{watermarked_link.slug}/download-file/'
+            response = public_client.get(url, REMOTE_ADDR='192.168.1.1')
+
+            assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+            mock_convert.assert_called_once()
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    @patch('sharelinks.views.convert_from_path')
     def test_download_watermarked_pdf_file_flattened_fallback_on_page_limit(self, mock_convert, mock_fs_download_url, mock_requests_get, public_client, watermarked_link):
         """Test that PDF flattening falls back to vector watermarking when page limit is exceeded."""
-        from django.test import override_settings
         with override_settings(FLATTEN_WATERMARKED_DOWNLOADS=True, MAX_PREVIEW_PAGES=5):
             mock_fs_download_url.return_value = "/files/download/token"
             pdf_content = b'%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000010 00000 n \n0000000059 00000 n \n0000000112 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF'
@@ -3678,8 +3767,40 @@ class TestWatermarkingViews:
 
             assert response.status_code == status.HTTP_200_OK
             assert response.get('Content-Type') == 'application/pdf'
-            
-            # Since it falls back to vector watermarking, poppler convert_from_bytes should NOT be called
+
+            # Since it falls back to vector watermarking, poppler convert_from_path should NOT be called
+            mock_convert.assert_not_called()
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    @patch('sharelinks.views.convert_from_path')
+    def test_download_watermarked_pdf_file_flattened_fallback_when_num_pages_missing(
+        self, mock_convert, mock_fs_download_url, mock_requests_get, public_client, watermarked_link
+    ):
+        """Test that PDF flattening falls back to vector watermarking when version.num_pages is None but actual PDF exceeds MAX_PREVIEW_PAGES."""
+        with override_settings(FLATTEN_WATERMARKED_DOWNLOADS=True, MAX_PREVIEW_PAGES=2):
+            mock_fs_download_url.return_value = "/files/download/token"
+            pdf_writer = PdfWriter()
+            for _ in range(3):
+                pdf_writer.add_blank_page(width=200, height=200)
+            src_buf = BytesIO()
+            pdf_writer.write(src_buf)
+
+            mock_response = MagicMock()
+            mock_response.raise_for_status.return_value = None
+            mock_response.content = src_buf.getvalue()
+            mock_requests_get.return_value = mock_response
+
+            version = watermarked_link.document.versions.get(is_primary=True)
+            version.num_pages = None
+            version.save()
+
+            url = f'/api/v1/links/{watermarked_link.slug}/download-file/'
+            response = public_client.get(url, REMOTE_ADDR='192.168.1.1')
+
+            assert response.status_code == status.HTTP_200_OK
+            assert response.get('Content-Type') == 'application/pdf'
+            assert len(PdfReader(BytesIO(response.content)).pages) == 3
             mock_convert.assert_not_called()
 
     @patch('sharelinks.views.requests.get')
@@ -4684,6 +4805,60 @@ class TestDataroomFolderDownloadView:
         assert response.status_code == status.HTTP_200_OK
         _ = getattr(response, 'content', None) or b"".join(response.streaming_content)
         mock_generate_pdf.assert_called_once()
+
+    @patch('sharelinks.views.requests.get')
+    @patch('sharelinks.views.fileserver_client.generate_download_url')
+    @patch('sharelinks.views.convert_from_path')
+    def test_download_folder_watermarked_flattened_respects_page_limit_when_num_pages_missing(
+        self, mock_convert, mock_fs_download, mock_requests_get, public_client, dataroom_with_content_and_link
+    ):
+        """Verify folder ZIP archive download falls back to vector watermarking when num_pages is None and PDF exceeds MAX_PREVIEW_PAGES."""
+        with override_settings(FLATTEN_WATERMARKED_DOWNLOADS=True, MAX_PREVIEW_PAGES=2):
+            mock_fs_download.return_value = "http://core:8080/files/download/token"
+            pdf_writer = PdfWriter()
+            for _ in range(3):
+                pdf_writer.add_blank_page(width=200, height=200)
+            src_buf = BytesIO()
+            pdf_writer.write(src_buf)
+
+            mock_response = MagicMock()
+            mock_response.raise_for_status.return_value = None
+            mock_response.content = src_buf.getvalue()
+            mock_requests_get.return_value = mock_response
+
+            link = dataroom_with_content_and_link['link']
+            root_folder = dataroom_with_content_and_link['root_folder']
+            ddoc_pdf = dataroom_with_content_and_link['ddoc_pdf']
+            ddoc_office = dataroom_with_content_and_link['ddoc_office']
+
+            ddoc_pdf.document.num_pages = None
+            ddoc_pdf.document.save()
+            version = ddoc_pdf.document.versions.get(is_primary=True)
+            version.num_pages = None
+            version.save()
+
+            # Isolate test to watermarked PDF only
+            office_setting = link.dataroom_settings.get(dataroom_document=ddoc_office)
+            office_setting.allow_download = False
+            office_setting.save()
+
+            link.enable_watermark = True
+            link.watermark_text = "TEST"
+            link.save()
+
+            setting = link.dataroom_settings.get(dataroom_document=ddoc_pdf)
+            setting.enable_watermark = True
+            setting.save()
+
+            url = f'/api/v1/links/{link.slug}/download-folder/{root_folder.id}/'
+            response = public_client.get(url)
+
+            assert response.status_code == status.HTTP_200_OK
+            content = getattr(response, 'content', None) or b"".join(response.streaming_content)
+            mock_convert.assert_not_called()
+            with zipfile.ZipFile(BytesIO(content), 'r') as zf:
+                pdf_bytes = zf.read('Root Folder/Doc A.pdf')
+                assert len(PdfReader(BytesIO(pdf_bytes)).pages) == 3
 
     @patch('sharelinks.views.requests.get')
     @patch('sharelinks.views.fileserver_client.generate_download_url')
