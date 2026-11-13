@@ -313,6 +313,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
   // Document viewing sub-states
   const [currentPage, setCurrentPage] = useState(1);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [isFitActive, setIsFitActive] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
 
   const viewerRef = useRef(null);
@@ -340,8 +341,15 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
   };
 
   const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.1, 3));
-  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
-  const handleFitWidth = () => setZoomLevel(1);
+  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.35));
+  const handleFitWidth = () => {
+    if (viewerComponentRef.current?.fitToWidth) {
+      viewerComponentRef.current.fitToWidth();
+    } else {
+      setZoomLevel(1);
+      setIsFitActive(false);
+    }
+  };
   const handlePageChange = (pageNumber) => {
     viewerComponentRef.current?.goToPage(pageNumber);
   };
@@ -745,10 +753,11 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
     }
   }, [data, fetchScopeData, scopeData?.items?.length, parentIdFromUrl, searchParams]);
 
-  // Reset zoom & page when active document changes
+  // Reset zoom, fit & page when active document changes
   useEffect(() => {
     setCurrentPage(1);
     setZoomLevel(1);
+    setIsFitActive(false);
   }, [selectedDocumentId]);
 
   // Synchronize documentViewData name with allItems/sidebar list updates
@@ -1241,6 +1250,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
                         onZoomIn={handleZoomIn}
                         onZoomOut={handleZoomOut}
                         zoomLevel={zoomLevel}
+                        isFitActive={isFitActive}
                         onFitWidth={handleFitWidth}
                         onPageChange={handlePageChange}
                         currentPage={currentPage}
@@ -1275,6 +1285,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
                         </div>
                       ) : documentViewData.preview_mode === 'spreadsheet' ? (
                         <SpreadsheetViewer
+                          key={selectedDocumentId || documentViewData.id}
                           ref={viewerComponentRef}
                           spreadsheetUrl={documentViewData.spreadsheet_preview_url}
                           title={documentViewData.name}
@@ -1288,6 +1299,8 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
                           allowDownload={canDownload}
                           canCopy={documentViewData.link_settings?.can_copy ?? null}
                           zoomLevel={zoomLevel}
+                          onZoomChange={setZoomLevel}
+                          onFitModeChange={setIsFitActive}
                           onPageChange={setCurrentPage}
                           onDocumentLoad={handleDocumentLoad}
                           documentData={documentViewData}

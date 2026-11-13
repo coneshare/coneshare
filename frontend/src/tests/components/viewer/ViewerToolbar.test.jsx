@@ -162,4 +162,9 @@ describe('ViewerToolbar', () => {
     renderComponent({ allowDownload: true, previewMode: 'markdown' });
     expect(screen.queryByTitle('Print document')).not.toBeInTheDocument();
   });
+
+  it('allows zooming out down to 0.35 zoom level', () => {
+    renderComponent({ zoomLevel: 0.45 });
+    expect(screen.getByTitle('Zoom out')).not.toBeDisabled();
+  });
 });

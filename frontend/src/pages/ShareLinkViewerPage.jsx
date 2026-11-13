@@ -123,6 +123,7 @@ export function ShareLinkViewerPage() {
   // Document-specific state must be declared at the top level, before any conditional returns.
   const [currentPage, setCurrentPage] = useState(1);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [isFitActive, setIsFitActive] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
 
   // Synchronize totalPages with viewData when it loads
@@ -147,8 +148,15 @@ export function ShareLinkViewerPage() {
   };
 
   const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.1, 3));
-  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
-  const handleFitWidth = () => setZoomLevel(1);
+  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.35));
+  const handleFitWidth = () => {
+    if (viewerComponentRef.current?.fitToWidth) {
+      viewerComponentRef.current.fitToWidth();
+    } else {
+      setZoomLevel(1);
+      setIsFitActive(false);
+    }
+  };
   const handlePageChange = (pageNumber) => {
     viewerComponentRef.current?.goToPage(pageNumber);
   };
@@ -170,7 +178,16 @@ export function ShareLinkViewerPage() {
     setViewId(null);
     viewIdRef.current = null;
     setCurrentPage(1);
+    setZoomLevel(1);
+    setIsFitActive(false);
   }, [slug]);
+
+  // Reset zoom, fit & page when active dataroom document changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setZoomLevel(1);
+    setIsFitActive(false);
+  }, [dataroomDocumentIdFromUrl]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -738,6 +755,7 @@ export function ShareLinkViewerPage() {
               onZoomIn={handleZoomIn}
               onZoomOut={handleZoomOut}
               zoomLevel={zoomLevel}
+              isFitActive={isFitActive}
               onFitWidth={handleFitWidth}
               onPageChange={handlePageChange}
               currentPage={currentPage}
@@ -769,6 +787,7 @@ export function ShareLinkViewerPage() {
                 </div>
               ) : viewData.preview_mode === 'spreadsheet' ? (
                 <SpreadsheetViewer
+                  key={dataroomDocumentIdFromUrl || viewData?.id || 'spreadsheet'}
                   ref={viewerComponentRef}
                   spreadsheetUrl={viewData.spreadsheet_preview_url}
                   title={viewData.name}
@@ -782,6 +801,8 @@ export function ShareLinkViewerPage() {
                   allowDownload={viewData.link_settings?.allow_download ?? true}
                   canCopy={viewData.link_settings?.can_copy ?? null}
                   zoomLevel={zoomLevel}
+                  onZoomChange={setZoomLevel}
+                  onFitModeChange={setIsFitActive}
                   onPageChange={setCurrentPage}
                   onDocumentLoad={handleDocumentLoad}
                   documentData={viewData}

@@ -32,6 +32,7 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
   // Document states for preview navigation and zoom inside the modal
   const [currentPage, setCurrentPage] = useState(1);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [isFitActive, setIsFitActive] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const [rebuildTriggerCount, setRebuildTriggerCount] = useState(0);
   
@@ -77,10 +78,15 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
       setDocumentData(null);
       setCurrentPage(1);
       setZoomLevel(1);
+      setIsFitActive(false);
       lastLoadedDocRef.current = null;
       setRebuildTriggerCount(0);
       return;
     }
+
+    setCurrentPage(1);
+    setZoomLevel(1);
+    setIsFitActive(false);
 
     let isCancelled = false;
     let pollTimer = null;
@@ -157,8 +163,15 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
   }, [isOpen, documentId, versionId, rebuildTriggerCount]);
 
   const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.1, 3));
-  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
-  const handleFitWidth = () => setZoomLevel(1);
+  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.35));
+  const handleFitWidth = () => {
+    if (viewerComponentRef.current?.fitToWidth) {
+      viewerComponentRef.current.fitToWidth();
+    } else {
+      setZoomLevel(1);
+      setIsFitActive(false);
+    }
+  };
   
   const handlePageChange = (pageNumber) => {
     viewerComponentRef.current?.goToPage(pageNumber);
@@ -215,6 +228,7 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
               onZoomIn={handleZoomIn}
               onZoomOut={handleZoomOut}
               zoomLevel={zoomLevel}
+              isFitActive={isFitActive}
               onFitWidth={handleFitWidth}
               onPageChange={handlePageChange}
               currentPage={currentPage}
@@ -235,11 +249,14 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
           )}
           {documentData && documentData.preview_mode === 'spreadsheet' && !isPreviewPending(documentData) && !isPreviewFailed(documentData) && (
             <SpreadsheetViewer
+              key={documentId || documentData.id}
               ref={viewerComponentRef}
               spreadsheetUrl={documentData.spreadsheet_preview_url}
               title={documentData.name}
               allowDownload={Boolean(documentData.download_url)}
               zoomLevel={zoomLevel}
+              onZoomChange={setZoomLevel}
+              onFitModeChange={setIsFitActive}
               documentData={documentData}
             />
           )}
