@@ -296,9 +296,10 @@ export const getDocumentPreviewData = (id, versionId = null) => {
   return api.get(`/documents/${id}/preview-data/`, { params });
 };
 
-export const rebuildDocumentPreview = (id, versionId = null) => {
+export const rebuildDocumentPreview = (id, versionId = null, { force = false } = {}) => {
   const data = {};
   if (versionId) data.version_id = versionId;
+  if (force) data.force = true;
   return api.post(`/documents/${id}/rebuild-preview/`, data);
 };
 

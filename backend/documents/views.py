@@ -1147,11 +1147,12 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
         # Concurrency race guard: reject if rendering is actively in progress.
         # Allow recovery if caller passes force=True or if the task has been stuck
-        # in processing/queued for >15 minutes (indicating a crashed worker or dead task).
+        # beyond the format's expected processing window (indicating a crashed worker).
         is_force = request.data.get('force') in (True, 'true', 'True', 1, '1')
+        stale_window = timedelta(minutes=60) if primary_version.type == 'video' else timedelta(minutes=15)
         is_stale = bool(
             primary_version.updated_at
-            and primary_version.updated_at < timezone.now() - timedelta(minutes=15)
+            and primary_version.updated_at < timezone.now() - stale_window
         )
         if primary_version.render_status in {DocumentVersion.RENDER_QUEUED, DocumentVersion.RENDER_PROCESSING}:
             if not (is_force or is_stale):

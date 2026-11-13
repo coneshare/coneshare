@@ -60,9 +60,9 @@ describe('DocumentPreviewModal', () => {
     const retryButton = await screen.findByText('Retry generation');
     fireEvent.click(retryButton);
 
-    // Verify it triggers rebuildDocumentPreview POST call
+    // Verify it triggers rebuildDocumentPreview POST call with force=true
     await waitFor(() => {
-      expect(mockRebuildPreview).toHaveBeenCalledWith("doc1", null);
+      expect(mockRebuildPreview).toHaveBeenCalledWith("doc1", null, { force: true });
     });
 
     // Clear call history to make assertions cleaner
@@ -179,6 +179,56 @@ describe('DocumentPreviewModal', () => {
       vi.advanceTimersByTime(1000);
     });
     expect(screen.getByText('Retry generation')).toBeInTheDocument();
+  });
+
+  it('passes force: true on stuck retry and resets countdown even when backend returns processing', async () => {
+    vi.useFakeTimers();
+
+    const mockPendingData = {
+      name: 'stuck_file.pdf',
+      preview_status: 'processing',
+      render_status: 'processing',
+      preview_mode: 'image',
+      download_url: 'https://example.com/download',
+    };
+
+    vi.spyOn(api, 'getDocumentPreviewData')
+      .mockResolvedValue({ data: mockPendingData });
+    const mockRebuildPreview = vi.spyOn(api, 'rebuildDocumentPreview')
+      .mockResolvedValue({ data: { preview_status: 'processing', render_status: 'queued' } });
+
+    render(
+      <DocumentPreviewModal
+        documentId="doc1"
+        isOpen={true}
+        onOpenChange={vi.fn()}
+      />
+    );
+
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(60000);
+    });
+
+    const retryButton = screen.getByText('Retry generation');
+    await act(async () => {
+      fireEvent.click(retryButton);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockRebuildPreview).toHaveBeenCalledWith("doc1", null, { force: true });
+    // Even though backend returns preview_status: 'processing', the panel timer must reset
+    expect(screen.queryByText('Retry generation')).toBeNull();
+    // Document metadata merged cleanly so download link remains visible during transition
+    expect(screen.getByRole('link', { name: /download/i })).toHaveAttribute('href', 'https://example.com/download');
   });
 
   it('renders video preview and refreshes preview data when onTokenExpired is invoked', async () => {

@@ -99,9 +99,9 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
       try {
         if (triggerRebuild) {
           try {
-            const rebuildResponse = await rebuildDocumentPreview(documentId, versionId);
+            const rebuildResponse = await rebuildDocumentPreview(documentId, versionId, { force: true });
             if (!isCancelled) {
-              setDocumentData(rebuildResponse.data);
+              setDocumentData((prev) => (prev ? { ...prev, ...rebuildResponse.data } : rebuildResponse.data));
               if (isPreviewPending(rebuildResponse.data)) {
                 pollTimer = window.setTimeout(() => {
                   fetchPreviewData();
@@ -301,6 +301,7 @@ export function DocumentPreviewModal({ documentId, versionId = null, isOpen, onO
           )}
           {documentData && !hasRenderablePages(documentData) && documentData.preview_mode !== 'client_pdf' && documentData.preview_mode !== 'video' && documentData.preview_mode !== 'markdown' && (documentData.preview_mode !== 'spreadsheet' || isPreviewPending(documentData) || isPreviewFailed(documentData)) && !error && (
             <PreviewStatePanel
+              key={rebuildTriggerCount}
               documentData={documentData}
               allowDownload={Boolean(documentData.download_url)}
               onRetry={handleRetry}

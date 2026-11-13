@@ -1232,6 +1232,41 @@ def test_rebuild_preview_stale_processing_task_auto_recovers(mock_task_delay, mo
 
 
 @pytest.mark.django_db
+@override_settings(ENABLE_VIDEO_PREVIEW=True)
+@patch('documents.views.fileserver_client.delete_file')
+@patch('documents.tasks.generate_video_stream_task.delay')
+def test_rebuild_preview_video_requires_60m_stale_window_without_force(mock_task_delay, mock_delete_file, api_client, user):
+    """Without force=True, video processing for 20m is still treated as active (60m stale window)."""
+    doc = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        status='processing',
+        type='video',
+    )
+    version = DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        original_storage_key="test_video.mp4",
+        storage_key="test_video.mp4",
+        type='video',
+        is_primary=True,
+        render_status=DocumentVersion.RENDER_PROCESSING,
+        has_pages=False,
+    )
+    DocumentVersion.objects.filter(id=version.id).update(
+        updated_at=timezone.now() - timedelta(minutes=20)
+    )
+
+    response = api_client.post(f'/api/v1/documents/{doc.id}/rebuild-preview/')
+    assert response.status_code == status.HTTP_409_CONFLICT
+    mock_task_delay.assert_not_called()
+
+    force_response = api_client.post(f'/api/v1/documents/{doc.id}/rebuild-preview/', {'force': True}, format='json')
+    assert force_response.status_code == status.HTTP_200_OK
+    mock_task_delay.assert_called_once_with(version.id)
+
+
+@pytest.mark.django_db
 @override_settings(PDF_PREVIEW_ENGINE='server_pages')
 @patch('documents.views.fileserver_client.delete_file')
 @patch('documents.services.generate_pdf_pages_task.delay')
