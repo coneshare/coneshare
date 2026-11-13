@@ -22,6 +22,7 @@ export function ViewerToolbar({
 
   // Zoom
   zoomLevel,
+  isFitActive = false,
   onZoomIn,
   onZoomOut,
   onFitWidth,
@@ -257,7 +258,7 @@ export function ViewerToolbar({
             variant="ghost" 
             size="icon" 
             onClick={onZoomOut} 
-            disabled={zoomLevel <= 0.5}
+            disabled={zoomLevel <= 0.35}
             title={t('viewer.zoomOut')}
             className="h-8 w-8 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
@@ -284,9 +285,11 @@ export function ViewerToolbar({
             size="icon" 
             onClick={onFitWidth} 
             title={t('viewer.fitToWidth')}
-            className="hidden h-8 w-8 hover:bg-gray-100 dark:hover:bg-gray-800 md:inline-flex"
+            className={`hidden h-8 w-8 hover:bg-gray-100 dark:hover:bg-gray-800 md:inline-flex ${
+              isFitActive ? 'bg-gray-200/80 dark:bg-gray-700/80 text-blue-600 dark:text-blue-400' : ''
+            }`}
           >
-            <Expand className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+            <Expand className={`h-4 w-4 ${isFitActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'}`} />
           </Button>
         </div>
         <div className="h-6 w-px bg-gray-200 dark:bg-gray-800" />

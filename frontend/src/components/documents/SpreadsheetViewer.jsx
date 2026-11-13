@@ -39,6 +39,8 @@ export const SpreadsheetViewer = forwardRef(({
   documentData = null,
   onPageChange,
   onDocumentLoad,
+  onZoomChange,
+  onFitModeChange,
 }, ref) => {
   const { t } = useTranslation();
   const [data, setData] = useState(null);
@@ -49,9 +51,30 @@ export const SpreadsheetViewer = forwardRef(({
   const [searchQuery, setSearchQuery] = useState('');
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const [scrollState, setScrollState] = useState({ top: 0, left: 0, viewportWidth: 800, viewportHeight: 600 });
+  const [scrollContainer, setScrollContainer] = useState(null);
+  const [isFitMode, setIsFitMode] = useState(false);
+  const [fitScale, setFitScale] = useState(1);
+
+  useEffect(() => {
+    if (typeof onFitModeChange === 'function') {
+      onFitModeChange(isFitMode);
+    }
+    return () => {
+      if (typeof onFitModeChange === 'function') {
+        onFitModeChange(false);
+      }
+    };
+  }, [isFitMode, onFitModeChange]);
 
   const containerRef = useRef(null);
   const rootRef = useRef(null);
+  const lastFitContextRef = useRef({ width: 0, height: 0, sheetIndex: null, sheetRef: null });
+
+  const containerCallbackRef = useCallback((node) => {
+    containerRef.current = node;
+    setScrollContainer(node);
+  }, []);
+  const pendingInternalZoomRef = useRef(null);
   const timeOnSheetRef = useRef(0);
   const activeSheetRef = useRef(activeSheetIndex);
   activeSheetRef.current = activeSheetIndex;
@@ -81,12 +104,14 @@ export const SpreadsheetViewer = forwardRef(({
     let isMounted = true;
     setLoading(true);
     setError(null);
+    lastFitContextRef.current = { width: 0, height: 0, sheetIndex: null, sheetRef: null };
 
     axios.get(urlToFetch)
       .then((res) => {
         if (isMounted) {
           setData(res.data);
           setActiveSheetIndex(res.data.active_sheet_index || 0);
+          lastFitContextRef.current = { width: 0, height: 0, sheetIndex: null, sheetRef: null };
           setLoading(false);
           if (typeof onDocumentLoad === 'function' && res.data?.sheets?.length) {
             onDocumentLoad({ numPages: res.data.sheets.length });
@@ -107,24 +132,23 @@ export const SpreadsheetViewer = forwardRef(({
 
   // Track container viewport dimensions
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+    if (!scrollContainer) return;
 
     const updateSize = () => {
       setScrollState((prev) => ({
         ...prev,
-        viewportWidth: el.clientWidth || 800,
-        viewportHeight: el.clientHeight || 600,
+        viewportWidth: scrollContainer.clientWidth || 800,
+        viewportHeight: scrollContainer.clientHeight || 600,
       }));
     };
 
     updateSize();
     if (typeof ResizeObserver !== 'undefined') {
       const ro = new ResizeObserver(updateSize);
-      ro.observe(el);
+      ro.observe(scrollContainer);
       return () => ro.disconnect();
     }
-  }, []);
+  }, [scrollContainer]);
 
   const INACTIVITY_TIMEOUT = 60000;
   const handleActivity = useCallback(() => {
@@ -150,11 +174,178 @@ export const SpreadsheetViewer = forwardRef(({
     return data.sheets[activeSheetIndex];
   }, [data, activeSheetIndex]);
 
-  // Scaled dimensions based on zoomLevel
-  const scale = Math.max(0.75, Math.min(zoomLevel || 1, 2.0));
-  const rowHeight = Math.round(DEFAULT_ROW_HEIGHT * scale);
-  const rowHeaderWidth = Math.round(ROW_HEADER_WIDTH * scale);
-  const headerRowHeight = Math.round(HEADER_ROW_HEIGHT * scale);
+  // Compute fit scale based on active sheet content vs viewport dimensions
+  const computeFitScale = useCallback((sheet = activeSheet, vpWidth = scrollState.viewportWidth, vpHeight = scrollState.viewportHeight) => {
+    if (!sheet) return 1.0;
+    const cols = sheet.columns || [];
+
+    // Derive max populated row and column index from cells and merges
+    let maxUsedCol = -1;
+    let maxUsedRow = -1;
+
+    if (sheet.cells) {
+      for (const [key, cellData] of Object.entries(sheet.cells)) {
+        if (cellData && cellData.v !== undefined && cellData.v !== null && String(cellData.v).trim() !== '') {
+          const [rStr, cStr] = key.split(':');
+          const r = parseInt(rStr, 10);
+          const c = parseInt(cStr, 10);
+          if (!isNaN(r) && r > maxUsedRow) maxUsedRow = r;
+          if (!isNaN(c) && c > maxUsedCol) maxUsedCol = c;
+        }
+      }
+    }
+
+    if (sheet.merges && Array.isArray(sheet.merges)) {
+      for (const m of sheet.merges) {
+        if (m.end_row !== undefined && m.end_row > maxUsedRow) maxUsedRow = m.end_row;
+        if (m.end_col !== undefined && m.end_col > maxUsedCol) maxUsedCol = m.end_col;
+      }
+    }
+
+    // Fall back to declared dimensions if no cell content is detected
+    const effectiveColCount = maxUsedCol >= 0 ? maxUsedCol + 1 : (cols.length || 1);
+    const effectiveRowCount = maxUsedRow >= 0 ? maxUsedRow + 1 : (sheet.row_count || 1);
+
+    let unscaledColsWidth = 0;
+    for (let i = 0; i < effectiveColCount; i++) {
+      unscaledColsWidth += (cols[i]?.width || DEFAULT_COL_WIDTH);
+    }
+    const unscaledGridWidth = ROW_HEADER_WIDTH + unscaledColsWidth;
+    const unscaledGridHeight = HEADER_ROW_HEIGHT + (effectiveRowCount * DEFAULT_ROW_HEIGHT);
+
+    // Padding safety margin (8px buffer inside scroll container)
+    const availWidth = Math.max(100, vpWidth - 8);
+    const availHeight = Math.max(100, vpHeight - 8);
+
+    // Helpers to compute rendered dimensions mirroring discrete rendering constraints
+    // (Math.max(38, ...) for row header, Math.max(18, ...) for row height, and per-column rounding).
+    const getRenderedWidth = (s) => {
+      const rhWidth = Math.max(38, Math.round(ROW_HEADER_WIDTH * s));
+      let colsW = 0;
+      for (let i = 0; i < effectiveColCount; i++) {
+        colsW += Math.round((cols[i]?.width || DEFAULT_COL_WIDTH) * s);
+      }
+      return rhWidth + colsW;
+    };
+
+    const getRenderedHeight = (s) => {
+      const hrHeight = Math.max(18, Math.round(HEADER_ROW_HEIGHT * s));
+      const rHeight = Math.max(18, Math.round(DEFAULT_ROW_HEIGHT * s));
+      return hrHeight + (effectiveRowCount * rHeight);
+    };
+
+    const scaleX = unscaledGridWidth > availWidth 
+      ? availWidth / unscaledGridWidth 
+      : 1.0;
+    const scaleY = unscaledGridHeight > availHeight 
+      ? availHeight / unscaledGridHeight 
+      : 1.0;
+
+    let targetScale = 1.0;
+    if (unscaledGridWidth <= availWidth && unscaledGridHeight <= availHeight) {
+      // Entire used range fits at 1.0, do not upscale excessively
+      targetScale = 1.0;
+    } else if (scaleY >= 0.6 && scaleY < scaleX && getRenderedHeight(scaleY) <= availHeight) {
+      // Both dimensions fit comfortably without unreadable compression
+      targetScale = scaleY;
+    } else {
+      // Scale to fit width, letting rows scroll vertically
+      targetScale = scaleX;
+    }
+
+    // Use Math.floor to strictly avoid fractional pixel overflow and scrollbars
+    let finalScale = Math.max(0.35, Math.floor(targetScale * 100) / 100);
+
+    // Verify against actual rendered width; step down by 0.01 if discrete row header
+    // floor (>= 38px) or per-column rounding causes rendered width to exceed available width
+    while (finalScale > 0.35 && getRenderedWidth(finalScale) > availWidth) {
+      finalScale = Math.round((finalScale - 0.01) * 100) / 100;
+    }
+
+    return Math.max(0.35, finalScale);
+  }, [activeSheet, scrollState.viewportWidth, scrollState.viewportHeight]);
+
+  // Toggle fit mode or toggle back to 100% actual size
+  const handleToggleFit = useCallback((forceState) => {
+    const shouldFit = typeof forceState === 'boolean' 
+      ? forceState 
+      : !isFitMode;
+
+    if (shouldFit) {
+      const calculated = computeFitScale();
+      setIsFitMode(true);
+      setFitScale(calculated);
+      lastFitContextRef.current = {
+        width: scrollState.viewportWidth,
+        height: scrollState.viewportHeight,
+        sheetIndex: activeSheetIndex,
+        sheetRef: activeSheet,
+      };
+      pendingInternalZoomRef.current = calculated;
+      if (typeof onZoomChange === 'function') {
+        onZoomChange(calculated);
+      }
+      if (Math.abs((zoomLevel || 1) - calculated) < 0.01) {
+        pendingInternalZoomRef.current = null;
+      }
+    } else {
+      setIsFitMode(false);
+      setFitScale(1);
+      pendingInternalZoomRef.current = 1;
+      if (typeof onZoomChange === 'function') {
+        onZoomChange(1);
+      }
+      if (Math.abs((zoomLevel || 1) - 1) < 0.01) {
+        pendingInternalZoomRef.current = null;
+      }
+    }
+  }, [isFitMode, computeFitScale, onZoomChange, scrollState.viewportWidth, scrollState.viewportHeight, activeSheetIndex, activeSheet, zoomLevel]);
+
+  // When external zoomLevel prop changes, exit fit mode if changed manually
+  useEffect(() => {
+    if (pendingInternalZoomRef.current !== null) {
+      if (Math.abs(zoomLevel - pendingInternalZoomRef.current) < 0.01) {
+        pendingInternalZoomRef.current = null;
+        return;
+      }
+    }
+    setIsFitMode(false);
+  }, [zoomLevel]);
+
+  // Responsive re-evaluation when viewport resizes or sheet switches during fit mode
+  useEffect(() => {
+    if (!isFitMode || !activeSheet) return;
+    const last = lastFitContextRef.current;
+    if (
+      last.width === scrollState.viewportWidth &&
+      last.height === scrollState.viewportHeight &&
+      last.sheetIndex === activeSheetIndex &&
+      last.sheetRef === activeSheet
+    ) {
+      return;
+    }
+
+    lastFitContextRef.current = {
+      width: scrollState.viewportWidth,
+      height: scrollState.viewportHeight,
+      sheetIndex: activeSheetIndex,
+      sheetRef: activeSheet,
+    };
+
+    const newScale = computeFitScale(activeSheet, scrollState.viewportWidth, scrollState.viewportHeight);
+    setFitScale(newScale);
+    pendingInternalZoomRef.current = newScale;
+    if (typeof onZoomChange === 'function') {
+      onZoomChange(newScale);
+    }
+  }, [isFitMode, activeSheet, activeSheetIndex, scrollState.viewportWidth, scrollState.viewportHeight, computeFitScale, onZoomChange]);
+
+  // Scaled dimensions based on active mode (fitMode vs manual zoomLevel)
+  const effectiveScale = isFitMode ? fitScale : (zoomLevel || 1);
+  const scale = Math.max(0.35, Math.min(effectiveScale, 3.0));
+  const rowHeight = Math.max(18, Math.round(DEFAULT_ROW_HEIGHT * scale));
+  const rowHeaderWidth = Math.max(38, Math.round(ROW_HEADER_WIDTH * scale));
+  const headerRowHeight = Math.max(18, Math.round(HEADER_ROW_HEIGHT * scale));
 
   // Column width calculations & cumulative offsets
   const { columns, colOffsets, totalColsWidth } = useMemo(() => {
@@ -312,7 +503,14 @@ export const SpreadsheetViewer = forwardRef(({
       }
     },
     container: rootRef.current,
-  }), [data, handleSheetChange]);
+    fitToWidth: (force) => {
+      handleToggleFit(force);
+    },
+    getFitScale: (sheet, vpWidth, vpHeight) => {
+      return computeFitScale(sheet, vpWidth, vpHeight);
+    },
+    isFitMode: () => isFitMode,
+  }), [data, handleSheetChange, handleToggleFit, computeFitScale, isFitMode]);
 
   // Real-time search matches calculation across active sheet
   const searchMatches = useMemo(() => {
@@ -535,11 +733,11 @@ export const SpreadsheetViewer = forwardRef(({
       <div className="relative flex-1 min-h-0 overflow-hidden">
         {/* Main Virtualized Grid Viewport */}
         <div
-          ref={containerRef}
+          ref={containerCallbackRef}
           onScroll={onScroll}
           data-testid="spreadsheet-scroll-container"
           className="h-full w-full overflow-auto bg-background"
-          style={{ fontSize: `${Math.max(11, Math.round(13 * scale))}px` }}
+          style={{ fontSize: `${Math.max(10, Math.round(13 * scale))}px` }}
         >
         {/* Sizing dummy wrapper establishing scroll extents */}
         <div
@@ -580,7 +778,7 @@ export const SpreadsheetViewer = forwardRef(({
                 return (
                   <div
                     key={col.name || colIndex}
-                    className="absolute top-0 flex items-center justify-center border-r border-border text-xs font-medium text-muted-foreground bg-muted/80 select-none overflow-hidden"
+                    className="absolute top-0 flex items-center justify-center border-r border-border font-medium text-muted-foreground bg-muted/80 select-none overflow-hidden"
                     style={{
                       left: `${leftPos}px`,
                       width: `${w}px`,
@@ -617,7 +815,7 @@ export const SpreadsheetViewer = forwardRef(({
                 return (
                   <div
                     key={rowNum}
-                    className="absolute left-0 flex items-center justify-center border-b border-border text-xs font-mono text-muted-foreground bg-muted/80 select-none"
+                    className="absolute left-0 flex items-center justify-center border-b border-border font-mono text-muted-foreground bg-muted/80 select-none"
                     style={{
                       top: `${topPos}px`,
                       height: `${rowHeight}px`,

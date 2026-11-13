@@ -769,4 +769,587 @@ describe('SpreadsheetViewer', () => {
       unmount();
     });
   });
+
+  describe('Fit-to-View / Fit-to-Width (Issue #484)', () => {
+    const wideSpreadsheetData = {
+      sheets: [
+        {
+          id: 0,
+          name: 'WideSheet',
+          row_count: 5,
+          col_count: 15,
+          columns: Array.from({ length: 15 }, (_, i) => ({
+            name: String.fromCharCode(65 + i),
+            width: 100,
+          })),
+          cells: {
+            '0:0': { v: 'Header A' },
+            '0:14': { v: 'Header O' },
+          },
+          merges: [],
+          is_truncated: false,
+        },
+      ],
+    };
+
+    it('exposes fitToWidth and getFitScale on imperative ref and calculates responsive fit scale', async () => {
+      const spreadsheetUrl = 'https://example.com/api/v1/documents/doc-wide/spreadsheet-preview/';
+      axios.get.mockResolvedValueOnce({ data: wideSpreadsheetData });
+
+      const viewerRef = React.createRef();
+      const onZoomChange = vi.fn();
+
+      render(
+        <SpreadsheetViewer
+          ref={viewerRef}
+          spreadsheetUrl={spreadsheetUrl}
+          title="Wide Spreadsheet"
+          zoomLevel={1}
+          onZoomChange={onZoomChange}
+        />
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(screen.getByText('WideSheet')).toBeInTheDocument();
+
+      // Ensure ref exposes fit methods
+      expect(viewerRef.current).toBeDefined();
+      expect(typeof viewerRef.current.fitToWidth).toBe('function');
+      expect(typeof viewerRef.current.getFitScale).toBe('function');
+
+      // Unscaled grid width = 54 (row header) + 15 * 100 = 1554px.
+      // Default test viewportWidth = 800px.
+      // Expected fit scale is ~ (800 - 8) / 1554 ≈ 0.51, which should be below the legacy 0.75 clamp.
+      const calculatedScale = viewerRef.current.getFitScale();
+      expect(calculatedScale).toBeLessThan(0.75);
+      expect(calculatedScale).toBeGreaterThanOrEqual(0.35);
+
+      // Trigger fitToWidth
+      act(() => {
+        viewerRef.current.fitToWidth();
+      });
+
+      expect(onZoomChange).toHaveBeenCalledWith(calculatedScale);
+
+      // Second call to fitToWidth should toggle back to actual size (1.0)
+      act(() => {
+        viewerRef.current.fitToWidth();
+      });
+      expect(onZoomChange).toHaveBeenCalledWith(1);
+    });
+
+    it('exits fit mode when zoomLevel is adjusted manually by the parent', async () => {
+      const spreadsheetUrl = 'https://example.com/api/v1/documents/doc-manual/spreadsheet-preview/';
+      axios.get.mockResolvedValueOnce({ data: wideSpreadsheetData });
+
+      const viewerRef = React.createRef();
+      const onZoomChange = vi.fn();
+
+      const { rerender } = render(
+        <SpreadsheetViewer
+          ref={viewerRef}
+          spreadsheetUrl={spreadsheetUrl}
+          title="Wide Spreadsheet"
+          zoomLevel={1}
+          onZoomChange={onZoomChange}
+        />
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Enter fit mode
+      act(() => {
+        viewerRef.current.fitToWidth(true);
+      });
+      expect(viewerRef.current.isFitMode()).toBe(true);
+
+      // Parent simulates user clicking zoom in (+) toolbar button
+      rerender(
+        <SpreadsheetViewer
+          ref={viewerRef}
+          spreadsheetUrl={spreadsheetUrl}
+          title="Wide Spreadsheet"
+          zoomLevel={1.1}
+          onZoomChange={onZoomChange}
+        />
+      );
+
+      expect(viewerRef.current.isFitMode()).toBe(false);
+    });
+
+    it('preserves scale at 1.0 for small sheets that already fit within viewport', async () => {
+      const spreadsheetUrl = 'https://example.com/api/v1/documents/doc-small/spreadsheet-preview/';
+      const smallData = {
+        sheets: [
+          {
+            id: 0,
+            name: 'SmallSheet',
+            row_count: 3,
+            col_count: 3,
+            columns: [
+              { name: 'A', width: 80 },
+              { name: 'B', width: 80 },
+              { name: 'C', width: 80 },
+            ],
+            cells: { '0:0': { v: '1' } },
+            merges: [],
+            is_truncated: false,
+          },
+        ],
+      };
+      axios.get.mockResolvedValueOnce({ data: smallData });
+
+      const viewerRef = React.createRef();
+      render(
+        <SpreadsheetViewer
+          ref={viewerRef}
+          spreadsheetUrl={spreadsheetUrl}
+          title="Small Sheet"
+          zoomLevel={1}
+        />
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(screen.getByText('SmallSheet')).toBeInTheDocument();
+      // Total unscaled width = 54 + 240 = 294px < 800px. Unscaled height = 28 + 84 = 112px < 600px.
+      // Fits at 1.0 without stretching or blowing up.
+      expect(viewerRef.current.getFitScale()).toBe(1.0);
+    });
+
+    it('prioritizes width-constrained scaling for tall sheets to avoid unreadable compression', async () => {
+      const spreadsheetUrl = 'https://example.com/api/v1/documents/doc-tall/spreadsheet-preview/';
+      const tallData = {
+        sheets: [
+          {
+            id: 0,
+            name: 'TallSheet',
+            row_count: 500, // 500 rows * 28px = 14,000px height
+            col_count: 4,
+            columns: [
+              { name: 'A', width: 100 },
+              { name: 'B', width: 100 },
+              { name: 'C', width: 100 },
+              { name: 'D', width: 100 },
+            ],
+            cells: { '0:0': { v: 'Top' } },
+            merges: [],
+            is_truncated: false,
+          },
+        ],
+      };
+      axios.get.mockResolvedValueOnce({ data: tallData });
+
+      const viewerRef = React.createRef();
+      render(
+        <SpreadsheetViewer
+          ref={viewerRef}
+          spreadsheetUrl={spreadsheetUrl}
+          title="Tall Sheet"
+          zoomLevel={1}
+        />
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(screen.getByText('TallSheet')).toBeInTheDocument();
+      // Unscaled width = 54 + 400 = 454px <= 800px.
+      // Unscaled height is 14,028px. Height scale would be ~0.04, which is < 0.6.
+      // Should prioritize width fit (1.0) so text remains readable and scrolls vertically.
+      expect(viewerRef.current.getFitScale()).toBe(1.0);
+    });
+
+    it('measures viewport dimensions and attaches ResizeObserver once data loads', async () => {
+      let observeTarget = null;
+      const observeSpy = vi.fn((node) => {
+        observeTarget = node;
+      });
+      const originalRO = globalThis.ResizeObserver;
+      globalThis.ResizeObserver = vi.fn(function () {
+        return {
+          observe: observeSpy,
+          unobserve: vi.fn(),
+          disconnect: vi.fn(),
+        };
+      });
+
+      try {
+        const spreadsheetUrl = 'https://example.com/api/v1/documents/doc-ro/spreadsheet-preview/';
+        axios.get.mockResolvedValueOnce({ data: wideSpreadsheetData });
+
+        render(
+          <SpreadsheetViewer
+            spreadsheetUrl={spreadsheetUrl}
+            title="RO Test"
+            zoomLevel={1}
+          />
+        );
+
+        await act(async () => {
+          await Promise.resolve();
+        });
+
+        const container = screen.getByTestId('spreadsheet-scroll-container');
+        expect(observeSpy).toHaveBeenCalled();
+        expect(observeTarget).toBe(container);
+      } finally {
+        globalThis.ResizeObserver = originalRO;
+      }
+    });
+
+    it('computes fit scale against used cell range rather than trailing empty columns', async () => {
+      const spreadsheetUrl = 'https://example.com/api/v1/documents/doc-used-range/spreadsheet-preview/';
+      const sheetWithTrailingEmptyCols = {
+        sheets: [
+          {
+            id: 0,
+            name: 'SparseSheet',
+            row_count: 5,
+            col_count: 20,
+            columns: Array.from({ length: 20 }, (_, i) => ({
+              name: String.fromCharCode(65 + i),
+              width: 100,
+            })),
+            cells: {
+              '0:0': { v: 'A1' },
+              '1:2': { v: 'C2' },
+            },
+            merges: [],
+            is_truncated: false,
+          },
+        ],
+      };
+      axios.get.mockResolvedValueOnce({ data: sheetWithTrailingEmptyCols });
+
+      const viewerRef = React.createRef();
+      render(
+        <SpreadsheetViewer
+          ref={viewerRef}
+          spreadsheetUrl={spreadsheetUrl}
+          title="Sparse Sheet"
+          zoomLevel={1}
+        />
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Used range is columns A..C (3 columns = 300px + 54 = 354px).
+      // Viewport width = 800px.
+      // Since 354px <= 800px, it fits at 1.0.
+      expect(viewerRef.current.getFitScale()).toBe(1.0);
+    });
+
+    it('uses Math.floor to ensure fitScale does not cause pixel overflow', async () => {
+      const spreadsheetUrl = 'https://example.com/api/v1/documents/doc-floor/spreadsheet-preview/';
+      axios.get.mockResolvedValueOnce({ data: wideSpreadsheetData });
+
+      const viewerRef = React.createRef();
+      render(
+        <SpreadsheetViewer
+          ref={viewerRef}
+          spreadsheetUrl={spreadsheetUrl}
+          title="Floor Test"
+          zoomLevel={1}
+        />
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // 792 / 1554 = 0.50965... Math.floor gives 0.50, whereas Math.round gave 0.51
+      const scale = viewerRef.current.getFitScale();
+      expect(scale).toBe(0.5);
+    });
+
+    it('does not invoke onZoomChange duplicate times when entering fit mode', async () => {
+      const spreadsheetUrl = 'https://example.com/api/v1/documents/doc-no-dup/spreadsheet-preview/';
+      axios.get.mockResolvedValueOnce({ data: wideSpreadsheetData });
+
+      const viewerRef = React.createRef();
+      const onZoomChange = vi.fn();
+
+      render(
+        <SpreadsheetViewer
+          ref={viewerRef}
+          spreadsheetUrl={spreadsheetUrl}
+          title="No Duplicate"
+          zoomLevel={1}
+          onZoomChange={onZoomChange}
+        />
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      onZoomChange.mockClear();
+
+      act(() => {
+        viewerRef.current.fitToWidth(true);
+      });
+
+      // Should be called exactly once for the fit transition, not duplicated by the effect
+      expect(onZoomChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('maintains a readable minimum row height of at least 18px even at 0.35 scale', async () => {
+      const spreadsheetUrl = 'https://example.com/api/v1/documents/doc-min-h/spreadsheet-preview/';
+      axios.get.mockResolvedValueOnce({ data: wideSpreadsheetData });
+
+      const viewerRef = React.createRef();
+      render(
+        <SpreadsheetViewer
+          ref={viewerRef}
+          spreadsheetUrl={spreadsheetUrl}
+          title="Min Height"
+          zoomLevel={0.35}
+        />
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const headerRow = screen.getByTestId('spreadsheet-header-row');
+      // At scale 0.35, 28 * 0.35 = 9.8px, but min height must be at least 18px to prevent text clipping
+      expect(parseInt(headerRow.style.height, 10)).toBeGreaterThanOrEqual(18);
+    });
+
+    it('recomputes fit scale when switching sheets while in fit mode', async () => {
+      const spreadsheetUrl = 'https://example.com/api/v1/documents/doc-multi-fit/spreadsheet-preview/';
+      const multiSheetData = {
+        sheets: [
+          {
+            id: 0,
+            name: 'SmallSheet',
+            row_count: 2,
+            col_count: 2,
+            columns: [{ name: 'A', width: 80 }, { name: 'B', width: 80 }],
+            cells: { '0:0': { v: 'S1' } },
+            merges: [],
+            is_truncated: false,
+          },
+          {
+            id: 1,
+            name: 'WideSheet',
+            row_count: 5,
+            col_count: 15,
+            columns: Array.from({ length: 15 }, (_, i) => ({
+              name: String.fromCharCode(65 + i),
+              width: 100,
+            })),
+            cells: { '0:0': { v: 'W1' }, '0:14': { v: 'W15' } },
+            merges: [],
+            is_truncated: false,
+          },
+        ],
+      };
+      axios.get.mockResolvedValueOnce({ data: multiSheetData });
+
+      const viewerRef = React.createRef();
+      const onZoomChange = vi.fn();
+
+      render(
+        <SpreadsheetViewer
+          ref={viewerRef}
+          spreadsheetUrl={spreadsheetUrl}
+          title="Multi Sheet Fit"
+          zoomLevel={1}
+          onZoomChange={onZoomChange}
+        />
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Engage fit mode on SmallSheet (fits at 1.0)
+      act(() => {
+        viewerRef.current.fitToWidth(true);
+      });
+      expect(viewerRef.current.isFitMode()).toBe(true);
+
+      onZoomChange.mockClear();
+
+      // Switch to WideSheet
+      const wideTab = screen.getByText('WideSheet');
+      act(() => {
+        fireEvent.click(wideTab);
+      });
+
+      // Should automatically re-evaluate fit scale for WideSheet (~0.50)
+      expect(onZoomChange).toHaveBeenCalledWith(0.5);
+    });
+
+    it('reports false to onFitModeChange when unmounting', async () => {
+      const onFitModeChange = vi.fn();
+      const viewerRef = React.createRef();
+      const { unmount } = render(
+        <SpreadsheetViewer
+          ref={viewerRef}
+          spreadsheetUrl={spreadsheetUrl}
+          title="Unmount Test"
+          zoomLevel={1}
+          onFitModeChange={onFitModeChange}
+        />
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Enter fit mode
+      act(() => {
+        viewerRef.current.fitToWidth(true);
+      });
+      expect(onFitModeChange).toHaveBeenCalledWith(true);
+
+      onFitModeChange.mockClear();
+
+      // Unmount viewer
+      unmount();
+      expect(onFitModeChange).toHaveBeenCalledWith(false);
+    });
+
+    it('adjusts fit scale downward to prevent horizontal overflow from row header minimum and rounding', async () => {
+      // 15 columns of width 100 = 1500px unscaled cols width
+      // Plus ROW_HEADER_WIDTH 54 = 1554px unscaled total
+      const columns = Array.from({ length: 15 }, (_, i) => ({ name: String.fromCharCode(65 + i), width: 100 }));
+      const cells = {};
+      columns.forEach((_, i) => {
+        cells[`0:${i}`] = { v: `Val${i}` };
+      });
+      const overflowData = {
+        sheets: [
+          {
+            id: 0,
+            name: 'ExactFitSheet',
+            row_count: 10,
+            col_count: 15,
+            columns,
+            cells,
+            merges: [],
+            is_truncated: false,
+          },
+        ],
+      };
+      axios.get.mockResolvedValueOnce({ data: overflowData });
+
+      const viewerRef = React.createRef();
+      render(
+        <SpreadsheetViewer
+          ref={viewerRef}
+          spreadsheetUrl={spreadsheetUrl}
+          title="Overflow Test"
+          zoomLevel={1}
+        />
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Compute scale for viewport width 785 (availWidth = 777)
+      // Unscaled grid width = 54 + 1500 = 1554
+      // Continuous scale: 777 / 1554 = 0.50
+      // At scale 0.50: rowHeaderWidth is Math.max(38, Math.round(54 * 0.50)) = 38
+      // rendered columns: 15 * 50 = 750
+      // rendered total: 38 + 750 = 788 > 777 (would overflow by 11px!)
+      // Adjuster steps down to 0.49: 38 + 15 * 49 = 773 <= 777.
+      const scale = viewerRef.current.getFitScale(undefined, 785, 600);
+      expect(scale).toBe(0.49);
+    });
+
+    it('recalculates fit scale when spreadsheetUrl changes to a replacement workbook while in fit mode', async () => {
+      const wideData = {
+        sheets: [
+          {
+            id: 0,
+            name: 'WideDoc',
+            row_count: 10,
+            col_count: 20,
+            columns: Array.from({ length: 20 }, (_, i) => ({ name: `Col${i}`, width: 100 })),
+            cells: { '0:19': { v: 'End' } },
+            merges: [],
+            is_truncated: false,
+          },
+        ],
+      };
+      const smallData = {
+        sheets: [
+          {
+            id: 0,
+            name: 'SmallDoc',
+            row_count: 5,
+            col_count: 3,
+            columns: [
+              { name: 'A', width: 100 },
+              { name: 'B', width: 100 },
+              { name: 'C', width: 100 },
+            ],
+            cells: { '0:2': { v: 'Small' } },
+            merges: [],
+            is_truncated: false,
+          },
+        ],
+      };
+
+      axios.get.mockResolvedValueOnce({ data: wideData });
+
+      const onZoomChange = vi.fn();
+      const viewerRef = React.createRef();
+      const { rerender } = render(
+        <SpreadsheetViewer
+          ref={viewerRef}
+          spreadsheetUrl="https://example.com/docA.json"
+          title="Doc A"
+          zoomLevel={1}
+          onZoomChange={onZoomChange}
+        />
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Turn on fit mode on Doc A (fits at ~0.38)
+      act(() => {
+        viewerRef.current.fitToWidth(true);
+      });
+      expect(viewerRef.current.isFitMode()).toBe(true);
+
+      onZoomChange.mockClear();
+      axios.get.mockResolvedValueOnce({ data: smallData });
+
+      // Rerender with replacement doc B URL while staying in fit mode
+      rerender(
+        <SpreadsheetViewer
+          ref={viewerRef}
+          spreadsheetUrl="https://example.com/docB.json"
+          title="Doc B"
+          zoomLevel={1}
+          onZoomChange={onZoomChange}
+        />
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Should automatically recalculate and apply scale 1.0 for SmallDoc
+      expect(onZoomChange).toHaveBeenCalledWith(1.0);
+    });
+  });
 });
