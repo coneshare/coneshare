@@ -1,7 +1,7 @@
 # 🖋️ Feature Plan: Native eSignature (eSign) for Share Links & Virtual Datarooms
 
 - **Target Issue:** [coneshare/coneshare#445](https://github.com/coneshare/coneshare/issues/445)
-- **Status:** Proposed / Ready for Review
+- **Status:** Core Phase 1 & Phase 2 Implemented (DB Migration, i18n Localization, and E2E Pending)
 - **Architecture Lead:** Pair Programming Agent
 - **Target Components:** `backend/sharelinks/`, `backend/esign/`, `backend/documents/`, `backend/datarooms/`, `backend/automations/`, `frontend/src/components/`, `frontend/src/pages/`, `mcp-server/`
 
@@ -63,7 +63,10 @@ Every step of this plan strictly complies with `docs/tech_stack_guidelines.md` a
 1. **`ShareLink`**:
    - `nda_type = models.CharField(max_length=10, choices=[('text', 'Plain Text / Markdown'), ('pdf', 'PDF Document')], default='text')`
    - `nda_document = models.ForeignKey('documents.Document', null=True, blank=True, on_delete=models.SET_NULL, related_name='nda_share_links')`
+   - `nda_document_version = models.ForeignKey('documents.DocumentVersion', null=True, blank=True, on_delete=models.SET_NULL, related_name='nda_version_share_links')` (pins exact source bytes; updating the document does not silently alter active NDA terms)
+   - `nda_source_sha256 = models.CharField(max_length=64, blank=True, default='')`
    - `nda_pdf_storage_key = models.CharField(max_length=512, blank=True, default='')`
+   - Note: Modifying `nda_document_version`, `nda_source_sha256`, or `nda_text` must atomically bump `ShareLink.nda_version` so previously accepted sessions re-prompt against the new revision without mutating past `NDAAcceptance` evidence.
 2. **`NDAAcceptance`**:
    - `signer_name = models.CharField(max_length=255, blank=True, default='')`
    - `signer_title = models.CharField(max_length=255, blank=True, default='')`
@@ -74,6 +77,7 @@ Every step of this plan strictly complies with `docs/tech_stack_guidelines.md` a
    - `executed_pdf_storage_key = models.CharField(max_length=512, blank=True, default='')`
    - `original_doc_sha256 = models.CharField(max_length=64, blank=True, default='')`
    - `signed_doc_sha256 = models.CharField(max_length=64, blank=True, default='')`
+   - `seal_method = models.CharField(max_length=24, choices=[('visual_hash', 'Visual + Hash'), ('pades_x509', 'PAdES X.509 Seal')], default='visual_hash')`
 
 ### 3.2 PDF Stamping & Vector Overlay Engine
 
@@ -100,6 +104,9 @@ Leverage existing `reportlab` (v4.4.4) and `pypdf` (v6.21.4) dependencies in `ba
      - **Visual Signature Evidence:** Embedded thumbnail of the captured signature.
      - **Cryptographic Verification Box:** Pristine Document SHA-256 vs Executed Document SHA-256.
    - Append to the end of `PdfWriter` before writing to storage.
+5. **Cryptographic PAdES Sealing & Canonical Byte Immutability:**
+   - **Optional/Recommended PKI PDF Seal (`pyHanko`):** Visual stamping + SHA-256 text alone does not embed a PDF Signature Dictionary recognizable by Adobe Acrobat / Poppler `pdfsig`. After appending the Certificate of Completion, sign the finalized PDF bytes using `pyHanko` with a platform/organization X.509 signing certificate (PAdES-B-B / B-T) so third-party validators detect any post-execution tampering immediately.
+   - **Content-Addressed & Byte-Immutable Storage:** Persist executed artifacts under `{org_id}/signatures/{artifact_id}/{signed_doc_sha256}.pdf` (Rule 8). Derivative page preview renders (PNG/WebP) or viewer-session watermarks must be generated as separate derivatives on read and **never** rewrite canonical sealed PDF bytes.
 
 ```
 +--------------------------------------------------------------------------+
@@ -187,7 +194,9 @@ erDiagram
    - `organization` (FK `Organization`, on_delete=CASCADE)
    - `created_by` (FK `User`, on_delete=CASCADE)
    - `document` (FK `documents.Document`, on_delete=CASCADE)
+   - `document_version` (FK `documents.DocumentVersion`, on_delete=PROTECT)
    - `dataroom` (FK `datarooms.Dataroom`, null=True, blank=True, on_delete=SET_NULL)
+   - `idempotency_key` (CharField, max_length=200, blank=True) (with `UniqueConstraint(fields=['created_by', 'idempotency_key'])` when non-empty)
    - `title` (CharField, max_length=255)
    - `message` (TextField, blank=True)
    - `status` (`draft`, `sent`, `in_progress`, `completed`, `declined`, `voided`)
@@ -289,21 +298,36 @@ stateDiagram-v2
       ).exclude(status='signed').exists()
       return not has_uncompleted_predecessors and self.status in ['pending', 'notified', 'viewed']
   ```
-- **Automated Hand-off:** In a database transaction, upon Signer $N$ signing, check if Signer $N+1$ exists. If so, update their status to `notified` and enqueue their invitation email Celery task.
+- **Automated Hand-off & Transaction Isolation:** Inside `transaction.atomic()` with `SignatureRequest.objects.select_for_update()`, persist signer completion and verify `original_file_sha256` against `document_version` bytes before sealing. Network calls (SMTP email notifications, webhook delivery, async preview rendering) must **never** run inside the database lock; trigger Celery tasks exclusively via `transaction.on_commit()` alongside a periodic idempotent sweep to recover missed preview renders or stalled notifications.
+- **Voiding, Declines & NDA Reset:** Owners can void an in-flight or declined `SignatureRequest` (`status='voided'`) and issue a fresh request without mutating historical `SignatureAuditTrail` rows or already-completed artifacts. For Dataroom NDA gates, bumping the NDA revision (`ShareLink.nda_version`) or resetting a stuck visitor flow supersedes prior state while retaining past `NDAAcceptance` evidence read-only.
 - **Sealing & Storage Quota (Rule 1):** Once the final signer submits:
   - Acquire `select_for_update()` on `OrganizationStorage`.
   - Check remaining quota against expected file size.
   - Stamp all field overlays across all pages.
-  - Generate the multi-signer *Certificate of Completion*.
+  - Generate the multi-signer *Certificate of Completion*, apply optional `pyHanko` PAdES seal, and write immutable bytes keyed by `completed_file_sha256`.
   - Calculate final SHA-256 and store executed PDF into S3/local storage.
 
 ### 4.5 Virtual Dataroom (VDR) & Automations Integration
 
-1. **Vault Auto-Deposit:**
-   - If `SignatureRequest.dataroom` is set, upon completion, automatically create a new document in the dataroom's system folder: `__datarooms__/{dataroom_id}/Executed Contracts/{document_name}_signed.pdf`.
-   - Update `DataroomItemOrder` so it immediately appears in the room's document hierarchy.
+1. **Vault Auto-Deposit & Subject-Scoped NDA Privacy (Rule 12):**
+   - Separate executed files into two distinct VDR vault paths:
+     - **Closing Agreements (`1-to-1` deals):** `__datarooms__/{dataroom_id}/Executed/Agreements/{request_id}/{document_name}_signed.pdf` (visible to room owners/collaborators and authorized participants according to `ShareLinkDataroomSetting`).
+     - **Visitor NDAs (`Executed/NDAs/`):** `__datarooms__/{dataroom_id}/Executed/NDAs/{viewer_id}-{nda_version}/{document_name}_signed.pdf`.
+   - **Strict Isolation Guard:** Executed NDA files (and any file located under `Executed/NDAs/`) must **never** be exposed to sibling Dataroom visitors. Dataroom item listing, page rendering, and download resolvers must enforce an explicit subject-ownership check (`viewer.id` + verified `viewer_email` match, or authenticated room owner/collaborator).
+   - Update `DataroomItemOrder` so authorized items immediately appear in the room's document hierarchy without rewriting canonical PDF bytes during preview rendering.
 2. **Automations App Triggers:**
    - Dispatch `document.signed` event via `_dispatch_automation_event()` to notify configured Slack, Discord, Webhook, or Email endpoints.
+
+### 4.6 Token Transport Security, Coordinate Bounds & MCP Governance
+
+1. **Scanner-Tolerant Signer Handoff (Extending Rule 4):**
+   - Email invitations for direct signers carry the `access_token` inside the URL `#fragment` (`https://.../sign/{request_id}#token=...`), never in query parameters (`?token=...`).
+   - On page load, the SPA immediately strips the fragment via `history.replaceState()` and exchanges it via `POST` for an `HttpOnly`, `SameSite=Lax` signer session cookie. Consequently, corporate email link scanners (`GET` prefetchers) cannot consume or reveal single-use signing tokens, and server access logs remain free of credentials.
+2. **Strict Payload & Coordinate Validation (Rule 6):**
+   - Reject non-finite numbers (`NaN`, `Inf`), page counts outside `[1, 500]`, out-of-bounds boxes where `x + width > 100.0` or `y + height > 100.0`, and unverified/empty signature payloads before touching PDF rendering.
+3. **MCP / AI Agent Boundaries:**
+   - Expose read-only and preparation tools in `mcp-server/` (`list_signature_requests`, `get_signature_status`, `list_signable_document_versions`).
+   - Enforce an explicit safety boundary on mutating tools: AI agents (`APIKey`) may draft signature requests, but **external dispatch (`send_signature_request`) and disabling or weakening a Share Link / Dataroom NDA gate** require human JWT confirmation (or explicit approval gating), and MCP tool responses must strictly redact signer `access_token` and internal signing keys.
 
 ---
 
@@ -311,56 +335,58 @@ stateDiagram-v2
 
 ### Phase 1 Breakdown (Estimated 4 Sprints)
 
-- [ ] **Sprint 1.1: Backend Data Model & Migration**
-  - Add fields to `ShareLink` and `NDAAcceptance` in `backend/sharelinks/models.py`.
-  - Create and run migration via `make migrate`.
-  - Add model validation tests in `backend/tests/sharelinks/test_nda_models.py`.
-- [ ] **Sprint 1.2: PDF Stamping & Audit Certificate Engine**
-  - Implement `backend/sharelinks/services/pdf_stamping.py` with `ReportLab` and `pypdf`.
-  - Implement coordinate inversion and dual-mode signature rendering (canvas PNG vs OFL handwriting font).
-  - Implement `build_nda_completion_certificate()`.
-  - Add unit tests verifying byte integrity, vector text preservation, and SHA-256 hashes (`tests/sharelinks/test_pdf_stamping.py`).
-- [ ] **Sprint 1.3: Upgraded NDA API Endpoints**
-  - Refactor `NDAAcceptanceView` in `backend/sharelinks/views.py` to process signature payloads and execute server-side stamping.
-  - Add secure download endpoints with RFC 6266 headers (Rule 11).
-  - Write test suite covering verified email pre-fill, anonymous session fallback, and tamper hash verification.
-- [ ] **Sprint 1.4: Frontend PDF NDA Gate & Signature Pad**
-  - Create `frontend/src/components/viewer/SignatureCapturePad.jsx` (Draw + Type tabs).
-  - Update `NdaGateModal.jsx` to render PDF preview and trigger signature capture.
-  - Add all i18n keys to all 6 translation files (`en`, `zh-hans`, `de`, `fr`, `ru`, `nl`) per Rule 7 & Rule 10.
-  - Add unit tests in `frontend/src/tests/components/SignatureCapturePad.test.jsx`.
-- [ ] **Sprint 1.5: Owner Settings & Analytics Integration**
-  - Update `LinkSheet.jsx` to toggle between Plain Text and PDF NDA.
-  - Add download action buttons in `ShareLinkAnalyticsPage.jsx`.
-  - Run `make test` and `make test.front`.
+- [x] **Sprint 1.1: Backend Data Model & Migration**
+  - [x] Add fields (`nda_type`, `nda_document`, `nda_document_version`, `nda_source_sha256`, `nda_pdf_storage_key`, `seal_method`, etc.) to `ShareLink` and `NDAAcceptance` in `backend/sharelinks/models.py`.
+  - [x] Generate migration `backend/sharelinks/migrations/0014_ndaacceptance_executed_pdf_storage_key_and_more.py` (not yet applied via `make migrate` per user request).
+  - [ ] Run `make migrate` to apply schema changes to the runtime database.
+  - [x] Add model & version-bump validation tests (implemented in `backend/tests/sharelinks/test_pdf_nda.py`).
+- [x] **Sprint 1.2: PDF Stamping, PAdES Sealing & Audit Certificate Engine**
+  - [x] Implement shared vector stamping & sealing engine in `backend/esign/pdf_stamping.py` using `ReportLab` and `pypdf`.
+  - [x] Implement coordinate inversion and dual-mode signature rendering (drawn PNG vs typed).
+  - [x] Implement Audit Certificate page generation and content-addressed canonical storage (`{org_id}/signatures/.../{sha256}.pdf`).
+  - [x] Add unit tests verifying byte integrity, vector text preservation, and SHA-256 hashes (`backend/tests/esign/test_pdf_stamping.py`).
+  - [ ] *(Optional)* Add `pyHanko` PKI X.509 PAdES cryptographic signature embedding.
+- [x] **Sprint 1.3: Upgraded NDA API Endpoints**
+  - [x] Upgrade `ShareLinkAcceptNDAView` in `backend/sharelinks/views.py` to process signature payloads, verify `nda_source_sha256` against pinned `DocumentVersion`, and execute server-side stamping.
+  - [x] Add `ShareLinkNDAPreviewView`, `ShareLinkNDADownloadView` with RFC 6266 headers (Rule 11), and `Executed/NDAs/` subject-scoped isolation across Dataroom views and ZIP archives (`backend/sharelinks/archive.py`).
+  - [x] Write test suite covering authenticated/anonymous fallback, vaulting, isolation, and tamper hash verification (`backend/tests/sharelinks/test_pdf_nda.py`).
+- [~] **Sprint 1.4: Frontend PDF NDA Gate & Signature Pad** *(i18n deferred)*
+  - [x] Create `frontend/src/components/viewer/SignatureCapturePad.jsx` (Draw + Type tabs).
+  - [x] Update `frontend/src/components/viewer/NDAForm.jsx` to render PDF preview, trigger signature capture, and download executed PDFs.
+  - [ ] Add all i18n keys to all 6 translation files (`en`, `zh-hans`, `de`, `fr`, `ru`, `nl`) per Rule 7 & Rule 10 (explicitly deferred).
+  - [x] Add unit tests in `frontend/src/tests/components/viewer/SignatureCapturePad.test.jsx`.
+- [x] **Sprint 1.5: Owner Settings & Analytics Integration**
+  - [x] Update `frontend/src/components/links/LinkSheet.jsx` to toggle between Plain Text and PDF Template NDA.
+  - [x] Add executed PDF download action links in `frontend/src/pages/ShareLinkAnalyticsPage.jsx`.
+  - [x] Run `npm run lint` / `npm run test:whitelist` (`test.front`) and targeted backend `pytest` + `mypy` suites.
 
 ---
 
 ### Phase 2 Breakdown (Estimated 5 Sprints)
 
-- [ ] **Sprint 2.1: `backend/esign` App Scaffolding & Data Models**
-  - Create `backend/esign/` Django app (`SignatureRequest`, `Signer`, `SignatureField`, `SignatureAuditTrail`).
-  - Configure serializers ensuring Rule 2 (no raw metadata leaked) and Rule 6 (strict coordinate validators).
-  - Run `make migrate`.
-- [ ] **Sprint 2.2: Multi-Page Vector Stamping Engine for Arbitrary Fields**
-  - Generalize the ReportLab stamping pipeline to handle multi-page, multi-field, and multi-signer placement.
-  - Implement comprehensive *Certificate of Completion* with multi-party audit signatures.
-  - Write unit tests in `backend/tests/esign/test_field_stamping.py`.
-- [ ] **Sprint 2.3: Multi-Signer State Machine & API Endpoints**
-  - Implement state transition guards (Rule 3) and sequential notification dispatch.
-  - Implement signing endpoints: `POST /api/v1/esign/requests/{id}/sign/`.
-  - Integrate with `automations` (`document.signed` event) and Dataroom vault auto-deposit.
-- [ ] **Sprint 2.4: Frontend Drag-and-Drop Field Placement Editor**
-  - Build `SignatureFieldEditor.jsx` over `PdfJsViewer`.
-  - Implement draggable field chips, percentage positioning, and signer assignments.
-  - Add component tests in `frontend/src/tests/components/SignatureFieldEditor.test.jsx`.
-- [ ] **Sprint 2.5: Signer Guided Execution Flow**
-  - Build `SignDocumentPage.jsx` with guided next-field wizard and signature adoption.
-  - Hook into `ViewSession` / `PageView` for pre-signing reading engagement tracking.
-  - Complete all 6 translation catalogs.
-- [ ] **Sprint 2.6: Verification & End-to-End Validation**
-  - Run full test matrix: `make test`, `make test.front`, `make test.mcp`, `make api.schema.validate`.
-  - Add Playwright E2E spec in `e2e/tests/esign_flow.spec.js`.
+- [x] **Sprint 2.1: `backend/esign` App Scaffolding & Data Models**
+  - [x] Create `backend/esign/` Django app (`SignatureRequest` with `document_version` + `idempotency_key`, `Signer`, `SignatureField`, `SignatureAuditTrail`, `SignerPageView`).
+  - [x] Configure serializers ensuring Rule 2 (no raw metadata leaked) and Rule 6 (strict finite numeric & `x + width <= 100` / `y + height <= 100` validators).
+  - [x] Generate `backend/esign/migrations/0001_initial.py` (not yet applied via `make migrate` per user request).
+  - [ ] Run `make migrate` to apply schema changes to the runtime database.
+- [x] **Sprint 2.2: Multi-Page Vector Stamping & Sealing Engine for Arbitrary Fields**
+  - [x] Generalize the ReportLab + `pypdf` pipeline in `backend/esign/pdf_stamping.py` to handle multi-page, multi-field, and multi-signer placement.
+  - [x] Implement comprehensive *Certificate of Completion* with multi-party audit signatures and byte-immutable archival.
+  - [x] Write unit tests in `backend/tests/esign/test_pdf_stamping.py`.
+- [x] **Sprint 2.3: Multi-Signer State Machine, VDR Isolation & API Endpoints**
+  - [x] Implement `select_for_update()` state transition guards (Rule 3), idempotency checks, void/decline flows, and `transaction.on_commit()` notification dispatch (`backend/esign/services.py`, `tasks.py`).
+  - [x] Implement public signing endpoints and scanner-tolerant `#fragment` -> `HttpOnly` cookie exchange (`backend/esign/views.py`).
+  - [x] Integrate with `automations` (`document_signed` event) and Dataroom vault auto-deposit (`Executed/Agreements/` vs visitor-isolated `Executed/NDAs/`), tested in `backend/tests/esign/test_workflows_and_views.py`.
+- [~] **Sprint 2.4: Frontend Field Placement Studio** *(Simplified click-to-place v1 implemented)*
+  - [x] Build simplified click-to-place studio + numeric box positioning over `usePdfDocument` / `PdfPage` in `frontend/src/pages/SignaturesPage.jsx` with signer assignment, send/void/delete, `#token` link copying, and audit/analytics views.
+  - [ ] *(Optional Upgrade)* Extract dedicated drag-and-drop `SignatureFieldEditor.jsx` with `SignatureFieldEditor.test.jsx`.
+- [~] **Sprint 2.5: Signer Guided Execution Flow** *(i18n deferred)*
+  - [x] Build `frontend/src/pages/SignDocumentPage.jsx` with `#fragment` token handoff (`history.replaceState`), guided next-field scrolling, pre-sign `SignerPageView` engagement tracking, signature adoption, and executed PDF download (+ `SignDocumentPage.test.jsx`).
+  - [ ] Complete all 6 translation catalogs (explicitly deferred).
+- [~] **Sprint 2.6: MCP Tools, Verification & End-to-End Validation**
+  - [x] Add read-only/draft MCP tools in `mcp-server/coneshare_mcp/tools/esign.py` (`list_signature_requests`, `get_signature_request`, `create_signature_request_draft`, `void_signature_request`) with token redaction and no external dispatch tool, plus unit tests in `mcp-server/tests/test_esign_tools.py`.
+  - [x] Run targeted backend `pytest` + `mypy`, `npm run lint` + `npm run test:whitelist`, `test.mcp` (`mypy` + `unittest`), and OpenAPI schema validation (`spectacular --validate` + `openapi_spec_validator`).
+  - [ ] Add Playwright E2E spec in `e2e/tests/esign_flow.spec.js` (covering sequential signing, void/re-issue, and `Executed/NDAs/` cross-visitor isolation).
 
 ---
 

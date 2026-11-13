@@ -1,3 +1,4 @@
+import math
 import re
 from datetime import datetime
 from urllib.parse import urljoin
@@ -9,6 +10,9 @@ from rest_framework import serializers
 
 from core.models import Organization
 from datarooms.models import Dataroom
+from documents.models import Document
+from esign.pdf_stamping import compute_sha256, validate_pdf_bytes
+from esign.services import download_storage_bytes
 from .models import (DataroomVisit, PageView, ShareLink,
                      QnAMessage, QnAThread,
                      ShareLinkDataroomSetting, ShareLinkTemplate, Viewer,
@@ -430,10 +434,27 @@ class LinkClickRecordSerializer(serializers.ModelSerializer):
         return data
 
 
+def _pin_nda_document_snapshot(nda_document: Document):
+    """Downloads and validates a PDF NDA template outside DB locks and returns (version, storage_key, sha256)."""
+    version = nda_document.versions.filter(is_primary=True).order_by('-version_number').first()
+    if not version or not version.original_storage_key:
+        raise serializers.ValidationError({'nda_document': 'NDA template document does not have a ready PDF version.'})
+    try:
+        pdf_bytes = download_storage_bytes(version.original_storage_key)
+        validate_pdf_bytes(pdf_bytes)
+    except Exception as exc:
+        raise serializers.ValidationError({'nda_document': f'Invalid NDA PDF template: {exc}'}) from exc
+    return version, version.original_storage_key, compute_sha256(pdf_bytes)
+
+
 class ShareLinkSerializer(serializers.ModelSerializer):
     dataroom = serializers.PrimaryKeyRelatedField(
         queryset=Dataroom.objects.all(), required=False, allow_null=True
     )
+    nda_document = serializers.PrimaryKeyRelatedField(
+        queryset=Document.objects.all(), required=False, allow_null=True
+    )
+    nda_document_name = serializers.CharField(source='nda_document.name', read_only=True, allow_null=True)
     dataroom_settings = ShareLinkDataroomSettingSerializer(many=True, read_only=True)
     has_password = serializers.SerializerMethodField()
     view_count = serializers.SerializerMethodField()
@@ -530,6 +551,30 @@ class ShareLinkSerializer(serializers.ModelSerializer):
             if not watermark_text or not watermark_text.strip():
                 data['watermark_text'] = 'CONFIDENTIAL - {{email}}'
 
+        nda_type = data.get('nda_type', self.instance.nda_type if self.instance else ShareLink.NDA_TYPE_TEXT)
+        nda_document = data.get('nda_document', self.instance.nda_document if self.instance else None)
+        if nda_type == ShareLink.NDA_TYPE_PDF:
+            if not nda_document:
+                raise serializers.ValidationError({'nda_document': 'A PDF template document is required when nda_type is pdf.'})
+            if nda_document.type != 'pdf':
+                raise serializers.ValidationError({'nda_document': 'NDA template document must be a PDF.'})
+            if nda_document.status != 'ready':
+                raise serializers.ValidationError({'nda_document': 'NDA template document must be ready.'})
+            target_org_id = (
+                document.organization_id if document else
+                (dataroom.organization_id if dataroom else (self.instance.organization_id if self.instance else None))
+            )
+            if target_org_id and nda_document.organization_id != target_org_id:
+                raise serializers.ValidationError({'nda_document': 'NDA template document must belong to the same organization.'})
+            if request and hasattr(request, 'user') and request.user and request.user.is_authenticated:
+                user = request.user
+                is_nda_owner = nda_document.created_by_id is not None and nda_document.created_by_id == user.id
+                is_nda_org_admin = getattr(user, 'role', '') == 'admin' and nda_document.organization_id == user.organization_id
+                if not (is_nda_owner or is_nda_org_admin):
+                    raise serializers.ValidationError({'nda_document': 'You do not have permission to use this NDA template document.'})
+            if not nda_document.versions.filter(is_primary=True).exists():
+                raise serializers.ValidationError({'nda_document': 'NDA template document does not have a primary PDF version.'})
+
         # Manually handle uniqueness validation on update only.
         # On create, the `create` method handles finding a unique name.
         if self.instance and 'name' in data:
@@ -571,10 +616,14 @@ class ShareLinkSerializer(serializers.ModelSerializer):
             'id', 'document', 'dataroom', 'document_name', 'document_type', 'dataroom_name', 'dataroom_settings', 'created_by', 'created_by_user', 'name', 'slug', 'url', 'expires_at',
             'has_password', 'password', 'requires_email', 'requires_email_verification', 'allow_download', 'enable_qna',
             'enable_watermark', 'watermark_text', 'receive_email_notification', 'is_active', 'created_at', 'updated_at',
-            'view_count', 'recent_view_sessions', 'last_viewed_at', 'require_nda', 'nda_text', 'nda_version', 'has_accepted_current_nda'
+            'view_count', 'recent_view_sessions', 'last_viewed_at', 'require_nda', 'nda_text', 'nda_type',
+            'nda_document', 'nda_document_name', 'nda_document_version', 'nda_source_sha256', 'has_nda_pdf',
+            'nda_version', 'has_accepted_current_nda'
         ]
         read_only_fields = [
-            'id', 'created_by', 'created_by_user', 'slug', 'url', 'created_at', 'updated_at', 'document_name', 'document_type', 'nda_version', 'has_accepted_current_nda'
+            'id', 'created_by', 'created_by_user', 'slug', 'url', 'created_at', 'updated_at',
+            'document_name', 'document_type', 'nda_document_name', 'nda_document_version',
+            'nda_source_sha256', 'has_nda_pdf', 'nda_version', 'has_accepted_current_nda'
         ]
         extra_kwargs = {
             'name': {'required': True, 'allow_blank': True},
@@ -588,7 +637,12 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         # We handle uniqueness manually in `validate()` for updates and `create()` for creations.
         validators = []
 
+    has_nda_pdf = serializers.SerializerMethodField()
     url = serializers.SerializerMethodField()
+
+    def get_has_nda_pdf(self, obj) -> bool:
+        """Returns True if the share link has a pinned PDF NDA storage artifact."""
+        return bool(obj.nda_pdf_storage_key)
 
     def get_url(self, obj) -> str:
         site_domain = settings.SITE_DOMAIN.rstrip('/')
@@ -649,12 +703,47 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         elif dataroom:
             validated_data['name'] = _get_unique_dataroom_share_link_name(dataroom, original_name)
 
+        nda_type = validated_data.get('nda_type', ShareLink.NDA_TYPE_TEXT)
+        nda_document = validated_data.get('nda_document')
+        if nda_type == ShareLink.NDA_TYPE_PDF and nda_document:
+            version, storage_key, sha256 = _pin_nda_document_snapshot(nda_document)
+            validated_data['nda_document_version'] = version
+            validated_data['nda_pdf_storage_key'] = storage_key
+            validated_data['nda_source_sha256'] = sha256
+        elif nda_type == ShareLink.NDA_TYPE_TEXT:
+            validated_data['nda_document'] = None
+            validated_data['nda_document_version'] = None
+            validated_data['nda_pdf_storage_key'] = ''
+            validated_data['nda_source_sha256'] = ''
+
         # The post_save signal will now handle creating settings for dataroom links.
         share_link = super().create(validated_data)
 
         return share_link
 
     def update(self, instance, validated_data):
+        nda_type = validated_data.get('nda_type', instance.nda_type)
+        nda_document = validated_data.get('nda_document', instance.nda_document)
+        should_pin = (
+            nda_type == ShareLink.NDA_TYPE_PDF
+            and nda_document is not None
+            and (
+                'nda_type' in validated_data
+                or 'nda_document' in validated_data
+                or not instance.nda_source_sha256
+            )
+        )
+        if should_pin:
+            version, storage_key, sha256 = _pin_nda_document_snapshot(nda_document)
+            validated_data['nda_document_version'] = version
+            validated_data['nda_pdf_storage_key'] = storage_key
+            validated_data['nda_source_sha256'] = sha256
+        elif nda_type == ShareLink.NDA_TYPE_TEXT and 'nda_type' in validated_data:
+            validated_data['nda_document'] = None
+            validated_data['nda_document_version'] = None
+            validated_data['nda_pdf_storage_key'] = ''
+            validated_data['nda_source_sha256'] = ''
+
         return super().update(instance, validated_data)
 
 
@@ -791,3 +880,70 @@ class QnAOwnerThreadCreateSerializer(QnAThreadCreateSerializer):
 
 class QnAThreadStatusUpdateSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=[QnAThread.STATUS_OPEN, QnAThread.STATUS_CLOSED])
+
+
+class NDAAcceptanceSummarySerializer(serializers.ModelSerializer):
+    viewer_email = serializers.CharField(source='viewer.email', read_only=True, allow_null=True)
+    has_executed_pdf = serializers.SerializerMethodField()
+
+    class Meta:
+        model = NDAAcceptance
+        fields = [
+            'id',
+            'viewer_email',
+            'accepted_at',
+            'nda_version',
+            'signer_name',
+            'signer_title',
+            'signer_company',
+            'signer_email',
+            'signature_type',
+            'original_doc_sha256',
+            'signed_doc_sha256',
+            'seal_method',
+            'has_executed_pdf',
+            'vault_dataroom_document',
+        ]
+        read_only_fields = fields
+
+    def get_has_executed_pdf(self, obj) -> bool:
+        return bool(obj.executed_pdf_storage_key)
+
+
+class ShareLinkAcceptPDFNDASerializer(serializers.Serializer):
+    view_session_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    signer_name = serializers.CharField(max_length=255)
+    signer_title = serializers.CharField(required=False, allow_blank=True, max_length=255, default='')
+    signer_company = serializers.CharField(required=False, allow_blank=True, max_length=255, default='')
+    signer_email = serializers.EmailField(required=False, allow_blank=True, default='')
+    signature_type = serializers.ChoiceField(choices=['draw', 'type'])
+    signature_data = serializers.CharField()
+    page_number = serializers.IntegerField(required=False, min_value=1, max_value=500)
+    x_pct = serializers.FloatField(required=False, min_value=0.0, max_value=100.0)
+    y_pct = serializers.FloatField(required=False, min_value=0.0, max_value=100.0)
+    width_pct = serializers.FloatField(required=False, min_value=0.1, max_value=100.0)
+    height_pct = serializers.FloatField(required=False, min_value=0.1, max_value=100.0)
+
+    def validate(self, data):
+        signer_name = (data.get('signer_name') or '').strip()
+        if not signer_name:
+            raise serializers.ValidationError({'signer_name': 'Signer name cannot be empty.'})
+        data['signer_name'] = signer_name
+
+        coord_keys = ('page_number', 'x_pct', 'y_pct', 'width_pct', 'height_pct')
+        provided_coords = [k for k in coord_keys if k in data]
+        if provided_coords:
+            if len(provided_coords) != len(coord_keys):
+                raise serializers.ValidationError('Partial signature coordinates are not allowed; provide all of page_number, x_pct, y_pct, width_pct, height_pct or omit all.')
+            x = data['x_pct']
+            y = data['y_pct']
+            w = data['width_pct']
+            h = data['height_pct']
+            for key, val in (('x_pct', x), ('y_pct', y), ('width_pct', w), ('height_pct', h)):
+                if not math.isfinite(val):
+                    raise serializers.ValidationError({key: f'{key} must be a finite number.'})
+            if not (0.0 <= x < 100.0) or not (0.0 <= y < 100.0):
+                raise serializers.ValidationError('x_pct and y_pct must satisfy 0 <= value < 100.')
+            if not (w > 0.0 and h > 0.0) or (x + w > 100.0) or (y + h > 100.0):
+                raise serializers.ValidationError('Signature placement bounds exceed [0, 100] page percentage limits.')
+        return data

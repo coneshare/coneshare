@@ -1,15 +1,21 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getShareLinkDetails, getShareLinkViewSessions } from '../services/api';
+import {
+  getShareLinkDetails,
+  getShareLinkNdaAcceptances,
+  getShareLinkNdaDownloadUrl,
+  getShareLinkViewSessions,
+} from '../services/api';
 import { ViewSessionsTable } from '../components/documents/ViewSessionsTable';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Button } from '../components/ui/Button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Download, FileCheck2 } from 'lucide-react';
 
 export function ShareLinkAnalyticsPage() {
   const { documentId, linkId } = useParams();
   const [link, setLink] = useState(null);
   const [viewsData, setViewsData] = useState(null);
+  const [ndaAcceptances, setNdaAcceptances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewsLoading, setViewsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -17,8 +23,12 @@ export function ShareLinkAnalyticsPage() {
   const fetchLinkDetails = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getShareLinkDetails(linkId);
-      setLink(response.data);
+      const [linkResp, ndaResp] = await Promise.all([
+        getShareLinkDetails(linkId),
+        getShareLinkNdaAcceptances(linkId).catch(() => ({ data: [] })),
+      ]);
+      setLink(linkResp.data);
+      setNdaAcceptances(Array.isArray(ndaResp.data) ? ndaResp.data : []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -91,6 +101,66 @@ export function ShareLinkAnalyticsPage() {
           pageSize={10}
         />
       </div>
+
+      {ndaAcceptances.length > 0 && (
+        <div className="mt-10 space-y-3">
+          <div className="flex items-center gap-2">
+            <FileCheck2 className="h-5 w-5 text-indigo-600" />
+            <h2 className="text-lg font-semibold">Executed NDA Records</h2>
+          </div>
+          <div className="overflow-x-auto rounded-lg border bg-card">
+            <table className="w-full text-sm">
+              <thead className="border-b bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3">Signer</th>
+                  <th className="px-4 py-3">Email</th>
+                  <th className="px-4 py-3">Version</th>
+                  <th className="px-4 py-3">Signed At</th>
+                  <th className="px-4 py-3">Document SHA-256</th>
+                  <th className="px-4 py-3 text-right">Executed PDF</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {ndaAcceptances.map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-4 py-3 font-medium">
+                      {item.signer_name || 'Viewer'}
+                      {item.signer_company ? ` (${item.signer_company})` : ''}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {item.signer_email || item.viewer_email || '—'}
+                    </td>
+                    <td className="px-4 py-3">v{item.nda_version}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {item.accepted_at ? new Date(item.accepted_at).toLocaleString() : '—'}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                      {item.signed_doc_sha256 ? `${item.signed_doc_sha256.slice(0, 12)}...` : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {item.has_executed_pdf ? (
+                        <Button asChild size="sm" variant="outline">
+                          <a
+                            href={getShareLinkNdaDownloadUrl(link.slug, item.id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            <span>Download PDF</span>
+                          </a>
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Plain Text</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

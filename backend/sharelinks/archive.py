@@ -13,8 +13,9 @@ from zipstream import ZipStream
 from datarooms.models import DataroomDocument, DataroomFolder
 from documents.fileserver import fileserver_client
 from core.services import get_dynamic_setting, get_max_watermark_file_size_mb
+from esign.vault import is_executed_nda_folder
 
-from .models import ShareLink, ShareLinkDataroomSetting
+from .models import NDAAcceptance, ShareLink, ShareLinkDataroomSetting
 
 logger = logging.getLogger(__name__)
 
@@ -248,6 +249,8 @@ def generate_dataroom_archive_stream(
     dataroom = link.dataroom
     if not dataroom:
         return ZipStream(), 0
+    if root_folder and is_executed_nda_folder(root_folder):
+        return ZipStream(), 0
 
     # 1. Bulk-Fetch Hierarchy in 3 Queries
     all_folders = list(DataroomFolder.objects.filter(dataroom=dataroom))
@@ -258,6 +261,25 @@ def generate_dataroom_archive_stream(
         ).select_related('document').prefetch_related('document__versions')
     )
     all_settings = list(ShareLinkDataroomSetting.objects.filter(share_link=link))
+    executed_nda_doc_ids = set(
+        NDAAcceptance.objects.filter(vault_dataroom_document__dataroom=dataroom)
+        .values_list('vault_dataroom_document_id', flat=True)
+    )
+
+    folders_by_id = {f.id: f for f in all_folders}
+
+    def _folder_is_excluded_nda(f_obj: DataroomFolder) -> bool:
+        names: list[str] = []
+        curr: Optional[DataroomFolder] = f_obj
+        visited = set()
+        while curr and curr.id not in visited:
+            visited.add(curr.id)
+            names.append((curr.name or '').strip())
+            curr = folders_by_id.get(curr.parent_id) if curr.parent_id else None
+        top_down = list(reversed(names))
+        return len(top_down) >= 2 and top_down[0] == 'Executed' and top_down[1] == 'NDAs'
+
+    excluded_nda_folder_ids = {f.id for f in all_folders if _folder_is_excluded_nda(f)}
 
     # 2. Index settings and tree relationships in-memory
     folder_settings = {}
@@ -293,6 +315,8 @@ def generate_dataroom_archive_stream(
 
         # Process child folders
         for child_folder in folders_by_parent.get(folder_id, []):
+            if child_folder.id in excluded_nda_folder_ids:
+                continue
             if child_folder.id in visited_folder_ids:
                 logger.warning("Detected folder cycle at child_folder_id=%s, skipping recursion.", child_folder.id)
                 continue
@@ -311,6 +335,8 @@ def generate_dataroom_archive_stream(
 
         # Process documents in this folder scope
         for child_doc in docs_by_folder.get(folder_id, []):
+            if child_doc.id in executed_nda_doc_ids or child_doc.folder_id in excluded_nda_folder_ids:
+                continue
             setting = doc_settings.get(child_doc.id)
             if not setting or not setting.is_visible or not setting.allow_download:
                 continue

@@ -4,6 +4,7 @@ import math
 import os
 import secrets
 import tempfile
+import uuid
 from datetime import timedelta
 from io import BytesIO
 from pathlib import Path
@@ -25,12 +26,13 @@ from django.utils.http import quote_etag
 from django.utils.text import get_valid_filename
 from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound, APIException, PermissionDenied
+from rest_framework.exceptions import NotFound, APIException, PermissionDenied, ValidationError as DRFValidationError
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from django.db.models import Count, F, Max, Q
 from geoip2.errors import AddressNotFoundError
 from rest_framework.views import APIView
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, inline_serializer
 
 from backend.utils import get_client_ip
@@ -41,9 +43,31 @@ from datarooms.serializers import (PublicDataroomDocumentSerializer,
                                    PublicDataroomFolderSerializer)
 from datarooms.views import get_dataroom_queryset_for_user
 from documents.fileserver import fileserver_client
+from documents.models import sanitize_filename
 from documents.services import (
+    QuotaExceededError,
     preview_status_for_render_status,
 )
+from esign.pdf_stamping import (
+    FieldStamp,
+    compute_sha256,
+    render_typed_signature_png,
+    stamp_fields_and_seal_pdf,
+    validate_pdf_bytes,
+    validate_signature_data_url,
+)
+from esign.services import download_storage_bytes
+from esign.vault import (
+    build_rfc6266_attachment_header,
+    build_rfc6266_content_disposition,
+    build_signature_artifact_storage_key,
+    deposit_executed_pdf_to_dataroom,
+    enforce_quota_before_artifact_creation,
+    is_executed_nda_dataroom_document,
+    is_executed_nda_folder,
+    upload_canonical_artifact,
+)
+from core.models import APIKey
 from core.pagination import StandardResultsSetPagination
 from documents.renderers import get_renderer
 from documents.views import prepare_pages_data
@@ -54,10 +78,12 @@ from .models import (DataroomVisit, EmailVerificationToken, PreviewSession,
                      ViewSession, NDAAcceptance)
 from .serializers import (DataroomVisitSerializer, PageViewRecordSerializer,
                           LinkClickRecordSerializer, RecordVisitSerializer,
+                          NDAAcceptanceSummarySerializer,
                           QnAMessageCreateSerializer, QnAMessageSerializer,
                           QnAOwnerThreadCreateSerializer,
                           QnAThreadCreateSerializer, QnAThreadSerializer,
                           QnAThreadStatusUpdateSerializer,
+                          ShareLinkAcceptPDFNDASerializer,
                           ShareLinkDataroomSettingUpdateSerializer,
                           ShareLinkEmailSerializer, ShareLinkPasswordSerializer,
                           ShareLinkTemplateSerializer, ShareLinkSerializer,
@@ -103,6 +129,9 @@ def _is_dataroom_folder_path_visible(link: ShareLink, folder: DataroomFolder | N
     if folder.dataroom_id and link.dataroom_id and folder.dataroom_id != link.dataroom_id:
         return False
 
+    if is_executed_nda_folder(folder):
+        return False
+
     ancestor_ids = []
     curr = folder
     visited = set()
@@ -146,6 +175,8 @@ def _resolve_dataroom_document_setting(link: ShareLink, requested_dataroom_docum
     # DoesNotExist is handled by callers as a permission failure.
     setting = base_qs.filter(dataroom_document_id=requested_dataroom_document_id).order_by('-updated_at').first()
     if not setting:
+        raise ShareLinkDataroomSetting.DoesNotExist()
+    if visible_only and is_executed_nda_dataroom_document(setting.dataroom_document):
         raise ShareLinkDataroomSetting.DoesNotExist()
     if visible_only and setting.dataroom_document.folder:
         if not _is_dataroom_folder_path_visible(link, setting.dataroom_document.folder):
@@ -441,6 +472,8 @@ def _build_share_link_public_meta(link: ShareLink, request=None) -> dict:
         "owner_avatar_url": owner_avatar_url,
         "organization_name": owner.organization.name if owner.organization else "",
         "require_nda": link.require_nda,
+        "nda_type": link.nda_type,
+        "nda_document_name": link.nda_document.name if link.nda_document else None,
         "nda_text": link.nda_text,
         "nda_version": link.nda_version,
         "has_accepted_current_nda": has_accepted_current_nda,
@@ -588,6 +621,8 @@ def _verify_share_link_session_authorization(
                 "message": "NDA acceptance is required to view this content." if nda_status_code == status.HTTP_401_UNAUTHORIZED else "NDA acceptance is required.",
                 "protectionType": "nda",
                 "require_nda": True,
+                "nda_type": link.nda_type,
+                "nda_document_name": link.nda_document.name if link.nda_document else None,
                 "nda_text": link.nda_text,
                 "nda_version": link.nda_version,
             },
@@ -729,6 +764,20 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         if not can_user_edit_share_link(self.request.user, instance):
             raise PermissionDenied("You do not have permission to update this share link.")
+        if isinstance(self.request.auth, APIKey) and instance.require_nda:
+            vdata = serializer.validated_data
+            nda_doc_changed = (
+                'nda_document' in vdata
+                and (vdata['nda_document'].id if vdata['nda_document'] else None) != instance.nda_document_id
+            )
+            nda_text_changed = (
+                'nda_text' in vdata and (vdata['nda_text'] or '') != (instance.nda_text or '')
+            )
+            nda_type_changed = (
+                'nda_type' in vdata and vdata['nda_type'] != instance.nda_type
+            )
+            if vdata.get('require_nda') is False or nda_type_changed or nda_doc_changed or nda_text_changed:
+                raise PermissionDenied("Disabling or modifying an active NDA gate requires human authentication.")
         serializer.save()
 
     def perform_destroy(self, instance):
@@ -839,6 +888,18 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
                 {"detail": "An internal server error occurred."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=True, methods=['get'], url_path='nda-acceptances')
+    def nda_acceptances(self, request, pk=None):
+        """Lists recorded NDA acceptances (including executed PDF metadata) for a share link."""
+        share_link = self.get_object()
+        acceptances = (
+            share_link.nda_acceptances
+            .select_related('viewer', 'vault_dataroom_document')
+            .order_by('-accepted_at')
+        )
+        serializer = NDAAcceptanceSummarySerializer(acceptances, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @extend_schema(tags=['sharelinks'])
@@ -1282,13 +1343,29 @@ class ShareLinkViewDataView(APIView):
                 ).values('dataroom_document_id', 'is_visible', 'allow_download', 'enable_watermark')
             }
 
+            parent_is_root_executed = bool(
+                parent_id
+                and requested_parent
+                and requested_parent.parent_id is None
+                and (requested_parent.name or '').strip() == 'Executed'
+            )
+            excluded_nda_doc_ids = (
+                set(
+                    NDAAcceptance.objects.filter(vault_dataroom_document_id__in=scoped_doc_ids)
+                    .values_list('vault_dataroom_document_id', flat=True)
+                )
+                if scoped_doc_ids
+                else set()
+            )
             scope_folders = [
                 folder for folder in scoped_folders
                 if folder_settings.get(str(folder.id), {}).get('is_visible', False)
+                and not (parent_is_root_executed and (folder.name or '').strip() == 'NDAs')
             ]
             scope_docs = [
                 doc for doc in scoped_docs
                 if doc_settings.get(str(doc.id), {}).get('is_visible', False)
+                and doc.id not in excluded_nda_doc_ids
             ]
 
             max_watermark_mb = get_max_watermark_file_size_mb()
@@ -1940,10 +2017,276 @@ class ShareLinkVerifyPasswordView(APIView):
             )
 
 
+def _resolve_or_create_nda_view_session(link, request, auth_status, viewer, view_session_id, ip_address, user_agent):
+    """Finds an existing ViewSession or creates one when accepting an NDA."""
+    view_session = None
+    if view_session_id:
+        view_session = ViewSession.objects.filter(id=view_session_id, share_link=link).first()
+
+    if not view_session:
+        existing_session_id = auth_status.get('view_session_id')
+        if existing_session_id:
+            view_session = ViewSession.objects.filter(id=existing_session_id, share_link=link).first()
+            if view_session:
+                view_session_id = str(view_session.id)
+
+    if not view_session:
+        viewer_email = auth_status.get('viewer_email')
+        email_val = viewer.email if viewer else (viewer_email or '')
+
+        location_data = {}
+        if ip_address and settings.GEOIP:
+            try:
+                location_data = settings.GEOIP.city(ip_address)
+            except AddressNotFoundError:
+                pass
+            except Exception as e:
+                logger.error(f"GeoIP2 lookup failed: {e}")
+
+        email_method = auth_status.get('email_method', '')
+        if not email_val and request.user.is_authenticated:
+            email_val = request.user.email
+            is_owner = (request.user == link.created_by)
+            email_method = 'owner' if is_owner else 'account'
+
+        view_session = ViewSession.objects.create(
+            share_link=link,
+            viewer=viewer,
+            viewer_email=email_val,
+            email_verification_method=email_method if email_val else '',
+            ip_address=ip_address,
+            user_agent=user_agent,
+            country=location_data.get('country_name') or '',
+            city=location_data.get('city') or '',
+            latitude=location_data.get('latitude'),
+            longitude=location_data.get('longitude'),
+        )
+        view_session_id = str(view_session.id)
+
+        base_payload = {
+            'view_session_id': view_session_id,
+            'viewer_email': email_val,
+        }
+        if link.document_id:
+            _dispatch_automation_event(link, 'document_viewed', base_payload, view_session=view_session)
+        elif link.dataroom_id:
+            _dispatch_automation_event(link, 'dataroom_opened', base_payload, view_session=view_session)
+
+    return view_session, str(view_session.id)
+
+
+def _load_verified_nda_pdf_bytes(link: ShareLink, *, validate_pdf: bool = False) -> tuple[bytes | None, int | None, Response | None]:
+    """Downloads the pinned PDF NDA bytes and verifies its SHA-256 digest matches link.nda_source_sha256."""
+    try:
+        pdf_bytes = download_storage_bytes(link.nda_pdf_storage_key)
+    except Exception as exc:
+        logger.error("Failed to fetch PDF NDA template for link %s: %s", link.id, exc)
+        return None, None, Response(
+            {"message": "Failed to retrieve NDA PDF template."},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    if link.nda_source_sha256 and compute_sha256(pdf_bytes) != link.nda_source_sha256:
+        logger.error("NDA PDF template SHA-256 mismatch for link %s", link.id)
+        return None, None, Response(
+            {"message": "NDA PDF template integrity verification failed."},
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    page_count = None
+    if validate_pdf:
+        try:
+            page_count = validate_pdf_bytes(pdf_bytes)
+        except Exception as exc:
+            logger.error("Invalid PDF NDA template for link %s: %s", link.id, exc)
+            return None, None, Response(
+                {"message": "Could not load the NDA PDF template."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    return pdf_bytes, page_count, None
+
+
+def _execute_pdf_nda_acceptance(
+    *,
+    link: ShareLink,
+    request,
+    auth_status: dict,
+    viewer,
+    view_session_id: str | None,
+    ip_address: str,
+    user_agent: str,
+    validated_data: dict,
+):
+    """Validates signature input, seals the pinned PDF NDA outside DB locks, enforces quota, and vaults executed artifact."""
+    if not link.nda_pdf_storage_key or not link.nda_source_sha256:
+        return Response(
+            {"message": "PDF NDA template is not configured for this link."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    org = _get_share_link_organization(link)
+    sig_type = validated_data['signature_type']
+    sig_data = validated_data['signature_data']
+    signer_name = validated_data['signer_name']
+    signer_title = (validated_data.get('signer_title') or '').strip()
+    signer_company = (validated_data.get('signer_company') or '').strip()
+    signer_email = (
+        (validated_data.get('signer_email') or '').strip().lower()
+        or (viewer.email if viewer else '')
+        or (auth_status.get('viewer_email') or '').strip().lower()
+    )
+
+    try:
+        if sig_data.startswith('data:image/') or sig_type == 'draw':
+            sig_png_bytes = validate_signature_data_url(sig_data)
+        else:
+            sig_png_bytes = render_typed_signature_png(sig_data or signer_name)
+    except (DjangoValidationError, DRFValidationError, ValueError) as exc:
+        return Response({"message": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    original_pdf_bytes, page_count, err_resp = _load_verified_nda_pdf_bytes(link, validate_pdf=True)
+    if err_resp is not None:
+        return err_resp
+    assert original_pdf_bytes is not None and page_count is not None
+
+    acceptance_id = uuid.uuid4()
+    page_num = validated_data.get('page_number') or page_count
+    if page_num > page_count:
+        return Response(
+            {"page_number": f"Page number {page_num} exceeds NDA PDF page count ({page_count})."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    stamp = FieldStamp(
+        page_number=page_num,
+        x=float(validated_data.get('x_pct', 58.0)),
+        y=float(validated_data.get('y_pct', 78.0)),
+        width=float(validated_data.get('width_pct', 32.0)),
+        height=float(validated_data.get('height_pct', 10.0)),
+        field_type='signature',
+        image_bytes=sig_png_bytes,
+        signer_label=signer_name,
+    )
+    executed_at_iso = timezone.now().isoformat()
+    doc_title = link.nda_document.name if link.nda_document else f"NDA - {link.slug}"
+    sealed_pdf_bytes, orig_sha, signed_sha, seal_method = stamp_fields_and_seal_pdf(
+        original_pdf_bytes=original_pdf_bytes,
+        stamps=[stamp],
+        certificate_metadata={
+            'document_name': doc_title,
+            'envelope_id': str(acceptance_id),
+            'completed_at': executed_at_iso,
+        },
+        signer_rows=[
+            {
+                'name': f"{signer_name} ({signer_title})" if signer_title else signer_name,
+                'email': signer_email or 'anonymous',
+                'auth': f"Signed via Link / IP {ip_address or 'unknown'}",
+                'signed_at': executed_at_iso,
+            }
+        ],
+        audit_events=[
+            {
+                'timestamp': executed_at_iso,
+                'event_type': 'NDA Executed',
+                'summary': f"{signer_email or signer_name} ({ip_address or 'unknown'})",
+            }
+        ],
+    )
+
+    sig_storage_key = build_signature_artifact_storage_key(
+        org.id, f'nda_{link.id}', f'sig_{acceptance_id}', ext='.png'
+    )
+    pdf_storage_key = build_signature_artifact_storage_key(
+        org.id, f'nda_{link.id}', f'exec_{acceptance_id}', ext='.pdf'
+    )
+
+    try:
+        upload_canonical_artifact(sig_storage_key, sig_png_bytes, content_type='image/png')
+        upload_canonical_artifact(pdf_storage_key, sealed_pdf_bytes, content_type='application/pdf')
+    except Exception as exc:
+        logger.error("Failed to upload canonical NDA artifacts for link %s: %s", link.id, exc)
+        return Response(
+            {"message": "Failed to store executed NDA artifact."},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    view_session, resolved_view_session_id = _resolve_or_create_nda_view_session(
+        link, request, auth_status, viewer, view_session_id, ip_address, user_agent
+    )
+
+    try:
+        with transaction.atomic():
+            enforce_quota_before_artifact_creation(
+                owner_user=link.created_by,
+                file_size=len(sealed_pdf_bytes),
+                dataroom=link.dataroom,
+            )
+            vault_ddoc = None
+            if link.dataroom_id:
+                subject_raw = sanitize_filename(signer_email or signer_name or 'recipient') or 'recipient'
+                subject_folder = f"{subject_raw}-v{link.nda_version}"[:255]
+                base_doc_name = link.nda_document.name if link.nda_document else 'NDA'
+                vault_filename = f"Executed_{base_doc_name}_{signer_name}.pdf"
+                vault_ddoc = deposit_executed_pdf_to_dataroom(
+                    dataroom=link.dataroom,
+                    actor_user=link.created_by,
+                    storage_key=pdf_storage_key,
+                    file_size=len(sealed_pdf_bytes),
+                    filename=vault_filename,
+                    folder_parts=['Executed', 'NDAs', subject_folder],
+                )
+
+            acceptance = NDAAcceptance.objects.create(
+                id=acceptance_id,
+                share_link=link,
+                nda_version=link.nda_version,
+                view_session=None if viewer else view_session,
+                viewer=viewer,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                signer_name=signer_name,
+                signer_title=signer_title,
+                signer_company=signer_company,
+                signer_email=signer_email,
+                signature_type=sig_type,
+                signature_image_storage_key=sig_storage_key,
+                executed_pdf_storage_key=pdf_storage_key,
+                original_doc_sha256=orig_sha,
+                signed_doc_sha256=signed_sha,
+                seal_method=seal_method,
+                vault_dataroom_document=vault_ddoc,
+            )
+
+            transaction.on_commit(
+                lambda: _dispatch_automation_event(
+                    link,
+                    'document_signed',
+                    {
+                        'nda_acceptance_id': str(acceptance.id),
+                        'nda_version': link.nda_version,
+                        'signer_name': signer_name,
+                        'signer_email': signer_email,
+                        'signed_doc_sha256': signed_sha,
+                    },
+                    view_session=view_session,
+                )
+            )
+    except QuotaExceededError as exc:
+        return Response({"message": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return {
+        'acceptance': acceptance,
+        'view_session_id': resolved_view_session_id,
+        'signed_doc_sha256': signed_sha,
+    }
+
+
 @extend_schema(tags=['sharelinks'])
 class ShareLinkAcceptNDAView(APIView):
     """
     Accepts the NDA for a share link and authorizes the session.
+    Supports both legacy plain-text NDA acceptance and Phase 1 PDF NDA signing + stamping.
     """
     permission_classes = [permissions.AllowAny]
 
@@ -1952,6 +2295,12 @@ class ShareLinkAcceptNDAView(APIView):
             name='ShareLinkAcceptNDASerializer',
             fields={
                 'view_session_id': serializers.CharField(required=False, allow_null=True, allow_blank=True),
+                'signer_name': serializers.CharField(required=False, allow_blank=True),
+                'signer_title': serializers.CharField(required=False, allow_blank=True),
+                'signer_company': serializers.CharField(required=False, allow_blank=True),
+                'signer_email': serializers.EmailField(required=False, allow_blank=True),
+                'signature_type': serializers.CharField(required=False, allow_blank=True),
+                'signature_data': serializers.CharField(required=False, allow_blank=True),
             }
         ),
         responses={200: dict, 400: dict, 404: dict, 410: dict},
@@ -1976,9 +2325,7 @@ class ShareLinkAcceptNDAView(APIView):
         if gate_error:
             return gate_error
 
-        view_session_id = request.data.get('view_session_id')
-
-        # Resolve viewer and view_session
+        # Resolve viewer and session context
         viewer = None
         viewer_email = auth_status.get('viewer_email')
         if viewer_email:
@@ -1991,70 +2338,53 @@ class ShareLinkAcceptNDAView(APIView):
         ip_address = get_client_ip(request)
         user_agent = request.META.get('HTTP_USER_AGENT', '')[:255]
 
-        view_session = None
-        if view_session_id:
-            try:
-                view_session = ViewSession.objects.get(id=view_session_id, share_link=link)
-            except ViewSession.DoesNotExist:
-                pass
-
-        if not view_session:
-            # Check if a session already exists in the user's cookie context
-            existing_session_id = auth_status.get('view_session_id')
-            if existing_session_id:
-                try:
-                    view_session = ViewSession.objects.get(id=existing_session_id, share_link=link)
-                    view_session_id = str(view_session.id)
-                except ViewSession.DoesNotExist:
-                    pass
-
-        # If no view_session exists (e.g. anonymous link or first-time viewer),
-        # create a ViewSession on the fly for them so we can tie the NDAAcceptance.
-        if not view_session:
-            email_val = viewer.email if viewer else (viewer_email or '')
-            
-            # GeoIP lookup
-            location_data = {}
-            if ip_address and settings.GEOIP:
-                try:
-                    location_data = settings.GEOIP.city(ip_address)
-                except AddressNotFoundError:
-                    pass
-                except Exception as e:
-                    logger.error(f"GeoIP2 lookup failed: {e}")
-
-            email_method = auth_status.get('email_method', '')
-            if not email_val and request.user.is_authenticated:
-                email_val = request.user.email
-                is_owner = (request.user == link.created_by)
-                email_method = 'owner' if is_owner else 'account'
-
-            view_session = ViewSession.objects.create(
-                share_link=link,
+        if link.nda_type == ShareLink.NDA_TYPE_PDF:
+            serializer = ShareLinkAcceptPDFNDASerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            validated = serializer.validated_data
+            result = _execute_pdf_nda_acceptance(
+                link=link,
+                request=request,
+                auth_status=auth_status,
                 viewer=viewer,
-                viewer_email=email_val,
-                email_verification_method=email_method if email_val else '',
+                view_session_id=validated.get('view_session_id'),
                 ip_address=ip_address,
                 user_agent=user_agent,
-                country=location_data.get('country_name') or '',
-                city=location_data.get('city') or '',
-                latitude=location_data.get('latitude'),
-                longitude=location_data.get('longitude')
+                validated_data=validated,
             )
-            view_session_id = str(view_session.id)
+            if isinstance(result, Response):
+                return result
 
-            # Trigger automation events
-            base_payload = {
-                'view_session_id': view_session_id,
-                'viewer_email': email_val,
-            }
-            if link.document_id:
-                _dispatch_automation_event(link, 'document_viewed', base_payload, view_session=view_session)
-            elif link.dataroom_id:
-                _dispatch_automation_event(link, 'dataroom_opened', base_payload, view_session=view_session)
+            acceptance = result['acceptance']
+            view_session_id = result['view_session_id']
+            if str(link.id) not in authorized_links:
+                authorized_links[str(link.id)] = {}
+            authorized_links[str(link.id)]['nda_accepted_version'] = link.nda_version
+            authorized_links[str(link.id)]['view_session_id'] = view_session_id
+            authorized_links[str(link.id)]['nda_acceptance_id'] = str(acceptance.id)
+            request.session['authorized_share_links'] = authorized_links
+
+            return Response(
+                {
+                    "message": "NDA accepted and signed successfully.",
+                    "view_session_id": view_session_id,
+                    "acceptance_id": str(acceptance.id),
+                    "nda_version": link.nda_version,
+                    "signed_doc_sha256": result['signed_doc_sha256'],
+                    "has_executed_pdf": True,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        view_session_id = request.data.get('view_session_id')
+        _, view_session_id = _resolve_or_create_nda_view_session(
+            link, request, auth_status, viewer, view_session_id, ip_address, user_agent
+        )
+        view_session = ViewSession.objects.filter(id=view_session_id, share_link=link).first()
 
         # Create NDAAcceptance record
-        NDAAcceptance.objects.create(
+        acceptance = NDAAcceptance.objects.create(
             share_link=link,
             nda_version=link.nda_version,
             view_session=None if viewer else view_session,
@@ -2067,6 +2397,7 @@ class ShareLinkAcceptNDAView(APIView):
             authorized_links[str(link.id)] = {}
         authorized_links[str(link.id)]['nda_accepted_version'] = link.nda_version
         authorized_links[str(link.id)]['view_session_id'] = view_session_id
+        authorized_links[str(link.id)]['nda_acceptance_id'] = str(acceptance.id)
         request.session['authorized_share_links'] = authorized_links
 
         return Response(
@@ -2076,6 +2407,139 @@ class ShareLinkAcceptNDAView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+
+def _can_caller_access_nda_acceptance(request, link: ShareLink, acceptance: NDAAcceptance) -> bool:
+    """Checks whether the authenticated owner/admin or accepting viewer session owns this acceptance."""
+    if request.user and request.user.is_authenticated and can_user_manage_share_link(request.user, link):
+        return True
+    auth_status = request.session.get('authorized_share_links', {}).get(str(link.id), {})
+    if auth_status.get('nda_acceptance_id') and str(auth_status.get('nda_acceptance_id')) == str(acceptance.id):
+        return True
+    if auth_status.get('view_session_id') and acceptance.view_session_id:
+        if str(auth_status.get('view_session_id')) == str(acceptance.view_session_id):
+            return True
+    if auth_status.get('email_verified') and auth_status.get('viewer_email'):
+        session_email = (auth_status.get('viewer_email') or '').strip().lower()
+        acceptance_email = (acceptance.viewer.email if acceptance.viewer else acceptance.signer_email or '').strip().lower()
+        if session_email and acceptance_email == session_email and auth_status.get('nda_accepted_version') == acceptance.nda_version:
+            return True
+    return False
+
+
+@extend_schema(tags=['sharelinks'], responses={(200, 'application/pdf'): OpenApiTypes.BINARY})
+class ShareLinkNDAPreviewView(APIView):
+    """Streams the pinned unsigned PDF NDA template for pre-sign viewer inspection."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, slug, *args, **kwargs):
+        link = ShareLink.objects.select_related('nda_document', 'created_by').filter(slug=slug).first()
+        is_manager = bool(link and request.user and request.user.is_authenticated and can_user_manage_share_link(request.user, link))
+        if not is_manager:
+            try:
+                link = _get_active_share_link(slug)
+            except NotFound as e:
+                return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
+            except LinkExpired as e:
+                return Response({"message": e.detail}, status=status.HTTP_410_GONE)
+
+            auth_status = request.session.get('authorized_share_links', {}).get(str(link.id)) or {}
+            gate_error = _check_sequential_gate_prerequisites(link, auth_status, target_gate='nda')
+            if gate_error:
+                return gate_error
+
+        if not link.require_nda or link.nda_type != ShareLink.NDA_TYPE_PDF or not link.nda_pdf_storage_key:
+            return Response({"message": "No PDF NDA template configured for this link."}, status=status.HTTP_404_NOT_FOUND)
+
+        pdf_bytes, _, err_resp = _load_verified_nda_pdf_bytes(link)
+        if err_resp is not None:
+            return err_resp
+
+        filename = link.nda_document.name if link.nda_document else f"nda_{link.slug}.pdf"
+        if not filename.lower().endswith('.pdf'):
+            filename = f"{filename}.pdf"
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = build_rfc6266_content_disposition(
+            filename, fallback='nda.pdf', disposition='inline'
+        )
+        return response
+
+
+@extend_schema(tags=['sharelinks'], responses={(200, 'application/pdf'): OpenApiTypes.BINARY})
+class ShareLinkNDADownloadView(APIView):
+    """Downloads a sealed executed PDF NDA with strict owner/subject authorization and RFC 6266 headers."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, slug, *args, **kwargs):
+        link = ShareLink.objects.select_related('nda_document', 'created_by').filter(slug=slug).first()
+        is_manager = bool(link and request.user and request.user.is_authenticated and can_user_manage_share_link(request.user, link))
+        if not is_manager:
+            try:
+                link = _get_active_share_link(slug)
+            except NotFound as e:
+                return Response({"message": e.detail}, status=status.HTTP_404_NOT_FOUND)
+            except LinkExpired as e:
+                return Response({"message": e.detail}, status=status.HTTP_410_GONE)
+
+        acceptance_id = request.query_params.get('acceptance_id')
+        acceptance = None
+        if acceptance_id:
+            acceptance = (
+                NDAAcceptance.objects
+                .select_related('viewer', 'view_session')
+                .filter(id=acceptance_id, share_link=link)
+                .first()
+            )
+            if not acceptance:
+                return Response({"message": "Executed NDA acceptance not found."}, status=status.HTTP_404_NOT_FOUND)
+            if not _can_caller_access_nda_acceptance(request, link, acceptance):
+                return Response({"message": "You do not have permission to download this executed NDA."}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            auth_status = request.session.get('authorized_share_links', {}).get(str(link.id), {})
+            session_acc_id = auth_status.get('nda_acceptance_id')
+            if session_acc_id:
+                acceptance = NDAAcceptance.objects.select_related('viewer', 'view_session').filter(
+                    id=session_acc_id, share_link=link
+                ).first()
+            elif auth_status.get('email_verified') and auth_status.get('viewer_email'):
+                viewer_email = auth_status['viewer_email'].strip().lower()
+                acceptance = (
+                    NDAAcceptance.objects
+                    .select_related('viewer', 'view_session')
+                    .filter(share_link=link, nda_version=link.nda_version)
+                    .filter(Q(viewer__email=viewer_email) | Q(signer_email=viewer_email))
+                    .exclude(executed_pdf_storage_key='')
+                    .order_by('-accepted_at')
+                    .first()
+                )
+            elif is_manager:
+                acceptance = (
+                    NDAAcceptance.objects
+                    .select_related('viewer', 'view_session')
+                    .filter(share_link=link)
+                    .exclude(executed_pdf_storage_key='')
+                    .order_by('-accepted_at')
+                    .first()
+                )
+            if not acceptance or not _can_caller_access_nda_acceptance(request, link, acceptance):
+                return Response({"message": "You do not have permission to download this executed NDA."}, status=status.HTTP_403_FORBIDDEN)
+
+        if not acceptance.executed_pdf_storage_key:
+            return Response({"message": "No executed PDF exists for this NDA acceptance."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            pdf_bytes = download_storage_bytes(acceptance.executed_pdf_storage_key)
+        except Exception as exc:
+            logger.error("Failed to download executed NDA PDF %s: %s", acceptance.id, exc)
+            return Response({"message": "Failed to retrieve executed NDA PDF."}, status=status.HTTP_502_BAD_GATEWAY)
+
+        base_name = link.nda_document.name if link.nda_document else f"NDA-{link.slug}"
+        if base_name.lower().endswith('.pdf'):
+            base_name = base_name[:-4]
+        filename = f"{base_name}_signed.pdf"
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = build_rfc6266_attachment_header(filename, fallback='executed_nda.pdf')
+        return response
 
 
 @extend_schema(tags=['sharelinks'])

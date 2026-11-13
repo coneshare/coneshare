@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   createShareLink,
+  getDocuments,
   updateShareLink,
 } from '../../services/api';
 import { Button } from '../ui/Button';
@@ -43,6 +44,10 @@ export function LinkSheet({
   const [isSaving, setIsSaving] = useState(false);
   const [requireNda, setRequireNda] = useState(false);
   const [ndaText, setNdaText] = useState('');
+  const [ndaType, setNdaType] = useState('text');
+  const [ndaDocumentId, setNdaDocumentId] = useState('');
+  const [pdfTemplates, setPdfTemplates] = useState([]);
+  const [loadingPdfTemplates, setLoadingPdfTemplates] = useState(false);
 
   const isEditing = !!currentLink;
   const isWatermarkable = ['pdf', 'document', 'image'].includes(document?.type) || !!dataroom;
@@ -75,6 +80,8 @@ export function LinkSheet({
         setWatermarkText(currentLink.watermark_text || '');
         setRequireNda(currentLink.require_nda || false);
         setNdaText(currentLink.nda_text || '');
+        setNdaType(currentLink.nda_type || 'text');
+        setNdaDocumentId(currentLink.nda_document || '');
       } else {
         setName('');
         setRequiresEmail(false);
@@ -90,6 +97,8 @@ export function LinkSheet({
         setWatermarkText('');
         setRequireNda(false);
         setNdaText('');
+        setNdaType('text');
+        setNdaDocumentId('');
       }
     }
 
@@ -97,6 +106,30 @@ export function LinkSheet({
       setAllowDownload(true);
     }
   }, [currentLink, document, dataroom, isEditing, isOpen, isWatermarkable]);
+
+  useEffect(() => {
+    if (!isOpen || !requireNda || ndaType !== 'pdf' || typeof getDocuments !== 'function') {
+      return;
+    }
+    let cancelled = false;
+    setLoadingPdfTemplates(true);
+    getDocuments({ limit: 100 })
+      .then((res) => {
+        if (cancelled) return;
+        const rows = res.data?.results || res.data || [];
+        const pdfs = rows.filter((d) => d.type === 'pdf' && d.status === 'ready');
+        setPdfTemplates(pdfs);
+      })
+      .catch((err) => {
+        console.error('Failed to load PDF templates for NDA:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPdfTemplates(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, requireNda, ndaType]);
     
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -112,7 +145,13 @@ export function LinkSheet({
       watermark_text: isWatermarkable && enableWatermark ? watermarkText : '',
       expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
       require_nda: requireNda,
-      nda_text: requireNda ? ndaText : '',
+      nda_text: requireNda && ndaType === 'text' ? ndaText : '',
+      ...(requireNda || isEditing
+        ? {
+            nda_type: requireNda ? ndaType : 'text',
+            nda_document: requireNda && ndaType === 'pdf' ? (ndaDocumentId || null) : null,
+          }
+        : {}),
     };
     
     if (isQnaAvailable) {
@@ -266,17 +305,73 @@ export function LinkSheet({
             />
           </div>
           {requireNda && (
-            <div className="space-y-2">
-              <Label htmlFor="nda-text">{t('linkSheet.ndaTerms')}</Label>
-              <textarea
-                id="nda-text"
-                rows={4}
-                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                value={ndaText}
-                onChange={(e) => setNdaText(e.target.value)}
-                placeholder={t('linkSheet.ndaTermsPlaceholder')}
-                required
-              />
+            <div className="space-y-3 rounded-md border border-gray-200 dark:border-zinc-800 p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">NDA Format</span>
+                <div className="inline-flex rounded-md border border-input bg-muted p-0.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setNdaType('text')}
+                    className={`rounded px-2.5 py-1 font-medium transition-colors ${
+                      ndaType === 'text'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Plain Text
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNdaType('pdf')}
+                    className={`rounded px-2.5 py-1 font-medium transition-colors ${
+                      ndaType === 'pdf'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    PDF Template
+                  </button>
+                </div>
+              </div>
+
+              {ndaType === 'text' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="nda-text">{t('linkSheet.ndaTerms')}</Label>
+                  <textarea
+                    id="nda-text"
+                    rows={4}
+                    className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    value={ndaText}
+                    onChange={(e) => setNdaText(e.target.value)}
+                    placeholder={t('linkSheet.ndaTermsPlaceholder')}
+                    required
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="nda-pdf-document">PDF NDA Template</Label>
+                  <select
+                    id="nda-pdf-document"
+                    value={ndaDocumentId}
+                    onChange={(e) => setNdaDocumentId(e.target.value)}
+                    required
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="">
+                      {loadingPdfTemplates ? 'Loading PDF documents...' : 'Select a ready PDF document...'}
+                    </option>
+                    {pdfTemplates.map((docItem) => (
+                      <option key={docItem.id} value={docItem.id}>
+                        {docItem.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Viewers will preview this PDF and apply an electronic signature before accessing content.
+                  </p>
+                </div>
+              )}
+
               {isEditing && currentLink?.require_nda && (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   {t('linkSheet.ndaWarning')}

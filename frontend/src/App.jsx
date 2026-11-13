@@ -18,6 +18,7 @@ const SignupPage = lazyNamed(() => import('./pages/SignupPage'), 'SignupPage');
 const SignupVerifyPage = lazyNamed(() => import('./pages/SignupVerifyPage'), 'SignupVerifyPage');
 const ShareLinkViewerPage = lazyNamed(() => import('./pages/ShareLinkViewerPage'), 'ShareLinkViewerPage');
 const PublicUploadPage = lazyNamed(() => import('./pages/PublicUploadPage'), 'PublicUploadPage');
+const SignDocumentPage = lazyNamed(() => import('./pages/SignDocumentPage'), 'SignDocumentPage');
 const CloudAuthCallbackPage = lazyNamed(() => import('./pages/CloudAuthCallbackPage'), 'CloudAuthCallbackPage');
 const ErrorPage = lazyNamed(() => import('./pages/ErrorPage'), 'ErrorPage');
 const NotFoundPage = lazyNamed(() => import('./pages/NotFoundPage'), 'NotFoundPage');
@@ -35,6 +36,7 @@ const FileRequestsPage = lazyNamed(() => import('./pages/FileRequestsPage'), 'Fi
 const FileRequestDetailPage = lazyNamed(() => import('./pages/FileRequestDetailPage'), 'FileRequestDetailPage');
 const AllLinksPage = lazyNamed(() => import('./pages/AllLinksPage'), 'AllLinksPage');
 const AllViewSessionsPage = lazyNamed(() => import('./pages/AllViewSessionsPage'), 'AllViewSessionsPage');
+const SignaturesPage = lazyNamed(() => import('./pages/SignaturesPage'), 'SignaturesPage');
 const AutomationsPage = lazyNamed(() => import('./pages/AutomationsPage'), 'AutomationsPage');
 const UserSettingsPage = lazy(() => import('./pages/UserSettingsPage'));
 const PasswordSettingsPage = lazy(() => import('./pages/PasswordSettingsPage'));
@@ -71,6 +73,7 @@ function App() {
                 <Route path="/signup/verify" element={<SignupVerifyPage />} />
                 <Route path="/view/:slug" element={<ShareLinkViewerPage />} />
                 <Route path="/upload/:slug" element={<PublicUploadPage />} />
+                <Route path="/sign/:requestId" element={<SignDocumentPage />} />
                 <Route path="/500" element={<ErrorPage />} />
                 <Route element={<AuthGuard />}>
                   <Route path="/auth/:providerName/callback" element={<CloudAuthCallbackPage />} />
@@ -88,6 +91,7 @@ function App() {
                     <Route path="/file-requests/:requestId" element={<FileRequestDetailPage />} />
                     <Route path="/analytics/links" element={<AllLinksPage />} />
                     <Route path="/analytics/view-sessions" element={<AllViewSessionsPage />} />
+                    <Route path="/signatures" element={<SignaturesPage />} />
                     <Route path="/automations" element={<AutomationsPage />} />
                     <Route path="/settings" element={<UserSettingsPage />} />
                     <Route path="/settings/password" element={<PasswordSettingsPage />} />
