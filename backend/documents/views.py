@@ -877,6 +877,51 @@ class FolderViewSet(viewsets.ModelViewSet):
             created_by=self.request.user
         )
 
+    @action(detail=False, methods=['get'], url_path='search')
+    def search(self, request):
+        """
+        Searches personal folders by name for the authenticated user,
+        optionally scoped to a parent folder.
+        """
+        search_query = (request.query_params.get('search') or '').strip()[:200]
+        if not search_query:
+            return Response([])
+
+        organization = request.user.organization
+        folder_id = request.query_params.get('folder')
+        queryset = self.get_queryset().filter(
+            folder_type=Folder.FOLDER_TYPE_PERSONAL,
+            name__icontains=search_query,
+        ).select_related('created_by', 'parent')
+
+        if folder_id:
+            target_folder = get_object_or_404(
+                Folder.objects.active(),
+                id=folder_id,
+                organization=organization,
+                created_by=request.user,
+                folder_type=Folder.FOLDER_TYPE_PERSONAL,
+            )
+            queryset = queryset.filter(parent=target_folder)
+
+        folder_parent_map = {
+            str(row['id']): {
+                'id': row['id'],
+                'name': row['name'],
+                'parent_id': row['parent_id'],
+            }
+            for row in Folder.objects.active().filter(
+                organization=organization,
+                created_by=request.user,
+            ).values('id', 'name', 'parent_id')
+        }
+        serializer = self.get_serializer(
+            queryset.order_by('name', 'id')[:100],
+            many=True,
+            context={**self.get_serializer_context(), 'folder_parent_map': folder_parent_map},
+        )
+        return Response(serializer.data)
+
     def perform_create(self, serializer):
         parent = serializer.validated_data.get('parent')
         if parent and (parent.created_by != self.request.user or parent.deleted_at is not None):
@@ -938,6 +983,8 @@ class DocumentViewSet(viewsets.ModelViewSet):
             return self.queryset.filter(
                 organization=self.request.user.organization,
                 created_by=self.request.user
+            ).exclude(
+                folder__folder_type=Folder.FOLDER_TYPE_VAULT
             ).select_related('folder').annotate(
                 share_link_view_count=Count('share_links__view_sessions', distinct=True)
             ).prefetch_related(
@@ -959,27 +1006,60 @@ class DocumentViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         """
         Returns a list of documents for the currently authenticated user,
-        optionally filtered by a parent folder.
+        optionally filtered by a parent folder or search query.
         """
         queryset = self.get_queryset()
         organization = self.request.user.organization
         folder_id = self.request.query_params.get('folder')
+        search_query = self.request.query_params.get('search', '').strip()[:200]
+        serializer_context = self.get_serializer_context()
 
-        if folder_id:
-            # Ensure the requested folder belongs to the user's org for security
-            target_folder = get_object_or_404(Folder.objects.active(), id=folder_id, organization=organization)
+        if search_query:
+            queryset = queryset.filter(
+                Q(name__icontains=search_query) | Q(description__icontains=search_query)
+            )
+            if folder_id:
+                target_folder = get_object_or_404(
+                    Folder.objects.active(),
+                    id=folder_id,
+                    organization=organization,
+                    created_by=request.user,
+                    folder_type=Folder.FOLDER_TYPE_PERSONAL,
+                )
+                queryset = queryset.filter(folder=target_folder)
+            serializer_context['folder_parent_map'] = {
+                str(row['id']): {
+                    'id': row['id'],
+                    'name': row['name'],
+                    'parent_id': row['parent_id'],
+                }
+                for row in Folder.objects.active().filter(
+                    organization=organization,
+                    created_by=request.user,
+                ).values('id', 'name', 'parent_id')
+            }
         else:
-            # Default to listing documents in the root folder
-            target_folder = get_object_or_404(Folder.objects.active(), organization=organization, name='__root__', parent=None)
+            if folder_id:
+                # Ensure the requested folder belongs to the user in their org for security
+                target_folder = get_object_or_404(
+                    Folder.objects.active(),
+                    id=folder_id,
+                    organization=organization,
+                    created_by=request.user,
+                    folder_type=Folder.FOLDER_TYPE_PERSONAL,
+                )
+            else:
+                # Default to listing documents in the root folder
+                target_folder = get_object_or_404(Folder.objects.active(), organization=organization, name='__root__', parent=None)
 
-        queryset = queryset.filter(folder=target_folder)
+            queryset = queryset.filter(folder=target_folder)
 
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = self.get_serializer(page, many=True)
+            serializer = self.get_serializer(page, many=True, context=serializer_context)
             return self.get_paginated_response(serializer.data)
 
-        serializer = self.get_serializer(queryset, many=True)
+        serializer = self.get_serializer(queryset, many=True, context=serializer_context)
         return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):

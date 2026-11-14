@@ -3,17 +3,19 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { MoreVertical, Pencil, Share2, Trash2, Users, LogOut, Crown, Folder } from 'lucide-react';
+import { MoreVertical, Pencil, Search, Share2, Trash2, Users, LogOut, Crown, Folder } from 'lucide-react';
 import { toast } from 'sonner';
 import { AddDataroomDialog } from '../components/datarooms/AddDataroomDialog';
 import { ConfirmationDialog } from '../components/dialogs/ConfirmationDialog';
 import { RenameItemDialog } from '../components/dialogs/RenameItemDialog';
 import { PlusIcon } from '../components/icons/PlusIcon';
+import { SearchBox } from '../components/SearchBox';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Badge } from '../components/ui/Badge';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/Avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/Tooltip';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/Tabs';
+import { useDebounce } from '../hooks/useDebounce';
 import { getDatarooms, deleteDataroom, removeDataroomCollaborator } from '../services/api';
 import { useUser } from '../contexts/UserProvider';
 import { formatDate, getAvatarInitial, isDataroomOwner, isDataroomCollaborator } from '../utils/formatters';
@@ -56,6 +58,8 @@ export function DataroomsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const currentScope = searchParams.get('scope') || 'all';
+  const [searchInput, setSearchInput] = useState(() => searchParams.get('search') || '');
+  const debouncedSearch = useDebounce(searchInput, 300);
   const [datarooms, setDatarooms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddDataroomOpen, setIsAddDataroomOpen] = useState(false);
@@ -67,7 +71,10 @@ export function DataroomsPage() {
   const fetchDatarooms = useCallback(async () => {
     setIsLoading(true);
     try {
-      const params = currentScope !== 'all' ? { scope: currentScope } : {};
+      const params = {};
+      if (currentScope !== 'all') params.scope = currentScope;
+      const search = (searchParams.get('search') || '').trim();
+      if (search) params.search = search;
       const response = await getDatarooms(params);
       setDatarooms(response.data);
     } catch {
@@ -75,14 +82,28 @@ export function DataroomsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentScope]);
+  }, [currentScope, searchParams]);
 
   useEffect(() => {
     fetchDatarooms();
   }, [fetchDatarooms]);
 
+  useEffect(() => {
+    const trimmed = debouncedSearch.trim();
+    const current = searchParams.get('search') || '';
+    if (trimmed === current) return;
+    const next = new URLSearchParams(searchParams);
+    if (trimmed) next.set('search', trimmed);
+    else next.delete('search');
+    setSearchParams(next, { replace: true });
+  }, [debouncedSearch, searchParams, setSearchParams]);
+
   const handleScopeChange = (scope) => {
-    setSearchParams(scope === 'all' ? {} : { scope });
+    const next = new URLSearchParams();
+    if (scope !== 'all') next.set('scope', scope);
+    const search = (searchParams.get('search') || '').trim();
+    if (search) next.set('search', search);
+    setSearchParams(next);
   };
 
   const handleSuccess = () => {
@@ -135,14 +156,28 @@ export function DataroomsPage() {
         </Button>
       </div>
 
-      {/* Scope Filter Tabs */}
-      <Tabs value={currentScope} onValueChange={handleScopeChange} className="w-full">
-        <TabsList className="grid grid-cols-3 sm:inline-flex w-full sm:w-auto">
-          <TabsTrigger value="all">{t('datarooms.allDatarooms')}</TabsTrigger>
-          <TabsTrigger value="created_by_me">{t('datarooms.createdByMe')}</TabsTrigger>
-          <TabsTrigger value="shared_with_me">{t('datarooms.sharedWithMe')}</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      {/* Scope Filter Tabs & Search */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Tabs value={currentScope} onValueChange={handleScopeChange} className="w-full sm:w-auto">
+          <TabsList className="grid grid-cols-3 sm:inline-flex w-full sm:w-auto">
+            <TabsTrigger value="all">{t('datarooms.allDatarooms')}</TabsTrigger>
+            <TabsTrigger value="created_by_me">{t('datarooms.createdByMe')}</TabsTrigger>
+            <TabsTrigger value="shared_with_me">{t('datarooms.sharedWithMe')}</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div className="relative w-full sm:max-w-xs">
+          <SearchBox
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onClear={() => setSearchInput('')}
+            loading={isLoading && searchInput !== debouncedSearch}
+            inputClassName="h-10"
+            placeholder={t('datarooms.searchDatarooms')}
+            aria-label={t('datarooms.searchDatarooms')}
+          />
+        </div>
+      </div>
 
       {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -158,7 +193,14 @@ export function DataroomsPage() {
           ))}
         </div>
       ) : datarooms.length === 0 ? (
-        currentScope === 'shared_with_me' ? (
+        (searchParams.get('search') || '').trim() ? (
+          <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-muted bg-muted/20 p-12 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary mb-3">
+              <Search className="h-6 w-6" />
+            </div>
+            <h3 className="text-lg font-semibold tracking-tight">{t('datarooms.noDataroomMatches')}</h3>
+          </div>
+        ) : currentScope === 'shared_with_me' ? (
           <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-muted bg-muted/20 p-12 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary mb-3">
               <Users className="h-6 w-6" />

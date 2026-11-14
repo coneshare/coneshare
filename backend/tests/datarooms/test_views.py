@@ -3131,6 +3131,70 @@ class TestDataroomFolderHierarchyAndScopeBoundary:
         df1.refresh_from_db()
         assert df1.is_starred is True
 
+    def test_dataroom_list_search_matches_name(self, api_client, user, organization):
+        """Test GET /api/v1/datarooms/?search= filters datarooms by name."""
+        Dataroom.objects.create(name="Alpha Acquisition Room", organization=organization, created_by=user)
+        Dataroom.objects.create(name="Beta Series B", organization=organization, created_by=user)
+
+        response = api_client.get('/api/v1/datarooms/', {'search': 'alpha'})
+        assert response.status_code == status.HTTP_200_OK
+        names = [room['name'] for room in response.data]
+        assert names == ["Alpha Acquisition Room"]
+
+    def test_dataroom_content_search_returns_matching_items_with_location(self, api_client, user, organization):
+        """
+        Test GET /api/v1/datarooms/{id}/search/?q= returns matching folders and documents
+        with relative parent path in `location`, without injecting non-matching parent folders.
+        """
+        room = Dataroom.objects.create(name="Deal Room", organization=organization, created_by=user)
+        contracts = DataroomFolder.objects.create(dataroom=room, name="Contracts", created_by=user)
+        legal = DataroomFolder.objects.create(
+            dataroom=room, name="Legal", parent=contracts, created_by=user
+        )
+        matched_subfolder = DataroomFolder.objects.create(
+            dataroom=room, name="Budget Schedules", parent=contracts, created_by=user
+        )
+        root_folder = Folder.objects.get(organization=organization, parent=None, name='__root__')
+        doc1 = Document.objects.create(
+            name="2026_Budget.pdf",
+            description="Annual financial forecast",
+            organization=organization,
+            created_by=user,
+            folder=root_folder,
+            status='ready',
+        )
+        doc2 = Document.objects.create(
+            name="Welcome.pdf",
+            organization=organization,
+            created_by=user,
+            folder=root_folder,
+            status='ready',
+        )
+        DataroomDocument.objects.create(
+            dataroom=room,
+            document=doc1,
+            folder=legal,
+            name="Master Budget Plan.pdf",
+        )
+        DataroomDocument.objects.create(
+            dataroom=room,
+            document=doc2,
+            name="Welcome.pdf",
+        )
+
+        response = api_client.get(f'/api/v1/datarooms/{room.id}/search/', {'q': 'budget'})
+        assert response.status_code == status.HTTP_200_OK
+        items = response.data['items']
+        by_name = {item['name']: item for item in items}
+
+        # Only items matching 'budget' are returned (non-matching 'Legal' folder is not injected)
+        assert set(by_name.keys()) == {"Budget Schedules", "Master Budget Plan.pdf"}
+        assert by_name["Budget Schedules"]['type'] == 'folder'
+        assert by_name["Budget Schedules"]['location'] == "Contracts"
+        assert by_name["Master Budget Plan.pdf"]['type'] == 'document'
+        assert by_name["Master Budget Plan.pdf"]['location'] == "Contracts / Legal"
+
+
 
 
 

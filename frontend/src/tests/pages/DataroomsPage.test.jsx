@@ -59,6 +59,27 @@ describe('DataroomsPage', () => {
         expect(await screen.findByText('Dataroom Two')).toBeInTheDocument();
     });
 
+    it('searches datarooms by name', async () => {
+        const user = userEvent.setup();
+        api.getDatarooms.mockImplementation(async (params = {}) => {
+            const query = (params.search || '').toLowerCase();
+            const data = query
+                ? mockDatarooms.filter((room) => room.name.toLowerCase().includes(query))
+                : mockDatarooms;
+            return { data };
+        });
+        renderComponent();
+        expect(await screen.findByText('Dataroom Two')).toBeInTheDocument();
+
+        await user.type(screen.getByRole('textbox', { name: 'Search datarooms' }), 'One');
+
+        await waitFor(() => {
+            expect(api.getDatarooms).toHaveBeenLastCalledWith({ search: 'One' });
+        });
+        expect(screen.getByText('Dataroom One')).toBeInTheDocument();
+        expect(screen.queryByText('Dataroom Two')).not.toBeInTheDocument();
+    });
+
     it('should render Owner badge for owned datarooms and Collaborator badge for shared datarooms', async () => {
         const mixedDatarooms = [
             { id: 'dr1', name: 'Owned Room', created_by: 'u1', created_at: '2023-01-01T12:00:00Z' },

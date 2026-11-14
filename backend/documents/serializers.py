@@ -45,12 +45,20 @@ class FolderSerializer(serializers.ModelSerializer):
         Returns a list of ancestor folders, from the root down to the
         immediate parent. Excludes the invisible __root__ folder.
         """
-
-        # This while loop to fetch ancestors introduces a potential N+1 query problem. Each access to parent.parent will trigger a separate database query.
-        # For deeply nested folders, this could lead to performance issues.
-        # While the current implementation is simple and works for shallow hierarchies, for future scalability you might consider a more optimized approach, such as:
-        #    Using a recursive Common Table Expression (CTE) with raw SQL (if your database supports it, like PostgreSQL).
-        #    Using a library like django-mptt which is designed to handle hierarchical data efficiently.
+        folder_parent_map = self.context.get('folder_parent_map')
+        if folder_parent_map is not None:
+            ancestors = []
+            visited = set()
+            node_id = str(obj.parent_id) if obj.parent_id else None
+            while node_id and node_id not in visited:
+                visited.add(node_id)
+                parent_node = folder_parent_map.get(node_id)
+                if not parent_node or parent_node['name'] == '__root__':
+                    break
+                ancestors.append({'id': str(parent_node['id']), 'name': parent_node['name']})
+                parent_id = parent_node.get('parent_id')
+                node_id = str(parent_id) if parent_id else None
+            return list(reversed(ancestors))
 
         ancestors = []
         visited = set()

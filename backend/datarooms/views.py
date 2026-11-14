@@ -74,6 +74,34 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
+def _dataroom_folder_map(dataroom):
+    return {
+        str(row['id']): {
+            'id': row['id'],
+            'name': row['name'],
+            'parent_id': row['parent_id'],
+        }
+        for row in dataroom.folders.values('id', 'name', 'parent_id')
+    }
+
+
+def _folder_chain(folder_id, folder_map):
+    """Folder names from the dataroom root down to this folder."""
+    parts = []
+    seen = set()
+    current_id = str(folder_id) if folder_id else None
+    while current_id and current_id not in seen:
+        node = folder_map.get(current_id)
+        if not node:
+            break
+        seen.add(current_id)
+        parts.append(node['name'])
+        parent_id = node.get('parent_id')
+        current_id = str(parent_id) if parent_id else None
+    parts.reverse()
+    return parts
+
+
 def get_dataroom_queryset_for_user(user):
     """
     Returns the queryset of datarooms accessible to a given user:
@@ -119,7 +147,64 @@ class DataroomViewSet(viewsets.ModelViewSet):
             qs = qs.filter(created_by=user)
         elif scope == 'shared_with_me':
             qs = qs.filter(collaborators__user=user)
+        search = (self.request.query_params.get('search') or '').strip()[:200]
+        if search:
+            qs = qs.filter(name__icontains=search)
         return qs.select_related('created_by').prefetch_related('collaborators', 'collaborators__user').order_by('-created_at', '-id')
+
+    @action(detail=True, methods=['get'], url_path='search')
+    def search_content(self, request, pk=None):
+        """
+        Search folders and documents across the entire dataroom hierarchy by name or description.
+        Populates relative folder path (`location`) on nested items.
+        """
+        dataroom = self.get_object()
+        query = (request.query_params.get('q') or request.query_params.get('search') or '').strip()[:200]
+        if not query:
+            return Response({'items': []})
+
+        folder_map = _dataroom_folder_map(dataroom)
+        serializer_context = {
+            **self.get_serializer_context(),
+            'dataroom_folder_parent_map': folder_map,
+        }
+
+        matched_folders = list(
+            dataroom.folders.filter(name__icontains=query).select_related(
+                'created_by', 'dataroom', 'dataroom__created_by', 'parent'
+            ).order_by('name', 'id')[:100]
+        )
+        matched_documents = list(
+            dataroom.documents.filter(document__deleted_at__isnull=True).filter(
+                Q(name__icontains=query)
+                | Q(document__name__icontains=query)
+                | Q(document__description__icontains=query)
+            ).select_related(
+                'document', 'document__created_by', 'folder', 'dataroom', 'dataroom__created_by'
+            ).annotate(
+                dataroom_view_count=Count('dataroomvisit', distinct=True)
+            ).order_by('created_at', 'id')[:100]
+        )
+
+        folders_data = DataroomFolderSerializer(
+            matched_folders, many=True, context=serializer_context
+        ).data
+        documents_data = DataroomDocumentSerializer(
+            matched_documents, many=True, context=serializer_context
+        ).data
+        items = build_ordered_dataroom_items(None, folders_data, documents_data)
+
+        folder_by_id = {str(folder.id): folder for folder in matched_folders}
+        for item in items:
+            if item.get('type') == 'folder':
+                folder = folder_by_id.get(str(item['id']))
+                parts = _folder_chain(folder.parent_id if folder else None, folder_map)
+            else:
+                parts = _folder_chain(item.get('folder'), folder_map)
+            if parts:
+                item['location'] = ' / '.join(parts)
+
+        return Response({'items': items})
 
     def perform_create(self, serializer):
         """

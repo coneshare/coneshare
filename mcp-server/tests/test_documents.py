@@ -29,6 +29,27 @@ class TestDocuments(BaseMCPTestCase):
         finally:
             ConeshareClient._request = old_request
 
+    async def test_search_documents_success(self):
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            self.assertEqual(method, "GET")
+            self.assertEqual(path, "/documents/")
+            self.assertEqual(params, {"search": "financial", "page": 1, "page_size": 20})
+            return {
+                "count": 1,
+                "results": [{"id": "doc_fin", "name": "Financial Report.pdf"}],
+            }
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_request
+        try:
+            client = ConeshareClient(api_key="cs_live_testkey123456789")
+            res = await client.search_documents(query="financial", page=1, page_size=20)
+            self.assertEqual(res["total_count"], 1)
+            self.assertEqual(len(res["items"]), 1)
+            self.assertEqual(res["items"][0]["name"], "Financial Report.pdf")
+        finally:
+            ConeshareClient._request = old_request
+
     async def test_paginate_matches_standard_results_set_pagination(self):
         client = ConeshareClient(api_key="cs_live_testkey123456789")
         # Simulating StandardResultsSetPagination response from Django
@@ -213,6 +234,20 @@ class TestDocuments(BaseMCPTestCase):
             res = await tool.fn(ctx=mock_ctx, document_id="doc_123", name="new_name.pdf", description=None)
         self.assertEqual(res["name"], "new_name.pdf")
         mock_client.update_document.assert_awaited_once_with(document_id="doc_123", name="new_name.pdf", description=None)
+
+    async def test_search_documents_tool_execution(self):
+        mcp = FastMCP("test_mcp")
+        register_document_tools(mcp)
+
+        mock_client = MagicMock()
+        mock_client.search_documents = AsyncMock(return_value={"items": [{"id": "doc_123", "name": "report.pdf"}], "total_count": 1})
+        mock_ctx = MagicMock()
+
+        tool = await mcp.get_tool("search_documents")
+        with patch("coneshare_mcp.tools.documents.ConeshareClient.from_ctx", return_value=mock_client):
+            res = await tool.fn(ctx=mock_ctx, query="report", page=1, page_size=20)
+        self.assertEqual(res["total_count"], 1)
+        mock_client.search_documents.assert_awaited_once_with(query="report", page=1, page_size=20)
 
     async def test_move_items_tool_execution(self):
         mcp = FastMCP("test_mcp")
