@@ -12,6 +12,7 @@ from rest_framework import status
 from rest_framework.exceptions import APIException
 
 from core.models import Organization
+from datarooms.models import DataroomCollaborator, DataroomDocument
 from documents.models import (Document, DocumentPage, DocumentVersion, Folder)
 from documents.renderers.pdf import PDFRenderer
 from documents.services import QuotaExceededError
@@ -1516,6 +1517,111 @@ class TestDocumentVersionUploadViews:
         response = api_client.post(request_url, {'file_name': 'v2.pdf'})
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    @patch('documents.views.fileserver_client.get_file_info', return_value={'exists': True, 'size': 25})
+    @patch('documents.services.generate_pdf_pages_task.delay')
+    @patch('documents.views.fileserver_client.generate_upload_url', return_value='/files/upload/admin-token')
+    def test_org_admin_can_upload_new_version_to_member_document(
+        self, mock_fs_upload_url, mock_task_delay, mock_fs_get_file_info, api_client, user, admin_user
+    ):
+        """Org admins can request and finalize a new version on another member's document in the same org."""
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="member_doc.pdf",
+            type="pdf",
+            content_type="application/pdf",
+            file_size=10,
+            status="ready",
+        )
+        initial_version = DocumentVersion.objects.create(
+            document=doc,
+            version_number=1,
+            is_primary=True,
+            file_size=10,
+            content_type="application/pdf",
+            original_storage_key=f"{user.organization.id}/v1.pdf",
+            storage_key=f"{user.organization.id}/v1.pdf",
+            type="pdf",
+        )
+
+        api_client.force_authenticate(user=admin_user)
+
+        request_url = f'/api/v1/uploads/document/{doc.id}/versions/request/'
+        req_resp = api_client.post(request_url, {'file_name': 'v2.pdf', 'file_size': 25})
+        assert req_resp.status_code == status.HTTP_200_OK, req_resp.json()
+        storage_key = req_resp.json()['storage_key']
+
+        finalize_url = f'/api/v1/uploads/document/{doc.id}/versions/finalize/'
+        fin_resp = api_client.post(finalize_url, {
+            'storage_key': storage_key,
+            'content_type': 'application/pdf',
+            'file_name': 'v2.pdf',
+        })
+        assert fin_resp.status_code == status.HTTP_202_ACCEPTED, fin_resp.json()
+
+        doc.refresh_from_db()
+        initial_version.refresh_from_db()
+        assert doc.versions.count() == 2
+        v2 = doc.versions.get(version_number=2)
+        assert v2.is_primary is True
+        assert initial_version.is_primary is False
+
+    def test_dataroom_collaborator_cannot_upload_new_version_to_other_user_document(
+        self, api_client, dataroom, user, user2
+    ):
+        """A dataroom collaborator with read access to another user's document receives 403 on version upload."""
+        doc = Document.objects.create(
+            organization=user.organization,
+            created_by=user,
+            name="shared_doc.pdf",
+            status="ready",
+        )
+        DocumentVersion.objects.create(document=doc, version_number=1, is_primary=True)
+        DataroomDocument.objects.create(dataroom=dataroom, document=doc)
+        DataroomCollaborator.objects.create(dataroom=dataroom, user=user2)
+
+        api_client.force_authenticate(user=user2)
+
+        req_resp = api_client.post(
+            f'/api/v1/uploads/document/{doc.id}/versions/request/',
+            {'file_name': 'v2.pdf', 'file_size': 100},
+        )
+        assert req_resp.status_code == status.HTTP_403_FORBIDDEN
+
+        fin_resp = api_client.post(
+            f'/api/v1/uploads/document/{doc.id}/versions/finalize/',
+            {'storage_key': f'{user.organization.id}/v2.pdf', 'content_type': 'application/pdf'},
+        )
+        assert fin_resp.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_dataroom_owner_cannot_upload_new_version_to_collaborator_document(
+        self, api_client, dataroom, user, user2
+    ):
+        """A non-admin dataroom owner receives 403 when attempting to upload a version for a collaborator's document."""
+        doc = Document.objects.create(
+            organization=user2.organization,
+            created_by=user2,
+            name="collab_doc.pdf",
+            status="ready",
+        )
+        DocumentVersion.objects.create(document=doc, version_number=1, is_primary=True)
+        DataroomDocument.objects.create(dataroom=dataroom, document=doc)
+        DataroomCollaborator.objects.create(dataroom=dataroom, user=user2)
+
+        api_client.force_authenticate(user=user)
+
+        req_resp = api_client.post(
+            f'/api/v1/uploads/document/{doc.id}/versions/request/',
+            {'file_name': 'v2.pdf', 'file_size': 100},
+        )
+        assert req_resp.status_code == status.HTTP_403_FORBIDDEN
+
+        fin_resp = api_client.post(
+            f'/api/v1/uploads/document/{doc.id}/versions/finalize/',
+            {'storage_key': f'{user2.organization.id}/v2.pdf', 'content_type': 'application/pdf'},
+        )
+        assert fin_resp.status_code == status.HTTP_403_FORBIDDEN
 
     @patch('documents.views.fileserver_client.generate_download_url')
     @patch('documents.views.fileserver_client.get_file_info')

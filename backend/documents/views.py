@@ -35,11 +35,13 @@ from .services import (
     _get_unique_folder_name,
     _get_unique_document_name,
     QuotaExceededError,
+    can_user_modify_document,
     check_user_quota_on_upload,
     create_document_from_upload,
     create_new_document_version,
     delete_document_and_files,
     delete_folder_and_contents,
+    get_document_queryset_for_user,
     soft_delete_document,
     soft_delete_folder,
     restore_item,
@@ -63,25 +65,6 @@ from sharelinks.services import get_pages_map_for_sessions
 
 
 logger = logging.getLogger(__name__)
-
-
-def get_document_queryset_for_user(user):
-    """
-    Returns a queryset of active documents accessible to the given user.
-    - An Org Admin has overarching supervisor access to all documents in their organization.
-    - A standard user has access to:
-      1) Documents they created within their organization.
-      2) Documents included in any active Dataroom where they are an Owner or Collaborator.
-    """
-    base_qs = Document.objects.active().filter(organization=user.organization)
-    if getattr(user, 'role', '') == 'admin':
-        return base_qs
-
-    return base_qs.filter(
-        Q(created_by=user) |
-        Q(dataroomdocument__dataroom__organization=user.organization, dataroomdocument__dataroom__collaborators__user=user) |
-        Q(dataroomdocument__dataroom__organization=user.organization, dataroomdocument__dataroom__created_by=user)
-    ).distinct()
 
 
 def _get_folder_from_path(requesting_user, folder_path: str) -> Folder | None:
@@ -488,13 +471,16 @@ class DocumentVersionUploadRequestView(APIView):
 
     @extend_schema(
         request=DocumentVersionUploadRequestSerializer,
-        responses={200: DocumentVersionUploadResponseSerializer, 400: dict, 404: dict},
+        responses={200: DocumentVersionUploadResponseSerializer, 400: dict, 403: dict, 404: dict},
     )
     def post(self, request, document_id, *args, **kwargs):
         try:
-            document = Document.objects.active().get(id=document_id, created_by=request.user)
+            document = get_document_queryset_for_user(request.user).get(id=document_id)
         except Document.DoesNotExist:
             return Response({"detail": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not can_user_modify_document(request.user, document):
+            raise PermissionDenied("You do not have permission to modify versions of this document.")
 
         serializer = self.DocumentVersionUploadRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -516,7 +502,7 @@ class DocumentVersionUploadRequestView(APIView):
 
         file_name = validated_data['file_name']
 
-        storage_key = generate_storage_key(request.user.organization.id, file_name)
+        storage_key = generate_storage_key(document.organization.id, file_name)
 
         try:
             upload_url = fileserver_client.generate_upload_url(storage_key, is_internal=False)
@@ -543,13 +529,16 @@ class DocumentVersionUploadFinalizeView(APIView):
 
     @extend_schema(
         request=FinalizeSerializer,
-        responses={202: DocumentSerializer, 400: dict, 404: dict, 500: dict},
+        responses={202: DocumentSerializer, 400: dict, 403: dict, 404: dict, 500: dict},
     )
     def post(self, request, document_id, *args, **kwargs):
         try:
-            document = Document.objects.active().get(id=document_id, created_by=request.user)
+            document = get_document_queryset_for_user(request.user).get(id=document_id)
         except Document.DoesNotExist:
             return Response({"detail": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not can_user_modify_document(request.user, document):
+            raise PermissionDenied("You do not have permission to modify versions of this document.")
 
         serializer = self.FinalizeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -962,7 +951,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
-        if serializer.instance.created_by != self.request.user and getattr(self.request.user, 'role', '') != 'admin':
+        if not can_user_modify_document(self.request.user, serializer.instance):
             raise PermissionDenied("You do not have permission to modify this document.")
         document = serializer.save()
         touch_folder_ancestors(document.folder)
@@ -995,7 +984,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         document = self.get_object()
-        if document.created_by != request.user and getattr(request.user, 'role', '') != 'admin':
+        if not can_user_modify_document(request.user, document):
             raise PermissionDenied("You do not have permission to delete this document.")
         soft_delete_document(document, request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -1038,7 +1027,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'], url_path='view-sessions')
     def view_sessions(self, request, pk=None):
         document = self.get_object()
-        if document.created_by != request.user and getattr(request.user, 'role', '') != 'admin':
+        if not can_user_modify_document(request.user, document):
             raise PermissionDenied("Only the document owner or an organization admin can view access sessions.")
 
         view_queryset = ViewSession.objects.filter(
@@ -1096,7 +1085,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
         Promotes a specific DocumentVersion to be the active (primary) version of the Document.
         """
         document = self.get_object()
-        if document.created_by != request.user and getattr(request.user, 'role', '') != 'admin':
+        if not can_user_modify_document(request.user, document):
             raise PermissionDenied("You do not have permission to modify versions of this document.")
 
         version_id = request.data.get('version_id')
@@ -1130,7 +1119,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
         Forces a rebuild of the document preview by clearing existing pages and enqueuing render.
         """
         document = self.get_object()
-        if document.created_by != request.user and getattr(request.user, 'role', '') != 'admin':
+        if not can_user_modify_document(request.user, document):
             raise PermissionDenied("You do not have permission to rebuild preview for this document.")
 
         version_id = request.data.get('version_id')

@@ -4,6 +4,7 @@ from django.core.cache import cache
 from django.db import transaction
 from django.shortcuts import redirect
 from rest_framework import permissions, serializers, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
@@ -11,7 +12,12 @@ from drf_spectacular.utils import extend_schema
 from core.services import get_dynamic_setting
 from documents.models import Document, DocumentVersion
 from documents.serializers import DocumentSerializer
-from documents.services import QuotaExceededError, check_user_quota_on_upload
+from documents.services import (
+    QuotaExceededError,
+    can_user_modify_document,
+    check_user_quota_on_upload,
+    get_document_queryset_for_user,
+)
 from .models import CloudConnection
 from .providers import CloudProviderError, get_cloud_provider
 from .serializers import (CloudConnectionSerializer, CloudImportSerializer,
@@ -314,13 +320,16 @@ class CloudRefreshView(APIView):
 
     @extend_schema(
         request=None,
-        responses={202: DocumentSerializer, 400: dict, 404: dict, 500: dict},
+        responses={202: DocumentSerializer, 400: dict, 403: dict, 404: dict, 500: dict},
     )
     def post(self, request, document_id, *args, **kwargs):
         try:
-            document = Document.objects.active().get(id=document_id, created_by=request.user)
+            document = get_document_queryset_for_user(request.user).get(id=document_id)
         except Document.DoesNotExist:
             return Response({"detail": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not can_user_modify_document(request.user, document):
+            raise PermissionDenied("You do not have permission to modify versions of this document.")
 
         # 1. Fetch the primary version and verify it has cloud_import metadata
         primary_version = document.versions.filter(is_primary=True).first()
@@ -414,13 +423,16 @@ class CloudImportVersionView(APIView):
 
     @extend_schema(
         request=ImportVersionSerializer,
-        responses={202: DocumentSerializer, 400: dict, 404: dict, 500: dict},
+        responses={202: DocumentSerializer, 400: dict, 403: dict, 404: dict, 500: dict},
     )
     def post(self, request, document_id, *args, **kwargs):
         try:
-            document = Document.objects.active().get(id=document_id, created_by=request.user)
+            document = get_document_queryset_for_user(request.user).get(id=document_id)
         except Document.DoesNotExist:
             return Response({"detail": "Document not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not can_user_modify_document(request.user, document):
+            raise PermissionDenied("You do not have permission to modify versions of this document.")
 
         serializer = self.ImportVersionSerializer(data=request.data)
         if not serializer.is_valid():

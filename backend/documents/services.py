@@ -75,6 +75,38 @@ def touch_folder_ancestors(folder: Folder | None):
         Folder.objects.filter(id__in=ancestor_ids).update(updated_at=now)
 
 
+def get_document_queryset_for_user(user: User):
+    """
+    Returns a queryset of active documents accessible to the given user.
+    - An Org Admin has overarching supervisor access to all documents in their organization.
+    - A standard user has access to:
+      1) Documents they created within their organization.
+      2) Documents included in any active Dataroom where they are an Owner or Collaborator.
+    """
+    base_qs = Document.objects.active().filter(organization=user.organization)
+    if getattr(user, 'role', '') == 'admin':
+        return base_qs
+
+    return base_qs.filter(
+        Q(created_by=user) |
+        Q(dataroomdocument__dataroom__organization=user.organization, dataroomdocument__dataroom__collaborators__user=user) |
+        Q(dataroomdocument__dataroom__organization=user.organization, dataroomdocument__dataroom__created_by=user)
+    ).distinct()
+
+
+def can_user_modify_document(user: Optional[User], document: Optional[Document]) -> bool:
+    """
+    Returns True if the user is permitted to mutate or delete the document
+    (either the document creator or an organization admin in the same organization).
+    """
+    if not user or not document or not getattr(user, 'is_authenticated', False):
+        return False
+    if document.organization_id != user.organization_id:
+        return False
+    is_owner = document.created_by_id is not None and document.created_by_id == user.id
+    return is_owner or getattr(user, 'role', '') == 'admin'
+
+
 def check_user_quota_on_upload(user: User, new_file_size: int, document_to_update: Document = None):
     """
     Checks if a new upload would exceed the user's file size quota.

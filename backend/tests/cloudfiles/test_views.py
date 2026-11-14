@@ -5,6 +5,7 @@ from rest_framework import status
 from cloudfiles.models import CloudConnection
 from cloudfiles.services import create_document_for_import
 from core.models import AppConfiguration
+from datarooms.models import Dataroom, DataroomCollaborator, DataroomDocument
 from documents.models import Document, Folder, DocumentVersion
 from documents.services import delete_document_and_files, process_imported_file
 
@@ -940,5 +941,109 @@ def test_cloud_import_quota_exceeded_on_process_does_not_dangle_storage_key(mock
     v1 = doc.versions.get(version_number=1)
     assert not v1.storage_key
     assert not v1.original_storage_key
+
+
+@pytest.mark.django_db
+@patch('cloudfiles.views.import_from_cloud_task.delay')
+def test_org_admin_can_import_version_and_refresh_member_document(mock_task_delay, api_client, user, admin_user):
+    """Org admins can import a new cloud version and refresh a member's document in the same org."""
+    doc = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name='member_cloud.pdf',
+        status='ready',
+        file_size=1024,
+    )
+    admin_connection = CloudConnection.objects.create(
+        user=admin_user,
+        provider='google_drive',
+        email='admin@gmail.com',
+        access_token='admin_token',
+    )
+    DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        file_size=1024,
+        is_primary=True,
+        metadata={
+            "cloud_import": {
+                "provider": "google_drive",
+                "provider_display": "Google Drive",
+                "connection_id": str(admin_connection.id),
+                "file_id": "drive_file_1",
+            }
+        },
+    )
+
+    api_client.force_authenticate(user=admin_user)
+
+    import_resp = api_client.post(
+        f'/api/v1/cloud/documents/{doc.id}/import_version/',
+        {
+            'connection_id': str(admin_connection.id),
+            'file_id': 'drive_file_2',
+            'file_name': 'member_cloud_v2.pdf',
+            'file_size': 2048,
+        },
+    )
+    assert import_resp.status_code == status.HTTP_202_ACCEPTED, import_resp.data
+
+    refresh_resp = api_client.post(f'/api/v1/cloud/documents/{doc.id}/refresh/')
+    assert refresh_resp.status_code == status.HTTP_202_ACCEPTED, refresh_resp.data
+    assert mock_task_delay.call_count == 2
+
+
+@pytest.mark.django_db
+@patch('cloudfiles.views.import_from_cloud_task.delay')
+def test_dataroom_collaborator_forbidden_from_cloud_version_updates(mock_task_delay, api_client, user, user2):
+    """A dataroom collaborator without edit rights receives 403 on cloud refresh and import_version."""
+    dataroom = Dataroom.objects.create(organization=user.organization, created_by=user, name="Collab Room")
+    doc = Document.objects.create(
+        organization=user.organization,
+        created_by=user,
+        name='member_cloud.pdf',
+        status='ready',
+        file_size=1024,
+    )
+    DocumentVersion.objects.create(
+        document=doc,
+        version_number=1,
+        file_size=1024,
+        is_primary=True,
+        metadata={
+            "cloud_import": {
+                "provider": "google_drive",
+                "provider_display": "Google Drive",
+                "connection_id": "conn_owner",
+                "file_id": "drive_file_1",
+            }
+        },
+    )
+    DataroomDocument.objects.create(dataroom=dataroom, document=doc)
+    DataroomCollaborator.objects.create(dataroom=dataroom, user=user2)
+
+    collab_connection = CloudConnection.objects.create(
+        user=user2,
+        provider='google_drive',
+        email='collab@gmail.com',
+        access_token='collab_token',
+    )
+
+    api_client.force_authenticate(user=user2)
+
+    import_resp = api_client.post(
+        f'/api/v1/cloud/documents/{doc.id}/import_version/',
+        {
+            'connection_id': str(collab_connection.id),
+            'file_id': 'drive_file_2',
+            'file_name': 'v2.pdf',
+            'file_size': 2048,
+        },
+    )
+    assert import_resp.status_code == status.HTTP_403_FORBIDDEN
+
+    refresh_resp = api_client.post(f'/api/v1/cloud/documents/{doc.id}/refresh/')
+    assert refresh_resp.status_code == status.HTTP_403_FORBIDDEN
+    mock_task_delay.assert_not_called()
 
 
