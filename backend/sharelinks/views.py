@@ -729,7 +729,28 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         if not can_user_edit_share_link(self.request.user, instance):
             raise PermissionDenied("You do not have permission to update this share link.")
-        serializer.save()
+
+        with transaction.atomic():
+            locked_instance = ShareLink.objects.select_for_update().get(pk=instance.pk)
+            changed_fields = {}
+            if locked_instance.dataroom_id:
+                vdata = serializer.validated_data
+                for field in ('allow_download', 'enable_watermark'):
+                    if field in vdata and vdata[field] != getattr(locked_instance, field):
+                        changed_fields[field] = vdata[field]
+
+            updated_instance = serializer.save()
+
+            if changed_fields:
+                if (
+                    changed_fields.get('enable_watermark') is True
+                    and not (updated_instance.watermark_text or '').strip()
+                ):
+                    updated_instance.watermark_text = DEFAULT_WATERMARK_TEMPLATE
+                    updated_instance.save(update_fields=['watermark_text'])
+                ShareLinkDataroomSetting.objects.filter(
+                    share_link=updated_instance
+                ).update(**changed_fields, updated_at=timezone.now())
 
     def perform_destroy(self, instance):
         instance = self.get_object()

@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.utils.text import get_valid_filename
 from rest_framework import status
 
-from datarooms.models import Dataroom, DataroomDocument, DataroomFolder, DataroomItemOrder
+from datarooms.models import Dataroom, DataroomCollaborator, DataroomDocument, DataroomFolder, DataroomItemOrder
 from documents.models import (Document, DocumentPage, DocumentVersion)
 from documents.renderers.base import BasePreviewRenderer
 from sharelinks.models import (DataroomVisit, EmailVerificationToken, PageView,
@@ -2671,6 +2671,257 @@ class TestShareLinkViewSet:
         assert response.status_code == status.HTTP_200_OK
         dataroom_link.refresh_from_db()
         assert dataroom_link.is_active is False
+
+    def test_patch_dataroom_link_cascades_download_and_watermark_to_existing_settings(
+        self, api_client, public_client, dataroom, user, document_factory
+    ):
+        """
+        Updating allow_download or enable_watermark on a Dataroom ShareLink
+        should propagate to all existing ShareLinkDataroomSetting rows and
+        populate default watermark_text when enabling watermarking with blank text.
+        """
+        doc = document_factory(name="Deck.pdf", type='pdf')
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=doc)
+        folder = DataroomFolder.objects.create(dataroom=dataroom, name="Financials")
+
+        link = ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            name="DR Link",
+            allow_download=False,
+            enable_watermark=False,
+            watermark_text="",
+        )
+        doc_setting = link.dataroom_settings.get(dataroom_document=ddoc)
+        folder_setting = link.dataroom_settings.get(dataroom_folder=folder)
+        folder_setting.is_visible = False
+        folder_setting.save(update_fields=['is_visible'])
+
+        url = f'/api/v1/share-links/{link.id}/'
+
+        # 1. Enable allow_download -> cascades to both doc and folder settings, preserving is_visible
+        resp_dl = api_client.patch(url, {'allow_download': True}, format='json')
+        assert resp_dl.status_code == status.HTTP_200_OK
+
+        doc_setting.refresh_from_db()
+        folder_setting.refresh_from_db()
+        assert doc_setting.allow_download is True
+        assert doc_setting.enable_watermark is False
+        assert folder_setting.allow_download is True
+        assert folder_setting.enable_watermark is False
+        assert folder_setting.is_visible is False
+
+        resp_settings = {s['id']: s for s in resp_dl.data['dataroom_settings']}
+        assert resp_settings[str(doc_setting.id)]['allow_download'] is True
+        assert resp_settings[str(folder_setting.id)]['allow_download'] is True
+
+        # 2. Enable enable_watermark -> cascades and sets default watermark_text
+        resp_wm = api_client.patch(url, {'enable_watermark': True}, format='json')
+        assert resp_wm.status_code == status.HTTP_200_OK
+
+        link.refresh_from_db()
+        doc_setting.refresh_from_db()
+        folder_setting.refresh_from_db()
+        assert link.enable_watermark is True
+        assert link.watermark_text == 'CONFIDENTIAL - {{email}}'
+        assert doc_setting.enable_watermark is True
+        assert doc_setting.allow_download is True
+        assert folder_setting.enable_watermark is True
+        assert folder_setting.allow_download is True
+
+        # 3. Public view-data endpoint reflects the updated permissions
+        view_resp = public_client.get(f'/api/v1/links/{link.slug}/view-data/')
+        assert view_resp.status_code == status.HTTP_200_OK
+        items = view_resp.json()['items']
+        assert len(items) == 1
+        assert items[0]['id'] == str(ddoc.id)
+        assert items[0]['allow_download'] is True
+        assert items[0]['enable_watermark'] is True
+
+        # 4. Disable both -> cascades False to both settings
+        resp_off = api_client.patch(
+            url, {'allow_download': False, 'enable_watermark': False}, format='json'
+        )
+        assert resp_off.status_code == status.HTTP_200_OK
+
+        doc_setting.refresh_from_db()
+        folder_setting.refresh_from_db()
+        assert doc_setting.allow_download is False
+        assert doc_setting.enable_watermark is False
+        assert folder_setting.allow_download is False
+        assert folder_setting.enable_watermark is False
+
+    def test_patch_dataroom_link_preserves_item_overrides_when_permissions_unchanged(
+        self, api_client, dataroom, user, document_factory
+    ):
+        """
+        Editing unrelated fields or submitting unchanged allow_download /
+        enable_watermark values must preserve granular per-item overrides.
+        """
+        doc1 = document_factory(name="Doc1.pdf", type='pdf')
+        doc2 = document_factory(name="Doc2.pdf", type='pdf')
+        ddoc1 = DataroomDocument.objects.create(dataroom=dataroom, document=doc1)
+        ddoc2 = DataroomDocument.objects.create(dataroom=dataroom, document=doc2)
+        folder = DataroomFolder.objects.create(dataroom=dataroom, name="Folder")
+
+        link = ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            name="Original Name",
+            allow_download=True,
+            enable_watermark=False,
+        )
+        s_doc1 = link.dataroom_settings.get(dataroom_document=ddoc1)
+        s_doc2 = link.dataroom_settings.get(dataroom_document=ddoc2)
+        s_folder = link.dataroom_settings.get(dataroom_folder=folder)
+
+        # Configure granular per-item overrides
+        bulk_resp = api_client.patch(
+            f'/api/v1/share-links/{link.id}/dataroom-settings/',
+            [
+                {'id': str(s_doc1.id), 'allow_download': False, 'enable_watermark': True},
+                {'id': str(s_doc2.id), 'is_visible': False},
+                {'id': str(s_folder.id), 'allow_download': False},
+            ],
+            format='json',
+        )
+        assert bulk_resp.status_code == status.HTTP_200_OK
+
+        url = f'/api/v1/share-links/{link.id}/'
+
+        # 1. Partial PATCH on unrelated field only
+        resp_rename = api_client.patch(url, {'name': 'Renamed Link'}, format='json')
+        assert resp_rename.status_code == status.HTTP_200_OK
+
+        s_doc1.refresh_from_db()
+        s_doc2.refresh_from_db()
+        s_folder.refresh_from_db()
+        assert s_doc1.allow_download is False
+        assert s_doc1.enable_watermark is True
+        assert s_doc2.is_visible is False
+        assert s_folder.allow_download is False
+
+        # 2. Full LinkSheet-style payload with unchanged allow_download and enable_watermark
+        resp_full = api_client.patch(
+            url,
+            {
+                'name': 'Renamed Again',
+                'allow_download': True,
+                'enable_watermark': False,
+                'watermark_text': '',
+            },
+            format='json',
+        )
+        assert resp_full.status_code == status.HTTP_200_OK
+
+        s_doc1.refresh_from_db()
+        s_doc2.refresh_from_db()
+        s_folder.refresh_from_db()
+        assert s_doc1.allow_download is False
+        assert s_doc1.enable_watermark is True
+        assert s_doc2.is_visible is False
+        assert s_folder.allow_download is False
+
+        # 3. Change only enable_watermark while allow_download remains unchanged ->
+        #    only enable_watermark cascades, preserving per-item allow_download overrides
+        resp_wm_only = api_client.patch(
+            url,
+            {
+                'name': 'Watermark Enabled',
+                'allow_download': True,
+                'enable_watermark': True,
+                'watermark_text': '',
+            },
+            format='json',
+        )
+        assert resp_wm_only.status_code == status.HTTP_200_OK
+
+        s_doc1.refresh_from_db()
+        s_doc2.refresh_from_db()
+        s_folder.refresh_from_db()
+        assert s_doc1.enable_watermark is True
+        assert s_doc2.enable_watermark is True
+        assert s_folder.enable_watermark is True
+        assert s_doc1.allow_download is False
+        assert s_doc2.allow_download is True
+        assert s_doc2.is_visible is False
+        assert s_folder.allow_download is False
+
+    def test_patch_document_link_updates_link_without_touching_dataroom_settings(
+        self, api_client, dataroom, user, document_factory
+    ):
+        """
+        Updating allow_download or enable_watermark on a non-dataroom (document)
+        ShareLink should succeed without creating or modifying ShareLinkDataroomSetting rows.
+        """
+        doc = document_factory(name="Standalone.pdf", type='pdf')
+        doc_link = ShareLink.objects.create(
+            document=doc,
+            created_by=user,
+            name="Doc Link",
+            allow_download=False,
+            enable_watermark=False,
+        )
+
+        # Separate dataroom link whose settings must remain untouched
+        dr_doc = document_factory(name="RoomDoc.pdf", type='pdf')
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=dr_doc)
+        dr_link = ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            name="DR Link",
+            allow_download=False,
+            enable_watermark=False,
+        )
+        dr_setting = dr_link.dataroom_settings.get(dataroom_document=ddoc)
+
+        url = f'/api/v1/share-links/{doc_link.id}/'
+        response = api_client.patch(
+            url, {'allow_download': True, 'enable_watermark': True}, format='json'
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        doc_link.refresh_from_db()
+        dr_setting.refresh_from_db()
+        assert doc_link.allow_download is True
+        assert doc_link.enable_watermark is True
+        assert ShareLinkDataroomSetting.objects.filter(share_link=doc_link).count() == 0
+        assert dr_setting.allow_download is False
+        assert dr_setting.enable_watermark is False
+
+    def test_patch_dataroom_link_without_edit_permission_returns_403_and_does_not_cascade(
+        self, api_client, dataroom, user, user2, document_factory
+    ):
+        """
+        A dataroom collaborator without edit permission on another user's link
+        should receive 403 Forbidden with no cascade to ShareLinkDataroomSetting.
+        """
+        doc = document_factory(name="Protected.pdf", type='pdf')
+        ddoc = DataroomDocument.objects.create(dataroom=dataroom, document=doc)
+        link = ShareLink.objects.create(
+            dataroom=dataroom,
+            created_by=user,
+            name="Owner Link",
+            allow_download=False,
+            enable_watermark=False,
+        )
+        setting = link.dataroom_settings.get(dataroom_document=ddoc)
+
+        DataroomCollaborator.objects.create(dataroom=dataroom, user=user2)
+        api_client.force_authenticate(user=user2)
+
+        url = f'/api/v1/share-links/{link.id}/'
+        response = api_client.patch(
+            url, {'allow_download': True, 'enable_watermark': True}, format='json'
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+        link.refresh_from_db()
+        setting.refresh_from_db()
+        assert link.allow_download is False
+        assert link.enable_watermark is False
+        assert setting.allow_download is False
+        assert setting.enable_watermark is False
 
 
 @pytest.mark.django_db
