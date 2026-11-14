@@ -15,8 +15,9 @@ from drf_spectacular.types import OpenApiTypes
 
 from backend.utils import get_unique_name
 from core.models import User
-from documents.models import Document, Folder
 from core.pagination import StandardResultsSetPagination
+from core.permissions import require_full_access
+from documents.models import Document, Folder
 from documents.services import (
     delete_folder_and_contents,
     check_user_quota_on_upload,
@@ -304,6 +305,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['post'], url_path='remove-content')
+    @require_full_access
     def remove_content(self, request, pk=None):
         dataroom = self.get_object()
         serializer = RemoveContentSerializer(data=request.data)
@@ -985,6 +987,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
         ],
     )
     @action(detail=True, methods=['delete', 'post'], url_path=r'collaborators/(?P<user_id>[^/.]+)')
+    @require_full_access
     def remove_collaborator(self, request, pk=None, user_id=None):
         dataroom = self.get_object()
 
@@ -1008,6 +1011,7 @@ class DataroomViewSet(viewsets.ModelViewSet):
         return Response({"detail": "Collaborator removed successfully."}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], url_path='transfer-ownership')
+    @require_full_access
     def transfer_ownership(self, request, pk=None):
         dataroom = self.get_object()
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Copy, Check, ExternalLink, ShieldAlert, Terminal, FileCode, Sparkles } from "lucide-react";
+import { Copy, Check, ExternalLink, ShieldAlert, Terminal, FileCode } from "lucide-react";
 import { Button } from "../ui/Button";
 
 export function McpSetupGuide({ rawKey = null }) {
@@ -210,7 +210,6 @@ export function McpSetupGuide({ rawKey = null }) {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
         >
-          <Sparkles className="h-3.5 w-3.5 shrink-0" />
           <span>
             {t("settings.mcpSkillInstall", "Install the coneshare-it skill for automated uploading, link sharing, and dataroom workflows.")}
           </span>
