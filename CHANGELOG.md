@@ -1,6 +1,24 @@
 # Changelog
 
 
+## [1.11.2](https://github.com/coneshare/coneshare/compare/v1.11.1...v1.11.2) (2026-11-14)
+
+
+### Bug Fixes
+
+* **documents,cloudfiles:** allow org admins to upload new document versions ([#401](https://github.com/coneshare/coneshare/issues/401)) ([2a3b518](https://github.com/coneshare/coneshare/commit/2a3b5181df38f3ab69f426834835bc5e37e30fde))
+* **documents,frontend:** send force=true on preview retry and align video stale window ([3f53d99](https://github.com/coneshare/coneshare/commit/3f53d99034eb267466dab5e3e7e015c507c1238d))
+* **frontend:** clear AddContentDialog selection on folder navigation ([f66bd12](https://github.com/coneshare/coneshare/commit/f66bd1276baf3410e93747f8dedfa98ee9037cb1))
+* **frontend:** implement responsive fit-to-view for spreadsheet previews ([#484](https://github.com/coneshare/coneshare/issues/484)) ([e318dbb](https://github.com/coneshare/coneshare/commit/e318dbbac256065609dc6d6ee8294150830e8e9b))
+* **permissions,ui:** enforce full_access on destructive POST actions and trim skill icon ([3203135](https://github.com/coneshare/coneshare/commit/320313528aff64af3327633aac4c47258e3568da))
+* **sharelinks:** batch flattened PDF rendering and enforce page limit ([#383](https://github.com/coneshare/coneshare/issues/383)) ([44b00f7](https://github.com/coneshare/coneshare/commit/44b00f7be32184dc470d60b6d59b8433211cc0ba))
+* **sharelinks:** cascade dataroom link permission updates to existing settings ([#492](https://github.com/coneshare/coneshare/issues/492)) ([632a2a0](https://github.com/coneshare/coneshare/commit/632a2a0d6c419cbcc493ba5fce06a81527cba718))
+
+
+### Performance Improvements
+
+* **documents:** stream Poppler JPEG exports directly ([#440](https://github.com/coneshare/coneshare/issues/440)) ([07b884f](https://github.com/coneshare/coneshare/commit/07b884f099008ed181a6d5124b88ec32c5b0c45e))
+
 ## [1.11.1](https://github.com/coneshare/coneshare/compare/v1.11.0...v1.11.1) (2026-11-11)
 
 
