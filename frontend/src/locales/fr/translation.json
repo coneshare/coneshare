@@ -50,7 +50,8 @@
     "yes": "Oui",
     "no": "Non",
     "never": "Jamais",
-    "anonymous": "Visiteur anonyme"
+    "anonymous": "Visiteur anonyme",
+    "dismiss": "Fermer"
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -1239,8 +1240,12 @@
     "groupSecurityHelp": "Contrôles d'accès public et règles d'authentification.",
     "groupOther": "Autre",
     "groupOtherHelp": "Paramètres divers.",
-    "brandingTitle": "Marque blanche & Identité visuelle",
+    "brandingTitle": "Personnalisation de la marque",
     "brandingSubtitle": "Personnalisez le nom du service, les liens externes et le logo de votre organisation.",
+    "hidePoweredBy": "Supprimer la mention « Powered by Coneshare »",
+    "hidePoweredByHelp": "L'édition Community affiche la mention « Powered by Coneshare » sur les liens partagés et les portails. Passez à Coneshare Pro pour la supprimer automatiquement.",
+    "viewPricing": "Voir les tarifs",
+    "proBadge": "Pro",
     "brandName": "Nom de marque",
     "brandNameHelp": "Remplace les mentions de \"Coneshare\" dans les en-têtes et formulaires.",
     "brandWebsiteUrl": "URL du site web",

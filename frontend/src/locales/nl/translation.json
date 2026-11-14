@@ -50,7 +50,8 @@
     "yes": "Ja",
     "no": "Nee",
     "never": "Nooit",
-    "anonymous": "Anonieme bezoeker"
+    "anonymous": "Anonieme bezoeker",
+    "dismiss": "Sluiten"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -1089,8 +1090,12 @@
     "groupSecurityHelp": "Authenticatie en controle op openbare toegang.",
     "groupOther": "Overig",
     "groupOtherHelp": "Instellingen zonder categorie.",
-    "brandingTitle": "White-labeling en huisstijl",
+    "brandingTitle": "Merk- en huisstijlinstellingen",
     "brandingSubtitle": "Pas de sitenaam, websitelinks en het logo aan.",
+    "hidePoweredBy": "\"Powered by Coneshare\"-vermelding verwijderen",
+    "hidePoweredByHelp": "De Community Edition toont \"Powered by Coneshare\" op deellinks en portaalpagina's. Upgrade naar Coneshare Pro om dit automatisch te verwijderen.",
+    "viewPricing": "Bekijk prijzen",
+    "proBadge": "Pro",
     "brandName": "Merknaam",
     "brandNameHelp": "Vervangt verwijzingen naar \"Coneshare\" in kopteksten en inlogformulieren.",
     "brandWebsiteUrl": "Website-URL van merk",

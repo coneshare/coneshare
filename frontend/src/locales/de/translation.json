@@ -50,7 +50,8 @@
     "yes": "Ja",
     "no": "Nein",
     "never": "Nie",
-    "anonymous": "Anonymer Besucher"
+    "anonymous": "Anonymer Besucher",
+    "dismiss": "Schließen"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -1115,8 +1116,12 @@
     "groupSecurityHelp": "Authentifizierung und Steuerung des öffentlichen Zugriffs.",
     "groupOther": "Sonstiges",
     "groupOtherHelp": "Nicht kategorisierte Einstellungen.",
-    "brandingTitle": "Erscheinungsbild & Branding",
+    "brandingTitle": "Marken- & Erscheinungsbild",
     "brandingSubtitle": "Passen Sie das Erscheinungsbild für Freigabelinks und Kundenportale an.",
+    "hidePoweredBy": "\"Powered by Coneshare\"-Hinweis entfernen",
+    "hidePoweredByHelp": "Die Community Edition zeigt auf Freigabelinks und Portalseiten den Hinweis \"Powered by Coneshare\" an. Wechseln Sie zu Coneshare Pro, um ihn automatisch zu entfernen.",
+    "viewPricing": "Preise ansehen",
+    "proBadge": "Pro",
     "brandName": "Markenname",
     "brandNameHelp": "Der angezeigte Name Ihrer Plattform in E-Mails und Kopfzeilen.",
     "brandWebsiteUrl": "Marken-Website-URL",

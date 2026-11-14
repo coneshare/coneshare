@@ -786,6 +786,18 @@ describe('ShareLinkViewerPage', () => {
 
         expect(screen.queryByTestId('toolbar-print-btn')).not.toBeInTheDocument();
         expect(printPdf).not.toHaveBeenCalled();
+
+        const pill = screen.getByTestId('viewer-powered-by-pill');
+        expect(pill).toBeInTheDocument();
+        expect(pill).toHaveTextContent(/Powered by Coneshare/i);
+        expect(pill).not.toHaveTextContent(/Secured/i);
+        expect(screen.getByRole('link', { name: /powered by coneshare/i })).toHaveAttribute(
+          'href',
+          'https://www.coneshare.com/'
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /dismiss/i }));
+        expect(screen.queryByTestId('viewer-powered-by-pill')).not.toBeInTheDocument();
       });
     });
   });

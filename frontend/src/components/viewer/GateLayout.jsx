@@ -142,7 +142,7 @@ export function GateLayout({
               <span>
                 {t('viewer.poweredBy')}{' '}
                 <a
-                  href="https://github.com/coneshare/coneshare"
+                  href="https://www.coneshare.com/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-semibold text-gray-700 dark:text-zinc-300 hover:underline"

@@ -181,5 +181,11 @@ describe('DocumentViewerHeader', () => {
     const downloadAllBtn = screen.getByRole('button', { name: 'Download all' });
     expect(downloadAllBtn).toBeDisabled();
   });
+
+  it('does not render Powered by Coneshare inside the responsive header bar', () => {
+    render(<DocumentViewerHeader {...defaultProps} />);
+
+    expect(screen.queryByText(/powered by/i)).not.toBeInTheDocument();
+  });
 });
 

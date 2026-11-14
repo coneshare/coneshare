@@ -50,7 +50,8 @@
     "yes": "Yes",
     "no": "No",
     "never": "Never",
-    "anonymous": "Anonymous Visitor"
+    "anonymous": "Anonymous Visitor",
+    "dismiss": "Dismiss"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -1089,8 +1090,12 @@
     "groupSecurityHelp": "Authentication and public access controls.",
     "groupOther": "Other",
     "groupOtherHelp": "Uncategorized settings.",
-    "brandingTitle": "White-Labeling & Branding",
+    "brandingTitle": "Brand Customization",
     "brandingSubtitle": "Customize the site name, website links, and logo.",
+    "hidePoweredBy": "Remove \"Powered by Coneshare\" Branding",
+    "hidePoweredByHelp": "Community Edition displays \"Powered by Coneshare\" attribution across share links and portal pages. Upgrade to Coneshare Pro to remove it automatically.",
+    "viewPricing": "View pricing",
+    "proBadge": "Pro",
     "brandName": "Brand Name",
     "brandNameHelp": "Overrides references to \"Coneshare\" in headers and login forms.",
     "brandWebsiteUrl": "Brand Website URL",

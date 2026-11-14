@@ -54,7 +54,8 @@
     "yes": "Да",
     "no": "Нет",
     "never": "Никогда",
-    "anonymous": "Анонимный посетитель"
+    "anonymous": "Анонимный посетитель",
+    "dismiss": "Закрыть"
   },
   "dashboard": {
     "title": "Панель управления",
@@ -1111,8 +1112,12 @@
     "groupSecurityHelp": "Управление аутентификацией и публичным доступом.",
     "groupOther": "Другие",
     "groupOtherHelp": "Некатегоризированные настройки.",
-    "brandingTitle": "Белая этикетка и брендинг",
+    "brandingTitle": "Настройка бренда и оформления",
     "brandingSubtitle": "Настройте название сайта, ссылки на веб-сайт и логотип.",
+    "hidePoweredBy": "Удалить отметку «Powered by Coneshare»",
+    "hidePoweredByHelp": "В редакции Community отметка «Powered by Coneshare» отображается на публичных ссылках и страницах портала. Перейдите на Coneshare Pro, чтобы удалить её автоматически.",
+    "viewPricing": "Смотреть тарифы",
+    "proBadge": "Pro",
     "brandName": "Название бренда",
     "brandNameHelp": "Заменяет упоминания «Coneshare» в заголовках и формах входа.",
     "brandWebsiteUrl": "URL веб-сайта бренда",

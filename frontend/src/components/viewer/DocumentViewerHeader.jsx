@@ -38,7 +38,7 @@ export function DocumentViewerHeader({
 
   return (
     <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-gray-200/80 bg-white px-3 sm:px-6 shadow-xs z-20">
-      {/* Left: Brand Logo & Powered By */}
+      {/* Left: Brand Logo */}
       <div className="flex items-center gap-3 min-w-0">
         <a
           href={brandWebsiteUrl || "/"}
@@ -52,20 +52,6 @@ export function DocumentViewerHeader({
           )}
           <span className="truncate max-w-[120px] sm:max-w-[200px] text-sm sm:text-base">{brandName}</span>
         </a>
-
-        <div className="hidden md:flex items-center gap-1.5 pl-2 border-l border-gray-200 text-[10px] text-gray-400 select-none">
-          <span>
-            {t('viewer.poweredBy')}{' '}
-            <a
-              href="https://github.com/coneshare/coneshare"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-gray-900 hover:text-gray-700 hover:underline transition-colors"
-            >
-              Coneshare
-            </a>
-          </span>
-        </div>
       </div>
 
       {/* Center: Document Title & Security Capsule */}

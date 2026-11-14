@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { AdminBrandingPage } from '../../pages/AdminBrandingPage';
 import * as api from '../../services/api';
 import { toast } from 'sonner';
-import '../../i18n';
+import appI18n from '../../i18n';
 
 const mockRefetchBranding = vi.fn();
 
@@ -126,5 +126,59 @@ describe('AdminBrandingPage', () => {
         'Brand logo: Upload a valid image. The file you uploaded was either not an image or a corrupted image.'
       );
     });
+  });
+
+  it('renders Brand Customization heading and Pro notice card linking to pricing without a toggle switch', async () => {
+    api.getAdminBranding.mockResolvedValue({
+      data: {
+        id: 'org-123',
+        brand_name: 'Acme Portal',
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <AdminBrandingPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Brand Customization' })).toBeInTheDocument();
+    expect(screen.queryByText(/White-Labeling/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+
+    expect(screen.getByText('Remove "Powered by Coneshare" Branding')).toBeInTheDocument();
+    expect(screen.getByText(/Upgrade to Coneshare Pro to remove it automatically\./i)).toBeInTheDocument();
+    expect(screen.getByText('Pro')).toBeInTheDocument();
+
+    const pricingLink = screen.getByRole('link', { name: /view pricing/i });
+    expect(pricingLink).toHaveAttribute('href', 'https://www.coneshare.com/pricing');
+    expect(pricingLink).toHaveAttribute('target', '_blank');
+    expect(pricingLink).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('links View pricing to Chinese pricing page when language is zh-hans', async () => {
+    api.getAdminBranding.mockResolvedValue({
+      data: {
+        id: 'org-123',
+        brand_name: 'Acme Portal',
+      },
+    });
+
+    const previousLang = appI18n.language;
+    await appI18n.changeLanguage('zh-hans');
+
+    try {
+      const { unmount } = render(
+        <MemoryRouter>
+          <AdminBrandingPage />
+        </MemoryRouter>
+      );
+
+      const pricingLink = await screen.findByRole('link', { name: /查看定价方案/i });
+      expect(pricingLink).toHaveAttribute('href', 'https://www.coneshare.com/zh/pricing');
+      unmount();
+    } finally {
+      await appI18n.changeLanguage(previousLang);
+    }
   });
 });

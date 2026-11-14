@@ -12,6 +12,7 @@ These are pending implementation or active feature proposals:
 |---|---|---|
 | **Datarooms** | [dataroom_collaboration_notifications_phase2_plan.md](todo/dataroom_collaboration_notifications_phase2_plan.md) | In-room notification controls, room owner notification flags, and daily/weekly email digests |
 | **Datarooms / Q&A** | [qna_notifications_and_mentions_plan.md](todo/qna_notifications_and_mentions_plan.md) | Comprehensive Q&A notifications, visitor reply loop & teammate @mentions |
+| **Share Links** | [sharelink_email_allowlist_plan.md](todo/sharelink_email_allowlist_plan.md) | Email & domain wildcard allowlist (`anyone` / `allowlist`) for ShareLinks (Issue #368) |
 | **eSign** | [native_esignature_phase1_and_phase2_plan.md](todo/native_esignature_phase1_and_phase2_plan.md) | Native eSignature (Phase 1 PDF NDA Gatekeeper & Phase 2 Full Document eSign, Field Placement Editor, Multi-Signer State Machine & VDR Vault Archiving) |
 | **MCP** | [cli_skills_plan.md](todo/cli_skills_plan.md) | Coneshare CLI (`@coneshare/cli`) terminal tool and Agent Skill manifest (`SKILL.md`) |
 | **MCP** | [realtime_mcp_events_plan.md](todo/realtime_mcp_events_plan.md) | Real-time workspace event subscriptions over Remote MCP SSE stream without polling |

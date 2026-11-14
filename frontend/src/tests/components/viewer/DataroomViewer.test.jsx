@@ -1647,5 +1647,20 @@ describe('DataroomViewer', () => {
       });
     });
   });
+
+  it('renders dismissible Powered by Coneshare badge pointing to https://www.coneshare.com/', () => {
+    renderComponent();
+
+    const pill = screen.getByTestId('viewer-powered-by-pill');
+    expect(pill).toBeInTheDocument();
+    expect(pill).toHaveTextContent(/Powered by Coneshare/i);
+    expect(screen.getByRole('link', { name: /powered by coneshare/i })).toHaveAttribute(
+      'href',
+      'https://www.coneshare.com/'
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /dismiss/i }));
+    expect(screen.queryByTestId('viewer-powered-by-pill')).not.toBeInTheDocument();
+  });
 });
 

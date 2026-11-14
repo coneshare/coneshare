@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Upload, X, Globe, Type, Image as ImageIcon, FileText, Shield, Loader2 } from 'lucide-react';
+import { Upload, X, Globe, Type, Image as ImageIcon, FileText, Shield, Loader2, Lock, ExternalLink } from 'lucide-react';
 import { AdminNav } from '../components/admin/AdminNav';
+import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
@@ -11,7 +12,10 @@ import { useBranding } from '../contexts/BrandingProvider';
 import * as api from '../services/api';
 
 export function AdminBrandingPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const pricingUrl = i18n.language?.toLowerCase().startsWith('zh')
+    ? 'https://www.coneshare.com/zh/pricing'
+    : 'https://www.coneshare.com/pricing';
   const { refetchBranding } = useBranding();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -357,6 +361,38 @@ export function AdminBrandingPage() {
                     className="hidden"
                   />
                 </div>
+              </div>
+
+              {/* Pro White-Label Notice */}
+              <div className="rounded-lg border border-dashed bg-muted/40 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Lock className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
+                    <span className="text-sm font-medium text-foreground">
+                      {t('admin.hidePoweredBy')}
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[10px] font-semibold px-2 py-0"
+                    >
+                      {t('admin.proBadge')}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {t('admin.hidePoweredByHelp')}
+                  </p>
+                </div>
+                <Button asChild variant="outline" size="sm" className="shrink-0 self-start sm:self-center">
+                  <a
+                    href={pricingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5"
+                  >
+                    <span>{t('admin.viewPricing')}</span>
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  </a>
+                </Button>
               </div>
             </div>
 

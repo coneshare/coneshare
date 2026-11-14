@@ -50,7 +50,8 @@
     "yes": "是",
     "no": "否",
     "never": "永不",
-    "anonymous": "匿名访客"
+    "anonymous": "匿名访客",
+    "dismiss": "关闭"
   },
   "dashboard": {
     "title": "仪表盘",
@@ -1090,8 +1091,12 @@
     "groupSecurityHelp": "身份验证与公共访问权限控制。",
     "groupOther": "其他设置",
     "groupOtherHelp": "未分类设置。",
-    "brandingTitle": "白标与品牌设置",
+    "brandingTitle": "品牌与视觉设置",
     "brandingSubtitle": "自定义站点名称、官方网站链接及品牌 Logo。",
+    "hidePoweredBy": "移除外发链接与系统内的 \"Powered by Coneshare\" 标识",
+    "hidePoweredByHelp": "社区开源版默认在外发链接与系统界面保留 Coneshare 品牌署名。升级至 Coneshare Pro 即可自动移除该标识。",
+    "viewPricing": "查看定价方案",
+    "proBadge": "Pro",
     "brandName": "品牌名称",
     "brandNameHelp": "覆盖页眉和登录表单中对“Coneshare”的引用。",
     "brandWebsiteUrl": "品牌官网 URL",

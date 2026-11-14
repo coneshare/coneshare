@@ -25,6 +25,8 @@ describe('GateLayout', () => {
     expect(screen.getByTestId('child-content')).toBeInTheDocument();
     expect(screen.getByText('Bob Manager')).toBeInTheDocument();
     expect(screen.getByText('About Coneshare')).toBeInTheDocument();
+    const poweredByLink = screen.getByRole('link', { name: 'Coneshare' });
+    expect(poweredByLink).toHaveAttribute('href', 'https://www.coneshare.com/');
   });
 
   it('renders custom badgeText when explicitly provided', () => {

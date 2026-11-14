@@ -15,6 +15,7 @@ import {
   List as ListIcon,
   Lock,
   FileText,
+  X,
 } from 'lucide-react';
 import { formatRelativeTime } from '../../utils/formatters';
 import { useSearchParams } from 'react-router-dom';
@@ -278,6 +279,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
   const [rootItems, setRootItems] = useState([]);
   const [isRootLoading, setIsRootLoading] = useState(false);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const [isPoweredByDismissed, setIsPoweredByDismissed] = useState(false);
   const [qnaContext, setQnaContext] = useState(null);
   const [currentScopeQnaThreadCount, setCurrentScopeQnaThreadCount] = useState(0);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -1060,7 +1062,7 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
 
   return (
     <div
-      className={`flex h-screen w-screen flex-col bg-gray-50 transition-[padding] duration-200 ${isQnaEnabled && qnaContext ? 'lg:pr-[34rem] xl:pr-[38rem]' : ''}`}
+      className={`relative flex h-screen w-screen flex-col bg-gray-50 transition-[padding] duration-200 ${isQnaEnabled && qnaContext ? 'lg:pr-[34rem] xl:pr-[38rem]' : ''}`}
       style={themeStyle}
     >
       <DocumentViewerHeader
@@ -1354,6 +1356,31 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
                         />
                       )}
                     </Suspense>
+                  </div>
+                )}
+                {!isPoweredByDismissed && (
+                  <div
+                    data-testid="viewer-powered-by-pill"
+                    className="pointer-events-auto absolute bottom-2 right-2 sm:bottom-3 sm:right-3 z-20 flex items-center gap-1 rounded-full border border-gray-200/80 bg-white/80 px-2.5 py-1 text-[11px] leading-none text-gray-600 shadow-sm backdrop-blur-md transition-colors hover:bg-white/95 dark:border-zinc-700/80 dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:bg-zinc-900/95 print:hidden select-none"
+                  >
+                    <a
+                      href="https://www.coneshare.com/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full hover:text-gray-900 dark:hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {t('viewer.poweredBy', { defaultValue: 'Powered by' })}{' '}
+                      <span className="font-semibold text-gray-900 dark:text-zinc-100">Coneshare</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setIsPoweredByDismissed(true)}
+                      aria-label={t('common.dismiss', { defaultValue: 'Dismiss' })}
+                      title={t('common.dismiss', { defaultValue: 'Dismiss' })}
+                      className="ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-gray-400 hover:bg-gray-200/70 hover:text-gray-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <X className="h-2.5 w-2.5" aria-hidden="true" />
+                    </button>
                   </div>
                 )}
               </div>
@@ -1652,6 +1679,31 @@ export function DataroomViewer({ data, slug, viewId, publicMeta }) {
           }
         }}
       />
+      {!showDocumentViewer && !isPoweredByDismissed && (
+        <div
+          data-testid="viewer-powered-by-pill"
+          className="pointer-events-auto absolute bottom-2 right-2 sm:bottom-3 sm:right-3 z-20 flex items-center gap-1 rounded-full border border-gray-200/80 bg-white/80 px-2.5 py-1 text-[11px] leading-none text-gray-600 shadow-sm backdrop-blur-md transition-colors hover:bg-white/95 dark:border-zinc-700/80 dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:bg-zinc-900/95 print:hidden select-none"
+        >
+          <a
+            href="https://www.coneshare.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full hover:text-gray-900 dark:hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t('viewer.poweredBy', { defaultValue: 'Powered by' })}{' '}
+            <span className="font-semibold text-gray-900 dark:text-zinc-100">Coneshare</span>
+          </a>
+          <button
+            type="button"
+            onClick={() => setIsPoweredByDismissed(true)}
+            aria-label={t('common.dismiss', { defaultValue: 'Dismiss' })}
+            title={t('common.dismiss', { defaultValue: 'Dismiss' })}
+            className="ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-gray-400 hover:bg-gray-200/70 hover:text-gray-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <X className="h-2.5 w-2.5" aria-hidden="true" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
