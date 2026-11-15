@@ -3,7 +3,7 @@ import { PricingContent } from './PricingContent';
 export const metadata = {
   title: '方案定价 - 虚拟资料室 (VDR) 与安全文档追踪 | ConeShare',
   description:
-    '无需按席位付费，不设团队人数限制。ConeShare 提供开源自建、托管私有云 (Managed BYOC) 与企业授权方案。数据 100% 驻留于自有云端与存储。',
+    '不按席位收费，也没有团队人数限制。ConeShare 提供 Community 开源自建、Pro 商业自托管、Managed BYOC 官方托管私有云，以及面向企业高可用与定制需求的 Enterprise 版本，数据 100% 留在你自己的云端。',
   keywords: [
     'ConeShare 定价',
     '虚拟资料室价格',

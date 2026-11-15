@@ -1,16 +1,123 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import Link from 'next/link';
 import {
   Check,
+  X,
   ChevronDown,
   ArrowRight,
   ExternalLink,
 } from 'lucide-react';
 
+const FEATURE_COMPARISON_GROUPS = [
+  {
+    category: 'Datarooms & Documents',
+    items: [
+      { name: 'Unlimited team members', community: true, pro: true },
+      { name: 'Unlimited documents', community: true, pro: true },
+      { name: 'Unlimited folders', community: true, pro: true },
+      { name: 'Unlimited datarooms', community: true, pro: true },
+      { name: 'Bulk upload', community: true, pro: true },
+      { name: 'Full-text search (PDF / Office / Markdown)', community: false, pro: true },
+    ],
+  },
+  {
+    category: 'Document Analytics & Tracking',
+    items: [
+      { name: 'Unlimited view logs', community: true, pro: true },
+      { name: 'Time spent per page', community: true, pro: true },
+      { name: 'Document version tracking', community: true, pro: true },
+      { name: 'Visitor geolocation tracking', community: true, pro: true },
+      { name: 'Complete view history', community: true, pro: true },
+      { name: 'Analytics retention', community: 'Unlimited (self-managed)', pro: 'Unlimited (self-managed)' },
+      { name: 'Analytics data export', community: false, pro: true },
+    ],
+  },
+  {
+    category: 'Share Link Settings',
+    items: [
+      { name: 'Capture email before viewing', community: true, pro: true },
+      { name: 'Email visit notifications', community: true, pro: true },
+      { name: 'Password protection', community: true, pro: true },
+      { name: 'Link expiration date', community: true, pro: true },
+      { name: 'Allow / block document downloads', community: true, pro: true },
+      { name: 'Email verification code', community: true, pro: true },
+      { name: 'Allowed / blocked user lists', community: true, pro: true },
+      { name: 'Dynamic watermarks', community: true, pro: true },
+    ],
+  },
+  {
+    category: 'Supported File Types',
+    items: [
+      { name: 'PDF files (.pdf)', community: true, pro: true },
+      { name: 'Images (.png, .jpg, .jpeg, .gif, .webp, .heic, .heif)', community: true, pro: true },
+      { name: 'Spreadsheets (.xls, .xlsx, .csv)', community: true, pro: true },
+      { name: 'Word documents (.doc, .docx)', community: true, pro: true },
+      { name: 'Videos (.mp4, .mov, .avi, .webm, .ogg, .m4v, .3gp)', community: true, pro: true },
+      { name: 'Presentations (.ppt, .pptx)', community: true, pro: true },
+      { name: 'Markdown files (.md)', community: true, pro: true },
+    ],
+  },
+  {
+    category: 'User & Identity Management',
+    items: [
+      { name: 'SSO single sign-on (with Dex)', community: true, pro: true },
+      { name: 'SSO with AD/LDAP directory sync', community: false, pro: true },
+      { name: 'SSO with ADFS integration', community: false, pro: true },
+    ],
+  },
+  {
+    category: 'Security & Audit',
+    items: [
+      { name: 'Compliance audit log', community: false, pro: true },
+    ],
+  },
+  {
+    category: 'Custom Branding',
+    items: [
+      { name: 'Custom organization logo', community: true, pro: true },
+      { name: 'Custom brand name', community: true, pro: true },
+      { name: 'Custom dataroom logo', community: true, pro: true },
+      { name: 'Custom dataroom banners', community: true, pro: true },
+      { name: 'Full white-labeling (remove Powered by badge, etc.)', community: false, pro: true },
+    ],
+  },
+  {
+    category: 'Support',
+    items: [
+      { name: 'GitHub / community forum support', community: true, pro: true },
+      { name: 'Email support', community: false, pro: true },
+      { name: 'Response within 1 business day', community: false, pro: true },
+    ],
+  },
+];
+
+function renderFeatureCell(value, planName, featureName) {
+  if (typeof value === 'string') {
+    return <span className="text-xs font-medium text-gray-700">{value}</span>;
+  }
+  if (value) {
+    return (
+      <span
+        className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"
+        aria-label={`${planName} supports ${featureName}`}
+      >
+        <Check className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden="true" />
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-gray-500"
+      aria-label={`${planName} does not support ${featureName}`}
+    >
+      <X className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden="true" />
+    </span>
+  );
+}
+
 export function PricingContent() {
-  const [billingCycle, setBillingCycle] = useState('monthly');
   const [activeFaq, setActiveFaq] = useState(null);
 
   const toggleFaq = (index) => {
@@ -19,32 +126,32 @@ export function PricingContent() {
 
   const faqs = [
     {
-      q: 'Why pay for Managed BYOC if the Community Edition is open source?',
-      a: 'The Community Edition includes all core features, and we do not restrict security tools like NDA gates or dynamic watermarks. However, maintaining video transcoding, document rendering, SSL certificates, and database backups requires ongoing operational time. With Managed BYOC, our team handles setup and maintenance in your cloud, saving your internal engineers from day-to-day operations.',
+      q: 'If the Community Edition is open source under the MIT license, why choose Pro or Managed BYOC?',
+      a: 'The Community Edition includes our full core VDR features, with no restrictions on NDA gates or dynamic watermarks. If your organization needs white-labeling (removing the Powered by badge), SSO/LDAP integration, cross-document full-text search, or audit log exports, choose self-hosted Pro ($2,999/year). If you just want to offload deployment, video transcoding, SSL certificate renewals, and database backups, you can subscribe to Managed BYOC ($1,999/year or $199/month) even with the open-source Community Edition; if you need both Pro features and managed operations, simply combine them ($4,998/year total).',
     },
     {
-      q: 'How should a team of 20-40 people choose between Managed BYOC (Tier 2) and Enterprise (Tier 3)?',
-      a: 'The choice depends on whether you need identity integration and custom capabilities. If standard email and password login works for you, Managed BYOC is a flat price regardless of whether you have 10 or 50 people. If your IT or security team requires SSO (Okta, Azure AD), LDAP directory sync, cross-document full-text search, audit log exports, or bespoke features, choose Enterprise.',
+      q: 'How should our team choose between Pro, Managed BYOC, and Enterprise?',
+      a: 'All paid plans include unlimited team members and external visitors. Managed BYOC ($1,999/year) is a pure managed private-cloud operations add-on (excluding a Pro license) ideal for smaller teams running the open-source Community Edition without in-house DevOps. Pro ($2,999/year) unlocks white-labeling, SSO (SAML 2.0 / OIDC / Okta / Azure AD / LDAP), full-text search, and compliance audit logs (add Managed BYOC for $4,998/year total if you also want managed operations). Enterprise is built for larger organizations that need multi-tenancy, multi-node high-availability clusters, air-gapped offline deployments, a priority Slack SLA (within 24 hours), and custom co-development.',
     },
     {
       q: 'What happens if we stop subscribing to Managed BYOC? Do you offer refunds?',
-      a: 'During the first 14 days after deployment, we provide a full refund if network or storage issues prevent smooth operation. Because the software and data run inside your own cloud account, ending a subscription will never shut down your servers or lock your files. We hand over the deployment credentials to your team, and your internal staff can manage the instance directly.',
+      a: 'During the first 14 days after managed deployment, we provide a full refund if network or storage constraints prevent smooth operation. Because both the application and data live inside your own cloud account, ending a managed subscription never shuts down your instance or locks your files. Once we hand over deployment credentials to your internal IT team, your staff can take over operations at any time.',
     },
     {
       q: 'How much does raw cloud infrastructure (AWS / GCP / Azure) cost, and how should we size our server?',
-      a: 'Server requirements depend on document and video processing volume rather than headcount. For teams sharing mainly PDFs, a 4 vCPU / 4GB RAM instance (~$40-$60/month on AWS or GCP) can comfortably support 50 users. If you have high volumes of HD video transcoding, we recommend 8 vCPU / 16GB RAM (~$120-$160/month). You pay your cloud provider directly with no markups from us.',
+      a: 'Server sizing depends primarily on the volume of shared documents and videos rather than team headcount. For teams sharing mainly PDFs, a 4 vCPU / 4GB RAM instance (~$40-$60/month on AWS or GCP) comfortably supports 50 users. If you have high volumes of HD video transcoding, we recommend 8 vCPU / 16GB RAM (~$120-$160/month). You pay your cloud provider directly with zero markups from us.',
     },
     {
-      q: 'How does feature co-development and priority delivery work in Enterprise?',
-      a: "You discuss requirements directly with our core engineering team. If a requested feature (such as an auth plugin, webhook, or compliance report) aligns with ConeShare's product roadmap, we prioritize and ship it within 2-4 weeks at no additional charge. For bespoke logic specific to your company, we can maintain an independent private branch.",
+      q: 'How does custom co-development work in Enterprise?',
+      a: "Your team works directly with our core engineers. If a requested feature (such as a specific auth plugin, webhook, or compliance report) aligns with ConeShare's product roadmap, we prioritize and ship it to the main release within 2-4 weeks. For bespoke workflows specific to your organization, we can maintain an independent private branch long-term.",
     },
     {
-      q: 'Can we purchase an Enterprise license for offline deployment without granting VPC access?',
-      a: 'Yes. For organizations with strict security policies or air-gapped intranet environments, Enterprise can be delivered as an offline commercial license file (.lic) to enable SSO, LDAP, full-text search, and audit logs on your own self-managed servers.',
+      q: 'Can we purchase a commercial license for self-hosted or air-gapped deployment without granting VPC access?',
+      a: 'Yes. With a self-hosted Pro license, you can unlock white-labeling, SSO/LDAP, full-text search, and compliance audit logs on your own servers without granting VPC access to our team. For strict compliance environments requiring physically isolated air-gapped networks or high-availability clusters, choose Enterprise for offline delivery.',
     },
     {
       q: 'How does billing and invoicing work for annual contracts?',
-      a: 'We support corporate bank wire transfers (ACH, Wire, SWIFT). Once the contract is confirmed, we issue a formal commercial invoice along with our standard corporate agreement.',
+      a: 'We support corporate bank wire transfers (ACH, Wire, SWIFT). Once the order is confirmed, we issue a formal commercial invoice alongside our standard corporate agreement.',
     },
   ];
 
@@ -69,37 +176,8 @@ export function PricingContent() {
           </h1>
 
           <p className="mt-4 text-base leading-7 text-gray-600 max-w-2xl mx-auto">
-            Deploy our open-source version for free with Docker, let our team manage deployment
-            and maintenance in your own private cloud, or choose Enterprise for SSO and compliance audit logs.
+            Deploy our open-source Community edition for free with Docker; choose Pro to unlock white-labeling, SSO, and compliance audit logs; add Managed BYOC for hands-off deployment and operations in your private cloud (for either Community or Pro); or choose Enterprise for high availability and custom engineering.
           </p>
-
-          {/* Billing Toggle */}
-          <div className="mt-8 flex items-center justify-center">
-            <div className="relative flex items-center rounded-full bg-gray-100 p-1 border border-gray-200">
-              <button
-                type="button"
-                onClick={() => setBillingCycle('monthly')}
-                className={`relative rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                  billingCycle === 'monthly'
-                    ? 'bg-gray-900 text-white shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Monthly
-              </button>
-              <button
-                type="button"
-                onClick={() => setBillingCycle('annual')}
-                className={`relative rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                  billingCycle === 'annual'
-                    ? 'bg-gray-900 text-white shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Annual
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Pricing Cards Grid */}
@@ -109,7 +187,7 @@ export function PricingContent() {
             <div>
               <h3 className="text-xl font-bold tracking-tight text-gray-900">Community</h3>
               <p className="mt-2 text-sm text-gray-600 min-h-[40px]">
-                For technical teams that want complete self-managed control with open-source software.
+                For technical teams with ops capability who want open-source, self-managed control.
               </p>
 
               <div className="mt-6 flex items-baseline whitespace-nowrap">
@@ -127,7 +205,7 @@ export function PricingContent() {
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Unlimited team members and share links</span>
+                    <span>Unlimited team seats and share links</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
@@ -139,7 +217,7 @@ export function PricingContent() {
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Community support via GitHub Discussions and issue tracker</span>
+                    <span>Community forum and GitHub support</span>
                   </li>
                 </ul>
               </div>
@@ -168,85 +246,50 @@ export function PricingContent() {
             </div>
           </div>
 
-          {/* Tier 2: Managed BYOC (Hero / Most Popular) */}
-          <div className="relative flex flex-col justify-between rounded-2xl border-2 border-gray-900 bg-white p-8 shadow-md transition hover:shadow-lg">
-            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-              <span className="rounded-full bg-gray-900 px-3.5 py-1 text-xs font-semibold text-white shadow-sm">
-                Most Popular
-              </span>
-            </div>
-
+          {/* Tier 2: Pro */}
+          <div className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-8 shadow-sm transition hover:border-gray-300">
             <div>
-              <h3 className="text-xl font-bold tracking-tight text-gray-900">Managed BYOC</h3>
+              <h3 className="text-xl font-bold tracking-tight text-gray-900">Pro</h3>
               <p className="mt-2 text-sm text-gray-600 min-h-[40px]">
-                Our team handles deployment and maintenance, while data and instances remain in your own cloud account.
+                Self-hosted commercial edition with all enterprise features (unlimited seats), keeping data and instances in your own cloud.
               </p>
 
-              <div className="mt-6 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                {billingCycle === 'annual' ? (
-                  <>
-                    <div className="flex items-baseline whitespace-nowrap">
-                      <span className="text-4xl font-bold tracking-tight text-gray-900">$3,999</span>
-                      <span className="ml-1.5 text-sm font-medium text-gray-500">/ year</span>
-                    </div>
-                    <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700 whitespace-nowrap">
-                      ~$333/month
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-baseline whitespace-nowrap">
-                      <span className="text-4xl font-bold tracking-tight text-gray-900">$399</span>
-                      <span className="ml-1.5 text-sm font-medium text-gray-500">/ month</span>
-                    </div>
-                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600 whitespace-nowrap">
-                      3-mo minimum
-                    </span>
-                  </>
-                )}
+              <div className="mt-6 flex items-baseline whitespace-nowrap">
+                <span className="text-4xl font-bold tracking-tight text-gray-900">$2,999</span>
+                <span className="ml-1.5 text-sm font-medium text-gray-500">/ year</span>
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                {billingCycle === 'annual'
-                  ? '$500 setup fee waived • 14-day refund guarantee'
-                  : 'Total first payment $1,697 • 14-day refund guarantee'}
+                Unlimited team members and external visitors
               </p>
 
-              <div className="mt-6 border-t border-gray-100 pt-6">
+              <div className="mt-8 border-t border-gray-100 pt-6">
                 <p className="text-xs font-semibold text-gray-900">
                   Includes everything in Community, plus:
                 </p>
                 <ul className="mt-4 space-y-3 text-sm text-gray-600">
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Deployed directly in your own private cloud VPC with isolated storage</span>
+                    <span>White-labeling: remove Powered by badge, customize brand colors, favicon, and more</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>White-label branding: remove Powered by badge, custom domain, and brand colors</span>
+                    <span>Enterprise SSO, AD/LDAP directory sync, and ADFS integration</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Unlimited team seats with zero visitor fees</span>
+                    <span>Cross-document full-text search across PDF, Office, and Markdown for internal users and dataroom visitors</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Official turnkey setup: custom domain, automated SSL certificates, and log collection</span>
+                    <span>Compliance audit logs and security event export</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Performance tuning for document rendering and video streaming</span>
+                    <span>Self-hosted commercial licensing on your own cloud or servers with zero vendor lock-in</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Off-peak security updates and regular database backup verification</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Zero vendor lock-in: if you cancel, the open-source instance keeps running in your cloud</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Technical support: 24-hour email response directly from our engineering team</span>
+                    <span>Technical support: email response within 1 business day from our engineering team</span>
                   </li>
                 </ul>
               </div>
@@ -254,14 +297,14 @@ export function PricingContent() {
 
             <div className="mt-8 pt-4 border-t border-gray-100">
               <a
-                href="mailto:dev@coneshare.com?subject=Managed%20BYOC%20Deployment%20Inquiry"
+                href="mailto:dev@coneshare.com?subject=ConeShare%20Pro%20Inquiry"
                 className="inline-flex w-full items-center justify-center rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 transition"
               >
-                Request Managed Deployment
+                Contact Sales for Pro
                 <ArrowRight className="ml-1.5 h-4 w-4" />
               </a>
               <p className="mt-2 text-center text-xs text-gray-500">
-                Async onboarding via email and Slack
+                Corporate wire transfers and commercial invoices supported
               </p>
             </div>
           </div>
@@ -271,7 +314,7 @@ export function PricingContent() {
             <div>
               <h3 className="text-xl font-bold tracking-tight text-gray-900">Enterprise</h3>
               <p className="mt-2 text-sm text-gray-600 min-h-[40px]">
-                For organizations that require SSO single sign-on, full-text search, audit logging, or custom integrations.
+                Built for mid-to-large organizations requiring HA clusters, air-gapped offline delivery, strict SLAs, and custom engineering.
               </p>
 
               <div className="mt-6 flex items-baseline whitespace-nowrap">
@@ -279,36 +322,32 @@ export function PricingContent() {
                 <span className="text-4xl font-bold tracking-tight text-gray-900">$9,999</span>
                 <span className="ml-1.5 text-sm font-medium text-gray-500">/ year</span>
               </div>
-              <p className="mt-1 text-xs text-gray-500">Billed annually • Custom onboarding roadmap</p>
+              <p className="mt-1 text-xs text-gray-500">Dedicated HA architecture and custom co-development roadmap</p>
 
               <div className="mt-8 border-t border-gray-100 pt-6">
                 <p className="text-xs font-semibold text-gray-900">
-                  Includes everything in Managed BYOC, plus:
+                  Includes everything in Pro, plus:
                 </p>
                 <ul className="mt-4 space-y-3 text-sm text-gray-600">
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>SSO and directory sync (SAML 2.0 / OIDC / Okta / Azure AD / LDAP)</span>
+                    <span>Multi-tenancy architecture with isolated Multi-Org management</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Cross-document full-text search (PDF, Office, and Markdown content)</span>
+                    <span>HA and offline delivery: multi-node high-availability clusters or fully air-gapped on-prem deployments</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Compliance audit logs and security event export</span>
+                    <span>Priority SLA: dedicated Slack channel with engineering response and resolution within 24 hours</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Multi-node high-availability clusters or fully air-gapped offline deployment</span>
+                    <span>Co-development: shared features prioritized in 2-4 weeks; dedicated private branches for bespoke workflows</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Co-development: common features prioritized in 2-4 weeks; dedicated private branches for custom logic</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>Dedicated Slack channel with priority resolution within 24 hours</span>
+                    <span>Standard corporate procurement agreements, POC trials, and compliance architecture assistance</span>
                   </li>
                 </ul>
               </div>
@@ -323,8 +362,176 @@ export function PricingContent() {
                 <ArrowRight className="ml-1.5 h-4 w-4" />
               </a>
               <p className="mt-2 text-center text-xs text-gray-500">
-                POC trial and compliance support available
+                POC trials and compliance support available
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Managed BYOC Add-on Section */}
+        <div className="mx-auto mt-10 max-w-7xl rounded-2xl border-2 border-gray-900 bg-gray-50/70 p-8 shadow-sm">
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex-1">
+              <h3 className="text-xl font-bold tracking-tight text-gray-900">
+                Managed BYOC (Official Managed Private Cloud)
+              </h3>
+
+              <p className="mt-3 text-sm leading-6 text-gray-600 max-w-3xl">
+                Our team handles deployment and ongoing operations while keeping all data and instances inside your own cloud account. This service excludes a Pro license, making it ideal for teams running the open-source Community edition; if you also need Pro features, simply add a Pro license (+$2,999 / year, totaling $4,998 / year). Zero vendor lock-in — your instance keeps running in your cloud even if you cancel managed service.
+              </p>
+
+              <ul className="mt-5 grid grid-cols-1 gap-3 text-sm text-gray-700 md:grid-cols-2">
+                <li className="flex items-start gap-2.5">
+                  <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <span>Official turnkey setup: custom domain, automated SSL certificates, and centralized logs</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <span>Large-file transcoding and streaming playback performance tuning</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <span>Off-peak security updates and regular database backup verification</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <span>Managed ops support: email response within 1 business day for deployment, upgrades, and incidents</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="flex flex-col justify-between rounded-xl border border-gray-200 bg-white p-6 lg:w-80 lg:flex-shrink-0">
+              <div>
+                <div className="flex items-baseline whitespace-nowrap">
+                  <span className="text-3xl font-bold tracking-tight text-gray-900">$1,999</span>
+                  <span className="ml-1.5 text-sm font-medium text-gray-500">/ year</span>
+                  <span className="ml-2 rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+                    ~$167/month
+                  </span>
+                </div>
+                <div className="mt-2 flex items-baseline gap-2 text-sm text-gray-700">
+                  <span>Or monthly billing:</span>
+                  <strong className="font-semibold text-gray-900">$199 / month</strong>
+                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
+                    3-mo minimum
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  14-day refund guarantee
+                </p>
+              </div>
+
+              <div className="mt-5">
+                <a
+                  href="mailto:dev@coneshare.com?subject=Managed%20BYOC%20Deployment%20Inquiry"
+                  className="inline-flex w-full items-center justify-center rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 transition"
+                >
+                  Request Managed Deployment
+                  <ArrowRight className="ml-1.5 h-4 w-4" />
+                </a>
+                <p className="mt-2 text-center text-xs text-gray-500">
+                  Fast onboarding via email and Slack
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Feature Comparison Table */}
+      <div className="bg-white pt-12 pb-20 sm:pt-16 sm:pb-24 border-t border-gray-100">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+              Compare Features
+            </h2>
+          </div>
+
+          <div className="mt-12 overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+            <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-4 font-semibold text-gray-900">
+                    Feature
+                  </th>
+                  <th scope="col" className="w-44 px-6 py-4 text-center font-semibold text-gray-900">
+                    Community
+                    <span className="block text-xs font-normal text-gray-500">Open-Source Self-Hosted</span>
+                  </th>
+                  <th scope="col" className="w-44 px-6 py-4 text-center font-semibold text-gray-900">
+                    Pro
+                    <span className="block text-xs font-normal text-gray-500">Commercial Self-Hosted</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {FEATURE_COMPARISON_GROUPS.map((group) => (
+                  <Fragment key={group.category}>
+                    <tr className="bg-gray-50/80">
+                      <th
+                        colSpan={3}
+                        scope="colgroup"
+                        className="px-6 py-3 text-xs font-semibold tracking-wide text-gray-900"
+                      >
+                        {group.category}
+                      </th>
+                    </tr>
+                    {group.items.map((item) => (
+                      <tr key={`${group.category}-${item.name}`} className="hover:bg-gray-50/50">
+                        <td className="px-6 py-3.5 text-gray-700">{item.name}</td>
+                        <td className="px-6 py-3.5 text-center">
+                          {renderFeatureCell(item.community, 'Community', item.name)}
+                        </td>
+                        <td className="px-6 py-3.5 text-center">
+                          {renderFeatureCell(item.pro, 'Pro', item.name)}
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Paid Support Info Card */}
+          <div className="mt-10 rounded-2xl border border-gray-200 bg-gray-50/70 p-8 shadow-sm">
+            <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex-1">
+                <h3 className="text-xl font-bold tracking-tight text-gray-900">
+                  Support (Paid Engineering Support)
+                </h3>
+                <p className="mt-3 text-sm leading-6 text-gray-600 max-w-3xl">
+                  For open-source self-hosters or teams needing extra engineering assistance, delivered directly by our core engineering team on an hourly basis.
+                </p>
+
+                <ul className="mt-5 grid grid-cols-1 gap-3 text-sm text-gray-700 md:grid-cols-3">
+                  <li className="flex items-start gap-2.5">
+                    <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <span>Covers Email, Slack, and live Remote Sessions</span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <span>Private cloud deployment guidance, performance tuning, and troubleshooting</span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <span>Billed per actual hours used with flexible scheduling and no long-term lock-in</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 bg-white p-6 lg:w-80 lg:flex-shrink-0">
+                <div className="flex items-baseline whitespace-nowrap">
+                  <span className="text-3xl font-bold tracking-tight text-gray-900">$150</span>
+                  <span className="ml-1.5 text-sm font-medium text-gray-500">/ hour</span>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  Includes Email / Slack / Remote Session
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Ideal for self-hosted troubleshooting, performance tuning, and integration guidance
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -367,7 +574,10 @@ export function PricingContent() {
                   <td className="px-6 py-4 text-gray-600">$180/mo (includes 3 seats) + $60/user/mo</td>
                   <td className="px-6 py-4 text-gray-600">~$107/mo (€99, includes 3 seats) + ~$36/user/mo</td>
                   <td className="px-6 py-4 font-medium text-gray-900">
-                    $3,999 / year flat rate (unlimited seats)
+                    $1,999 / year managed open-source (unlimited seats)
+                    <span className="block text-xs font-normal text-gray-500">
+                      Add $2,999 / year if Pro enterprise features are needed
+                    </span>
                   </td>
                 </tr>
                 <tr>
@@ -384,9 +594,9 @@ export function PricingContent() {
                     <span className="block text-xs text-gray-400">~€5,904 if billed monthly</span>
                   </td>
                   <td className="px-6 py-4 text-gray-900">
-                    <span>$3,999 / year</span>
+                    <span>$1,999 / year</span>
                     <span className="text-xs text-gray-500"> + ~$480 cloud ≈ </span>
-                    <strong>~$4,479 / year</strong>
+                    <strong>~$2,479 / year</strong>
                   </td>
                 </tr>
                 <tr>
@@ -403,10 +613,10 @@ export function PricingContent() {
                     <span className="block text-xs text-gray-400">~€14,724 if billed monthly</span>
                   </td>
                   <td className="px-6 py-4 text-gray-900">
-                    <span>$3,999 / year</span>
+                    <span>$1,999 / year</span>
                     <span className="text-xs text-gray-500"> + ~$600 cloud ≈ </span>
-                    <strong>~$4,599 / year</strong>
-                    <span className="block text-xs text-gray-500">Save 74% vs. DocSend</span>
+                    <strong>~$2,599 / year</strong>
+                    <span className="block text-xs text-gray-500">Save ~86% vs. DocSend</span>
                   </td>
                 </tr>
                 <tr>
@@ -423,18 +633,18 @@ export function PricingContent() {
                     <span className="block text-xs text-gray-400">~€29,424 if billed monthly</span>
                   </td>
                   <td className="px-6 py-4 text-gray-900">
-                    <span>$3,999 / year</span>
+                    <span>$1,999 / year</span>
                     <span className="text-xs text-gray-500"> + ~$960 cloud ≈ </span>
-                    <strong>~$4,959 / year</strong>
-                    <span className="block text-xs text-gray-500">Save 86% vs. DocSend</span>
+                    <strong>~$2,959 / year</strong>
+                    <span className="block text-xs text-gray-500">Save ~92% vs. DocSend</span>
                   </td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 font-medium text-gray-900">Open-source self-hosted version includes VDR?</td>
                   <td className="px-6 py-4 text-gray-500">Closed-source SaaS only</td>
-                  <td className="px-6 py-4 text-gray-500">Free self-hosted version excludes Data Rooms</td>
+                  <td className="px-6 py-4 text-gray-500">Free self-hosted version excludes datarooms</td>
                   <td className="px-6 py-4 text-gray-900 font-medium">
-                    100% open source includes full VDR features
+                    Open-source edition includes full VDR features
                   </td>
                 </tr>
                 <tr>

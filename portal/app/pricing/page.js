@@ -3,7 +3,7 @@ import { PricingContent } from './PricingContent';
 export const metadata = {
   title: 'Pricing & Plans - Self-Hosted Virtual Dataroom (VDR) | ConeShare',
   description:
-    'Predictable flat pricing with no per-seat fees. Run ConeShare on your own cloud with 100% data sovereignty. Choose between open-source community, managed BYOC, or enterprise.',
+    'No per-seat pricing and no team size limits. Choose open-source Community, commercial self-hosted Pro, Managed BYOC private cloud, or Enterprise for high availability and custom engineering — with data residency in your own cloud.',
   keywords: [
     'ConeShare pricing',
     'virtual dataroom cost',

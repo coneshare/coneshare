@@ -1,16 +1,123 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import Link from 'next/link';
 import {
   Check,
+  X,
   ChevronDown,
   ArrowRight,
   ExternalLink,
 } from 'lucide-react';
 
+const FEATURE_COMPARISON_GROUPS = [
+  {
+    category: '资料室与文档管理',
+    items: [
+      { name: '不限团队成员数量', community: true, pro: true },
+      { name: '不限文档数量', community: true, pro: true },
+      { name: '不限文件夹数量', community: true, pro: true },
+      { name: '不限资料室（Data Rooms）数量', community: true, pro: true },
+      { name: '批量上传', community: true, pro: true },
+      { name: '全文检索（PDF / Office / Markdown）', community: false, pro: true },
+    ],
+  },
+  {
+    category: '文档分析与追踪',
+    items: [
+      { name: '不限访问记录次数', community: true, pro: true },
+      { name: '逐页阅读时长统计', community: true, pro: true },
+      { name: '文档版本追踪', community: true, pro: true },
+      { name: '访客地理位置追踪', community: true, pro: true },
+      { name: '完整历史访问记录', community: true, pro: true },
+      { name: '分析数据保留时长', community: '不限（自主保留）', pro: '不限（自主保留）' },
+      { name: '分析数据导出', community: false, pro: true },
+    ],
+  },
+  {
+    category: '分享链接设置',
+    items: [
+      { name: '访问前收集访客邮箱', community: true, pro: true },
+      { name: '接收访问邮件通知', community: true, pro: true },
+      { name: '密码保护', community: true, pro: true },
+      { name: '链接过期时间', community: true, pro: true },
+      { name: '允许/禁止文档下载', community: true, pro: true },
+      { name: '邮箱验证码验证', community: true, pro: true },
+      { name: '指定用户白名单/黑名单访问控制', community: true, pro: true },
+      { name: '动态水印', community: true, pro: true },
+    ],
+  },
+  {
+    category: '支持文件格式',
+    items: [
+      { name: 'PDF 文档（.pdf）', community: true, pro: true },
+      { name: '图片（.png, .jpg, .jpeg, .gif, .webp, .heic, .heif）', community: true, pro: true },
+      { name: '电子表格（.xls, .xlsx, .csv）', community: true, pro: true },
+      { name: 'Word 文档（.doc, .docx）', community: true, pro: true },
+      { name: '视频文件（.mp4, .mov, .avi, .webm, .ogg, .m4v, .3gp）', community: true, pro: true },
+      { name: '演示文稿（.ppt, .pptx）', community: true, pro: true },
+      { name: 'Markdown 文档（.md）', community: true, pro: true },
+    ],
+  },
+  {
+    category: '用户与身份管理',
+    items: [
+      { name: 'SSO 单点登录（基于 Dex）', community: true, pro: true },
+      { name: 'SSO 与 AD/LDAP 目录同步', community: false, pro: true },
+      { name: 'SSO 与 ADFS 集成', community: false, pro: true },
+    ],
+  },
+  {
+    category: '安全与审计',
+    items: [
+      { name: '合规审计日志（Audit Log）', community: false, pro: true },
+    ],
+  },
+  {
+    category: '品牌定制',
+    items: [
+      { name: '自定义组织 Logo', community: true, pro: true },
+      { name: '自定义品牌名称', community: true, pro: true },
+      { name: '自定义资料室独立 Logo', community: true, pro: true },
+      { name: '自定义资料室横幅（Banners）', community: true, pro: true },
+      { name: '完整白标（移除 Powered by 标识等）', community: false, pro: true },
+    ],
+  },
+  {
+    category: '技术支持',
+    items: [
+      { name: 'GitHub / 社区论坛支持', community: true, pro: true },
+      { name: '邮件支持', community: false, pro: true },
+      { name: '1 个工作日内响应支持', community: false, pro: true },
+    ],
+  },
+];
+
+function renderFeatureCell(value, planName, featureName) {
+  if (typeof value === 'string') {
+    return <span className="text-xs font-medium text-gray-700">{value}</span>;
+  }
+  if (value) {
+    return (
+      <span
+        className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"
+        aria-label={`${planName} 支持 ${featureName}`}
+      >
+        <Check className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden="true" />
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-gray-500"
+      aria-label={`${planName} 不支持 ${featureName}`}
+    >
+      <X className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden="true" />
+    </span>
+  );
+}
+
 export function PricingContent() {
-  const [billingCycle, setBillingCycle] = useState('monthly'); // 默认按月支付
   const [activeFaq, setActiveFaq] = useState(null);
 
   const toggleFaq = (index) => {
@@ -19,28 +126,28 @@ export function PricingContent() {
 
   const faqs = [
     {
-      q: '既然 Community 版本已经通过 MIT 协议开源，为什么还要选择付费的 Managed BYOC？',
-      a: 'Community 开源版包含完整功能，NDA 签署和动态水印等安全特性也没有任何限制。不过，自行维护视频转码、Office 渲染、证书更新和数据库备份需要持续投入运维精力。Managed BYOC 则由我们负责在您的云上完成部署和日常维护，省去内部团队折腾运维的时间。',
+      q: '既然 Community 版本已经通过 MIT 协议开源，为什么还要选择 Pro 或 Managed BYOC？',
+      a: 'Community 开源版包含完整核心 VDR 功能，NDA 签署和动态水印等安全特性也没有任何限制。如果企业需要移除 Powered by 白标、对接 SSO/LDAP、跨文档全文搜索或导出合规审计日志，可以选择自托管的 Pro 版本（$2,999/年）；如果只想省去部署、视频转码、SSL 证书更新与数据库备份的运维精力，即使只使用 Community 开源版，也可以单独订阅 Managed BYOC 托管服务（$1,999/年 或 $199/月）；若同时需要 Pro 商业功能与官方托管运维，可在 Managed BYOC 基础上叠加 Pro 授权（合计 $4,998/年）。',
     },
     {
-      q: '面对 20-40 人的团队，我们该如何挑选 Managed BYOC（档位 2）与 Enterprise（档位 3）？',
-      a: '主要看团队是否需要统一的身份集成与深度定制能力。如果使用普通邮箱密码登录，无论是 10 人还是 50 人团队，Managed BYOC 都是统一价格。如果公司 IT 或合规团队要求接入 SSO（Okta / Azure AD）、LDAP 同步、跨文档全文搜索、审计日志导出，或者需要定制特定业务功能，则需要选择 Enterprise 方案。',
+      q: '团队应该如何在 Pro、Managed BYOC 与 Enterprise 之间做选择？',
+      a: '所有付费方案均不限团队人数与访客席位。Managed BYOC（$1,999/年）为纯托管私有云运维服务（不含 Pro 授权），适合希望由官方代为运维 Community 开源版的中小团队；Pro（$2,999/年）解锁白标、SSO（SAML 2.0 / OIDC / Okta / Azure AD / LDAP）、全文搜索与审计日志等全部企业级软件功能（如需托管运维可叠加 Managed BYOC，总计 $4,998/年）；Enterprise 面向需要多租户、多节点高可用集群、纯内网离线隔离（Air-gapped）、专属 Slack 24 小时优先响应 SLA 以及定制功能开发（Co-development）的中大型企业。',
     },
     {
       q: '如果未来我们停止续订 Managed BYOC，系统与数据会受到影响吗？提供退款保证吗？',
-      a: '部署后的前 14 天内，如果因为网络或存储环境问题无法顺利跑起来，支持全额退款。由于系统和数据都在您自己的云账号里，即使未来停止续费，服务也不会被关停，历史文件和访问链接依然正常可用。我们把部署凭据交接给内部运维后，团队可以随时自行接管。',
+      a: '托管部署后的前 14 天内，如果因为网络或存储环境问题无法顺利运行，支持全额退款。由于系统和数据都在您自己的云账号里，即使未来停止续订托管服务，服务也不会被关停，历史文件和访问链接依然正常可用。我们把部署凭据交接给内部运维后，团队可以随时自行接管。',
     },
     {
       q: '我们底层的云端资源（AWS / GCP / Azure）每月大概需要多少花费？服务器规格如何选型？',
       a: '机器配置主要取决于外发文档和视频的数量，跟团队人数关系不大。以普通 PDF 分享为主的团队，4 vCPU / 4GB 内存（AWS/GCP 每月约 $40-$60）就足够 50 人使用；如果有大量高清视频需要转码，建议选配 8 vCPU / 16GB 内存（每月约 $120-$160）。云厂商的账单由您直接支付，我们不收中间费用。',
     },
     {
-      q: 'Enterprise 方案中的“需求共创与优先排期”如何运作？',
-      a: '团队会直接跟我们的核心开发人员沟通需求。如果期望的功能（例如特定的认证插件、Webhook 或合规报表）符合 ConeShare 的产品规划，我们会在 2~4 周内优先开发并合并到主版本中，不收额外费用；如果是针对贵司专有业务的定制逻辑，我们可以提供单独的私有分支进行长期维护。',
+      q: 'Enterprise 方案中的“定制化功能开发（Co-development）”如何运作？',
+      a: '团队会直接跟我们的核心开发人员沟通需求。如果期望的通用功能（例如特定的认证插件、Webhook 或合规报表）符合 ConeShare 的产品规划，我们会在 2~4 周内优先开发并合入主版本；如果是针对贵司专有业务的定制逻辑，我们可以提供独立的私有分支进行长期定制维护。',
     },
     {
-      q: '我们可以单独购买 Enterprise 商业授权在自有环境离线部署，而不向官方开放 VPC 访问权限吗？',
-      a: '可以。对于有严格安全规范或纯内网隔离环境的团队，Enterprise 方案支持通过离线商业许可证（.lic 文件）交付，直接在您完全自管的服务器上启用 SSO/LDAP、全文搜索和合规审计日志。',
+      q: '我们可以单独购买商业授权在自有环境或纯内网部署，而不向官方开放 VPC 访问权限吗？',
+      a: '可以。购买 Pro 自托管商业授权即可在不开放任何 VPC 权限的情况下通过商业许可证在自有服务器启用白标、SSO/LDAP、全文搜索与合规审计日志；对于需要纯内网物理隔离（Air-gapped）或高可用集群部署的严格合规场景，可选择 Enterprise 方案进行离线交付。',
     },
     {
       q: '年度合同的支付与发票开具流程是怎样的？',
@@ -69,37 +176,8 @@ export function PricingContent() {
           </h1>
 
           <p className="mt-4 text-base leading-7 text-gray-600 max-w-2xl mx-auto">
-            支持通过 Docker 免费自建开源版；也可以选择官方托管，在您的 AWS、GCP 或 Azure
-            私有云中完成部署与维护；需要单点登录与合规审计可选择 Enterprise 企业版。
+            支持通过 Docker 免费自建 Community 开源版；选择 Pro 版解锁白标、SSO 与合规审计等全部企业级功能；需要官方代为托管运维（无论是托管开源版还是叠加 Pro 授权）可选择 Managed BYOC；中大型企业高可用与定制研发可选择 Enterprise 版。
           </p>
-
-          {/* Billing Toggle */}
-          <div className="mt-8 flex items-center justify-center">
-            <div className="relative flex items-center rounded-full bg-gray-100 p-1 border border-gray-200">
-              <button
-                type="button"
-                onClick={() => setBillingCycle('monthly')}
-                className={`relative rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                  billingCycle === 'monthly'
-                    ? 'bg-gray-900 text-white shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                按月支付
-              </button>
-              <button
-                type="button"
-                onClick={() => setBillingCycle('annual')}
-                className={`relative rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                  billingCycle === 'annual'
-                    ? 'bg-gray-900 text-white shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                按年支付
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Pricing Cards Grid */}
@@ -168,85 +246,50 @@ export function PricingContent() {
             </div>
           </div>
 
-          {/* Tier 2: Managed BYOC (Hero / Most Popular) */}
-          <div className="relative flex flex-col justify-between rounded-2xl border-2 border-gray-900 bg-white p-8 shadow-md transition hover:shadow-lg">
-            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-              <span className="rounded-full bg-gray-900 px-3.5 py-1 text-xs font-semibold text-white shadow-sm">
-                最受欢迎
-              </span>
-            </div>
-
+          {/* Tier 2: Pro */}
+          <div className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-8 shadow-sm transition hover:border-gray-300">
             <div>
-              <h3 className="text-xl font-bold tracking-tight text-gray-900">Managed BYOC</h3>
+              <h3 className="text-xl font-bold tracking-tight text-gray-900">Pro</h3>
               <p className="mt-2 text-sm text-gray-600 min-h-[40px]">
-                由官方负责部署与日常维护，数据和实例完全保留在您自己的云账号内。
+                自托管商业授权版，包含全部企业级功能（不限席位），数据和实例留在您自己的云端。
               </p>
 
-              <div className="mt-6 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                {billingCycle === 'annual' ? (
-                  <>
-                    <div className="flex items-baseline whitespace-nowrap">
-                      <span className="text-4xl font-bold tracking-tight text-gray-900">$3,999</span>
-                      <span className="ml-1.5 text-sm font-medium text-gray-500">/ 年</span>
-                    </div>
-                    <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700 whitespace-nowrap">
-                      折合约 $333/月
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-baseline whitespace-nowrap">
-                      <span className="text-4xl font-bold tracking-tight text-gray-900">$399</span>
-                      <span className="ml-1.5 text-sm font-medium text-gray-500">/ 月</span>
-                    </div>
-                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600 whitespace-nowrap">
-                      3 个月起订
-                    </span>
-                  </>
-                )}
+              <div className="mt-6 flex items-baseline whitespace-nowrap">
+                <span className="text-4xl font-bold tracking-tight text-gray-900">$2,999</span>
+                <span className="ml-1.5 text-sm font-medium text-gray-500">/ 年</span>
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                {billingCycle === 'annual'
-                  ? '已免除 $500 初始化部署费 • 享有 14 天全额退款保证'
-                  : '首期总额 $1,697 • 享有 14 天退款保证'}
+                不限团队成员与访客席位
               </p>
 
-              <div className="mt-6 border-t border-gray-100 pt-6">
+              <div className="mt-8 border-t border-gray-100 pt-6">
                 <p className="text-xs font-semibold text-gray-900">
                   包含 Community 全部功能，并增加：
                 </p>
                 <ul className="mt-4 space-y-3 text-sm text-gray-600">
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>部署在您自有的私有云 VPC 内，数据物理隔离</span>
+                    <span>支持白标：移除 Powered by 标识，自定义品牌色/favicon 等</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>支持白标：移除 Powered by 标识，自定义域名与品牌色</span>
+                    <span>企业级 SSO 与 AD/LDAP 目录同步、ADFS 集成</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>不限团队席位，外部访客访问完全免费</span>
+                    <span>跨文档全文搜索（支持内部用户与资料室外部访客检索 PDF、Office 与 Markdown）</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>官方负责交付部署：域名配置、自动 SSL 证书与日志统一收集</span>
+                    <span>企业合规审计日志与安全事件导出</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>大文件转码与流媒体播放性能调优</span>
+                    <span>支持自有云或服务器商业授权自建，无厂商锁定</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>业务低峰期安全升级维护与定期数据库备份验证</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>无厂商锁定：取消订阅后开源实例仍留在您的云端正常运行</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>技术支持：24 小时内由开发团队邮件回复</span>
+                    <span>技术支持：开发团队邮件支持（1 个工作日内回复）</span>
                   </li>
                 </ul>
               </div>
@@ -254,14 +297,14 @@ export function PricingContent() {
 
             <div className="mt-8 pt-4 border-t border-gray-100">
               <a
-                href="mailto:dev@coneshare.com?subject=Managed%20BYOC%20Deployment%20Inquiry"
+                href="mailto:dev@coneshare.com?subject=ConeShare%20Pro%20Inquiry"
                 className="inline-flex w-full items-center justify-center rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 transition"
               >
-                申请托管部署
+                联系购买 Pro
                 <ArrowRight className="ml-1.5 h-4 w-4" />
               </a>
               <p className="mt-2 text-center text-xs text-gray-500">
-                支持邮件与 Slack 快速交付沟通
+                支持对公转账与开具商业发票
               </p>
             </div>
           </div>
@@ -271,7 +314,7 @@ export function PricingContent() {
             <div>
               <h3 className="text-xl font-bold tracking-tight text-gray-900">Enterprise</h3>
               <p className="mt-2 text-sm text-gray-600 min-h-[40px]">
-                适合需要对接 SSO 单点登录、全文搜索、审计日志或专属业务定制的团队。
+                面向中大型企业，满足高可用集群、纯内网离线、高 SLA 与定制研发需求。
               </p>
 
               <div className="mt-6 flex items-baseline whitespace-nowrap">
@@ -279,36 +322,32 @@ export function PricingContent() {
                 <span className="text-4xl font-bold tracking-tight text-gray-900">$9,999</span>
                 <span className="ml-1.5 text-sm font-medium text-gray-500">/ 年</span>
               </div>
-              <p className="mt-1 text-xs text-gray-500">专属定制共创排期</p>
+              <p className="mt-1 text-xs text-gray-500">专属高可用架构与定制共创排期</p>
 
               <div className="mt-8 border-t border-gray-100 pt-6">
                 <p className="text-xs font-semibold text-gray-900">
-                  包含 Managed BYOC 全部功能，并增加：
+                  包含 Pro 全部功能，并增加：
                 </p>
                 <ul className="mt-4 space-y-3 text-sm text-gray-600">
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>SSO 单点登录与目录同步（SAML 2.0 / OIDC / Okta / Azure AD / LDAP）</span>
+                    <span>多租户架构：支持 Multi-tenancy 多租户与多组织（Multi-Org）隔离管理</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>跨文档全文搜索（支持 PDF、Office 与 Markdown 内容）</span>
+                    <span>高可用与离线交付：支持多节点高可用集群部署，或纯内网完全离线隔离（Air-gapped）部署</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>企业合规审计日志与安全事件导出</span>
+                    <span>更高 SLA 保障：专属 Slack 频道，开发团队 24 小时内优先响应与解决</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>支持多节点高可用集群部署，或纯内网离线隔离运行</span>
+                    <span>定制化功能开发（Co-development）：通用需求 2-4 周内优先排期上线；专有业务逻辑提供独立私有分支定制维护</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>需求共创：通用功能 2-4 周优先开发上线；专有业务逻辑提供独立分支维护</span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span>专属 Slack 频道，开发团队 24 小时内优先响应</span>
+                    <span>标准企业采购合同、POC 验证与合规架构协助</span>
                   </li>
                 </ul>
               </div>
@@ -325,6 +364,174 @@ export function PricingContent() {
               <p className="mt-2 text-center text-xs text-gray-500">
                 支持申请 POC 验证或合规协助
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Managed BYOC Add-on Section */}
+        <div className="mx-auto mt-10 max-w-7xl rounded-2xl border-2 border-gray-900 bg-gray-50/70 p-8 shadow-sm">
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex-1">
+              <h3 className="text-xl font-bold tracking-tight text-gray-900">
+                Managed BYOC（官方托管私有云）
+              </h3>
+
+              <p className="mt-3 text-sm leading-6 text-gray-600 max-w-3xl">
+                由官方团队负责部署与日常运维，数据和实例完全保留在您自己的云账号内。该服务不含 Pro 商业授权，适合只需托管运维 Community 开源版的团队；若需同步启用 Pro 全部功能，只需额外叠加 Pro 授权（+$2,999 / 年，合计 $4,998 / 年）。无厂商锁定，取消托管后实例仍在您的云端正常运行。
+              </p>
+
+              <ul className="mt-5 grid grid-cols-1 gap-3 text-sm text-gray-700 md:grid-cols-2">
+                <li className="flex items-start gap-2.5">
+                  <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <span>官方负责交付部署：域名配置、自动 SSL 证书与日志统一收集</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <span>大文件转码与流媒体播放性能调优</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <span>业务低峰期安全升级维护与定期数据库备份验证</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <span>运维邮件支持：托管部署、升级与故障 1 个工作日内由开发团队邮件回复</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="flex flex-col justify-between rounded-xl border border-gray-200 bg-white p-6 lg:w-80 lg:flex-shrink-0">
+              <div>
+                <div className="flex items-baseline whitespace-nowrap">
+                  <span className="text-3xl font-bold tracking-tight text-gray-900">$1,999</span>
+                  <span className="ml-1.5 text-sm font-medium text-gray-500">/ 年</span>
+                  <span className="ml-2 rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+                    折合约 $167/月
+                  </span>
+                </div>
+                <div className="mt-2 flex items-baseline gap-2 text-sm text-gray-700">
+                  <span>或按月付费：</span>
+                  <strong className="font-semibold text-gray-900">$199 / 月</strong>
+                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
+                    3 个月起订
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  14 天退款保证
+                </p>
+              </div>
+
+              <div className="mt-5">
+                <a
+                  href="mailto:dev@coneshare.com?subject=Managed%20BYOC%20Deployment%20Inquiry"
+                  className="inline-flex w-full items-center justify-center rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 transition"
+                >
+                  申请托管部署
+                  <ArrowRight className="ml-1.5 h-4 w-4" />
+                </a>
+                <p className="mt-2 text-center text-xs text-gray-500">
+                  支持邮件与 Slack 快速交付沟通
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Feature Comparison Table */}
+      <div className="bg-white pt-12 pb-20 sm:pt-16 sm:pb-24 border-t border-gray-100">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+              功能对比
+            </h2>
+          </div>
+
+          <div className="mt-12 overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+            <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-4 font-semibold text-gray-900">
+                    功能特性
+                  </th>
+                  <th scope="col" className="w-44 px-6 py-4 text-center font-semibold text-gray-900">
+                    Community
+                    <span className="block text-xs font-normal text-gray-500">开源自建版</span>
+                  </th>
+                  <th scope="col" className="w-44 px-6 py-4 text-center font-semibold text-gray-900">
+                    Pro
+                    <span className="block text-xs font-normal text-gray-500">商业授权版</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {FEATURE_COMPARISON_GROUPS.map((group) => (
+                  <Fragment key={group.category}>
+                    <tr className="bg-gray-50/80">
+                      <th
+                        colSpan={3}
+                        scope="colgroup"
+                        className="px-6 py-3 text-xs font-semibold tracking-wide text-gray-900"
+                      >
+                        {group.category}
+                      </th>
+                    </tr>
+                    {group.items.map((item) => (
+                      <tr key={`${group.category}-${item.name}`} className="hover:bg-gray-50/50">
+                        <td className="px-6 py-3.5 text-gray-700">{item.name}</td>
+                        <td className="px-6 py-3.5 text-center">
+                          {renderFeatureCell(item.community, 'Community', item.name)}
+                        </td>
+                        <td className="px-6 py-3.5 text-center">
+                          {renderFeatureCell(item.pro, 'Pro', item.name)}
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Paid Support Info Card */}
+          <div className="mt-10 rounded-2xl border border-gray-200 bg-gray-50/70 p-8 shadow-sm">
+            <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex-1">
+                <h3 className="text-xl font-bold tracking-tight text-gray-900">
+                  Support（付费技术支持）
+                </h3>
+                <p className="mt-3 text-sm leading-6 text-gray-600 max-w-3xl">
+                  面向开源自建或需要额外工程协助的团队，提供由核心研发团队直接交付的单次按小时付费技术支持服务。
+                </p>
+
+                <ul className="mt-5 grid grid-cols-1 gap-3 text-sm text-gray-700 md:grid-cols-3">
+                  <li className="flex items-start gap-2.5">
+                    <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <span>覆盖 Email、Slack 与远程连线协助（Remote Session）</span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <span>涵盖私有云部署指导、性能调优与故障排查</span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <Check className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <span>按实际工时单次预约，灵活计费无需长期订阅绑定</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 bg-white p-6 lg:w-80 lg:flex-shrink-0">
+                <div className="flex items-baseline whitespace-nowrap">
+                  <span className="text-3xl font-bold tracking-tight text-gray-900">$150</span>
+                  <span className="ml-1.5 text-sm font-medium text-gray-500">/ 小时</span>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  包含 Email / Slack / Remote Session
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  适合自建部署排障、性能调优与集成指导
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -367,7 +574,10 @@ export function PricingContent() {
                   <td className="px-6 py-4 text-gray-600">$180/月 (含3人) + $60/人/月</td>
                   <td className="px-6 py-4 text-gray-600">约 $107/月 (€99, 含3人) + ~$36/人/月</td>
                   <td className="px-6 py-4 font-medium text-gray-900">
-                    $3,999 / 年 统一价格（不限席位）
+                    $1,999 / 年 托管开源版（不限席位）
+                    <span className="block text-xs font-normal text-gray-500">
+                      如需 Pro 企业功能另加 $2,999 / 年
+                    </span>
                   </td>
                 </tr>
                 <tr>
@@ -384,9 +594,9 @@ export function PricingContent() {
                     <span className="block text-xs text-gray-400">若按月支付约 €5,904</span>
                   </td>
                   <td className="px-6 py-4 text-gray-900">
-                    <span>$3,999 / 年</span>
+                    <span>$1,999 / 年</span>
                     <span className="text-xs text-gray-500"> + ~$480 云资源 ≈ </span>
-                    <strong>~$4,479 / 年</strong>
+                    <strong>~$2,479 / 年</strong>
                   </td>
                 </tr>
                 <tr>
@@ -403,10 +613,10 @@ export function PricingContent() {
                     <span className="block text-xs text-gray-400">若按月支付约 €14,724</span>
                   </td>
                   <td className="px-6 py-4 text-gray-900">
-                    <span>$3,999 / 年</span>
+                    <span>$1,999 / 年</span>
                     <span className="text-xs text-gray-500"> + ~$600 云资源 ≈ </span>
-                    <strong>~$4,599 / 年</strong>
-                    <span className="block text-xs text-gray-500">比 DocSend 节省约 74%</span>
+                    <strong>~$2,599 / 年</strong>
+                    <span className="block text-xs text-gray-500">比 DocSend 节省约 86%</span>
                   </td>
                 </tr>
                 <tr>
@@ -423,10 +633,10 @@ export function PricingContent() {
                     <span className="block text-xs text-gray-400">若按月支付约 €29,424</span>
                   </td>
                   <td className="px-6 py-4 text-gray-900">
-                    <span>$3,999 / 年</span>
+                    <span>$1,999 / 年</span>
                     <span className="text-xs text-gray-500"> + ~$960 云资源 ≈ </span>
-                    <strong>~$4,959 / 年</strong>
-                    <span className="block text-xs text-gray-500">比 DocSend 节省约 86%</span>
+                    <strong>~$2,959 / 年</strong>
+                    <span className="block text-xs text-gray-500">比 DocSend 节省约 92%</span>
                   </td>
                 </tr>
                 <tr>
