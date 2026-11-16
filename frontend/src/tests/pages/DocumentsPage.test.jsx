@@ -43,6 +43,7 @@ describe('DocumentsPage', () => {
     });
     api.getCloudProviders.mockResolvedValue({ data: [] });
     api.getCloudConnections.mockResolvedValue({ data: [] });
+    api.getDocuments.mockResolvedValue({ data: [] });
 
     // Spy on console.error
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -1231,6 +1232,272 @@ describe('DocumentsPage', () => {
       listItems = screen.getAllByText(/Doc/);
       expect(listItems[0]).toHaveTextContent('Large Doc');
       expect(listItems[1]).toHaveTextContent('Small Doc');
+    });
+  });
+
+  describe('Document Search', () => {
+    it('searches documents with debounced input and renders matching results', async () => {
+      const user = userEvent.setup();
+      const mockInitialDocs = [
+        { id: 'd1', name: 'Document A', updated_at: '2023-01-01T12:00:00Z' },
+      ];
+      const mockSearchResults = [
+        {
+          id: 'd2',
+          name: 'Financial Report',
+          updated_at: '2023-01-02T12:00:00Z',
+          folder: {
+            id: 'f_sub',
+            name: 'Q4 Audits',
+            ancestors: [{ id: 'f_root_child', name: 'Finance' }],
+          },
+        },
+      ];
+
+      api.getRootFolderContents.mockResolvedValue({
+        data: { current_folder: null, sub_folders: [], documents: mockInitialDocs },
+      });
+      api.getDocuments.mockResolvedValue({
+        data: mockSearchResults,
+      });
+      api.searchFolders.mockResolvedValue({
+        data: [
+          {
+            id: 'f_match',
+            name: 'Financial Models',
+            updated_at: '2023-01-02T12:00:00Z',
+            ancestors: [{ id: 'f_root_child', name: 'Finance' }],
+          },
+        ],
+      });
+
+      renderComponent();
+      await screen.findByText('Document A');
+
+      const searchInput = screen.getByPlaceholderText(/search by name or description/i);
+      await user.type(searchInput, 'Financial');
+
+      await waitFor(() => {
+        expect(api.getDocuments).toHaveBeenCalledWith({ search: 'Financial' });
+        expect(api.searchFolders).toHaveBeenCalledWith({ search: 'Financial' });
+      });
+
+      expect(await screen.findByText('Financial Report')).toBeInTheDocument();
+      expect(screen.getByText('Financial Models')).toBeInTheDocument();
+      expect(screen.getByText('Finance / Q4 Audits')).toBeInTheDocument();
+      expect(screen.getByText('Finance')).toBeInTheDocument();
+      expect(screen.queryByText('Document A')).not.toBeInTheDocument();
+    });
+
+    it('displays empty search state when query yields 0 results', async () => {
+      const user = userEvent.setup();
+      api.getRootFolderContents.mockResolvedValue({
+        data: { current_folder: null, sub_folders: [], documents: [] },
+      });
+      api.getDocuments.mockResolvedValue({
+        data: [],
+      });
+
+      renderComponent();
+      const searchInput = screen.getByPlaceholderText(/search by name or description/i);
+      await user.type(searchInput, 'nonexistent_file');
+
+      await waitFor(() => {
+        expect(api.getDocuments).toHaveBeenCalledWith({ search: 'nonexistent_file' });
+      });
+
+      expect(await screen.findByText(/no documents found matching "nonexistent_file"/i)).toBeInTheDocument();
+    });
+
+    it('clearing search query restores folder view', async () => {
+      const user = userEvent.setup();
+      const mockInitialDocs = [
+        { id: 'd1', name: 'Original Document', updated_at: '2023-01-01T12:00:00Z' },
+      ];
+      api.getRootFolderContents.mockResolvedValue({
+        data: { current_folder: null, sub_folders: [], documents: mockInitialDocs },
+      });
+      api.getDocuments.mockResolvedValue({
+        data: [{ id: 'd2', name: 'Found Document', updated_at: '2023-01-02T12:00:00Z' }],
+      });
+
+      renderComponent();
+      await screen.findByText('Original Document');
+
+      const searchInput = screen.getByPlaceholderText(/search by name or description/i);
+      await user.type(searchInput, 'Found');
+      expect(await screen.findByText('Found Document')).toBeInTheDocument();
+
+      const clearButton = screen.getByRole('button', { name: /clear search/i });
+      await user.click(clearButton);
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText(/search by name or description/i)).toHaveValue('');
+      });
+      expect(await screen.findByText('Original Document')).toBeInTheDocument();
+    });
+
+    it('preserves currentFolder during subfolder search and avoids stale search on folder navigation', async () => {
+      const user = userEvent.setup();
+      const subfolder = {
+        id: 'folder_123',
+        name: 'Legal Docs',
+        ancestors: [{ id: 'root_child', name: 'Operations' }],
+      };
+      api.getFolderContents.mockImplementation(async (id) => {
+        if (id === 'folder_123') {
+          return {
+            data: {
+              current_folder: subfolder,
+              sub_folders: [],
+              documents: [{ id: 'd_sub', name: 'Subfolder File.pdf', updated_at: '2023-01-01T12:00:00Z' }],
+            },
+          };
+        }
+        return {
+          data: {
+            current_folder: { id: 'f_clicked', name: 'Matched Subfolder', ancestors: [subfolder] },
+            sub_folders: [],
+            documents: [{ id: 'd_inner', name: 'Inner File.pdf', updated_at: '2023-01-02T12:00:00Z' }],
+          },
+        };
+      });
+      api.getDocuments.mockResolvedValue({ data: [] });
+      api.searchFolders.mockResolvedValue({
+        data: [
+          {
+            id: 'f_clicked',
+            name: 'Matched Subfolder',
+            updated_at: '2023-01-02T12:00:00Z',
+            ancestors: [subfolder],
+          },
+        ],
+      });
+      api.uploadDocument.mockResolvedValue({ status: 202 });
+
+      renderComponent('/documents/folders/folder_123');
+      await screen.findByText('Subfolder File.pdf');
+
+      const searchInput = screen.getByPlaceholderText(/search by name or description/i);
+      await user.type(searchInput, 'Matched');
+
+      expect(await screen.findByText('Matched Subfolder')).toBeInTheDocument();
+
+      // Uploading while search is active inside a subfolder should still use currentFolder's path
+      const fileInput = document.querySelector('input[type="file"]:not([webkitdirectory])');
+      const testFile = new File(['hello'], 'new_contract.pdf', { type: 'application/pdf' });
+      fireEvent.change(fileInput, { target: { files: [testFile] } });
+
+      await waitFor(() => {
+        expect(api.uploadDocument).toHaveBeenCalledWith(
+          testFile,
+          'Operations/Legal Docs/new_contract.pdf',
+          expect.any(Function)
+        );
+      });
+
+      // Clicking a matched folder in search results should navigate without firing a redundant search in the new folder
+      api.getDocuments.mockClear();
+      api.searchFolders.mockClear();
+      await user.click(screen.getByText('Matched Subfolder'));
+
+      expect(await screen.findByText('Inner File.pdf')).toBeInTheDocument();
+      expect(api.getDocuments).not.toHaveBeenCalled();
+      expect(api.searchFolders).not.toHaveBeenCalled();
+    });
+
+    it('debounces search input by 300ms without firing intermediate requests', async () => {
+      vi.useFakeTimers();
+      try {
+        api.getRootFolderContents.mockResolvedValue({
+          data: { current_folder: null, sub_folders: [], documents: [] },
+        });
+        api.getDocuments.mockResolvedValue({ data: [] });
+        api.searchFolders.mockResolvedValue({ data: [] });
+
+        renderComponent();
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+
+        const searchInput = screen.getByPlaceholderText(/search by name or description/i);
+        fireEvent.change(searchInput, { target: { value: 'Bud' } });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(150);
+        });
+        expect(api.getDocuments).not.toHaveBeenCalled();
+
+        fireEvent.change(searchInput, { target: { value: 'Budget' } });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(250);
+        });
+        expect(api.getDocuments).not.toHaveBeenCalled();
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(60);
+        });
+        expect(api.getDocuments).toHaveBeenCalledTimes(1);
+        expect(api.getDocuments).toHaveBeenCalledWith({ search: 'Budget' });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('upload completion during active search refreshes search results instead of folder listing', async () => {
+      const user = userEvent.setup();
+      let resolveUpload;
+      api.getRootFolderContents.mockResolvedValue({
+        data: {
+          current_folder: null,
+          sub_folders: [],
+          documents: [{ id: 'd1', name: 'Root Initial.pdf', updated_at: '2023-01-01T12:00:00Z' }],
+        },
+      });
+      api.getDocuments.mockResolvedValue({
+        data: [{ id: 'd2', name: 'Budget Search Result.pdf', updated_at: '2023-01-02T12:00:00Z' }],
+      });
+      api.searchFolders.mockResolvedValue({ data: [] });
+      api.uploadDocument.mockImplementation(
+        () => new Promise((resolve) => { resolveUpload = resolve; })
+      );
+
+      renderComponent();
+      expect(await screen.findByText('Root Initial.pdf')).toBeInTheDocument();
+
+      // Start upload while NOT searching
+      const fileInput = document.querySelector('input[type="file"]:not([webkitdirectory])');
+      const testFile = new File(['hello'], 'new_upload.pdf', { type: 'application/pdf' });
+      fireEvent.change(fileInput, { target: { files: [testFile] } });
+
+      // While upload is in flight, type a search query
+      const searchInput = screen.getByPlaceholderText(/search by name or description/i);
+      await user.type(searchInput, 'Budget');
+      expect(await screen.findByText('Budget Search Result.pdf')).toBeInTheDocument();
+
+      api.getRootFolderContents.mockClear();
+      api.getDocuments.mockClear();
+
+      // Now finish the upload: refresh must re-run search, not getRootFolderContents
+      resolveUpload({ status: 202 });
+      await waitFor(() => {
+        expect(api.getDocuments).toHaveBeenCalledWith({ search: 'Budget' });
+      });
+      expect(api.getRootFolderContents).not.toHaveBeenCalled();
+      expect(screen.getByText('Budget Search Result.pdf')).toBeInTheDocument();
+    });
+
+    it('restores search query and results when returning via ?search= URL param', async () => {
+      api.getDocuments.mockResolvedValue({
+        data: [{ id: 'd_back', name: 'Restored Budget.pdf', updated_at: '2023-01-02T12:00:00Z' }],
+      });
+      api.searchFolders.mockResolvedValue({ data: [] });
+
+      renderComponent('/documents?search=Budget');
+
+      expect(screen.getByPlaceholderText(/search by name or description/i)).toHaveValue('Budget');
+      expect(await screen.findByText('Restored Budget.pdf')).toBeInTheDocument();
+      expect(api.getDocuments).toHaveBeenCalledWith({ search: 'Budget' });
+      expect(api.searchFolders).toHaveBeenCalledWith({ search: 'Budget' });
     });
   });
 });

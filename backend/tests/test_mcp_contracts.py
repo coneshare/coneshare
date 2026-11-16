@@ -158,3 +158,22 @@ class TestMCPIntegrationLiveContracts:
         assert "storage_key" in data
         assert "unique_name" in data
 
+    def test_search_documents_endpoint_contract(self, mcp_api_client, user, organization):
+        """MCP search_documents calling /documents/?search=query&page=1&page_size=20 returns paginated matches."""
+        from rest_framework import status
+        from documents.models import Document, Folder
+
+        root_folder = Folder.objects.filter(organization=organization, name="__root__").first()
+        sub_folder = Folder.objects.create(name="Contracts", organization=organization, created_by=user, parent=root_folder)
+        doc1 = Document.objects.create(name="Vendor_Agreement.pdf", organization=organization, created_by=user, folder=sub_folder)
+        Document.objects.create(name="Other.pdf", organization=organization, created_by=user, folder=sub_folder)
+
+        url = "/api/v1/documents/?search=Vendor&page=1&page_size=20"
+        res = mcp_api_client.get(url)
+        assert res.status_code == status.HTTP_200_OK
+        data = res.json()
+        assert data["count"] == 1
+        assert len(data["results"]) == 1
+        assert data["results"][0]["id"] == str(doc1.id)
+        assert data["results"][0]["name"] == "Vendor_Agreement.pdf"
+

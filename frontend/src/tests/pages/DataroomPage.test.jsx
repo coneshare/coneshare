@@ -157,6 +157,177 @@ describe('DataroomPage', () => {
         expect(await screen.findByText('Sub Folder')).toBeInTheDocument();
     });
 
+    it('searches files and folders across dataroom, shows location, and preserves folder context on click', async () => {
+        const user = userEvent.setup();
+        api.searchDataroomContent.mockResolvedValue({
+            data: {
+                items: [
+                    {
+                        id: 'ddoc2',
+                        type: 'document',
+                        document_id: 'doc2',
+                        name: 'Nested Document',
+                        location: 'Contracts / Sub Folder',
+                        folder: 'folder1',
+                        updated_at: '2023-01-02T12:00:00Z',
+                    },
+                ],
+            },
+        });
+        renderComponent();
+        expect(await screen.findByText('Root Document')).toBeInTheDocument();
+
+        const searchInput = screen.getByPlaceholderText(/search by name or description/i);
+        await user.type(searchInput, 'Nested');
+
+        await waitFor(() => {
+            expect(api.searchDataroomContent).toHaveBeenCalledWith('dr123', 'Nested');
+        });
+        expect(await screen.findByText('Nested Document')).toBeInTheDocument();
+        expect(screen.getByText('Contracts / Sub Folder')).toBeInTheDocument();
+        expect(screen.queryByText('Root Document')).not.toBeInTheDocument();
+
+        // Reorder Items should be disabled while search filter is active
+        expect(screen.getByRole('button', { name: /reorder items/i })).toBeDisabled();
+
+        // Clicking nested search result should pass item.folder as from_folder
+        await user.click(screen.getByText('Nested Document'));
+        expect(mockedNavigate).toHaveBeenCalledWith('/documents/doc2?from_dataroom=dr123&from_folder=folder1');
+    });
+
+    it('clears prior selection on search and updates searchResults on star toggle', async () => {
+        const user = userEvent.setup();
+        api.searchDataroomContent.mockResolvedValue({
+            data: {
+                items: [
+                    {
+                        id: 'ddoc2',
+                        type: 'document',
+                        document_id: 'doc2',
+                        name: 'Nested Document',
+                        location: 'Sub Folder',
+                        folder: 'folder1',
+                        is_starred: false,
+                        updated_at: '2023-01-02T12:00:00Z',
+                    },
+                ],
+            },
+        });
+        renderComponent();
+        expect(await screen.findByText('Root Document')).toBeInTheDocument();
+
+        // Select an item before searching
+        const docRow = screen.getByText('Root Document').closest('[data-testid^="draggable-item-"]');
+        await user.click(docRow);
+        expect(await screen.findByText(/1 selected/i)).toBeInTheDocument();
+
+        // Entering search should reset selection
+        const searchInput = screen.getByPlaceholderText(/search by name or description/i);
+        await user.type(searchInput, 'Nested');
+        expect(await screen.findByText('Nested Document')).toBeInTheDocument();
+        expect(screen.queryByText(/1 selected/i)).not.toBeInTheDocument();
+
+        // Toggling star in search results should update searchResults state and call API
+        const starButton = screen.getByRole('button', { name: 'Star Nested Document' });
+        await user.click(starButton);
+        expect(api.updateDataroomDocument).toHaveBeenCalledWith('ddoc2', { is_starred: true });
+
+        // Filtering by Starred while in search results should keep the newly starred item visible
+        await user.click(screen.getByRole('button', { name: 'Starred', exact: true }));
+        expect(screen.getByText('Nested Document')).toBeInTheDocument();
+    });
+
+    it('preserves explicit null folder on root search hit while inside a subfolder', async () => {
+        const user = userEvent.setup();
+        globalSearchParams = new URLSearchParams('folder=folder1');
+        api.searchDataroomContent.mockResolvedValue({
+            data: {
+                items: [
+                    {
+                        id: 'ddoc1',
+                        type: 'document',
+                        document_id: 'doc1',
+                        name: 'Root Hit',
+                        folder: null,
+                        updated_at: '2023-01-01T12:00:00Z',
+                    },
+                ],
+            },
+        });
+        renderComponent();
+        expect(await screen.findByText('Nested Document')).toBeInTheDocument();
+
+        const searchInput = screen.getByPlaceholderText(/search by name or description/i);
+        await user.type(searchInput, 'Root');
+
+        await waitFor(() => {
+            expect(api.searchDataroomContent).toHaveBeenCalledWith('dr123', 'Root');
+        });
+        await user.click(await screen.findByText('Root Hit'));
+        expect(mockedNavigate).toHaveBeenCalledWith('/documents/doc1?from_dataroom=dr123&from_folder=');
+    });
+
+    it('ignores stale searchDataroomContent responses after newer query resolves', async () => {
+        const user = userEvent.setup();
+        let resolveSlow;
+        const slowPromise = new Promise((resolve) => {
+            resolveSlow = resolve;
+        });
+
+        api.searchDataroomContent.mockImplementation((_id, q) => {
+            if (q === 'old') return slowPromise;
+            return Promise.resolve({
+                data: {
+                    items: [
+                        { id: 'ddoc_new', type: 'document', document_id: 'doc_new', name: 'New Hit', folder: null, updated_at: '2023-01-02T12:00:00Z' },
+                    ],
+                },
+            });
+        });
+
+        renderComponent();
+        expect(await screen.findByText('Root Document')).toBeInTheDocument();
+
+        const searchInput = screen.getByPlaceholderText(/search by name or description/i);
+        await user.type(searchInput, 'old');
+        await waitFor(() => {
+            expect(api.searchDataroomContent).toHaveBeenCalledWith('dr123', 'old');
+        });
+
+        await user.clear(searchInput);
+        await user.type(searchInput, 'new');
+        expect(await screen.findByText('New Hit')).toBeInTheDocument();
+
+        resolveSlow({
+            data: {
+                items: [
+                    { id: 'ddoc_old', type: 'document', document_id: 'doc_old', name: 'Stale Old Hit', folder: null, updated_at: '2023-01-01T12:00:00Z' },
+                ],
+            },
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText('New Hit')).toBeInTheDocument();
+        });
+        expect(screen.queryByText('Stale Old Hit')).not.toBeInTheDocument();
+    });
+
+    it('restores search query and results from URL ?search= when navigating back', async () => {
+        globalSearchParams = new URLSearchParams('folder=folder1&search=Restored');
+        api.searchDataroomContent.mockResolvedValue({
+            data: {
+                items: [
+                    { id: 'ddoc_r', type: 'document', document_id: 'doc_r', name: 'Restored Hit.pdf', folder: 'folder1', updated_at: '2023-01-02T12:00:00Z' },
+                ],
+            },
+        });
+
+        renderComponent();
+        expect(await screen.findByText('Restored Hit.pdf')).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/search by name or description/i)).toHaveValue('Restored');
+        expect(api.searchDataroomContent).toHaveBeenCalledWith('dr123', 'Restored');
+    });
+
     describe('Error and Empty States', () => {
         it('should display not found message if dataroom fails to load', async () => {
             api.getDataroom.mockRejectedValue({ response: { status: 404 } });
