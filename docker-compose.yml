@@ -129,6 +129,7 @@ services:
       - MCP_TRANSPORT=${MCP_TRANSPORT:-streamable-http}
       - MCP_PATH=${MCP_PATH:-/mcp/sse}
       - CONESHARE_API_URL=${CONESHARE_API_URL:-http://backend:8000/api/v1}
+      - CONESHARE_FILESERVER_INTERNAL_URL=${CONESHARE_FILESERVER_INTERNAL_URL:-http://core:8080}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import os, socket; port = int(os.getenv('MCP_PORT', '8001')); socket.create_connection(('127.0.0.1', port), timeout=2)\""]

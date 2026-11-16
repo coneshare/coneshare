@@ -69,6 +69,7 @@ The container / process is configured via environment variables:
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `CONESHARE_API_URL` | ✅ | N/A | Target Coneshare REST API base URL (required at startup) |
+| `CONESHARE_FILESERVER_INTERNAL_URL` | ❌ | None | Optional internal Go file-server base URL (`http://core:8080` in Docker) for in-memory text upload PUTs |
 | `MCP_TRANSPORT` | ❌ | `streamable-http` | Transport protocol (`streamable-http` or `sse`) |
 | `MCP_HOST` | ❌ | `0.0.0.0` | Server binding address |
 | `MCP_PORT` | ❌ | `8001` | Server port |
@@ -136,12 +137,13 @@ curl -sSL https://raw.githubusercontent.com/coneshare/coneshare/main/.agent/skil
 
 ---
 
-## 🧰 Available Tools (28 Tools)
+## 🧰 Available Tools (29 Tools)
 
-### 📁 Documents & Folders (11 tools)
+### 📁 Documents & Folders (12 tools)
 * `list_documents`: Paginated list of workspace documents with folder filtering.
 * `get_document`: Retrieve detailed document metadata, versions, and active links.
 * `search_documents`: Search workspace documents by filename or description query with pagination.
+* `create_text_document`: Create a Markdown, CSV, or plain text document directly from in-memory text (defaults to `.md`, ensures folders along `path`, no external PUT required).
 * `update_document`: Rename or update description metadata of an existing document.
 * `delete_document`: `[DESTRUCTIVE]` Soft-delete a document (moves to Trash).
 * `create_folder`: Create a new folder in your workspace documents hierarchy.

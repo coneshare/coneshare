@@ -92,6 +92,45 @@ def register_document_tools(mcp: FastMCP) -> None:
         )
 
     @mcp.tool()
+    async def create_text_document(
+        ctx: Context,
+        file_name: str = Field(
+            description="Document filename (e.g. '2026-11-16_meeting_minutes.md'; defaults to '.md' if no extension is given)"
+        ),
+        content: str = Field(
+            description="Full UTF-8 Markdown, CSV, or plain text body of the document"
+        ),
+        content_type: Optional[str] = Field(
+            default=None,
+            description="Optional MIME type (defaults to 'text/markdown' or inferred from file extension)",
+        ),
+        path: Optional[str] = Field(
+            default=None,
+            description="Optional root-relative destination folder path in Personal Documents (e.g. 'Notes/2026'); missing folders are created automatically",
+        ),
+        description: Optional[str] = Field(
+            default=None,
+            description="Optional summary or description metadata indexed by search_documents",
+        ),
+    ) -> dict:
+        """Create a text or Markdown document directly in Personal Documents from in-memory content.
+
+        Use this tool when content is already text/Markdown/CSV in context (especially for web AI clients
+        that cannot execute an external HTTP PUT). Prefer '.md' when inline web preview or dynamic watermarking
+        on share links is desired (Markdown and CSV preview inline; '.txt' and '.json' are stored as download-only).
+        For external binary files, use request_document_upload + finalize_document_upload instead.
+        Compose with add_content_to_dataroom or create_share_link when asked to attach to a dataroom or share.
+        """
+        client = ConeshareClient.from_ctx(ctx)
+        return await client.create_text_document(
+            file_name=file_name,
+            content=content,
+            content_type=content_type,
+            path=path,
+            description=description,
+        )
+
+    @mcp.tool()
     async def update_document(
         ctx: Context,
         document_id: str = Field(description="ULID of the document to update"),

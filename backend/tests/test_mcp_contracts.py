@@ -1,6 +1,8 @@
 from unittest.mock import patch
 import pytest
 from django.urls import resolve, Resolver404
+from rest_framework import status
+from documents.models import Document, Folder
 from documents.views import DocumentViewSet, DocumentUploadRequestView, DocumentUploadFinalizeView
 from datarooms.views import DataroomViewSet
 from sharelinks.views import ShareLinkViewSet
@@ -201,4 +203,88 @@ class TestMCPIntegrationLiveContracts:
         assert len(items) == 1
         assert items[0]["name"] == "Annual_Budget.pdf"
         assert items[0]["location"] == "Finance"
+
+    @patch('documents.views.fileserver_client.get_file_info', return_value={'exists': True, 'size': 15})
+    @patch('documents.views.fileserver_client.generate_upload_url', return_value='http://fileserver/upload/tok-md')
+    def test_create_text_document_folder_walk_and_finalize_contract(
+        self, mock_gen_url, mock_file_info, mcp_api_client, user, organization
+    ):
+        """MCP create_text_document backend contract: reuse/create folders, request, finalize .md, patch description."""
+        root_folder = Folder.objects.get(organization=organization, name="__root__", parent=None)
+        existing_notes = Folder.objects.create(name="Notes", organization=organization, created_by=user, parent=root_folder)
+
+        root_list = mcp_api_client.get("/api/v1/folders/")
+        assert root_list.status_code == status.HTTP_200_OK
+        sub_names = {f["name"]: f["id"] for f in root_list.json()["sub_folders"]}
+        assert sub_names["Notes"] == str(existing_notes.id)
+
+        notes_list = mcp_api_client.get(f"/api/v1/folders/{existing_notes.id}/")
+        assert notes_list.status_code == status.HTTP_200_OK
+        assert notes_list.json()["sub_folders"] == []
+
+        create_2026 = mcp_api_client.post(
+            "/api/v1/folders/",
+            {"name": "2026", "parent": str(existing_notes.id)},
+            format="json",
+        )
+        assert create_2026.status_code == status.HTTP_201_CREATED
+
+        req_res = mcp_api_client.post(
+            "/api/v1/uploads/document/request/",
+            {"file_name": "meeting.md", "file_size": 15, "path": "Notes/2026/meeting.md"},
+            format="json",
+        )
+        assert req_res.status_code == status.HTTP_200_OK
+        req_data = req_res.json()
+
+        fin_res = mcp_api_client.post(
+            "/api/v1/uploads/document/finalize/",
+            {
+                "storage_key": req_data["storage_key"],
+                "unique_name": req_data["unique_name"],
+                "content_type": "text/markdown",
+                "path": f"Notes/2026/{req_data['unique_name']}",
+            },
+            format="json",
+        )
+        assert fin_res.status_code == status.HTTP_202_ACCEPTED
+        doc_data = fin_res.json()
+        assert doc_data["type"] == "markdown"
+        assert doc_data["status"] == "ready"
+
+        patch_res = mcp_api_client.patch(
+            f"/api/v1/documents/{doc_data['id']}/",
+            {"description": "AI summary note"},
+            format="json",
+        )
+        assert patch_res.status_code == status.HTTP_200_OK
+        assert patch_res.json()["description"] == "AI summary note"
+        created_doc = Document.objects.get(id=doc_data["id"])
+        assert created_doc.folder.name == "2026"
+        assert created_doc.folder.parent_id == existing_notes.id
+
+        # Regression: filename-shaped subfolder ("Notes/note.md/note.md") targets folder "note.md"
+        note_folder = Folder.objects.create(
+            name="note.md", organization=organization, created_by=user, parent=existing_notes
+        )
+        nested_req = mcp_api_client.post(
+            "/api/v1/uploads/document/request/",
+            {"file_name": "note.md", "file_size": 15, "path": "Notes/note.md/note.md"},
+            format="json",
+        )
+        assert nested_req.status_code == status.HTTP_200_OK
+        nested_req_data = nested_req.json()
+        nested_fin = mcp_api_client.post(
+            "/api/v1/uploads/document/finalize/",
+            {
+                "storage_key": nested_req_data["storage_key"],
+                "unique_name": nested_req_data["unique_name"],
+                "content_type": "text/markdown",
+                "path": f"Notes/note.md/{nested_req_data['unique_name']}",
+            },
+            format="json",
+        )
+        assert nested_fin.status_code == status.HTTP_202_ACCEPTED
+        nested_doc = Document.objects.get(id=nested_fin.json()["id"])
+        assert nested_doc.folder_id == note_folder.id
 

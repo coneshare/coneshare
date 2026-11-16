@@ -1,6 +1,8 @@
 from unittest.mock import MagicMock, AsyncMock, patch
+import httpx
 from fastmcp import FastMCP
 from coneshare_mcp.client import ConeshareClient
+from coneshare_mcp.config import Settings
 from coneshare_mcp.tools.documents import register_document_tools
 from tests.base import BaseMCPTestCase
 
@@ -318,5 +320,451 @@ class TestDocuments(BaseMCPTestCase):
             res = await tool.fn(ctx=mock_ctx, folder_id="fld_1")
         self.assertTrue(res["success"])
         mock_client.delete_folder.assert_awaited_once_with(folder_id="fld_1")
+
+    async def test_create_text_document_defaults_md_and_uploads_utf8(self):
+        recorded_requests = []
+        content = "# 会议纪要\n\n讨论 Q4 路线图。"
+        expected_bytes = content.encode("utf-8")
+
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            recorded_requests.append((method, path, json_data))
+            if path == "/uploads/document/request/":
+                return {
+                    "upload_url": "https://cdn.example.com/presigned/put?sig=1",
+                    "storage_key": "org_1/meeting.md",
+                    "unique_name": "Meeting_Notes_abc.md",
+                }
+            if path == "/uploads/document/finalize/":
+                return {"id": "doc_md_1", "name": "Meeting_Notes_abc.md", "status": "ready"}
+            return {"error": True}
+
+        put_calls = []
+
+        class MockAsyncClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def put(self, url, content=None, headers=None):
+                put_calls.append((url, content, headers))
+                return httpx.Response(200, request=httpx.Request("PUT", url))
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_request
+        try:
+            with patch("coneshare_mcp.client.httpx.AsyncClient", MockAsyncClient):
+                client = ConeshareClient(api_key="cs_live_testkey123456789", settings=self.mock_settings)
+                res = await client.create_text_document(file_name="Meeting Notes", content=content)
+        finally:
+            ConeshareClient._request = old_request
+
+        self.assertEqual(res["id"], "doc_md_1")
+        self.assertEqual([r[1] for r in recorded_requests], [
+            "/uploads/document/request/",
+            "/uploads/document/finalize/",
+        ])
+        self.assertEqual(recorded_requests[0][2]["file_name"], "Meeting Notes.md")
+        self.assertEqual(recorded_requests[0][2]["file_size"], len(expected_bytes))
+        self.assertNotIn("path", recorded_requests[0][2])
+        self.assertEqual(recorded_requests[1][2]["content_type"], "text/markdown")
+        self.assertEqual(put_calls, [
+            ("https://cdn.example.com/presigned/put?sig=1", expected_bytes, {"Content-Type": "text/markdown"}),
+        ])
+
+    async def test_create_text_document_ensures_missing_folders_and_sets_description(self):
+        recorded_requests = []
+
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            recorded_requests.append((method, path, json_data))
+            if method == "GET" and path == "/folders/":
+                return {"current_folder": None, "sub_folders": [{"id": "fld_notes", "name": "Notes"}]}
+            if method == "GET" and path == "/folders/fld_notes/":
+                return {"current_folder": {"id": "fld_notes", "name": "Notes"}, "sub_folders": []}
+            if method == "POST" and path == "/folders/":
+                return {"id": "fld_2026", "name": json_data["name"], "parent": json_data.get("parent")}
+            if path == "/uploads/document/request/":
+                return {
+                    "upload_url": "https://app.coneshare.com/files/upload/tok-123",
+                    "storage_key": "org_1/summary.md",
+                    "unique_name": "summary_u1.md",
+                }
+            if path == "/uploads/document/finalize/":
+                return {"id": "doc_md_2", "name": "summary.md", "status": "ready"}
+            if method == "PATCH" and path == "/documents/doc_md_2/":
+                return {"id": "doc_md_2", "name": "summary.md", "description": json_data["description"]}
+            return {"error": True}
+
+        put_urls = []
+
+        class MockAsyncClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def put(self, url, content=None, headers=None):
+                put_urls.append(url)
+                return httpx.Response(200, request=httpx.Request("PUT", url))
+
+        settings_with_internal = Settings(
+            api_url="http://testserver/api/v1",
+            mcp_transport="streamable-http",
+            mcp_host="127.0.0.1",
+            mcp_port=8001,
+            mcp_path="/mcp/sse",
+            fileserver_internal_url="http://core:8080",
+        )
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_request
+        try:
+            with patch("coneshare_mcp.client.httpx.AsyncClient", MockAsyncClient):
+                client = ConeshareClient(api_key="cs_live_testkey123456789", settings=settings_with_internal)
+                res = await client.create_text_document(
+                    file_name="summary.md",
+                    content="# Summary",
+                    path="/Notes/2026/",
+                    description="Q4 summary notes",
+                )
+        finally:
+            ConeshareClient._request = old_request
+
+        self.assertEqual(res["description"], "Q4 summary notes")
+        # Reused existing 'Notes', created only missing '2026'
+        self.assertEqual(recorded_requests, [
+            ("GET", "/folders/", None),
+            ("GET", "/folders/fld_notes/", None),
+            ("POST", "/folders/", {"name": "2026", "parent": "fld_notes"}),
+            ("POST", "/uploads/document/request/", {
+                "file_name": "summary.md",
+                "file_size": len(b"# Summary"),
+                "path": "Notes/2026/summary.md",
+            }),
+            ("POST", "/uploads/document/finalize/", {
+                "storage_key": "org_1/summary.md",
+                "unique_name": "summary_u1.md",
+                "content_type": "text/markdown",
+                "path": "Notes/2026/summary_u1.md",
+            }),
+            ("PATCH", "/documents/doc_md_2/", {"description": "Q4 summary notes"}),
+        ])
+        # Internal core file server path was rewritten to CONESHARE_FILESERVER_INTERNAL_URL
+        self.assertEqual(put_urls, ["http://core:8080/files/upload/tok-123"])
+
+    async def test_resolve_upload_url_keeps_external_presigned_urls(self):
+        settings_with_internal = Settings(
+            api_url="http://testserver/api/v1",
+            mcp_transport="streamable-http",
+            mcp_host="127.0.0.1",
+            mcp_port=8001,
+            mcp_path="/mcp/sse",
+            fileserver_internal_url="http://core:8080",
+        )
+        client = ConeshareClient(api_key="cs_live_testkey123456789", settings=settings_with_internal)
+        s3_url = "https://my-bucket.s3.us-east-1.amazonaws.com/org/doc.md?X-Amz-Signature=abc123"
+        self.assertEqual(client._resolve_upload_url(s3_url), s3_url)
+        self.assertEqual(
+            client._resolve_upload_url("http://localhost:8080/files/upload/token-xyz"),
+            "http://core:8080/files/upload/token-xyz",
+        )
+
+    async def test_create_text_document_validation_and_put_failure(self):
+        client = ConeshareClient(api_key="cs_live_testkey123456789", settings=self.mock_settings)
+
+        with self.assertRaises(ValueError):
+            await client.create_text_document(file_name="note.md", content="   \n  ")
+
+        with self.assertRaises(ValueError):
+            await client.create_text_document(file_name="Notes/note.md", content="hello")
+
+        with self.assertRaises(ValueError):
+            await client.create_text_document(file_name="note.md", content="hello", path="../escape")
+
+        for bad_name in (".", "..", ".md", "..."):
+            with self.assertRaises(ValueError):
+                await client.create_text_document(file_name=bad_name, content="hello")
+
+        recorded_paths = []
+
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            recorded_paths.append(path)
+            if path == "/uploads/document/request/":
+                return {
+                    "upload_url": "http://core:8080/files/upload/tok-fail",
+                    "storage_key": "org_1/note.csv",
+                    "unique_name": "note.csv",
+                }
+            return {"error": True}
+
+        class MockFailPutClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def put(self, url, content=None, headers=None):
+                return httpx.Response(403, text="Forbidden", request=httpx.Request("PUT", url))
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_request
+        try:
+            with patch("coneshare_mcp.client.httpx.AsyncClient", MockFailPutClient):
+                with self.assertRaises(ValueError) as ctx_err:
+                    await client.create_text_document(file_name="note.csv", content="col1,col2\n1,2")
+                self.assertIn("Storage upload failed (403)", str(ctx_err.exception))
+        finally:
+            ConeshareClient._request = old_request
+
+        # Finalize must never be called when storage PUT fails
+        self.assertEqual(recorded_paths, ["/uploads/document/request/"])
+
+    async def test_create_text_document_tool_execution(self):
+        mcp = FastMCP("test_mcp")
+        register_document_tools(mcp)
+
+        mock_client = MagicMock()
+        mock_client.create_text_document = AsyncMock(return_value={"id": "doc_txt_1", "name": "notes.md"})
+        mock_ctx = MagicMock()
+
+        tool = await mcp.get_tool("create_text_document")
+        with patch("coneshare_mcp.tools.documents.ConeshareClient.from_ctx", return_value=mock_client):
+            res = await tool.fn(
+                ctx=mock_ctx,
+                file_name="notes.md",
+                content="# Notes",
+                content_type=None,
+                path="Notes",
+                description="Quick notes",
+            )
+        self.assertEqual(res["id"], "doc_txt_1")
+        mock_client.create_text_document.assert_awaited_once_with(
+            file_name="notes.md",
+            content="# Notes",
+            content_type=None,
+            path="Notes",
+            description="Quick notes",
+        )
+
+    async def test_create_text_document_description_patch_failure_preserves_doc(self):
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            if path == "/uploads/document/request/":
+                return {
+                    "upload_url": "https://cdn.example.com/presigned/put",
+                    "storage_key": "org_1/report.md",
+                    "unique_name": "report.md",
+                }
+            if path == "/uploads/document/finalize/":
+                return {"id": "doc_keep_1", "name": "report.md", "status": "ready"}
+            if method == "PATCH" and path == "/documents/doc_keep_1/":
+                raise ValueError("Coneshare API Error (502): upstream timeout")
+            return {"error": True}
+
+        class MockOkPutClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def put(self, url, content=None, headers=None):
+                return httpx.Response(200, request=httpx.Request("PUT", url))
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_request
+        try:
+            with patch("coneshare_mcp.client.httpx.AsyncClient", MockOkPutClient):
+                client = ConeshareClient(api_key="cs_live_testkey123456789", settings=self.mock_settings)
+                res = await client.create_text_document(
+                    file_name="report.",
+                    content="# Report",
+                    description="Should not fail whole upload",
+                )
+        finally:
+            ConeshareClient._request = old_request
+
+        self.assertEqual(res["id"], "doc_keep_1")
+        self.assertEqual(res["name"], "report.md")
+        self.assertIn("502", res["description_update_error"])
+
+    async def test_create_text_document_extensionless_path_suffix_and_skip_new_folder_gets(self):
+        recorded_requests = []
+
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            recorded_requests.append((method, path, json_data))
+            if method == "GET" and path == "/folders/":
+                return {"current_folder": None, "sub_folders": []}
+            if method == "POST" and path == "/folders/":
+                return {"id": f"fld_{json_data['name']}", "name": json_data["name"]}
+            if path == "/uploads/document/request/":
+                return {
+                    "upload_url": "https://cdn.example.com/presigned/put",
+                    "storage_key": "org_1/meeting.md",
+                    "unique_name": "meeting.md",
+                }
+            if path == "/uploads/document/finalize/":
+                return {"id": "doc_nested_1", "name": "meeting.md", "status": "ready"}
+            return {"error": True}
+
+        class MockOkPutClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def put(self, url, content=None, headers=None):
+                return httpx.Response(200, request=httpx.Request("PUT", url))
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_request
+        try:
+            with patch("coneshare_mcp.client.httpx.AsyncClient", MockOkPutClient):
+                client = ConeshareClient(api_key="cs_live_testkey123456789", settings=self.mock_settings)
+                res = await client.create_text_document(
+                    file_name="meeting",
+                    content="# Notes",
+                    path="Notes/2026/meeting",
+                )
+        finally:
+            ConeshareClient._request = old_request
+
+        self.assertEqual(res["id"], "doc_nested_1")
+        # Must NOT create extra 'meeting' folder or call GET /folders/{id}/ after creating 'Notes'
+        self.assertEqual(recorded_requests, [
+            ("GET", "/folders/", None),
+            ("POST", "/folders/", {"name": "Notes"}),
+            ("POST", "/folders/", {"name": "2026", "parent": "fld_Notes"}),
+            ("POST", "/uploads/document/request/", {
+                "file_name": "meeting.md",
+                "file_size": len(b"# Notes"),
+                "path": "Notes/2026/meeting.md",
+            }),
+            ("POST", "/uploads/document/finalize/", {
+                "storage_key": "org_1/meeting.md",
+                "unique_name": "meeting.md",
+                "content_type": "text/markdown",
+                "path": "Notes/2026/meeting.md",
+            }),
+        ])
+
+    async def test_ensure_folder_path_resolves_exact_folder_on_concurrent_rename(self):
+        recorded_requests = []
+        root_get_calls = 0
+
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            nonlocal root_get_calls
+            recorded_requests.append((method, path, json_data))
+            if method == "GET" and path == "/folders/":
+                root_get_calls += 1
+                if root_get_calls == 1:
+                    return {"current_folder": None, "sub_folders": []}
+                # Intervening request created exact 'Notes' before our POST landed
+                return {"current_folder": None, "sub_folders": [{"id": "fld_exact_notes", "name": "Notes"}]}
+            if method == "POST" and path == "/folders/":
+                if json_data.get("name") == "Notes":
+                    return {"id": "fld_dup_notes", "name": "Notes (1)"}
+                return {"id": "fld_2026", "name": json_data["name"], "parent": json_data.get("parent")}
+            if method == "GET" and path == "/folders/fld_exact_notes/":
+                return {"current_folder": {"id": "fld_exact_notes", "name": "Notes"}, "sub_folders": []}
+            return {"error": True}
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_request
+        try:
+            client = ConeshareClient(api_key="cs_live_testkey123456789", settings=self.mock_settings)
+            folder_id = await client.ensure_folder_path("Notes/2026")
+        finally:
+            ConeshareClient._request = old_request
+
+        self.assertEqual(folder_id, "fld_2026")
+        self.assertEqual(recorded_requests, [
+            ("GET", "/folders/", None),
+            ("POST", "/folders/", {"name": "Notes"}),
+            ("GET", "/folders/", None),
+            ("GET", "/folders/fld_exact_notes/", None),
+            ("POST", "/folders/", {"name": "2026", "parent": "fld_exact_notes"}),
+        ])
+
+    async def test_create_text_document_preserves_filename_shaped_folder_segment(self):
+        recorded_requests = []
+
+        async def mock_request(self_client, method, path, params=None, json_data=None, files=None):
+            recorded_requests.append((method, path, json_data))
+            if method == "GET" and path == "/folders/":
+                return {"current_folder": None, "sub_folders": []}
+            if method == "POST" and path == "/folders/":
+                return {"id": f"fld_{json_data['name']}", "name": json_data["name"]}
+            if path == "/uploads/document/request/":
+                return {
+                    "upload_url": "https://cdn.example.com/presigned/put",
+                    "storage_key": "org_1/note.md",
+                    "unique_name": "note.md",
+                }
+            if path == "/uploads/document/finalize/":
+                return {"id": "doc_same_seg", "name": "note.md", "status": "ready"}
+            return {"error": True}
+
+        class MockOkPutClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def put(self, url, content=None, headers=None):
+                return httpx.Response(200, request=httpx.Request("PUT", url))
+
+        old_request = ConeshareClient._request
+        ConeshareClient._request = mock_request
+        try:
+            with patch("coneshare_mcp.client.httpx.AsyncClient", MockOkPutClient):
+                client = ConeshareClient(api_key="cs_live_testkey123456789", settings=self.mock_settings)
+                res = await client.create_text_document(
+                    file_name="note.md",
+                    content="# Repeated segment test",
+                    path="Notes/note.md/note.md",
+                )
+        finally:
+            ConeshareClient._request = old_request
+
+        self.assertEqual(res["id"], "doc_same_seg")
+        self.assertEqual(recorded_requests, [
+            ("GET", "/folders/", None),
+            ("POST", "/folders/", {"name": "Notes"}),
+            ("POST", "/folders/", {"name": "note.md", "parent": "fld_Notes"}),
+            ("POST", "/uploads/document/request/", {
+                "file_name": "note.md",
+                "file_size": len(b"# Repeated segment test"),
+                "path": "Notes/note.md/note.md",
+            }),
+            ("POST", "/uploads/document/finalize/", {
+                "storage_key": "org_1/note.md",
+                "unique_name": "note.md",
+                "content_type": "text/markdown",
+                "path": "Notes/note.md/note.md",
+            }),
+        ])
 
 
