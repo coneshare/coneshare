@@ -78,6 +78,7 @@ The service is configured via environment variables in [docker-compose.yml](../.
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `CONESHARE_API_URL` | ✅ | N/A | Target Coneshare REST API base URL (required at startup) |
+| `CONESHARE_FILESERVER_INTERNAL_URL` | ❌ | None | Optional internal file-server base URL (`http://core:8080` in Docker) for `create_text_document` upload PUTs |
 | `MCP_TRANSPORT` | ❌ | `streamable-http` | Transport protocol (`streamable-http`, `http`, or `sse`) |
 | `MCP_HOST` | ❌ | `0.0.0.0` | Container network bind address (`0.0.0.0` for Docker) |
 | `MCP_PATH` | ❌ | `/mcp/sse` | HTTP SSE endpoint path |

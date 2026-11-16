@@ -4,6 +4,7 @@ import math
 import os
 import re
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse, urlunparse
 import httpx
 from fastmcp import Context
 from fastmcp.server.dependencies import get_http_request
@@ -13,6 +14,18 @@ from coneshare_mcp.config import Settings, get_settings
 logger = logging.getLogger(__name__)
 
 RESOURCE_ID_REGEX = re.compile(r"^[0-9A-Za-z_-]{1,64}$")
+
+TEXT_CONTENT_TYPE_BY_EXTENSION: dict[str, str] = {
+    ".md": "text/markdown",
+    ".markdown": "text/markdown",
+    ".csv": "text/csv",
+    ".txt": "text/plain",
+    ".log": "text/plain",
+    ".text": "text/plain",
+    ".json": "application/json",
+    ".yaml": "application/yaml",
+    ".yml": "application/yaml",
+}
 
 
 def _validate_resource_id(value: Any, name: str = "id") -> str:
@@ -142,21 +155,25 @@ class ConeshareClient:
         }
 
     @staticmethod
-    def _normalize_upload_path(path: Optional[str], file_name: str) -> Optional[str]:
+    def _split_clean_folder_segments(path: Optional[str]) -> list[str]:
         if not path:
-            return None
+            return []
         clean_path = path.strip().strip("/")
         if not clean_path:
-            return None
+            return []
 
-        # Prevent directory traversal in destination folder path
         parts = [p.strip() for p in clean_path.split("/") if p.strip()]
         if any(p == ".." or p == "." for p in parts):
             raise ValueError(f"Path traversal ('..' or '.') is not allowed in destination path: '{path}'")
+        return parts
+
+    @classmethod
+    def _normalize_upload_path(cls, path: Optional[str], file_name: str) -> Optional[str]:
+        parts = cls._split_clean_folder_segments(path)
+        if not parts:
+            return None
 
         folder_path = "/".join(parts)
-        if not folder_path:
-            return None
 
         # If clean_path already ends with the target file_name, preserve it as-is.
         if folder_path == file_name or folder_path.endswith(f"/{file_name}"):
@@ -166,6 +183,52 @@ class ConeshareClient:
         # This correctly preserves dotted folder names (e.g. 'reports.2024')
         # without guessing file vs folder from file extensions.
         return f"{folder_path}/{file_name}"
+
+    @classmethod
+    def _extract_folder_segments(
+        cls,
+        path: Optional[str],
+        file_name: str,
+        raw_file_name: Optional[str] = None,
+    ) -> tuple[list[str], Optional[str]]:
+        parts = cls._split_clean_folder_segments(path)
+        match_names = {file_name}
+        if raw_file_name:
+            match_names.add(raw_file_name)
+        if parts and parts[-1] in match_names:
+            parts = parts[:-1]
+        return parts, ("/".join(parts) if parts else None)
+
+    def _resolve_upload_url(self, upload_url: str) -> str:
+        """Rewrite internal core file-server upload URLs when configured for container networking."""
+        internal_base = self.settings.fileserver_internal_url
+        parsed = urlparse(upload_url)
+        if internal_base and parsed.path.startswith("/files/upload/"):
+            base_parsed = urlparse(internal_base)
+            base_path = base_parsed.path.rstrip("/")
+            return urlunparse((
+                base_parsed.scheme,
+                base_parsed.netloc,
+                f"{base_path}{parsed.path}",
+                parsed.params,
+                parsed.query,
+                parsed.fragment,
+            ))
+        return upload_url
+
+    async def _upload_bytes(self, upload_url: str, data: bytes, content_type: str) -> None:
+        target_url = self._resolve_upload_url(upload_url)
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            try:
+                response = await client.put(
+                    target_url,
+                    content=data,
+                    headers={"Content-Type": content_type},
+                )
+                if not response.is_success:
+                    raise ValueError(f"Storage upload failed ({response.status_code}): {response.text}")
+            except httpx.RequestError as exc:
+                raise ValueError(f"Network error uploading content to storage: {exc}") from exc
 
     # --- Documents API ---
 
@@ -254,6 +317,145 @@ class ConeshareClient:
         if parent_folder_id:
             payload["parent"] = _validate_resource_id(parent_folder_id, "parent_folder_id")
         return await self._request("POST", "/folders/", json_data=payload)
+
+    async def _find_subfolder_id(
+        self,
+        parent_id: Optional[str],
+        segment: str,
+        full_path: str,
+    ) -> Optional[str]:
+        endpoint = f"/folders/{_validate_resource_id(parent_id, 'folder_id')}/" if parent_id else "/folders/"
+        listing = await self._request("GET", endpoint)
+        if not isinstance(listing, dict) or listing.get("error"):
+            raise ValueError(f"Failed to list folders while resolving destination path '{full_path}'.")
+
+        sub_folders = listing.get("sub_folders", [])
+        existing = next(
+            (f for f in sub_folders if isinstance(f, dict) and f.get("name") == segment),
+            None,
+        )
+        return str(existing["id"]) if existing and existing.get("id") else None
+
+    async def ensure_folder_path(self, path: str) -> Optional[str]:
+        """Walk existing root/subfolders and create only missing segments along a relative path."""
+        segments = self._split_clean_folder_segments(path)
+        if not segments:
+            return None
+
+        parent_id: Optional[str] = None
+        parent_just_created = False
+        for segment in segments:
+            if not parent_just_created:
+                existing_id = await self._find_subfolder_id(parent_id, segment, path)
+                if existing_id:
+                    parent_id = existing_id
+                    continue
+
+            created = await self.create_folder(name=segment, parent_folder_id=parent_id)
+            if not isinstance(created, dict) or created.get("error") or not created.get("id"):
+                raise ValueError(f"Failed to create folder '{segment}' along destination path '{path}'.")
+
+            if created.get("name") is not None and created.get("name") != segment:
+                resolved_id = await self._find_subfolder_id(parent_id, segment, path)
+                if not resolved_id:
+                    raise ValueError(
+                        f"Folder '{segment}' was renamed to '{created.get('name')}' during concurrent creation "
+                        f"and could not be re-resolved along destination path '{path}'."
+                    )
+                parent_id = resolved_id
+                parent_just_created = False
+            else:
+                parent_id = str(created["id"])
+                parent_just_created = True
+
+        return parent_id
+
+    async def create_text_document(
+        self,
+        file_name: str,
+        content: str,
+        content_type: Optional[str] = None,
+        path: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Upload UTF-8 text/Markdown content directly to Personal Documents without an external PUT."""
+        raw_name = file_name.strip() if isinstance(file_name, str) else ""
+        if not raw_name:
+            raise ValueError("file_name must be a non-empty string.")
+        if "/" in raw_name or "\\" in raw_name:
+            raise ValueError("Provide folder paths via 'path', not '/' inside 'file_name'.")
+
+        clean_name = raw_name.rstrip(".")
+        if not clean_name or (clean_name.startswith(".") and "." not in clean_name[1:]):
+            raise ValueError(f"Invalid file_name: '{file_name}'. Provide a valid filename with a stem.")
+
+        _, ext = os.path.splitext(clean_name)
+        if not ext:
+            clean_name = f"{clean_name}.md"
+            ext = ".md"
+
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("Document content cannot be empty.")
+
+        data = content.encode("utf-8")
+        resolved_content_type = (
+            content_type.strip()
+            if isinstance(content_type, str) and content_type.strip()
+            else TEXT_CONTENT_TYPE_BY_EXTENSION.get(ext.lower(), "text/plain")
+        )
+
+        folder_segments, folder_path = self._extract_folder_segments(path, clean_name, raw_name)
+        if folder_segments:
+            await self.ensure_folder_path("/".join(folder_segments))
+
+        request_path = f"{folder_path}/{clean_name}" if folder_path else None
+        req_res = await self.request_document_upload(
+            file_name=clean_name,
+            file_size=len(data),
+            path=request_path,
+        )
+        if not isinstance(req_res, dict) or req_res.get("error"):
+            raise ValueError("Failed to request upload URL for text document.")
+
+        upload_url = req_res.get("upload_url")
+        storage_key = req_res.get("storage_key")
+        unique_name = req_res.get("unique_name") or clean_name
+        if not upload_url or not storage_key:
+            raise ValueError("Upload request response missing required 'upload_url' or 'storage_key'.")
+
+        await self._upload_bytes(
+            upload_url=str(upload_url),
+            data=data,
+            content_type=resolved_content_type,
+        )
+
+        finalize_path = f"{folder_path}/{unique_name}" if folder_path else None
+        doc = await self.finalize_document_upload(
+            storage_key=str(storage_key),
+            unique_name=str(unique_name),
+            content_type=resolved_content_type,
+            path=finalize_path,
+        )
+
+        if isinstance(description, str) and description.strip() and isinstance(doc, dict) and doc.get("id"):
+            try:
+                updated = await self.update_document(
+                    document_id=str(doc["id"]),
+                    description=description.strip(),
+                )
+                if isinstance(updated, dict) and not updated.get("error"):
+                    doc = updated
+                else:
+                    doc = {**doc, "description_update_error": "Failed to update document description."}
+            except ValueError as exc:
+                logger.warning(
+                    "Document %s created, but updating description failed: %s",
+                    doc.get("id"),
+                    exc,
+                )
+                doc = {**doc, "description_update_error": str(exc)}
+
+        return doc
 
     async def update_folder(self, folder_id: str, name: str) -> dict[str, Any]:
         f_id = _validate_resource_id(folder_id, "folder_id")

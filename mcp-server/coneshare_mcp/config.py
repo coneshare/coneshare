@@ -1,6 +1,7 @@
 import logging
 import os
 from dataclasses import dataclass
+from typing import Optional
 
 logger = logging.getLogger("coneshare_mcp.config")
 
@@ -12,6 +13,7 @@ class Settings:
     mcp_host: str
     mcp_port: int
     mcp_path: str
+    fileserver_internal_url: Optional[str] = None
 
 
 def get_settings() -> Settings:
@@ -20,10 +22,13 @@ def get_settings() -> Settings:
         logger.critical("CONESHARE_API_URL environment variable is required but missing. Stopping MCP server startup.")
         raise RuntimeError("Missing required environment variable: CONESHARE_API_URL")
 
+    fileserver_internal_url = os.getenv("CONESHARE_FILESERVER_INTERNAL_URL")
+
     return Settings(
         api_url=api_url.rstrip("/"),
         mcp_transport=os.getenv("MCP_TRANSPORT", "streamable-http").lower(),
         mcp_host=os.getenv("MCP_HOST", "0.0.0.0"),
         mcp_port=int(os.getenv("MCP_PORT", "8001")),
         mcp_path=os.getenv("MCP_PATH", "/mcp/sse"),
+        fileserver_internal_url=fileserver_internal_url.rstrip("/") if fileserver_internal_url else None,
     )
