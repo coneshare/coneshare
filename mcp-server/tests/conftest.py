@@ -6,6 +6,7 @@ from coneshare_mcp.config import Settings
 @pytest.fixture(autouse=True)
 def env_setup(monkeypatch):
     monkeypatch.setenv("CONESHARE_API_URL", "http://testserver/api/v1")
+    monkeypatch.setenv("SITE_DOMAIN", "http://localhost:5173")
 
 
 @pytest.fixture

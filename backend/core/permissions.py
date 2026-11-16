@@ -1,3 +1,4 @@
+from oauth2_provider.models import AccessToken
 from rest_framework import permissions
 from core.models import APIKey
 
@@ -82,3 +83,71 @@ class APIKeyTierPermission(permissions.BasePermission):
                 return False
 
         return True
+
+
+class OAuth2ScopePermission(permissions.BasePermission):
+    """
+    DRF permission class enforcing OAuth 2.1 read/write scopes on AccessToken requests.
+    Non-OAuth requests (JWT, Session, APIKey) are unaffected.
+    """
+
+    message = "The presented OAuth token lacks the required scope for this operation."
+
+    _ALLOWED_MODULE_PREFIXES = (
+        'documents.',
+        'filerequests.',
+        'cloudfiles.',
+        'datarooms.',
+        'sharelinks.',
+    )
+
+    def _required_scopes_for(self, request, view) -> tuple[str, ...] | None:
+        view_module = getattr(view, '__module__', '') or ''
+        is_admin_view = 'admin_views' in view_module or any(
+            perm is IsAdmin or (isinstance(perm, type) and issubclass(perm, IsAdmin))
+            for perm in getattr(view, 'permission_classes', [])
+        )
+        # Viewer/session telemetry endpoints (and analytics.* routes, omitted from
+        # _ALLOWED_MODULE_PREFIXES) remain restricted for OAuth until dedicated scopes exist.
+        if is_admin_view or getattr(view, 'basename', None) in (
+            'api-key',
+            'trash',
+            'viewer',
+            'viewsession',
+        ):
+            return None
+
+        action = getattr(view, 'action', None)
+        action_handler = getattr(view, action, None) if action else None
+        if action in ('transfer_ownership', 'remove_collaborator', 'view_sessions') or (
+            action_handler and getattr(action_handler, 'requires_full_access', False)
+        ):
+            return None
+
+        if request.method.upper() == 'DELETE':
+            return None
+
+        if not any(view_module.startswith(prefix) for prefix in self._ALLOWED_MODULE_PREFIXES):
+            return None
+
+        if request.method.upper() in permissions.SAFE_METHODS:
+            return ('read', 'write')
+        return ('write',)
+
+    def has_permission(self, request, view):
+        if not isinstance(request.auth, AccessToken):
+            return True
+
+        accepted_scopes = self._required_scopes_for(request, view)
+        if not accepted_scopes:
+            self.message = "OAuth tokens are not permitted for this endpoint."
+            return False
+
+        token_scopes = set((request.auth.scope or '').split())
+        if token_scopes & set(accepted_scopes):
+            return True
+
+        self.message = (
+            f"OAuth token missing required scope (requires one of: {', '.join(accepted_scopes)})."
+        )
+        return False

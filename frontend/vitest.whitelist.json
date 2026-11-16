@@ -74,6 +74,7 @@
     "src/tests/services/api.test.js",
     "src/tests/pages/DocumentsPage.test.jsx",
     "src/tests/components/common/GlobalErrorBoundary.test.jsx",
-    "src/tests/components/SearchBox.test.jsx"
+    "src/tests/components/SearchBox.test.jsx",
+    "src/tests/pages/OAuthAuthorizePage.test.jsx"
   ]
 }

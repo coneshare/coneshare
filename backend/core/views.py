@@ -33,7 +33,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from core.models import APIKey, Organization, UserGroup
 from core.authentication import generate_raw_api_key
 from core.i18n_utils import resolve_email_language
-from core.permissions import APIKeyTierPermission, IsAdmin
+from core.permissions import APIKeyTierPermission, IsAdmin, OAuth2ScopePermission
 from core.services import blacklist_all_user_tokens, get_dynamic_setting
 from core.serializers import (APIKeySerializer, APIKeyCreateSerializer, ChangePasswordSerializer, OrganizationSerializer,
                               SignupRequestAcceptedSerializer,
@@ -63,7 +63,7 @@ class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = Organization.objects.all()
     serializer_class = OrganizationSerializer
-    permission_classes = [IsAuthenticated, APIKeyTierPermission]
+    permission_classes = [IsAuthenticated, APIKeyTierPermission, OAuth2ScopePermission]
 
     def get_queryset(self):
         user = self.request.user
@@ -82,7 +82,7 @@ class UserViewSet(mixins.RetrieveModelMixin,
     """
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated, APIKeyTierPermission, IsSelf]
+    permission_classes = [IsAuthenticated, APIKeyTierPermission, OAuth2ScopePermission, IsSelf]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
@@ -100,7 +100,7 @@ class UserGroupViewSet(viewsets.ModelViewSet):
     """
     queryset = UserGroup.objects.all()
     serializer_class = UserGroupSerializer
-    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission]
+    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission, OAuth2ScopePermission]
 
     def get_queryset(self):
         user = self.request.user
@@ -268,7 +268,7 @@ class SignupVerifyView(APIView):
 @extend_schema(tags=['core'])
 class SetPasswordView(APIView):
     """View to set a user's password."""
-    permission_classes = [IsAuthenticated, APIKeyTierPermission]
+    permission_classes = [IsAuthenticated, APIKeyTierPermission, OAuth2ScopePermission]
 
     @extend_schema(
         request=ChangePasswordSerializer,
@@ -296,7 +296,7 @@ class SetPasswordView(APIView):
 
 @extend_schema(tags=['core'])
 class LogoutView(APIView):
-    permission_classes = [IsAuthenticated, APIKeyTierPermission]
+    permission_classes = [IsAuthenticated, APIKeyTierPermission, OAuth2ScopePermission]
 
     class LogoutRequestSerializer(serializers.Serializer):
         refresh = serializers.CharField()
@@ -457,7 +457,7 @@ class APIKeyViewSet(mixins.CreateModelMixin,
                     mixins.ListModelMixin,
                     mixins.DestroyModelMixin,
                     viewsets.GenericViewSet):
-    permission_classes = [permissions.IsAuthenticated, APIKeyTierPermission]
+    permission_classes = [permissions.IsAuthenticated, APIKeyTierPermission, OAuth2ScopePermission]
     serializer_class = APIKeySerializer
 
     def get_queryset(self):

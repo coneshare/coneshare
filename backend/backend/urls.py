@@ -21,12 +21,23 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from core.oauth_views import ConeshareOAuthServerMetadataView, require_oauth_enabled
 from core.views import (CustomTokenObtainPairView, LanguagesView, LogoutView, PublicSettingsView,
                         SetPasswordView, SignupRequestView,
                         SignupVerifyView)
 
 
 urlpatterns = [
+    path(
+        '.well-known/oauth-authorization-server',
+        require_oauth_enabled(ConeshareOAuthServerMetadataView.as_view()),
+        name='oauth-server-metadata',
+    ),
+    path(
+        '.well-known/oauth-authorization-server/<path:issuer_path>',
+        require_oauth_enabled(ConeshareOAuthServerMetadataView.as_view()),
+        name='oauth-server-metadata-issuer',
+    ),
     path('admin/', admin.site.urls),
     path('api-auth/', include('rest_framework.urls')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
@@ -41,6 +52,7 @@ urlpatterns = [
     path('api/v1/logout/', LogoutView.as_view(), name='logout'),
     path('api/v1/users/set-password/', SetPasswordView.as_view(), name='set_password'),
     path('api/v1/', include('core.urls')),
+    path('api/v1/oauth/', include(('core.oauth_urls', 'oauth2_provider'), namespace='oauth2_provider')),
     path('api/v1/', include('documents.urls')),
     path('api/v1/', include('sharelinks.urls')),
     path('api/v1/', include('datarooms.urls')),

@@ -19,7 +19,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from drf_spectacular.utils import extend_schema, extend_schema_field, inline_serializer
 
 from core.pagination import AdminPagination, StandardResultsSetPagination
-from core.permissions import APIKeyTierPermission, IsAdmin
+from core.permissions import APIKeyTierPermission, IsAdmin, OAuth2ScopePermission
 from datarooms.models import Dataroom, DataroomCollaborator
 from datarooms.serializers import DataroomSerializer
 from documents.models import Document
@@ -71,7 +71,7 @@ class AdminSettingsViewSet(viewsets.ModelViewSet):
     """
     queryset = AppConfiguration.objects.all()
     serializer_class = AppConfigurationSerializer
-    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission]
+    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission, OAuth2ScopePermission]
     lookup_field = 'key'
 
     def list(self, request, *args, **kwargs):
@@ -167,7 +167,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
     """
     queryset = User.objects.all()
     serializer_class = AdminUserSerializer
-    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission]
+    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission, OAuth2ScopePermission]
     pagination_class = AdminPagination
 
     def get_serializer_class(self):
@@ -445,7 +445,7 @@ class AdminLoginActivityViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = LoginActivity.objects.all()
     serializer_class = LoginActivitySerializer
-    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission]
+    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission, OAuth2ScopePermission]
     pagination_class = AdminPagination
 
     def get_queryset(self):
@@ -501,7 +501,7 @@ class AdminSecurityThreatEventViewSet(viewsets.ReadOnlyModelViewSet):
     # Dummy queryset for OpenAPI schema generation to infer lookup field type without executing get_queryset().
     queryset = SecurityThreatEvent.objects.none()
     serializer_class = SecurityThreatEventSerializer
-    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission]
+    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission, OAuth2ScopePermission]
     pagination_class = AdminPagination
 
     def get_queryset(self):
@@ -529,7 +529,7 @@ class AdminOrganizationView(APIView):
     """
     View for admins to retrieve or update their organization's branding/settings.
     """
-    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission]
+    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission, OAuth2ScopePermission]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     @extend_schema(

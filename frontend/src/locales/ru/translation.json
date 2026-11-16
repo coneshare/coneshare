@@ -1339,7 +1339,10 @@
     "dataroomStorageLimitExceeded": "Загрузка этого файла превысит лимит хранилища датарума в {{limit}} МБ.",
     "parseFailed": "Не удалось разобрать содержимое Markdown.",
     "unsupportedFormat": "Документ не является файлом Markdown.",
-    "notFound": "URL предпросмотра Markdown не найден."
+    "notFound": "URL предпросмотра Markdown не найден.",
+    "oauthPkceRequired": "Для авторизации требуется проверка PKCE (S256).",
+    "oauthScopeRequired": "Выберите хотя бы одно разрешение для авторизации.",
+    "oauthInvalidRedirectUri": "Недопустимая схема URL перенаправления OAuth."
   },
   "errorBoundary": {
     "title": "Что-то пошло не так",
@@ -1352,5 +1355,21 @@
     "browser": "Браузер",
     "stackTrace": "Стек вызовов",
     "componentStack": "Стек компонентов"
+  },
+  "oauth": {
+    "authorizeTitle": "Авторизация приложения",
+    "connectWorkspace": "Подключение ИИ-ассистента к вашему рабочему пространству {{brandName}}",
+    "loadingDetails": "Проверка запроса авторизации...",
+    "invalidRequest": "Недействительный или просроченный запрос авторизации OAuth.",
+    "decisionFailed": "Не удалось завершить авторизацию OAuth.",
+    "dynamicClientBadge": "Динамическое приложение",
+    "signedInAs": "Вход выполнен как {{email}}",
+    "redirectsTo": "Перенаправление на {{redirectUri}}",
+    "unverifiedAppWarning": "Это приложение зарегистрировано динамически, его название указано самим клиентом. Перед подтверждением проверьте адрес перенаправления ниже.",
+    "requestedPermissions": "Запрашиваемые разрешения",
+    "missingRedirectUrl": "В ответе авторизации отсутствует URL перенаправления.",
+    "invalidRedirectScheme": "Недопустимая схема URL перенаправления.",
+    "deny": "Отклонить",
+    "approve": "Разрешить"
   }
 }

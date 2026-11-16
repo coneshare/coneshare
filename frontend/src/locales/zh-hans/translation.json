@@ -1314,7 +1314,10 @@
     "dataroomStorageLimitExceeded": "上传此文件将超过该资料室的存储容量上限 ({{limit}} MB)。",
     "parseFailed": "解析 Markdown 内容失败。",
     "unsupportedFormat": "文档不是 Markdown 文件。",
-    "notFound": "未找到 Markdown 预览链接。"
+    "notFound": "未找到 Markdown 预览链接。",
+    "oauthPkceRequired": "授权请求必须包含 PKCE (S256) 校验参数。",
+    "oauthScopeRequired": "请至少选择一项授权权限。",
+    "oauthInvalidRedirectUri": "不允许的 OAuth 回调地址协议。"
   },
   "errorBoundary": {
     "title": "页面出现异常",
@@ -1327,5 +1330,21 @@
     "browser": "浏览器",
     "stackTrace": "调用栈",
     "componentStack": "组件栈"
+  },
+  "oauth": {
+    "authorizeTitle": "授权应用访问",
+    "connectWorkspace": "将 AI 助手连接到您的 {{brandName}} 工作区",
+    "loadingDetails": "正在验证授权请求...",
+    "invalidRequest": "OAuth 授权请求无效或已过期。",
+    "decisionFailed": "无法完成 OAuth 授权。",
+    "dynamicClientBadge": "动态注册应用",
+    "signedInAs": "当前登录账号：{{email}}",
+    "redirectsTo": "授权后将跳转至 {{redirectUri}}",
+    "unverifiedAppWarning": "该应用为动态注册应用，应用名称由调用方自行声明。授权前请仔细核对下方回调地址。",
+    "requestedPermissions": "请求的权限",
+    "missingRedirectUrl": "授权响应缺少回调跳转地址。",
+    "invalidRedirectScheme": "不允许的回调地址协议。",
+    "deny": "拒绝",
+    "approve": "授权"
   }
 }

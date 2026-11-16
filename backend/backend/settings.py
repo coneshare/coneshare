@@ -226,6 +226,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'drf_spectacular',
+    'oauth2_provider',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'core.apps.CoreConfig',
@@ -275,15 +276,17 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        # APIKeyAuthentication must precede JWTAuthentication so cs_live_... keys
-        # are evaluated directly without SimpleJWT raising an InvalidToken exception on them.
+        # APIKeyAuthentication and ActiveUserOAuth2Authentication must precede JWTAuthentication
+        # so cs_live_... keys and opaque OAuth2 tokens do not trigger SimpleJWT InvalidToken errors.
         'core.authentication.APIKeyAuthentication',
+        'core.authentication.ActiveUserOAuth2Authentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
         'core.permissions.APIKeyTierPermission',
+        'core.permissions.OAuth2ScopePermission',
     ],
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
@@ -297,6 +300,7 @@ REST_FRAMEWORK = {
         'signup': '5/min',
         'health_check': '1000/min',
         'document_copy': '5/min',
+        'oauth_dcr': '20/hour',
     }
 }
 
@@ -312,6 +316,105 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+# ==============================================================================
+# OAUTH 2.1 AUTHORIZATION SERVER (MCP / Web AI App Integration)
+# ==============================================================================
+CONESHARE_OAUTH_ENABLED = os.environ.get('CONESHARE_OAUTH_ENABLED', 'false').strip().lower() in (
+    'true',
+    '1',
+    't',
+    'yes',
+)
+
+# Trailing slash is intentional: FastMCP / MCP SDK's ProtectedResourceMetadata
+# types `authorization_servers` as Pydantic `list[AnyHttpUrl]`, which normalizes
+# bare origins (e.g. "https://app.coneshare.com") to include a trailing slash
+# ("https://app.coneshare.com/"). Including the trailing slash here ensures an
+# exact string match between RFC 9728 `authorization_servers` and RFC 8414 `issuer`.
+OAUTH_ISSUER = (
+    ''
+    if ('test' in sys.argv or 'pytest' in sys.modules)
+    else f"{SITE_DOMAIN.rstrip('/')}/"
+)
+
+MCP_PATH = os.environ.get('MCP_PATH', '/mcp/sse')
+
+OAUTH_SCOPES = {
+    'read': 'Read documents, folders, datarooms, and share links',
+    'write': 'Create, update, and share documents, folders, and datarooms',
+}
+
+DEFAULT_OAUTH_ALLOWED_CLIENT_DOMAINS = [
+    '.chatgpt.com',
+    '.openai.com',
+    '.claude.ai',
+    '.gemini.google.com',
+    'vertexaisearch.cloud.google.com',
+    '.grok.com',
+    '.x.ai',
+]
+
+
+def _parse_oauth_allowed_client_domains(raw_value: str | None) -> list[str]:
+    """Parse comma-separated OAuth client domain patterns (supports *.example.com or .example.com)."""
+    if not raw_value or not raw_value.strip():
+        return list(DEFAULT_OAUTH_ALLOWED_CLIENT_DOMAINS)
+    domains: list[str] = []
+    for item in raw_value.split(','):
+        cleaned = item.strip().lower()
+        if not cleaned:
+            continue
+        if cleaned.startswith('*.'):
+            cleaned = cleaned[1:]
+        domains.append(cleaned)
+    return domains or list(DEFAULT_OAUTH_ALLOWED_CLIENT_DOMAINS)
+
+
+OAUTH_ALLOWED_CLIENT_DOMAINS = _parse_oauth_allowed_client_domains(
+    os.environ.get('OAUTH_ALLOWED_CLIENT_DOMAINS')
+)
+OAUTH_ALLOW_LOCALHOST_LOOPBACK = (
+    os.environ.get('OAUTH_ALLOW_LOCALHOST_LOOPBACK')
+    or os.environ.get('ALLOW_LOCALHOST_LOOPBACK')
+    or 'false'
+).strip().lower() in ('true', '1', 't', 'yes')
+
+OAUTH2_PROVIDER = {
+    'SCOPES': OAUTH_SCOPES,
+    'DEFAULT_SCOPES': list(OAUTH_SCOPES.keys()),
+    'PKCE_REQUIRED': True,
+    'COMPLIANT_BCP_RFC9700_PKCE_METHOD': True,
+    'COMPLIANT_BCP_RFC9700_IMPLICIT_GRANT': True,
+    'COMPLIANT_BCP_RFC9700_REDIRECT_URI_MATCHING': True,
+    'COMPLIANT_BCP_RFC9700_TOKEN_STORAGE': True,
+    'ACCESS_TOKEN_EXPIRE_SECONDS': 3600,
+    'REFRESH_TOKEN_EXPIRE_SECONDS': 60 * 60 * 24 * 30,
+    'ROTATE_REFRESH_TOKEN': True,
+    'REFRESH_TOKEN_REUSE_PROTECTION': True,
+    'DCR_ENABLED': True,
+    'DCR_REGISTRATION_PERMISSION_CLASSES': (
+        'oauth2_provider.dcr.AllowAllDCRPermission',
+    ),
+    'CIMD_ENABLED': True,
+    'CIMD_REGISTRATION_PERMISSION_CLASSES': (
+        'oauth2_provider.cimd.HostAllowlistCIMDPermission',
+    ),
+    'CIMD_ALLOWED_HOSTS': OAUTH_ALLOWED_CLIENT_DOMAINS,
+    'ALLOW_LOCALHOST_LOOPBACK': OAUTH_ALLOW_LOCALHOST_LOOPBACK,
+    'ALLOWED_REDIRECT_URI_SCHEMES': (
+        ['https', 'http'] if (DEBUG or OAUTH_ALLOW_LOCALHOST_LOOPBACK) else ['https']
+    ),
+    'OAUTH2_RESPONSE_TYPES_SUPPORTED': ['code'],
+    'OAUTH2_GRANT_TYPES_SUPPORTED': ['authorization_code', 'refresh_token'],
+    'OAUTH2_TOKEN_ENDPOINT_AUTH_METHODS_SUPPORTED': [
+        'none',
+        'client_secret_post',
+        'client_secret_basic',
+    ],
+    'OIDC_ISS_ENDPOINT': OAUTH_ISSUER,
+    'RESOURCE_SERVER_TOKEN_RESOURCE_VALIDATOR': 'core.authentication.validate_coneshare_resource',
 }
 
 # Password validation

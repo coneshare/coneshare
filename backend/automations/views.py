@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from django.db.models import Q
 from drf_spectacular.utils import extend_schema
 from core.pagination import StandardResultsSetPagination
-from core.permissions import IsAdminOrReadOnly
+from core.permissions import APIKeyTierPermission, IsAdminOrReadOnly, OAuth2ScopePermission
 
 from .models import (AutomationAssignment, AutomationDelivery, AutomationDestination,
                      AutomationRule)
@@ -20,7 +20,7 @@ class AutomationDestinationViewSet(viewsets.ModelViewSet):
     # Dummy queryset for OpenAPI schema generation to infer lookup field type without executing get_queryset().
     queryset = AutomationDestination.objects.none()
     serializer_class = AutomationDestinationSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdminOrReadOnly]
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrReadOnly, APIKeyTierPermission, OAuth2ScopePermission]
 
     def get_queryset(self):
         user = self.request.user
