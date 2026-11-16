@@ -1313,7 +1313,10 @@
     "dataroomStorageLimitExceeded": "Uploading this file would exceed the Dataroom storage limit of {{limit}} MB.",
     "parseFailed": "Failed to parse markdown content.",
     "unsupportedFormat": "Document is not a markdown file.",
-    "notFound": "Markdown preview URL not found."
+    "notFound": "Markdown preview URL not found.",
+    "oauthPkceRequired": "PKCE verification (S256) is required for authorization.",
+    "oauthScopeRequired": "Please select at least one permission scope to authorize.",
+    "oauthInvalidRedirectUri": "Disallowed OAuth redirect URI scheme."
   },
   "errorBoundary": {
     "title": "Something went wrong",
@@ -1326,5 +1329,21 @@
     "browser": "Browser",
     "stackTrace": "Stack Trace",
     "componentStack": "Component Stack"
+  },
+  "oauth": {
+    "authorizeTitle": "Authorize Application",
+    "connectWorkspace": "Connect an AI assistant to your {{brandName}} workspace",
+    "loadingDetails": "Validating authorization request...",
+    "invalidRequest": "Invalid or expired OAuth authorization request.",
+    "decisionFailed": "Could not complete OAuth authorization.",
+    "dynamicClientBadge": "Dynamic App",
+    "signedInAs": "Signed in as {{email}}",
+    "redirectsTo": "Will redirect to {{redirectUri}}",
+    "unverifiedAppWarning": "This application registered dynamically and its display name is self-asserted. Verify the redirect destination below before authorizing.",
+    "requestedPermissions": "Requested permissions",
+    "missingRedirectUrl": "Authorization response is missing a redirect URL.",
+    "invalidRedirectScheme": "Disallowed redirect URI scheme.",
+    "deny": "Deny",
+    "approve": "Authorize"
   }
 }

@@ -23,7 +23,7 @@ from drf_spectacular.types import OpenApiTypes
 
 from core.models import User
 from core.pagination import AdminPagination
-from core.permissions import APIKeyTierPermission, IsAdmin
+from core.permissions import APIKeyTierPermission, IsAdmin, OAuth2ScopePermission
 from documents.models import Document
 from sharelinks.models import ShareLink, ViewSession
 from .models import Dataroom, DataroomCollaborator, DataroomDocument
@@ -54,7 +54,7 @@ class AdminDataroomViewSet(viewsets.ModelViewSet):
     API endpoint for organization administrators to audit, govern,
     and manage all virtual datarooms within the organization.
     """
-    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission]
+    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission, OAuth2ScopePermission]
     queryset = Dataroom.objects.all()
     serializer_class = AdminDataroomSerializer
     pagination_class = AdminPagination

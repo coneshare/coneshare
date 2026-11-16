@@ -51,6 +51,10 @@ export default defineConfig({
         target: 'http://backend:8000',
         changeOrigin: true,
       },
+      '/.well-known/oauth-authorization-server': {
+        target: 'http://backend:8000',
+        changeOrigin: true,
+      },
       '/media': {
         target: 'http://backend:8000',
         changeOrigin: true,

@@ -226,6 +226,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'drf_spectacular',
+    'oauth2_provider',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'core.apps.CoreConfig',
@@ -275,15 +276,17 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        # APIKeyAuthentication must precede JWTAuthentication so cs_live_... keys
-        # are evaluated directly without SimpleJWT raising an InvalidToken exception on them.
+        # APIKeyAuthentication and ActiveUserOAuth2Authentication must precede JWTAuthentication
+        # so cs_live_... keys and opaque OAuth2 tokens do not trigger SimpleJWT InvalidToken errors.
         'core.authentication.APIKeyAuthentication',
+        'core.authentication.ActiveUserOAuth2Authentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
         'core.permissions.APIKeyTierPermission',
+        'core.permissions.OAuth2ScopePermission',
     ],
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
@@ -297,6 +300,7 @@ REST_FRAMEWORK = {
         'signup': '5/min',
         'health_check': '1000/min',
         'document_copy': '5/min',
+        'oauth_dcr': '20/hour',
     }
 }
 
@@ -312,6 +316,62 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+# ==============================================================================
+# OAUTH 2.1 AUTHORIZATION SERVER (MCP / Web AI App Integration)
+# ==============================================================================
+OAUTH_ISSUER = (
+    os.environ.get('OAUTH_ISSUER')
+    or os.environ.get('CONESHARE_OAUTH_ISSUER')
+    or ''
+).strip().rstrip('/')
+if not OAUTH_ISSUER and 'test' not in sys.argv and 'pytest' not in sys.modules:
+    OAUTH_ISSUER = SITE_DOMAIN.rstrip('/')
+
+MCP_PATH = os.environ.get('MCP_PATH', '/mcp/sse')
+MCP_PUBLIC_URL = (os.environ.get('MCP_PUBLIC_URL') or '').strip().rstrip('/')
+MCP_RESOURCE_URL = (os.environ.get('MCP_RESOURCE_URL') or '').strip()
+if not MCP_RESOURCE_URL:
+    _mcp_base = MCP_PUBLIC_URL or OAUTH_ISSUER or SITE_DOMAIN.rstrip('/')
+    MCP_RESOURCE_URL = f"{_mcp_base}{MCP_PATH}"
+
+OAUTH_SCOPES = {
+    'documents:read': 'Read documents and folders in your workspace',
+    'documents:write': 'Create, update, and upload documents and folders',
+    'datarooms:read': 'View datarooms and search dataroom contents',
+    'datarooms:write': 'Create, modify, and share datarooms and share links',
+    'analytics:read': 'Read document analytics and viewer session telemetry',
+}
+
+OAUTH2_PROVIDER = {
+    'SCOPES': OAUTH_SCOPES,
+    'DEFAULT_SCOPES': list(OAUTH_SCOPES.keys()),
+    'PKCE_REQUIRED': True,
+    'COMPLIANT_BCP_RFC9700_PKCE_METHOD': True,
+    'COMPLIANT_BCP_RFC9700_IMPLICIT_GRANT': True,
+    'COMPLIANT_BCP_RFC9700_REDIRECT_URI_MATCHING': True,
+    'COMPLIANT_BCP_RFC9700_TOKEN_STORAGE': True,
+    'ACCESS_TOKEN_EXPIRE_SECONDS': 3600,
+    'REFRESH_TOKEN_EXPIRE_SECONDS': 60 * 60 * 24 * 30,
+    'ROTATE_REFRESH_TOKEN': True,
+    'REFRESH_TOKEN_REUSE_PROTECTION': True,
+    'DCR_ENABLED': True,
+    'DCR_REGISTRATION_PERMISSION_CLASSES': (
+        'oauth2_provider.dcr.AllowAllDCRPermission',
+    ),
+    'CIMD_ENABLED': True,
+    'ALLOW_LOCALHOST_LOOPBACK': True,
+    'ALLOWED_REDIRECT_URI_SCHEMES': ['https', 'http'] if DEBUG else ['https'],
+    'OAUTH2_RESPONSE_TYPES_SUPPORTED': ['code'],
+    'OAUTH2_GRANT_TYPES_SUPPORTED': ['authorization_code', 'refresh_token'],
+    'OAUTH2_TOKEN_ENDPOINT_AUTH_METHODS_SUPPORTED': [
+        'none',
+        'client_secret_post',
+        'client_secret_basic',
+    ],
+    'OIDC_ISS_ENDPOINT': OAUTH_ISSUER,
+    'RESOURCE_SERVER_TOKEN_RESOURCE_VALIDATOR': 'core.authentication.validate_coneshare_resource',
 }
 
 # Password validation

@@ -1313,7 +1313,10 @@
     "dataroomStorageLimitExceeded": "Door dit bestand te uploaden zou de opslaglimiet van de dataroom van {{limit}} MB worden overschreden.",
     "parseFailed": "Markdown-content verwerken mislukt.",
     "unsupportedFormat": "Het document is geen markdownbestand.",
-    "notFound": "Markdown-voorbeeld-URL niet gevonden."
+    "notFound": "Markdown-voorbeeld-URL niet gevonden.",
+    "oauthPkceRequired": "PKCE-verificatie (S256) is vereist voor autorisatie.",
+    "oauthScopeRequired": "Selecteer ten minste één machtiging om te autoriseren.",
+    "oauthInvalidRedirectUri": "Niet-toegestaan OAuth-omleidingsschema."
   },
   "errorBoundary": {
     "title": "Er is iets misgegaan",
@@ -1326,5 +1329,21 @@
     "browser": "Browser",
     "stackTrace": "Stacktrace",
     "componentStack": "Componentenstack"
+  },
+  "oauth": {
+    "authorizeTitle": "Applicatie autoriseren",
+    "connectWorkspace": "Verbind een AI-assistent met uw {{brandName}}-werkruimte",
+    "loadingDetails": "Autorisatieverzoek valideren...",
+    "invalidRequest": "Ongeldig of verlopen OAuth-autorisatieverzoek.",
+    "decisionFailed": "Kan OAuth-autorisatie niet voltooien.",
+    "dynamicClientBadge": "Dynamische app",
+    "signedInAs": "Ingelogd als {{email}}",
+    "redirectsTo": "Wordt doorgestuurd naar {{redirectUri}}",
+    "unverifiedAppWarning": "Deze applicatie is dynamisch geregistreerd en de weergavenaam is zelf opgegeven. Controleer het onderstaande omleidingsadres voordat u autoriseert.",
+    "requestedPermissions": "Aangevraagde machtigingen",
+    "missingRedirectUrl": "Autorisatierespons mist een omleidings-URL.",
+    "invalidRedirectScheme": "Niet-toegestaan omleidings-URL-schema.",
+    "deny": "Weigeren",
+    "approve": "Autoriseren"
   }
 }

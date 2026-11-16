@@ -70,6 +70,9 @@ The container / process is configured via environment variables:
 |---|---|---|---|
 | `CONESHARE_API_URL` | ✅ | N/A | Target Coneshare REST API base URL (required at startup) |
 | `CONESHARE_FILESERVER_INTERNAL_URL` | ❌ | None | Optional internal Go file-server base URL (`http://core:8080` in Docker) for in-memory text upload PUTs |
+| `CONESHARE_OAUTH_ENABLED` | ❌ | `true` | Enable OAuth 2.1 Protected Resource metadata (`RFC 9728`) and `401` challenge middleware |
+| `MCP_PUBLIC_URL` | ❌ | `http://localhost:8001` | Public origin URL of the MCP server (used in `/.well-known/oauth-protected-resource`) |
+| `CONESHARE_OAUTH_ISSUER` | ❌ | `SITE_DOMAIN` / `MCP_PUBLIC_URL` | Public OAuth 2.1 Authorization Server issuer URL (`https://app.coneshare.com` in prod) |
 | `MCP_TRANSPORT` | ❌ | `streamable-http` | Transport protocol (`streamable-http` or `sse`) |
 | `MCP_HOST` | ❌ | `0.0.0.0` | Server binding address |
 | `MCP_PORT` | ❌ | `8001` | Server port |

@@ -3,6 +3,8 @@ import hmac
 import secrets
 from django.conf import settings
 from django.utils import timezone
+from oauth2_provider.contrib.rest_framework import OAuth2Authentication
+from oauth2_provider.oauth2_validators import validate_resource_as_url_prefix
 from rest_framework import authentication, exceptions
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 
@@ -93,4 +95,70 @@ class APIKeyScheme(OpenApiAuthenticationExtension):
             'scheme': 'bearer',
             'bearerFormat': 'API Key (cs_live_...)',
             'description': 'API Key authentication using Bearer cs_live_<key>',
+        }
+
+
+def get_expected_mcp_resource_urls() -> list[str]:
+    """Return configured ConeShare MCP protected-resource URIs for RFC 8707 audience checks."""
+    urls: list[str] = []
+    explicit = (getattr(settings, 'MCP_RESOURCE_URL', '') or '').strip()
+    if explicit:
+        urls.append(explicit)
+
+    mcp_path = getattr(settings, 'MCP_PATH', '/mcp/sse') or '/mcp/sse'
+    for base in (
+        getattr(settings, 'MCP_PUBLIC_URL', ''),
+        getattr(settings, 'OAUTH_ISSUER', ''),
+        getattr(settings, 'SITE_DOMAIN', ''),
+    ):
+        clean_base = (base or '').strip().rstrip('/')
+        if clean_base:
+            candidate = f"{clean_base}{mcp_path}"
+            if candidate not in urls:
+                urls.append(candidate)
+    return urls
+
+
+def validate_coneshare_resource(request_uri: str, audiences: list[str]) -> bool:
+    """
+    RFC 8707 resource validator for ConeShare.
+    Accepts tokens whose audience matches either the REST API URI directly
+    or ConeShare's configured MCP resource URI, while rejecting foreign audiences.
+    """
+    if not audiences:
+        return True
+    if validate_resource_as_url_prefix(request_uri, audiences):
+        return True
+    for mcp_uri in get_expected_mcp_resource_urls():
+        if validate_resource_as_url_prefix(mcp_uri, audiences):
+            return True
+    return False
+
+
+class ActiveUserOAuth2Authentication(OAuth2Authentication):
+    """
+    OAuth2 authentication wrapper enforcing that deactivated/deleted users cannot authenticate
+    with an existing AccessToken.
+    """
+
+    def authenticate(self, request):
+        result = super().authenticate(request)
+        if result is None:
+            return None
+        user, token = result
+        if not user or not user.is_active:
+            raise exceptions.AuthenticationFailed('User inactive or deleted.')
+        return (user, token)
+
+
+class OAuth2Scheme(OpenApiAuthenticationExtension):
+    target_class = 'core.authentication.ActiveUserOAuth2Authentication'
+    name = 'oauth2Auth'
+
+    def get_security_definition(self, auto_schema):
+        return {
+            'type': 'http',
+            'scheme': 'bearer',
+            'bearerFormat': 'OAuth 2.1 Access Token',
+            'description': 'OAuth 2.1 Bearer token issued via Authorization Code + PKCE (S256)',
         }

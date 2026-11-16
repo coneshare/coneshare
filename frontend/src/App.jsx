@@ -19,6 +19,7 @@ const SignupVerifyPage = lazyNamed(() => import('./pages/SignupVerifyPage'), 'Si
 const ShareLinkViewerPage = lazyNamed(() => import('./pages/ShareLinkViewerPage'), 'ShareLinkViewerPage');
 const PublicUploadPage = lazyNamed(() => import('./pages/PublicUploadPage'), 'PublicUploadPage');
 const CloudAuthCallbackPage = lazyNamed(() => import('./pages/CloudAuthCallbackPage'), 'CloudAuthCallbackPage');
+const OAuthAuthorizePage = lazyNamed(() => import('./pages/OAuthAuthorizePage'), 'OAuthAuthorizePage');
 const ErrorPage = lazyNamed(() => import('./pages/ErrorPage'), 'ErrorPage');
 const NotFoundPage = lazyNamed(() => import('./pages/NotFoundPage'), 'NotFoundPage');
 
@@ -74,6 +75,7 @@ function App() {
                 <Route path="/500" element={<ErrorPage />} />
                 <Route element={<AuthGuard />}>
                   <Route path="/auth/:providerName/callback" element={<CloudAuthCallbackPage />} />
+                  <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
                   <Route element={<MainLayout />}>
                     <Route path="/" element={<HomePage />} />
                     <Route path="/documents" element={<DocumentsPage />} />

@@ -1463,7 +1463,10 @@
     "dataroomStorageLimitExceeded": "Le téléversement de ce fichier dépasserait la limite de stockage de la dataroom de {{limit}} Mo.",
     "parseFailed": "Échec de l'analyse du contenu Markdown.",
     "unsupportedFormat": "Le document n'est pas un fichier Markdown.",
-    "notFound": "URL d'aperçu Markdown introuvable."
+    "notFound": "URL d'aperçu Markdown introuvable.",
+    "oauthPkceRequired": "La vérification PKCE (S256) est requise pour l'autorisation.",
+    "oauthScopeRequired": "Veuillez sélectionner au moins une permission à autoriser.",
+    "oauthInvalidRedirectUri": "Schéma d'URI de redirection OAuth non autorisé."
   },
   "errorBoundary": {
     "title": "Une erreur est survenue",
@@ -1476,5 +1479,21 @@
     "browser": "Navigateur",
     "stackTrace": "Trace de la pile",
     "componentStack": "Pile de composants"
+  },
+  "oauth": {
+    "authorizeTitle": "Autoriser l'application",
+    "connectWorkspace": "Connecter un assistant IA à votre espace de travail {{brandName}}",
+    "loadingDetails": "Validation de la demande d'autorisation...",
+    "invalidRequest": "Demande d'autorisation OAuth invalide ou expirée.",
+    "decisionFailed": "Impossible de finaliser l'autorisation OAuth.",
+    "dynamicClientBadge": "Application dynamique",
+    "signedInAs": "Connecté en tant que {{email}}",
+    "redirectsTo": "Redirection vers {{redirectUri}}",
+    "unverifiedAppWarning": "Cette application a été enregistrée dynamiquement et son nom est auto-déclaré. Vérifiez l'URL de redirection ci-dessous avant d'autoriser.",
+    "requestedPermissions": "Autorisations demandées",
+    "missingRedirectUrl": "La réponse d'autorisation ne contient pas d'URL de redirection.",
+    "invalidRedirectScheme": "Schéma d'URI de redirection non autorisé.",
+    "deny": "Refuser",
+    "approve": "Autoriser"
   }
 }

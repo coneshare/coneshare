@@ -14,9 +14,9 @@
 - Decision: Exclusive Remote HTTP/SSE Transport (`streamable-http` at path `/mcp/sse`).
   Rationale: Enables zero-installation integration for AI desktop and CLI tools (Claude Desktop, Claude Code, Antigravity CLI `agy`, Codex) over network streams.
   Tradeoff: Requires HTTP network access to port `8001` or Nginx reverse proxy.
-- Decision: Header-driven, per-user API key authentication (`Authorization: Bearer cs_live_...`).
-  Rationale: Eliminates server-side master token storage and key leak risks. Every tool request executes strictly within the permissions of the user's API key tier (`read_only`, `read_write`, `full_access`).
-  Tradeoff: AI client configurations must pass the `Authorization: Bearer cs_live_...` HTTP header on every connection.
+- Decision: Header-driven, per-user authentication (`OAuth 2.1 PKCE` + `Authorization: Bearer cs_live_...` API keys).
+  Rationale: Eliminates server-side master token storage and key leak risks. Web AI clients (Gemini Custom Apps, Claude.ai, ChatGPT) discover OAuth 2.1 via RFC 9728 / RFC 8414 / RFC 7591 and authenticate via PKCE (`S256`) with scoped permissions (`documents:*`, `datarooms:*`, `analytics:read`), while CLI/desktop clients continue using static API key tiers (`read_only`, `read_write`, `full_access`).
+  Tradeoff: Unauthenticated `/mcp/sse` requests return `HTTP 401` with a `WWW-Authenticate: Bearer resource_metadata=...` challenge, and host Nginx must route `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server` appropriately.
 - Decision: Token-efficient view session analytics (`list_view_sessions` summaries vs `get_view_session` detail breakdown).
   Rationale: Returning large `page_views` and video event arrays on list endpoints wastes LLM context tokens. `list_view_sessions` returns lightweight metadata summaries, while `get_view_session` provides the granular page-by-page timeline.
   Tradeoff: AI agents requiring deep page-level engagement analysis must call `get_view_session` for specific session IDs.
@@ -79,6 +79,9 @@ The service is configured via environment variables in [docker-compose.yml](../.
 |---|---|---|---|
 | `CONESHARE_API_URL` | ✅ | N/A | Target Coneshare REST API base URL (required at startup) |
 | `CONESHARE_FILESERVER_INTERNAL_URL` | ❌ | None | Optional internal file-server base URL (`http://core:8080` in Docker) for `create_text_document` upload PUTs |
+| `CONESHARE_OAUTH_ENABLED` | ❌ | `true` | Enable FastMCP `RemoteAuthProvider` (`401` + `RFC 9728` metadata; accepts both OAuth 2.1 tokens and `cs_live_...` keys) |
+| `MCP_PUBLIC_URL` | ❌ | `http://localhost:8001` | Public origin URL of the MCP resource server (`https://app.coneshare.com` in prod) |
+| `CONESHARE_OAUTH_ISSUER` | ❌ | `SITE_DOMAIN` / `MCP_PUBLIC_URL` | Public OAuth 2.1 Authorization Server issuer URL (`https://app.coneshare.com` in prod) |
 | `MCP_TRANSPORT` | ❌ | `streamable-http` | Transport protocol (`streamable-http`, `http`, or `sse`) |
 | `MCP_HOST` | ❌ | `0.0.0.0` | Container network bind address (`0.0.0.0` for Docker) |
 | `MCP_PATH` | ❌ | `/mcp/sse` | HTTP SSE endpoint path |
@@ -107,6 +110,14 @@ server {
 
     ssl_certificate     /etc/letsencrypt/live/app.coneshare.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/app.coneshare.com/privkey.pem;
+
+    location /.well-known/oauth-protected-resource {
+        proxy_pass http://mcp_server:8001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 
     location /mcp/sse {
         proxy_pass http://mcp_server:8001/mcp/sse;

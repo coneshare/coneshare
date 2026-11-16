@@ -1339,7 +1339,10 @@
     "dataroomStorageLimitExceeded": "Das Hochladen dieser Datei würde das Dataroom-Speicherlimit von {{limit}} MB überschreiten.",
     "parseFailed": "Fehler beim Parsen des Markdown-Inhalts.",
     "unsupportedFormat": "Das Dokument ist keine Markdown-Datei.",
-    "notFound": "Markdown-Vorschau-URL nicht gefunden."
+    "notFound": "Markdown-Vorschau-URL nicht gefunden.",
+    "oauthPkceRequired": "Für die Autorisierung ist PKCE (S256) erforderlich.",
+    "oauthScopeRequired": "Bitte wählen Sie mindestens eine Berechtigung aus.",
+    "oauthInvalidRedirectUri": "Unzulässiges OAuth-Weiterleitungsschema."
   },
   "errorBoundary": {
     "title": "Etwas ist schiefgelaufen",
@@ -1352,5 +1355,21 @@
     "browser": "Browser",
     "stackTrace": "Aufrufstapel",
     "componentStack": "Komponentenstapel"
+  },
+  "oauth": {
+    "authorizeTitle": "Anwendung autorisieren",
+    "connectWorkspace": "Verbinden Sie einen KI-Assistenten mit Ihrem {{brandName}}-Arbeitsbereich",
+    "loadingDetails": "Autorisierungsanfrage wird geprüft...",
+    "invalidRequest": "Ungültige oder abgelaufene OAuth-Autorisierungsanfrage.",
+    "decisionFailed": "OAuth-Autorisierung konnte nicht abgeschlossen werden.",
+    "dynamicClientBadge": "Dynamische App",
+    "signedInAs": "Angemeldet als {{email}}",
+    "redirectsTo": "Weiterleitung an {{redirectUri}}",
+    "unverifiedAppWarning": "Diese Anwendung wurde dynamisch registriert und der Anzeigename ist selbst angegeben. Prüfen Sie unten das Weiterleitungsziel.",
+    "requestedPermissions": "Angeforderte Berechtigungen",
+    "missingRedirectUrl": "In der Autorisierungsantwort fehlt die Weiterleitungs-URL.",
+    "invalidRedirectScheme": "Unzulässiges Weiterleitungs-URL-Schema.",
+    "deny": "Ablehnen",
+    "approve": "Autorisieren"
   }
 }

@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
+from oauth2_provider.models import get_access_token_model, get_grant_model, get_refresh_token_model
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 
 from .models import AppConfiguration
@@ -9,7 +10,7 @@ from .settings_registry import DEFAULT_SETTINGS, deserialize_db_value, infer_set
 
 def blacklist_all_user_tokens(user) -> int:
     """
-    Blacklists all unexpired outstanding refresh tokens for a user.
+    Revokes all active SimpleJWT refresh tokens and OAuth 2.1 grants/tokens for a user.
     Used during user deactivation, user deletion, and password change.
     """
     outstanding = OutstandingToken.objects.filter(user=user, expires_at__gt=timezone.now())
@@ -19,6 +20,11 @@ def blacklist_all_user_tokens(user) -> int:
     blacklisted_entries = [BlacklistedToken(token=token) for token in unblacklisted]
     if blacklisted_entries:
         BlacklistedToken.objects.bulk_create(blacklisted_entries, ignore_conflicts=True)
+
+    get_refresh_token_model().objects.filter(user=user).delete()
+    get_access_token_model().objects.filter(user=user).delete()
+    get_grant_model().objects.filter(user=user).delete()
+
     return len(blacklisted_entries)
 
 

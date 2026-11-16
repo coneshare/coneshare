@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 from urllib.parse import urlparse, urlunparse
 import httpx
 from fastmcp import Context
-from fastmcp.server.dependencies import get_http_request
+from fastmcp.server.dependencies import get_access_token, get_http_request
 
 from coneshare_mcp.config import Settings, get_settings
 
@@ -71,6 +71,14 @@ class ConeshareClient:
                     api_key = auth_header[7:].strip()
         except Exception as exc:
             logger.debug("Failed to extract Bearer token via get_http_request(): %s", exc)
+
+        if not api_key:
+            try:
+                access_token = get_access_token()
+                if access_token and getattr(access_token, "token", None):
+                    api_key = str(access_token.token).strip()
+            except Exception as exc:
+                logger.debug("Failed to extract token via get_access_token(): %s", exc)
 
         return cls(api_key=api_key, settings=get_settings())
 
