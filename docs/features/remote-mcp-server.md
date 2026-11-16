@@ -86,44 +86,12 @@ The service is configured via environment variables in [docker-compose.yml](../.
 
 ---
 
-## 3. Tool Catalog (27 Tools)
+## 3. Tool Catalog
 
-### 📁 Documents & Folders (11 tools)
-* `list_documents`: Paginated list of workspace documents with folder filtering.
-* `get_document`: Retrieve detailed document metadata, versions, and active links.
-* `search_documents`: Search documents by full-text title or description query.
-* `update_document`: Rename or update description metadata of an existing document.
-* `delete_document`: `[DESTRUCTIVE]` Soft-delete a document (moves to Trash, recoverable via web UI).
-* `create_folder`: Create a new folder in your workspace documents hierarchy.
-* `update_folder`: Rename an existing workspace folder.
-* `delete_folder`: `[DESTRUCTIVE]` Soft-delete a workspace folder.
-* `move_items`: Move documents and/or subfolders into a destination workspace folder.
-* `request_document_upload`: Request a pre-signed URL to upload documents/datasets directly to storage (supports optional destination `path`).
-* `finalize_document_upload`: Finalize document creation after streaming file content to pre-signed upload URL.
+The canonical MCP tool inventory (covering **Documents & Folders**, **Datarooms**, **Share Links**, **Analytics**, and **Admin** tools) is maintained in a single source of truth:
 
-### 🏛️ Datarooms (7 tools)
-* `list_datarooms`: List organization datarooms with pagination metadata.
-* `get_dataroom`: Retrieve dataroom hierarchy, settings, and items.
-* `create_dataroom`: Create a new dataroom to group and share multiple workspace documents.
-* `add_content_to_dataroom`: Attach workspace documents to an existing dataroom.
-* `remove_content_from_dataroom`: Remove workspace documents from an existing dataroom.
-* `update_dataroom`: Update metadata (name, description) for an existing dataroom.
-* `delete_dataroom`: `[DESTRUCTIVE]` Soft-delete a dataroom.
-
-### 🔗 Share Links (3 tools)
-* `list_share_links`: List active share links filterable by document or dataroom.
-* `create_share_link`: Create a share link with NDA gate, custom agreement body (`nda_text`), dynamic watermark (`watermark_text`), download controls (`allow_download`), OTP email verification (`requires_email_verification`), email gating (`requires_email`), owner view notifications (`receive_email_notification`), password, and expiration.
-* `update_share_link`: Modify security settings, custom texts, expiration, or toggle link active status (`is_active`).
-
-### 📊 Analytics (3 tools)
-* `get_document_analytics`: Overall page view durations, total viewers, and engagement statistics.
-* `list_view_sessions`: List viewer sessions with summary metadata (viewer email, location, total duration, completion rate).
-* `get_view_session`: Retrieve detailed session breakdown including page-by-page view durations, video engagement logs, and link clicks.
-
-### 👑 Admin (3 tools)
-* `list_admin_users`: `[ADMIN ONLY]` List organization users with pagination and search filter.
-* `get_admin_user_details`: `[ADMIN ONLY]` Detailed user profile, created links, datarooms count, and total views.
-* `list_login_activities`: `[ADMIN ONLY]` Organization user login activity logs (IP, user agent, timestamp).
+- **Available Tools:** See the `Available Tools` section in [mcp-server/README.md](../../mcp-server/README.md)
+- **Tool Definitions:** [mcp-server/coneshare_mcp/tools/](../../mcp-server/coneshare_mcp/tools/)
 
 ---
 

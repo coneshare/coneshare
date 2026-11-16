@@ -57,6 +57,7 @@ class TestMCPURLContracts:
             # Datarooms
             ("/api/v1/datarooms/", DataroomViewSet),
             (f"/api/v1/datarooms/{sample_id}/", DataroomViewSet),
+            (f"/api/v1/datarooms/{sample_id}/search/", DataroomViewSet),
             (f"/api/v1/datarooms/{sample_id}/add-content/", DataroomViewSet),
             (f"/api/v1/datarooms/{sample_id}/remove-content/", DataroomViewSet),
             # Share Links
@@ -176,4 +177,28 @@ class TestMCPIntegrationLiveContracts:
         assert len(data["results"]) == 1
         assert data["results"][0]["id"] == str(doc1.id)
         assert data["results"][0]["name"] == "Vendor_Agreement.pdf"
+
+    def test_list_datarooms_name_filter_and_search_content_contracts(self, mcp_api_client, user, organization):
+        """MCP list_datarooms(name=...) and search_dataroom_content(dataroom_id, query) match backend endpoints."""
+        from rest_framework import status
+        from datarooms.models import Dataroom, DataroomDocument, DataroomFolder
+        from documents.models import Document, Folder
+
+        room = Dataroom.objects.create(name="Series A Data Room", organization=organization, created_by=user)
+        Dataroom.objects.create(name="Other Room", organization=organization, created_by=user)
+        dr_folder = DataroomFolder.objects.create(dataroom=room, name="Finance", created_by=user)
+        root_folder = Folder.objects.get(organization=organization, name="__root__", parent=None)
+        doc = Document.objects.create(name="Annual_Budget.pdf", organization=organization, created_by=user, folder=root_folder)
+        DataroomDocument.objects.create(dataroom=room, document=doc, folder=dr_folder, name="Annual_Budget.pdf")
+
+        list_res = mcp_api_client.get("/api/v1/datarooms/?search=Series")
+        assert list_res.status_code == status.HTTP_200_OK
+        assert [item["id"] for item in list_res.json()] == [str(room.id)]
+
+        search_res = mcp_api_client.get(f"/api/v1/datarooms/{room.id}/search/?q=Budget")
+        assert search_res.status_code == status.HTTP_200_OK
+        items = search_res.json()["items"]
+        assert len(items) == 1
+        assert items[0]["name"] == "Annual_Budget.pdf"
+        assert items[0]["location"] == "Finance"
 

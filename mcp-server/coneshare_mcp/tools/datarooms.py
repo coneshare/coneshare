@@ -13,10 +13,11 @@ def register_dataroom_tools(mcp: FastMCP) -> None:
         ctx: Context,
         page: int = Field(default=1, ge=1, description="Page number"),
         page_size: int = Field(default=20, ge=1, le=100, description="Items per page (max 100)"),
+        name: Optional[str] = Field(default=None, description="Optional case-insensitive substring filter by dataroom name"),
     ) -> dict:
-        """List datarooms in your organization with pagination."""
+        """List accessible datarooms with pagination and optional name filtering."""
         client = ConeshareClient.from_ctx(ctx)
-        return await client.list_datarooms(page=page, page_size=page_size)
+        return await client.list_datarooms(page=page, page_size=page_size, name=name)
 
     @mcp.tool()
     async def get_dataroom(
@@ -26,6 +27,16 @@ def register_dataroom_tools(mcp: FastMCP) -> None:
         """Retrieve dataroom details including item hierarchy and settings."""
         client = ConeshareClient.from_ctx(ctx)
         return await client.get_dataroom(dataroom_id=dataroom_id)
+
+    @mcp.tool()
+    async def search_dataroom_content(
+        ctx: Context,
+        dataroom_id: str = Field(description="ULID of the target dataroom"),
+        query: str = Field(description="Search term matching folder/document names or document descriptions inside the dataroom"),
+    ) -> dict:
+        """Search folders and documents across all subfolders inside a specific dataroom."""
+        client = ConeshareClient.from_ctx(ctx)
+        return await client.search_dataroom_content(dataroom_id=dataroom_id, query=query)
 
     @mcp.tool()
     async def create_dataroom(

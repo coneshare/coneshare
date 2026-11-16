@@ -283,8 +283,15 @@ class ConeshareClient:
 
     # --- Datarooms API ---
 
-    async def list_datarooms(self, page: int = 1, page_size: int = 20) -> dict[str, Any]:
-        params = {"page": page, "page_size": page_size}
+    async def list_datarooms(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        name: Optional[str] = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"page": page, "page_size": page_size}
+        if name and name.strip():
+            params["search"] = name.strip()
         res = await self._request("GET", "/datarooms/", params=params)
         if isinstance(res, dict) and res.get("error"):
             return res
@@ -293,6 +300,13 @@ class ConeshareClient:
     async def get_dataroom(self, dataroom_id: str) -> dict[str, Any]:
         dr_id = _validate_resource_id(dataroom_id, "dataroom_id")
         return await self._request("GET", f"/datarooms/{dr_id}/")
+
+    async def search_dataroom_content(self, dataroom_id: str, query: str) -> dict[str, Any]:
+        dr_id = _validate_resource_id(dataroom_id, "dataroom_id")
+        clean_query = query.strip()
+        if not clean_query:
+            return {"items": []}
+        return await self._request("GET", f"/datarooms/{dr_id}/search/", params={"q": clean_query})
 
     async def create_dataroom(
         self,

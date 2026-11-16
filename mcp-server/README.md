@@ -136,7 +136,7 @@ curl -sSL https://raw.githubusercontent.com/coneshare/coneshare/main/.agent/skil
 
 ---
 
-## 🧰 Available Tools (27 Tools)
+## 🧰 Available Tools (28 Tools)
 
 ### 📁 Documents & Folders (11 tools)
 * `list_documents`: Paginated list of workspace documents with folder filtering.
@@ -151,9 +151,10 @@ curl -sSL https://raw.githubusercontent.com/coneshare/coneshare/main/.agent/skil
 * `request_document_upload`: Request a pre-signed URL to upload documents/datasets directly to storage.
 * `finalize_document_upload`: Finalize document creation after streaming file content to pre-signed upload URL.
 
-### 🏛️ Datarooms (7 tools)
-* `list_datarooms`: List organization datarooms with pagination.
+### 🏛️ Datarooms (8 tools)
+* `list_datarooms`: List accessible datarooms with pagination and optional `name` substring filter.
 * `get_dataroom`: Retrieve dataroom hierarchy, settings, and items.
+* `search_dataroom_content`: Search folders and documents across all subfolders inside a specific dataroom.
 * `create_dataroom`: Create a new dataroom to group and share documents.
 * `add_content_to_dataroom`: Attach workspace documents to an existing dataroom.
 * `remove_content_from_dataroom`: Remove workspace documents from an existing dataroom.
