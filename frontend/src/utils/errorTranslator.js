@@ -61,6 +61,12 @@ const ERROR_STRING_MAPPINGS = {
     "errors.documentNameExists",
   "A folder with this name already exists in this location.":
     "errors.folderNameExists",
+  "PKCE with code_challenge_method=S256 is required.":
+    "errors.oauthPkceRequired",
+  "At least one requested permission scope must be granted.":
+    "errors.oauthScopeRequired",
+  "Disallowed redirect URI scheme.":
+    "errors.oauthInvalidRedirectUri",
 };
 
 const DYNAMIC_ERROR_PATTERNS = [
@@ -95,6 +101,8 @@ export function getLocalizedErrorMessage(errorOrDetail, fallbackKey) {
   } else if (resData && typeof resData === 'object') {
     if (resData.detail && typeof resData.detail === 'string') {
       rawDetail = resData.detail;
+    } else if (resData.error_description && typeof resData.error_description === 'string') {
+      rawDetail = resData.error_description;
     } else if (resData.message && typeof resData.message === 'string') {
       rawDetail = resData.message;
     } else if (resData.name && Object.keys(resData).length === 1) {

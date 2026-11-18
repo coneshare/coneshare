@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 
 from core.pagination import AdminPagination
-from core.permissions import APIKeyTierPermission, IsAdmin
+from core.permissions import APIKeyTierPermission, IsAdmin, OAuth2ScopePermission
 from .models import ShareLink
 from .admin_serializers import (
     AdminShareLinkListSerializer,
@@ -27,7 +27,7 @@ class AdminShareLinkViewSet(
     Allows org admins to monitor all links, inspect view sessions, toggle activation (revoke),
     and delete links across the tenant.
     """
-    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission]
+    permission_classes = [IsAuthenticated, IsAdmin, APIKeyTierPermission, OAuth2ScopePermission]
     pagination_class = AdminPagination
 
     def get_serializer_class(self):

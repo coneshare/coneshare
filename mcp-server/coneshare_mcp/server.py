@@ -3,6 +3,8 @@ import os
 from typing import Literal, cast
 from fastmcp import FastMCP
 
+from coneshare_mcp.auth import build_auth_provider
+from coneshare_mcp.config import Settings, get_settings
 from coneshare_mcp.tools.documents import register_document_tools
 from coneshare_mcp.tools.datarooms import register_dataroom_tools
 from coneshare_mcp.tools.share_links import register_share_link_tools
@@ -16,20 +18,29 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 
-mcp = FastMCP("coneshare")
 
-register_document_tools(mcp)
-register_dataroom_tools(mcp)
-register_share_link_tools(mcp)
-register_analytics_tools(mcp)
-register_admin_tools(mcp)
+def create_mcp_server(settings: Settings | None = None) -> FastMCP:
+    resolved_settings = settings or get_settings()
+    auth_provider = build_auth_provider(resolved_settings)
+    server = FastMCP("coneshare", auth=auth_provider)
+
+    register_document_tools(server)
+    register_dataroom_tools(server)
+    register_share_link_tools(server)
+    register_analytics_tools(server)
+    register_admin_tools(server)
+    return server
+
+
+mcp = create_mcp_server()
 
 
 def main() -> None:
-    transport = os.getenv("MCP_TRANSPORT", "streamable-http").lower()
-    host = os.getenv("MCP_HOST", "0.0.0.0")
-    port = int(os.getenv("MCP_PORT", "8001"))
-    path = os.getenv("MCP_PATH", "/mcp/sse")
+    settings = get_settings()
+    transport = settings.mcp_transport
+    host = settings.mcp_host
+    port = settings.mcp_port
+    path = settings.mcp_path
 
     if transport in ("http", "streamable-http", "sse"):
         mcp.run(
