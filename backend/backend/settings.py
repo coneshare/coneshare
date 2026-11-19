@@ -350,8 +350,8 @@ DEFAULT_OAUTH_ALLOWED_CLIENT_DOMAINS = [
     '.chatgpt.com',
     '.openai.com',
     '.claude.ai',
-    '.gemini.google.com',
-    'vertexaisearch.cloud.google.com',
+    '.google.com',
+    '.googleusercontent.com',
     '.grok.com',
     '.x.ai',
 ]
@@ -397,7 +397,10 @@ OAUTH2_PROVIDER = {
     'DCR_REGISTRATION_PERMISSION_CLASSES': (
         'oauth2_provider.dcr.AllowAllDCRPermission',
     ),
-    'CIMD_ENABLED': True,
+    # Keep CIMD disabled so web AI clients (e.g. ChatGPT, which publishes
+    # `token_endpoint_auth_method: "private_key_jwt"` in its CIMD client.json
+    # while DOT 3.4 only accepts `"none"` for CIMD) use standard RFC 7591 DCR.
+    'CIMD_ENABLED': False,
     'CIMD_REGISTRATION_PERMISSION_CLASSES': (
         'oauth2_provider.cimd.HostAllowlistCIMDPermission',
     ),

@@ -316,19 +316,19 @@ class TestShareLinkSerializer:
         assert len(data['dataroom_settings']) == 2
         assert 'is_visible' in data['dataroom_settings'][0]
 
-    def test_create_for_video_with_watermark_fails(self, document, serializer_context):
+    @pytest.mark.parametrize("doc_type", ["video", "markdown", "spreadsheet", "file", ""])
+    def test_create_with_watermark_fails_for_unsupported_document_types(self, document, serializer_context, doc_type):
         """
-        Test that creating or updating a share link for a video document
-        with enable_watermark=True raises a validation error.
+        Creating or updating a share link with enable_watermark=True on non-PDF/Office/image
+        documents raises a validation error matching the frontend UI policy.
         """
-        # Make the document a video
-        document.type = 'video'
+        document.type = doc_type
         document.save()
 
         serializer = ShareLinkSerializer(
             data={
                 "document": document.id,
-                "name": "Video Link",
+                "name": "Unsupported Link",
                 "enable_watermark": True,
                 "watermark_text": "CONFIDENTIAL",
             },
@@ -336,7 +336,29 @@ class TestShareLinkSerializer:
         )
         assert not serializer.is_valid()
         assert "non_field_errors" in serializer.errors
-        assert "Watermarking is not supported for video files." in serializer.errors["non_field_errors"][0]
+        assert (
+            "Watermarks are available for PDF, Office, and image documents."
+            in serializer.errors["non_field_errors"][0]
+        )
+
+    @pytest.mark.parametrize("doc_type", ["pdf", "document", "image"])
+    def test_create_with_watermark_succeeds_for_supported_document_types(self, document, serializer_context, doc_type):
+        """PDF, Office ('document'), and image documents permit enable_watermark=True."""
+        document.type = doc_type
+        document.save()
+
+        serializer = ShareLinkSerializer(
+            data={
+                "document": document.id,
+                "name": f"Watermark {doc_type}",
+                "enable_watermark": True,
+                "watermark_text": "CONFIDENTIAL",
+            },
+            context=serializer_context,
+        )
+        assert serializer.is_valid(), serializer.errors
+        instance = serializer.save()
+        assert instance.enable_watermark is True
 
 
 class TestQnASerializers:

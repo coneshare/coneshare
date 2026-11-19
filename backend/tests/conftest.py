@@ -103,6 +103,7 @@ def document(user, organization):
     """Fixture to create a document with a primary version."""
     doc = Document.objects.create(
         name="Test Document.pdf",
+        type="pdf",
         organization=organization,
         created_by=user,
         status='ready',

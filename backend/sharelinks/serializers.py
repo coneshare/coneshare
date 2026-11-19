@@ -16,6 +16,8 @@ from .models import (DataroomVisit, PageView, ShareLink,
 from .services import (_get_unique_dataroom_share_link_name,
                        _get_unique_share_link_name)
 
+WATERMARKABLE_DOCUMENT_TYPES = {'pdf', 'document', 'image'}
+
 
 class RecordVisitSerializer(serializers.Serializer):
     dataroom_document_id = serializers.CharField(required=False, allow_null=True)
@@ -518,9 +520,9 @@ class ShareLinkSerializer(serializers.ModelSerializer):
 
         enable_watermark = data.get('enable_watermark', self.instance.enable_watermark if self.instance else False)
         if document:
-            if document.type == 'video' and enable_watermark:
+            if enable_watermark and document.type not in WATERMARKABLE_DOCUMENT_TYPES:
                 raise serializers.ValidationError(
-                    "Watermarking is not supported for video files."
+                    "Watermarks are available for PDF, Office, and image documents."
                 )
             if document.is_download_only:
                 data['allow_download'] = True

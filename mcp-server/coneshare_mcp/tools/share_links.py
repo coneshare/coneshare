@@ -36,8 +36,20 @@ def register_share_link_tools(mcp: FastMCP) -> None:
         expires_in_days: Optional[int] = Field(default=None, description="Link expiration in days"),
         require_nda: Optional[bool] = Field(default=None, description="Enforce NDA sign-off before viewing"),
         nda_text: Optional[str] = Field(default=None, description="Custom NDA agreement text body"),
-        enable_watermark: Optional[bool] = Field(default=None, description="Overlay dynamic watermark on document preview"),
-        watermark_text: Optional[str] = Field(default=None, description="Custom watermark text overlay (e.g. 'CONFIDENTIAL - {{email}}')"),
+        enable_watermark: Optional[bool] = Field(
+            default=None,
+            description=(
+                "Overlay dynamic watermark on document preview (supported only for PDF, Office, "
+                "and image documents, or datarooms; not supported for markdown/spreadsheet/video)"
+            ),
+        ),
+        watermark_text: Optional[str] = Field(
+            default=None,
+            description=(
+                "Custom watermark text overlay (e.g. 'CONFIDENTIAL - {{email}}'; "
+                "only applies when enable_watermark is supported and enabled)"
+            ),
+        ),
         allow_download: Optional[bool] = Field(default=True, description="Allow original binary file download"),
         requires_email: Optional[bool] = Field(default=None, description="Require viewer to enter email address before viewing"),
         requires_email_verification: Optional[bool] = Field(default=None, description="Require viewer to verify email via OTP code before viewing"),
@@ -94,8 +106,17 @@ def register_share_link_tools(mcp: FastMCP) -> None:
         clear_expiration: bool = Field(default=False, description="Set True to clear link expiration"),
         require_nda: Optional[bool] = Field(default=None, description="Enforce NDA sign-off"),
         nda_text: Optional[str] = Field(default=None, description="Updated custom NDA agreement text body"),
-        enable_watermark: Optional[bool] = Field(default=None, description="Overlay dynamic watermark"),
-        watermark_text: Optional[str] = Field(default=None, description="Updated custom watermark text overlay"),
+        enable_watermark: Optional[bool] = Field(
+            default=None,
+            description=(
+                "Overlay dynamic watermark (supported only for PDF, Office, and image documents, "
+                "or datarooms; not supported for markdown/spreadsheet/video)"
+            ),
+        ),
+        watermark_text: Optional[str] = Field(
+            default=None,
+            description="Updated custom watermark text overlay (only applies when enable_watermark is supported)",
+        ),
         allow_download: Optional[bool] = Field(default=None, description="Allow binary file download"),
         requires_email: Optional[bool] = Field(default=None, description="Require viewer to enter email address"),
         requires_email_verification: Optional[bool] = Field(default=None, description="Require viewer to verify email via OTP code"),

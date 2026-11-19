@@ -453,3 +453,11 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
 - **Category:** Tooling Update
 - **Context/Implication:** Introduced Python static type checking with mypy targeting services, utils, tasks, renderers, fileserver, and archive modules.
 - **Resolution/Action:** Configured `backend/mypy.ini` with `django-stubs` and added `make lint.type` (optional: `TARGET=<path>`) in `Makefile` to enforce type safety across 29 core backend logic files.
+
+### [2026-11-18] Session Entry
+- **Category:** Gotcha
+- **Context/Implication:** Connecting remote MCP OAuth 2.1 clients (Google Gemini Custom Apps / OpenAuth, ChatGPT Connectors) against `django-oauth-toolkit` 3.4.1 and FastMCP `RemoteAuthProvider` failed during discovery and client registration due to three subtle protocol mismatches:
+  1. FastMCP `ProtectedResourceMetadata` serializes `authorization_servers` via Pydantic `AnyHttpUrl`, which appends a trailing `/` to bare origins (`"https://app.coneshare.com/"`), requiring Django's `OAUTH_ISSUER` (`OIDC_ISS_ENDPOINT`) to also end with `/` for exact RFC 8414 string matching.
+  2. Google OpenAuth registers callbacks under `*.googleusercontent.com` (`oauth-redirect*.googleusercontent.com`), which was blocked when `DEFAULT_OAUTH_ALLOWED_CLIENT_DOMAINS` only listed `.gemini.google.com`.
+  3. ChatGPT publishes `token_endpoint_auth_method: "private_key_jwt"` in its CIMD `client.json`, which DOT 3.4's `cimd.py` rejects (`CIMD clients must be public; got 'private_key_jwt'`).
+- **Resolution/Action:** Keep `CIMD_ENABLED: False` so clients use RFC 7591 DCR; include `.google.com` and `.googleusercontent.com` in `DEFAULT_OAUTH_ALLOWED_CLIENT_DOMAINS`; and format `OAUTH_ISSUER` with a trailing slash (`f"{SITE_DOMAIN.rstrip('/')}/"`).

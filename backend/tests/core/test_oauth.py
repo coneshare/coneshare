@@ -18,6 +18,7 @@ from core.authentication import generate_raw_api_key
 from core.models import APIKey
 from core.oauth_views import (ThrottledDynamicClientRegistrationManagementView,
                               ThrottledDynamicClientRegistrationView,
+                              _summarize_dcr_payload,
                               is_trusted_oauth_redirect_uri)
 from core.services import blacklist_all_user_tokens
 
@@ -108,7 +109,7 @@ class TestOAuth2Server:
         assert data["registration_endpoint"].endswith("/api/v1/oauth/register/")
         assert data["code_challenge_methods_supported"] == ["S256"]
         assert "none" in data["token_endpoint_auth_methods_supported"]
-        assert data["client_id_metadata_document_supported"] is True
+        assert data["client_id_metadata_document_supported"] is False
         assert set(data["scopes_supported"]) == {
             "read",
             "write",
@@ -684,6 +685,7 @@ class TestOAuth2Server:
             "https://claude.ai/api/mcp/auth_callback",
             "https://gemini.google.com/oauth/callback",
             "https://vertexaisearch.cloud.google.com/oauth-redirect",
+            "https://oauth-redirect.googleusercontent.com/r/project-id",
             "https://grok.com/oauth/callback",
             "https://x.ai/oauth/callback",
         ]
@@ -796,29 +798,34 @@ class TestOAuth2Server:
             assert consent_blocked.json()["error"] == "invalid_redirect_uri"
 
     def test_oauth_cimd_allowlist_and_localhost_loopback_default(self):
-        assert settings.OAUTH_ALLOW_LOCALHOST_LOOPBACK is False
-        assert oauth2_settings.ALLOW_LOCALHOST_LOOPBACK is False
-        assert HostAllowlistCIMDPermission in oauth2_settings.CIMD_REGISTRATION_PERMISSION_CLASSES
+        default_oauth = {
+            **settings.OAUTH2_PROVIDER,
+            "ALLOW_LOCALHOST_LOOPBACK": False,
+        }
+        with override_settings(OAUTH_ALLOW_LOCALHOST_LOOPBACK=False, OAUTH2_PROVIDER=default_oauth):
+            assert settings.OAUTH_ALLOW_LOCALHOST_LOOPBACK is False
+            assert oauth2_settings.ALLOW_LOCALHOST_LOOPBACK is False
+            assert HostAllowlistCIMDPermission in oauth2_settings.CIMD_REGISTRATION_PERMISSION_CLASSES
 
-        perm = HostAllowlistCIMDPermission()
-        assert perm.has_permission(None, "https://chatgpt.com/oauth/client.json") is True
-        assert perm.has_permission(None, "https://claude.ai/oauth/client.json") is True
-        assert perm.has_permission(None, "https://other-client.example.com/client.json") is False
+            perm = HostAllowlistCIMDPermission()
+            assert perm.has_permission(None, "https://chatgpt.com/oauth/client.json") is True
+            assert perm.has_permission(None, "https://claude.ai/oauth/client.json") is True
+            assert perm.has_permission(None, "https://other-client.example.com/client.json") is False
 
-        anon = APIClient()
-        # Localhost loopback redirect URI is rejected when ALLOW_LOCALHOST_LOOPBACK is false
-        loopback_denied = anon.post(
-            "/api/v1/oauth/register/",
-            {
-                "client_name": "Local CLI",
-                "redirect_uris": ["http://localhost:8787/callback"],
-                "grant_types": ["authorization_code"],
-                "response_types": ["code"],
-                "token_endpoint_auth_method": "none",
-            },
-            format="json",
-        )
-        assert loopback_denied.status_code == status.HTTP_400_BAD_REQUEST
+            anon = APIClient()
+            # Localhost loopback redirect URI is rejected when ALLOW_LOCALHOST_LOOPBACK is false
+            loopback_denied = anon.post(
+                "/api/v1/oauth/register/",
+                {
+                    "client_name": "Local CLI",
+                    "redirect_uris": ["http://localhost:8787/callback"],
+                    "grant_types": ["authorization_code"],
+                    "response_types": ["code"],
+                    "token_endpoint_auth_method": "none",
+                },
+                format="json",
+            )
+            assert loopback_denied.status_code == status.HTTP_400_BAD_REQUEST
 
         # Enabling ALLOW_LOCALHOST_LOOPBACK permits HTTP(S) loopback in production while rejecting
         # non-HTTP schemes and non-loopback HTTP redirects
@@ -868,3 +875,30 @@ class TestOAuth2Server:
             "api.test.org",
         ]
         assert _parse_oauth_allowed_client_domains("*") == ["*"]
+
+    def test_summarize_dcr_payload_bounds_and_excludes_credentials(self):
+        # Non-JSON and non-object JSON payloads are never echoed raw
+        assert _summarize_dcr_payload(b"line1\nline2 fake log") == "<non-json payload: 20 bytes>"
+        assert _summarize_dcr_payload(b"\xff\xfe") == "<non-json payload: 2 bytes>"
+        assert _summarize_dcr_payload(b'["a","b"]') == "<non-object json payload: 9 bytes>"
+
+        # Sensitive credentials and unknown nested keys are omitted
+        summary = _summarize_dcr_payload(
+            (
+                '{"client_id":"cli_1","client_name":"Gemini","client_secret":"topsecret",'
+                '"registration_access_token":"rat_secret","jwks":{"private":"key"},'
+                '"redirect_uris":["https://claude.ai/cb"]}'
+            ).encode("utf-8")
+        )
+        assert "topsecret" not in summary
+        assert "rat_secret" not in summary
+        assert "jwks" not in summary
+        assert "cli_1" in summary
+        assert "Gemini" in summary
+
+        # Huge JSON payloads are bounded
+        huge_summary = _summarize_dcr_payload(
+            ('{"client_name":"' + ("x" * 5000) + '"}').encode("utf-8")
+        )
+        assert huge_summary.endswith("...(truncated)")
+        assert len(huge_summary) <= 2065

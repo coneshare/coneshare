@@ -1,4 +1,5 @@
 import json
+import logging
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -22,6 +23,8 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from core.authentication import (ActiveUserOAuth2Authentication, APIKeyAuthentication,
                                  get_expected_mcp_resource_urls)
 from core.models import APIKey
+
+logger = logging.getLogger(__name__)
 
 OAUTH_QUERY_PARAM_KEYS = (
     'client_id',
@@ -150,6 +153,10 @@ def _validate_dcr_redirect_uris_from_body(body: bytes) -> JsonResponse | None:
         return None
     for uri in redirect_uris:
         if isinstance(uri, str) and uri.strip() and not is_trusted_oauth_redirect_uri(uri):
+            logger.warning(
+                "Rejected DCR redirect_uri not in OAUTH_ALLOWED_CLIENT_DOMAINS: %r",
+                uri[:256],
+            )
             return JsonResponse(
                 {
                     'error': 'invalid_client_metadata',
@@ -365,16 +372,57 @@ class OAuthTokenVerifyView(APIView):
         return Response({'active': False}, status=status.HTTP_401_UNAUTHORIZED)
 
 
+_DCR_LOG_KEYS = (
+    'client_id',
+    'client_name',
+    'redirect_uris',
+    'grant_types',
+    'response_types',
+    'token_endpoint_auth_method',
+    'scope',
+    'error',
+    'error_description',
+)
+_DCR_LOG_MAX_LEN = 2048
+
+
+def _summarize_dcr_payload(raw_bytes: bytes) -> str:
+    """Return a bounded, single-line summary of allowlisted DCR JSON metadata for logging."""
+    try:
+        data = json.loads(raw_bytes.decode('utf-8'))
+    except (UnicodeDecodeError, ValueError):
+        return f"<non-json payload: {len(raw_bytes)} bytes>"
+    if not isinstance(data, dict):
+        return f"<non-object json payload: {len(raw_bytes)} bytes>"
+    summary = {k: data[k] for k in _DCR_LOG_KEYS if k in data}
+    serialized = json.dumps(summary)
+    if len(serialized) > _DCR_LOG_MAX_LEN:
+        return f"{serialized[:_DCR_LOG_MAX_LEN]}...(truncated)"
+    return serialized
+
+
 class _AllowedDomainDCRView(oauth2_views.DynamicClientRegistrationView):
     """DCR creation view enforcing the trusted client domain allowlist on redirect_uris."""
 
     def post(self, request, *args, **kwargs):
+        logger.info(
+            "OAuth DCR request: user_agent=%r body=%s",
+            request.headers.get('User-Agent', '')[:256],
+            _summarize_dcr_payload(request.body),
+        )
         permission_classes = oauth2_settings.DCR_REGISTRATION_PERMISSION_CLASSES
         if permission_classes and all(cls().has_permission(request) for cls in permission_classes):
             err_resp = _validate_dcr_redirect_uris_from_body(request.body)
             if err_resp is not None:
                 return err_resp
-        return super().post(request, *args, **kwargs)
+
+        resp = super().post(request, *args, **kwargs)
+        logger.info(
+            "OAuth DCR response: status=%s body=%s",
+            resp.status_code,
+            _summarize_dcr_payload(resp.content),
+        )
+        return resp
 
 
 class _AllowedDomainDCRManagementView(oauth2_views.DynamicClientRegistrationManagementView):

@@ -81,11 +81,100 @@ The service is configured via environment variables in [docker-compose.yml](../.
 | `CONESHARE_FILESERVER_INTERNAL_URL` | ❌ | None | Optional internal file-server base URL (`http://core:8080` in Docker) for `create_text_document` upload PUTs |
 | `CONESHARE_OAUTH_ENABLED` | ❌ | `false` | Enable OAuth 2.1 server endpoints and FastMCP `RemoteAuthProvider` (`401` + `RFC 9728` metadata; accepts both OAuth 2.1 tokens and `cs_live_...` keys) |
 | `SITE_DOMAIN` | ✅ (when OAuth enabled) | N/A | Public origin URL of the Coneshare instance (e.g. `https://app.coneshare.com`; required when `CONESHARE_OAUTH_ENABLED=true`) |
+| `OAUTH_ALLOWED_CLIENT_DOMAINS` | ❌ | `.chatgpt.com,.openai.com,.claude.ai,.google.com,.googleusercontent.com,.grok.com,.x.ai` | Comma-separated trusted client domain allowlist for OAuth 2.1 DCR redirect URIs |
+| `OAUTH_ALLOW_LOCALHOST_LOOPBACK` | ❌ | `false` | Allow `http://localhost:<port>` loopback redirect URIs for local/CLI OAuth testing |
 | `MCP_TRANSPORT` | ❌ | `streamable-http` | Transport protocol (`streamable-http`, `http`, or `sse`) |
 | `MCP_HOST` | ❌ | `0.0.0.0` | Container network bind address (`0.0.0.0` for Docker) |
 | `MCP_PATH` | ❌ | `/mcp/sse` | HTTP SSE endpoint path |
 | `MCP_PORT` | ❌ | `8001` | Server listening port |
 | `LOG_LEVEL` | ❌ | `INFO` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+
+---
+
+## 2.1 OAuth 2.1 + PKCE + DCR Architecture & Interoperability Notes
+
+When `CONESHARE_OAUTH_ENABLED=true`, both the Django backend and `coneshare-mcp` enable OAuth 2.1 Authorization Code + PKCE (`S256`) alongside `cs_live_...` API keys.
+
+### Web AI Clients vs. CLI / Desktop Clients
+
+| Dimension | Web AI Clients (Gemini, ChatGPT, Claude.ai, Grok) | CLI / Desktop Clients (Claude Code, `agy`, Codex, Claude Desktop) |
+| :--- | :--- | :--- |
+| **Credential Type** | OAuth 2.1 Access + Refresh Tokens (`Bearer <oauth_token>`) | Static Per-User API Key (`Bearer cs_live_...`) or Loopback OAuth |
+| **Requires `CONESHARE_OAUTH_ENABLED=true`?** | ✅ **Yes** (relies on RFC 9728 / RFC 8414 discovery + DCR + `/oauth/authorize`) | ❌ **No** for `cs_live_...` API keys (works regardless of `CONESHARE_OAUTH_ENABLED`) |
+| **Onboarding Flow** | Zero-key browser redirect: `401` challenge -> Discovery -> DCR -> `/oauth/authorize` consent screen -> PKCE token exchange | User creates `cs_live_...` key in **Settings > API Keys** and sets `Authorization: Bearer cs_live_...` in local config |
+| **Callback / Redirect URI** | Hosted HTTPS callback allowlisted via `OAUTH_ALLOWED_CLIENT_DOMAINS` (`.chatgpt.com`, `.claude.ai`, `.google.com`, `.googleusercontent.com`, etc.) | N/A for `cs_live_...` API keys (or `http://localhost:<port>` when `OAUTH_ALLOW_LOCALHOST_LOOPBACK=true`) |
+| **Permission Enforcement** | `OAuth2ScopePermission` (`read`, `write`; `DELETE` and `@require_full_access` blocked) | `APIKeyTierPermission` (`read_only`, `read_write`, `full_access`) |
+
+### OAuth 2.1 + PKCE Sequence Diagram (Web AI Client vs. CLI Client)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User (Browser / CLI)
+    participant WebAI as Web AI Client (Gemini / ChatGPT / Claude.ai)
+    participant CLI as CLI / Desktop Client (Claude Code / agy / Codex)
+    participant MCP as coneshare-mcp (:8001 /mcp/sse)
+    participant SPA as ConeShare SPA (/oauth/authorize)
+    participant Django as ConeShare Django Backend (OAuth 2.1 AS & REST API)
+
+    rect rgb(240, 246, 255)
+    Note over User,Django: Path A: Web AI Client (OAuth 2.1 + PKCE + DCR, requires CONESHARE_OAUTH_ENABLED=true)
+    WebAI->>MCP: POST / HEAD /mcp/sse (no token)
+    MCP-->>WebAI: 401 Unauthorized (WWW-Authenticate resource_metadata)
+    WebAI->>MCP: GET /.well-known/oauth-protected-resource/mcp/sse (RFC 9728)
+    MCP-->>WebAI: 200 { resource, authorization_servers: ["https://SITE_DOMAIN/"], scopes_supported: ["read","write"] }
+    WebAI->>Django: GET /.well-known/oauth-authorization-server (RFC 8414)
+    Django-->>WebAI: 200 { issuer: "https://SITE_DOMAIN/", authorization_endpoint, token_endpoint, registration_endpoint }
+    WebAI->>Django: POST /api/v1/oauth/register/ (RFC 7591 DCR, allowlisted redirect_uris)
+    Django-->>WebAI: 201 { client_id, client_secret, client_secret_expires_at: 0, token_endpoint_auth_method }
+    WebAI->>User: Open browser popup to /oauth/authorize?client_id=...&code_challenge=...&code_challenge_method=S256
+    User->>SPA: Load /oauth/authorize (authenticated via ConeShare JWT)
+    SPA->>Django: GET /api/v1/oauth/consent/ (validate client_id, redirect_uri, PKCE S256)
+    Django-->>SPA: 200 { application_name, scopes: ["read", "write"] }
+    User->>SPA: Select scopes & click Authorize
+    SPA->>Django: POST /api/v1/oauth/consent/ { allow: true, scopes }
+    Django-->>SPA: 200 { redirect_url: "https://client-callback?code=...&state=..." }
+    SPA-->>WebAI: Browser redirect with authorization code
+    WebAI->>Django: POST /api/v1/oauth/token/ (code + code_verifier)
+    Django-->>WebAI: 200 { access_token, refresh_token, scope: "read write" }
+    WebAI->>MCP: POST /mcp/sse (Authorization: Bearer oauth_access_token)
+    MCP->>Django: GET /api/v1/oauth/verify/ (cached 30s by SHA-256 digest)
+    Django-->>MCP: 200 { active: true, auth_type: "oauth2", scopes: ["read", "write"] }
+    MCP->>Django: REST API call (Authorization: Bearer oauth_access_token)
+    Django-->>MCP: 200 JSON (enforced by OAuth2ScopePermission)
+    MCP-->>WebAI: MCP Tool Result
+    end
+
+    rect rgb(242, 250, 245)
+    Note over User,Django: Path B: CLI / Desktop Client (Static API Key cs_live_..., works with or without OAuth enabled)
+    User->>CLI: Configure Authorization: Bearer cs_live_...
+    CLI->>MCP: POST /mcp/sse (Authorization: Bearer cs_live_...)
+    opt When CONESHARE_OAUTH_ENABLED=true
+        MCP->>Django: GET /api/v1/oauth/verify/ (cached 30s by SHA-256 digest)
+        Django-->>MCP: 200 { active: true, auth_type: "api_key", scopes: ["read", "write"] }
+    end
+    MCP->>Django: REST API call (Authorization: Bearer cs_live_...)
+    Django-->>MCP: 200 JSON (enforced by APIKeyTierPermission: read_only / read_write / full_access)
+    MCP-->>CLI: MCP Tool Result
+    end
+```
+
+### End-to-End Discovery & Authorization Flow
+1. **Challenge (`401 Unauthorized`)**: Unauthenticated requests to `/mcp/sse` receive `WWW-Authenticate: Bearer resource_metadata="<SITE_DOMAIN>/.well-known/oauth-protected-resource/mcp/sse"`.
+2. **RFC 9728 Protected Resource Metadata**: `coneshare-mcp` serves `/.well-known/oauth-protected-resource/mcp/sse` (and `/.well-known/oauth-protected-resource`), advertising `authorization_servers: ["<SITE_DOMAIN>/"]` and `scopes_supported: ["read", "write"]`.
+3. **RFC 8414 Authorization Server Metadata**: Django serves `/.well-known/oauth-authorization-server`, advertising `"issuer": "<SITE_DOMAIN>/"`, `"authorization_endpoint": "<SITE_DOMAIN>/oauth/authorize"`, `"token_endpoint": "<SITE_DOMAIN>/api/v1/oauth/token/"`, and `"registration_endpoint": "<SITE_DOMAIN>/api/v1/oauth/register/"`.
+4. **RFC 7591 Dynamic Client Registration (DCR)**: Web AI connectors register at `POST /api/v1/oauth/register/` (rate-limited to `20/hour` via `oauth_dcr` throttle scope, with `redirect_uris` restricted to `OAUTH_ALLOWED_CLIENT_DOMAINS`).
+5. **Interactive Consent UI (`/oauth/authorize`)**: Authenticated ConeShare users review the requesting application and approve `read` / `write` scopes via `/api/v1/oauth/consent/` (protected strictly by interactive `JWTAuthentication`).
+6. **Token Verification & Scope Enforcement**:
+   - `coneshare-mcp` verifies Bearer tokens via `GET /api/v1/oauth/verify/` with a 30-second SHA-256-keyed TTL cache.
+   - `OAuth2ScopePermission` enforces `read` (`SAFE_METHODS`) and `write` (`POST`, `PUT`, `PATCH`), while blocking `DELETE`, `@require_full_access` actions, `trash`, `api-key`, `admin`, and viewer/session PII telemetry (`analytics.*`, `viewer`, `viewsession`, `view_sessions`) until dedicated scopes are introduced.
+
+### Real-World Web AI Client Interoperability Gotchas
+- **Trailing Slash on `OAUTH_ISSUER`**: FastMCP / MCP SDK's `ProtectedResourceMetadata` serializes `authorization_servers` via Pydantic `AnyHttpUrl`, which appends a trailing `/` to bare origins (`"https://app.coneshare.com/"`). Django's `OAUTH_ISSUER` (`OIDC_ISS_ENDPOINT`) intentionally includes this trailing `/` (`f"{SITE_DOMAIN.rstrip('/')}/"`) so RFC 9728 `authorization_servers[0]` and RFC 8414 `issuer` match byte-for-byte.
+- **Google Gemini Custom Apps (`OpenAuth`)**:
+  - Registers redirect URIs under `*.googleusercontent.com` (e.g. `https://oauth-redirect.googleusercontent.com/r/...`), so both `.google.com` and `.googleusercontent.com` must be present in `OAUTH_ALLOWED_CLIENT_DOMAINS`.
+- **ChatGPT Connectors (`CIMD` vs `DCR`)**:
+  - When `client_id_metadata_document_supported: true` is advertised, ChatGPT prefers CIMD (`client_id=https://chatgpt.com/oauth/.../client.json`) whose document declares `"token_endpoint_auth_method": "private_key_jwt"`. Because `django-oauth-toolkit` 3.4 only supports `"none"` for CIMD clients, `CIMD_ENABLED` is kept `False` so ChatGPT and all other web AI clients consistently use RFC 7591 DCR.
 
 ---
 
