@@ -1,6 +1,22 @@
 # Changelog
 
 
+## [1.12.0](https://github.com/coneshare/coneshare/compare/v1.11.2...v1.12.0) (2026-11-20)
+
+
+### Features
+
+* **documents:** support document search by filename and description in Web UI and MCP ([#388](https://github.com/coneshare/coneshare/issues/388)) ([587d4b0](https://github.com/coneshare/coneshare/commit/587d4b072cb2f596eabbb6df58106b9092fba37b))
+* **mcp:** add create_text_document tool for in-memory text uploads ([0bdc059](https://github.com/coneshare/coneshare/commit/0bdc0594ed820157b35b312d9ce5b7e1d679f1d2))
+* **mcp:** add dataroom content search and name filter to list_datarooms ([fafec1e](https://github.com/coneshare/coneshare/commit/fafec1eb02ac6f724d4e0084921eb30dbfaa4dc8))
+* **oauth,mcp:** add OAuth 2.1, PKCE, DCR, and consent UI for remote MCP ([#480](https://github.com/coneshare/coneshare/issues/480)) ([d1670e9](https://github.com/coneshare/coneshare/commit/d1670e9165ab375e079defc4e96c86160b35bbf7))
+* **portal:** revamp MCP agents page with zh localization, video showcase, and screenshots ([bc0900d](https://github.com/coneshare/coneshare/commit/bc0900d2edbcfabd119282facff50dfd19666f44))
+
+
+### Bug Fixes
+
+* **oauth,mcp:** harden client allowlist, DCR logging, and share-link watermark rules ([97cde59](https://github.com/coneshare/coneshare/commit/97cde59fe7ebe415f848e18354e1ea20c78ee3cf))
+
 ## [1.11.2](https://github.com/coneshare/coneshare/compare/v1.11.1...v1.11.2) (2026-11-14)
 
 
