@@ -113,8 +113,14 @@ describe('Header & Footer Localization', () => {
 
   describe('portal/lib/i18n Module', () => {
     it('defines supported subpaths and all routes correctly', () => {
-      expect(ZH_SUPPORTED_SUBPATHS).toEqual(['/about', '/virtual-dataroom', '/pricing']);
-      expect(ZH_ALL_ROUTES).toEqual(['/zh', '/zh/about', '/zh/virtual-dataroom', '/zh/pricing']);
+      expect(ZH_SUPPORTED_SUBPATHS).toEqual(['/about', '/virtual-dataroom', '/pricing', '/agents']);
+      expect(ZH_ALL_ROUTES).toEqual([
+        '/zh',
+        '/zh/about',
+        '/zh/virtual-dataroom',
+        '/zh/pricing',
+        '/zh/agents',
+      ]);
     });
 
     it('correctly maps alternate paths with getAlternateLocalePath', () => {
@@ -123,12 +129,14 @@ describe('Header & Footer Localization', () => {
       expect(getAlternateLocalePath('/zh/', true)).toBe('/');
       expect(getAlternateLocalePath('/zh/about', true)).toBe('/about');
       expect(getAlternateLocalePath('/zh/virtual-dataroom', true)).toBe('/virtual-dataroom');
+      expect(getAlternateLocalePath('/zh/agents', true)).toBe('/agents');
 
       // From English to Chinese
       expect(getAlternateLocalePath('/', false)).toBe('/zh');
       expect(getAlternateLocalePath('/about', false)).toBe('/zh/about');
       expect(getAlternateLocalePath('/about/', false)).toBe('/zh/about');
       expect(getAlternateLocalePath('/virtual-dataroom', false)).toBe('/zh/virtual-dataroom');
+      expect(getAlternateLocalePath('/agents', false)).toBe('/zh/agents');
 
       // Untranslated paths fallback to /zh
       expect(getAlternateLocalePath('/blog', false)).toBe('/zh');
