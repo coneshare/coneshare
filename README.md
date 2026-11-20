@@ -57,11 +57,20 @@ Keep your existing storage workflows while gaining access controls, datarooms, a
 - Slack and webhook notifications for link events.
 - Trigger actions based on viewer activity.
 
-### Infrastructure and privacy
+### Infrastructure, privacy, and internationalization
 - Self-hosted on your own servers or private cloud.
-
-### Internationalization
 - Available in English, Simplified Chinese, Russian, German, French, and Dutch (`en`, `zh-hans`, `ru`, `de`, `fr`, `nl`).
+
+---
+
+## AI agents and remote MCP
+
+You can connect web AI assistants (ChatGPT, Gemini, Claude.ai, and Grok) and CLI or desktop coding agents (Claude Code, Claude Desktop, Cursor, VS Code, Codex, and Antigravity `agy`) to your Coneshare workspace over the remote Model Context Protocol (MCP) endpoint (`/mcp/sse`). The server provides MCP tools for saving AI conversations, organizing datarooms, creating protected or watermarked share links, and checking viewer engagement.
+
+- Web AI clients sign in with OAuth 2.1 and PKCE (`read` or `write` scopes). Destructive deletes, admin routes, and viewer PII remain blocked.
+- CLI and desktop agents authenticate with scoped API keys (`read_only`, `read_write`, or `full_access`).
+
+See [`mcp-server/README.md`](./mcp-server/README.md) for setup steps, the walkthrough video, and the tool list, or check [Coneshare AI & MCP](https://www.coneshare.com/agents) and [MCP Docs](https://docs.coneshare.com/en/mcp-server/).
 
 ---
 

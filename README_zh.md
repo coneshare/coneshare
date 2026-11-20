@@ -57,11 +57,20 @@ Coneshare 直接运行在您的现有存储之上：
 - 链接事件的 Slack 与 Webhook 通知。
 - 根据访客行为触发自动化操作。
 
-### 基础设施与隐私
+### 基础设施、隐私与国际化
 - 完全自托管于您自己的服务器或私有云中。
-
-### 多语言国际化
 - 提供英语、简体中文、俄语、德语、法语与荷兰语支持（`en`、`zh-hans`、`ru`、`de`、`fr`、`nl`）。
+
+---
+
+## AI Agents 与远程 MCP
+
+您可以通过远程 Model Context Protocol (MCP) 端点（`/mcp/sse`）将网页端 AI 助手（ChatGPT、Gemini、Claude.ai、Grok）以及 CLI 和桌面编程工具（Claude Code、Claude Desktop、Cursor、VS Code、Codex、Antigravity `agy`）接入 Coneshare 工作区。内置的 MCP 工具支持保存 AI 对话、管理资料室、生成受控或带水印的分享链接，以及查看访问统计。
+
+- 网页端 AI 客户端通过 OAuth 2.1 和 PKCE 登录授权（支持 `read` 或 `write` 权限），删除操作、后台管理接口及访客隐私明细默认拦截。
+- CLI 与桌面客户端使用在控制台生成的分级 API Key（`read_only`、`read_write` 或 `full_access`）接入。
+
+完整连接方式、演示视频与工具列表请见 [`mcp-server/README.md`](./mcp-server/README.md)，也可查看 [Coneshare AI & MCP 介绍页](https://www.coneshare.com/zh/agents) 和 [MCP 文档](https://docs.coneshare.com/en/mcp-server/)。
 
 ---
 
