@@ -230,10 +230,12 @@ test.describe('Dataroom Management', () => {
     await page.getByLabel(/name link/i).fill(linkName);
     await page.getByRole('button', { name: /save changes/i }).click();
     await expect(page.getByText(/link created successfully/i)).toBeVisible();
+    await expect(page.locator('div[role="dialog"]')).not.toBeVisible({ timeout: 10000 });
 
     // 5. Copy the link URL
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-    const linkRow = page.getByRole('row', { name: new RegExp(linkName) });
+    const linkRow = page.getByRole('row').filter({ hasText: linkName });
+    await expect(linkRow).toBeVisible({ timeout: 15000 });
     await linkRow.getByRole('button', { name: /actions/i }).click();
     await page.getByRole('menuitem', { name: /copy link/i }).click();
     await expect(page.getByText(/copied to clipboard/i)).toBeVisible();
@@ -304,10 +306,12 @@ test.describe('Dataroom Management', () => {
     await page.getByLabel(/name link/i).fill(linkName);
     await page.getByRole('button', { name: /save changes/i }).click();
     await expect(page.getByText(/link created successfully/i)).toBeVisible();
+    await expect(page.locator('div[role="dialog"]')).not.toBeVisible({ timeout: 10000 });
 
     // 4. Copy share link
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-    const linkRow = page.getByRole('row', { name: new RegExp(linkName) });
+    const linkRow = page.getByRole('row').filter({ hasText: linkName });
+    await expect(linkRow).toBeVisible({ timeout: 15000 });
     await linkRow.getByRole('button', { name: /actions/i }).click();
     await page.getByRole('menuitem', { name: /copy link/i }).click();
     await expect(page.getByText(/copied to clipboard/i)).toBeVisible();
@@ -502,7 +506,7 @@ test.describe('Dataroom Management', () => {
     await expect(page.locator('div[role="dialog"]')).not.toBeVisible({ timeout: 10000 });
 
     // 5. Open Manage Permissions dialog for this link
-    const linkRow = page.getByRole('row', { name: new RegExp(linkName) });
+    const linkRow = page.getByRole('row').filter({ hasText: linkName });
     await expect(linkRow).toBeVisible({ timeout: 15000 });
     await linkRow.getByRole('button', { name: /actions/i }).click();
     await page.getByRole('menuitem', { name: /manage permissions/i }).click();
@@ -872,8 +876,8 @@ test.describe('Dataroom Management', () => {
     await expect(confirmDialog).toBeVisible();
     await confirmDialog.getByRole('button', { name: 'Delete', exact: true }).click();
 
-    await expect(page.getByText(/collaborator removed successfully/i)).toBeVisible();
-    await expect(collabDialog.getByTitle(/remove collaborator/i)).not.toBeVisible();
+    await expect(page.getByText(/collaborator removed successfully/i)).toBeVisible({ timeout: 15000 });
+    await expect(collabDialog.getByTitle(/remove collaborator/i)).not.toBeVisible({ timeout: 15000 });
   });
 
   test('should configure banner gallery mode, upload images, and display in viewer', async ({ page, browser }) => {
