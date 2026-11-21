@@ -9,10 +9,17 @@ export function escapeXml(value) {
     .replace(/'/g, '&apos;');
 }
 
-export function buildBlogRssXml(posts = [], siteUrl = DEFAULT_SITE_URL) {
+export function buildBlogRssXml(posts = [], siteUrl = DEFAULT_SITE_URL, options = {}) {
+  const isZh = options?.locale === 'zh';
   const normalizedSiteUrl = siteUrl.replace(/\/+$/, '');
-  const feedUrl = `${normalizedSiteUrl}/blog/rss.xml`;
-  const blogUrl = `${normalizedSiteUrl}/blog`;
+  const basePath = isZh ? '/zh/blog' : '/blog';
+  const feedUrl = `${normalizedSiteUrl}${basePath}/rss.xml`;
+  const blogUrl = `${normalizedSiteUrl}${basePath}`;
+  const title = isZh ? 'Coneshare 博客' : 'Coneshare Blog';
+  const description = isZh
+    ? 'Coneshare 产品更新、虚拟资料室实践与文档安全分享指南。'
+    : 'Release notes, product updates, and practical guides for secure document sharing, dataroom workflows, and activity automation.';
+  const language = isZh ? 'zh-cn' : 'en-us';
 
   const latestDate =
     posts.length > 0 && posts[0]?.date
@@ -21,7 +28,7 @@ export function buildBlogRssXml(posts = [], siteUrl = DEFAULT_SITE_URL) {
 
   const itemsXml = posts
     .map((post) => {
-      const postUrl = `${normalizedSiteUrl}/blog/${encodeURIComponent(post.slug)}`;
+      const postUrl = `${normalizedSiteUrl}${basePath}/${encodeURIComponent(post.slug)}`;
       const pubDate = post.date ? new Date(post.date).toUTCString() : latestDate;
       const categories = [
         ...(post.category ? [post.category] : []),
@@ -51,10 +58,10 @@ export function buildBlogRssXml(posts = [], siteUrl = DEFAULT_SITE_URL) {
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">',
     '  <channel>',
-    '    <title>Coneshare Blog</title>',
+    `    <title>${escapeXml(title)}</title>`,
     `    <link>${escapeXml(blogUrl)}</link>`,
-    '    <description>Release notes, product updates, and practical guides for secure document sharing, dataroom workflows, and activity automation.</description>',
-    '    <language>en-us</language>',
+    `    <description>${escapeXml(description)}</description>`,
+    `    <language>${language}</language>`,
     `    <lastBuildDate>${escapeXml(latestDate)}</lastBuildDate>`,
     `    <atom:link href="${escapeXml(feedUrl)}" rel="self" type="application/rss+xml" />`,
     itemsXml,

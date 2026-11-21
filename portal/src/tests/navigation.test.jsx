@@ -50,6 +50,9 @@ describe('Header & Footer Localization', () => {
 
       const docsLinks = screen.getAllByRole('link', { name: /开发文档/i });
       expect(docsLinks.length).toBeGreaterThan(0);
+
+      const blogLinks = screen.getAllByRole('link', { name: '博客' });
+      expect(blogLinks.every((link) => link.getAttribute('href') === '/zh/blog')).toBe(true);
     });
 
     it('links virtual dataroom to /zh/virtual-dataroom on zh path', () => {
@@ -83,6 +86,7 @@ describe('Header & Footer Localization', () => {
       expect(screen.getAllByText('虚拟资料室 (VDR)').length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText('公司')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: '关于我们' })).toHaveAttribute('href', '/zh/about');
+      expect(screen.getByRole('link', { name: '博客' })).toHaveAttribute('href', '/zh/blog');
 
       // Language switcher has link back to English root /
       expect(screen.getByRole('link', { name: 'English' })).toHaveAttribute('href', '/');
@@ -97,12 +101,38 @@ describe('Header & Footer Localization', () => {
       mockPathname = '/about';
       render(<Footer />);
       expect(screen.getByRole('link', { name: '中文' })).toHaveAttribute('href', '/zh/about');
-    });
 
-    it('falls back to /zh when on an untranslated English route', () => {
+      cleanup();
       mockPathname = '/blog';
       render(<Footer />);
-      expect(screen.getByRole('link', { name: '中文' })).toHaveAttribute('href', '/zh');
+      expect(screen.getByRole('link', { name: '中文' })).toHaveAttribute('href', '/zh/blog');
+
+      cleanup();
+      mockPathname = '/zh/blog';
+      render(<Footer />);
+      expect(screen.getByRole('link', { name: 'English' })).toHaveAttribute('href', '/blog');
+    });
+
+    it('preserves matched blog post slug in language switcher and falls back for untranslated posts', () => {
+      mockPathname = '/blog/dataroom-guide-when-to-use';
+      render(<Footer translatedBlogSlugs={['dataroom-guide-when-to-use']} />);
+      expect(screen.getByRole('link', { name: '中文' })).toHaveAttribute(
+        'href',
+        '/zh/blog/dataroom-guide-when-to-use'
+      );
+
+      cleanup();
+      mockPathname = '/zh/blog/dataroom-guide-when-to-use';
+      render(<Footer translatedBlogSlugs={['dataroom-guide-when-to-use']} />);
+      expect(screen.getByRole('link', { name: 'English' })).toHaveAttribute(
+        'href',
+        '/blog/dataroom-guide-when-to-use'
+      );
+
+      cleanup();
+      mockPathname = '/blog/some-english-post';
+      render(<Footer translatedBlogSlugs={['dataroom-guide-when-to-use']} />);
+      expect(screen.getByRole('link', { name: '中文' })).toHaveAttribute('href', '/zh/blog');
 
       cleanup();
       mockPathname = '/features/dynamic-watermarking';
@@ -113,13 +143,20 @@ describe('Header & Footer Localization', () => {
 
   describe('portal/lib/i18n Module', () => {
     it('defines supported subpaths and all routes correctly', () => {
-      expect(ZH_SUPPORTED_SUBPATHS).toEqual(['/about', '/virtual-dataroom', '/pricing', '/agents']);
+      expect(ZH_SUPPORTED_SUBPATHS).toEqual([
+        '/about',
+        '/virtual-dataroom',
+        '/pricing',
+        '/agents',
+        '/blog',
+      ]);
       expect(ZH_ALL_ROUTES).toEqual([
         '/zh',
         '/zh/about',
         '/zh/virtual-dataroom',
         '/zh/pricing',
         '/zh/agents',
+        '/zh/blog',
       ]);
     });
 
@@ -130,6 +167,11 @@ describe('Header & Footer Localization', () => {
       expect(getAlternateLocalePath('/zh/about', true)).toBe('/about');
       expect(getAlternateLocalePath('/zh/virtual-dataroom', true)).toBe('/virtual-dataroom');
       expect(getAlternateLocalePath('/zh/agents', true)).toBe('/agents');
+      expect(getAlternateLocalePath('/zh/blog', true)).toBe('/blog');
+      expect(getAlternateLocalePath('/zh/blog/some-post', true)).toBe('/blog');
+      expect(
+        getAlternateLocalePath('/zh/blog/some-post', true, { translatedBlogSlugs: ['some-post'] })
+      ).toBe('/blog/some-post');
 
       // From English to Chinese
       expect(getAlternateLocalePath('/', false)).toBe('/zh');
@@ -137,9 +179,13 @@ describe('Header & Footer Localization', () => {
       expect(getAlternateLocalePath('/about/', false)).toBe('/zh/about');
       expect(getAlternateLocalePath('/virtual-dataroom', false)).toBe('/zh/virtual-dataroom');
       expect(getAlternateLocalePath('/agents', false)).toBe('/zh/agents');
+      expect(getAlternateLocalePath('/blog', false)).toBe('/zh/blog');
+      expect(getAlternateLocalePath('/blog/some-post', false)).toBe('/zh/blog');
+      expect(
+        getAlternateLocalePath('/blog/some-post', false, { translatedBlogSlugs: ['some-post'] })
+      ).toBe('/zh/blog/some-post');
 
       // Untranslated paths fallback to /zh
-      expect(getAlternateLocalePath('/blog', false)).toBe('/zh');
       expect(getAlternateLocalePath('/solutions/sales', false)).toBe('/zh');
       expect(getAlternateLocalePath('/features/online-document-preview', false)).toBe('/zh');
     });

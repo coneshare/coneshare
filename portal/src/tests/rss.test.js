@@ -35,4 +35,31 @@ describe('portal/lib/rss Module', () => {
     expect(xml).toContain('<category>Self-Hosting</category>');
     expect(xml).toContain('<category>Security &amp; Privacy</category>');
   });
+
+  it('builds localized Chinese RSS 2.0 XML with /zh/blog URLs', () => {
+    const posts = [
+      {
+        slug: 'centralize-ai-conversations-across-tools-coneshare-mcp',
+        title: '用 ConeShare MCP 集中管理多工具 AI 对话',
+        description: '把分散在不同 AI 工具里的研究沉淀统一保存。',
+        date: '2026-11-21',
+        category: 'AI 工作流',
+        tags: ['MCP', 'AI 工作流'],
+      },
+    ];
+
+    const xml = buildBlogRssXml(posts, 'https://www.coneshare.com', { locale: 'zh' });
+
+    expect(xml).toContain('<language>zh-cn</language>');
+    expect(xml).toContain('<link>https://www.coneshare.com/zh/blog</link>');
+    expect(xml).toContain(
+      '<atom:link href="https://www.coneshare.com/zh/blog/rss.xml" rel="self" type="application/rss+xml" />'
+    );
+    expect(xml).toContain(
+      '<link>https://www.coneshare.com/zh/blog/centralize-ai-conversations-across-tools-coneshare-mcp</link>'
+    );
+    expect(xml).toContain(
+      '<guid isPermaLink="true">https://www.coneshare.com/zh/blog/centralize-ai-conversations-across-tools-coneshare-mcp</guid>'
+    );
+  });
 });

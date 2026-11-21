@@ -3,6 +3,7 @@ import Script from 'next/script';
 import './globals.css';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
+import { getBilingualBlogSlugs } from '../lib/blog';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -27,7 +28,9 @@ export const metadata = {
   },  
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const translatedBlogSlugs = await getBilingualBlogSlugs();
+
   return (
     <html lang="en">
       <body className={`${inter.className} bg-gray-50 text-gray-800`}>
@@ -46,7 +49,7 @@ export default function RootLayout({ children }) {
         <div className="flex min-h-screen flex-col">
           <Header />
           <main className="flex-grow">{children}</main>
-          <Footer />
+          <Footer translatedBlogSlugs={translatedBlogSlugs} />
         </div>
       </body>
     </html>

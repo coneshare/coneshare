@@ -220,7 +220,7 @@ export function Header({ locale }) {
               {isZh ? '方案定价' : 'Pricing'}
             </Link>
             <NavDropdown title={isZh ? '功能特性' : 'Features'} href="/features" items={features} isZh={isZh} />
-            <Link href="/blog" className="text-sm font-medium text-gray-500 hover:text-gray-900">
+            <Link href={isZh ? '/zh/blog' : '/blog'} className="text-sm font-medium text-gray-500 hover:text-gray-900">
               {isZh ? '博客' : 'Blog'}
             </Link>
             <ResourceDropdown title={isZh ? '资源' : 'Resources'} items={resourceMenuItems} />
@@ -322,7 +322,11 @@ export function Header({ locale }) {
               </div>
             </div>
             <div className="border-t border-gray-200 pt-4 space-y-1">
-              <Link href="/blog" className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900">
+              <Link
+                href={isZh ? '/zh/blog' : '/blog'}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+              >
                 {isZh ? '博客' : 'Blog'}
               </Link>
               <Link

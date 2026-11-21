@@ -9,6 +9,7 @@ export const ZH_SUPPORTED_SUBPATHS = [
   '/virtual-dataroom',
   '/pricing',
   '/agents',
+  '/blog',
 ];
 
 // All Chinese routes including root /zh
@@ -19,26 +20,47 @@ export const ZH_ALL_ROUTES = [
 
 /**
  * Returns the corresponding URL for the alternative locale.
- * - From ZH to EN: removes /zh prefix (all pages have English counterparts)
- * - From EN to ZH: checks whitelist; falls back to /zh if page is not yet translated
+ * - From ZH to EN: removes /zh prefix; preserves /blog/<slug> when the post exists in both locales
+ * - From EN to ZH: checks whitelist; preserves /zh/blog/<slug> when the post exists in both locales
  */
-export function getAlternateLocalePath(pathname, currentIsZh) {
+export function getAlternateLocalePath(pathname, currentIsZh, options = {}) {
   if (!pathname) {
     return currentIsZh ? '/' : '/zh';
   }
 
+  const cleanPath = pathname.replace(/\/$/, '') || '/';
+  const translatedBlogSlugs = options?.translatedBlogSlugs
+    ? new Set(options.translatedBlogSlugs)
+    : null;
+
   if (currentIsZh) {
-    if (pathname === '/zh' || pathname === '/zh/') {
+    if (cleanPath === '/zh') {
       return '/';
     }
-    return pathname.replace(/^\/zh/, '') || '/';
+    if (cleanPath === '/zh/blog') {
+      return '/blog';
+    }
+    if (cleanPath.startsWith('/zh/blog/')) {
+      const slug = cleanPath.slice('/zh/blog/'.length);
+      if (slug && !slug.includes('/') && translatedBlogSlugs?.has(slug)) {
+        return `/blog/${slug}`;
+      }
+      return '/blog';
+    }
+    return cleanPath.replace(/^\/zh/, '') || '/';
   } else {
-    if (pathname === '/') {
+    if (cleanPath === '/') {
       return '/zh';
     }
-    const cleanPath = pathname.replace(/\/$/, '');
     if (ZH_SUPPORTED_SUBPATHS.includes(cleanPath)) {
       return `/zh${cleanPath}`;
+    }
+    if (cleanPath.startsWith('/blog/')) {
+      const slug = cleanPath.slice('/blog/'.length);
+      if (slug && !slug.includes('/') && translatedBlogSlugs?.has(slug)) {
+        return `/zh/blog/${slug}`;
+      }
+      return '/zh/blog';
     }
     return '/zh';
   }

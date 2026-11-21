@@ -14,6 +14,33 @@ function getMostRecentDate(dates) {
   return new Date(Math.max(...dates.map((date) => new Date(date).getTime())));
 }
 
+function buildBlogSitemapEntries(basePath, posts, categories, tags) {
+  const postRoutes = posts.map((post) => ({
+    url: `${URL}${basePath}/${post.slug}`,
+    lastModified: new Date(post.date),
+  }));
+
+  const categoryRoutes = categories.map((category) => ({
+    url: `${URL}${basePath}/category/${category.slug}`,
+    lastModified: getMostRecentDate(
+      posts
+        .filter((post) => slugifyTerm(getEffectiveCategory(post)) === category.slug)
+        .map((post) => post.date)
+    ),
+  }));
+
+  const tagRoutes = tags.map((tag) => ({
+    url: `${URL}${basePath}/tag/${tag.slug}`,
+    lastModified: getMostRecentDate(
+      posts
+        .filter((post) => (post.tags || []).some((postTag) => slugifyTerm(postTag) === tag.slug))
+        .map((post) => post.date)
+    ),
+  }));
+
+  return [...postRoutes, ...categoryRoutes, ...tagRoutes];
+}
+
 export default async function sitemap() {
   const featureRoutes = features.map((feature) => ({
     url: `${URL}/features/${feature.slug}`,
@@ -29,34 +56,19 @@ export default async function sitemap() {
     lastModified: new Date(),
   }));
 
-  const [blogPosts, categories, tags] = await Promise.all([
-    getAllBlogPosts(),
-    getAllCategories(),
-    getAllTags(),
+  const [enPosts, enCategories, enTags, zhPosts, zhCategories, zhTags] = await Promise.all([
+    getAllBlogPosts('en'),
+    getAllCategories('en'),
+    getAllTags('en'),
+    getAllBlogPosts('zh'),
+    getAllCategories('zh'),
+    getAllTags('zh'),
   ]);
 
-  const blogRoutes = blogPosts.map((post) => ({
-    url: `${URL}/blog/${post.slug}`,
-    lastModified: new Date(post.date),
-  }));
-
-  const categoryRoutes = categories.map((category) => ({
-    url: `${URL}/blog/category/${category.slug}`,
-    lastModified: getMostRecentDate(
-      blogPosts
-        .filter((post) => slugifyTerm(getEffectiveCategory(post)) === category.slug)
-        .map((post) => post.date)
-    ),
-  }));
-
-  const tagRoutes = tags.map((tag) => ({
-    url: `${URL}/blog/tag/${tag.slug}`,
-    lastModified: getMostRecentDate(
-      blogPosts
-        .filter((post) => (post.tags || []).some((postTag) => slugifyTerm(postTag) === tag.slug))
-        .map((post) => post.date)
-    ),
-  }));
+  const blogEntries = [
+    ...buildBlogSitemapEntries('/blog', enPosts, enCategories, enTags),
+    ...buildBlogSitemapEntries('/zh/blog', zhPosts, zhCategories, zhTags),
+  ];
 
   const routes = [
     '',
@@ -78,5 +90,5 @@ export default async function sitemap() {
     lastModified: new Date(),
   }));
 
-  return [...routes, ...featureRoutes, ...solutionRoutes, ...integrationRoutes, ...blogRoutes, ...categoryRoutes, ...tagRoutes];
+  return [...routes, ...featureRoutes, ...solutionRoutes, ...integrationRoutes, ...blogEntries];
 }

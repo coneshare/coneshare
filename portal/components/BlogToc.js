@@ -11,7 +11,8 @@ function slugify(text) {
     .replace(/^-+|-+$/g, '');
 }
 
-export default function BlogToc() {
+export default function BlogToc({ locale = 'en' }) {
+  const isZh = locale === 'zh';
   const [items, setItems] = useState([]);
   const [activeId, setActiveId] = useState('');
 
@@ -95,7 +96,9 @@ export default function BlogToc() {
   return (
     <aside className="hidden lg:block lg:w-72 xl:w-80 lg:shrink-0 lg:self-start lg:sticky lg:top-24">
       <div className="max-h-[calc(100vh-7rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">On this page</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          {isZh ? '本页目录' : 'On this page'}
+        </p>
         <nav className="mt-3">
           <ul className="space-y-2.5">
             {items.map((item) => (

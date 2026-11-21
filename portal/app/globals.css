@@ -29,3 +29,28 @@
   font-size: inherit !important;
 }
 
+/* Blockquote / Tip callout styling in markdown / prose */
+.prose :where(blockquote):not(:where([class~="not-prose"] *)) {
+  font-style: normal;
+  font-weight: 400;
+  color: #374151;
+  background-color: #f9fafb;
+  border-left-color: #9ca3af;
+  border-left-width: 3px;
+  border-radius: 0 0.5rem 0.5rem 0;
+  padding: 0.85rem 1.15rem;
+}
+
+.prose :where(blockquote p:first-of-type):not(:where([class~="not-prose"] *))::before,
+.prose :where(blockquote p:last-of-type):not(:where([class~="not-prose"] *))::after {
+  content: none !important;
+}
+
+.prose :where(blockquote > :first-child):not(:where([class~="not-prose"] *)) {
+  margin-top: 0;
+}
+
+.prose :where(blockquote > :last-child):not(:where([class~="not-prose"] *)) {
+  margin-bottom: 0;
+}
+

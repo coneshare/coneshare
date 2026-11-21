@@ -1,0 +1,168 @@
+export const metadata = {
+  title: '集中管理你的 AI 对话记录：跨 ChatGPT、Claude、Gemini 等工具使用 ConeShare MCP',
+  description:
+    '别再让有价值的 AI 对话散落在各个聊天历史里。本文介绍如何通过 ConeShare 远程 MCP 服务，把来自 ChatGPT、Claude、Gemini 等 AI 工具的对话统一保存、归档并在一个工作区内检索。',
+  date: '2026-11-21',
+  category: 'Guides',
+  tags: [
+    'MCP Server',
+    'AI Agents',
+    'ChatGPT',
+    'Claude',
+    'Gemini',
+    'Self-Hosted',
+  ],
+};
+
+平时高频用 AI 的人，很少只守着一个模型。你可能在 ChatGPT 里想产品定位，在 Claude 里写方案、查代码，又在 Gemini 或其他工具里做调研。
+
+过了一两周，你想起之前聊出过一个不错的架构思路或文案草稿，却记不清当时是在哪个应用里聊的。各家自带的搜索只能在自己的侧边栏里找，原生分享链接也只是一个孤立的公开页面，既没法归类到项目目录里，也没有访问权限控制。
+
+连上 ConeShare 的远程 MCP 服务（`coneshare-mcp`），你可以把不同 AI 工具里的对话或总结直接存进同一个工作区，按项目目录归档，之后随时查出来，需要时再按权限分享给别人。
+
+<video
+  controls
+  preload="metadata"
+  poster="/agent-poster.jpg"
+  className="w-full rounded-xl border border-slate-200 my-6"
+>
+  <source src="https://cdn.coneshare.com/coneshare-ai-mcp-v1.mp4" type="video/mp4" />
+  你的浏览器暂不支持内嵌视频播放，可直接访问{' '}
+  <a href="https://cdn.coneshare.com/coneshare-ai-mcp-v1.mp4">
+    cdn.coneshare.com/coneshare-ai-mcp-v1.mp4
+  </a>{' '}
+  观看演示视频。
+</video>
+
+## 为什么聊天历史和原生分享链接不够用
+
+厂商自带的聊天历史用来找昨天的对话还算顺手，但一旦内容要进入实际项目流程，问题就比较明显：
+
+- 上下文分散在 ChatGPT、Claude、Gemini 以及各类编程或桌面 AI 工具里。
+- 对话只能按时间线平铺堆叠，没法和同一个项目的 PDF、PPT 或表格放在一起管理。
+- 原生分享链接只是单条对话的公开 URL，既不能把几段相关对话打包进同一个文件夹，没法设密码或有效期，也看不到对方到底有没有打开看。
+
+通过 MCP 把这些记录存进 ConeShare，它们就会变成你工作区里的结构化 Markdown 文档（无论是用 ConeShare Cloud，还是你自己部署在本地的实例）。
+
+---
+
+## 第一步：通过远程 MCP 连接你的 AI 工具
+
+ConeShare 在 `https://app.coneshare.com/mcp/sse` 提供了远程 MCP 地址（自部署实例也会在自己的域名下提供 `/mcp/sse`）。连接网页端 AI 应用时，不需要在本地装程序或跑守护进程。
+
+### 方式 A：网页端 AI 客户端（ChatGPT、Google Gemini、Claude.ai）
+
+网页端通过浏览器里的 OAuth 2.1 完成授权：
+
+1. 打开 AI 客户端的自定义 MCP 连接器设置，填入 `https://app.coneshare.com/mcp/sse`（或你自己的私有部署地址）。
+
+![在 ChatGPT 中填写 ConeShare 远程 MCP 地址](/screenshots/agent-mcp-plugin.png)
+
+2. 在弹出的浏览器窗口里登录 ConeShare，确认授予 `read` 或 `write` 权限。使用 OAuth 令牌时，删除操作、管理后台接口和访客隐私明细默认都会被拦截。
+
+![ConeShare OAuth 2.1 授权权限页面](/screenshots/agent-oauth-scope.png)
+
+### 方式 B：CLI 与桌面编码代理（Claude Code、Codex、Cursor 等）
+
+本地开发工具可以在 ConeShare 的 **Settings > API Keys** 里生成一个带权限级别的 API Key（`read_only`、`read_write` 或 `full_access`），然后加上这段 MCP 配置：
+
+```json
+{
+  "mcpServers": {
+    "coneshare": {
+      "url": "https://app.coneshare.com/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer cs_live_YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+![ConeShare 开发者 API Key 与权限范围设置](/screenshots/blog/v1-8-0-api-keys-scopes.png)
+
+如果需要针对特定客户端的配置说明或完整工具列表，可以查看交互式的 [ConeShare AI Agents 配置指南](/zh/agents)。
+
+---
+
+## 第二步：将对话保存为结构化 Markdown
+
+连好之后，AI 助手就可以直接把 Markdown 写入你的个人文档目录。路径里还没有的文件夹会自动建好，`.md` 文件也不用等后台转码，在 ConeShare 网页端就能直接渲染预览。
+
+![在对话中将 AI 聊天记录保存为 Markdown 文档](/screenshots/agent-save-converation.png)
+
+### 保存精炼的决策纪要，并附带可检索的元数据
+
+整段聊天里通常夹杂着不少试错和无关过程。让模型把结论提炼出来，顺手写一段简短描述，以后搜关键词会更容易找到：
+
+```text
+把这次对话中的架构决策、被否决的方案和后续待办整理成 Markdown 总结。保存到 ConeShare 的 "AI-Notes/xxx/"。
+```
+
+### 在需要保留原文细节时归档完整记录
+
+如果后面还需要核对原始 Prompt、SQL 或文案草稿，也可以把整段对话完整存下来：
+
+```text
+把我们这段完整对话原封不动保存为 Markdown 到 ConeShare 的 "AI-Notes/xxx/"。
+```
+
+存下来的 Markdown 文档会集中在你的 ConeShare 工作区里（云端或本地自部署实例），不用再留在各家 AI 厂商的聊天库里吃灰。保存完直接在 ConeShare 网页端就能看排版好的正文：
+
+![在 ConeShare 网页阅读器中直接预览已保存的 AI 对话 Markdown 文档](/screenshots/agent-markdown-preview.png)
+
+---
+
+## 第三步：按项目归档，并在任意 AI 客户端里找回记录
+
+光把文件存下来还不够，来自 ChatGPT、Claude、Gemini 等工具的记录能按同一个项目归到一起，后面才好找。
+
+### 按文件夹或资料室（Dataroom）整理相关笔记
+
+你可以把笔记留在个人文档文件夹里，也可以让助手直接建一个资料室，把对话笔记和项目的 PDF、表格、演示文稿放进同一个 Dataroom：
+
+```text
+创建一个名为 "Project Atlas - AI Research" 的 ConeShare Dataroom，把刚才保存的 Markdown 笔记和 Q4 roadmap PDF 一起放进去。
+```
+
+往里加新文件前，也可以先让助手看下这个资料室里已经有哪些内容。
+
+> **提示：** 自己归档的笔记直接放个人文件夹就行，不用建资料室；需要把这些笔记和其他项目文件一起对外分享或设权限时再建。两者的区别与用法可以参考 [ConeShare 资料室（Dataroom）介绍与使用指南](/zh/blog/dataroom-guide-when-to-use)。
+
+![在 ChatGPT 中查看 Dataroom 及已保存的 Markdown 笔记](/screenshots/agent-get-dataroom.png)
+
+### 跨工具定位历史对话
+
+过几周在另一个 AI 客户端开新对话时，不用再去翻以前的浏览器标签页，直接按标题、描述或目录搜一下就行：
+
+```text
+在我的 ConeShare 文档里搜索 "auth-decisions" 或 "OAuth 2.1"，把所在文件夹路径、描述和有效分享链接列给我。
+```
+
+助手会返回匹配到的标题、描述、目录路径和链接，很快就能定位到那次对话；要看完整内容的话，直接在 ConeShare 里打开就行。
+
+---
+
+## 第四步：在可控前提下对外分享 AI 产出
+
+聊出来的结果有时需要发给同事评审，或者放进对外协作的资料里。
+
+与其直接丢出一个没有任何权限控制和阅读记录的原始 `chatgpt.com/share/...` 链接，你可以直接让 ConeShare 为单篇 Markdown 文档或整个 Dataroom 生成一条受控分享链接：
+
+```text
+为 "Project Atlas - AI Research" Dataroom 创建一个 7 天后过期的分享链接，开启邮箱验证，并在有人打开时给我发邮件通知。
+```
+
+Markdown 文档在网页端支持防复制保护和阅读进度统计，同一个 Dataroom 里的 PDF、Office 文档和图片也支持动态水印。你可以随时在 ConeShare 后台（或者通过配了 API Key 的本地代理）看到谁打开了资料、大概读到了哪里。
+
+如果想了解除了保存、检索和分享之外，ConeShare 还支持哪些文档管理、Dataroom 编排和阅读分析能力，可以在 [ConeShare MCP 工具目录与接入指南](/zh/agents) 查看完整清单。
+
+---
+
+## 立即体验或开源自部署
+
+ConeShare 采用 MIT 协议开源，既可以直接用[云端服务](https://app.coneshare.com/)，也支持自己部署到私有服务器。
+
+想快速试用云端版，在 ChatGPT、Gemini 或 Claude.ai 里接入 `https://app.coneshare.com/mcp/sse` 就行，具体步骤和完整工具列表可以看 [ConeShare AI Agents 配置指南](/zh/agents)。如果要部署到自己的服务器，访问 [github.com/coneshare/coneshare](https://github.com/coneshare/coneshare) 按文档安装启动，保存的 AI 对话记录和 MCP 请求都会留在你自己的基础设施里。
+
+每天本来就要在几个 AI 助手之间来回切换的话，把有用的对话统一落到一个地方，比事后在四五个侧边栏里翻历史记录省心不少。

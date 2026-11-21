@@ -1,0 +1,110 @@
+export const metadata = {
+  title: 'ConeShare Datarooms: Overview and Practical Guide',
+  description:
+    'Learn how ConeShare virtual datarooms work, when to use one to share multiple documents, and when personal workspace folders are all you need.',
+  date: '2026-11-21',
+  category: 'Guides',
+  tags: [
+    'Datarooms',
+    'Virtual Data Room',
+    'Document Security',
+    'Secure Sharing',
+    'Collaboration',
+  ],
+};
+
+A common question when getting started with ConeShare is simple: your personal document library already has folders, so why create a dataroom at all?
+
+The quickest way to decide is to look at what you are doing with the files. Personal folders organize your own library. A dataroom groups multiple documents and folders into one workspace you can share externally or manage with a team.
+
+This guide covers when to use a dataroom, when personal folders are enough, and how to set up a dataroom in four steps.
+
+---
+
+## Datarooms vs. personal folders: when to use each
+
+In ConeShare, your personal document library and datarooms serve different jobs. One does not replace the other.
+
+### When you do not need a dataroom (personal folders are enough)
+
+Stick with personal workspace folders when your work falls into these cases:
+
+- You are filing documents for yourself, such as contract templates, reference PDFs, invoices, or Markdown AI chat notes saved through [ConeShare Remote MCP](/blog/centralize-ai-conversations-across-tools-coneshare-mcp). A few nested folders are faster to maintain when no external portal is needed.
+- You only need to share a single file, such as a product one-pager, price sheet, or pitch deck. A single-document share link already supports passwords, email verification, expiration dates, dynamic watermarks, and page-by-page analytics. Creating a dataroom for one file adds unnecessary setup.
+- You are staging internal files imported from Google Drive, Dropbox, or Nextcloud, or collecting client attachments through a file request before sorting them.
+
+### When you should use a dataroom (sharing multiple documents and collaborating)
+
+Personal folders fall short once a project requires sharing several files together or setting different rules for different recipients:
+
+- You want to deliver a full set of documents and subfolders through one link. For fundraising due diligence, RFPs, client handoffs, or legal matter files, recipients open a single portal with breadcrumbs, filename filtering, and featured resources instead of digging through a dozen separate links.
+- Different audiences need different permissions for the same files. Early-stage investors might only see an overview folder with downloads disabled and watermarks on, while diligence teams can open financial and legal subfolders and download selected files. Instead of duplicating files, you create separate share links on the same dataroom and set visibility, download, and watermark rules per link.
+- Multiple teammates need to maintain the shared materials. Datarooms store files in an organization-level space with their own storage quota. You can invite collaborators to upload files and manage folders together without exposing anything in your personal library.
+- You want a branded portal, whole-room downloads, or document Q&A. Each dataroom supports custom banners (single image or carousel), a room-specific logo, optional file index numbers, a built-in Q&A tab, and one-click ZIP downloads for visitors who have download access.
+
+### Quick comparison
+
+| Dimension | Personal folders | Datarooms |
+| :--- | :--- | :--- |
+| Primary purpose | Organizing your personal file tree | Multi-document sharing and collaboration for a project or deal |
+| Sharing model | One share link per individual file | One or more share links covering the entire room and its subfolders |
+| Granular permissions | Controls per document link | Per-link visibility, download, and watermark rules on every folder and file |
+| Team collaboration | Tied to your personal workspace | Invite collaborators and transfer room ownership when leads change |
+| Storage quota | Counts toward personal storage quota | Direct uploads count only against the dataroom's storage quota |
+| Viewer experience | Single-document viewer | Branded portal with banners, featured items, folder navigation, and ZIP download |
+
+---
+
+## Step-by-step guide: sharing multiple documents with a dataroom
+
+### Step 1: Create a dataroom and add content
+
+Open **Datarooms** in the left sidebar and create a new room (for example, `Project Atlas - Due Diligence`). You can populate it in two ways:
+
+- Drag and drop local files or entire folders directly into the room, or click **Upload**. Direct uploads count toward the dataroom's quota rather than your personal account quota.
+- Click **Add Content** to link documents that already live in your personal library. The underlying file stays in one place, while inside the dataroom you can give it a project-specific display name, reorder items, or place it into room-specific subfolders.
+
+Star the most important files, such as your main deck or summary sheet, so they appear in the **Featured Resources** section at the top of the visitor portal.
+
+![Organizing folders and documents inside a ConeShare dataroom](/screenshots/feat-vdr-add-content.png)
+
+### Step 2: Configure branding and room settings
+
+Open the **Settings** tab to adjust how the external portal looks and behaves:
+
+- Choose a single banner, a multi-image banner carousel, or no banner, and upload a room-specific logo if the project needs its own branding.
+- Toggle file index numbers (`01`, `#01`) on or off depending on whether you want to guide visitors through a numbered reading order, and enable the Q&A panel if viewers should be able to ask questions directly on documents.
+
+Once configured, visitors see a structured portal with your banner, featured documents, folder cards, and file list:
+
+![External dataroom portal view with banner, featured resources, folder cards, and download button](/screenshots/feat-vdr-viewer.png)
+
+### Step 3: Create share links for each audience and set item permissions
+
+Switch to the **Share Links** tab and create separate links per recipient group, such as:
+
+- `Initial Pitch`: require email verification and a password, turn on dynamic watermarks, show only the overview folder, and turn off downloads.
+- `DD Team - Fund A`: require email verification and an NDA, expose all folders, and allow downloads on selected files.
+
+From any link's action menu, click **Manage Permissions** to set **Visible**, **Download**, and **Watermark** checkboxes per folder (applied recursively to nested items) or per individual file for that link alone.
+
+![Managing per-item visibility, download, and watermark permissions for a dataroom share link](/screenshots/feat-vdr-manage-perm.png)
+
+### Step 4: Track visits, downloads, and Q&A
+
+Back on the **Share Links** tab, you can monitor room-wide totals and inspect individual links:
+
+- Under **View Sessions**, see who opened which link, which folders and files they viewed, how long they stayed, and whether they downloaded individual files or the whole room.
+- Under the **Q&A** tab, review and reply to questions visitors leave on specific documents so discussions stay tied to the files instead of getting buried in email threads.
+
+![Managing multiple dataroom share links and viewing visitor session activity](/screenshots/feat-vdr-multi-link.png)
+
+---
+
+## Practical workflow tips
+
+You do not need to start every project in a dataroom. A practical workflow is:
+
+1. Keep drafts, working files, and standalone notes in personal folders. That includes PDFs, meeting notes, and Markdown research saved from ChatGPT, Claude, or Gemini via ConeShare Remote MCP.
+2. When you only need to send one document, create a share link directly on that file.
+3. Once you are ready to deliver a group of files to clients, investors, or partners, or when teammates need to co-manage the folder tree, create a dataroom, attach or upload the materials, and issue separate permissioned links for each audience.

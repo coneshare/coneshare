@@ -5,10 +5,10 @@ import { usePathname } from 'next/navigation';
 import { features } from '../lib/content';
 import { getAlternateLocalePath } from '../lib/i18n';
 
-export function Footer({ locale }) {
+export function Footer({ locale, translatedBlogSlugs = [] }) {
   const pathname = usePathname();
   const isZh = locale === 'zh' || (locale ? false : pathname?.startsWith('/zh'));
-  const altHref = getAlternateLocalePath(pathname, isZh);
+  const altHref = getAlternateLocalePath(pathname, isZh, { translatedBlogSlugs });
 
   const footerSections = [
     {
@@ -37,7 +37,7 @@ export function Footer({ locale }) {
     {
       title: isZh ? '资源' : 'Resources',
       links: [
-        { label: isZh ? '博客' : 'Blog', href: '/blog' },
+        { label: isZh ? '博客' : 'Blog', href: isZh ? '/zh/blog' : '/blog' },
         { label: isZh ? '发布说明' : 'Release Notes', href: 'https://docs.coneshare.com/en/release-notes/', external: true },
         { label: isZh ? '社区论坛' : 'Community Forum', href: 'https://github.com/orgs/coneshare/discussions', external: true },
         { label: isZh ? '参与贡献' : 'Contribute', href: 'https://github.com/coneshare/coneshare', external: true },
