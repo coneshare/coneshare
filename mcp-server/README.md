@@ -5,7 +5,7 @@
 ![Coneshare Remote MCP AI Integrations](../portal/public/agent-poster.jpg)
 
 <p align="center">
-  <em>▶ <a href="https://cdn.coneshare.com/coneshare-ai-mcp-v1.mp4"><strong>Watch the Coneshare MCP &amp; AI Agents walkthrough video</strong></a></em> ·
+  <em>▶ <a href="https://assets.coneshare.com/coneshare-ai-mcp-v1.mp4"><strong>Watch the Coneshare MCP &amp; AI Agents walkthrough video</strong></a></em> ·
   <a href="https://www.coneshare.com/agents"><strong>Interactive Setup Guide</strong></a> ·
   <a href="https://docs.coneshare.com/en/mcp-server/"><strong>Docs</strong></a>
 </p>

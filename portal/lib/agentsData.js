@@ -2,7 +2,7 @@
  * Bilingual static data for `/agents` and `/zh/agents`.
  */
 
-export const DEFAULT_AGENT_VIDEO_URL = 'https://cdn.coneshare.com/coneshare-ai-mcp-v1.mp4';
+export const DEFAULT_AGENT_VIDEO_URL = 'https://assets.coneshare.com/coneshare-ai-mcp-v1.mp4';
 export const DEFAULT_AGENT_VIDEO_POSTER = '/agent-poster.jpg';
 
 const SCREENSHOTS_BY_LOCALE = {

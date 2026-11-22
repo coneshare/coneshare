@@ -18,7 +18,7 @@ Use Coneshare to share documents and videos securely: apply dynamic watermarks, 
 If you find this project useful, please consider starring the repository.
 
 <p align="center">
-  <em>▶ <a href="https://cdn.coneshare.com/coneshare-walkthrough-v1.mp4"><strong>Click here to watch the 2-minute product walkthrough video</strong></a></em>
+  <em>▶ <a href="https://assets.coneshare.com/coneshare-walkthrough-v1.mp4"><strong>Click here to watch the 2-minute product walkthrough video</strong></a></em>
 </p>
 
 ---

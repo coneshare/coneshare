@@ -83,8 +83,8 @@ export default function HomePage() {
                 </Link>
                 <VideoWalkthroughModal
                   buttonLabel="Watch Walkthrough (2 mins)"
-                  videoUrl="https://cdn.coneshare.com/coneshare-walkthrough-v1.mp4"
-                  posterUrl="https://cdn.coneshare.com/coneshare.jpg"
+                  videoUrl="https://assets.coneshare.com/coneshare-walkthrough-v1.mp4"
+                  posterUrl="https://assets.coneshare.com/coneshare.jpg"
                 />
               </div>
             </div>

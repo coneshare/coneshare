@@ -18,7 +18,7 @@ Coneshare 是 DocSend 的开源自托管替代方案，直接运行在您现有�
 如果这个项目对您有帮助，欢迎给仓库点个 Star。
 
 <p align="center">
-  <em>▶ <a href="https://cdn.coneshare.com/coneshare-walkthrough-v1.mp4"><strong>点击此处观看 2 分钟产品功能完整演示视频</strong></a></em>
+  <em>▶ <a href="https://assets.coneshare.com/coneshare-walkthrough-v1.mp4"><strong>点击此处观看 2 分钟产品功能完整演示视频</strong></a></em>
 </p>
 
 ---

@@ -79,8 +79,8 @@ export default function ZhHomePage() {
                 </Link>
                 <VideoWalkthroughModal
                   buttonLabel="观看 2 分钟演示视频"
-                  videoUrl="https://cdn.coneshare.com/coneshare-walkthrough-v1.mp4"
-                  posterUrl="https://cdn.coneshare.com/coneshare.jpg"
+                  videoUrl="https://assets.coneshare.com/coneshare-walkthrough-v1.mp4"
+                  posterUrl="https://assets.coneshare.com/coneshare.jpg"
                 />
               </div>
             </div>

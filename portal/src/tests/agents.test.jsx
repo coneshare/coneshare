@@ -106,7 +106,7 @@ describe('/agents page & components', () => {
     const { container } = render(<AgentVideoShowcase />);
 
     const videoEl = container.querySelector('video');
-    expect(DEFAULT_AGENT_VIDEO_URL).toBe('https://cdn.coneshare.com/coneshare-ai-mcp-v1.mp4');
+    expect(DEFAULT_AGENT_VIDEO_URL).toBe('https://assets.coneshare.com/coneshare-ai-mcp-v1.mp4');
     expect(DEFAULT_AGENT_VIDEO_POSTER).toBe('/agent-poster.jpg');
     expect(videoEl).toHaveAttribute('src', DEFAULT_AGENT_VIDEO_URL);
     expect(videoEl).toHaveAttribute('poster', DEFAULT_AGENT_VIDEO_POSTER);

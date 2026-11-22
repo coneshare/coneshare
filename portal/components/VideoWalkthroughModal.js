@@ -4,8 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, X } from 'lucide-react';
 
 export function VideoWalkthroughModal({
-  videoUrl = 'https://cdn.coneshare.com/coneshare-walkthrough-v1.mp4',
-  posterUrl = 'https://cdn.coneshare.com/coneshare.jpg',
+  videoUrl = 'https://assets.coneshare.com/coneshare-walkthrough-v1.mp4',
+  posterUrl = 'https://assets.coneshare.com/coneshare.jpg',
   buttonLabel = 'Watch Walkthrough (2 mins)',
   className = '',
 }) {
