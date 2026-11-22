@@ -63,16 +63,42 @@ describe('Header & Footer Localization', () => {
       expect(vdrLinks.some((link) => link.getAttribute('href') === '/zh/virtual-dataroom')).toBe(true);
     });
 
-    it('constrains and enables vertical scrolling inside mobile menu when open', () => {
+    it('overlays mobile menu out of flow with scrolling, single About link, and Escape/outside-click dismiss', () => {
       mockPathname = '/';
-      render(<Header />);
+      render(
+        <div>
+          <Header />
+          <div data-testid="outside">Outside</div>
+        </div>
+      );
 
       const menuBtn = screen.getByRole('button', { name: /Open main menu/i });
       fireEvent.click(menuBtn);
 
       const mobileMenu = document.getElementById('mobile-menu');
       expect(mobileMenu).toBeInTheDocument();
-      expect(mobileMenu).toHaveClass('max-h-[calc(100dvh-4rem)]', 'overflow-y-auto', 'overscroll-contain');
+      expect(mobileMenu).toHaveClass(
+        'absolute',
+        'inset-x-0',
+        'top-full',
+        'max-h-[calc(100dvh-4rem)]',
+        'overflow-y-auto',
+        'overscroll-contain'
+      );
+
+      const aboutLinks = Array.from(mobileMenu.querySelectorAll('a')).filter(
+        (link) => link.getAttribute('href') === '/about'
+      );
+      expect(aboutLinks).toHaveLength(1);
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(document.getElementById('mobile-menu')).not.toBeInTheDocument();
+
+      fireEvent.click(menuBtn);
+      expect(document.getElementById('mobile-menu')).toBeInTheDocument();
+
+      fireEvent.mouseDown(screen.getByTestId('outside'));
+      expect(document.getElementById('mobile-menu')).not.toBeInTheDocument();
     });
   });
 

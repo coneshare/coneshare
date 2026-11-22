@@ -178,10 +178,36 @@ export function Header({ locale }) {
   const pathname = usePathname();
   const isZh = locale === 'zh' || (locale ? false : pathname?.startsWith('/zh'));
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const headerRef = useRef(null);
   const resourceMenuItems = getResourceMenuItems(isZh);
 
+  useEffect(() => {
+    if (!isMobileMenuOpen) {
+      return undefined;
+    }
+
+    const handleMouseDown = (event) => {
+      if (headerRef.current && !headerRef.current.contains(event.target)) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMobileMenuOpen]);
+
   return (
-    <header className="bg-white shadow-sm sticky top-0 z-20">
+    <header ref={headerRef} className="bg-white shadow-sm sticky top-0 z-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
@@ -263,10 +289,10 @@ export function Header({ locale }) {
       {/* Mobile Menu Panel */}
       {isMobileMenuOpen && (
         <div
-          className="md:hidden bg-white shadow-lg border-t border-gray-100 max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain"
+          className="md:hidden absolute inset-x-0 top-full bg-white shadow-lg border-t border-gray-100 max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain"
           id="mobile-menu"
         >
-          <div className="space-y-4 px-4 pb-4 pt-4">
+          <div className="space-y-4 px-4 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
             <div>
               <Link
                 href={isZh ? '/zh/virtual-dataroom' : '/virtual-dataroom'}
@@ -331,13 +357,6 @@ export function Header({ locale }) {
                 className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
               >
                 {isZh ? '博客' : 'Blog'}
-              </Link>
-              <Link
-                href={isZh ? '/zh/about' : '/about'}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-              >
-                {isZh ? '关于我们' : 'About'}
               </Link>
             </div>
             <div className="border-t border-gray-200 pt-4">

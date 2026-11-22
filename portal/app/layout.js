@@ -3,6 +3,8 @@ import Script from 'next/script';
 import './globals.css';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
+import { NavigationProgress } from '../components/NavigationProgress';
+import { PageTransition } from '../components/PageTransition';
 import { getBilingualBlogSlugs } from '../lib/blog';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -47,8 +49,9 @@ export default async function RootLayout({ children }) {
           `}
         </Script>
         <div className="flex min-h-screen flex-col">
+          <NavigationProgress />
           <Header />
-          <main className="flex-grow">{children}</main>
+          <PageTransition className="flex-grow">{children}</PageTransition>
           <Footer translatedBlogSlugs={translatedBlogSlugs} />
         </div>
       </body>
