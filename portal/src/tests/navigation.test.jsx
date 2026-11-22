@@ -100,6 +100,91 @@ describe('Header & Footer Localization', () => {
       fireEvent.mouseDown(screen.getByTestId('outside'));
       expect(document.getElementById('mobile-menu')).not.toBeInTheDocument();
     });
+
+    it('highlights active routes without persistent underline and shows underline on hover/open', () => {
+      mockPathname = '/pricing';
+      const { rerender } = render(<Header />);
+
+      const pricingLink = screen.getByRole('link', { name: 'Pricing' });
+      const blogLink = screen.getByRole('link', { name: 'Blog' });
+      expect(pricingLink).toHaveAttribute('aria-current', 'page');
+      expect(pricingLink).toHaveClass('text-gray-900', 'font-semibold');
+      expect(pricingLink.querySelector('span[aria-hidden="true"]')).toHaveClass(
+        'scale-x-0',
+        'group-hover:scale-x-100'
+      );
+      expect(blogLink).not.toHaveAttribute('aria-current');
+      expect(blogLink).toHaveClass('text-gray-500', 'font-medium');
+      expect(blogLink.querySelector('span[aria-hidden="true"]')).toHaveClass(
+        'scale-x-0',
+        'group-hover:scale-x-100'
+      );
+
+      mockPathname = '/zh/blog/some-post';
+      rerender(<Header />);
+      const zhBlogLink = screen.getByRole('link', { name: '博客' });
+      expect(zhBlogLink).toHaveAttribute('aria-current', 'page');
+      expect(zhBlogLink).toHaveClass('text-gray-900', 'font-semibold');
+      expect(zhBlogLink.querySelector('span[aria-hidden="true"]')).toHaveClass('scale-x-0');
+
+      mockPathname = '/features/dynamic-watermarking';
+      rerender(<Header />);
+      const featuresBtn = screen.getByRole('button', { name: /Features/i });
+      expect(featuresBtn).toHaveClass('text-gray-900', 'font-semibold');
+      expect(featuresBtn.querySelector('svg')).not.toHaveClass('rotate-180');
+      expect(featuresBtn.querySelector('span[aria-hidden="true"]')).toHaveClass('scale-x-0');
+
+      fireEvent.click(featuresBtn);
+      expect(featuresBtn.querySelector('svg')).toHaveClass('rotate-180');
+      expect(featuresBtn.querySelector('span[aria-hidden="true"]')).toHaveClass('scale-x-100');
+      const activeFeatureItem = screen.getByRole('link', { name: /Watermarking/i });
+      expect(activeFeatureItem).toHaveAttribute('aria-current', 'page');
+      expect(activeFeatureItem).toHaveClass('bg-gray-100', 'text-gray-900');
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(featuresBtn.querySelector('svg')).not.toHaveClass('rotate-180');
+      expect(featuresBtn.querySelector('span[aria-hidden="true"]')).toHaveClass('scale-x-0');
+
+      mockPathname = '/demo';
+      rerender(<Header />);
+      const demoLink = screen.getByRole('link', { name: 'Live Demo' });
+      expect(demoLink).toHaveAttribute('aria-current', 'page');
+      expect(demoLink).toHaveClass('border-gray-900', 'bg-gray-100');
+
+      fireEvent.click(screen.getByRole('button', { name: /Open main menu/i }));
+      const mobileMenu = document.getElementById('mobile-menu');
+      const mobileDemoLink = Array.from(mobileMenu.querySelectorAll('a')).find(
+        (link) => link.getAttribute('href') === '/demo'
+      );
+      expect(mobileDemoLink).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('closes HeaderDropdown on Tab blur, restores focus on Escape, and preserves font-medium weight on open', () => {
+      mockPathname = '/pricing';
+      render(<Header />);
+
+      const resourcesBtn = screen.getByRole('button', { name: /Resources/i });
+      expect(resourcesBtn).toHaveClass('font-medium', 'text-gray-500');
+
+      fireEvent.click(resourcesBtn);
+      expect(resourcesBtn).toHaveClass('font-medium', 'text-gray-900');
+      expect(resourcesBtn).not.toHaveClass('font-semibold');
+
+      const aboutLink = screen.getByRole('link', { name: 'About' });
+      aboutLink.focus();
+      expect(aboutLink).toHaveFocus();
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(resourcesBtn.querySelector('svg')).not.toHaveClass('rotate-180');
+      expect(resourcesBtn).toHaveFocus();
+
+      fireEvent.click(resourcesBtn);
+      expect(resourcesBtn.querySelector('svg')).toHaveClass('rotate-180');
+
+      const demoLink = screen.getByRole('link', { name: 'Live Demo' });
+      fireEvent.blur(resourcesBtn, { relatedTarget: demoLink });
+      expect(resourcesBtn.querySelector('svg')).not.toHaveClass('rotate-180');
+    });
   });
 
   describe('Footer Component', () => {
