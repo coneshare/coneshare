@@ -7,9 +7,12 @@ const withMDX = createMDX({
   },
 });
 
+const assetPrefix = (process.env.NEXT_PUBLIC_ASSET_PREFIX || '').trim().replace(/\/+$/, '');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
+  ...(assetPrefix ? { assetPrefix } : {}),
   images: {
     unoptimized: true,
   },
