@@ -12,7 +12,9 @@ vi.mock('next/link', () => ({
 
 describe('/zh/pricing PricingContent', () => {
   it('renders Community, Pro, and Enterprise tiers without billing toggle or Most Popular badge', () => {
-    render(<PricingContent />);
+    const { container } = render(<PricingContent />);
+
+    expect(container.querySelector('[style*="radial-gradient"]')).toBeNull();
 
     expect(screen.getByRole('heading', { name: 'Community' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Pro' })).toBeInTheDocument();

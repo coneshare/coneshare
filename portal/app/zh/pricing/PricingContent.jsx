@@ -158,18 +158,7 @@ export function PricingContent() {
   return (
     <div className="bg-white">
       {/* Hero Section */}
-      <div className="relative isolate px-6 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:px-8">
-        <div
-          className="absolute inset-0 -z-10"
-          style={{
-            backgroundImage:
-              'radial-gradient(circle at 1px 1px, #d1d5db 1px, transparent 0)',
-            backgroundSize: '20px 20px',
-            maskImage: 'linear-gradient(to bottom, white, transparent)',
-          }}
-          aria-hidden="true"
-        />
-
+      <div className="px-6 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:px-8">
         <div className="mx-auto max-w-4xl text-center">
           <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
             方案与定价

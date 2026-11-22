@@ -1,12 +1,20 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Shield, Eye, Zap, Palette, Folder, MessageSquare, CheckCircle, ArrowRight, Link2 } from 'lucide-react';
-import { DataroomMockupCarousel } from '../../../components/DataroomMockupCarousel';
+import {
+  Briefcase,
+  Scale,
+  ClipboardCheck,
+  TrendingUp,
+  CheckCircle,
+  ArrowRight,
+} from 'lucide-react';
+import { DataroomWorkflowShowcase } from '../../../components/DataroomWorkflowShowcase';
+import { ZoomableImage } from '../../../components/ZoomableImage';
 
 export const metadata = {
   title: '安全私有化虚拟资料室 (VDR) | Coneshare',
   description:
-    '无需迁移现有网盘文件，直接将企业的 Nextcloud 或本地存储升级为合规虚拟资料室。支持多买方一室多链分权、买方隔离尽调 Q&A 与逐页阅读追踪，数据 100% 留在自有服务器。',
+    '无需迁移现有网盘文件，直接将企业的 Nextcloud 或本地存储升级为安全私有化虚拟资料室。支持一室多链分权、隔离文档问答与逐页阅读追踪，数据 100% 留在自有服务器。',
   keywords: [
     '虚拟资料室',
     '私有化资料室',
@@ -14,6 +22,7 @@ export const metadata = {
     '安全文档分享',
     'DocSend 替代品',
     '资料室追踪',
+    '客户交付门户',
   ],
   alternates: {
     canonical: '/zh/virtual-dataroom',
@@ -21,6 +30,33 @@ export const metadata = {
 };
 
 export default function ZhVirtualDataroomPage() {
+  const useCases = [
+    {
+      name: '大客户交付与售前空间',
+      description:
+        '将方案书、报价单、安全合规包与合同草案聚合成专属品牌空间，精准掌握决策人阅读进度。',
+      icon: Briefcase,
+    },
+    {
+      name: '法务合规与董事会治理',
+      description:
+        '向董事会成员、外部律师或合作机构定向分发会议材料、知识产权文档与保密协议，支持邮箱验证与动态水印。',
+      icon: Scale,
+    },
+    {
+      name: '外部审计与供应商评审',
+      description:
+        '向审计机构、监管检查方或供应链伙伴开放受控材料目录，无需导出复制多份文件即可完成核验与问答。',
+      icon: ClipboardCheck,
+    },
+    {
+      name: '投融资与并购尽调',
+      description:
+        '用同一份底层目录同时对接多家投资机构或合作方，按链接隔离目录可见范围与加密 Q&A 记录。',
+      icon: TrendingUp,
+    },
+  ];
+
   const steps = [
     {
       number: '01',
@@ -40,36 +76,15 @@ export default function ZhVirtualDataroomPage() {
       number: '03',
       title: '逐页深度分析访客行为',
       description:
-        '无需再靠猜测判断商业计划书是否被认真审阅。实时追踪访问人次、重访记录、下载动作、逐页停留秒数以及视频观看分段（包含静音状态与播放倍速）。',
+        '无需再靠猜测判断外部合作方是否认真审阅材料。实时追踪访问人次、重访记录、下载动作、逐页停留秒数以及视频观看分段（包含静音状态与播放倍速）。',
       image: '/screenshots/feat-analytics.png',
     },
     {
       number: '04',
       title: '即时触发下游协同工作流',
       description:
-        '不错过任何关键成交信号。当投资人重访资料室或大客户下载合同草案时，系统通过企业微信、飞书、钉钉或 Slack 实时推送消息卡片，并支持通过 Webhook 自动触发 CRM 跟进流程。',
+        '不错过任何关键协作信号。当外部联系人重访资料室或客户下载合同草案时，系统通过企业微信、飞书、钉钉或 Slack 实时推送消息卡片，并支持通过 Webhook 自动触发 CRM 或审批流程。',
       image: '/screenshots/feat-automations.png',
-    },
-  ];
-
-  const corePillars = [
-    {
-      name: '一室多链，买方独立分权',
-      description:
-        '无需为不同对象重复建库。同一资料室可生成多条专属链接，分别为法务、采购或不同竞标方独立配置可见文件夹、访问密码与下载权限。',
-      icon: Link2,
-    },
-    {
-      name: '买方隔离尽调问答 (Q&A)',
-      description:
-        '查阅者可在具体文档旁直接发起提问，告别零散的邮件与 Excel 来回传递；不同买方的提问严格隔离、互不可见，完整留存合规问答记录。',
-      icon: MessageSquare,
-    },
-    {
-      name: '专属品牌视觉定制',
-      description:
-        '支持自定义资料室顶部横幅 Banner、企业 Logo、主题配色与专属域名，在每一次对外交付中展现专业统一的品牌形象。',
-      icon: Palette,
     },
   ];
 
@@ -83,8 +98,8 @@ export default function ZhVirtualDataroomPage() {
       a: '完全支持。一旦对某个分享链接或单个文件启用水印，Coneshare 会在在线渲染页面和生成的 PDF 文件中平铺动态水印，包含查阅者的验证邮箱、IP 与访问时间戳，有力震慑未经授权的截屏与翻拍传播。',
     },
     {
-      q: '资料室内的尽调问答 (Q&A) 是如何运作的？',
-      a: 'Coneshare 允许资料室管理员在分享链接上开启安全问答模块。外部查阅者可以直接对具体文件提问，管理员在统一控制台内集中分配与回复，告别零散混乱的邮件往来。各个链接的问答相互隔离，不同买家彼此完全不可见。',
+      q: '资料室内的文档问答 (Q&A) 是如何运作的？',
+      a: 'Coneshare 允许管理员在任意分享链接上开启安全问答模块。外部查阅者可以直接对具体文件提问，团队在统一后台集中分配与回复，告别零散混乱的邮件往来。各个链接的问答相互隔离，外部各方彼此完全不可见。',
     },
     {
       q: '私有化部署 Coneshare 难度大吗？',
@@ -112,47 +127,61 @@ export default function ZhVirtualDataroomPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
       <div className="bg-white">
-        {/* Hero Section */}
-        <div className="relative isolate px-6 pt-16 lg:px-8">
-          <div
-            className="absolute inset-0 -z-10"
-            style={{
-              backgroundImage: 'radial-gradient(circle at 1px 1px, #e5e7eb 1px, transparent 0)',
-              backgroundSize: '24px 24px',
-              maskImage: 'linear-gradient(to bottom, white, transparent)',
-            }}
-            aria-hidden="true"
-          />
-          <div className="mx-auto max-w-4xl py-20 sm:py-28 text-center">
-            <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
-              数据自主掌控的企业级私有化资料室 (VDR)
-            </h1>
-            <p className="mt-6 text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
-              无需迁移现有网盘文件，直接将企业的 Nextcloud 或本地存储升级为合规虚拟资料室。支持多买方一室多链分权、买方隔离尽调 Q&amp;A 与逐页阅读追踪，数据 100% 留在自有服务器。
-            </p>
-            <div className="mt-10 flex items-center justify-center gap-x-6">
-              <Link
-                href="/demo"
-                className="rounded-md bg-gray-900 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
-              >
-                查看在线演示
-              </Link>
-              <a
-                href="https://github.com/coneshare/coneshare"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700 flex items-center gap-1"
-              >
-                前往 GitHub 源码 <span aria-hidden="true">→</span>
-              </a>
+        {/* Split Hero Section */}
+        <section className="border-b border-gray-100 bg-gradient-to-b from-gray-50/80 via-white to-white">
+          <div className="mx-auto max-w-7xl px-6 py-14 sm:py-20 lg:px-8">
+            <div className="grid gap-10 lg:grid-cols-12 lg:items-center lg:gap-12">
+              <div className="lg:col-span-5 text-left">
+                <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-5xl sm:leading-[1.15]">
+                  企业级安全资料室，数据完全自主掌控
+                </h1>
+                <p className="mt-5 text-base leading-7 text-gray-600 sm:text-lg">
+                  不限资料室数量与访客人数，以远低于传统 VDR 的成本获得全套安全管控。无论是客户提案交付、合规审计、董事会文件还是融资尽调，文件无需迁移出原有存储，一套工具搞定安全协作与权限追踪。
+                </p>
+                <div className="mt-8 flex flex-wrap items-center gap-4">
+                  <Link
+                    href="/demo"
+                    className="rounded-md bg-gray-900 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
+                  >
+                    查看在线演示
+                  </Link>
+                  <a
+                    href="https://github.com/coneshare/coneshare"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-md border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 inline-flex items-center gap-1.5"
+                  >
+                    前往 GitHub 源码 <span aria-hidden="true">→</span>
+                  </a>
+                </div>
+              </div>
+
+              <div className="lg:col-span-7">
+                <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+                  <ZoomableImage
+                    src="/screenshots/feat-vdr-multi-link.png"
+                    alt="ConeShare 虚拟资料室一室多链管理与访客会话统计界面"
+                    width={1440}
+                    height={900}
+                    className="w-full h-auto object-contain"
+                  />
+                </div>
+              </div>
             </div>
           </div>
+        </section>
 
-          {/* Floating Mockup Browser Window Carousel */}
-          <div className="mx-auto max-w-5xl px-6 lg:px-8 pb-16">
-            <DataroomMockupCarousel locale="zh" />
+        {/* Interactive VDR Workflow Showcase */}
+        <section className="bg-gray-50/50 border-b border-gray-100 py-16 sm:py-20">
+          <div className="mx-auto max-w-5xl px-6 lg:px-8">
+            <div className="mx-auto max-w-2xl text-center mb-10">
+              <h2 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+                精细分权、隔离问答、品牌门户与审计追踪合一
+              </h2>
+            </div>
+            <DataroomWorkflowShowcase locale="zh" />
           </div>
-        </div>
+        </section>
 
         {/* Trust & Integrations Bar */}
         <div className="bg-gray-50 border-y border-gray-100 py-10">
@@ -170,6 +199,32 @@ export default function ZhVirtualDataroomPage() {
           </div>
         </div>
 
+        {/* General-Purpose Use Cases Section */}
+        <section className="mx-auto max-w-5xl px-6 lg:px-8 py-16 sm:py-20 border-b border-gray-100">
+          <div className="mx-auto max-w-2xl text-center mb-12">
+            <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+              一套资料室，覆盖各类高敏感对外文件协作
+            </h2>
+            <p className="mt-4 text-base text-gray-600">
+              从售前交付、法务合规到财务审计与投融资，在不同对外协作场景中统一实现权限隔离、水印防泄密与行为追溯。
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {useCases.map((item) => (
+              <div
+                key={item.name}
+                className="flex flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+              >
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-gray-900 text-white">
+                  <item.icon className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <h3 className="text-base font-semibold text-gray-900">{item.name}</h3>
+                <p className="mt-2 text-sm leading-6 text-gray-600">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* What is VDR & Why Coneshare Section */}
         <div className="mx-auto max-w-5xl px-6 lg:px-8 py-20 border-b border-gray-150">
           <div className="grid gap-16 lg:grid-cols-2">
@@ -179,10 +234,10 @@ export default function ZhVirtualDataroomPage() {
                 什么是虚拟资料室 (VDR)？
               </h2>
               <p className="mt-6 text-base leading-7 text-gray-600">
-                虚拟资料室（Virtual Data Room，简称 VDR）是专为投融资尽调、并购重组及大客户招投标打造的高安全级资料库。
+                虚拟资料室（Virtual Data Room，简称 VDR）是面向外部组织协作的高安全级文档空间，广泛用于大客户交付与售前方案、法务与董事会材料分发、外部审计核验、合作伙伴赋能及投融资尽调等场景。
               </p>
               <p className="mt-4 text-base leading-7 text-gray-600">
-                相比“发出即失联”的普通网盘链接，VDR 支持为不同交易方按目录精细分权、强制签署前置 NDA、叠加防拍照动态水印，并实时追踪每位访客的逐页阅读时长，让机密资料外发后依然全程受控。
+                相比“发出即失联”的普通网盘链接，VDR 支持按不同外部协作方精细配置目录权限、前置 NDA 签署、叠加防拍照动态水印、按链接隔离文档问答，并实时追踪每位访客的逐页阅读时长，让机密资料外发后依然全程受控。
               </p>
             </div>
 
@@ -219,7 +274,7 @@ export default function ZhVirtualDataroomPage() {
         </div>
 
         {/* Step-by-Step Value Flow */}
-        <div className="py-20 sm:py-28 space-y-24 sm:space-y-36">
+        <div className="border-b border-gray-100 py-20 sm:py-28 space-y-24 sm:space-y-36">
           <div className="mx-auto max-w-4xl px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
               四步轻松实现对外文档安全管控
@@ -255,31 +310,6 @@ export default function ZhVirtualDataroomPage() {
           ))}
         </div>
 
-        {/* Core VDR Features Pillars */}
-        <div className="bg-gray-50 border-y border-gray-100 py-16 sm:py-24">
-          <div className="mx-auto max-w-5xl px-6 lg:px-8">
-            <div className="mx-auto max-w-3xl text-center mb-16">
-              <h2 className="text-3xl font-bold tracking-tight text-gray-900">
-                专为高价值商务协同而打造
-              </h2>
-              <p className="mt-4 text-base text-gray-600">
-                除基础链接分享外，Coneshare 为团队提供功能完善的专业级虚拟资料室工具。
-              </p>
-            </div>
-            <div className="grid max-w-md grid-cols-1 gap-8 sm:max-w-none sm:grid-cols-3">
-              {corePillars.map((pillar) => (
-                <div key={pillar.name} className="flex flex-col bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-900 text-white mb-6">
-                    <pillar.icon className="h-5 w-5" />
-                  </div>
-                  <h3 className="text-base font-semibold leading-7 text-gray-900">{pillar.name}</h3>
-                  <p className="mt-2 text-sm leading-6 text-gray-600 flex-grow">{pillar.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
         {/* Comparison Section */}
         <div className="mx-auto max-w-5xl px-6 lg:px-8 py-16 sm:py-24">
           <h2 className="text-3xl font-bold tracking-tight text-gray-900 text-center">Coneshare 与商业 SaaS 方案对比</h2>
@@ -309,8 +339,8 @@ export default function ZhVirtualDataroomPage() {
                 </tr>
                 <tr>
                   <td className="px-6 py-4 font-medium">资料室权限管控</td>
-                  <td className="px-6 py-4">单资料室支持多条独立专属链接，按买方动态隔离可见目录、独立密码与内嵌加密 Q&amp;A</td>
-                  <td className="px-6 py-4">仅支持基础文件夹聚合；不同买方若需不同目录权限需克隆多个空间，且无内嵌尽调 Q&amp;A 板块</td>
+                  <td className="px-6 py-4">单资料室支持多条独立专属链接，按接收方动态隔离可见目录、独立密码与内嵌加密 Q&amp;A</td>
+                  <td className="px-6 py-4">仅支持基础文件夹聚合；不同对象若需不同目录权限需克隆多个空间，且无内嵌文档 Q&amp;A 板块</td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 font-medium">阅读行为深度分析</td>

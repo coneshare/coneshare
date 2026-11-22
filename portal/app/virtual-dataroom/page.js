@@ -1,12 +1,20 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Shield, Eye, Zap, Palette, Folder, MessageSquare, CheckCircle, ArrowRight, Link2 } from 'lucide-react';
-import { DataroomMockupCarousel } from '../../components/DataroomMockupCarousel';
+import {
+  Briefcase,
+  Scale,
+  ClipboardCheck,
+  TrendingUp,
+  CheckCircle,
+  ArrowRight,
+} from 'lucide-react';
+import { DataroomWorkflowShowcase } from '../../components/DataroomWorkflowShowcase';
+import { ZoomableImage } from '../../components/ZoomableImage';
 
 export const metadata = {
   title: 'Secure Self-Hosted Virtual Dataroom (VDR) | ConeShare',
   description:
-    'Turn your existing Nextcloud, Google Drive, Dropbox, or local storage into a secure virtual dataroom. Granular folder permissions, dynamic watermarking, diligence Q&A, and page-by-page analytics.',
+    'Turn your existing Nextcloud, Google Drive, Dropbox, or local storage into a secure virtual data room. Granular folder permissions, dynamic watermarking, private Q&A, and page-by-page analytics.',
   keywords: [
     'virtual dataroom',
     'self hosted vdr',
@@ -14,8 +22,8 @@ export const metadata = {
     'secure document sharing',
     'docsend alternative',
     'dataroom tracking',
-    'deal room',
-    'due diligence dataroom',
+    'client portal',
+    'secure external collaboration',
   ],
   alternates: {
     canonical: '/virtual-dataroom',
@@ -23,6 +31,33 @@ export const metadata = {
 };
 
 export default function VirtualDataroomPage() {
+  const useCases = [
+    {
+      name: 'Client & Sales Portals',
+      description:
+        'Bundle proposals, pricing sheets, security packets, and MSAs into one branded room and see when stakeholders review key pages.',
+      icon: Briefcase,
+    },
+    {
+      name: 'Legal & Board Governance',
+      description:
+        'Distribute board packets, IP filings, and confidential contracts with verified email gates, dynamic watermarks, and time-limited access.',
+      icon: Scale,
+    },
+    {
+      name: 'Audits & Vendor Reviews',
+      description:
+        'Share evidence libraries and compliance records with external auditors, regulators, or suppliers without copying files out of storage.',
+      icon: ClipboardCheck,
+    },
+    {
+      name: 'Fundraising & M&A',
+      description:
+        'Coordinate investor updates and multi-party diligence from a single directory, issuing isolated folder permissions and private Q&A per counterparty.',
+      icon: TrendingUp,
+    },
+  ];
+
   const steps = [
     {
       number: '01',
@@ -40,50 +75,32 @@ export default function VirtualDataroomPage() {
     },
     {
       number: '03',
-      title: 'Page-Level Analytics & Buyer Engagement',
+      title: 'Page-Level Analytics & Stakeholder Engagement',
       description:
-        'Gain complete visibility into deal dynamics. Track exact seconds spent per slide, completion rates, video playback segments, and auto-detect when links are forwarded internally to new stakeholders.',
+        'See how external stakeholders engage with your materials. Track exact seconds spent per page, completion rates, video playback segments, and internal link forwarding across teams.',
       image: '/screenshots/feat-analytics.png',
     },
     {
       number: '04',
-      title: 'Instant Deal Alerts & CRM Sync',
+      title: 'Instant Activity Alerts & Workflow Webhooks',
       description:
-        'Trigger instant notifications via Slack, Microsoft Teams, email, or outbound Webhooks whenever a prospective investor accesses the dataroom, re-reads pricing pages, or downloads contracts.',
+        'Trigger instant notifications via Slack, Microsoft Teams, email, or outbound Webhooks whenever an external partner enters the room, revisits key terms, or downloads a contract.',
       image: '/screenshots/feat-automations.png',
-    },
-  ];
-
-  const corePillars = [
-    {
-      name: 'Granular Multi-Buyer Scoping',
-      description: 'Generate multiple isolated links for a single room. Customize folder visibility, download permissions, and passwords independently per buyer.',
-      icon: Link2,
-    },
-    {
-      name: 'Confidential Diligence Q&A',
-      description: 'Encrypted document-adjacent Q&A threads where bidders submit diligence queries isolated from competing parties, preserving full audit integrity.',
-      icon: MessageSquare,
-    },
-    {
-      name: 'White-Label Deal Room Branding',
-      description: 'Custom banners, logos, and firm color schemes to present a polished, institutional diligence portal to counterparties.',
-      icon: Palette,
     },
   ];
 
   const faqs = [
     {
       q: 'How does ConeShare protect sensitive files compared to public SaaS datarooms?',
-      a: 'Conventional SaaS VDRs copy and host your confidential deal files on third-party multi-tenant servers. ConeShare operates on a self-hosted architecture that connects directly to your existing storage (Nextcloud, local filesystems, S3, Google Drive, Dropbox). High-definition previews, watermarking, and visitor analytics execute within your private infrastructure perimeter, ensuring files never leak to external vendors.',
+      a: 'Conventional SaaS VDRs copy and host your confidential files on third-party multi-tenant servers. ConeShare operates on a self-hosted architecture that connects directly to your existing storage (Nextcloud, local filesystems, S3, Google Drive, Dropbox). High-definition previews, watermarking, and visitor analytics execute within your private infrastructure perimeter, ensuring files never leak to external vendors.',
     },
     {
       q: 'Does it support dynamic PDF, Office, and video watermarking?',
       a: 'Yes. ConeShare dynamically overlays full-screen watermarks with recipient email addresses, access IPs, and timestamps across PDFs, Office documents, multi-sheet spreadsheets, and video previews, creating strong attribution and deterring screen capture or camera photos.',
     },
     {
-      q: 'How does the buyer-isolated Diligence Q&A work?',
-      a: 'ConeShare lets deal administrators enable a dedicated Q&A module on any dataroom link. Counterparties can post questions directly against specific files or folders. Each buyer cohort communicates in full isolation—competing bidders cannot see each other\'s queries, while your deal team manages responses from a centralized dashboard.',
+      q: 'How does the link-isolated Document Q&A work?',
+      a: 'ConeShare lets room administrators enable a dedicated Q&A module on any data room link. External reviewers can post questions directly against specific files or folders. Each shared link communicates in full isolation from other recipients, while your team manages replies from a centralized dashboard.',
     },
     {
       q: 'Can I self-host ConeShare in air-gapped or restricted networks?',
@@ -111,47 +128,61 @@ export default function VirtualDataroomPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
       <div className="bg-white">
-      {/* Hero Section */}
-      <div className="relative isolate px-6 pt-16 lg:px-8">
-        <div
-          className="absolute inset-0 -z-10"
-          style={{
-            backgroundImage: 'radial-gradient(circle at 1px 1px, #e5e7eb 1px, transparent 0)',
-            backgroundSize: '24px 24px',
-            maskImage: 'linear-gradient(to bottom, white, transparent)',
-          }}
-          aria-hidden="true"
-        />
-        <div className="mx-auto max-w-4xl py-20 sm:py-28 text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
-            Sovereign Virtual Dataroom (VDR) on Your Own Storage
-          </h1>
-          <p className="mt-6 text-lg leading-8 text-gray-600 max-w-2xl mx-auto">
-            Mount your Nextcloud, local NFS, or cloud storage into an institutional-grade virtual dataroom. Enforce multi-buyer link isolation, confidential diligence Q&amp;A, and page-by-page engagement telemetry without moving a single file.
-          </p>
-          <div className="mt-10 flex items-center justify-center gap-x-6">
-            <Link
-              href="/demo"
-              className="rounded-md bg-gray-900 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
-            >
-              View Live Demo
-            </Link>
-            <a
-              href="https://github.com/coneshare/coneshare"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700 flex items-center gap-1"
-            >
-              Explore GitHub <span aria-hidden="true">→</span>
-            </a>
+      {/* Split Hero Section */}
+      <section className="border-b border-gray-100 bg-gradient-to-b from-gray-50/80 via-white to-white">
+        <div className="mx-auto max-w-7xl px-6 py-14 sm:py-20 lg:px-8">
+          <div className="grid gap-10 lg:grid-cols-12 lg:items-center lg:gap-12">
+            <div className="lg:col-span-5 text-left">
+              <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-5xl sm:leading-[1.12]">
+                Secure Virtual Data Rooms You Own
+              </h1>
+              <p className="mt-5 text-base leading-7 text-gray-600 sm:text-lg">
+                Unlimited data rooms, unlimited viewers, and enterprise-grade security on your own storage, at a fraction of legacy VDR costs. Share client proposals, board packets, audits, or deal files without moving data or juggling tools.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center gap-4">
+                <Link
+                  href="/demo"
+                  className="rounded-md bg-gray-900 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
+                >
+                  View Live Demo
+                </Link>
+                <a
+                  href="https://github.com/coneshare/coneshare"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-md border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 inline-flex items-center gap-1.5"
+                >
+                  Explore GitHub <span aria-hidden="true">→</span>
+                </a>
+              </div>
+            </div>
+
+            <div className="lg:col-span-7">
+              <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+                <ZoomableImage
+                  src="/screenshots/feat-vdr-multi-link.png"
+                  alt="ConeShare dataroom multi-link management and visitor session summary"
+                  width={1440}
+                  height={900}
+                  className="w-full h-auto object-contain"
+                />
+              </div>
+            </div>
           </div>
         </div>
+      </section>
 
-        {/* Floating Mockup Browser Window Carousel */}
-        <div className="mx-auto max-w-5xl px-6 lg:px-8 pb-16">
-          <DataroomMockupCarousel />
+      {/* Interactive VDR Workflow Showcase */}
+      <section className="bg-gray-50/50 border-b border-gray-100 py-16 sm:py-20">
+        <div className="mx-auto max-w-5xl px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center mb-10">
+            <h2 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+              Access scoping, private Q&amp;A, branding, and audit logs in one room
+            </h2>
+          </div>
+          <DataroomWorkflowShowcase locale="en" />
         </div>
-      </div>
+      </section>
 
       {/* Trust & Integrations Bar */}
       <div className="bg-gray-50 border-y border-gray-100 py-10">
@@ -169,6 +200,32 @@ export default function VirtualDataroomPage() {
         </div>
       </div>
 
+      {/* General-Purpose Use Cases Section */}
+      <section className="mx-auto max-w-5xl px-6 lg:px-8 py-16 sm:py-20 border-b border-gray-100">
+        <div className="mx-auto max-w-2xl text-center mb-12">
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+            One data room for every high-trust file exchange
+          </h2>
+          <p className="mt-4 text-base text-gray-600">
+            Whether you work in sales, legal, finance, or operations, keep every shared workspace structured, access-controlled, and traceable.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {useCases.map((item) => (
+            <div
+              key={item.name}
+              className="flex flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+            >
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-gray-900 text-white">
+                <item.icon className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <h3 className="text-base font-semibold text-gray-900">{item.name}</h3>
+              <p className="mt-2 text-sm leading-6 text-gray-600">{item.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* What is VDR & Why Coneshare Section */}
       <div className="mx-auto max-w-5xl px-6 lg:px-8 py-20 border-b border-gray-150">
         <div className="grid gap-16 lg:grid-cols-2">
@@ -178,10 +235,10 @@ export default function VirtualDataroomPage() {
               What is a Virtual Dataroom (VDR)?
             </h2>
             <p className="mt-6 text-base leading-7 text-gray-600">
-              A Virtual Dataroom (VDR) is an institutional-grade, highly controlled document repository engineered for distributing high-stakes corporate files—including fundraising pitch decks, financial audits, IP assets, and M&amp;A due diligence.
+              A Virtual Dataroom (VDR) is a controlled document workspace engineered for sharing sensitive files outside your organization, from client proposals and board packets to compliance audits, vendor reviews, and fundraising.
             </p>
             <p className="mt-4 text-base leading-7 text-gray-600">
-              Unlike generic public cloud links, a true VDR provides multi-tier access gates, dynamic anti-leak watermarking, page-by-page engagement telemetry, and buyer-isolated Q&amp;A threads—giving dealmakers complete oversight after files leave their perimeter.
+              Unlike generic cloud links that lose oversight once forwarded, a true VDR provides per-recipient folder permissions, NDA gates, dynamic watermarks, link-isolated Q&amp;A threads, and page-by-page engagement telemetry without duplicating your internal files.
             </p>
           </div>
 
@@ -218,7 +275,7 @@ export default function VirtualDataroomPage() {
       </div>
 
       {/* Step-by-Step Value Flow */}
-      <div className="py-20 sm:py-28 space-y-24 sm:space-y-36">
+      <div className="border-b border-gray-100 py-20 sm:py-28 space-y-24 sm:space-y-36">
         <div className="mx-auto max-w-4xl px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
             Controlled document delivery in 4 simple steps
@@ -254,31 +311,6 @@ export default function VirtualDataroomPage() {
         ))}
       </div>
 
-      {/* Core VDR Features Pillars */}
-      <div className="bg-gray-50 border-y border-gray-100 py-16 sm:py-24">
-        <div className="mx-auto max-w-5xl px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900">
-              Built for high-stakes dealmaking and due diligence
-            </h2>
-            <p className="mt-4 text-base text-gray-600">
-              Move beyond basic file shares with purpose-built virtual dataroom infrastructure.
-            </p>
-          </div>
-          <div className="grid max-w-md grid-cols-1 gap-8 sm:max-w-none sm:grid-cols-3">
-            {corePillars.map((pillar) => (
-              <div key={pillar.name} className="flex flex-col bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-900 text-white mb-6">
-                  <pillar.icon className="h-5 w-5" />
-                </div>
-                <h3 className="text-base font-semibold leading-7 text-gray-900">{pillar.name}</h3>
-                <p className="mt-2 text-sm leading-6 text-gray-600 flex-grow">{pillar.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* Comparison Section */}
       <div className="mx-auto max-w-5xl px-6 lg:px-8 py-16 sm:py-24">
         <h2 className="text-3xl font-bold tracking-tight text-gray-900 text-center">ConeShare vs Legacy SaaS Providers</h2>
@@ -307,9 +339,9 @@ export default function VirtualDataroomPage() {
                 <td className="px-6 py-4">Public cloud sync only (Google Drive, Dropbox); cannot mount private or on-premise storage (Nextcloud/NFS)</td>
               </tr>
               <tr>
-                <td className="px-6 py-4 font-medium">Multi-Buyer Dataroom Scoping</td>
-                <td className="px-6 py-4">Single room supports multiple independent links with dynamic per-buyer folder visibility and embedded Q&amp;A</td>
-                <td className="px-6 py-4">Basic Spaces grouping only; requires cloning duplicate spaces to adjust folder permissions per buyer, with no native diligence Q&amp;A</td>
+                <td className="px-6 py-4 font-medium">Multi-Party Access Scoping</td>
+                <td className="px-6 py-4">Single room supports multiple independent links with dynamic per-recipient folder visibility and isolated Q&amp;A</td>
+                <td className="px-6 py-4">Basic Spaces grouping only; requires cloning duplicate spaces to adjust folder permissions per recipient, with no native Q&amp;A</td>
               </tr>
               <tr>
                 <td className="px-6 py-4 font-medium">Engagement Telemetry &amp; Alerts</td>
