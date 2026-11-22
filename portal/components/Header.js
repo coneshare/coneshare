@@ -262,7 +262,10 @@ export function Header({ locale }) {
 
       {/* Mobile Menu Panel */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-white shadow-lg" id="mobile-menu">
+        <div
+          className="md:hidden bg-white shadow-lg border-t border-gray-100 max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain"
+          id="mobile-menu"
+        >
           <div className="space-y-4 px-4 pb-4 pt-4">
             <div>
               <Link

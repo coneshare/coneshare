@@ -62,6 +62,18 @@ describe('Header & Footer Localization', () => {
       const vdrLinks = screen.getAllByRole('link', { name: /虚拟资料室/i });
       expect(vdrLinks.some((link) => link.getAttribute('href') === '/zh/virtual-dataroom')).toBe(true);
     });
+
+    it('constrains and enables vertical scrolling inside mobile menu when open', () => {
+      mockPathname = '/';
+      render(<Header />);
+
+      const menuBtn = screen.getByRole('button', { name: /Open main menu/i });
+      fireEvent.click(menuBtn);
+
+      const mobileMenu = document.getElementById('mobile-menu');
+      expect(mobileMenu).toBeInTheDocument();
+      expect(mobileMenu).toHaveClass('max-h-[calc(100dvh-4rem)]', 'overflow-y-auto', 'overscroll-contain');
+    });
   });
 
   describe('Footer Component', () => {
