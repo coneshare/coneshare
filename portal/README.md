@@ -11,7 +11,8 @@ Static marketing site and bilingual blog for Coneshare (`https://www.coneshare.c
 - `components/` — Shared UI and blog views (`BlogViews.js`, `BlogToc.js`, `Header.js`, `Footer.js`, etc.)
 - `lib/` — Content loaders and helpers (`blog.js`, `blog-utils.js`, `rss.js`, `i18n.js`, `content.js`)
 - `public/` — Static screenshots, posters, logos, and favicon assets
-- `scripts/upload-next-static-r2.mjs` — Zero-dependency S3 SigV4 uploader for syncing `out/_next/static/` to Cloudflare R2
+- `scripts/upload-next-static-r2.mjs` — Zero-dependency S3 SigV4 uploader for syncing `out/_next/static/` and `out/` (`site/`) to Cloudflare R2
+- `scripts/cloudfront-url-rewrite.js` — CloudFront Function (Viewer Request) mapping clean URLs (e.g. `/blog`) to `.html` files under `/site/`
 - `src/tests/` — Vitest unit test suites
 
 ## Development & Testing

@@ -4,11 +4,13 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const CONTENT_TYPES = {
+  '.html': 'text/html; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
   '.mjs': 'application/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.map': 'application/json; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8',
   '.woff2': 'font/woff2',
   '.woff': 'font/woff',
@@ -19,16 +21,33 @@ const CONTENT_TYPES = {
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
   '.ico': 'image/x-icon',
+  '.pdf': 'application/pdf',
 };
 
-const IMMUTABLE_CACHE_CONTROL = 'public, max-age=31536000, immutable';
-const DEFAULT_CONCURRENCY = 8;
+export const IMMUTABLE_CACHE_CONTROL = 'public, max-age=31536000, immutable';
+export const HTML_CACHE_CONTROL = 'public, max-age=300, must-revalidate';
+export const ASSET_CACHE_CONTROL = 'public, max-age=86400';
+
+const DEFAULT_CONCURRENCY = 16;
 const R2_REGION = 'auto';
 const S3_SERVICE = 's3';
 
 export function getContentType(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   return CONTENT_TYPES[ext] || 'application/octet-stream';
+}
+
+export function getCacheControl(objectKey) {
+  if (objectKey.startsWith('_next/static/') || objectKey.startsWith('site/_next/static/')) {
+    return IMMUTABLE_CACHE_CONTROL;
+  }
+
+  const ext = path.extname(objectKey).toLowerCase();
+  if (ext === '.html' || ext === '.xml' || ext === '.txt') {
+    return HTML_CACHE_CONTROL;
+  }
+
+  return ASSET_CACHE_CONTROL;
 }
 
 export function encodeRfc3986Segment(value) {
@@ -68,6 +87,7 @@ export function buildSignedPutHeaders({
   objectKey,
   body,
   contentType,
+  cacheControl = getCacheControl(objectKey),
   accessKeyId,
   secretAccessKey,
   now = new Date(),
@@ -115,7 +135,7 @@ export function buildSignedPutHeaders({
     url: `${parsed.origin}${canonicalUri}`,
     headers: {
       Authorization: authorization,
-      'Cache-Control': IMMUTABLE_CACHE_CONTROL,
+      'Cache-Control': cacheControl,
       'Content-Type': contentType,
       'x-amz-content-sha256': payloadHash,
       'x-amz-date': amzDate,
@@ -123,11 +143,12 @@ export function buildSignedPutHeaders({
   };
 }
 
-export function collectStaticFiles(rootDir, baseDir = rootDir) {
+export function collectStaticFiles(rootDir, baseDir = rootDir, { excludeTopDirs = [] } = {}) {
   if (!fs.existsSync(rootDir)) {
     return [];
   }
 
+  const excludedSet = new Set(excludeTopDirs);
   const entries = fs.readdirSync(rootDir, { withFileTypes: true });
   const files = [];
 
@@ -138,6 +159,9 @@ export function collectStaticFiles(rootDir, baseDir = rootDir) {
 
     const fullPath = path.join(rootDir, entry.name);
     if (entry.isDirectory()) {
+      if (rootDir === baseDir && excludedSet.has(entry.name)) {
+        continue;
+      }
       files.push(...collectStaticFiles(fullPath, baseDir));
     } else if (entry.isFile()) {
       const relativePath = path.relative(baseDir, fullPath).split(path.sep).join('/');
@@ -146,6 +170,25 @@ export function collectStaticFiles(rootDir, baseDir = rootDir) {
   }
 
   return files;
+}
+
+export function buildUploadPlan(cwd = process.cwd(), { assetPrefix = '' } = {}) {
+  const outDir = path.join(cwd, 'out');
+  const nextStaticDir = path.join(outDir, '_next', 'static');
+
+  const staticUploads = collectStaticFiles(nextStaticDir).map(({ fullPath, relativePath }) => ({
+    fullPath,
+    objectKey: `_next/static/${relativePath}`,
+  }));
+
+  const siteFiles = collectStaticFiles(outDir, outDir, {
+    excludeTopDirs: assetPrefix ? ['_next'] : [],
+  }).map(({ fullPath, relativePath }) => ({
+    fullPath,
+    objectKey: `site/${relativePath}`,
+  }));
+
+  return [...staticUploads, ...siteFiles];
 }
 
 export async function uploadNextStaticToR2({
@@ -181,24 +224,23 @@ export async function uploadNextStaticToR2({
     return { skipped: true, uploaded: 0 };
   }
 
-  const staticDir = path.join(cwd, 'out', '_next', 'static');
-  const files = collectStaticFiles(staticDir);
+  const uploadPlan = buildUploadPlan(cwd, { assetPrefix });
 
-  if (files.length === 0) {
-    throw new Error(`No static files found to upload under ${staticDir}`);
+  if (uploadPlan.length === 0) {
+    throw new Error(`No export files found to upload under ${path.join(cwd, 'out')}`);
   }
 
   let cursor = 0;
   let uploadedCount = 0;
 
   async function worker() {
-    while (cursor < files.length) {
+    while (cursor < uploadPlan.length) {
       const index = cursor;
       cursor += 1;
-      const { fullPath, relativePath } = files[index];
-      const objectKey = `_next/static/${relativePath}`;
+      const { fullPath, objectKey } = uploadPlan[index];
       const body = fs.readFileSync(fullPath);
       const contentType = getContentType(fullPath);
+      const cacheControl = getCacheControl(objectKey);
 
       const { url, headers } = buildSignedPutHeaders({
         endpointUrl,
@@ -206,6 +248,7 @@ export async function uploadNextStaticToR2({
         objectKey,
         body,
         contentType,
+        cacheControl,
         accessKeyId,
         secretAccessKey,
       });
@@ -225,10 +268,12 @@ export async function uploadNextStaticToR2({
     }
   }
 
-  const workerCount = Math.min(concurrency, files.length);
+  const workerCount = Math.min(concurrency, uploadPlan.length);
   await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
-  logger.log(`Uploaded ${uploadedCount} _next/static files to R2 bucket "${bucketName}".`);
+  logger.log(
+    `Uploaded ${uploadedCount} portal files (_next/static/ and site/) to R2 bucket "${bucketName}".`
+  );
   return { skipped: false, uploaded: uploadedCount };
 }
 
