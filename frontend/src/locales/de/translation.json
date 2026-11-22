@@ -158,7 +158,20 @@
     "qnaSubtitle": "Besuchern erlauben, über diesen Link Fragen zu stellen.",
     "qnaDisabledForDataroom": "Fragen & Antworten sind für diesen Datenraum deaktiviert.",
     "linkCreated": "Link erfolgreich erstellt.",
-    "linkUpdated": "Link erfolgreich aktualisiert."
+    "linkUpdated": "Link erfolgreich aktualisiert.",
+    "audienceLabel": "Wer darf zugreifen",
+    "audienceSubtitle": "Zugriff auf bestimmte E-Mail-Adressen oder Domains beschränken.",
+    "audienceAnyone": "Jeder mit dem Link",
+    "audienceAllowlist": "Bestimmte E-Mails oder Domains",
+    "audienceEmailsLabel": "Zulässige E-Mails oder Domains",
+    "audienceEmailsPlaceholder": "alice@company.com\n@partner.com\n*@eu.partner.com",
+    "audienceEmailsHelper": "Geben Sie eine E-Mail oder Domain pro Zeile ein (oder durch Kommas getrennt). Verwenden Sie @domain.com oder *@domain.com für eine ganze Domain.",
+    "allowlistUnverifiedWarning": "Die E-Mail-Verifizierung ist deaktiviert. Besucher können jede passende E-Mail ohne Eigentumsnachweis eingeben.",
+    "advancedSettings": "Erweiterte Einstellungen",
+    "advancedSettingsSubtitle": "Zugriffsbeschränkungen, NDA, Q&A und Wasserzeichen.",
+    "advancedActiveCount": "{{count}} aktiv",
+    "allowlistRequiresEmailNote": "Die Zulassungsliste erfordert automatisch die Eingabe einer E-Mail-Adresse.",
+    "ndaTermsRequired": "Bitte geben Sie vor dem Speichern die NDA-Bedingungen ein."
   },
   "qna": {
     "title": "Fragen & Antworten",
@@ -1342,7 +1355,8 @@
     "notFound": "Markdown-Vorschau-URL nicht gefunden.",
     "oauthPkceRequired": "Für die Autorisierung ist PKCE (S256) erforderlich.",
     "oauthScopeRequired": "Bitte wählen Sie mindestens eine Berechtigung aus.",
-    "oauthInvalidRedirectUri": "Unzulässiges OAuth-Weiterleitungsschema."
+    "oauthInvalidRedirectUri": "Unzulässiges OAuth-Weiterleitungsschema.",
+    "emailNotAuthorized": "Diese E-Mail-Adresse ist nicht für den Zugriff auf diesen Link autorisiert."
   },
   "errorBoundary": {
     "title": "Etwas ist schiefgelaufen",

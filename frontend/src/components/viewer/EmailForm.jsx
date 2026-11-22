@@ -21,6 +21,7 @@ export function EmailForm({
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [confirmationDismissed, setConfirmationDismissed] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,14 +49,17 @@ export function EmailForm({
       const response = await confirmShareLinkEmailAccess(slug, token);
       toast.success(getLocalizedErrorMessage(response.data.message));
       onSuccess();
-    } catch {
-      // Error handled by global interceptor
+    } catch (err) {
+      if (err?.response?.status === 403) {
+        setConfirmationDismissed(true);
+      }
+      // Error toast handled by global interceptor
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (requiresConfirmation && emailToConfirm) {
+  if (requiresConfirmation && emailToConfirm && !confirmationDismissed) {
     return (
       <GateLayout publicMeta={publicMeta} maxWidth="max-w-md">
         <div className="space-y-4 pt-1">

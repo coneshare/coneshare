@@ -164,7 +164,20 @@
     "qnaSubtitle": "Разрешить посетителям задавать вопросы по этой ссылке.",
     "qnaDisabledForDataroom": "Вопросы и ответы отключены для этой комнаты данных.",
     "linkCreated": "Ссылка успешно создана.",
-    "linkUpdated": "Ссылка успешно обновлена."
+    "linkUpdated": "Ссылка успешно обновлена.",
+    "audienceLabel": "Кто имеет доступ",
+    "audienceSubtitle": "Ограничьте доступ конкретными адресами электронной почты или доменами.",
+    "audienceAnyone": "Все, у кого есть ссылка",
+    "audienceAllowlist": "Определённые email или домены",
+    "audienceEmailsLabel": "Разрешённые email или домены",
+    "audienceEmailsPlaceholder": "alice@company.com\n@partner.com\n*@eu.partner.com",
+    "audienceEmailsHelper": "Введите по одному адресу или домену на строку (или через запятую). Используйте @domain.com или *@domain.com для разрешения всего домена.",
+    "allowlistUnverifiedWarning": "Подтверждение email отключено. Посетители могут ввести любой подходящий адрес без подтверждения владения.",
+    "advancedSettings": "Расширенные настройки",
+    "advancedSettingsSubtitle": "Ограничения доступа, NDA, вопросы и ответы и водяной знак.",
+    "advancedActiveCount": "Активно: {{count}}",
+    "allowlistRequiresEmailNote": "Список разрешённых автоматически требует ввод email для просмотра.",
+    "ndaTermsRequired": "Введите условия NDA перед сохранением."
   },
   "qna": {
     "title": "Вопросы и ответы",
@@ -1342,7 +1355,8 @@
     "notFound": "URL предпросмотра Markdown не найден.",
     "oauthPkceRequired": "Для авторизации требуется проверка PKCE (S256).",
     "oauthScopeRequired": "Выберите хотя бы одно разрешение для авторизации.",
-    "oauthInvalidRedirectUri": "Недопустимая схема URL перенаправления OAuth."
+    "oauthInvalidRedirectUri": "Недопустимая схема URL перенаправления OAuth.",
+    "emailNotAuthorized": "Этот адрес электронной почты не имеет доступа к данной ссылке."
   },
   "errorBoundary": {
     "title": "Что-то пошло не так",

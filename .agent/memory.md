@@ -461,3 +461,8 @@ COMPOSE_PROJECT_NAME=coneshare docker-compose exec frontend npm test -- --run sr
   2. Google OpenAuth registers callbacks under `*.googleusercontent.com` (`oauth-redirect*.googleusercontent.com`), which was blocked when `DEFAULT_OAUTH_ALLOWED_CLIENT_DOMAINS` only listed `.gemini.google.com`.
   3. ChatGPT publishes `token_endpoint_auth_method: "private_key_jwt"` in its CIMD `client.json`, which DOT 3.4's `cimd.py` rejects (`CIMD clients must be public; got 'private_key_jwt'`).
 - **Resolution/Action:** Keep `CIMD_ENABLED: False` so clients use RFC 7591 DCR; include `.google.com` and `.googleusercontent.com` in `DEFAULT_OAUTH_ALLOWED_CLIENT_DOMAINS`; and format `OAUTH_ISSUER` with a trailing slash (`f"{SITE_DOMAIN.rstrip('/')}/"`).
+
+### [2026-11-22] Session Entry
+- **Category:** Architecture Choice
+- **Context/Implication:** Narrow millisecond-level concurrency windows in standard CRUD endpoints add heavy locking complexity with negligible real-world risk.
+- **Resolution/Action:** Do not optimize for or add locking around millisecond-level race windows unless the race causes major impact, system security exposure, or account/permission bypasses.

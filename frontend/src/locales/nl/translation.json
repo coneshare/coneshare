@@ -158,7 +158,20 @@
     "qnaSubtitle": "Laat kijkers via deze link vragen stellen.",
     "qnaDisabledForDataroom": "Q&A is uitgeschakeld voor deze dataroom.",
     "linkCreated": "Link aangemaakt.",
-    "linkUpdated": "Link bijgewerkt."
+    "linkUpdated": "Link bijgewerkt.",
+    "audienceLabel": "Wie heeft toegang",
+    "audienceSubtitle": "Beperk de toegang tot specifieke e-mailadressen of domeinen.",
+    "audienceAnyone": "Iedereen met de link",
+    "audienceAllowlist": "Specifieke e-mailadressen of domeinen",
+    "audienceEmailsLabel": "Toegestane e-mailadressen of domeinen",
+    "audienceEmailsPlaceholder": "alice@company.com\n@partner.com\n*@eu.partner.com",
+    "audienceEmailsHelper": "Voer één e-mailadres of domein per regel in (of gescheiden door komma's). Gebruik @domain.com of *@domain.com om een heel domein toe te staan.",
+    "allowlistUnverifiedWarning": "E-mailverificatie staat uit. Bezoekers kunnen elk overeenkomend e-mailadres invoeren zonder eigendom te bewijzen.",
+    "advancedSettings": "Geavanceerde instellingen",
+    "advancedSettingsSubtitle": "Toegangsbeperkingen, NDA, Q&A en watermerk.",
+    "advancedActiveCount": "{{count}} actief",
+    "allowlistRequiresEmailNote": "Een toestemmingslijst vereist automatisch dat bezoekers een e-mailadres invoeren.",
+    "ndaTermsRequired": "Voer de NDA-voorwaarden in voordat u opslaat."
   },
   "qna": {
     "title": "Q&A",
@@ -1316,7 +1329,8 @@
     "notFound": "Markdown-voorbeeld-URL niet gevonden.",
     "oauthPkceRequired": "PKCE-verificatie (S256) is vereist voor autorisatie.",
     "oauthScopeRequired": "Selecteer ten minste één machtiging om te autoriseren.",
-    "oauthInvalidRedirectUri": "Niet-toegestaan OAuth-omleidingsschema."
+    "oauthInvalidRedirectUri": "Niet-toegestaan OAuth-omleidingsschema.",
+    "emailNotAuthorized": "Dit e-mailadres heeft geen toegang tot deze link."
   },
   "errorBoundary": {
     "title": "Er is iets misgegaan",

@@ -202,4 +202,31 @@ describe('EmailForm', () => {
     expect(logo).toBeInTheDocument();
     expect(logo).toHaveAttribute('src', 'https://example.com/custom-logo.png');
   });
+
+  it('returns to the email input form when confirmShareLinkEmailAccess fails with 403', async () => {
+    api.confirmShareLinkEmailAccess.mockRejectedValue({
+      response: {
+        status: 403,
+        data: { message: 'This email address is not authorized to access this link.' },
+      },
+    });
+
+    render(
+      <EmailForm
+        slug={slug}
+        onSuccess={mockOnSuccess}
+        publicMeta={null}
+        requiresConfirmation={true}
+        emailToConfirm="removed@example.com"
+        token="stale-token-123"
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('you@company.com')).toBeInTheDocument();
+    });
+    expect(mockOnSuccess).not.toHaveBeenCalled();
+  });
 });

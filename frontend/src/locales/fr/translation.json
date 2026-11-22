@@ -158,7 +158,20 @@
     "qnaSubtitle": "Permettre aux visiteurs de poser des questions via ce lien.",
     "qnaDisabledForDataroom": "Les Q&R sont désactivées pour cette dataroom.",
     "linkCreated": "Lien créé avec succès.",
-    "linkUpdated": "Lien mis à jour avec succès."
+    "linkUpdated": "Lien mis à jour avec succès.",
+    "audienceLabel": "Qui peut accéder",
+    "audienceSubtitle": "Limiter l'accès à des adresses e-mail ou domaines spécifiques.",
+    "audienceAnyone": "Toute personne disposant du lien",
+    "audienceAllowlist": "Adresses e-mail ou domaines spécifiques",
+    "audienceEmailsLabel": "E-mails ou domaines autorisés",
+    "audienceEmailsPlaceholder": "alice@company.com\n@partner.com\n*@eu.partner.com",
+    "audienceEmailsHelper": "Saisissez un e-mail ou un domaine par ligne (ou séparés par des virgules). Utilisez @domain.com ou *@domain.com pour autoriser un domaine entier.",
+    "allowlistUnverifiedWarning": "La vérification d'e-mail est désactivée. Les visiteurs peuvent saisir n'importe quel e-mail correspondant sans prouver qu'il leur appartient.",
+    "advancedSettings": "Paramètres avancés",
+    "advancedSettingsSubtitle": "Restrictions d'accès, NDA, Q&A et filigrane.",
+    "advancedActiveCount": "{{count}} actif(s)",
+    "allowlistRequiresEmailNote": "La liste autorisée oblige automatiquement les visiteurs à saisir une adresse e-mail.",
+    "ndaTermsRequired": "Veuillez saisir les conditions de la NDA avant d'enregistrer."
   },
   "qna": {
     "title": "Q&R",
@@ -1466,7 +1479,8 @@
     "notFound": "URL d'aperçu Markdown introuvable.",
     "oauthPkceRequired": "La vérification PKCE (S256) est requise pour l'autorisation.",
     "oauthScopeRequired": "Veuillez sélectionner au moins une permission à autoriser.",
-    "oauthInvalidRedirectUri": "Schéma d'URI de redirection OAuth non autorisé."
+    "oauthInvalidRedirectUri": "Schéma d'URI de redirection OAuth non autorisé.",
+    "emailNotAuthorized": "Cette adresse e-mail n'est pas autorisée à accéder à ce lien."
   },
   "errorBoundary": {
     "title": "Une erreur est survenue",

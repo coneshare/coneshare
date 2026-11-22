@@ -251,4 +251,152 @@ describe('LinkSheet', () => {
       }));
     });
   });
+
+  describe('Email Allowlist & Advanced Settings', () => {
+    it('keeps advanced settings collapsed by default in create mode and shows active count badge', async () => {
+      renderComponent();
+
+      const advancedButton = screen.getByRole('button', { name: /Advanced settings/i });
+      expect(advancedButton).toHaveAttribute('aria-expanded', 'false');
+      expect(screen.getByText('1 active')).toBeInTheDocument();
+      expect(screen.queryByLabelText(/Who can access/)).not.toBeInTheDocument();
+
+      await userEvent.click(advancedButton);
+      expect(advancedButton).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByLabelText(/Who can access/)).toBeInTheDocument();
+
+      await userEvent.selectOptions(screen.getByLabelText(/Who can access/), 'allowlist');
+      expect(screen.getByText('2 active')).toBeInTheDocument();
+    });
+
+    it('keeps advanced settings collapsed in edit mode when no advanced options are active', () => {
+      renderComponent({
+        currentLink: {
+          id: 'link_basic',
+          name: 'Basic Link',
+          allow_download: true,
+          enable_qna: true,
+          require_nda: false,
+          enable_watermark: false,
+          audience_mode: 'anyone',
+        },
+      });
+
+      const advancedButton = screen.getByRole('button', { name: /Advanced settings/i });
+      expect(advancedButton).toHaveAttribute('aria-expanded', 'false');
+      expect(screen.queryByLabelText(/Who can access/)).not.toBeInTheDocument();
+    });
+
+    it('locks require email, defaults email verification, and parses newline and comma entries', async () => {
+      api.createShareLink.mockResolvedValue({});
+      renderComponent();
+
+      await userEvent.click(screen.getByRole('button', { name: /Advanced settings/i }));
+
+      const audienceSelect = screen.getByLabelText(/Who can access/);
+      await userEvent.selectOptions(audienceSelect, 'allowlist');
+
+      const requireEmailSwitch = screen.getByLabelText(/Require email to view/);
+      const verifyEmailSwitch = screen.getByLabelText(/Verify email to view/);
+      expect(requireEmailSwitch).toBeChecked();
+      expect(requireEmailSwitch).toBeDisabled();
+      expect(verifyEmailSwitch).toBeChecked();
+
+      const textarea = screen.getByLabelText(/Allowed emails or domains/);
+      await userEvent.type(textarea, 'alice@company.com, @partner.com\n*@eu.partner.com');
+
+      await userEvent.click(screen.getByText('Save Changes'));
+
+      expect(api.createShareLink).toHaveBeenCalledWith(expect.objectContaining({
+        audience_mode: 'allowlist',
+        audience_emails: ['alice@company.com', '@partner.com', '*@eu.partner.com'],
+        requires_email: true,
+        requires_email_verification: true,
+      }));
+    });
+
+    it('shows a warning when verification is turned off for an allowlist link', async () => {
+      renderComponent();
+
+      await userEvent.click(screen.getByRole('button', { name: /Advanced settings/i }));
+      await userEvent.selectOptions(screen.getByLabelText(/Who can access/), 'allowlist');
+      await userEvent.click(screen.getByLabelText(/Verify email to view/));
+
+      expect(
+        screen.getByText(/Email verification is off/i)
+      ).toBeInTheDocument();
+    });
+
+    it('auto-expands advanced settings and hydrates existing allowlist settings in edit mode', async () => {
+      api.updateShareLink.mockResolvedValue({});
+      renderComponent({
+        currentLink: {
+          id: 'link_allowlist',
+          name: 'Investor Room',
+          allow_download: true,
+          requires_email: true,
+          requires_email_verification: true,
+          audience_mode: 'allowlist',
+          audience_emails: ['alice@company.com', '*@lpfirm.com'],
+        },
+      });
+
+      expect(screen.getByRole('button', { name: /Advanced settings/i })).toHaveAttribute(
+        'aria-expanded',
+        'true'
+      );
+      expect(screen.getByText('2 active')).toBeInTheDocument();
+      expect(screen.getByLabelText(/Who can access/)).toHaveValue('allowlist');
+      expect(screen.getByLabelText(/Allowed emails or domains/)).toHaveValue(
+        'alice@company.com\n*@lpfirm.com'
+      );
+
+      await userEvent.selectOptions(screen.getByLabelText(/Who can access/), 'anyone');
+      await userEvent.click(screen.getByText('Save Changes'));
+
+      expect(api.updateShareLink).toHaveBeenCalledWith('link_allowlist', expect.objectContaining({
+        audience_mode: 'anyone',
+        audience_emails: [],
+      }));
+    });
+
+    it('reopens advanced settings and shows validation error when NDA is enabled with empty terms while collapsed', async () => {
+      api.createShareLink.mockResolvedValue({});
+      renderComponent();
+
+      const advancedButton = screen.getByRole('button', { name: /Advanced settings/i });
+      await userEvent.click(advancedButton);
+      await userEvent.click(screen.getByLabelText(/Require NDA/));
+
+      // Collapse Advanced settings with empty NDA terms
+      await userEvent.click(advancedButton);
+      expect(advancedButton).toHaveAttribute('aria-expanded', 'false');
+
+      await userEvent.click(screen.getByText('Save Changes'));
+
+      expect(api.createShareLink).not.toHaveBeenCalled();
+      expect(advancedButton).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByRole('alert')).toHaveTextContent('Please enter NDA terms before saving.');
+    });
+
+    it('allows saving valid NDA settings while advanced settings is collapsed', async () => {
+      api.createShareLink.mockResolvedValue({});
+      renderComponent();
+
+      const advancedButton = screen.getByRole('button', { name: /Advanced settings/i });
+      await userEvent.click(advancedButton);
+      await userEvent.click(screen.getByLabelText(/Require NDA/));
+      await userEvent.type(screen.getByLabelText(/NDA Terms/), 'Standard NDA Terms');
+
+      await userEvent.click(advancedButton);
+      expect(advancedButton).toHaveAttribute('aria-expanded', 'false');
+
+      await userEvent.click(screen.getByText('Save Changes'));
+
+      expect(api.createShareLink).toHaveBeenCalledWith(expect.objectContaining({
+        require_nda: true,
+        nda_text: 'Standard NDA Terms',
+      }));
+    });
+  });
 });

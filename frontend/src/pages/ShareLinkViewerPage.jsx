@@ -299,7 +299,10 @@ export function ShareLinkViewerPage() {
           }
           setError(errorData);
 
-          if (err.response?.status === 401 && errorData?.protectionType) {
+          if (
+            (err.response?.status === 401 || err.response?.status === 403) &&
+            errorData?.protectionType
+          ) {
             setProtectionType(errorData.protectionType);
           }
         }

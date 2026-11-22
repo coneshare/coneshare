@@ -799,6 +799,24 @@ describe('ShareLinkViewerPage', () => {
         fireEvent.click(screen.getByRole('button', { name: /dismiss/i }));
         expect(screen.queryByTestId('viewer-powered-by-pill')).not.toBeInTheDocument();
       });
+
+      it('renders EmailForm when view-data returns 403 with protectionType email for a stale access token', async () => {
+        api.getShareLinkViewData.mockRejectedValue({
+          response: {
+            status: 403,
+            data: {
+              message: 'This email address is not authorized to access this link.',
+              protectionType: 'email',
+            },
+          },
+        });
+
+        renderComponent('/view/test-slug?accessToken=stale-token');
+
+        await waitFor(() => {
+          expect(screen.getByText('Email Form')).toBeInTheDocument();
+        });
+      });
     });
   });
 

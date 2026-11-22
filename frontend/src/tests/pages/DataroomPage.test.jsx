@@ -931,6 +931,7 @@ describe('DataroomPage', () => {
             await user.click(createLinkButton);
 
             expect(await screen.findByText('Create New Link')).toBeInTheDocument();
+            await user.click(screen.getByRole('button', { name: /advanced settings/i }));
             const qnaSwitch = screen.getByRole('switch', { name: /enable q&a/i });
             expect(qnaSwitch).toBeDisabled();
             expect(screen.getByText('Q&A is disabled for this dataroom.')).toBeInTheDocument();

@@ -71,6 +71,7 @@ from .services import (
     resolve_notification_recipient,
 )
 from .archive import generate_dataroom_archive_stream, sanitize_zip_entry_name
+from .audience import email_matches
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,40 @@ DATAROOM_VIEWDATA_DEFAULT_LIMIT = 40
 DATAROOM_VIEWDATA_MAX_LIMIT = 200
 
 DEFAULT_WATERMARK_TEMPLATE = "CONFIDENTIAL - {{email}}"
+UNAUTHORIZED_EMAIL_MESSAGE = "This email address is not authorized to access this link."
+
+
+def _is_email_in_link_audience(link: ShareLink, email: str) -> bool:
+    if link.audience_mode == ShareLink.AUDIENCE_ANYONE:
+        return True
+    if link.audience_mode == ShareLink.AUDIENCE_ALLOWLIST:
+        return email_matches(email, link.audience_emails or [])
+    return False
+
+
+def _is_session_email_authorized_for_link(link: ShareLink, auth_status: dict) -> bool:
+    if auth_status.get('email_method') in ('owner', 'account'):
+        return True
+    if link.requires_email_verification and auth_status.get('email_method') == 'self_reported':
+        return False
+    if link.audience_mode == ShareLink.AUDIENCE_ANYONE:
+        return True
+    return _is_email_in_link_audience(link, auth_status.get('viewer_email', ''))
+
+
+def _set_authorized_session_email(request, link: ShareLink, email: str, method: str) -> None:
+    normalized_email = (email or '').strip().lower()
+    authorized_links = request.session.get('authorized_share_links', {})
+    current_status = dict(authorized_links.get(str(link.id), {}))
+    previous_email = (current_status.get('viewer_email') or '').strip().lower()
+    if previous_email and previous_email != normalized_email:
+        current_status['nda_accepted_version'] = 0
+        current_status.pop('view_session_id', None)
+    current_status['email_verified'] = True
+    current_status['viewer_email'] = normalized_email
+    current_status['email_method'] = method
+    authorized_links[str(link.id)] = current_status
+    request.session['authorized_share_links'] = authorized_links
 
 
 def get_effective_watermark_text(link: ShareLink | None) -> str:
@@ -449,7 +484,12 @@ def _build_share_link_public_meta(link: ShareLink, request=None) -> dict:
         "has_password": bool(link.password),
         "requires_email": bool(link.requires_email),
         "requires_email_verification": bool(link.requires_email_verification),
-        "is_restricted": bool(link.password or link.requires_email or link.requires_email_verification),
+        "is_restricted": bool(
+            link.password
+            or link.requires_email
+            or link.requires_email_verification
+            or link.audience_mode == ShareLink.AUDIENCE_ALLOWLIST
+        ),
     }
 
 
@@ -570,11 +610,27 @@ def _verify_share_link_session_authorization(
 
     auth_status_dict = auth_status or {}
 
-    if link.requires_email and not auth_status_dict.get('email_verified'):
-        return Response(
-            {"message": "This link requires an email address to view.", "protectionType": "email"},
-            status=status.HTTP_401_UNAUTHORIZED
-        ), None
+    requires_email_gate = link.requires_email or link.audience_mode == ShareLink.AUDIENCE_ALLOWLIST
+    if requires_email_gate:
+        if not auth_status_dict.get('email_verified'):
+            return Response(
+                {"message": "This link requires an email address to view.", "protectionType": "email"},
+                status=status.HTTP_401_UNAUTHORIZED
+            ), None
+        if not _is_session_email_authorized_for_link(link, auth_status_dict):
+            if str(link.id) in authorized_links:
+                updated_status = dict(authorized_links[str(link.id)])
+                updated_status['email_verified'] = False
+                updated_status['viewer_email'] = ''
+                updated_status['email_method'] = ''
+                updated_status['nda_accepted_version'] = 0
+                updated_status.pop('view_session_id', None)
+                authorized_links[str(link.id)] = updated_status
+                request.session['authorized_share_links'] = authorized_links
+            return Response(
+                {"message": "This link requires an email address to view.", "protectionType": "email"},
+                status=status.HTTP_401_UNAUTHORIZED
+            ), None
 
     if link.password and not auth_status_dict.get('password_verified'):
         return Response(
@@ -603,8 +659,12 @@ def _check_sequential_gate_prerequisites(link: ShareLink, auth_status: dict, tar
     before performing the action for `target_gate` ('password', 'nda').
     Returns an error Response or None.
     """
+    requires_email_gate = link.requires_email or link.audience_mode == ShareLink.AUDIENCE_ALLOWLIST
     if target_gate in ('password', 'nda'):
-        if link.requires_email and not auth_status.get('email_verified'):
+        if requires_email_gate and (
+            not auth_status.get('email_verified')
+            or not _is_session_email_authorized_for_link(link, auth_status)
+        ):
             return Response(
                 {"message": "This link requires an email address to view.", "protectionType": "email"},
                 status=status.HTTP_401_UNAUTHORIZED
@@ -631,8 +691,11 @@ def _get_authorized_qna_view_session(request, link: ShareLink, view_session_id: 
         raise PermissionDenied("This link has expired.")
 
     auth_status = request.session.get('authorized_share_links', {}).get(str(link.id), {})
-    if link.requires_email and not auth_status.get('email_verified'):
+    requires_email_gate = link.requires_email or link.audience_mode == ShareLink.AUDIENCE_ALLOWLIST
+    if requires_email_gate and not auth_status.get('email_verified'):
         raise PermissionDenied("Email verification is required before using Q&A.")
+    if requires_email_gate and not _is_session_email_authorized_for_link(link, auth_status):
+        raise PermissionDenied(UNAUTHORIZED_EMAIL_MESSAGE)
     if link.password and not auth_status.get('password_verified'):
         raise PermissionDenied("Password verification is required before using Q&A.")
     if link.require_nda and not _is_nda_accepted(link, request, auth_status):
@@ -644,7 +707,7 @@ def _get_authorized_qna_view_session(request, link: ShareLink, view_session_id: 
     ).first()
     if not view_session:
         raise serializers.ValidationError({"view_session_id": "Invalid view session for this share link."})
-    if link.requires_email:
+    if requires_email_gate:
         verified_email = (auth_status.get('viewer_email') or '').strip().lower()
         session_email = (view_session.viewer_email or '').strip().lower()
         if not verified_email or not session_email or verified_email != session_email:
@@ -938,6 +1001,19 @@ class ShareLinkViewDataView(APIView):
                 with transaction.atomic():
                     verification = EmailVerificationToken.objects.select_for_update().get(token=access_token)
                     if not verification.is_expired() and verification.share_link == link:
+                        if not _is_email_in_link_audience(link, verification.email):
+                            verification.delete()
+                            pending_verifications = request.session.get('pending_email_verifications', {})
+                            if access_token in pending_verifications:
+                                del pending_verifications[access_token]
+                                request.session['pending_email_verifications'] = pending_verifications
+                            return Response(
+                                {
+                                    "message": UNAUTHORIZED_EMAIL_MESSAGE,
+                                    "protectionType": "email",
+                                },
+                                status=status.HTTP_403_FORBIDDEN,
+                            )
                         # Store the pending verification in request.session instead of authorizing/consuming on GET
                         pending_verifications = request.session.get('pending_email_verifications', {})
                         pending_verifications[access_token] = {
@@ -1222,7 +1298,12 @@ class ShareLinkViewDataView(APIView):
                     "has_password": bool(link.password),
                     "requires_email": bool(link.requires_email),
                     "requires_email_verification": bool(link.requires_email_verification),
-                    "is_restricted": bool(link.password or link.requires_email or link.requires_email_verification),
+                    "is_restricted": bool(
+                        link.password
+                        or link.requires_email
+                        or link.requires_email_verification
+                        or link.audience_mode == ShareLink.AUDIENCE_ALLOWLIST
+                    ),
                 }
             }
             if dataroom_context:
@@ -1447,7 +1528,12 @@ class ShareLinkViewDataView(APIView):
                     'has_password': bool(link.password),
                     'requires_email': bool(link.requires_email),
                     'requires_email_verification': bool(link.requires_email_verification),
-                    'is_restricted': bool(link.password or link.requires_email or link.requires_email_verification),
+                    'is_restricted': bool(
+                        link.password
+                        or link.requires_email
+                        or link.requires_email_verification
+                        or link.audience_mode == ShareLink.AUDIENCE_ALLOWLIST
+                    ),
                 }
             }
             return Response(response_data, status=status.HTTP_200_OK)
@@ -2108,7 +2194,7 @@ class ShareLinkRequestAccessView(APIView):
 
     @extend_schema(
         request=ShareLinkEmailSerializer,
-        responses={200: dict, 400: dict, 404: dict, 410: dict, 500: dict},
+        responses={200: dict, 400: dict, 403: dict, 404: dict, 410: dict, 500: dict},
     )
     def post(self, request, slug, *args, **kwargs):
         try:
@@ -2118,7 +2204,7 @@ class ShareLinkRequestAccessView(APIView):
         except LinkExpired as e:
             return Response({"message": e.detail}, status=status.HTTP_410_GONE)
 
-        if not link.requires_email:
+        if not (link.requires_email or link.audience_mode == ShareLink.AUDIENCE_ALLOWLIST):
             return Response(
                 {"message": "This link does not require an email address."},
                 status=status.HTTP_400_BAD_REQUEST
@@ -2128,7 +2214,13 @@ class ShareLinkRequestAccessView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        email = serializer.validated_data['email']
+        email = serializer.validated_data['email'].strip().lower()
+
+        if not _is_email_in_link_audience(link, email):
+            return Response(
+                {"message": UNAUTHORIZED_EMAIL_MESSAGE},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         # Ensure viewer record exists for tracking purposes
         if link.document:
@@ -2143,7 +2235,6 @@ class ShareLinkRequestAccessView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        email = email.strip().lower()
         Viewer.objects.get_or_create(
             organization=organization,
             email=email
@@ -2151,13 +2242,7 @@ class ShareLinkRequestAccessView(APIView):
 
         if not link.requires_email_verification:
             # Just authorize the session and grant access immediately.
-            authorized_links = request.session.get('authorized_share_links', {})
-            if str(link.id) not in authorized_links:
-                authorized_links[str(link.id)] = {}
-            authorized_links[str(link.id)]['email_verified'] = True
-            authorized_links[str(link.id)]['viewer_email'] = email
-            authorized_links[str(link.id)]['email_method'] = 'self_reported'
-            request.session['authorized_share_links'] = authorized_links
+            _set_authorized_session_email(request, link, email, 'self_reported')
             _dispatch_automation_event(
                 link,
                 'email_identified',
@@ -2225,7 +2310,7 @@ class ShareLinkConfirmAccessView(APIView):
 
     @extend_schema(
         request=dict,
-        responses={200: dict, 400: dict, 404: dict, 410: dict},
+        responses={200: dict, 400: dict, 403: dict, 404: dict, 410: dict},
     )
     def post(self, request, slug, *args, **kwargs):
         token = request.data.get('token')
@@ -2254,15 +2339,22 @@ class ShareLinkConfirmAccessView(APIView):
                 if verification.is_expired() or verification.share_link != link:
                     return Response({"message": "The verification link has expired or is invalid."}, status=status.HTTP_400_BAD_REQUEST)
 
+                if not _is_email_in_link_audience(link, verification.email):
+                    verification.delete()
+                    if token in pending_verifications:
+                        del pending_verifications[token]
+                        request.session['pending_email_verifications'] = pending_verifications
+                    return Response(
+                        {
+                            "message": UNAUTHORIZED_EMAIL_MESSAGE,
+                            "protectionType": "email",
+                        },
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
                 # Authorize the session for email verification only
-                authorized_links = request.session.get('authorized_share_links', {})
-                current_status = authorized_links.get(str(link.id), {})
-                current_status['email_verified'] = True
-                current_status['viewer_email'] = verification.email
-                current_status['email_method'] = 'verified'
-                authorized_links[str(link.id)] = current_status
-                request.session['authorized_share_links'] = authorized_links
-                
+                _set_authorized_session_email(request, link, verification.email, 'verified')
+
                 _dispatch_automation_event(
                     link,
                     'email_identified',

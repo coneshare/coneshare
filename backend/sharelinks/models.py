@@ -33,6 +33,13 @@ class ShareLinkTemplate(BaseModel):
 
 
 class ShareLink(BaseModel):
+    AUDIENCE_ANYONE = 'anyone'
+    AUDIENCE_ALLOWLIST = 'allowlist'
+    AUDIENCE_CHOICES = [
+        (AUDIENCE_ANYONE, 'Anyone with the link'),
+        (AUDIENCE_ALLOWLIST, 'Specific emails or domains'),
+    ]
+
     document = models.ForeignKey('documents.Document', on_delete=models.CASCADE, null=True, blank=True, related_name='share_links')
     dataroom = models.ForeignKey('datarooms.Dataroom', on_delete=models.CASCADE, null=True, blank=True, related_name='share_links')
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='share_links_created')
@@ -42,6 +49,12 @@ class ShareLink(BaseModel):
     password = encrypt(models.CharField(max_length=255, null=True, blank=True))
     requires_email = models.BooleanField(default=False)
     requires_email_verification = models.BooleanField(default=False)
+    audience_mode = models.CharField(
+        max_length=20,
+        choices=AUDIENCE_CHOICES,
+        default=AUDIENCE_ANYONE,
+    )
+    audience_emails = models.JSONField(default=list, blank=True)
     allow_download = models.BooleanField(default=True)
     enable_qna = models.BooleanField(default=True)
     enable_watermark = models.BooleanField(default=False)

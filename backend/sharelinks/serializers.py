@@ -3,12 +3,14 @@ from datetime import datetime
 from urllib.parse import urljoin
 
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from core.models import Organization
 from datarooms.models import Dataroom
+from .audience import normalize_entries
 from .models import (DataroomVisit, PageView, ShareLink,
                      QnAMessage, QnAThread,
                      ShareLinkDataroomSetting, ShareLinkTemplate, Viewer,
@@ -549,7 +551,42 @@ class ShareLinkSerializer(serializers.ModelSerializer):
                             {'name': 'A share link with this name already exists for this dataroom.'}
                         )
 
+        self._validate_audience(data)
+
         return data
+
+    def _validate_audience(self, data):
+        was_allowlist = bool(
+            self.instance and self.instance.audience_mode == ShareLink.AUDIENCE_ALLOWLIST
+        )
+        mode = data.get(
+            'audience_mode',
+            self.instance.audience_mode if self.instance else ShareLink.AUDIENCE_ANYONE,
+        )
+        if mode == ShareLink.AUDIENCE_ALLOWLIST:
+            if 'audience_emails' in data:
+                raw_emails = data['audience_emails']
+            elif self.instance:
+                raw_emails = self.instance.audience_emails
+            else:
+                raw_emails = []
+
+            try:
+                normalized = normalize_entries(raw_emails)
+            except DjangoValidationError as exc:
+                raise serializers.ValidationError({'audience_emails': exc.messages})
+
+            if not normalized:
+                raise serializers.ValidationError(
+                    {'audience_emails': 'At least one allowed email or domain is required.'}
+                )
+
+            data['audience_emails'] = normalized
+            data['requires_email'] = True
+            if not was_allowlist and 'requires_email_verification' not in data:
+                data['requires_email_verification'] = True
+        else:
+            data['audience_emails'] = []
 
     created_by_user = serializers.SerializerMethodField()
 
@@ -571,7 +608,7 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         model = ShareLink
         fields = [
             'id', 'document', 'dataroom', 'document_name', 'document_type', 'dataroom_name', 'dataroom_settings', 'created_by', 'created_by_user', 'name', 'slug', 'url', 'expires_at',
-            'has_password', 'password', 'requires_email', 'requires_email_verification', 'allow_download', 'enable_qna',
+            'has_password', 'password', 'requires_email', 'requires_email_verification', 'audience_mode', 'audience_emails', 'allow_download', 'enable_qna',
             'enable_watermark', 'watermark_text', 'receive_email_notification', 'is_active', 'created_at', 'updated_at',
             'view_count', 'recent_view_sessions', 'last_viewed_at', 'require_nda', 'nda_text', 'nda_version', 'has_accepted_current_nda'
         ]
