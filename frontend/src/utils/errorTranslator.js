@@ -67,6 +67,8 @@ const ERROR_STRING_MAPPINGS = {
     "errors.oauthScopeRequired",
   "Disallowed redirect URI scheme.":
     "errors.oauthInvalidRedirectUri",
+  "This email address is not authorized to access this link.":
+    "errors.emailNotAuthorized",
 };
 
 const DYNAMIC_ERROR_PATTERNS = [

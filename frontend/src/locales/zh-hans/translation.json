@@ -158,7 +158,20 @@
     "qnaSubtitle": "允许访问者通过此链接提问。",
     "qnaDisabledForDataroom": "此资料室已禁用问答。",
     "linkCreated": "链接创建成功。",
-    "linkUpdated": "链接更新成功。"
+    "linkUpdated": "链接更新成功。",
+    "audienceLabel": "访问权限",
+    "audienceSubtitle": "限制仅特定邮箱地址或域名可访问。",
+    "audienceAnyone": "知道链接的任何人",
+    "audienceAllowlist": "指定邮箱或域名",
+    "audienceEmailsLabel": "允许的邮箱或域名",
+    "audienceEmailsPlaceholder": "alice@company.com\n@partner.com\n*@eu.partner.com",
+    "audienceEmailsHelper": "每行输入一个邮箱或域名（或用逗号分隔）。使用 @domain.com 或 *@domain.com 允许整个域名。",
+    "allowlistUnverifiedWarning": "邮箱验证已关闭。访客无需验证邮箱所有权即可输入匹配的邮箱地址。",
+    "advancedSettings": "高级设置",
+    "advancedSettingsSubtitle": "访问限制、保密协议、问答与水印。",
+    "advancedActiveCount": "已启用 {{count}} 项",
+    "allowlistRequiresEmailNote": "启用白名单会自动开启「要求填写邮箱」。",
+    "ndaTermsRequired": "保存前请填写保密协议（NDA）条款。"
   },
   "qna": {
     "title": "问答",
@@ -1317,7 +1330,8 @@
     "notFound": "未找到 Markdown 预览链接。",
     "oauthPkceRequired": "授权请求必须包含 PKCE (S256) 校验参数。",
     "oauthScopeRequired": "请至少选择一项授权权限。",
-    "oauthInvalidRedirectUri": "不允许的 OAuth 回调地址协议。"
+    "oauthInvalidRedirectUri": "不允许的 OAuth 回调地址协议。",
+    "emailNotAuthorized": "该邮箱地址无权访问此链接。"
   },
   "errorBoundary": {
     "title": "页面出现异常",

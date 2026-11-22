@@ -158,7 +158,20 @@
     "qnaSubtitle": "Let viewers ask questions through this link.",
     "qnaDisabledForDataroom": "Q&A is disabled for this dataroom.",
     "linkCreated": "Link created successfully.",
-    "linkUpdated": "Link updated successfully."
+    "linkUpdated": "Link updated successfully.",
+    "audienceLabel": "Who can access",
+    "audienceSubtitle": "Restrict access to specific email addresses or domains.",
+    "audienceAnyone": "Anyone with the link",
+    "audienceAllowlist": "Specific emails or domains",
+    "audienceEmailsLabel": "Allowed emails or domains",
+    "audienceEmailsPlaceholder": "alice@company.com\n@partner.com\n*@eu.partner.com",
+    "audienceEmailsHelper": "Enter one email or domain per line (or comma-separated). Use @domain.com or *@domain.com to allow an entire domain.",
+    "allowlistUnverifiedWarning": "Email verification is off. Visitors can enter any matching email without proving ownership.",
+    "advancedSettings": "Advanced settings",
+    "advancedSettingsSubtitle": "Access restrictions, NDA, Q&A, and watermarking.",
+    "advancedActiveCount": "{{count}} active",
+    "allowlistRequiresEmailNote": "Allowlist automatically requires viewers to enter an email address.",
+    "ndaTermsRequired": "Please enter NDA terms before saving."
   },
   "qna": {
     "title": "Q&A",
@@ -1316,7 +1329,8 @@
     "notFound": "Markdown preview URL not found.",
     "oauthPkceRequired": "PKCE verification (S256) is required for authorization.",
     "oauthScopeRequired": "Please select at least one permission scope to authorize.",
-    "oauthInvalidRedirectUri": "Disallowed OAuth redirect URI scheme."
+    "oauthInvalidRedirectUri": "Disallowed OAuth redirect URI scheme.",
+    "emailNotAuthorized": "This email address is not authorized to access this link."
   },
   "errorBoundary": {
     "title": "Something went wrong",
