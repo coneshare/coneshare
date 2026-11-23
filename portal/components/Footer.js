@@ -46,7 +46,7 @@ export function Footer({ locale, translatedBlogSlugs = [], translatedHelpSlugs =
         { label: isZh ? '社区论坛' : 'Community Forum', href: 'https://github.com/orgs/coneshare/discussions', external: true },
         { label: isZh ? '参与贡献' : 'Contribute', href: 'https://github.com/coneshare/coneshare', external: true },
         { label: isZh ? '运维部署文档' : 'Server Admin Docs', href: 'https://docs.coneshare.com/en/', external: true },
-        { label: isZh ? 'API 文档' : 'API Reference', href: 'https://app.coneshare.com/api/schema/swagger/', external: true },
+        { label: isZh ? 'API 文档' : 'API Reference', href: isZh ? '/zh/api-reference' : '/api-reference' },
       ],
     },
     {

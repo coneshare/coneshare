@@ -11,6 +11,7 @@ export const ZH_SUPPORTED_SUBPATHS = [
   '/agents',
   '/blog',
   '/help',
+  '/api-reference',
   '/features',
   '/features/file-request-embed',
 ];

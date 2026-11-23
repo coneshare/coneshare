@@ -167,6 +167,11 @@ const getResourceMenuItems = (isZh) => [
     href: isZh ? '/zh/help' : '/help',
   },
   {
+    key: 'api-reference',
+    name: isZh ? 'API 文档' : 'API Reference',
+    href: isZh ? '/zh/api-reference' : '/api-reference',
+  },
+  {
     key: 'about',
     name: isZh ? '关于我们' : 'About',
     href: isZh ? '/zh/about' : '/about',
