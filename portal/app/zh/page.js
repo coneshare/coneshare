@@ -146,7 +146,7 @@ export default function ZhHomePage() {
               </div>
 
               <div className="flex flex-wrap gap-4 pt-2">
-                <Link href="/demo" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
+                <Link href="/zh/demo" className="text-sm font-semibold leading-6 text-gray-900 hover:text-gray-700">
                   亲自体验在线演示环境 <span aria-hidden="true">→</span>
                 </Link>
               </div>

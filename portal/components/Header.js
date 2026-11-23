@@ -230,7 +230,8 @@ export function Header({ locale }) {
   const resourcesActive = resourceMenuItems.some(
     (item) => !item.external && isRouteActive(pathname, item.href, { prefix: true })
   );
-  const demoActive = isRouteActive(pathname, '/demo');
+  const demoHref = isZh ? '/zh/demo' : '/demo';
+  const demoActive = isRouteActive(pathname, demoHref);
 
   useEffect(() => {
     if (!isMobileMenuOpen) {
@@ -365,7 +366,7 @@ export function Header({ locale }) {
             </HeaderDropdown>
 
             <Link
-              href="/demo"
+              href={demoHref}
               aria-current={demoActive ? 'page' : undefined}
               className={`inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98] ${
                 demoActive
@@ -515,7 +516,7 @@ export function Header({ locale }) {
             </div>
             <div className="border-t border-gray-200 pt-4">
               <Link
-                href="/demo"
+                href={demoHref}
                 aria-current={demoActive ? 'page' : undefined}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={`block w-full text-center rounded-md border px-4 py-2 text-base font-medium shadow-sm transition-colors duration-150 ${

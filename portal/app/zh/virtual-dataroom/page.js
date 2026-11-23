@@ -140,7 +140,7 @@ export default function ZhVirtualDataroomPage() {
                 </p>
                 <div className="mt-8 flex flex-wrap items-center gap-4">
                   <Link
-                    href="/demo"
+                    href="/zh/demo"
                     className="rounded-md bg-gray-900 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
                   >
                     查看在线演示
@@ -395,7 +395,7 @@ export default function ZhVirtualDataroomPage() {
               将企业级安全保障、动态水印与访客追踪能力融为一体，同时享有完整的私有化掌控。
             </p>
             <div className="mt-8 flex items-center justify-center gap-6">
-              <Link href="/demo" className="rounded-md bg-white px-5 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-100">
+              <Link href="/zh/demo" className="rounded-md bg-white px-5 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-100">
                 体验在线演示
               </Link>
               <a

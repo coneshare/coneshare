@@ -62,6 +62,9 @@ describe('Header & Footer Localization', () => {
       const apiLinks = screen.getAllByRole('link', { name: /API 文档/i });
       expect(apiLinks.some((link) => link.getAttribute('href') === '/zh/api-reference')).toBe(true);
 
+      const demoLinks = screen.getAllByRole('link', { name: '在线演示' });
+      expect(demoLinks.every((link) => link.getAttribute('href') === '/zh/demo')).toBe(true);
+
       const blogLinks = screen.getAllByRole('link', { name: '博客' });
       expect(blogLinks.every((link) => link.getAttribute('href') === '/zh/blog')).toBe(true);
     });
@@ -248,6 +251,7 @@ describe('Header & Footer Localization', () => {
         'href',
         '/zh/api-reference'
       );
+      expect(screen.getByRole('link', { name: '在线演示' })).toHaveAttribute('href', '/zh/demo');
 
       // Language switcher has link back to English root /
       expect(screen.getByRole('link', { name: 'English' })).toHaveAttribute('href', '/');
@@ -331,6 +335,7 @@ describe('Header & Footer Localization', () => {
         '/blog',
         '/help',
         '/api-reference',
+        '/demo',
         '/features',
         '/features/file-request-embed',
       ]);
@@ -343,6 +348,7 @@ describe('Header & Footer Localization', () => {
         '/zh/blog',
         '/zh/help',
         '/zh/api-reference',
+        '/zh/demo',
         '/zh/features',
         '/zh/features/file-request-embed',
       ]);
@@ -375,6 +381,7 @@ describe('Header & Footer Localization', () => {
         '/features/file-request-embed'
       );
       expect(getAlternateLocalePath('/zh/api-reference', true)).toBe('/api-reference');
+      expect(getAlternateLocalePath('/zh/demo', true)).toBe('/demo');
 
       // From English to Chinese
       expect(getAlternateLocalePath('/', false)).toBe('/zh');
@@ -402,6 +409,7 @@ describe('Header & Footer Localization', () => {
         '/zh/features/file-request-embed'
       );
       expect(getAlternateLocalePath('/api-reference', false)).toBe('/zh/api-reference');
+      expect(getAlternateLocalePath('/demo', false)).toBe('/zh/demo');
       expect(getAlternateLocalePath('/features/unknown-feature', false)).toBe('/zh/features');
 
       // Untranslated paths fallback to /zh

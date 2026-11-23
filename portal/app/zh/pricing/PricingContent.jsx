@@ -710,7 +710,7 @@ export function PricingContent() {
                 邮件联系技术团队
               </a>
               <Link
-                href="/demo"
+                href="/zh/demo"
                 className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition"
               >
                 体验线上展示环境

@@ -53,7 +53,7 @@ export function Footer({ locale, translatedBlogSlugs = [], translatedHelpSlugs =
       title: isZh ? '公司' : 'Company',
       links: [
         { label: isZh ? '关于我们' : 'About', href: isZh ? '/zh/about' : '/about' },
-        { label: isZh ? '在线演示' : 'Live Demo', href: '/demo' },
+        { label: isZh ? '在线演示' : 'Live Demo', href: isZh ? '/zh/demo' : '/demo' },
         { label: isZh ? '联系销售' : 'Contact Sales', href: 'mailto:sales@coneshare.com' },
         { label: isZh ? '技术支持' : 'Support', href: 'mailto:dev@coneshare.com' },
         { label: isZh ? '服务条款' : 'Terms', href: '/terms' },

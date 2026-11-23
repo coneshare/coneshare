@@ -62,6 +62,7 @@ const FEATURE_COPY = {
     ctaSubtitle:
       'See how control, intelligence, and action layers work together across fundraising, sales, and deal execution.',
     demoCta: 'View live demo',
+    demoHref: '/demo',
     solutionsCta: 'Browse use cases',
     notFoundTitle: 'Feature Not Found | Coneshare',
     notFoundDescription:
@@ -150,6 +151,7 @@ const FEATURE_COPY = {
     ctaTitle: '准备好把这些能力用到实际业务中了吗？',
     ctaSubtitle: '立即通过交互演示了解控制层、洞察层与自动化联动在融资、销售与交易交付中的协同效果。',
     demoCta: '查看在线演示',
+    demoHref: '/zh/demo',
     solutionsCta: '浏览应用场景 (EN)',
     notFoundTitle: '未找到功能页面 | Coneshare',
     notFoundDescription: '浏览 Coneshare 安全文档分发、阅读分析与自动化功能特性。',
@@ -387,7 +389,7 @@ export function FeaturesIndexView({ locale = 'en' }) {
           <p className="mt-4 text-base text-gray-200">{copy.ctaSubtitle}</p>
           <div className="mt-8 flex items-center justify-center gap-6">
             <Link
-              href="/demo"
+              href={copy.demoHref}
               className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-100"
             >
               {copy.demoCta}
@@ -522,7 +524,7 @@ export function FeatureDetailView({ slug, locale = 'en' }) {
             <p className="mt-4 text-base text-gray-200">{copy.detailCtaBody}</p>
             <div className="mt-8 flex flex-wrap items-center gap-5">
               <Link
-                href="/demo"
+                href={copy.demoHref}
                 className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-100"
               >
                 {copy.demoCta}
@@ -676,7 +678,7 @@ export function FileRequestEmbedView({ locale = 'en' }) {
           <p className="mt-4 text-base text-gray-200">{copy.embedCtaBody}</p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-6">
             <Link
-              href="/demo"
+              href={copy.demoHref}
               className="rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-100"
             >
               {copy.demoCta}
