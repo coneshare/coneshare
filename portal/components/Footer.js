@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { features } from '../lib/content';
-import { getAlternateLocalePath } from '../lib/i18n';
+import { getAlternateLocalePath, saveLocalePreference } from '../lib/i18n';
 
 export function Footer({ locale, translatedBlogSlugs = [], translatedHelpSlugs = [] }) {
   const pathname = usePathname();
@@ -92,6 +92,7 @@ export function Footer({ locale, translatedBlogSlugs = [], translatedHelpSlugs =
                 <>
                   <Link
                     href={altHref}
+                    onClick={() => saveLocalePreference('en')}
                     className="text-gray-500 hover:text-gray-900 transition-colors"
                   >
                     English
@@ -105,6 +106,7 @@ export function Footer({ locale, translatedBlogSlugs = [], translatedHelpSlugs =
                   <span>/</span>
                   <Link
                     href={altHref}
+                    onClick={() => saveLocalePreference('zh')}
                     className="text-gray-500 hover:text-gray-900 transition-colors"
                   >
                     中文

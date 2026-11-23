@@ -4,6 +4,7 @@ import './globals.css';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { AnnouncementBanner } from '../components/AnnouncementBanner';
+import { LocaleSuggestionBanner } from '../components/LocaleSuggestionBanner';
 import { NavigationProgress } from '../components/NavigationProgress';
 import { PageTransition } from '../components/PageTransition';
 import { getBilingualBlogSlugs } from '../lib/blog';
@@ -59,6 +60,10 @@ export default async function RootLayout({ children }) {
           <Header />
           <PageTransition className="flex-grow">{children}</PageTransition>
           <Footer
+            translatedBlogSlugs={translatedBlogSlugs}
+            translatedHelpSlugs={translatedHelpSlugs}
+          />
+          <LocaleSuggestionBanner
             translatedBlogSlugs={translatedBlogSlugs}
             translatedHelpSlugs={translatedHelpSlugs}
           />

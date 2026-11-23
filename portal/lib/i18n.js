@@ -36,12 +36,81 @@ export const ZH_FEATURE_SLUGS = new Set([
   'file-request-embed',
 ]);
 
-function mapDetailLocalePath(cleanPath, fromPrefix, toPrefix, fallbackPath, translatedSlugsSet) {
+export const LOCALE_PREFERENCE_STORAGE_KEY = 'coneshare_locale';
+
+export function readLocalePreference() {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(LOCALE_PREFERENCE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveLocalePreference(locale) {
+  if (typeof window === 'undefined' || !locale) return;
+  try {
+    window.localStorage.setItem(LOCALE_PREFERENCE_STORAGE_KEY, locale);
+  } catch {
+    // Ignore storage access restrictions in private browsing modes.
+  }
+}
+
+export function isChineseBrowserLocale(languages, language) {
+  const primary = (Array.isArray(languages) && languages.length > 0 ? languages[0] : language) || '';
+  return /^zh(?:-|$)/i.test(String(primary).trim());
+}
+
+export function isAutomatedCrawler(userAgent) {
+  return /bot|crawler|spider|slurp|bingpreview|lighthouse/i.test(String(userAgent || ''));
+}
+
+function extractMatchingSlug(cleanPath, fromPrefix, translatedSlugsSet) {
   const slug = cleanPath.slice(fromPrefix.length);
   if (slug && !slug.includes('/') && translatedSlugsSet?.has(slug)) {
-    return `${toPrefix}${slug}`;
+    return slug;
   }
-  return fallbackPath;
+  return null;
+}
+
+function mapDetailLocalePath(cleanPath, fromPrefix, toPrefix, fallbackPath, translatedSlugsSet) {
+  const slug = extractMatchingSlug(cleanPath, fromPrefix, translatedSlugsSet);
+  return slug ? `${toPrefix}${slug}` : fallbackPath;
+}
+
+export function getChineseCounterpartPath(pathname, options = {}) {
+  if (!pathname) return null;
+  const cleanPath = pathname.replace(/\/+$/, '') || '/';
+  if (cleanPath === '/zh' || cleanPath.startsWith('/zh/')) {
+    return null;
+  }
+  if (cleanPath === '/') {
+    return '/zh';
+  }
+  if (ZH_SUPPORTED_SUBPATHS.includes(cleanPath)) {
+    return `/zh${cleanPath}`;
+  }
+
+  const translatedBlogSlugs = options?.translatedBlogSlugs
+    ? new Set(options.translatedBlogSlugs)
+    : null;
+  const translatedHelpSlugs = options?.translatedHelpSlugs
+    ? new Set(options.translatedHelpSlugs)
+    : null;
+
+  if (cleanPath.startsWith('/blog/')) {
+    const slug = extractMatchingSlug(cleanPath, '/blog/', translatedBlogSlugs);
+    return slug ? `/zh/blog/${slug}` : null;
+  }
+  if (cleanPath.startsWith('/help/')) {
+    const slug = extractMatchingSlug(cleanPath, '/help/', translatedHelpSlugs);
+    return slug ? `/zh/help/${slug}` : null;
+  }
+  if (cleanPath.startsWith('/features/')) {
+    const slug = extractMatchingSlug(cleanPath, '/features/', ZH_FEATURE_SLUGS);
+    return slug ? `/zh/features/${slug}` : null;
+  }
+  return null;
 }
 
 /**

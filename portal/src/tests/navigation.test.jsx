@@ -258,14 +258,22 @@ describe('Header & Footer Localization', () => {
     });
 
     it('preserves target page subpath in language switcher for supported pages', () => {
+      window.localStorage.clear();
       mockPathname = '/zh/about';
       render(<Footer />);
-      expect(screen.getByRole('link', { name: 'English' })).toHaveAttribute('href', '/about');
+      const enLink = screen.getByRole('link', { name: 'English' });
+      expect(enLink).toHaveAttribute('href', '/about');
+      fireEvent.click(enLink);
+      expect(window.localStorage.getItem('coneshare_locale')).toBe('en');
 
       cleanup();
+      window.localStorage.clear();
       mockPathname = '/about';
       render(<Footer />);
-      expect(screen.getByRole('link', { name: '中文' })).toHaveAttribute('href', '/zh/about');
+      const zhLink = screen.getByRole('link', { name: '中文' });
+      expect(zhLink).toHaveAttribute('href', '/zh/about');
+      fireEvent.click(zhLink);
+      expect(window.localStorage.getItem('coneshare_locale')).toBe('zh');
 
       cleanup();
       mockPathname = '/blog';
