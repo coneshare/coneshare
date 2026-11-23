@@ -1,0 +1,26 @@
+export const metadata = {
+  title: '阅读行为洞察与连接 AI 助手 (MCP)',
+  navTitle: '分析洞察与 MCP',
+  description: '查看逐页停留时长、访客审计日志与实时告警，并通过 MCP 连接器接入 ChatGPT、Gemini 与 Claude。',
+  section: 'analytics-ai',
+  order: 1,
+};
+
+Coneshare 不仅记录链接发出去之后的每一次真实阅读行为，还支持通过官方远程 MCP 连接器让 AI 助手直接协助整理文档和分享链接。
+
+## 阅读洞察与通知
+
+- **逐页停留分析**：查看访客在每一页幻灯片或文档页面停留的时间及整体完读率。
+- **访客会话日志**：定位已验证邮箱的访问者、访问时间、设备/浏览器信息以及在资料室内的目录浏览轨迹。
+- **外链点击与视频统计**：记录文档内部超链接点击情况，以及视频预览的观看时长和进度条拖拽。
+- **实时告警**：在链接被首次打开、重点页面被反复查看时，通过邮件、Slack 或 Webhook 接收通知。
+
+## 接入 ChatGPT、Gemini 与 Claude (MCP)
+
+通过 Coneshare MCP 连接器，你可以在 AI 对话中检索工作区文件、生成/调整分享链接、向资料室添加材料并查询近期访问分析：
+
+1. 前往 [AI 与自动化（Agents &amp; MCP）](/zh/agents) 查看支持的接入方式与工作流示例。
+2. 在客户端中选择 OAuth 2.1 授权登录或配置 API Key。
+3. 直接用自然语言让助手检索文档、生成受控链接或汇总最近的访客动态。
+
+> 服务器管理员如需在私有化实例上配置 `SITE_DOMAIN` 与反向代理以开启远程 MCP，请参阅 [Remote MCP Server 运维文档](https://docs.coneshare.com/en/mcp-server/)。

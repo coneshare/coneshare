@@ -10,6 +10,7 @@ export const ZH_SUPPORTED_SUBPATHS = [
   '/pricing',
   '/agents',
   '/blog',
+  '/help',
 ];
 
 // All Chinese routes including root /zh
@@ -18,10 +19,18 @@ export const ZH_ALL_ROUTES = [
   ...ZH_SUPPORTED_SUBPATHS.map((path) => `/zh${path}`),
 ];
 
+function mapDetailLocalePath(cleanPath, fromPrefix, toPrefix, fallbackPath, translatedSlugsSet) {
+  const slug = cleanPath.slice(fromPrefix.length);
+  if (slug && !slug.includes('/') && translatedSlugsSet?.has(slug)) {
+    return `${toPrefix}${slug}`;
+  }
+  return fallbackPath;
+}
+
 /**
  * Returns the corresponding URL for the alternative locale.
- * - From ZH to EN: removes /zh prefix; preserves /blog/<slug> when the post exists in both locales
- * - From EN to ZH: checks whitelist; preserves /zh/blog/<slug> when the post exists in both locales
+ * - From ZH to EN: removes /zh prefix; preserves /blog/<slug> and /help/<slug> when both locales exist
+ * - From EN to ZH: checks whitelist; preserves /zh/blog/<slug> and /zh/help/<slug> when both locales exist
  */
 export function getAlternateLocalePath(pathname, currentIsZh, options = {}) {
   if (!pathname) {
@@ -32,6 +41,9 @@ export function getAlternateLocalePath(pathname, currentIsZh, options = {}) {
   const translatedBlogSlugs = options?.translatedBlogSlugs
     ? new Set(options.translatedBlogSlugs)
     : null;
+  const translatedHelpSlugs = options?.translatedHelpSlugs
+    ? new Set(options.translatedHelpSlugs)
+    : null;
 
   if (currentIsZh) {
     if (cleanPath === '/zh') {
@@ -41,27 +53,28 @@ export function getAlternateLocalePath(pathname, currentIsZh, options = {}) {
       return '/blog';
     }
     if (cleanPath.startsWith('/zh/blog/')) {
-      const slug = cleanPath.slice('/zh/blog/'.length);
-      if (slug && !slug.includes('/') && translatedBlogSlugs?.has(slug)) {
-        return `/blog/${slug}`;
-      }
-      return '/blog';
+      return mapDetailLocalePath(cleanPath, '/zh/blog/', '/blog/', '/blog', translatedBlogSlugs);
+    }
+    if (cleanPath === '/zh/help') {
+      return '/help';
+    }
+    if (cleanPath.startsWith('/zh/help/')) {
+      return mapDetailLocalePath(cleanPath, '/zh/help/', '/help/', '/help', translatedHelpSlugs);
     }
     return cleanPath.replace(/^\/zh/, '') || '/';
-  } else {
-    if (cleanPath === '/') {
-      return '/zh';
-    }
-    if (ZH_SUPPORTED_SUBPATHS.includes(cleanPath)) {
-      return `/zh${cleanPath}`;
-    }
-    if (cleanPath.startsWith('/blog/')) {
-      const slug = cleanPath.slice('/blog/'.length);
-      if (slug && !slug.includes('/') && translatedBlogSlugs?.has(slug)) {
-        return `/zh/blog/${slug}`;
-      }
-      return '/zh/blog';
-    }
+  }
+
+  if (cleanPath === '/') {
     return '/zh';
   }
+  if (ZH_SUPPORTED_SUBPATHS.includes(cleanPath)) {
+    return `/zh${cleanPath}`;
+  }
+  if (cleanPath.startsWith('/blog/')) {
+    return mapDetailLocalePath(cleanPath, '/blog/', '/zh/blog/', '/zh/blog', translatedBlogSlugs);
+  }
+  if (cleanPath.startsWith('/help/')) {
+    return mapDetailLocalePath(cleanPath, '/help/', '/zh/help/', '/zh/help', translatedHelpSlugs);
+  }
+  return '/zh';
 }

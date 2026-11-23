@@ -28,6 +28,10 @@ describe('Header & Footer Localization', () => {
       expect(screen.getAllByText('Resources').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Live Demo').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Get Started').length).toBeGreaterThan(0);
+      expect(screen.queryByRole('link', { name: /^Agents$/i })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /Features/i }));
+      expect(screen.getByRole('link', { name: 'Agents & MCP' })).toHaveAttribute('href', '/agents');
     });
 
     it('renders Chinese navigation and localized resource items when pathname is /zh', () => {
@@ -45,11 +49,14 @@ describe('Header & Footer Localization', () => {
       const resourceBtn = screen.getByRole('button', { name: /资源/i });
       fireEvent.click(resourceBtn);
 
-      // Verify Chinese About and Docs menu links
+      // Verify Chinese Help Center, About, and Server Admin Docs links
+      const helpLinks = screen.getAllByRole('link', { name: /帮助中心/i });
+      expect(helpLinks.some((link) => link.getAttribute('href') === '/zh/help')).toBe(true);
+
       const aboutLinks = screen.getAllByRole('link', { name: /关于我们/i });
       expect(aboutLinks.some((link) => link.getAttribute('href') === '/zh/about')).toBe(true);
 
-      const docsLinks = screen.getAllByRole('link', { name: /开发文档/i });
+      const docsLinks = screen.getAllByRole('link', { name: /运维部署文档/i });
       expect(docsLinks.length).toBeGreaterThan(0);
 
       const blogLinks = screen.getAllByRole('link', { name: '博客' });
@@ -146,6 +153,15 @@ describe('Header & Footer Localization', () => {
       expect(featuresBtn.querySelector('svg')).not.toHaveClass('rotate-180');
       expect(featuresBtn.querySelector('span[aria-hidden="true"]')).toHaveClass('scale-x-0');
 
+      mockPathname = '/zh/agents';
+      rerender(<Header />);
+      const zhFeaturesBtn = screen.getByRole('button', { name: /功能特性/i });
+      expect(zhFeaturesBtn).toHaveClass('text-gray-900', 'font-semibold');
+      fireEvent.click(zhFeaturesBtn);
+      const zhAgentsItem = screen.getByRole('link', { name: /AI 与自动化 \(MCP\)/i });
+      expect(zhAgentsItem).toHaveAttribute('href', '/zh/agents');
+      expect(zhAgentsItem).toHaveAttribute('aria-current', 'page');
+
       mockPathname = '/demo';
       rerender(<Header />);
       const demoLink = screen.getByRole('link', { name: 'Live Demo' });
@@ -237,7 +253,7 @@ describe('Header & Footer Localization', () => {
       expect(screen.getByRole('link', { name: 'English' })).toHaveAttribute('href', '/blog');
     });
 
-    it('preserves matched blog post slug in language switcher and falls back for untranslated posts', () => {
+    it('preserves matched blog and help slugs in language switcher and falls back for untranslated pages', () => {
       mockPathname = '/blog/dataroom-guide-when-to-use';
       render(<Footer translatedBlogSlugs={['dataroom-guide-when-to-use']} />);
       expect(screen.getByRole('link', { name: '中文' })).toHaveAttribute(
@@ -251,6 +267,22 @@ describe('Header & Footer Localization', () => {
       expect(screen.getByRole('link', { name: 'English' })).toHaveAttribute(
         'href',
         '/blog/dataroom-guide-when-to-use'
+      );
+
+      cleanup();
+      mockPathname = '/help/getting-started';
+      render(<Footer translatedHelpSlugs={['getting-started']} />);
+      expect(screen.getByRole('link', { name: '中文' })).toHaveAttribute(
+        'href',
+        '/zh/help/getting-started'
+      );
+
+      cleanup();
+      mockPathname = '/zh/help/getting-started';
+      render(<Footer translatedHelpSlugs={['getting-started']} />);
+      expect(screen.getByRole('link', { name: 'English' })).toHaveAttribute(
+        'href',
+        '/help/getting-started'
       );
 
       cleanup();
@@ -273,6 +305,7 @@ describe('Header & Footer Localization', () => {
         '/pricing',
         '/agents',
         '/blog',
+        '/help',
       ]);
       expect(ZH_ALL_ROUTES).toEqual([
         '/zh',
@@ -281,6 +314,7 @@ describe('Header & Footer Localization', () => {
         '/zh/pricing',
         '/zh/agents',
         '/zh/blog',
+        '/zh/help',
       ]);
     });
 
@@ -296,6 +330,13 @@ describe('Header & Footer Localization', () => {
       expect(
         getAlternateLocalePath('/zh/blog/some-post', true, { translatedBlogSlugs: ['some-post'] })
       ).toBe('/blog/some-post');
+      expect(getAlternateLocalePath('/zh/help', true)).toBe('/help');
+      expect(getAlternateLocalePath('/zh/help/getting-started', true)).toBe('/help');
+      expect(
+        getAlternateLocalePath('/zh/help/getting-started', true, {
+          translatedHelpSlugs: ['getting-started'],
+        })
+      ).toBe('/help/getting-started');
 
       // From English to Chinese
       expect(getAlternateLocalePath('/', false)).toBe('/zh');
@@ -308,6 +349,13 @@ describe('Header & Footer Localization', () => {
       expect(
         getAlternateLocalePath('/blog/some-post', false, { translatedBlogSlugs: ['some-post'] })
       ).toBe('/zh/blog/some-post');
+      expect(getAlternateLocalePath('/help', false)).toBe('/zh/help');
+      expect(getAlternateLocalePath('/help/getting-started', false)).toBe('/zh/help');
+      expect(
+        getAlternateLocalePath('/help/getting-started', false, {
+          translatedHelpSlugs: ['getting-started'],
+        })
+      ).toBe('/zh/help/getting-started');
 
       // Untranslated paths fallback to /zh
       expect(getAlternateLocalePath('/solutions/sales', false)).toBe('/zh');

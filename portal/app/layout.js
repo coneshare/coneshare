@@ -7,6 +7,7 @@ import { AnnouncementBanner } from '../components/AnnouncementBanner';
 import { NavigationProgress } from '../components/NavigationProgress';
 import { PageTransition } from '../components/PageTransition';
 import { getBilingualBlogSlugs } from '../lib/blog';
+import { getBilingualHelpSlugs } from '../lib/help';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -32,7 +33,10 @@ export const metadata = {
 };
 
 export default async function RootLayout({ children }) {
-  const translatedBlogSlugs = await getBilingualBlogSlugs();
+  const [translatedBlogSlugs, translatedHelpSlugs] = await Promise.all([
+    getBilingualBlogSlugs(),
+    getBilingualHelpSlugs(),
+  ]);
 
   return (
     <html lang="en">
@@ -54,7 +58,10 @@ export default async function RootLayout({ children }) {
           <AnnouncementBanner />
           <Header />
           <PageTransition className="flex-grow">{children}</PageTransition>
-          <Footer translatedBlogSlugs={translatedBlogSlugs} />
+          <Footer
+            translatedBlogSlugs={translatedBlogSlugs}
+            translatedHelpSlugs={translatedHelpSlugs}
+          />
         </div>
       </body>
     </html>

@@ -1,0 +1,24 @@
+export const metadata = {
+  title: 'Dynamic Watermarking',
+  navTitle: 'Dynamic Watermarks',
+  description:
+    'Stamp viewer-specific email, IP address, and timestamp overlays onto previews and downloaded PDFs.',
+  section: 'sharing-security',
+  order: 2,
+};
+
+Dynamic watermarking discourages unauthorized screenshots, forwarding, and leaks by embedding each recipient&apos;s session identity directly onto the pages they view.
+
+## How Dynamic Watermarks Work
+
+Instead of burning a static &ldquo;Confidential&rdquo; label once into a file, Coneshare renders watermark fields **on the fly** when a visitor opens a link:
+
+- **Viewer email:** Shows the verified recipient email address.
+- **IP address &amp; timestamp:** Records when and from where the file was accessed.
+- **Custom notice:** Add organization branding or confidentiality reminders alongside session variables.
+
+## Best Practices
+
+- Enable watermarking on **sensitive share links** (fundraising decks, legal drafts, pricing schedules, M&amp;A financials) rather than public marketing collateral.
+- Pair watermarks with **email verification** so the displayed identity reflects a verified recipient email.
+- Use **download restrictions** when you want to keep sensitive documents restricted to browser preview.

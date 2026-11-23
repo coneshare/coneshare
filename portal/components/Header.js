@@ -26,6 +26,27 @@ function getFeatureHref(baseHref, item) {
   return item.isAlternative ? '/alternatives/docsend' : `${baseHref}/${item.slug}`;
 }
 
+function getFeatureMenuItems(isZh) {
+  const mapped = features.map((item) => {
+    if (item.type === 'group') {
+      return item;
+    }
+    return {
+      key: item.slug,
+      label: isZh && item.menuNameZh ? item.menuNameZh : item.menuName,
+      href: getFeatureHref('/features', item),
+    };
+  });
+
+  mapped.push({
+    key: 'agents',
+    label: isZh ? 'AI 与自动化 (MCP)' : 'Agents & MCP',
+    href: isZh ? '/zh/agents' : '/agents',
+  });
+
+  return mapped;
+}
+
 function getDesktopNavTriggerClasses(active, highlighted = active) {
   return `group relative inline-flex items-center gap-x-1 py-2 text-sm transition-colors duration-200 focus:outline-none focus-visible:text-gray-900 ${
     active ? 'font-semibold' : 'font-medium'
@@ -140,13 +161,18 @@ function HeaderDropdown({ title, panelWidthClass, isActive, children }) {
 
 const getResourceMenuItems = (isZh) => [
   {
+    key: 'help',
+    name: isZh ? '帮助中心' : 'Help Center',
+    href: isZh ? '/zh/help' : '/help',
+  },
+  {
     key: 'about',
     name: isZh ? '关于我们' : 'About',
     href: isZh ? '/zh/about' : '/about',
   },
   {
     key: 'docs',
-    name: isZh ? '开发文档' : 'Docs',
+    name: isZh ? '运维部署文档' : 'Server Admin Docs',
     href: 'https://docs.coneshare.com/en/',
     external: true,
   },
@@ -183,22 +209,17 @@ export function Header({ locale }) {
       label: isZh ? '虚拟资料室' : 'Virtual Dataroom',
     },
     {
-      href: isZh ? '/zh/agents' : '/agents',
-      label: isZh ? 'AI 与自动化' : 'Agents',
-    },
-    {
       href: isZh ? '/zh/pricing' : '/pricing',
       label: isZh ? '方案定价' : 'Pricing',
     },
   ];
 
+  const featureMenuItems = getFeatureMenuItems(isZh);
   const blogHref = isZh ? '/zh/blog' : '/blog';
   const blogActive = isRouteActive(pathname, blogHref, { prefix: true });
   const featuresActive =
     isRouteActive(pathname, '/features', { prefix: true }) ||
-    features.some(
-      (item) => item.type !== 'group' && isRouteActive(pathname, getFeatureHref('/features', item))
-    );
+    featureMenuItems.some((item) => item.type !== 'group' && isRouteActive(pathname, item.href));
   const resourcesActive = resourceMenuItems.some(
     (item) => !item.external && isRouteActive(pathname, item.href, { prefix: true })
   );
@@ -274,7 +295,7 @@ export function Header({ locale }) {
               isActive={featuresActive}
             >
               {(closeMenu) =>
-                features.map((item) => {
+                featureMenuItems.map((item) => {
                   if (item.type === 'group') {
                     return (
                       <div key={item.key || item.label} className="px-4 py-2">
@@ -287,17 +308,16 @@ export function Header({ locale }) {
                       </div>
                     );
                   }
-                  const itemHref = getFeatureHref('/features', item);
-                  const active = isRouteActive(pathname, itemHref);
+                  const active = isRouteActive(pathname, item.href);
                   return (
                     <Link
-                      key={item.slug}
-                      href={itemHref}
+                      key={item.key}
+                      href={item.href}
                       aria-current={active ? 'page' : undefined}
                       onClick={closeMenu}
                       className={getDropdownItemClasses(active)}
                     >
-                      {isZh && item.menuNameZh ? item.menuNameZh : item.menuName}
+                      {item.label}
                     </Link>
                   );
                 })
@@ -406,7 +426,7 @@ export function Header({ locale }) {
                 {isZh ? '功能特性' : 'Features'}
               </h3>
               <div className="mt-2 space-y-1">
-                {features.map((item) => {
+                {featureMenuItems.map((item) => {
                   if (item.type === 'group') {
                     return item.label ? (
                       <p
@@ -417,17 +437,16 @@ export function Header({ locale }) {
                       </p>
                     ) : null;
                   }
-                  const itemHref = getFeatureHref('/features', item);
-                  const active = isRouteActive(pathname, itemHref);
+                  const active = isRouteActive(pathname, item.href);
                   return (
                     <Link
-                      key={item.slug}
-                      href={itemHref}
+                      key={item.key}
+                      href={item.href}
                       aria-current={active ? 'page' : undefined}
                       onClick={() => setIsMobileMenuOpen(false)}
                       className={getMobileNavLinkClasses(active)}
                     >
-                      {isZh && item.menuNameZh ? item.menuNameZh : item.menuName}
+                      {item.label}
                     </Link>
                   );
                 })}

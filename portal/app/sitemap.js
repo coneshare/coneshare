@@ -1,5 +1,6 @@
 import { features, solutions, integrations } from '../lib/content';
 import { getAllBlogPosts, getAllCategories, getAllTags, getEffectiveCategory, slugifyTerm } from '../lib/blog';
+import { getAllHelpGuides } from '../lib/help';
 import { ZH_ALL_ROUTES } from '../lib/i18n';
 
 export const dynamic = 'force-static';
@@ -56,18 +57,32 @@ export default async function sitemap() {
     lastModified: new Date(),
   }));
 
-  const [enPosts, enCategories, enTags, zhPosts, zhCategories, zhTags] = await Promise.all([
-    getAllBlogPosts('en'),
-    getAllCategories('en'),
-    getAllTags('en'),
-    getAllBlogPosts('zh'),
-    getAllCategories('zh'),
-    getAllTags('zh'),
-  ]);
+  const [enPosts, enCategories, enTags, zhPosts, zhCategories, zhTags, enHelpGuides, zhHelpGuides] =
+    await Promise.all([
+      getAllBlogPosts('en'),
+      getAllCategories('en'),
+      getAllTags('en'),
+      getAllBlogPosts('zh'),
+      getAllCategories('zh'),
+      getAllTags('zh'),
+      getAllHelpGuides('en'),
+      getAllHelpGuides('zh'),
+    ]);
 
   const blogEntries = [
     ...buildBlogSitemapEntries('/blog', enPosts, enCategories, enTags),
     ...buildBlogSitemapEntries('/zh/blog', zhPosts, zhCategories, zhTags),
+  ];
+
+  const helpEntries = [
+    ...enHelpGuides.map((guide) => ({
+      url: `${URL}/help/${guide.slug}`,
+      lastModified: new Date(),
+    })),
+    ...zhHelpGuides.map((guide) => ({
+      url: `${URL}/zh/help/${guide.slug}`,
+      lastModified: new Date(),
+    })),
   ];
 
   const routes = [
@@ -76,6 +91,7 @@ export default async function sitemap() {
     '/features/file-request-embed',
     '/solutions',
     '/blog',
+    '/help',
     '/about',
     '/pricing',
     '/privacy-policy',
@@ -90,5 +106,12 @@ export default async function sitemap() {
     lastModified: new Date(),
   }));
 
-  return [...routes, ...featureRoutes, ...solutionRoutes, ...integrationRoutes, ...blogEntries];
+  return [
+    ...routes,
+    ...featureRoutes,
+    ...solutionRoutes,
+    ...integrationRoutes,
+    ...blogEntries,
+    ...helpEntries,
+  ];
 }

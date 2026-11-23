@@ -1,0 +1,20 @@
+export const metadata = {
+  title: '使用 File Request 安全接收文件',
+  navTitle: '文件收集',
+  description: '通过受控上传链接向客户、供应商或候选人收集大文件并直接归档到目标文件夹。',
+  section: 'file-collection',
+  order: 1,
+};
+
+File Request（文件收集）可以为外部协作者生成一个简洁安全的上传入口，对方提交的文件会直接进入你指定的目标文件夹，摆脱邮件附件大小限制与网盘失效问题。
+
+## 创建文件收集链接
+
+1. 选定或新建用于接收来件的**目标文件夹**。
+2. 创建 **File Request** 链接，配置说明文案、访问密码或截止有效期。
+3. 将链接发给外部发送方，或将其嵌入企业自有门户页面。
+4. 在目标文件夹内查看已上传的文件以及上传者标识、提交时间等记录。
+
+## 嵌入自有网站或客户门户
+
+如果你的团队使用私有化部署并希望通过 `iframe` 将上传页嵌入业务门户，可参考 [File Request 嵌入说明](/features/file-request-embed) 以及 [Nginx 嵌入配置手册](https://docs.coneshare.com/en/file-request-embedding/)。

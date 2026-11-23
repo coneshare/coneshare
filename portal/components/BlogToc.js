@@ -11,13 +11,13 @@ function slugify(text) {
     .replace(/^-+|-+$/g, '');
 }
 
-export default function BlogToc({ locale = 'en' }) {
+export default function BlogToc({ locale = 'en', contentSelector = '.js-blog-content' }) {
   const isZh = locale === 'zh';
   const [items, setItems] = useState([]);
   const [activeId, setActiveId] = useState('');
 
   useEffect(() => {
-    const container = document.querySelector('.js-blog-content');
+    const container = document.querySelector(contentSelector);
     if (!container) return;
 
     const headings = Array.from(container.querySelectorAll('h2, h3'));
@@ -50,7 +50,7 @@ export default function BlogToc({ locale = 'en' }) {
     });
 
     setItems(nextItems.filter((item) => item.text));
-  }, []);
+  }, [contentSelector]);
 
   useEffect(() => {
     if (items.length === 0) return;
@@ -99,7 +99,7 @@ export default function BlogToc({ locale = 'en' }) {
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
           {isZh ? '本页目录' : 'On this page'}
         </p>
-        <nav className="mt-3">
+        <nav aria-label={isZh ? '本页目录' : 'On this page'} className="mt-3">
           <ul className="space-y-2.5">
             {items.map((item) => (
               <li key={item.id}>

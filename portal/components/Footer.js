@@ -5,10 +5,13 @@ import { usePathname } from 'next/navigation';
 import { features } from '../lib/content';
 import { getAlternateLocalePath } from '../lib/i18n';
 
-export function Footer({ locale, translatedBlogSlugs = [] }) {
+export function Footer({ locale, translatedBlogSlugs = [], translatedHelpSlugs = [] }) {
   const pathname = usePathname();
   const isZh = locale === 'zh' || (locale ? false : pathname?.startsWith('/zh'));
-  const altHref = getAlternateLocalePath(pathname, isZh, { translatedBlogSlugs });
+  const altHref = getAlternateLocalePath(pathname, isZh, {
+    translatedBlogSlugs,
+    translatedHelpSlugs,
+  });
 
   const footerSections = [
     {
@@ -37,11 +40,12 @@ export function Footer({ locale, translatedBlogSlugs = [] }) {
     {
       title: isZh ? '资源' : 'Resources',
       links: [
+        { label: isZh ? '帮助中心' : 'Help Center', href: isZh ? '/zh/help' : '/help' },
         { label: isZh ? '博客' : 'Blog', href: isZh ? '/zh/blog' : '/blog' },
         { label: isZh ? '发布说明' : 'Release Notes', href: 'https://docs.coneshare.com/en/release-notes/', external: true },
         { label: isZh ? '社区论坛' : 'Community Forum', href: 'https://github.com/orgs/coneshare/discussions', external: true },
         { label: isZh ? '参与贡献' : 'Contribute', href: 'https://github.com/coneshare/coneshare', external: true },
-        { label: isZh ? '开发文档' : 'Documentation', href: 'https://docs.coneshare.com/en/', external: true },
+        { label: isZh ? '运维部署文档' : 'Server Admin Docs', href: 'https://docs.coneshare.com/en/', external: true },
         { label: isZh ? 'API 文档' : 'API Reference', href: 'https://app.coneshare.com/api/schema/swagger/', external: true },
       ],
     },
