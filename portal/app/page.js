@@ -57,17 +57,6 @@ export default function HomePage() {
           />
           <div className="pt-4 sm:pt-6 pb-12 sm:pb-16">
             <div className="mx-auto max-w-3xl text-center">
-              {/* Release Pill */}
-              <div className="mb-8 flex justify-center">
-                <Link
-                  href="/blog/coneshare-v1-11-0-dataroom-redesign-banner-gallery-download-all"
-                  className="inline-flex items-center gap-x-2 rounded-full border border-gray-200 bg-white/80 px-4 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 hover:border-gray-300"
-                >
-                  <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>ConeShare v1.11 is live: Redesigned dataroom visitor UI with whole-room batch downloads &rarr;</span>
-                </Link>
-              </div>
-
               <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
                 The Self-Hosted Virtual Data Room for Teams That Own Their Data
               </h1>

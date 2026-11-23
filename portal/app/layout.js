@@ -3,6 +3,7 @@ import Script from 'next/script';
 import './globals.css';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
+import { AnnouncementBanner } from '../components/AnnouncementBanner';
 import { NavigationProgress } from '../components/NavigationProgress';
 import { PageTransition } from '../components/PageTransition';
 import { getBilingualBlogSlugs } from '../lib/blog';
@@ -50,6 +51,7 @@ export default async function RootLayout({ children }) {
         </Script>
         <div className="flex min-h-screen flex-col">
           <NavigationProgress />
+          <AnnouncementBanner />
           <Header />
           <PageTransition className="flex-grow">{children}</PageTransition>
           <Footer translatedBlogSlugs={translatedBlogSlugs} />

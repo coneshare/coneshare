@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { Header } from '../../components/Header';
 import { Footer } from '../../components/Footer';
+import { AnnouncementBanner } from '../../components/AnnouncementBanner';
 import { ZH_SUPPORTED_SUBPATHS, ZH_ALL_ROUTES, getAlternateLocalePath } from '../../lib/i18n';
 
 // Mock next/navigation
@@ -311,6 +312,47 @@ describe('Header & Footer Localization', () => {
       // Untranslated paths fallback to /zh
       expect(getAlternateLocalePath('/solutions/sales', false)).toBe('/zh');
       expect(getAlternateLocalePath('/features/online-document-preview', false)).toBe('/zh');
+    });
+  });
+
+  describe('AnnouncementBanner Component', () => {
+    it('renders localized MCP announcement linking to /agents and /zh/agents, hides on destination pages, and persists dismissal', () => {
+      window.sessionStorage.clear();
+      mockPathname = '/virtual-dataroom';
+      const { rerender } = render(<AnnouncementBanner />);
+
+      const enLink = screen.getByRole('link', { name: /ChatGPT, Gemini, and Claude.*MCP connector/i });
+      expect(enLink).toHaveAttribute('href', '/agents');
+      const enBadge = screen.getByText('New');
+      expect(enBadge).toBeInTheDocument();
+      expect(enBadge).toHaveClass('bg-white', 'text-gray-900');
+
+      mockPathname = '/zh/pricing';
+      rerender(<AnnouncementBanner />);
+      const zhLink = screen.getByRole('link', { name: /MCP 连接器.*ChatGPT、Gemini 与 Claude/i });
+      expect(zhLink).toHaveAttribute('href', '/zh/agents');
+      const zhBadge = screen.getByText('新功能');
+      expect(zhBadge).toBeInTheDocument();
+      expect(zhBadge).toHaveClass('bg-white', 'text-gray-900');
+
+      mockPathname = '/agents';
+      rerender(<AnnouncementBanner />);
+      expect(screen.queryByRole('region')).not.toBeInTheDocument();
+
+      mockPathname = '/zh/agents';
+      rerender(<AnnouncementBanner />);
+      expect(screen.queryByRole('region')).not.toBeInTheDocument();
+
+      mockPathname = '/';
+      rerender(<AnnouncementBanner />);
+      fireEvent.click(screen.getByRole('button', { name: 'Dismiss announcement' }));
+      expect(screen.queryByRole('region')).not.toBeInTheDocument();
+      expect(window.sessionStorage.getItem('coneshare_mcp_banner_dismissed')).toBe('1');
+
+      cleanup();
+      mockPathname = '/pricing';
+      render(<AnnouncementBanner />);
+      expect(screen.queryByRole('region')).not.toBeInTheDocument();
     });
   });
 });

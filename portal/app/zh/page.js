@@ -53,17 +53,6 @@ export default function ZhHomePage() {
           />
           <div className="pt-4 sm:pt-6 pb-12 sm:pb-16">
             <div className="mx-auto max-w-3xl text-center">
-              {/* Release Pill */}
-              <div className="mb-8 flex justify-center">
-                <Link
-                  href="/blog/coneshare-v1-11-0-dataroom-redesign-banner-gallery-download-all-zh"
-                  className="inline-flex items-center gap-x-2 rounded-full border border-gray-200 bg-white/80 px-4 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 hover:border-gray-300"
-                >
-                  <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>ConeShare v1.11 已发布：全新资料室访客界面，支持整库一键打包下载 &rarr;</span>
-                </Link>
-              </div>
-
               <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
                 数据自主掌控的企业级私有化资料室
               </h1>
