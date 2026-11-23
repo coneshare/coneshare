@@ -28,9 +28,14 @@ export const IMMUTABLE_CACHE_CONTROL = 'public, max-age=31536000, immutable';
 export const HTML_CACHE_CONTROL = 'public, max-age=300, must-revalidate';
 export const ASSET_CACHE_CONTROL = 'public, max-age=86400';
 
-const DEFAULT_CONCURRENCY = 16;
+const DEFAULT_CONCURRENCY = 8;
+const DEFAULT_RETRY_DELAYS_MS = [500, 1500, 3500];
+const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
+const EMPTY_PAYLOAD_SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 const R2_REGION = 'auto';
 const S3_SERVICE = 's3';
+
+const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function getContentType(filePath) {
   const ext = path.extname(filePath).toLowerCase();
@@ -69,6 +74,10 @@ function sha256Hex(data) {
   return crypto.createHash('sha256').update(data).digest('hex');
 }
 
+export function md5Hex(data) {
+  return crypto.createHash('md5').update(data).digest('hex');
+}
+
 function hmac(key, data) {
   return crypto.createHmac('sha256', key).update(data).digest();
 }
@@ -81,13 +90,14 @@ function formatAmzDate(date = new Date()) {
   return date.toISOString().replace(/[:-]|\.\d{3}/g, '');
 }
 
-export function buildSignedPutHeaders({
+function signS3Request({
+  method,
   endpointUrl,
   bucketName,
-  objectKey,
-  body,
-  contentType,
-  cacheControl = getCacheControl(objectKey),
+  objectKey = '',
+  query = {},
+  extraHeaders = {},
+  payloadHash,
   accessKeyId,
   secretAccessKey,
   now = new Date(),
@@ -95,8 +105,16 @@ export function buildSignedPutHeaders({
   const parsed = new URL(endpointUrl);
   const amzDate = formatAmzDate(now);
   const dateStamp = amzDate.slice(0, 8);
-  const payloadHash = sha256Hex(body);
-  const canonicalUri = `/${encodeS3Path(`${bucketName}/${objectKey}`)}`;
+  const canonicalUri = objectKey
+    ? `/${encodeS3Path(`${bucketName}/${objectKey}`)}`
+    : `/${encodeS3Path(bucketName)}`;
+
+  const canonicalQueryString = Object.entries(query)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => [encodeRfc3986Segment(key), encodeRfc3986Segment(String(value))])
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([key, value]) => `${key}=${value}`)
+    .join('&');
 
   const canonicalHeaders =
     `host:${parsed.host}\n` +
@@ -105,9 +123,9 @@ export function buildSignedPutHeaders({
   const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
 
   const canonicalRequest = [
-    'PUT',
+    method,
     canonicalUri,
-    '',
+    canonicalQueryString,
     canonicalHeaders,
     signedHeaders,
     payloadHash,
@@ -132,15 +150,208 @@ export function buildSignedPutHeaders({
     `SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
   return {
-    url: `${parsed.origin}${canonicalUri}`,
+    url: canonicalQueryString
+      ? `${parsed.origin}${canonicalUri}?${canonicalQueryString}`
+      : `${parsed.origin}${canonicalUri}`,
     headers: {
       Authorization: authorization,
-      'Cache-Control': cacheControl,
-      'Content-Type': contentType,
+      ...extraHeaders,
       'x-amz-content-sha256': payloadHash,
       'x-amz-date': amzDate,
     },
   };
+}
+
+export function buildSignedPutHeaders({
+  endpointUrl,
+  bucketName,
+  objectKey,
+  body,
+  contentType,
+  cacheControl = getCacheControl(objectKey),
+  accessKeyId,
+  secretAccessKey,
+  now = new Date(),
+}) {
+  return signS3Request({
+    method: 'PUT',
+    endpointUrl,
+    bucketName,
+    objectKey,
+    extraHeaders: {
+      'Cache-Control': cacheControl,
+      'Content-Type': contentType,
+    },
+    payloadHash: sha256Hex(body),
+    accessKeyId,
+    secretAccessKey,
+    now,
+  });
+}
+
+export function buildSignedListHeaders({
+  endpointUrl,
+  bucketName,
+  prefix = '',
+  continuationToken = '',
+  accessKeyId,
+  secretAccessKey,
+  now = new Date(),
+}) {
+  return signS3Request({
+    method: 'GET',
+    endpointUrl,
+    bucketName,
+    query: {
+      'continuation-token': continuationToken,
+      'list-type': '2',
+      prefix,
+    },
+    payloadHash: EMPTY_PAYLOAD_SHA256,
+    accessKeyId,
+    secretAccessKey,
+    now,
+  });
+}
+
+function decodeXmlEntities(text) {
+  return text
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&');
+}
+
+export function parseListObjectsV2Xml(xmlText) {
+  const objects = new Map();
+  const contentsRegex = /<Contents>([\s\S]*?)<\/Contents>/g;
+
+  for (const match of xmlText.matchAll(contentsRegex)) {
+    const block = match[1];
+    const keyMatch = block.match(/<Key>([\s\S]*?)<\/Key>/);
+    const etagMatch = block.match(/<ETag>([\s\S]*?)<\/ETag>/);
+    if (!keyMatch || !etagMatch) {
+      continue;
+    }
+
+    const key = decodeXmlEntities(keyMatch[1]);
+    const rawEtag = decodeXmlEntities(etagMatch[1]).replace(/^"+|"+$/g, '').toLowerCase();
+    if (/^[0-9a-f]{32}$/.test(rawEtag)) {
+      objects.set(key, rawEtag);
+    }
+  }
+
+  const truncatedMatch = xmlText.match(/<IsTruncated>(true|false)<\/IsTruncated>/i);
+  const tokenMatch = xmlText.match(/<NextContinuationToken>([\s\S]*?)<\/NextContinuationToken>/);
+
+  return {
+    objects,
+    isTruncated: truncatedMatch ? truncatedMatch[1].toLowerCase() === 'true' : false,
+    nextContinuationToken: tokenMatch ? decodeXmlEntities(tokenMatch[1]) : '',
+  };
+}
+
+function isRetryableStatus(status) {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+async function fetchWithRetry({
+  fetchImpl,
+  url,
+  init,
+  retryDelaysMs = DEFAULT_RETRY_DELAYS_MS,
+  sleepImpl = defaultSleep,
+  requestTimeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
+}) {
+  const maxAttempts = retryDelaysMs.length + 1;
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const requestInit =
+        typeof AbortSignal?.timeout === 'function' && requestTimeoutMs > 0
+          ? { ...init, signal: AbortSignal.timeout(requestTimeoutMs) }
+          : init;
+      const response = await fetchImpl(url, requestInit);
+
+      if (response.ok) {
+        return response;
+      }
+
+      const errorText =
+        typeof response.text === 'function' ? await response.text().catch(() => '') : '';
+      const error = new Error(`HTTP ${response.status}${errorText ? ` ${errorText}` : ''}`);
+      error.status = response.status;
+
+      if (!isRetryableStatus(response.status) || attempt === maxAttempts) {
+        throw error;
+      }
+      lastError = error;
+    } catch (error) {
+      if (typeof error?.status === 'number' && !isRetryableStatus(error.status)) {
+        throw error;
+      }
+      lastError = error;
+      if (attempt === maxAttempts) {
+        throw error;
+      }
+    }
+
+    await sleepImpl(retryDelaysMs[attempt - 1]);
+  }
+
+  throw lastError;
+}
+
+async function listPrefixEtags({
+  endpointUrl,
+  bucketName,
+  prefix,
+  accessKeyId,
+  secretAccessKey,
+  fetchImpl,
+  retryDelaysMs,
+  sleepImpl,
+  requestTimeoutMs,
+  etags,
+}) {
+  let continuationToken = '';
+
+  while (true) {
+    const { url, headers } = buildSignedListHeaders({
+      endpointUrl,
+      bucketName,
+      prefix,
+      continuationToken,
+      accessKeyId,
+      secretAccessKey,
+    });
+
+    const response = await fetchWithRetry({
+      fetchImpl,
+      url,
+      init: { method: 'GET', headers },
+      retryDelaysMs,
+      sleepImpl,
+      requestTimeoutMs,
+    });
+
+    if (typeof response.text !== 'function') {
+      throw new Error('Invalid ListObjectsV2 response body');
+    }
+
+    const xmlText = await response.text();
+    const parsed = parseListObjectsV2Xml(xmlText);
+    for (const [key, etag] of parsed.objects.entries()) {
+      etags.set(key, etag);
+    }
+
+    if (!parsed.isTruncated || !parsed.nextContinuationToken) {
+      break;
+    }
+    continuationToken = parsed.nextContinuationToken;
+  }
 }
 
 export function collectStaticFiles(rootDir, baseDir = rootDir, { excludeTopDirs = [] } = {}) {
@@ -196,6 +407,9 @@ export async function uploadNextStaticToR2({
   cwd = process.cwd(),
   fetchImpl = fetch,
   concurrency = DEFAULT_CONCURRENCY,
+  retryDelaysMs = DEFAULT_RETRY_DELAYS_MS,
+  sleepImpl = defaultSleep,
+  requestTimeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
   logger = console,
 } = {}) {
   const assetPrefix = (env.NEXT_PUBLIC_ASSET_PREFIX || '').trim();
@@ -203,6 +417,7 @@ export async function uploadNextStaticToR2({
   const bucketName = (env.R2_BUCKET_NAME || '').trim();
   const accessKeyId = (env.R2_ACCESS_KEY_ID || '').trim();
   const secretAccessKey = (env.R2_SECRET_ACCESS_KEY || '').trim();
+  const forceUpload = ['1', 'true', 'yes'].includes((env.FORCE_R2_UPLOAD || '').trim().toLowerCase());
 
   const missingR2Vars = [
     ['R2_ENDPOINT', endpointUrl],
@@ -221,7 +436,7 @@ export async function uploadNextStaticToR2({
     }
 
     logger.log('Skipping R2 upload: NEXT_PUBLIC_ASSET_PREFIX and R2 credentials are not configured.');
-    return { skipped: true, uploaded: 0 };
+    return { skipped: true, uploaded: 0, unchanged: 0 };
   }
 
   const uploadPlan = buildUploadPlan(cwd, { assetPrefix });
@@ -230,8 +445,34 @@ export async function uploadNextStaticToR2({
     throw new Error(`No export files found to upload under ${path.join(cwd, 'out')}`);
   }
 
+  const remoteEtags = new Map();
+  if (!forceUpload) {
+    try {
+      for (const prefix of ['_next/static/', 'site/']) {
+        await listPrefixEtags({
+          endpointUrl,
+          bucketName,
+          prefix,
+          accessKeyId,
+          secretAccessKey,
+          fetchImpl,
+          retryDelaysMs,
+          sleepImpl,
+          requestTimeoutMs,
+          etags: remoteEtags,
+        });
+      }
+    } catch (error) {
+      remoteEtags.clear();
+      logger.log(
+        `Warning: could not list existing R2 objects for incremental sync (${error?.message || error}); uploading all files.`
+      );
+    }
+  }
+
   let cursor = 0;
   let uploadedCount = 0;
+  let unchangedCount = 0;
 
   async function worker() {
     while (cursor < uploadPlan.length) {
@@ -239,6 +480,12 @@ export async function uploadNextStaticToR2({
       cursor += 1;
       const { fullPath, objectKey } = uploadPlan[index];
       const body = fs.readFileSync(fullPath);
+
+      if (!forceUpload && remoteEtags.size > 0 && remoteEtags.get(objectKey) === md5Hex(body)) {
+        unchangedCount += 1;
+        continue;
+      }
+
       const contentType = getContentType(fullPath);
       const cacheControl = getCacheControl(objectKey);
 
@@ -253,15 +500,21 @@ export async function uploadNextStaticToR2({
         secretAccessKey,
       });
 
-      const response = await fetchImpl(url, {
-        method: 'PUT',
-        headers,
-        body,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        throw new Error(`Failed uploading ${objectKey}: HTTP ${response.status} ${errorText}`);
+      try {
+        await fetchWithRetry({
+          fetchImpl,
+          url,
+          init: {
+            method: 'PUT',
+            headers,
+            body,
+          },
+          retryDelaysMs,
+          sleepImpl,
+          requestTimeoutMs,
+        });
+      } catch (error) {
+        throw new Error(`Failed uploading ${objectKey}: ${error?.message || error}`);
       }
 
       uploadedCount += 1;
@@ -272,9 +525,9 @@ export async function uploadNextStaticToR2({
   await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
   logger.log(
-    `Uploaded ${uploadedCount} portal files (_next/static/ and site/) to R2 bucket "${bucketName}".`
+    `Uploaded ${uploadedCount} portal files to R2 bucket "${bucketName}" (${unchangedCount} unchanged skipped).`
   );
-  return { skipped: false, uploaded: uploadedCount };
+  return { skipped: false, uploaded: uploadedCount, unchanged: unchangedCount };
 }
 
 const isDirectExecution =

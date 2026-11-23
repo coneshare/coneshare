@@ -61,5 +61,7 @@ To serve `/_next/static/*` (JS chunks, CSS, and bundled `Inter` `.woff2` fonts) 
 
 Notes on `scripts/upload-next-static-r2.mjs`:
 - Uploads `out/_next/static/**/*` to R2 **before** Cloudflare Pages publishes `out/` so new HTML never references missing chunks.
+- Performs paginated `ListObjectsV2` ETag comparison so unchanged files (e.g. screenshots and older hashed assets) are skipped automatically; set `FORCE_R2_UPLOAD=true` to force re-uploading all files.
+- Retries transient R2 `408`/`429`/`5xx` and network errors with backoff (`8` concurrent uploads by default), failing fast on non-retryable `4xx` errors.
 - Sets `Cache-Control: public, max-age=31536000, immutable` and never deletes previously hashed files.
 - Skips automatically when `NEXT_PUBLIC_ASSET_PREFIX` and R2 credentials are unset (local builds and PR previews), and fails fast if `NEXT_PUBLIC_ASSET_PREFIX` is set without R2 credentials.
